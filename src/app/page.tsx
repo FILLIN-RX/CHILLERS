@@ -1,0 +1,574 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
+import Header from "@/components/Header";
+import BottomNav from "@/components/BottomNav";
+import HeroCarousel from "@/components/HeroCarousel";
+import MovieCard from "@/components/MovieCard";
+import CategoryCard from "@/components/CategoryCard";
+import ContinueWatchingCard from "@/components/ContinueWatchingCard";
+import SearchOverlay from "@/components/SearchOverlay";
+import MovieModal from "@/components/MovieModal";
+import VideoPlayer from "@/components/VideoPlayer";
+import Footer from "@/components/Footer";
+
+import {
+  CATEGORIES,
+  FEATURED_COLLECTIONS,
+  MovieOrShow,
+  Category,
+} from "./mockData";
+
+import {
+  getTrendingMovies,
+  getTrendingTV,
+  getPopularMovies,
+  getPopularTV,
+  getTopRatedMovies,
+  getMediaDetails,
+  getStreamUrl,
+  getAllMovies,
+  getMovieGenres,
+  getByGenreMultiple,
+  getRecommendedForYou,
+  Genre,
+} from "./api";
+
+export default function Home() {
+  // Navigation & View States
+  const [activeTab, setActiveTab] = useState<string>("home");
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  // Media Playback & Modal States
+  const [selectedMovie, setSelectedMovie] = useState<MovieOrShow | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [playingVideo, setPlayingVideo] = useState<MovieOrShow | null>(null);
+
+  // Favorites / Watchlist state
+  const [favorites, setFavorites] = useState<string[]>([]);
+
+  // Continue Watching History
+  const [continueWatching, setContinueWatching] = useState<
+    { item: MovieOrShow; progress: number; remaining: string; episodeName?: string }[]
+  >([]);
+
+  // Live TMDB Data
+  const [heroSlides, setHeroSlides] = useState<MovieOrShow[]>([]);
+  const [trendingAll, setTrendingAll] = useState<MovieOrShow[]>([]);
+  const [moviesData, setMoviesData] = useState<MovieOrShow[]>([]);
+  const [seriesData, setSeriesData] = useState<MovieOrShow[]>([]);
+  const [topRatedData, setTopRatedData] = useState<MovieOrShow[]>([]);
+  const [allMovies, setAllMovies] = useState<MovieOrShow[]>([]);
+  const [genres, setGenres] = useState<Genre[]>([]);
+  const [genreMovies, setGenreMovies] = useState<Record<string, MovieOrShow[]>>({});
+  const [recommendedMovies, setRecommendedMovies] = useState<MovieOrShow[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState(true);
+
+  // Load favorites & continue watching from localStorage on mount
+  useEffect(() => {
+    // Load Favorites
+    const savedFavorites = localStorage.getItem("chiller_favorites");
+    if (savedFavorites) {
+      try {
+        setFavorites(JSON.parse(savedFavorites));
+      } catch (e) {
+        console.error("Failed to parse favorites", e);
+      }
+    }
+
+    // Load Continue Watching
+    loadContinueWatchingHistory();
+  }, [playingVideo]);
+
+  // Fetch live TMDB data from backend on mount
+  useEffect(() => {
+    async function fetchAll() {
+      setIsLoadingData(true);
+      try {
+        const [trending, trendingTV, popular, popularTV, topRated, moreMovies, genreList] = await Promise.all([
+          getTrendingMovies(),
+          getTrendingTV(),
+          getPopularMovies(),
+          getPopularTV(),
+          getTopRatedMovies(),
+          getAllMovies(),
+          getMovieGenres(),
+        ]);
+
+        // Merge trending movies + TV for the "Trending" tab
+        const allTrending = [...trending, ...trendingTV];
+        if (allTrending.length > 0) setTrendingAll(allTrending);
+
+        // Movies tab
+        if (popular.length > 0) setMoviesData(popular);
+
+        // Series tab
+        if (popularTV.length > 0) setSeriesData(popularTV);
+
+        // Top Rated
+        if (topRated.length > 0) setTopRatedData(topRated);
+
+        // All movies merged (for more content)
+        if (moreMovies.length > 0) setAllMovies(moreMovies);
+
+        // Genres
+        if (genreList.length > 0) {
+          setGenres(genreList);
+
+          // Fetch movies by top genres (exclude ones that are too broad like "Documentary")
+          const topGenreIds = genreList.slice(0, 10).map(g => ({ id: String(g.id), name: g.name }));
+          const byGenre = await getByGenreMultiple(topGenreIds, 2);
+          setGenreMovies(byGenre);
+        }
+
+        // Recommended For You (based on popular movies' recommendations)
+        const recs = await getRecommendedForYou();
+        if (recs.length > 0) setRecommendedMovies(recs);
+
+        // Hero slides: fetch details for top 5 popular movies to get trailers
+        const topItems = popular.slice(0, 5);
+        const detailedSlides = await Promise.all(
+          topItems.map(item => getMediaDetails(item.id, false))
+        );
+        const validSlides = detailedSlides.filter((s): s is MovieOrShow => s !== null);
+        if (validSlides.length > 0) setHeroSlides(validSlides);
+
+      } catch (err) {
+        console.error("Failed to load TMDB data", err);
+      } finally {
+        setIsLoadingData(false);
+      }
+    }
+    fetchAll();
+  }, []);
+
+  // Handle ?play=1 redirect from detail page (uses sessionStorage bridge)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("play") === "1") {
+      try {
+        const raw = sessionStorage.getItem("chiller_play_item");
+        if (raw) {
+          const item = JSON.parse(raw) as MovieOrShow;
+          sessionStorage.removeItem("chiller_play_item");
+          // Resolve the actual stream URL (separate from trailer)
+          getStreamUrl(item.id, item.type === 'series' || item.type === 'anime' ? item.type : 'movie', undefined, undefined, item.title).then(stream => {
+            const updated = stream ? { ...item, videoUrl: stream.embedUrl } : { ...item, videoUrl: '' };
+            setPlayingVideo(updated);
+          });
+          // Clean URL without reload
+          window.history.replaceState({}, "", "/");
+        }
+      } catch (e) { /* ignore */ }
+    }
+  }, []);
+
+  const loadContinueWatchingHistory = () => {
+    const history: { item: MovieOrShow; progress: number; remaining: string; episodeName?: string; updatedAt: number }[] = [];
+    
+    // Look for chiller_progress_* keys in localStorage
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith("chiller_progress_")) {
+        try {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            // Match corresponding media item from our data
+            const allData = [...trendingAll, ...moviesData, ...seriesData];
+            const foundItem = allData.find((m) => m.id === parsed.id);
+            if (foundItem) {
+              history.push({
+                item: foundItem,
+                progress: parsed.progress,
+                remaining: parsed.remaining,
+                episodeName: parsed.episodeName,
+                updatedAt: parsed.updatedAt || 0,
+              });
+            }
+          }
+        } catch (e) {
+          console.error("Failed to read progress history item", e);
+        }
+      }
+    }
+
+    // Sort by most recently watched
+    history.sort((a, b) => b.updatedAt - a.updatedAt);
+    setContinueWatching(history.map(({ item, progress, remaining, episodeName }) => ({ item, progress, remaining, episodeName })));
+  };
+
+  // Toggle Favorite Action
+  const toggleFavorite = (id: string) => {
+    const nextFavorites = favorites.includes(id)
+      ? favorites.filter((favId) => favId !== id)
+      : [...favorites, id];
+    
+    setFavorites(nextFavorites);
+    localStorage.setItem("chiller_favorites", JSON.stringify(nextFavorites));
+  };
+
+  // Media triggers — open modal immediately, then enrich with full TMDB details in background
+  const handleOpenDetails = async (item: MovieOrShow) => {
+    setSelectedMovie(item);
+    setIsModalOpen(true);
+    try {
+      const isTV = item.type === "series" || item.type === "anime" || item.duration?.includes("Season");
+      const full = await getMediaDetails(item.id, isTV);
+      if (full) setSelectedMovie(full);
+    } catch (e) {
+      // keep the card data already shown
+    }
+  };
+
+  const handleWatchNow = async (item: MovieOrShow) => {
+    setIsModalOpen(false);
+    const stream = await getStreamUrl(item.id, item.type === 'documentary' ? 'movie' : item.type, undefined, undefined, item.title);
+    const updatedItem = stream ? { ...item, videoUrl: stream.embedUrl } : item;
+    setPlayingVideo(updatedItem);
+  };
+
+  // Filter content by tab
+  const getFilteredMedia = (type: 'movie' | 'series' | 'anime' | 'documentary') => {
+    if (type === 'movie') return moviesData.length > 0 ? moviesData : allMovies;
+    if (type === 'series') return seriesData.length > 0 ? seriesData : trendingAll;
+    return trendingAll.filter(m => m.type === type);
+  };
+
+  return (
+    <div className="flex flex-col min-h-screen bg-brand-dark transition-colors duration-300">
+      
+      {/* Search overlay portal */}
+      <SearchOverlay
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+        onOpenDetails={handleOpenDetails}
+      />
+
+      {/* Sticky Glass Navbar Header */}
+      <Header
+        activeTab={activeTab}
+        setActiveTab={(tab) => {
+          setActiveTab(tab);
+          setPlayingVideo(null); // Return to browser view when tab changes
+        }}
+        onSearchClick={() => setIsSearchOpen(true)}
+      />
+
+      {/* Main Content Area */}
+      <main className={`flex-grow transition-all duration-300 ${playingVideo || activeTab !== "home" ? "pt-[72px]" : ""}`}>
+        {playingVideo ? (
+          /* Immersive Custom Video Player Mode */
+          <VideoPlayer
+            item={playingVideo}
+            onBack={() => {
+              setPlayingVideo(null);
+              loadContinueWatchingHistory(); // refresh continue watching row on exit
+            }}
+            onOpenDetails={handleOpenDetails}
+          />
+        ) : (
+          /* Standard Browsing Portal Hub */
+          <div className="space-y-12 pb-20 sm:pb-24">
+            
+            {/* HERO CAROUSEL BLOCK */}
+            {activeTab === "home" && (
+              <HeroCarousel
+                slides={heroSlides}
+                onWatchNow={handleWatchNow}
+                onOpenDetails={handleOpenDetails}
+                favorites={favorites}
+                toggleFavorite={toggleFavorite}
+                slideTimings={[20000, 20000, 20000, 20000, 20000]}
+              />
+            )}
+
+            {/* CONTINUE WATCHING CONTAINER (Dynamic) */}
+            {continueWatching.length > 0 && activeTab === "home" && (
+              <div className="max-w-[1600px] mx-auto px-4 sm:px-8 md:px-12 lg:px-[4%] space-y-4">
+                <h3 className="text-lg font-bold text-foreground tracking-tight flex items-center gap-2">
+                  <span className="h-3 w-1 bg-brand-secondary rounded-full" />
+                  Continue Watching
+                </h3>
+                <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar scroll-smooth">
+                  {continueWatching.map(({ item, progress, remaining, episodeName }) => (
+                    <ContinueWatchingCard
+                      key={item.id}
+                      item={item}
+                      progress={progress}
+                      remainingTime={remaining}
+                      episodeName={episodeName}
+                      onResume={handleWatchNow}
+                      onOpenDetails={handleOpenDetails}
+                      />
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {/* RECOMMENDED FOR YOU */}
+            {recommendedMovies.length > 0 && activeTab === "home" && (
+              <div className="max-w-[1600px] mx-auto px-4 sm:px-8 md:px-12 lg:px-[4%] space-y-4">
+                <h3 className="text-lg font-bold text-foreground tracking-tight flex items-center gap-2">
+                  <span className="h-3 w-1 bg-brand-primary rounded-full" />
+                  Recommended For You
+                </h3>
+                <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar scroll-smooth">
+                  {recommendedMovies.map((item) => (
+                    <MovieCard
+                      key={item.id}
+                      item={item}
+                      onPlay={handleWatchNow}
+                      onOpenDetails={handleOpenDetails}
+                      favorites={favorites}
+                      toggleFavorite={toggleFavorite}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* MAIN TAB SWITCH CONTENT CONTAINER */}
+            <div className="max-w-[1600px] mx-auto px-4 sm:px-8 md:px-12 lg:px-[4%] space-y-12">
+              
+              {activeTab === "home" && (
+                <>
+                  {/* Row 1: Trending Movies & Shows */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-bold text-foreground tracking-tight flex items-center gap-2">
+                      <span className="h-3 w-1 bg-brand-primary rounded-full" />
+                      Trending Worldwide
+                    </h3>
+                    <div className="flex gap-6 overflow-x-auto pb-4 no-scrollbar scroll-smooth">
+                      {(trendingAll.length > 0 ? trendingAll : allMovies).map((item) => (
+                        <MovieCard
+                          key={item.id}
+                          item={item}
+                          onPlay={handleWatchNow}
+                          onOpenDetails={handleOpenDetails}
+                          favorites={favorites}
+                          toggleFavorite={toggleFavorite}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Row 4: Category Genres Visual Board */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-bold text-foreground tracking-tight flex items-center gap-2">
+                      <span className="h-3 w-1 bg-brand-primary rounded-full" />
+                      Browse by Genre
+                    </h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                      {(genres.length > 0
+                        ? genres.map(g => ({ id: String(g.id), name: g.name, imageUrl: '' }))
+                        : CATEGORIES
+                      ).slice(0, 10).map((g) => {
+                        return (
+                          <CategoryCard
+                            key={g.id}
+                            category={{
+                              id: g.id,
+                              name: g.name,
+                              imageUrl: `https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=600&auto=format&fit=crop`,
+                            }}
+                            onClick={() => { setActiveTab("categories"); }}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Genre Movie Rows */}
+                  {Object.entries(genreMovies).length > 0 && Object.entries(genreMovies).map(([genreName, movies]) => (
+                    movies.length > 0 && (
+                      <div key={genreName} className="space-y-4">
+                        <h3 className="text-lg font-bold text-foreground tracking-tight flex items-center gap-2">
+                          <span className="h-3 w-1 bg-brand-secondary rounded-full" />
+                          {genreName} Movies
+                        </h3>
+                        <div className="flex gap-6 overflow-x-auto pb-4 no-scrollbar scroll-smooth">
+                          {movies.map((item) => (
+                            <MovieCard
+                              key={item.id}
+                              item={item}
+                              onPlay={handleWatchNow}
+                              onOpenDetails={handleOpenDetails}
+                              favorites={favorites}
+                              toggleFavorite={toggleFavorite}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  ))}
+                </>
+              )}
+
+              {/* MOVIES TAB */}
+              {activeTab === "movies" && (
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="text-3xl font-extrabold text-foreground">Blockbuster Movies</h2>
+                    <p className="text-brand-text-muted text-sm mt-1">Unlimited mock streaming. Instant theatrical releases.</p>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                    {getFilteredMedia("movie").map((item) => (
+                      <MovieCard
+                        key={item.id}
+                        item={item}
+                        onPlay={handleWatchNow}
+                        onOpenDetails={handleOpenDetails}
+                        favorites={favorites}
+                        toggleFavorite={toggleFavorite}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* SERIES TAB */}
+              {activeTab === "series" && (
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="text-3xl font-extrabold text-foreground">Featured Series</h2>
+                    <p className="text-brand-text-muted text-sm mt-1">Binge-worthy premium drama, politics, and thrillers.</p>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                    {getFilteredMedia("series").map((item) => (
+                      <MovieCard
+                        key={item.id}
+                        item={item}
+                        onPlay={handleWatchNow}
+                        onOpenDetails={handleOpenDetails}
+                        favorites={favorites}
+                        toggleFavorite={toggleFavorite}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ANIME TAB */}
+              {activeTab === "anime" && (
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="text-3xl font-extrabold text-foreground">Global Anime</h2>
+                    <p className="text-brand-text-muted text-sm mt-1">Action packed cybernetic ninjas, mechs, and spirits.</p>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                    {getFilteredMedia("anime").map((item) => (
+                      <MovieCard
+                        key={item.id}
+                        item={item}
+                        onPlay={handleWatchNow}
+                        onOpenDetails={handleOpenDetails}
+                        favorites={favorites}
+                        toggleFavorite={toggleFavorite}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* TRENDING TAB */}
+              {activeTab === "trending" && (
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="text-3xl font-extrabold text-foreground">Trending This Week</h2>
+                    <p className="text-brand-text-muted text-sm mt-1">The most watched films and series on Chiller right now.</p>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                    {(trendingAll.length > 0 ? trendingAll : allMovies).map((item) => (
+                      <MovieCard
+                        key={item.id}
+                        item={item}
+                        onPlay={handleWatchNow}
+                        onOpenDetails={handleOpenDetails}
+                        favorites={favorites}
+                        toggleFavorite={toggleFavorite}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* CATEGORIES TAB */}
+              {activeTab === "categories" && (
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="text-3xl font-extrabold text-foreground">Explore Categories</h2>
+                    <p className="text-brand-text-muted text-sm mt-1">Find content curated by genre and editorial focus.</p>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                    {(genres.length > 0
+                      ? genres.map(g => ({ id: String(g.id), name: g.name, imageUrl: '' }))
+                      : CATEGORIES
+                    ).map((g) => {
+                      return (
+                        <CategoryCard
+                          key={g.id}
+                          category={{
+                            id: g.id,
+                            name: g.name,
+                            imageUrl: `https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=600&auto=format&fit=crop`,
+                          }}
+                          onClick={(c) => {
+                          // Search for the genre directly to filter
+                          setIsSearchOpen(true);
+                          // A small delay to let search overlay input initialize
+                          setTimeout(() => {
+                            const searchInput = document.querySelector("input[placeholder*='Search']") as HTMLInputElement;
+                            if (searchInput) {
+                              searchInput.value = c.name;
+                              // Trigger state update
+                              const event = new Event('input', { bubbles: true });
+                              searchInput.dispatchEvent(event);
+                            }
+                          }, 100);
+                          }}
+                        />
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+
+            </div>
+
+            {/* Premium Editorial Footer Block */}
+            <Footer />
+
+          </div>
+        )}
+      </main>
+
+      {/* Single full-screen overlay modal for detailed descriptions */}
+      <MovieModal
+        item={selectedMovie}
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onWatch={handleWatchNow}
+        favorites={favorites}
+        toggleFavorite={toggleFavorite}
+        onOpenDetails={(movie) => {
+          setSelectedMovie(movie); // navigate to new movie details in modal without reloads
+        }}
+      />
+
+      {/* Mobile Bottom Navigation */}
+      {!playingVideo && (
+        <BottomNav
+          activeTab={activeTab}
+          setActiveTab={(tab) => {
+            setActiveTab(tab);
+            setPlayingVideo(null);
+          }}
+          onSearchClick={() => setIsSearchOpen(true)}
+        />
+      )}
+
+    </div>
+  );
+}

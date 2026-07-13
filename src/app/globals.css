@@ -1,0 +1,156 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-primary: #D70466;
+  --color-brand-secondary: #7C3AED;
+  /* Static fallback tokens — dynamic variants handled via CSS classes below */
+  --font-sans: var(--font-geist-sans), Arial, sans-serif;
+  --font-mono: var(--font-geist-mono), monospace;
+}
+
+:root {
+  --background: #18181B; /* Lightened from #09090B */
+  --foreground: #FAFAFA; /* Lightened from #F4F4F5 */
+  --card-bg: #27272A; /* Lightened from #121214 */
+  --card-border: #3F3F46; /* Lightened from #1F1F23 */
+  --text-muted: #D4D4D8; /* Lightened from #A1A1AA */
+  --glass-bg: rgba(39, 39, 42, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-nav-bg: rgba(24, 24, 27, 0.75);
+  --glass-nav-border: rgba(255, 255, 255, 0.08);
+  --glass-modal-bg: rgba(30, 30, 33, 0.85);
+  --glass-modal-border: rgba(255, 255, 255, 0.12);
+  --overlay-base: 24, 24, 27;
+  --skeleton-base: #27272A;
+  --skeleton-shimmer: #3F3F46;
+}
+
+.light {
+  --background: #F5F5F7;
+  --foreground: #09090B;
+  --card-bg: #FFFFFF;
+  --card-border: #E4E4E7;
+  --text-muted: #52525B;
+  --glass-bg: rgba(255, 255, 255, 0.6);
+  --glass-border: rgba(0, 0, 0, 0.06);
+  --glass-nav-bg: rgba(245, 245, 247, 0.85);
+  --glass-nav-border: rgba(0, 0, 0, 0.06);
+  --glass-modal-bg: rgba(255, 255, 255, 0.85);
+  --glass-modal-border: rgba(0, 0, 0, 0.1);
+  --overlay-base: 245, 245, 247;
+  --skeleton-base: #E4E4E7;
+  --skeleton-shimmer: #F4F4F5;
+}
+
+/* ── Runtime theme utility classes ─────────────────────────────────────── */
+/* These bridge the gap between Tailwind @theme (build-time static) and     */
+/* runtime CSS custom properties that swap on light/dark toggle.            */
+
+.bg-brand-dark          { background-color: var(--background); }
+.text-foreground        { color: var(--foreground); }
+.bg-brand-card          { background-color: var(--card-bg); }
+.bg-brand-card\/40      { background-color: color-mix(in srgb, var(--card-bg) 40%, transparent); }
+.bg-brand-card\/60      { background-color: color-mix(in srgb, var(--card-bg) 60%, transparent); }
+.border-brand-border    { border-color: var(--card-border); }
+.text-brand-text-muted  { color: var(--text-muted); }
+
+/* Custom premium scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--card-border);
+  border-radius: 9999px;
+  border: 2px solid var(--background);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-brand-text-muted);
+}
+
+body {
+  background:
+    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(215, 4, 102, 0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 80% 20%, rgba(124, 58, 237, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse 50% 40% at 20% 80%, rgba(215, 4, 102, 0.04) 0%, transparent 40%),
+    var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+/* Glassmorphism utility classes */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--glass-border);
+}
+
+.glass-nav {
+  background: var(--glass-nav-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--glass-nav-border);
+}
+
+.glass-modal {
+  background: var(--glass-modal-bg);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  border: 1px solid var(--glass-modal-border);
+}
+
+/* Card hover glow effect */
+.hover-glow {
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.hover-glow:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 12px 30px -10px rgba(215, 4, 102, 0.25);
+  border-color: rgba(215, 4, 102, 0.4);
+}
+
+/* Skeleton Loading State Animations */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-loading {
+  background: linear-gradient(90deg, var(--skeleton-base) 25%, var(--skeleton-shimmer) 50%, var(--skeleton-base) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Banner gradient overlay */
+.banner-overlay {
+  background: linear-gradient(to top, var(--background) 0%, rgba(var(--overlay-base), 0.85) 12%, rgba(var(--overlay-base), 0.2) 35%, transparent 65%),
+              linear-gradient(to right, rgba(var(--overlay-base), 0.7) 0%, rgba(var(--overlay-base), 0.15) 30%, transparent 60%);
+}
+
+.banner-overlay-top {
+  background: linear-gradient(to bottom, rgba(var(--overlay-base), 0.65) 0%, transparent 100%);
+}
+
+/* Custom smooth horizontal scrolling */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
