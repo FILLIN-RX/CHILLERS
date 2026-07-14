@@ -74,7 +74,11 @@ function MediaDetailPage() {
     setIsFavorite(next.includes(id));
   };
 
-  const handleWatch = () => {
+  const handleWatch = async () => {
+    if (!isTV && item && !item.videoUrl) {
+      const stream = await getStreamUrl(item.id, 'movie', undefined, undefined, item.title);
+      if (stream) setItem({ ...item, videoUrl: stream.embedUrl });
+    }
     setTimeout(() => playerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
   };
 
@@ -288,6 +292,22 @@ function MediaDetailPage() {
                   {actor}
                 </span>
               ))}
+            </div>
+          </section>
+        )}
+
+        {!isTV && (
+          <section ref={playerRef} className="space-y-4">
+            <h2 className="text-2xl font-black text-white flex items-center gap-3">
+              <span className="h-5 w-1 rounded-full bg-[#D70466]" />
+              Lecture
+            </h2>
+            <div className="w-full rounded-3xl overflow-hidden border border-zinc-800 shadow-2xl">
+              <VideoPlayer 
+                item={item!} 
+                onBack={() => {}}
+                onOpenDetails={(item) => router.push(`/media/${item.id}?type=${item.type}`)} 
+              />
             </div>
           </section>
         )}

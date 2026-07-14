@@ -10,12 +10,12 @@ export class VidAPIProvider implements StreamingProvider {
   }
 
   async getMovieStream(query: StreamQuery): Promise<StreamResult | null> {
-    const embedUrl = `${BASE_URL}/movie/${query.tmdbId}`;
+    const embedUrl = `${BASE_URL}/movie/${query.tmdbId}?language=fr`;
     return { provider: this.name, embedUrl, type: 'movie' };
   }
 
   async getEpisodeStream(query: StreamQuery): Promise<StreamResult | null> {
-    const embedUrl = `${BASE_URL}/tv/${query.tmdbId}/${query.season || 1}/${query.episode || 1}`;
+    const embedUrl = `${BASE_URL}/tv/${query.tmdbId}/${query.season || 1}/${query.episode || 1}?language=fr`;
     return { provider: this.name, embedUrl, type: 'episode' };
   }
 }

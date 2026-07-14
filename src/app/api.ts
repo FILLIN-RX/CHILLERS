@@ -1,6 +1,6 @@
 import { MovieOrShow } from "./mockData";
 
-const API_BASE_URL = "https://chillers.onrender.com/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://chillers.onrender.com/api";
 
 const GENRE_MAP: { [key: number]: string } = {
   28: "Action",

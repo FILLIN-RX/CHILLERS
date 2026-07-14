@@ -6,6 +6,7 @@ const BASE_PARAMS = {
     primaryColor: 'D70466',
     autoplay: 'false',
     icons: 'vid',
+    language: 'fr',
 };
 class VidLinkProvider {
     constructor() {

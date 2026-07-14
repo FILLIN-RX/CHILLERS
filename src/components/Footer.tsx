@@ -68,7 +68,7 @@ export default function Footer() {
 
         {/* Bottom Rights & Policy Row */}
         <div className="border-t border-brand-border pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-brand-text-muted/80 font-semibold">
-          <span>&copy; {new Date().getFullYear()} Chiller Inc. No rights reserved. Simulated luxury platform.</span>
+          <span>&copy; {new Date().getFullYear()} Chiller Inc. No rights reserved. v1.1.2</span>
           <div className="flex items-center gap-4">
             <a href="#" className="hover:text-brand-primary transition-colors">Terms of Service</a>
             <span>•</span>

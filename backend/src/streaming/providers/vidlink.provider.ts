@@ -5,6 +5,7 @@ const BASE_PARAMS = {
   primaryColor: 'D70466',
   autoplay: 'false',
   icons: 'vid',
+  language: 'fr',
 };
 
 export class VidLinkProvider implements StreamingProvider {
