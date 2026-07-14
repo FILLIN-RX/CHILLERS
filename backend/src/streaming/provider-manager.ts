@@ -70,14 +70,26 @@ export class ProviderManager {
 
   private async validateUrl(url: string): Promise<boolean> {
     try {
-      const response = await axios.head(url, {
+      const response = await axios.get(url, {
         timeout: VALIDATION_TIMEOUT,
-        validateStatus: (status) => status < 500,
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         },
       });
-      return response.status < 400;
+
+      if (response.status >= 400) return false;
+
+      // Check for common indicators that the stream is unavailable in the body
+      const body = response.data.toLowerCase();
+      const notFoundIndicators = ['not found', 'unavailable', 'error loading', 'no stream', 'content not available'];
+      
+      for (const indicator of notFoundIndicators) {
+        if (body.includes(indicator)) {
+          return false;
+        }
+      }
+
+      return true;
     } catch {
       return false;
     }

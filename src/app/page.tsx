@@ -14,10 +14,9 @@ import VideoPlayer from "@/components/VideoPlayer";
 import Footer from "@/components/Footer";
 
 import {
-  CATEGORIES,
-  FEATURED_COLLECTIONS,
   MovieOrShow,
-  Category,
+  Episode,
+  Season,
 } from "./mockData";
 
 import {
@@ -43,7 +42,7 @@ export default function Home() {
   // Media Playback & Modal States
   const [selectedMovie, setSelectedMovie] = useState<MovieOrShow | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [playingVideo, setPlayingVideo] = useState<MovieOrShow | null>(null);
+  const [playingVideo, setPlayingVideo] = useState<{ item: MovieOrShow; episode?: Episode } | null>(null);
 
   // Favorites / Watchlist state
   const [favorites, setFavorites] = useState<string[]>([]);
@@ -64,6 +63,7 @@ export default function Home() {
   const [genreMovies, setGenreMovies] = useState<Record<string, MovieOrShow[]>>({});
   const [recommendedMovies, setRecommendedMovies] = useState<MovieOrShow[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
+  const [activeSeason, setActiveSeason] = useState<Season | null>(null);
 
   // Load favorites & continue watching from localStorage on mount
   useEffect(() => {
@@ -222,11 +222,25 @@ export default function Home() {
     }
   };
 
-  const handleWatchNow = async (item: MovieOrShow) => {
+  const handleWatchNow = async (item: MovieOrShow, episode?: Episode) => {
     setIsModalOpen(false);
-    const stream = await getStreamUrl(item.id, item.type === 'documentary' ? 'movie' : item.type, undefined, undefined, item.title);
-    const updatedItem = stream ? { ...item, videoUrl: stream.embedUrl } : item;
-    setPlayingVideo(updatedItem);
+    
+    // Clear videoUrl before fetching stream to prevent trailer from playing initially
+    setPlayingVideo({ item: { ...item, videoUrl: '' }, episode });
+    
+    let stream;
+    if (episode) {
+      stream = await getStreamUrl(item.id, item.type, activeSeason?.seasonNumber, episode.number, item.title);
+    } else {
+      stream = await getStreamUrl(item.id, item.type === 'documentary' ? 'movie' : item.type, undefined, undefined, item.title);
+    }
+    
+    if (stream) {
+      setPlayingVideo({ item: { ...item, videoUrl: stream.embedUrl }, episode });
+    } else {
+      // Fallback to original trailer if stream fails
+      setPlayingVideo({ item, episode });
+    }
   };
 
   // Filter content by tab
@@ -261,7 +275,8 @@ export default function Home() {
         {playingVideo ? (
           /* Immersive Custom Video Player Mode */
           <VideoPlayer
-            item={playingVideo}
+            item={playingVideo.item}
+            episode={playingVideo.episode}
             onBack={() => {
               setPlayingVideo(null);
               loadContinueWatchingHistory(); // refresh continue watching row on exit
@@ -363,8 +378,9 @@ export default function Home() {
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
                       {(genres.length > 0
                         ? genres.map(g => ({ id: String(g.id), name: g.name, imageUrl: '' }))
-                        : CATEGORIES
+                        : []
                       ).slice(0, 10).map((g) => {
+
                         return (
                           <CategoryCard
                             key={g.id}
@@ -494,46 +510,7 @@ export default function Home() {
                 </div>
               )}
 
-              {/* CATEGORIES TAB */}
-              {activeTab === "categories" && (
-                <div className="space-y-6">
-                  <div>
-                    <h2 className="text-3xl font-extrabold text-foreground">Explore Categories</h2>
-                    <p className="text-brand-text-muted text-sm mt-1">Find content curated by genre and editorial focus.</p>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                    {(genres.length > 0
-                      ? genres.map(g => ({ id: String(g.id), name: g.name, imageUrl: '' }))
-                      : CATEGORIES
-                    ).map((g) => {
-                      return (
-                        <CategoryCard
-                          key={g.id}
-                          category={{
-                            id: g.id,
-                            name: g.name,
-                            imageUrl: `https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=600&auto=format&fit=crop`,
-                          }}
-                          onClick={(c) => {
-                          // Search for the genre directly to filter
-                          setIsSearchOpen(true);
-                          // A small delay to let search overlay input initialize
-                          setTimeout(() => {
-                            const searchInput = document.querySelector("input[placeholder*='Search']") as HTMLInputElement;
-                            if (searchInput) {
-                              searchInput.value = c.name;
-                              // Trigger state update
-                              const event = new Event('input', { bubbles: true });
-                              searchInput.dispatchEvent(event);
-                            }
-                          }, 100);
-                          }}
-                        />
-                        );
-                      })}
-                  </div>
-                </div>
-              )}
+
 
             </div>
 

@@ -1,17 +1,18 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
-import { MovieOrShow, MOCK_MEDIA } from "@/app/mockData";
-import { XMarkIcon, PlayIcon, PlusIcon, CheckIcon, StarIcon } from "@heroicons/react/24/solid";
+import React, { useEffect, useRef, useState } from "react";
+import { MovieOrShow, Season, Episode } from "@/app/mockData";
+import { getSeasonDetails } from "@/app/api";
+import { XMarkIcon, PlayIcon, PlusIcon, CheckIcon, StarIcon, ChevronDownIcon } from "@heroicons/react/24/solid";
 
 interface MovieModalProps {
   item: MovieOrShow | null;
   isOpen: boolean;
   onClose: () => void;
-  onWatch: (item: MovieOrShow) => void;
+  onWatch: (item: MovieOrShow, episode?: Episode) => void;
   favorites: string[];
   toggleFavorite: (id: string) => void;
-  onOpenDetails: (item: MovieOrShow) => void; // to allow navigating similar content
+  onOpenDetails: (item: MovieOrShow) => void;
 }
 
 export default function MovieModal({
@@ -24,29 +25,46 @@ export default function MovieModal({
   onOpenDetails,
 }: MovieModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
+  const [activeSeason, setActiveSeason] = useState<Season | null>(null);
+  const [episodes, setEpisodes] = useState<Episode[]>([]);
 
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
+      if (item?.seasons && item.seasons.length > 0) {
+        handleSeasonChange(item.seasons[0]);
+      }
     } else {
       document.body.style.overflow = "unset";
+      setActiveSeason(null);
+      setEpisodes([]);
     }
     return () => {
       document.body.style.overflow = "unset";
     };
-  }, [isOpen]);
+  }, [isOpen, item]);
+
+  const handleSeasonChange = async (season: Season) => {
+    setActiveSeason(season);
+    // Fetch episodes for the selected season
+    if (item) {
+        const data = await getSeasonDetails(item.id, String(season.seasonNumber));
+        if (data && data.episodes) {
+            setEpisodes(data.episodes.map((ep: any) => ({
+                id: String(ep.id),
+                title: ep.name,
+                duration: `${ep.runtime || 24}m`,
+                number: ep.episode_number,
+                thumbnail: ep.still_path ? `https://image.tmdb.org/t/p/w500${ep.still_path}` : "",
+                synopsis: ep.overview,
+            })));
+        }
+    }
+  };
 
   if (!isOpen || !item) return null;
 
   const isFavorite = favorites.includes(item.id);
-
-  // Filter similar items based on type and shared genres
-  const similarContent = MOCK_MEDIA.filter(
-    (media) =>
-      media.id !== item.id &&
-      media.type === item.type &&
-      media.genres.some((g) => item.genres.includes(g))
-  ).slice(0, 4);
 
   // Close modal when clicking outside
   const handleOverlayClick = (e: React.MouseEvent) => {
@@ -147,6 +165,46 @@ export default function MovieModal({
                 {item.synopsis}
               </p>
             </div>
+            
+            {/* Season & Episode Section */}
+            {item.seasons && item.seasons.length > 0 && (
+                <div className="space-y-4 pt-6">
+                    <h3 className="text-sm font-extrabold uppercase tracking-widest text-brand-text-muted">
+                        Episodes
+                    </h3>
+                    
+                    {/* Season Selector */}
+                    <div className="flex items-center gap-2 bg-brand-card p-1 rounded-lg border border-brand-border">
+                        {item.seasons.map((season) => (
+                            <button
+                                key={season.id}
+                                onClick={() => handleSeasonChange(season)}
+                                className={`px-4 py-2 rounded-md text-sm font-semibold transition-colors ${
+                                    activeSeason?.id === season.id
+                                        ? "bg-brand-primary text-white"
+                                        : "text-foreground hover:bg-white/5"
+                                }`}
+                            >
+                                {season.name}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Episode List */}
+                    <div className="space-y-2">
+                        {episodes.map((ep) => (
+                            <div key={ep.id} onClick={() => onWatch(item, ep)} className="flex items-center gap-4 p-3 bg-brand-card rounded-lg border border-brand-border cursor-pointer hover:bg-white/5 transition-colors">
+                                <span className="text-brand-text-muted font-bold text-lg">{ep.number}</span>
+                                <div className="flex-grow">
+                                    <h4 className="text-sm font-bold text-foreground">{ep.title}</h4>
+                                    <p className="text-xs text-brand-text-muted">{ep.duration}</p>
+                                </div>
+                                <PlayIcon className="h-6 w-6 text-brand-primary" />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
           </div>
 
           {/* Right Panel: Cast, Genres, Info details */}
@@ -185,44 +243,6 @@ export default function MovieModal({
           </div>
 
         </div>
-
-        {/* Similar Content / Recommendations Section */}
-        {similarContent.length > 0 && (
-          <div className="p-6 md:p-8 border-t border-brand-border space-y-4">
-            <h3 className="text-sm font-extrabold uppercase tracking-widest text-brand-text-muted">
-              Similar Content
-            </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              {similarContent.map((media) => (
-                <div
-                  key={media.id}
-                  onClick={() => onOpenDetails(media)}
-                  className="group cursor-pointer space-y-2 bg-brand-card p-2.5 rounded-xl border border-brand-border hover:border-brand-primary/20 transition-all duration-300"
-                >
-                  <div className="aspect-[16/10] w-full rounded-lg overflow-hidden bg-zinc-950 relative">
-                    <img
-                      src={media.backdropUrl}
-                      alt={media.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-550"
-                    />
-                  </div>
-                  <div className="space-y-0.5">
-                    <h4 className="text-xs font-bold text-foreground group-hover:text-brand-primary transition-colors truncate">
-                      {media.title}
-                    </h4>
-                    <div className="flex items-center gap-1.5 text-[9px] text-brand-text-muted font-bold">
-                      <span>{media.year}</span>
-                      <div className="flex items-center gap-0.5 text-amber-400 font-semibold">
-                        <StarIcon className="h-2.5 w-2.5 fill-amber-400" />
-                        <span>{media.rating}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
       </div>
     </div>

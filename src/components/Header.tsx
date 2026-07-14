@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import { MagnifyingGlassIcon, GlobeAltIcon } from "@heroicons/react/24/outline";
 
 interface HeaderProps {
@@ -15,12 +16,11 @@ export default function Header({
   onSearchClick,
 }: HeaderProps) {
   const tabs = [
-    { id: "home", label: "Home" },
-    { id: "movies", label: "Movies" },
-    { id: "series", label: "Series" },
-    { id: "anime", label: "Anime" },
-    { id: "trending", label: "Trending" },
-    { id: "categories", label: "Categories" }
+    { id: "home", label: "Home", href: "/" },
+    { id: "movies", label: "Movies", href: "/media/movies" },
+    { id: "series", label: "Series", href: "/media/series" },
+    { id: "anime", label: "Anime", href: "/media/anime" },
+    { id: "trending", label: "Trending", href: "/trending" },
   ];
 
   const [isScrolled, setIsScrolled] = useState(false);
@@ -58,9 +58,9 @@ export default function Header({
           {/* Desktop Navigation Links */}
           <nav className="hidden md:flex items-center gap-6">
             {tabs.map((tab) => (
-              <button
+              <Link
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                href={tab.href}
                 className={`relative py-1 text-sm font-medium transition-colors focus:outline-none ${
                   activeTab === tab.id 
                     ? "text-white" 
@@ -71,8 +71,21 @@ export default function Header({
                 {activeTab === tab.id && (
                   <span className="absolute bottom-0 left-0 h-[2px] w-full bg-brand-primary rounded-full" />
                 )}
-              </button>
+              </Link>
             ))}
+            <Link
+              href="/categories"
+              className={`relative py-1 text-sm font-medium transition-colors focus:outline-none ${
+                activeTab === "categories" 
+                  ? "text-white" 
+                  : "text-zinc-400 hover:text-white"
+              }`}
+            >
+              Categories
+              {activeTab === "categories" && (
+                <span className="absolute bottom-0 left-0 h-[2px] w-full bg-brand-primary rounded-full" />
+              )}
+            </Link>
           </nav>
         </div>
 

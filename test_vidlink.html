@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>VidLink Media Test</title>
+    <style>
+        body { background: #111; color: white; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        .controls { margin-bottom: 20px; width: 100%; max-width: 800px; }
+        select { width: 100%; padding: 10px; font-size: 16px; }
+        iframe { width: 800px; height: 450px; border: 2px solid #D70466; border-radius: 8px; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <label for="mediaSelector">Select Media to Test:</label>
+        <select id="mediaSelector" onchange="changeMedia()">
+            <optgroup label="TV Series">
+                <option value="https://vidlink.pro/tv/243206/1/1">Pritam and Pedro (TV S1:E1)</option>
+                <option value="https://vidlink.pro/tv/94997/1/1">House of the Dragon (TV S1:E1)</option>
+            </optgroup>
+            <optgroup label="Movies">
+                <option value="https://vidlink.pro/movie/1339713">Obsession (Movie)</option>
+                <option value="https://vidlink.pro/movie/1084244">Toy Story 5 (Movie)</option>
+                <option value="https://vidlink.pro/movie/1275779">Disclosure Day (Movie)</option>
+            </optgroup>
+        </select>
+    </div>
+    <iframe id="player" src="https://vidlink.pro/tv/243206/1/1?primaryColor=D70466&autoplay=false&icons=vid" allowfullscreen></iframe>
+
+    <script>
+        function changeMedia() {
+            const selector = document.getElementById('mediaSelector');
+            const player = document.getElementById('player');
+            player.src = selector.value + "?primaryColor=D70466&autoplay=false&icons=vid";
+        }
+    </script>
+</body>
+</html>

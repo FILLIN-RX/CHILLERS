@@ -1,3 +1,4 @@
+
 import { StreamingProvider, StreamResult, StreamQuery } from './provider.interface';
 
 const BASE_URL = 'https://animekai.to';

@@ -11,7 +11,8 @@ import genresRoutes from './modules/genres/genres.routes';
 import streamingRoutes from './streaming/streaming.routes';
 import downloadRoutes from './modules/download/download.routes';
 
-dotenv.config();
+import path from 'path';
+dotenv.config({ path: path.join(__dirname, '../.env') });
 
 const app = express();
 
@@ -19,7 +20,7 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      frameSrc: ["'self'", "https://animekai.to", "https://vidlink.pro", "https://vidapi.xyz", "https://www.youtube.com"],
+      frameSrc: ["'self'", "https://animekai.to", "https://*.vidlink.pro", "https://vidapi.xyz", "https://www.youtube.com"],
       scriptSrc: ["'self'", "'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'", "https:"],
       imgSrc: ["'self'", "data:", "https:"],

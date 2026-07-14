@@ -14,6 +14,7 @@ async def listen_for_m3u8(
     """
     Ouvre start_url dans le navigateur et écoute toutes les requêtes
     réseau jusqu'à intercepter une URL de playlist HLS (.m3u8 / master).
+    Utilise la vérification du Content-Type pour une meilleure précision.
 
     Dès capture, ferme le navigateur et retourne l'URL.
     Retourne None si timeout atteint.
@@ -21,23 +22,17 @@ async def listen_for_m3u8(
     found_url: str | None = None
     event = asyncio.Event()
 
-    def handle_request(request):
+    async def handle_response(response):
         nonlocal found_url
-        url = request.url.lower()
+        headers = response.headers
+        content_type = headers.get("content-type", "").lower()
+        
+        # Check for HLS content type
+        if "application/vnd.apple.mpegurl" in content_type or "application/x-mpegurl" in content_type:
+            found_url = response.url
+            event.set()
 
-        # Ignorer les extensions inutiles
-        for ext in IGNORED_EXTENSIONS:
-            if url.endswith(ext):
-                return
-
-        # Vérifier les mots-clés de playlist
-        for kw in M3U8_KEYWORDS:
-            if kw in url:
-                found_url = request.url
-                event.set()
-                return
-
-    page.on("request", handle_request)
+    page.on("response", handle_response)
 
     try:
         await page.goto(start_url, wait_until="domcontentloaded", timeout=timeout * 1000)

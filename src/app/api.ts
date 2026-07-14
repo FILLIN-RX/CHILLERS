@@ -1,6 +1,6 @@
 import { MovieOrShow } from "./mockData";
 
-const API_BASE_URL = "http://localhost:4000/api";
+const API_BASE_URL = "https://chillers.onrender.com/api";
 
 const GENRE_MAP: { [key: number]: string } = {
   28: "Action",
@@ -36,7 +36,7 @@ export function mapTMDBToMovieOrShow(
   item: any,
   typeOverride?: "movie" | "series" | "anime" | "documentary"
 ): MovieOrShow {
-  const isTV = item.media_type === "tv" || item.first_air_date !== undefined || item.name !== undefined;
+  const isTV = item.media_type === "tv" || item.first_air_date !== undefined || item.name !== undefined || item.first_season_episodes !== undefined;
   
   // Decide media type (If animation genre is present, categorize under anime, etc.)
   let type: "movie" | "series" | "anime" | "documentary" = typeOverride || (isTV ? "series" : "movie");
@@ -62,6 +62,18 @@ export function mapTMDBToMovieOrShow(
 
   if (genres.length === 0) {
     genres = [type === "movie" ? "Movie" : type === "series" ? "Series" : type === "anime" ? "Anime" : "Documentary"];
+  }
+
+  // Map Seasons
+  let seasons: MovieOrShow['seasons'] = [];
+  if (item.seasons && Array.isArray(item.seasons)) {
+    seasons = item.seasons.map((s: any) => ({
+      id: String(s.id),
+      name: s.name,
+      seasonNumber: s.season_number,
+      posterUrl: s.poster_path ? `https://image.tmdb.org/t/p/w500${s.poster_path}` : "",
+      episodes: [], // Episodes are usually fetched via a separate API call for each season
+    }));
   }
 
   // Cast members
@@ -103,13 +115,14 @@ export function mapTMDBToMovieOrShow(
     rating: item.vote_average ? parseFloat(item.vote_average.toFixed(1)) : 7.0,
     year,
     duration: isTV
-      ? `${item.number_of_seasons || 1} Season`
+      ? `${item.number_of_seasons || 1} Season${item.number_of_seasons > 1 ? 's' : ''}`
       : item.runtime
         ? `${Math.floor(item.runtime / 60)}h ${item.runtime % 60}m`
         : "2h 05m",
     genres,
     cast: cast.length > 0 ? cast : ["Cast Info Unavailable"],
     videoUrl: videoUrl || "https://assets.mixkit.co/videos/preview/mixkit-futuristic-subway-station-with-neon-lights-42998-large.mp4",
+    seasons: seasons.length > 0 ? seasons : undefined,
   };
 }
 
@@ -191,7 +204,7 @@ export async function getTopRatedMovies(page = 1): Promise<MovieOrShow[]> {
   return [];
 }
 
-export async function getMediaDetails(id: string, isTV = false): Promise<MovieOrShow | null> {
+export async function getMediaDetails(id: string, isTV: boolean = false): Promise<MovieOrShow | null> {
   try {
     const endpoint = isTV ? `tv/${id}` : `movies/${id}`;
     const res = await fetch(`${API_BASE_URL}/${endpoint}`);
@@ -201,6 +214,19 @@ export async function getMediaDetails(id: string, isTV = false): Promise<MovieOr
     }
   } catch (error) {
     console.error("Error fetching media details:", error);
+  }
+  return null;
+}
+
+export async function getSeasonDetails(id: string, seasonNumber: string): Promise<any | null> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/tv/${id}/season/${seasonNumber}`);
+    const json = await res.json();
+    if (json.success && json.data) {
+      return json.data;
+    }
+  } catch (error) {
+    console.error("Error fetching season details:", error);
   }
   return null;
 }

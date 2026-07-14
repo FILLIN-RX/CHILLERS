@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { spawn } from 'child_process';
+import path from 'path';
 
 const router = Router();
 const CWD = process.cwd();
@@ -27,7 +28,7 @@ router.post('/', (req: Request, res: Response, next: NextFunction) => {
   }
   if (title) args.push(title);
 
-  const py = spawn('python', args, { cwd: CWD, timeout: 120000 });
+  const py = spawn(path.join(CWD, 'venv', 'bin', 'python3'), args, { cwd: CWD, timeout: 120000 });
   let stdout = '';
   let stderr = '';
 
@@ -36,6 +37,7 @@ router.post('/', (req: Request, res: Response, next: NextFunction) => {
 
   py.on('close', (code: number | null) => {
     if (code !== 0) {
+      console.error('Python downloader error:', stderr);
       res.json({ success: false, error: `Python exited code ${code}`, stderr });
       return;
     }

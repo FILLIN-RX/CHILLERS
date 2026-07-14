@@ -31,3 +31,15 @@ export const getDetails = async (req: Request, res: Response, next: NextFunction
     next(error);
   }
 };
+
+export const getSeasonDetails = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const id = req.params.id as string;
+    const seasonNumber = req.params.seasonNumber as string;
+    if (!id || !seasonNumber) throw new AppError('TV show ID and season number are required', 400);
+    const data = await tvService.getSeasonDetails(id, seasonNumber);
+    res.json({ success: true, data, message: null });
+  } catch (error) {
+    next(error);
+  }
+};

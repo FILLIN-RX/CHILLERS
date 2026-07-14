@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { MovieOrShow, MOCK_MEDIA } from "@/app/mockData";
+import { MovieOrShow, Episode } from "@/app/mockData";
 import {
   PlayIcon,
   PauseIcon,
@@ -20,11 +20,12 @@ import {
 
 interface VideoPlayerProps {
   item: MovieOrShow;
+  episode?: Episode;
   onBack: () => void;
   onOpenDetails: (item: MovieOrShow) => void;
 }
 
-export default function VideoPlayer({ item, onBack, onOpenDetails }: VideoPlayerProps) {
+export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   
   useEffect(() => {
@@ -47,12 +48,11 @@ export default function VideoPlayer({ item, onBack, onOpenDetails }: VideoPlayer
   const [isEpisodeDrawerOpen, setIsEpisodeDrawerOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
-  // Active Episode (if series or anime)
-  const [activeEpisodeIndex, setActiveEpisodeIndex] = useState(0);
-  const hasEpisodes = item.episodes && item.episodes.length > 0;
-  const currentEpisode = hasEpisodes && item.episodes ? item.episodes[activeEpisodeIndex] : null;
+  // Use passed episode or none
+  const currentEpisode = episode;
 
-  // ─── EFFECTS ────────────────────────────────────────────────────────────────  // Auto-hide controls logic
+  // ─── EFFECTS ────────────────────────────────────────────────────────────────
+  // Auto-hide controls logic
   const resetControlsTimeout = useCallback(() => {
     setShowControls(true);
     if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
@@ -75,7 +75,18 @@ export default function VideoPlayer({ item, onBack, onOpenDetails }: VideoPlayer
 
   // Load progress
   useEffect(() => {
-    const key = `chiller_progress_${item.id}`;
+    // Listener for VidLink progress events
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== 'https://vidlink.pro') return;
+      
+      if (event.data?.type === 'MEDIA_DATA') {
+        const mediaData = event.data.data;
+        localStorage.setItem('vidLinkProgress', JSON.stringify(mediaData));
+      }
+    };
+    window.addEventListener('message', handleMessage);
+
+    const key = `chiller_progress_${item.id}_${currentEpisode?.id || 'movie'}`;
     const saved = localStorage.getItem(key);
     if (saved && videoRef.current) {
       const parsed = JSON.parse(saved);
@@ -83,25 +94,30 @@ export default function VideoPlayer({ item, onBack, onOpenDetails }: VideoPlayer
         if (videoRef.current) videoRef.current.currentTime = parsed.time;
       };
       videoRef.current.addEventListener("loadedmetadata", handleMetadata);
-      return () => videoRef.current?.removeEventListener("loadedmetadata", handleMetadata);
+      return () => {
+        videoRef.current?.removeEventListener("loadedmetadata", handleMetadata);
+        window.removeEventListener("message", handleMessage);
+      };
     }
-  }, [item.id]);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [item.id, currentEpisode?.id]);
 
   // Save progress
   useEffect(() => {
     if (currentTime > 0 && duration > 0) {
       const progressPercent = Math.min((currentTime / duration) * 100, 100);
-      localStorage.setItem(`chiller_progress_${item.id}`, JSON.stringify({
+      localStorage.setItem(`chiller_progress_${item.id}_${currentEpisode?.id || 'movie'}`, JSON.stringify({
         id: item.id,
+        episodeId: currentEpisode?.id,
         time: currentTime,
         duration: duration,
         progress: progressPercent,
         remaining: `${Math.round((duration - currentTime) / 60)}m left`,
-        episodeName: currentEpisode ? `S1:E${currentEpisode.number}` : undefined,
+        episodeName: currentEpisode ? `E${currentEpisode.number}` : undefined,
         updatedAt: Date.now(),
       }));
     }
-  }, [currentTime, duration, item.id, currentEpisode]);
+  }, [currentTime, duration, item.id, currentEpisode?.id]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -182,7 +198,8 @@ export default function VideoPlayer({ item, onBack, onOpenDetails }: VideoPlayer
     return `${h > 0 ? h + ":" : ""}${m < 10 && h > 0 ? "0" : ""}${m}:${s < 10 ? "0" : ""}${s}`;
   };
 
-  const isIframe = item.videoUrl?.includes("youtube.com") || item.videoUrl?.includes("embed");
+  // Helper to determine if the video is an iframe (VidLink, YouTube, etc.)
+  const isIframe = item.videoUrl?.includes("vidlink.pro") || item.videoUrl?.includes("youtube.com") || item.videoUrl?.includes("embed");
 
   const [downloading, setDownloading] = useState(false);
 
@@ -196,7 +213,7 @@ export default function VideoPlayer({ item, onBack, onOpenDetails }: VideoPlayer
         String(item.id),
         type,
         title,
-        undefined,
+        undefined, // NOTE: Need to pass season info if available
         currentEpisode?.number
       );
       if (m3u8) {
@@ -220,7 +237,7 @@ export default function VideoPlayer({ item, onBack, onOpenDetails }: VideoPlayer
       {/* ─── VIDEO / CONTENT ─────────────────────────────────────────────── */}
       {isIframe ? (
         <iframe
-          src={`${item.videoUrl}?autoplay=1&controls=1&rel=0&modestbranding=1`}
+          src={item.videoUrl}
           className="w-full aspect-video border-none"
           allow="autoplay; encrypted-media; fullscreen"
           title={item.title}
@@ -258,7 +275,7 @@ export default function VideoPlayer({ item, onBack, onOpenDetails }: VideoPlayer
                   {currentEpisode && (
                     <>
                       <ChevronRightIcon className="h-4 w-4 text-white/40" />
-                      <span className="text-white/80">S1:E{currentEpisode.number} - {currentEpisode.title}</span>
+                      <span className="text-white/80">E{currentEpisode.number} - {currentEpisode.title}</span>
                     </>
                   )}
                 </h1>
@@ -327,14 +344,6 @@ export default function VideoPlayer({ item, onBack, onOpenDetails }: VideoPlayer
               </div>
 
               <div className="flex items-center gap-6">
-                {hasEpisodes && (
-                  <button 
-                    onClick={() => setIsEpisodeDrawerOpen(true)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-full border border-white/20 text-white text-sm font-bold hover:bg-white/10 transition-all"
-                  >
-                    <ListBulletIcon className="h-5 w-5" /> Episodes
-                  </button>
-                )}
                 <button 
                   onClick={handleDownload}
                   disabled={downloading}
@@ -356,47 +365,6 @@ export default function VideoPlayer({ item, onBack, onOpenDetails }: VideoPlayer
           </div>
 
           {/* ─── FLOATING MENUS ────────────────────────────────────────────── */}
-
-          {/* Episode Drawer */}
-          {isEpisodeDrawerOpen && (
-            <div className="absolute inset-y-0 right-0 w-full sm:w-96 bg-black/95 backdrop-blur-xl border-l border-white/10 z-[100] p-8 animate-in slide-in-from-right duration-300">
-              <div className="flex items-center justify-between mb-8">
-                <h2 className="text-2xl font-black text-white">Episodes</h2>
-                <button onClick={() => setIsEpisodeDrawerOpen(false)} className="text-white/50 hover:text-white">
-                  <XMarkIcon className="h-6 w-6" />
-                </button>
-              </div>
-              <div className="space-y-4 overflow-y-auto h-[calc(100%-80px)] pr-2 custom-scrollbar">
-                {item.episodes?.map((ep, idx) => (
-                  <div 
-                    key={ep.id}
-                    onClick={() => {
-                      setActiveEpisodeIndex(idx);
-                      if (videoRef.current) {
-                        videoRef.current.src = item.videoUrl || '';
-                        videoRef.current.load();
-                        videoRef.current.play();
-                      }
-                      setIsEpisodeDrawerOpen(false);
-                    }}
-                    className={`group flex gap-4 p-3 rounded-2xl cursor-pointer transition-all ${activeEpisodeIndex === idx ? "bg-[#D70466]/20 border border-[#D70466]/30" : "hover:bg-white/5 border border-transparent"}`}
-                  >
-                    <div className="relative w-32 aspect-video rounded-lg overflow-hidden bg-zinc-900 flex-none shadow-lg">
-                      <img src={ep.thumbnail} alt={ep.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <PlayIcon className="h-8 w-8 text-white" />
-                      </div>
-                    </div>
-                    <div className="flex flex-col justify-center min-w-0">
-                      <span className="text-[#D70466] text-[10px] font-black uppercase tracking-tighter">Episode {ep.number}</span>
-                      <h3 className="text-white font-bold text-sm truncate">{ep.title}</h3>
-                      <span className="text-white/40 text-[10px] font-medium">{ep.duration}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* Settings Menu */}
           {showSettings && (

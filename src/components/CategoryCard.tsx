@@ -1,7 +1,11 @@
 "use client";
 
 import React from "react";
-import { Category } from "@/app/mockData";
+interface Category {
+  id: string;
+  name: string;
+  imageUrl: string;
+}
 
 interface CategoryCardProps {
   category: Category;
