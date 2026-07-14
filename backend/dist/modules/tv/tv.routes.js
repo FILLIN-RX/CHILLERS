@@ -39,4 +39,5 @@ const router = (0, express_1.Router)();
 router.get('/popular', tvController.getPopular);
 router.get('/trending', tvController.getTrending);
 router.get('/:id', tvController.getDetails);
+router.get('/:id/season/:seasonNumber', tvController.getSeasonDetails);
 exports.default = router;

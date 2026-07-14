@@ -1,7 +1,11 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const child_process_1 = require("child_process");
+const path_1 = __importDefault(require("path"));
 const router = (0, express_1.Router)();
 const CWD = process.cwd();
 /**
@@ -25,13 +29,14 @@ router.post('/', (req, res, next) => {
     }
     if (title)
         args.push(title);
-    const py = (0, child_process_1.spawn)('python', args, { cwd: CWD, timeout: 120000 });
+    const py = (0, child_process_1.spawn)(path_1.default.join(CWD, 'venv', 'bin', 'python3'), args, { cwd: CWD, timeout: 120000 });
     let stdout = '';
     let stderr = '';
     py.stdout.on('data', (data) => { stdout += data.toString(); });
     py.stderr.on('data', (data) => { stderr += data.toString(); });
     py.on('close', (code) => {
         if (code !== 0) {
+            console.error('Python downloader error:', stderr);
             res.json({ success: false, error: `Python exited code ${code}`, stderr });
             return;
         }

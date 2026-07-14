@@ -15,13 +15,14 @@ const search_routes_1 = __importDefault(require("./modules/search/search.routes"
 const genres_routes_1 = __importDefault(require("./modules/genres/genres.routes"));
 const streaming_routes_1 = __importDefault(require("./streaming/streaming.routes"));
 const download_routes_1 = __importDefault(require("./modules/download/download.routes"));
-dotenv_1.default.config();
+const path_1 = __importDefault(require("path"));
+dotenv_1.default.config({ path: path_1.default.join(__dirname, '../.env') });
 const app = (0, express_1.default)();
 app.use((0, helmet_1.default)({
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'"],
-            frameSrc: ["'self'", "https://animekai.to", "https://vidlink.pro", "https://vidapi.xyz", "https://www.youtube.com"],
+            frameSrc: ["'self'", "https://animekai.to", "https://*.vidlink.pro", "https://vidapi.xyz", "https://www.youtube.com"],
             scriptSrc: ["'self'", "'unsafe-inline'"],
             styleSrc: ["'self'", "'unsafe-inline'", "https:"],
             imgSrc: ["'self'", "data:", "https:"],
@@ -29,10 +30,10 @@ app.use((0, helmet_1.default)({
         },
     },
 }));
+const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000').split(',').map(s => s.trim());
 app.use((0, cors_1.default)({
     origin: (origin, callback) => {
-        // Allow requests from any localhost port (dev) or no origin (curl/mobile)
-        if (!origin || /^http:\/\/localhost(:\d+)?$/.test(origin)) {
+        if (!origin || allowedOrigins.includes('*') || allowedOrigins.some(o => origin.startsWith(o))) {
             callback(null, true);
         }
         else {

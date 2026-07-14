@@ -28,10 +28,11 @@ app.use(helmet({
     },
   },
 }));
+const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000').split(',').map(s => s.trim());
+
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests from any localhost port (dev) or no origin (curl/mobile)
-    if (!origin || /^http:\/\/localhost(:\d+)?$/.test(origin)) {
+    if (!origin || allowedOrigins.includes('*') || allowedOrigins.some(o => origin.startsWith(o))) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));

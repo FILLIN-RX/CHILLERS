@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getDetails = exports.getTrending = exports.getPopular = void 0;
+exports.getSeasonDetails = exports.getDetails = exports.getTrending = exports.getPopular = void 0;
 const tvService = __importStar(require("./tv.service"));
 const types_1 = require("../../types");
 const getPopular = async (req, res, next) => {
@@ -70,3 +70,17 @@ const getDetails = async (req, res, next) => {
     }
 };
 exports.getDetails = getDetails;
+const getSeasonDetails = async (req, res, next) => {
+    try {
+        const id = req.params.id;
+        const seasonNumber = req.params.seasonNumber;
+        if (!id || !seasonNumber)
+            throw new types_1.AppError('TV show ID and season number are required', 400);
+        const data = await tvService.getSeasonDetails(id, seasonNumber);
+        res.json({ success: true, data, message: null });
+    }
+    catch (error) {
+        next(error);
+    }
+};
+exports.getSeasonDetails = getSeasonDetails;
