@@ -240,6 +240,7 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
           src={item.videoUrl}
           className="w-full aspect-video border-none"
           allow="autoplay; encrypted-media; fullscreen"
+          referrerPolicy="no-referrer"
           title={item.title}
         />
       ) : item.videoUrl ? (

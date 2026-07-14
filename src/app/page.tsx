@@ -2,16 +2,13 @@
 
 import React, { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
 import HeroCarousel from "@/components/HeroCarousel";
 import MovieCard from "@/components/MovieCard";
 import CategoryCard from "@/components/CategoryCard";
 import ContinueWatchingCard from "@/components/ContinueWatchingCard";
-import SearchOverlay from "@/components/SearchOverlay";
 import MovieModal from "@/components/MovieModal";
 import VideoPlayer from "@/components/VideoPlayer";
-import Footer from "@/components/Footer";
 
 import {
   MovieOrShow,
@@ -35,9 +32,7 @@ import {
 } from "./api";
 
 export default function Home() {
-  // Navigation & View States
   const [activeTab, setActiveTab] = useState<string>("home");
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   // Media Playback & Modal States
   const [selectedMovie, setSelectedMovie] = useState<MovieOrShow | null>(null);
@@ -155,7 +150,7 @@ export default function Home() {
           // Resolve the actual stream URL (separate from trailer)
           getStreamUrl(item.id, item.type === 'series' || item.type === 'anime' ? item.type : 'movie', undefined, undefined, item.title).then(stream => {
             const updated = stream ? { ...item, videoUrl: stream.embedUrl } : { ...item, videoUrl: '' };
-            setPlayingVideo(updated);
+            setPlayingVideo({ item: updated, episode: undefined });
           });
           // Clean URL without reload
           window.history.replaceState({}, "", "/");
@@ -230,7 +225,7 @@ export default function Home() {
     
     let stream;
     if (episode) {
-      stream = await getStreamUrl(item.id, item.type, activeSeason?.seasonNumber, episode.number, item.title);
+      stream = await getStreamUrl(item.id, item.type === 'documentary' ? 'movie' : item.type, activeSeason?.seasonNumber, episode.number, item.title);
     } else {
       stream = await getStreamUrl(item.id, item.type === 'documentary' ? 'movie' : item.type, undefined, undefined, item.title);
     }
@@ -253,23 +248,6 @@ export default function Home() {
   return (
     <div className="flex flex-col min-h-screen bg-brand-dark transition-colors duration-300">
       
-      {/* Search overlay portal */}
-      <SearchOverlay
-        isOpen={isSearchOpen}
-        onClose={() => setIsSearchOpen(false)}
-        onOpenDetails={handleOpenDetails}
-      />
-
-      {/* Sticky Glass Navbar Header */}
-      <Header
-        activeTab={activeTab}
-        setActiveTab={(tab) => {
-          setActiveTab(tab);
-          setPlayingVideo(null); // Return to browser view when tab changes
-        }}
-        onSearchClick={() => setIsSearchOpen(true)}
-      />
-
       {/* Main Content Area */}
       <main className={`flex-grow transition-all duration-300 ${playingVideo || activeTab !== "home" ? "pt-[72px]" : ""}`}>
         {playingVideo ? (
@@ -514,9 +492,6 @@ export default function Home() {
 
             </div>
 
-            {/* Premium Editorial Footer Block */}
-            <Footer />
-
           </div>
         )}
       </main>
@@ -542,7 +517,7 @@ export default function Home() {
             setActiveTab(tab);
             setPlayingVideo(null);
           }}
-          onSearchClick={() => setIsSearchOpen(true)}
+          onSearchClick={() => window.dispatchEvent(new Event("open-search"))}
         />
       )}
 

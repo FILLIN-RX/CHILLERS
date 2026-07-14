@@ -292,19 +292,42 @@ function MediaDetailPage() {
           </section>
         )}
 
-        <section ref={playerRef} className="space-y-4">
-          <h2 className="text-2xl font-black text-white flex items-center gap-3">
-            <span className="h-5 w-1 rounded-full bg-[#D70466]" />
-            Lecture
-          </h2>
-          <div className="w-full rounded-3xl overflow-hidden border border-zinc-800 shadow-2xl">
-            <VideoPlayer 
-              item={item!} 
-              onBack={() => {}}
-              onOpenDetails={(item) => router.push(`/media/${item.id}?type=${item.type}`)} 
-            />
-          </div>
-        </section>
+        {isTV && item.seasons && item.seasons.length > 0 && (
+          <section className="space-y-6">
+            <h2 className="text-2xl font-black text-white flex items-center gap-3">
+              <span className="h-5 w-1 rounded-full bg-[#D70466]" />
+              Saisons
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              {item.seasons.filter(s => s.seasonNumber > 0).map((season) => (
+                <div
+                  key={season.id}
+                  onClick={() => router.push(`/tv/${item.id}/season/${season.seasonNumber}`)}
+                  className="group cursor-pointer space-y-2"
+                >
+                  <div className="aspect-[2/3] w-full rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800 relative">
+                    {season.posterUrl ? (
+                      <img src={season.posterUrl} alt={season.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <FilmIcon className="h-12 w-12 text-zinc-700" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
+                      <PlayIcon className="h-8 w-8 text-white mx-auto mb-2 opacity-90" />
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white group-hover:text-[#D70466] transition-colors truncate">
+                      {season.name}
+                    </h4>
+                    <p className="text-xs text-zinc-500 mt-0.5">{season.episodes.length} épisodes</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {similar.length > 0 && (
           <section className="space-y-6">
@@ -362,6 +385,7 @@ function MediaDetailPage() {
               src={`${trailerUrl}?autoplay=1&controls=1&rel=0&modestbranding=1`}
               className="w-full h-full border-none bg-black"
               allow="autoplay; encrypted-media; picture-in-picture"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
               allowFullScreen
               title={item.title}
             />

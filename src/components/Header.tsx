@@ -2,26 +2,33 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { MagnifyingGlassIcon, GlobeAltIcon } from "@heroicons/react/24/outline";
 
 interface HeaderProps {
-  activeTab: string;
-  setActiveTab: (tab: string) => void;
   onSearchClick: () => void;
 }
 
-export default function Header({
-  activeTab,
-  setActiveTab,
-  onSearchClick,
-}: HeaderProps) {
+export default function Header({ onSearchClick }: HeaderProps) {
+  const pathname = usePathname();
+
   const tabs = [
     { id: "home", label: "Home", href: "/" },
     { id: "movies", label: "Movies", href: "/media/movies" },
     { id: "series", label: "Series", href: "/media/series" },
     { id: "anime", label: "Anime", href: "/media/anime" },
-    { id: "trending", label: "Trending", href: "/trending" },
   ];
+
+  const activeTab = (() => {
+    if (pathname === "/" || pathname.startsWith("/?")) return "home";
+    if (pathname.startsWith("/media/movies")) return "movies";
+    if (pathname.startsWith("/media/series")) return "series";
+    if (pathname.startsWith("/media/anime")) return "anime";
+    if (pathname.startsWith("/categories")) return "categories";
+    if (pathname.startsWith("/tv")) return "series";
+    if (pathname.startsWith("/watch")) return "home";
+    return "home";
+  })();
 
   const [isScrolled, setIsScrolled] = useState(false);
 
@@ -30,7 +37,7 @@ export default function Header({
       setIsScrolled(window.scrollY > 20);
     };
     window.addEventListener("scroll", handleScroll);
-    handleScroll(); // run once on mount
+    handleScroll();
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
@@ -42,20 +49,15 @@ export default function Header({
     }`}>
       <div className="mx-auto flex max-w-[1600px] items-center justify-between px-4 sm:px-8 md:px-12 lg:px-[4%] py-4">
         
-        {/* Left Side: Brand Logo */}
         <div className="flex items-center gap-8">
-          <button 
-            onClick={() => setActiveTab("home")}
-            className="group flex items-center focus:outline-none"
-          >
+          <Link href="/" className="group flex items-center focus:outline-none">
             <img 
               src="/android-chrome-512x512.png" 
               alt="Chillers Logo" 
               className="h-10 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
             />
-          </button>
+          </Link>
           
-          {/* Desktop Navigation Links */}
           <nav className="hidden md:flex items-center gap-6">
             {tabs.map((tab) => (
               <Link
@@ -89,9 +91,7 @@ export default function Header({
           </nav>
         </div>
 
-        {/* Right Side: Options Icons */}
         <div className="flex items-center gap-4 text-zinc-400">
-          {/* Search Trigger Icon */}
           <button
             onClick={onSearchClick}
             className="p-2 rounded-full hover:bg-zinc-900 hover:border-zinc-800 hover:text-white transition-colors focus:outline-none border border-transparent"
@@ -100,13 +100,11 @@ export default function Header({
             <MagnifyingGlassIcon className="h-5 w-5" />
           </button>
 
-          {/* Language Selector */}
           <div className="relative group hidden sm:block">
             <button className="flex items-center gap-1.5 p-2 rounded-full transition-colors focus:outline-none border border-transparent hover:bg-zinc-900 hover:border-zinc-800 hover:text-white">
               <GlobeAltIcon className="h-5 w-5" />
               <span className="text-xs font-semibold">EN</span>
             </button>
-            {/* Language dropdown */}
             <div className="absolute right-0 top-full mt-2 w-32 origin-top-right rounded-xl p-1 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-200 shadow-2xl z-50 border bg-zinc-950 border-zinc-800">
               <button className="w-full text-left px-3 py-1.5 text-xs rounded-lg font-medium hover:bg-zinc-900 text-white">English</button>
               <button className="w-full text-left px-3 py-1.5 text-xs rounded-lg hover:bg-zinc-900 text-zinc-400">Français</button>
