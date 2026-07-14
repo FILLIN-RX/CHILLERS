@@ -122,7 +122,7 @@ export function mapTMDBToMovieOrShow(
     genres,
     cast: cast.length > 0 ? cast : ["Cast Info Unavailable"],
     videoUrl: videoUrl || "https://assets.mixkit.co/videos/preview/mixkit-futuristic-subway-station-with-neon-lights-42998-large.mp4",
-    seasons: seasons.length > 0 ? seasons : undefined,
+    seasons: seasons && seasons.length > 0 ? seasons : undefined,
   };
 }
 

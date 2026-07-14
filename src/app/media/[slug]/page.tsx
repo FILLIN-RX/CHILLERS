@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { getMediaDetails, getPopularMovies, getPopularTV, getStreamUrl, startDownload, triggerDownload } from "@/app/api";
 import { MovieOrShow } from "@/app/mockData";
@@ -16,13 +16,16 @@ import {
 } from "@heroicons/react/24/solid";
 import { ShareIcon } from "@heroicons/react/24/outline";
 import VideoPlayer from "@/components/VideoPlayer";
+import MovieCard from "@/components/MovieCard";
 
-export default function MediaDetailPage() {
+const LISTING_TYPES = ["movies", "series", "anime"];
+
+function MediaDetailPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const id = params?.id as string;
+  const id = params?.slug as string;
   const isTV = searchParams?.get("type") === "tv" || searchParams?.get("type") === "series";
 
   const [item, setItem] = useState<MovieOrShow | null>(null);
@@ -46,7 +49,6 @@ export default function MediaDetailPage() {
           setTrailerUrl(detail.videoUrl);
         }
         setItem(detail);
-        // Auto-resolve the real stream URL
         getStreamUrl(detail.id, isTV ? 'series' : 'movie', undefined, undefined, detail.title).then(stream => {
           if (stream) setItem(prev => prev ? { ...prev, videoUrl: stream.embedUrl } : prev);
         });
@@ -96,11 +98,9 @@ export default function MediaDetailPage() {
     }
   };
 
-  // ─── Loading skeleton ───────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="min-h-screen bg-[#09090B] text-white flex flex-col">
-        {/* Back button */}
         <div className="fixed top-6 left-6 z-50">
           <button
             onClick={() => router.back()}
@@ -110,7 +110,6 @@ export default function MediaDetailPage() {
           </button>
         </div>
 
-        {/* Skeleton hero */}
         <div className="w-full h-[70vh] bg-zinc-900 animate-pulse" />
         <div className="max-w-5xl mx-auto px-6 py-10 space-y-6 w-full">
           <div className="h-10 bg-zinc-800 rounded-xl w-2/3 animate-pulse" />
@@ -144,7 +143,6 @@ export default function MediaDetailPage() {
   return (
     <div className="min-h-screen bg-[#09090B] text-white pb-20 sm:pb-0">
 
-      {/* ─── Back button (fixed) ─────────────────────────────────────── */}
       <div className="fixed top-6 left-6 z-50">
         <button
           onClick={() => router.back()}
@@ -155,9 +153,7 @@ export default function MediaDetailPage() {
         </button>
       </div>
 
-      {/* ─── CINEMATIC HERO ─────────────────────────────────────────────── */}
       <div className="relative w-full h-[85vh] overflow-hidden">
-        {/* Backdrop */}
         <img
           src={item.backdropUrl}
           alt={item.title}
@@ -165,22 +161,17 @@ export default function MediaDetailPage() {
           style={{ filter: "brightness(0.45)" }}
         />
 
-        {/* Gradient overlays */}
         <div className="absolute inset-0 bg-gradient-to-r from-[#09090B] via-[#09090B]/60 to-transparent" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#09090B] via-transparent to-transparent" />
 
-        {/* Hero Content */}
         <div className="absolute inset-0 flex items-end pb-16 px-6 sm:px-12 lg:px-20">
           <div className="flex flex-col sm:flex-row gap-8 items-start max-w-6xl w-full mx-auto">
 
-            {/* Poster */}
             <div className="hidden sm:block flex-none w-44 lg:w-56 rounded-2xl overflow-hidden shadow-2xl border border-white/10 ring-1 ring-white/5">
               <img src={item.posterUrl} alt={item.title} className="w-full h-full object-cover" />
             </div>
 
-            {/* Info */}
             <div className="flex-1 space-y-4">
-              {/* Genre pills */}
               <div className="flex flex-wrap gap-2">
                 {item.genres.slice(0, 3).map((g) => (
                   <span
@@ -192,12 +183,10 @@ export default function MediaDetailPage() {
                 ))}
               </div>
 
-              {/* Title */}
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white leading-tight drop-shadow-xl">
                 {item.title}
               </h1>
 
-              {/* Meta row */}
               <div className="flex flex-wrap items-center gap-4 text-sm text-zinc-300 font-medium">
                 <div className="flex items-center gap-1.5 text-amber-400">
                   <StarIcon className="h-4 w-4" />
@@ -217,12 +206,10 @@ export default function MediaDetailPage() {
                 </span>
               </div>
 
-              {/* Description preview */}
               <p className="text-zinc-300 text-base leading-relaxed max-w-2xl line-clamp-3">
                 {item.synopsis || item.description}
               </p>
 
-              {/* Action buttons */}
               <div className="flex flex-wrap gap-3 pt-2">
                 <button
                   onClick={handleWatch}
@@ -275,10 +262,7 @@ export default function MediaDetailPage() {
         </div>
       </div>
 
-      {/* ─── CONTENT BELOW HERO ─────────────────────────────────────────── */}
       <div className="max-w-6xl mx-auto px-6 sm:px-12 lg:px-20 py-16 space-y-16">
-
-        {/* Synopsis */}
         <section className="space-y-4">
           <h2 className="text-2xl font-black text-white flex items-center gap-3">
             <span className="h-5 w-1 rounded-full bg-[#D70466]" />
@@ -289,7 +273,6 @@ export default function MediaDetailPage() {
           </p>
         </section>
 
-        {/* Cast */}
         {item.cast && item.cast.length > 0 && item.cast[0] !== "Cast Info Unavailable" && (
           <section className="space-y-4">
             <h2 className="text-2xl font-black text-white flex items-center gap-3">
@@ -309,7 +292,6 @@ export default function MediaDetailPage() {
           </section>
         )}
 
-        {/* Video Player Section */}
         <section ref={playerRef} className="space-y-4">
           <h2 className="text-2xl font-black text-white flex items-center gap-3">
             <span className="h-5 w-1 rounded-full bg-[#D70466]" />
@@ -318,13 +300,12 @@ export default function MediaDetailPage() {
           <div className="w-full rounded-3xl overflow-hidden border border-zinc-800 shadow-2xl">
             <VideoPlayer 
               item={item!} 
-              onBack={() => {}} // No-op, as we're now just scrolling
+              onBack={() => {}}
               onOpenDetails={(item) => router.push(`/media/${item.id}?type=${item.type}`)} 
             />
           </div>
         </section>
 
-        {/* Similar content */}
         {similar.length > 0 && (
           <section className="space-y-6">
             <h2 className="text-2xl font-black text-white flex items-center gap-3">
@@ -368,7 +349,6 @@ export default function MediaDetailPage() {
         )}
       </div>
 
-      {/* ─── Trailer lightbox modal ──────────────────────────────────────── */}
       {trailerOpen && isYouTube && trailerUrl && (
         <div
           className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4"
@@ -390,4 +370,70 @@ export default function MediaDetailPage() {
       )}
     </div>
   );
+}
+
+function MediaListingPage() {
+  const { slug } = useParams();
+  const type = slug as string;
+  const [items, setItems] = useState<MovieOrShow[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchData() {
+      setIsLoading(true);
+      try {
+        let data: MovieOrShow[] = [];
+        if (type === 'movies') {
+            data = await getPopularMovies();
+        } else if (type === 'series' || type === 'anime') {
+            data = await getPopularTV();
+            if (type === 'anime') {
+                data = data.filter(item => item.genres.includes('Animation') || item.type === 'anime');
+            }
+        }
+        setItems(data);
+      } catch (err) {
+        console.error("Failed to load data", err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchData();
+  }, [type]);
+
+  return (
+    <main className="min-h-screen bg-brand-dark pt-24 px-6 pb-20">
+      <div className="max-w-7xl mx-auto space-y-8">
+        <h1 className="text-3xl font-extrabold text-foreground capitalize">{type}</h1>
+        
+        {isLoading ? (
+          <div className="text-white">Loading...</div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+            {items.map((item) => (
+              <MovieCard
+                key={item.id}
+                item={item}
+                onPlay={() => console.log('Play:', item)}
+                onOpenDetails={() => console.log('Details:', item)}
+                favorites={[]}
+                toggleFavorite={() => {}}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </main>
+  );
+}
+
+export default function MediaPage() {
+  const params = useParams();
+  const slug = params?.slug as string;
+
+  if (LISTING_TYPES.includes(slug)) {
+    return <MediaListingPage />;
+  }
+
+  return <MediaDetailPage />;
 }
