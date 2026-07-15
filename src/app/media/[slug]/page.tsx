@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { getMediaDetails, getPopularMovies, getPopularTV, getStreamUrl, startDownload, triggerDownload, getPopularMoviesPage, getPopularTVPage, getAnimeSeriesPage, getMoviesByGenrePage, getTVByGenrePage, getMovieGenres, getTVGenres, Genre } from "@/app/api";
 import GenreFilterBar from "@/components/GenreFilterBar";
@@ -682,13 +682,29 @@ function MediaListingPage() {
   );
 }
 
+function MediaListingPageFallback() {
+  return <div className="min-h-screen bg-brand-dark" />;
+}
+
+function MediaDetailPageFallback() {
+  return <div className="min-h-screen bg-brand-dark" />;
+}
+
 export default function MediaPage() {
   const params = useParams();
   const slug = params?.slug as string;
 
   if (LISTING_TYPES.includes(slug)) {
-    return <MediaListingPage />;
+    return (
+      <Suspense fallback={<MediaListingPageFallback />}>
+        <MediaListingPage />
+      </Suspense>
+    );
   }
 
-  return <MediaDetailPage />;
+  return (
+    <Suspense fallback={<MediaDetailPageFallback />}>
+      <MediaDetailPage />
+    </Suspense>
+  );
 }

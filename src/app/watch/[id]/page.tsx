@@ -1,21 +1,41 @@
-import React from 'react';
+"use client";
+
+import React, { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import VideoPlayer from '@/components/VideoPlayer';
 import { getMediaDetails } from '@/app/api';
 import { MovieOrShow } from '@/app/mockData';
-import { notFound } from 'next/navigation';
 
-export default async function WatchPage({ params }: { params: { id: string } }) {
-  const { id } = params;
-  
-  // Note: Since this is a server component, we fetch data here
-  // Adjust based on your API structure. If getMediaDetails requires type,
-  // we might need to handle it via searchParams or a lookup.
-  
-  // Placeholder for fetching item - update to match your API requirements
-  const item = await getMediaDetails(id, false); 
+export default function WatchPage() {
+  const params = useParams();
+  const router = useRouter();
+  const id = params?.id as string;
+
+  const [item, setItem] = useState<MovieOrShow | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!id) return;
+    getMediaDetails(id, false)
+      .then((data) => setItem(data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-black flex items-center justify-center">
+        <div className="h-12 w-12 border-4 border-zinc-700 border-t-brand-primary rounded-full animate-spin" />
+      </main>
+    );
+  }
 
   if (!item) {
-    notFound();
+    return (
+      <main className="min-h-screen bg-black flex items-center justify-center text-white">
+        <p className="text-zinc-400">Contenu introuvable.</p>
+      </main>
+    );
   }
 
   return (
@@ -23,8 +43,8 @@ export default async function WatchPage({ params }: { params: { id: string } }) 
       <div className="max-w-7xl mx-auto pt-10 px-4">
         <VideoPlayer
           item={item}
-          onBack={() => window.history.back()}
-          onOpenDetails={(item) => console.log('Details:', item)}
+          onBack={() => router.back()}
+          onOpenDetails={(item) => router.push(`/media/${item.id}?type=${item.type === 'series' || item.type === 'anime' ? 'tv' : 'movie'}`)}
         />
       </div>
     </main>

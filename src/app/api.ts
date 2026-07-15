@@ -463,6 +463,7 @@ export async function startDownload(
 }
 
 export function triggerDownload(downloadUrl: string, filename: string = 'video.mp4') {
+  if (typeof document === "undefined") return;
   const link = document.createElement('a');
   link.href = `${API_BASE_URL}/doodstream/download/proxy?url=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(filename)}`;
   link.download = filename;
