@@ -7,6 +7,14 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "images.unsplash.com" },
     ],
   },
+  async rewrites() {
+    return [
+      {
+        source: '/api/doodstream/:path*',
+        destination: 'https://chillers.onrender.com/api/doodstream/:path*',
+      },
+    ];
+  },
 };
 
 export default nextConfig;

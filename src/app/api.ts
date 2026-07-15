@@ -1,6 +1,18 @@
 import { MovieOrShow } from "./mockData";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://chillers.onrender.com/api";
+const FETCH_TIMEOUT = 15000;
+
+async function fetchWithTimeout(url: string, options?: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
+  try {
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    return res;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 const GENRE_MAP: { [key: number]: string } = {
   28: "Action",
@@ -129,7 +141,7 @@ export function mapTMDBToMovieOrShow(
 
 export async function getTrendingMovies(): Promise<MovieOrShow[]> {
   try {
-    const res = await fetch(`${API_BASE_URL}/movies/trending`);
+    const res = await fetchWithTimeout(`${API_BASE_URL}/movies/trending`);
     const json = await res.json();
     if (json.success && json.data.results) {
       return json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "movie"));
@@ -142,7 +154,7 @@ export async function getTrendingMovies(): Promise<MovieOrShow[]> {
 
 export async function getTrendingTV(): Promise<MovieOrShow[]> {
   try {
-    const res = await fetch(`${API_BASE_URL}/tv/trending`);
+    const res = await fetchWithTimeout(`${API_BASE_URL}/tv/trending`);
     const json = await res.json();
     if (json.success && json.data.results) {
       return json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "series"));
@@ -155,7 +167,7 @@ export async function getTrendingTV(): Promise<MovieOrShow[]> {
 
 export async function getPopularMovies(page = 1): Promise<MovieOrShow[]> {
   try {
-    const res = await fetch(`${API_BASE_URL}/movies/popular?page=${page}`);
+    const res = await fetchWithTimeout(`${API_BASE_URL}/movies/popular?page=${page}`);
     const json = await res.json();
     if (json.success && json.data.results) {
       return json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "movie"));
@@ -168,7 +180,7 @@ export async function getPopularMovies(page = 1): Promise<MovieOrShow[]> {
 
 export async function getPopularTV(page = 1): Promise<MovieOrShow[]> {
   try {
-    const res = await fetch(`${API_BASE_URL}/tv/popular?page=${page}`);
+    const res = await fetchWithTimeout(`${API_BASE_URL}/tv/popular?page=${page}`);
     const json = await res.json();
     if (json.success && json.data.results) {
       return json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "series"));
@@ -181,7 +193,7 @@ export async function getPopularTV(page = 1): Promise<MovieOrShow[]> {
 
 export async function getTopRatedTV(page = 1): Promise<MovieOrShow[]> {
   try {
-    const res = await fetch(`${API_BASE_URL}/tv/top-rated?page=${page}`);
+    const res = await fetchWithTimeout(`${API_BASE_URL}/tv/top-rated?page=${page}`);
     const json = await res.json();
     if (json.success && json.data.results) {
       return json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "series"));
@@ -194,7 +206,7 @@ export async function getTopRatedTV(page = 1): Promise<MovieOrShow[]> {
 
 export async function getAnimeSeries(page = 1): Promise<MovieOrShow[]> {
   try {
-    const res = await fetch(`${API_BASE_URL}/tv/anime?page=${page}`);
+    const res = await fetchWithTimeout(`${API_BASE_URL}/tv/anime?page=${page}`);
     const json = await res.json();
     if (json.success && json.data.results) {
       return json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "anime"));
@@ -207,7 +219,7 @@ export async function getAnimeSeries(page = 1): Promise<MovieOrShow[]> {
 
 export async function getPopularTVPage(page = 1): Promise<{ results: MovieOrShow[]; totalPages: number }> {
   try {
-    const res = await fetch(`${API_BASE_URL}/tv/popular?page=${page}`);
+    const res = await fetchWithTimeout(`${API_BASE_URL}/tv/popular?page=${page}`);
     const json = await res.json();
     if (json.success && json.data) {
       return {
@@ -223,7 +235,7 @@ export async function getPopularTVPage(page = 1): Promise<{ results: MovieOrShow
 
 export async function getAnimeSeriesPage(page = 1): Promise<{ results: MovieOrShow[]; totalPages: number }> {
   try {
-    const res = await fetch(`${API_BASE_URL}/tv/anime?page=${page}`);
+    const res = await fetchWithTimeout(`${API_BASE_URL}/tv/anime?page=${page}`);
     const json = await res.json();
     if (json.success && json.data) {
       return {
@@ -239,7 +251,7 @@ export async function getAnimeSeriesPage(page = 1): Promise<{ results: MovieOrSh
 
 export async function getPopularMoviesPage(page = 1): Promise<{ results: MovieOrShow[]; totalPages: number }> {
   try {
-    const res = await fetch(`${API_BASE_URL}/movies/popular?page=${page}`);
+    const res = await fetchWithTimeout(`${API_BASE_URL}/movies/popular?page=${page}`);
     const json = await res.json();
     if (json.success && json.data) {
       return {
@@ -255,7 +267,7 @@ export async function getPopularMoviesPage(page = 1): Promise<{ results: MovieOr
 
 export async function getUpcomingMovies(page = 1): Promise<MovieOrShow[]> {
   try {
-    const res = await fetch(`${API_BASE_URL}/movies/upcoming?page=${page}`);
+    const res = await fetchWithTimeout(`${API_BASE_URL}/movies/upcoming?page=${page}`);
     const json = await res.json();
     if (json.success && json.data.results) {
       return json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "movie"));
@@ -268,7 +280,7 @@ export async function getUpcomingMovies(page = 1): Promise<MovieOrShow[]> {
 
 export async function getTopRatedMovies(page = 1): Promise<MovieOrShow[]> {
   try {
-    const res = await fetch(`${API_BASE_URL}/movies/top-rated?page=${page}`);
+    const res = await fetchWithTimeout(`${API_BASE_URL}/movies/top-rated?page=${page}`);
     const json = await res.json();
     if (json.success && json.data.results) {
       return json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "movie"));
@@ -282,7 +294,7 @@ export async function getTopRatedMovies(page = 1): Promise<MovieOrShow[]> {
 export async function getMediaDetails(id: string, isTV: boolean = false): Promise<MovieOrShow | null> {
   try {
     const endpoint = isTV ? `tv/${id}` : `movies/${id}`;
-    const res = await fetch(`${API_BASE_URL}/${endpoint}`);
+    const res = await fetchWithTimeout(`${API_BASE_URL}/${endpoint}`);
     const json = await res.json();
     if (json.success && json.data) {
       return mapTMDBToMovieOrShow(json.data, isTV ? "series" : "movie");
@@ -295,7 +307,7 @@ export async function getMediaDetails(id: string, isTV: boolean = false): Promis
 
 export async function getSeasonDetails(id: string, seasonNumber: string): Promise<any | null> {
   try {
-    const res = await fetch(`${API_BASE_URL}/tv/${id}/season/${seasonNumber}`);
+    const res = await fetchWithTimeout(`${API_BASE_URL}/tv/${id}/season/${seasonNumber}`);
     const json = await res.json();
     if (json.success && json.data) {
       return json.data;
@@ -308,7 +320,7 @@ export async function getSeasonDetails(id: string, seasonNumber: string): Promis
 
 export async function getMovieRecommendations(id: string): Promise<MovieOrShow[]> {
   try {
-    const res = await fetch(`${API_BASE_URL}/movies/${id}/recommendations`);
+    const res = await fetchWithTimeout(`${API_BASE_URL}/movies/${id}/recommendations`);
     const json = await res.json();
     if (json.success && json.data.results) {
       return json.data.results
@@ -345,7 +357,7 @@ export async function getRecommendedForYou(): Promise<MovieOrShow[]> {
 
 export async function searchMedia(query: string, page = 1): Promise<MovieOrShow[]> {
   try {
-    const res = await fetch(`${API_BASE_URL}/search?q=${encodeURIComponent(query)}&page=${page}`);
+    const res = await fetchWithTimeout(`${API_BASE_URL}/search?q=${encodeURIComponent(query)}&page=${page}`);
     const json = await res.json();
     if (json.success && json.data.results) {
       return json.data.results
@@ -375,7 +387,7 @@ export async function getNexStreamUrl(
     } else {
       endpoint = `nexstream/movie/${id}`;
     }
-    const res = await fetch(`${API_BASE_URL}/${endpoint}`);
+    const res = await fetchWithTimeout(`${API_BASE_URL}/${endpoint}`);
     const json = await res.json();
     if (json.success && json.data?.embedUrl) {
       return json.data.embedUrl;
@@ -404,7 +416,7 @@ export async function getStreamUrl(
     const params = new URLSearchParams();
     params.set('type', type);
     if (title) params.set('title', title);
-    const res = await fetch(`${API_BASE_URL}/${endpoint}?${params.toString()}`);
+    const res = await fetchWithTimeout(`${API_BASE_URL}/${endpoint}?${params.toString()}`);
     const json = await res.json();
     if (json.success && json.data?.embedUrl) {
       return { embedUrl: json.data.embedUrl, provider: json.provider || 'unknown' };
@@ -427,14 +439,14 @@ export async function startDownload(
 ): Promise<{ downloadUrl: string; fileCode: string } | null> {
   try {
     if (title) {
-      const res = await fetch(`${API_BASE_URL}/doodstream/download?title=${encodeURIComponent(title)}`);
+      const res = await fetchWithTimeout(`${API_BASE_URL}/doodstream/download?title=${encodeURIComponent(title)}`);
       const json = await res.json();
       if (json.success && json.data?.downloadUrl) {
         return { downloadUrl: json.data.downloadUrl, fileCode: json.data.fileCode };
       }
     }
 
-    const res = await fetch(`${API_BASE_URL}/download`, {
+    const res = await fetchWithTimeout(`${API_BASE_URL}/download`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ mediaId: id, mediaType: type, season, episode, title }),
@@ -464,7 +476,7 @@ export interface Genre {
 
 export async function getMovieGenres(): Promise<Genre[]> {
   try {
-    const res = await fetch(`${API_BASE_URL}/genres/movie`);
+    const res = await fetchWithTimeout(`${API_BASE_URL}/genres/movie`);
     const json = await res.json();
     if (json.success && Array.isArray(json.data)) return json.data;
   } catch (error) {
@@ -497,7 +509,7 @@ export async function getAllMovies(page = 1): Promise<MovieOrShow[]> {
 
 export async function getMoviesByGenrePage(genreId: string, page = 1): Promise<{ results: MovieOrShow[]; totalPages: number }> {
   try {
-    const res = await fetch(`${API_BASE_URL}/movies/genre/${genreId}?page=${page}`);
+    const res = await fetchWithTimeout(`${API_BASE_URL}/movies/genre/${genreId}?page=${page}`);
     const json = await res.json();
     if (json.success && json.data) {
       return {
@@ -513,7 +525,7 @@ export async function getMoviesByGenrePage(genreId: string, page = 1): Promise<{
 
 export async function getTVByGenrePage(genreId: string, page = 1): Promise<{ results: MovieOrShow[]; totalPages: number }> {
   try {
-    const res = await fetch(`${API_BASE_URL}/tv/genre/${genreId}?page=${page}`);
+    const res = await fetchWithTimeout(`${API_BASE_URL}/tv/genre/${genreId}?page=${page}`);
     const json = await res.json();
     if (json.success && json.data) {
       return {
@@ -529,7 +541,7 @@ export async function getTVByGenrePage(genreId: string, page = 1): Promise<{ res
 
 export async function getTVGenres(): Promise<Genre[]> {
   try {
-    const res = await fetch(`${API_BASE_URL}/genres/tv`);
+    const res = await fetchWithTimeout(`${API_BASE_URL}/genres/tv`);
     const json = await res.json();
     if (json.success && Array.isArray(json.data)) return json.data;
   } catch (error) {
@@ -540,7 +552,7 @@ export async function getTVGenres(): Promise<Genre[]> {
 
 export async function getMoviesByGenre(genreId: string, page = 1): Promise<MovieOrShow[]> {
   try {
-    const res = await fetch(`${API_BASE_URL}/movies/genre/${genreId}?page=${page}`);
+    const res = await fetchWithTimeout(`${API_BASE_URL}/movies/genre/${genreId}?page=${page}`);
     const json = await res.json();
     if (json.success && json.data.results) {
       return json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "movie"));

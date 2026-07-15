@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import BottomNav from "@/components/BottomNav";
 import HeroCarousel from "@/components/HeroCarousel";
@@ -22,13 +22,10 @@ import {
   getTrendingTV,
   getPopularMovies,
   getPopularTV,
-  getTopRatedMovies,
   getMediaDetails,
   getStreamUrl,
-  getAllMovies,
   getMovieGenres,
-  getByGenreMultiple,
-  getRecommendedForYou,
+  getAnimeSeries,
   Genre,
 } from "./api";
 
@@ -48,16 +45,13 @@ export default function Home() {
     { item: MovieOrShow; progress: number; remaining: string; episodeName?: string }[]
   >([]);
 
-  // Live TMDB Data
+  // Live TMDB Data — lazy loaded per tab
   const [heroSlides, setHeroSlides] = useState<MovieOrShow[]>([]);
   const [trendingAll, setTrendingAll] = useState<MovieOrShow[]>([]);
   const [moviesData, setMoviesData] = useState<MovieOrShow[]>([]);
   const [seriesData, setSeriesData] = useState<MovieOrShow[]>([]);
-  const [topRatedData, setTopRatedData] = useState<MovieOrShow[]>([]);
-  const [allMovies, setAllMovies] = useState<MovieOrShow[]>([]);
+  const [animeData, setAnimeData] = useState<MovieOrShow[]>([]);
   const [genres, setGenres] = useState<Genre[]>([]);
-  const [genreMovies, setGenreMovies] = useState<Record<string, MovieOrShow[]>>({});
-  const [recommendedMovies, setRecommendedMovies] = useState<MovieOrShow[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [activeSeason, setActiveSeason] = useState<Season | null>(null);
 
@@ -77,67 +71,51 @@ export default function Home() {
     loadContinueWatchingHistory();
   }, [playingVideo]);
 
-  // Fetch live TMDB data from backend on mount
-  useEffect(() => {
-    async function fetchAll() {
-      setIsLoadingData(true);
-      try {
-        const [trending, trendingTV, popular, popularTV, topRated, moreMovies, genreList] = await Promise.all([
-          getTrendingMovies(),
-          getTrendingTV(),
-          getPopularMovies(),
-          getPopularTV(),
-          getTopRatedMovies(),
-          getAllMovies(),
-          getMovieGenres(),
-        ]);
-
-        // Merge trending movies + TV for the "Trending" tab
-        const allTrending = [...trending, ...trendingTV];
-        if (allTrending.length > 0) setTrendingAll(allTrending);
-
-        // Movies tab
-        if (popular.length > 0) setMoviesData(popular);
-
-        // Series tab
-        if (popularTV.length > 0) setSeriesData(popularTV);
-
-        // Top Rated
-        if (topRated.length > 0) setTopRatedData(topRated);
-
-        // All movies merged (for more content)
-        if (moreMovies.length > 0) setAllMovies(moreMovies);
-
-        // Genres
-        if (genreList.length > 0) {
-          setGenres(genreList);
-
-          // Fetch movies by top genres (exclude ones that are too broad like "Documentary")
-          const topGenreIds = genreList.slice(0, 10).map(g => ({ id: String(g.id), name: g.name }));
-          const byGenre = await getByGenreMultiple(topGenreIds, 2);
-          setGenreMovies(byGenre);
-        }
-
-        // Recommended For You (based on popular movies' recommendations)
-        const recs = await getRecommendedForYou();
-        if (recs.length > 0) setRecommendedMovies(recs);
-
-        // Hero slides: fetch details for top 5 popular movies to get trailers
-        const topItems = popular.slice(0, 5);
-        const detailedSlides = await Promise.all(
-          topItems.map(item => getMediaDetails(item.id, false))
-        );
-        const validSlides = detailedSlides.filter((s): s is MovieOrShow => s !== null);
-        if (validSlides.length > 0) setHeroSlides(validSlides);
-
-      } catch (err) {
-        console.error("Failed to load TMDB data", err);
-      } finally {
-        setIsLoadingData(false);
-      }
+  // Home tab: charge trending + hero + genres
+  const loadHomeData = useCallback(async () => {
+    setIsLoadingData(true);
+    try {
+      const [trending, trendingTV, popular] = await Promise.all([
+        getTrendingMovies(),
+        getTrendingTV(),
+        getPopularMovies(),
+      ]);
+      const allTrending = [...trending, ...trendingTV];
+      if (allTrending.length > 0) setTrendingAll(allTrending);
+      if (popular.length > 0) setMoviesData(popular);
+      setHeroSlides(popular.slice(0, 5));
+      getMovieGenres().then(setGenres).catch(() => {});
+    } catch (err) {
+      console.error("Failed to load home data", err);
+    } finally {
+      setIsLoadingData(false);
     }
-    fetchAll();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === "home" && trendingAll.length === 0) loadHomeData();
+  }, [activeTab, loadHomeData]);
+
+  // Movies tab: charge popular movies si pas déjà faits
+  useEffect(() => {
+    if (activeTab !== "movies" || moviesData.length > 0) return;
+    getPopularMovies().then(setMoviesData).catch(() => {});
+  }, [activeTab]);
+
+  // Series tab: charge popular TV
+  useEffect(() => {
+    if (activeTab !== "series" || seriesData.length > 0) return;
+    getPopularTV().then(setSeriesData).catch(() => {});
+  }, [activeTab]);
+
+  // Anime tab: charge anime series
+  useEffect(() => {
+    if (activeTab !== "anime" || animeData.length > 0) return;
+    getAnimeSeries().then(setAnimeData).catch(() => {});
+  }, [activeTab]);
+
+  // Trending tab: déjà chargé avec home, rien à faire
+  // Categories tab: déjà chargé avec home (genres)
 
   // Handle ?play=1 redirect from detail page (uses sessionStorage bridge)
   useEffect(() => {
@@ -238,11 +216,11 @@ export default function Home() {
     }
   };
 
-  // Filter content by tab
-  const getFilteredMedia = (type: 'movie' | 'series' | 'anime' | 'documentary') => {
-    if (type === 'movie') return moviesData.length > 0 ? moviesData : allMovies;
-    if (type === 'series') return seriesData.length > 0 ? seriesData : trendingAll;
-    return trendingAll.filter(m => m.type === type);
+  const getFilteredMedia = (type: 'movie' | 'series' | 'anime') => {
+    if (type === 'movie') return moviesData;
+    if (type === 'series') return seriesData;
+    if (type === 'anime') return animeData;
+    return [];
   };
 
   return (
@@ -299,23 +277,7 @@ export default function Home() {
               </div>
             )}
 
-            {/* RECOMMENDED FOR YOU */}
-            {recommendedMovies.length > 0 && activeTab === "home" && (
-              <div className="max-w-[1600px] mx-auto px-4 sm:px-8 md:px-12 lg:px-[4%]">
-                <ScrollRow title="Recommended For You" accentColor="primary">
-                  {recommendedMovies.map((item) => (
-                    <MovieCard
-                      key={item.id}
-                      item={item}
-                      onPlay={handleWatchNow}
-                      onOpenDetails={handleOpenDetails}
-                      favorites={favorites}
-                      toggleFavorite={toggleFavorite}
-                    />
-                  ))}
-                </ScrollRow>
-              </div>
-            )}
+
 
             {/* MAIN TAB SWITCH CONTENT CONTAINER */}
             <div className="max-w-[1600px] mx-auto px-2 sm:px-6 md:px-12 lg:px-[4%] space-y-10">
@@ -324,7 +286,7 @@ export default function Home() {
                 <>
                   {/* Row 1: Trending Movies & Shows */}
                   <ScrollRow title="Trending Worldwide" accentColor="primary">
-                    {(trendingAll.length > 0 ? trendingAll : allMovies).map((item) => (
+                    {trendingAll.map((item) => (
                       <MovieCard
                         key={item.id}
                         item={item}
@@ -362,23 +324,7 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* Genre Movie Rows */}
-                  {Object.entries(genreMovies).length > 0 && Object.entries(genreMovies).map(([genreName, movies]) => (
-                    movies.length > 0 && (
-                      <ScrollRow key={genreName} title={`${genreName} Movies`} accentColor="secondary">
-                        {movies.map((item) => (
-                          <MovieCard
-                            key={item.id}
-                            item={item}
-                            onPlay={handleWatchNow}
-                            onOpenDetails={handleOpenDetails}
-                            favorites={favorites}
-                            toggleFavorite={toggleFavorite}
-                          />
-                        ))}
-                      </ScrollRow>
-                    )
-                  ))}
+
                 </>
               )}
 
@@ -459,7 +405,7 @@ export default function Home() {
                     <p className="text-zinc-500 text-xs sm:text-sm mt-0.5">The most watched films and series on Chiller right now.</p>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
-                    {(trendingAll.length > 0 ? trendingAll : allMovies).map((item) => (
+                    {trendingAll.map((item) => (
                       <MovieCard
                         key={item.id}
                         item={item}
