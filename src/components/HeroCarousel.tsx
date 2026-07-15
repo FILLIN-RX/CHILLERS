@@ -24,7 +24,15 @@ export default function HeroCarousel({
 }: HeroCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [timedOut, setTimedOut] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Timeout: si pas de slides après 8s, on sort du spinner pour éviter la page bloquée
+  useEffect(() => {
+    if (slides.length > 0) return;
+    const timer = setTimeout(() => setTimedOut(true), 8000);
+    return () => clearTimeout(timer);
+  }, [slides.length]);
 
   // Auto rotate slides with per-slide timing (paused when user pauses video)
   useEffect(() => {
@@ -66,12 +74,33 @@ export default function HeroCarousel({
   };
 
   if (!slides || slides.length === 0) {
+    if (!timedOut) {
+      return (
+        <section className="relative w-full h-screen bg-zinc-950 flex items-center justify-center">
+          <div className="absolute inset-0 bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-900 animate-pulse" />
+          <div className="z-10 flex flex-col items-center gap-4">
+            <div className="h-12 w-12 border-4 border-zinc-700 border-t-brand-primary rounded-full animate-spin" />
+            <p className="text-zinc-500 font-bold tracking-widest uppercase text-sm animate-pulse">Loading Cinematic Experience...</p>
+          </div>
+        </section>
+      );
+    }
     return (
-      <section className="relative w-full h-screen bg-zinc-950 flex items-center justify-center">
-        <div className="absolute inset-0 bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-900 animate-pulse" />
-        <div className="z-10 flex flex-col items-center gap-4">
-          <div className="h-12 w-12 border-4 border-zinc-700 border-t-brand-primary rounded-full animate-spin" />
-          <p className="text-zinc-500 font-bold tracking-widest uppercase text-sm animate-pulse">Loading Cinematic Experience...</p>
+      <section className="relative w-full h-screen bg-zinc-950 flex items-center justify-center px-6">
+        <div className="z-10 flex flex-col items-center gap-4 text-center max-w-md">
+          <div className="w-16 h-16 rounded-full bg-zinc-800 flex items-center justify-center">
+            <span className="text-3xl text-zinc-500">!</span>
+          </div>
+          <h2 className="text-white text-xl font-bold">Connexion impossible</h2>
+          <p className="text-zinc-400 text-sm">
+            Le service est temporairement indisponible. Vérifie ta connexion ou réessaie plus tard.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-2 px-6 py-3 rounded-full bg-brand-primary text-white font-bold text-sm hover:bg-brand-primary/90 transition-all"
+          >
+            Réessayer
+          </button>
         </div>
       </section>
     );

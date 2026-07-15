@@ -35,21 +35,28 @@ router.post('/', (req: Request, res: Response, next: NextFunction) => {
   py.stdout.on('data', (data: Buffer) => { stdout += data.toString(); });
   py.stderr.on('data', (data: Buffer) => { stderr += data.toString(); });
 
+  let responded = false;
+  const respond = (data: any) => {
+    if (responded || res.headersSent) return;
+    responded = true;
+    res.json(data);
+  };
+
   py.on('close', (code: number | null) => {
     if (code !== 0) {
       console.error('Python downloader error:', stderr);
-      res.json({ success: false, error: `Python exited code ${code}`, stderr });
+      respond({ success: false, error: `Python exited code ${code}`, stderr });
       return;
     }
     try {
-      res.json(JSON.parse(stdout));
+      respond(JSON.parse(stdout));
     } catch {
-      res.json({ success: false, error: 'Invalid JSON from Python', raw: stdout });
+      respond({ success: false, error: 'Invalid JSON from Python', raw: stdout });
     }
   });
 
   py.on('error', (err: Error) => {
-    res.status(500).json({ success: false, error: err.message });
+    respond({ success: false, error: err.message });
   });
 });
 
