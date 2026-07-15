@@ -121,17 +121,18 @@ export default function SeasonPage() {
 
   return (
     <div className="min-h-screen bg-[#09090B] text-white">
-      <div className="fixed top-6 left-6 z-50">
+      {/* Back button — positioned just below the navbar */}
+      <div className="fixed top-[72px] left-4 sm:left-6 z-40">
         <button
           onClick={() => router.back()}
-          className="flex items-center gap-2 px-4 py-2 rounded-full bg-black/60 backdrop-blur-sm border border-white/10 text-sm font-semibold text-white hover:bg-white/10 transition-all group"
+          className="flex items-center gap-2 px-4 py-2 rounded-full bg-black/70 backdrop-blur-sm border border-white/10 text-sm font-semibold text-white hover:bg-white/10 transition-all group"
         >
           <ArrowLeftIcon className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
           Retour
         </button>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-24 pb-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-[72px] pb-12">
         <div className="flex flex-col lg:flex-row gap-6">
           <div className="flex-1 min-w-0 space-y-4" ref={playerRef}>
             <div className="flex items-center justify-between">

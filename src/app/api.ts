@@ -64,7 +64,7 @@ export function mapTMDBToMovieOrShow(
     genres = [type === "movie" ? "Movie" : type === "series" ? "Series" : type === "anime" ? "Anime" : "Documentary"];
   }
 
-  // Map Seasons
+  // Map Seasons — use episode_count from TMDB directly (episodes list fetched separately per season)
   let seasons: MovieOrShow['seasons'] = [];
   if (item.seasons && Array.isArray(item.seasons)) {
     seasons = item.seasons.map((s: any) => ({
@@ -72,7 +72,8 @@ export function mapTMDBToMovieOrShow(
       name: s.name,
       seasonNumber: s.season_number,
       posterUrl: s.poster_path ? `https://image.tmdb.org/t/p/w500${s.poster_path}` : "",
-      episodes: [], // Episodes are usually fetched via a separate API call for each season
+      episodeCount: s.episode_count ?? 0,
+      episodes: [],
     }));
   }
 
@@ -176,6 +177,80 @@ export async function getPopularTV(page = 1): Promise<MovieOrShow[]> {
     console.error("Error fetching popular series:", error);
   }
   return [];
+}
+
+export async function getTopRatedTV(page = 1): Promise<MovieOrShow[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/tv/top-rated?page=${page}`);
+    const json = await res.json();
+    if (json.success && json.data.results) {
+      return json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "series"));
+    }
+  } catch (error) {
+    console.error("Error fetching top rated TV:", error);
+  }
+  return [];
+}
+
+export async function getAnimeSeries(page = 1): Promise<MovieOrShow[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/tv/anime?page=${page}`);
+    const json = await res.json();
+    if (json.success && json.data.results) {
+      return json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "anime"));
+    }
+  } catch (error) {
+    console.error("Error fetching anime:", error);
+  }
+  return [];
+}
+
+export async function getPopularTVPage(page = 1): Promise<{ results: MovieOrShow[]; totalPages: number }> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/tv/popular?page=${page}`);
+    const json = await res.json();
+    if (json.success && json.data) {
+      return {
+        results: json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "series")),
+        totalPages: json.data.total_pages || 1,
+      };
+    }
+  } catch (error) {
+    console.error("Error fetching popular TV page:", error);
+  }
+  return { results: [], totalPages: 1 };
+}
+
+export async function getAnimeSeriesPage(page = 1): Promise<{ results: MovieOrShow[]; totalPages: number }> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/tv/anime?page=${page}`);
+    const json = await res.json();
+    if (json.success && json.data) {
+      return {
+        results: json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "anime")),
+        totalPages: json.data.total_pages || 1,
+      };
+    }
+  } catch (error) {
+    console.error("Error fetching anime page:", error);
+  }
+  return { results: [], totalPages: 1 };
+}
+
+export async function getPopularMoviesPage(page = 1): Promise<{ results: MovieOrShow[]; totalPages: number }> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/movies/popular?page=${page}`);
+    const json = await res.json();
+    if (json.success && json.data) {
+      return {
+        results: json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "movie")),
+        totalPages: json.data.total_pages || 1,
+      };
+    }
+  } catch (error) {
+    console.error("Error fetching popular movies page:", error);
+  }
+  return { results: [], totalPages: 1 };
 }
 
 export async function getUpcomingMovies(page = 1): Promise<MovieOrShow[]> {
@@ -334,6 +409,9 @@ export async function getStreamUrl(
     if (json.success && json.data?.embedUrl) {
       return { embedUrl: json.data.embedUrl, provider: json.provider || 'unknown' };
     }
+    if (!json.success) {
+      console.warn(`Stream unavailable for "${title || id}": ${json.message || 'unknown reason'}`);
+    }
   } catch (error) {
     console.error("Error fetching stream URL:", error);
   }
@@ -346,8 +424,16 @@ export async function startDownload(
   title?: string,
   season?: number,
   episode?: number
-): Promise<string | null> {
+): Promise<{ downloadUrl: string; fileCode: string } | null> {
   try {
+    if (title) {
+      const res = await fetch(`${API_BASE_URL}/doodstream/download?title=${encodeURIComponent(title)}`);
+      const json = await res.json();
+      if (json.success && json.data?.downloadUrl) {
+        return { downloadUrl: json.data.downloadUrl, fileCode: json.data.fileCode };
+      }
+    }
+
     const res = await fetch(`${API_BASE_URL}/download`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -355,7 +441,7 @@ export async function startDownload(
     });
     const json = await res.json();
     if (json.success && json.m3u8_url) {
-      return json.m3u8_url;
+      return { downloadUrl: json.m3u8_url, fileCode: '' };
     }
     console.error('Download extraction failed:', json.error);
   } catch (error) {
@@ -364,10 +450,9 @@ export async function startDownload(
   return null;
 }
 
-export function triggerDownload(m3u8Url: string, filename: string = 'video.mp4') {
-  const encoded = encodeURIComponent(m3u8Url);
+export function triggerDownload(downloadUrl: string, filename: string = 'video.mp4') {
   const link = document.createElement('a');
-  link.href = `${API_BASE_URL}/download/stream?m3u8=${encoded}&filename=${filename}`;
+  link.href = `${API_BASE_URL}/doodstream/download/proxy?url=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(filename)}`;
   link.download = filename;
   link.click();
 }
@@ -406,6 +491,49 @@ export async function getAllMovies(page = 1): Promise<MovieOrShow[]> {
     });
   } catch (error) {
     console.error("Error fetching all movies:", error);
+  }
+  return [];
+}
+
+export async function getMoviesByGenrePage(genreId: string, page = 1): Promise<{ results: MovieOrShow[]; totalPages: number }> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/movies/genre/${genreId}?page=${page}`);
+    const json = await res.json();
+    if (json.success && json.data) {
+      return {
+        results: json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "movie")),
+        totalPages: json.data.total_pages || 1,
+      };
+    }
+  } catch (error) {
+    console.error(`Error fetching movies by genre ${genreId}:`, error);
+  }
+  return { results: [], totalPages: 1 };
+}
+
+export async function getTVByGenrePage(genreId: string, page = 1): Promise<{ results: MovieOrShow[]; totalPages: number }> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/tv/genre/${genreId}?page=${page}`);
+    const json = await res.json();
+    if (json.success && json.data) {
+      return {
+        results: json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "series")),
+        totalPages: json.data.total_pages || 1,
+      };
+    }
+  } catch (error) {
+    console.error(`Error fetching TV by genre ${genreId}:`, error);
+  }
+  return { results: [], totalPages: 1 };
+}
+
+export async function getTVGenres(): Promise<Genre[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/genres/tv`);
+    const json = await res.json();
+    if (json.success && Array.isArray(json.data)) return json.data;
+  } catch (error) {
+    console.error("Error fetching TV genres:", error);
   }
   return [];
 }

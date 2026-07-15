@@ -136,14 +136,14 @@ body {
   animation: shimmer 1.5s infinite;
 }
 
-/* Banner gradient overlay */
+/* Banner gradient overlay — brighter version */
 .banner-overlay {
-  background: linear-gradient(to top, var(--background) 0%, rgba(var(--overlay-base), 0.85) 12%, rgba(var(--overlay-base), 0.2) 35%, transparent 65%),
-              linear-gradient(to right, rgba(var(--overlay-base), 0.7) 0%, rgba(var(--overlay-base), 0.15) 30%, transparent 60%);
+  background: linear-gradient(to top, var(--background) 0%, rgba(var(--overlay-base), 0.75) 15%, rgba(var(--overlay-base), 0.1) 40%, transparent 70%),
+              linear-gradient(to right, rgba(var(--overlay-base), 0.6) 0%, rgba(var(--overlay-base), 0.1) 30%, transparent 60%);
 }
 
 .banner-overlay-top {
-  background: linear-gradient(to bottom, rgba(var(--overlay-base), 0.65) 0%, transparent 100%);
+  background: linear-gradient(to bottom, rgba(var(--overlay-base), 0.45) 0%, transparent 100%);
 }
 
 /* Custom smooth horizontal scrolling */
@@ -153,4 +153,14 @@ body {
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* iPhone safe area support for bottom nav */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Mobile touch tap highlight removal */
+* {
+  -webkit-tap-highlight-color: transparent;
 }

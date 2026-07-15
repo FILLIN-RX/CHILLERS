@@ -12,6 +12,7 @@ export interface Season {
   name: string;
   seasonNumber: number;
   posterUrl: string;
+  episodeCount?: number;   // from TMDB episode_count field
   episodes: Episode[];
 }
 

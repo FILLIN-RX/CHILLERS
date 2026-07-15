@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
-import { getMediaDetails, getPopularMovies, getPopularTV, getStreamUrl, startDownload, triggerDownload } from "@/app/api";
+import { getMediaDetails, getPopularMovies, getPopularTV, getStreamUrl, startDownload, triggerDownload, getPopularMoviesPage, getPopularTVPage, getAnimeSeriesPage, getMoviesByGenrePage, getTVByGenrePage, getMovieGenres, getTVGenres, Genre } from "@/app/api";
+import GenreFilterBar from "@/components/GenreFilterBar";
+import NotificationModal from "@/components/NotificationModal";
 import { MovieOrShow } from "@/app/mockData";
 import {
   ArrowLeftIcon,
@@ -13,6 +15,8 @@ import {
   ClockIcon,
   CalendarDaysIcon,
   FilmIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
 } from "@heroicons/react/24/solid";
 import { ShareIcon } from "@heroicons/react/24/outline";
 import VideoPlayer from "@/components/VideoPlayer";
@@ -34,6 +38,7 @@ function MediaDetailPage() {
   const [isFavorite, setIsFavorite] = useState(false);
   const [trailerOpen, setTrailerOpen] = useState(false);
   const [trailerUrl, setTrailerUrl] = useState<string | null>(null);
+  const [notification, setNotification] = useState<{ title: string; message: string } | null>(null);
   const playerRef = useRef<HTMLDivElement>(null);
 
   const fetchData = useCallback(async () => {
@@ -77,7 +82,14 @@ function MediaDetailPage() {
   const handleWatch = async () => {
     if (!isTV && item && !item.videoUrl) {
       const stream = await getStreamUrl(item.id, 'movie', undefined, undefined, item.title);
-      if (stream) setItem({ ...item, videoUrl: stream.embedUrl });
+      if (stream) {
+        setItem({ ...item, videoUrl: stream.embedUrl });
+      } else {
+        setNotification({
+          title: 'Flux indisponible',
+          message: 'Aucun flux trouvé pour ce film. Le fichier est peut-être manquant sur les serveurs de diffusion.',
+        });
+      }
     }
     setTimeout(() => playerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
   };
@@ -88,15 +100,21 @@ function MediaDetailPage() {
     setDownloading(true);
     try {
       const type = isTV ? 'series' : 'movie';
-      const m3u8 = await startDownload(id, type, item?.title);
-      if (m3u8) {
-        triggerDownload(m3u8, `${item?.title || 'video'}.mp4`);
+      const result = await startDownload(id, type, item?.title);
+      if (result?.downloadUrl) {
+        triggerDownload(result.downloadUrl, `${item?.title || 'video'}.mp4`);
       } else {
-        alert('Aucune source de téléchargement trouvée');
+        setNotification({
+          title: 'Téléchargement impossible',
+          message: 'Aucune source de téléchargement trouvée pour ce contenu.',
+        });
       }
     } catch (err) {
       console.error('Download failed:', err);
-      alert('Erreur lors du téléchargement');
+      setNotification({
+        title: 'Erreur technique',
+        message: 'Une erreur est survenue lors du téléchargement. Réessaie plus tard.',
+      });
     } finally {
       setDownloading(false);
     }
@@ -105,10 +123,10 @@ function MediaDetailPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#09090B] text-white flex flex-col">
-        <div className="fixed top-6 left-6 z-50">
+        <div className="fixed top-[72px] left-4 sm:left-6 z-40">
           <button
             onClick={() => router.back()}
-            className="flex items-center gap-2 px-4 py-2 rounded-full bg-black/60 backdrop-blur-sm border border-white/10 text-sm font-semibold text-white hover:bg-black/80 transition-all"
+            className="flex items-center gap-2 px-4 py-2 rounded-full bg-black/70 backdrop-blur-sm border border-white/10 text-sm font-semibold text-white hover:bg-black/90 transition-all"
           >
             <ArrowLeftIcon className="h-4 w-4" /> Retour
           </button>
@@ -147,10 +165,11 @@ function MediaDetailPage() {
   return (
     <div className="min-h-screen bg-[#09090B] text-white pb-20 sm:pb-0">
 
-      <div className="fixed top-6 left-6 z-50">
+      {/* Back button — positioned just below the navbar */}
+      <div className="fixed top-[72px] left-4 sm:left-6 z-40">
         <button
           onClick={() => router.back()}
-          className="flex items-center gap-2 px-4 py-2 rounded-full bg-black/60 backdrop-blur-sm border border-white/10 text-sm font-semibold text-white hover:bg-white/10 transition-all group"
+          className="flex items-center gap-2 px-4 py-2 rounded-full bg-black/70 backdrop-blur-sm border border-white/10 text-sm font-semibold text-white hover:bg-white/10 transition-all group"
         >
           <ArrowLeftIcon className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
           Retour
@@ -162,10 +181,10 @@ function MediaDetailPage() {
           src={item.backdropUrl}
           alt={item.title}
           className="absolute inset-0 w-full h-full object-cover scale-105"
-          style={{ filter: "brightness(0.45)" }}
+          style={{ filter: "brightness(0.65) saturate(1.05)" }}
         />
 
-        <div className="absolute inset-0 bg-gradient-to-r from-[#09090B] via-[#09090B]/60 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#09090B]/80 via-[#09090B]/40 to-transparent" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#09090B] via-transparent to-transparent" />
 
         <div className="absolute inset-0 flex items-end pb-16 px-6 sm:px-12 lg:px-20">
@@ -248,13 +267,23 @@ function MediaDetailPage() {
                 <button 
                   className={`flex items-center gap-2 px-5 py-3 rounded-full font-bold text-sm transition-all hover:scale-105 border ${
                     downloading
-                      ? "bg-zinc-800 border-zinc-700 text-zinc-400 animate-pulse"
+                      ? "bg-zinc-800 border-zinc-700 text-zinc-400"
                       : "bg-white/10 border-white/20 text-white hover:bg-white/20"
                   }`}
                   onClick={handleDownload}
                   disabled={downloading}
                 >
-                  Télécharger
+                  {downloading ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Préparation...
+                    </>
+                  ) : (
+                    "Télécharger"
+                  )}
                 </button>
 
                 <button className="flex items-center gap-2 px-5 py-3 rounded-full bg-white/10 border border-white/20 text-white hover:bg-white/20 transition-all hover:scale-105 font-bold text-sm">
@@ -341,7 +370,9 @@ function MediaDetailPage() {
                     <h4 className="text-sm font-bold text-white group-hover:text-[#D70466] transition-colors truncate">
                       {season.name}
                     </h4>
-                    <p className="text-xs text-zinc-500 mt-0.5">{season.episodes.length} épisodes</p>
+                    <p className="text-xs text-zinc-500 mt-0.5">
+                      {season.episodeCount ?? season.episodes.length} épisode{(season.episodeCount ?? season.episodes.length) !== 1 ? "s" : ""}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -412,60 +443,231 @@ function MediaDetailPage() {
           </div>
         </div>
       )}
+
+      {notification && (
+        <NotificationModal
+          isOpen={!!notification}
+          onClose={() => setNotification(null)}
+          title={notification.title}
+          message={notification.message}
+        />
+      )}
     </div>
   );
 }
 
 function MediaListingPage() {
-  const { slug } = useParams();
-  const type = slug as string;
-  const [items, setItems] = useState<MovieOrShow[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const params = useParams();
+  const type = params?.slug as string;
+  const router = useRouter();
 
+  const [items, setItems] = useState<MovieOrShow[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
+  const [favorites, setFavorites] = useState<string[]>([]);
+
+  // Genre filter state
+  const [genres, setGenres] = useState<Genre[]>([]);
+  const [genresLoading, setGenresLoading] = useState(true);
+  const [activeGenreId, setActiveGenreId] = useState<string | null>(null);
+
+  // Load favorites
   useEffect(() => {
-    async function fetchData() {
+    try {
+      const saved = JSON.parse(localStorage.getItem("chiller_favorites") || "[]");
+      setFavorites(saved);
+    } catch { /* ignore */ }
+  }, []);
+
+  const toggleFavorite = (id: string) => {
+    const next = favorites.includes(id)
+      ? favorites.filter((f) => f !== id)
+      : [...favorites, id];
+    setFavorites(next);
+    localStorage.setItem("chiller_favorites", JSON.stringify(next));
+  };
+
+  // Fetch genres depending on content type
+  useEffect(() => {
+    setGenresLoading(true);
+    const fetchGenres = type === "movies"
+      ? getMovieGenres
+      : getTVGenres;
+    fetchGenres()
+      .then(setGenres)
+      .finally(() => setGenresLoading(false));
+    // Reset filter when switching type
+    setActiveGenreId(null);
+    setPage(1);
+  }, [type]);
+
+  // Reset to page 1 when genre changes
+  useEffect(() => {
+    setPage(1);
+  }, [activeGenreId]);
+
+  // Fetch content — uses genre filter if active, otherwise default lists
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchPage() {
       setIsLoading(true);
       try {
-        let data: MovieOrShow[] = [];
-        if (type === 'movies') {
-            data = await getPopularMovies();
-        } else if (type === 'series' || type === 'anime') {
-            data = await getPopularTV();
-            if (type === 'anime') {
-                data = data.filter(item => item.genres.includes('Animation') || item.type === 'anime');
-            }
+        let result: { results: MovieOrShow[]; totalPages: number } = { results: [], totalPages: 1 };
+
+        if (activeGenreId) {
+          // Genre filtered
+          if (type === "movies") result = await getMoviesByGenrePage(activeGenreId, page);
+          else result = await getTVByGenrePage(activeGenreId, page); // series + anime
+        } else {
+          // Default lists
+          if (type === "movies") result = await getPopularMoviesPage(page);
+          else if (type === "series") result = await getPopularTVPage(page);
+          else if (type === "anime") result = await getAnimeSeriesPage(page);
         }
-        setItems(data);
+
+        if (!cancelled) {
+          setItems(result.results);
+          setTotalPages(result.totalPages);
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
       } catch (err) {
         console.error("Failed to load data", err);
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     }
-    fetchData();
-  }, [type]);
+    fetchPage();
+    return () => { cancelled = true; };
+  }, [type, page, activeGenreId]);
+
+  const goToPage = (p: number) => {
+    if (p >= 1 && p <= totalPages && p !== page) setPage(p);
+  };
+
+  const buildPages = () => {
+    const range: (number | "...")[] = [];
+    const delta = 2;
+    const left = Math.max(2, page - delta);
+    const right = Math.min(totalPages - 1, page + delta);
+    range.push(1);
+    if (left > 2) range.push("...");
+    for (let i = left; i <= right; i++) range.push(i);
+    if (right < totalPages - 1) range.push("...");
+    if (totalPages > 1) range.push(totalPages);
+    return range;
+  };
+
+  const titles: Record<string, { title: string; subtitle: string }> = {
+    movies: { title: "Movies", subtitle: "Unlimited streaming. Instant theatrical releases." },
+    series: { title: "Series", subtitle: "Binge-worthy premium drama, politics, and thrillers." },
+    anime: { title: "Anime", subtitle: "Action-packed anime sourced from AnimeKai." },
+  };
+  const { title, subtitle } = titles[type] || { title: type, subtitle: "" };
+
+  // Active genre label
+  const activeGenreName = genres.find(g => String(g.id) === activeGenreId)?.name;
 
   return (
-    <main className="min-h-screen bg-brand-dark pt-24 px-6 pb-20">
-      <div className="max-w-7xl mx-auto space-y-8">
-        <h1 className="text-3xl font-extrabold text-foreground capitalize">{type}</h1>
-        
-        {isLoading ? (
-          <div className="text-white">Loading...</div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-            {items.map((item) => (
-              <MovieCard
-                key={item.id}
-                item={item}
-                onPlay={() => console.log('Play:', item)}
-                onOpenDetails={() => console.log('Details:', item)}
-                favorites={[]}
-                toggleFavorite={() => {}}
-              />
-            ))}
+    <main className="min-h-screen bg-brand-dark pb-28">
+
+      {/* ── Sticky filter bar (just below fixed navbar at 72px) ── */}
+      <div className="sticky top-[64px] z-30 bg-brand-dark/95 backdrop-blur-md border-b border-zinc-800/50 px-2 sm:px-6 md:px-12 lg:px-[4%] py-2.5">
+        <GenreFilterBar
+          genres={genres}
+          activeGenreId={activeGenreId}
+          onSelect={(id) => setActiveGenreId(id)}
+          isLoading={genresLoading}
+        />
+      </div>
+
+      {/* ── Page content ── */}
+      <div className="max-w-[1600px] mx-auto px-2 sm:px-6 md:px-12 lg:px-[4%] pt-4 space-y-4">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-1">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-extrabold text-white">
+              {activeGenreName ? `${title} · ${activeGenreName}` : title}
+            </h1>
+            <p className="text-zinc-500 text-xs mt-0.5">{subtitle}</p>
+          </div>
+          {!isLoading && (
+            <span className="text-xs text-zinc-500">
+              Page <span className="text-white font-bold">{page}</span>/{totalPages}
+            </span>
+          )}
+        </div>
+
+        {/* Anime banner */}
+        {type === "anime" && (
+          <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-brand-secondary/10 border border-brand-secondary/30">
+            <span className="text-lg">🎌</span>
+            <p className="text-xs font-bold text-white">Powered by AnimeKai</p>
           </div>
         )}
+
+        {/* Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3 md:gap-4">
+          {isLoading
+            ? Array.from({ length: 20 }).map((_, i) => (
+                <div key={i} className="aspect-[2/3] rounded-lg sm:rounded-xl bg-zinc-900 skeleton-loading" />
+              ))
+            : items.map((item) => (
+                <MovieCard
+                  key={item.id}
+                  item={item}
+                  variant="grid"
+                  onPlay={(i) => router.push(`/media/${i.id}?type=${i.type === "series" || i.type === "anime" ? "tv" : "movie"}`)}
+                  onOpenDetails={(i) => router.push(`/media/${i.id}?type=${i.type === "series" || i.type === "anime" ? "tv" : "movie"}`)}
+                  favorites={favorites}
+                  toggleFavorite={toggleFavorite}
+                />
+              ))
+          }
+        </div>
+
+        {/* Pagination */}
+        {!isLoading && totalPages > 1 && (
+          <div className="flex items-center justify-center gap-1.5 pt-4 flex-wrap">
+            <button
+              onClick={() => goToPage(page - 1)}
+              disabled={page === 1}
+              className="flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-semibold border transition-all focus:outline-none disabled:opacity-30 disabled:cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white cursor-pointer"
+            >
+              <ChevronLeftIcon className="h-4 w-4" />
+              <span className="hidden sm:inline">Précédent</span>
+            </button>
+
+            {buildPages().map((p, idx) =>
+              p === "..." ? (
+                <span key={`dots-${idx}`} className="px-2 py-2 text-zinc-600 text-sm select-none">…</span>
+              ) : (
+                <button
+                  key={p}
+                  onClick={() => goToPage(p as number)}
+                  className={`min-w-[36px] px-3 py-2 rounded-xl text-sm font-bold border transition-all focus:outline-none cursor-pointer ${
+                    p === page
+                      ? "bg-brand-primary border-brand-primary text-white shadow-lg shadow-brand-primary/30"
+                      : "border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                  }`}
+                >
+                  {p}
+                </button>
+              )
+            )}
+
+            <button
+              onClick={() => goToPage(page + 1)}
+              disabled={page === totalPages}
+              className="flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-semibold border transition-all focus:outline-none disabled:opacity-30 disabled:cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white cursor-pointer"
+            >
+              <span className="hidden sm:inline">Suivant</span>
+              <ChevronRightIcon className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
       </div>
     </main>
   );

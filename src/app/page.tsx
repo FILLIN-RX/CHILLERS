@@ -7,6 +7,7 @@ import HeroCarousel from "@/components/HeroCarousel";
 import MovieCard from "@/components/MovieCard";
 import CategoryCard from "@/components/CategoryCard";
 import ContinueWatchingCard from "@/components/ContinueWatchingCard";
+import ScrollRow from "@/components/ScrollRow";
 import MovieModal from "@/components/MovieModal";
 import VideoPlayer from "@/components/VideoPlayer";
 
@@ -233,8 +234,7 @@ export default function Home() {
     if (stream) {
       setPlayingVideo({ item: { ...item, videoUrl: stream.embedUrl }, episode });
     } else {
-      // Fallback to original trailer if stream fails
-      setPlayingVideo({ item, episode });
+      setPlayingVideo({ item: { ...item, videoUrl: '' }, episode });
     }
   };
 
@@ -249,7 +249,7 @@ export default function Home() {
     <div className="flex flex-col min-h-screen bg-brand-dark transition-colors duration-300">
       
       {/* Main Content Area */}
-      <main className={`flex-grow transition-all duration-300 ${playingVideo || activeTab !== "home" ? "pt-[72px]" : ""}`}>
+      <main className="flex-grow transition-all duration-300">
         {playingVideo ? (
           /* Immersive Custom Video Player Mode */
           <VideoPlayer
@@ -257,15 +257,15 @@ export default function Home() {
             episode={playingVideo.episode}
             onBack={() => {
               setPlayingVideo(null);
-              loadContinueWatchingHistory(); // refresh continue watching row on exit
+              loadContinueWatchingHistory();
             }}
             onOpenDetails={handleOpenDetails}
           />
         ) : (
           /* Standard Browsing Portal Hub */
-          <div className="space-y-12 pb-20 sm:pb-24">
+          <div className="space-y-10 pb-24">
             
-            {/* HERO CAROUSEL BLOCK */}
+            {/* HERO CAROUSEL — no padding-top, goes behind the navbar */}
             {activeTab === "home" && (
               <HeroCarousel
                 slides={heroSlides}
@@ -277,14 +277,13 @@ export default function Home() {
               />
             )}
 
+            {/* PADDING-TOP only for non-hero tabs — pushes content below navbar */}
+            {activeTab !== "home" && <div className="pt-[72px]" />}
+
             {/* CONTINUE WATCHING CONTAINER (Dynamic) */}
             {continueWatching.length > 0 && activeTab === "home" && (
-              <div className="max-w-[1600px] mx-auto px-4 sm:px-8 md:px-12 lg:px-[4%] space-y-4">
-                <h3 className="text-lg font-bold text-foreground tracking-tight flex items-center gap-2">
-                  <span className="h-3 w-1 bg-brand-secondary rounded-full" />
-                  Continue Watching
-                </h3>
-                <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar scroll-smooth">
+              <div className="max-w-[1600px] mx-auto px-4 sm:px-8 md:px-12 lg:px-[4%]">
+                <ScrollRow title="Continue Watching" accentColor="secondary">
                   {continueWatching.map(({ item, progress, remaining, episodeName }) => (
                     <ContinueWatchingCard
                       key={item.id}
@@ -294,20 +293,16 @@ export default function Home() {
                       episodeName={episodeName}
                       onResume={handleWatchNow}
                       onOpenDetails={handleOpenDetails}
-                      />
-                    ))}
-                </div>
+                    />
+                  ))}
+                </ScrollRow>
               </div>
             )}
 
             {/* RECOMMENDED FOR YOU */}
             {recommendedMovies.length > 0 && activeTab === "home" && (
-              <div className="max-w-[1600px] mx-auto px-4 sm:px-8 md:px-12 lg:px-[4%] space-y-4">
-                <h3 className="text-lg font-bold text-foreground tracking-tight flex items-center gap-2">
-                  <span className="h-3 w-1 bg-brand-primary rounded-full" />
-                  Recommended For You
-                </h3>
-                <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar scroll-smooth">
+              <div className="max-w-[1600px] mx-auto px-4 sm:px-8 md:px-12 lg:px-[4%]">
+                <ScrollRow title="Recommended For You" accentColor="primary">
                   {recommendedMovies.map((item) => (
                     <MovieCard
                       key={item.id}
@@ -318,47 +313,40 @@ export default function Home() {
                       toggleFavorite={toggleFavorite}
                     />
                   ))}
-                </div>
+                </ScrollRow>
               </div>
             )}
 
             {/* MAIN TAB SWITCH CONTENT CONTAINER */}
-            <div className="max-w-[1600px] mx-auto px-4 sm:px-8 md:px-12 lg:px-[4%] space-y-12">
+            <div className="max-w-[1600px] mx-auto px-2 sm:px-6 md:px-12 lg:px-[4%] space-y-10">
               
               {activeTab === "home" && (
                 <>
                   {/* Row 1: Trending Movies & Shows */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-bold text-foreground tracking-tight flex items-center gap-2">
-                      <span className="h-3 w-1 bg-brand-primary rounded-full" />
-                      Trending Worldwide
-                    </h3>
-                    <div className="flex gap-6 overflow-x-auto pb-4 no-scrollbar scroll-smooth">
-                      {(trendingAll.length > 0 ? trendingAll : allMovies).map((item) => (
-                        <MovieCard
-                          key={item.id}
-                          item={item}
-                          onPlay={handleWatchNow}
-                          onOpenDetails={handleOpenDetails}
-                          favorites={favorites}
-                          toggleFavorite={toggleFavorite}
-                        />
-                      ))}
-                    </div>
-                  </div>
+                  <ScrollRow title="Trending Worldwide" accentColor="primary">
+                    {(trendingAll.length > 0 ? trendingAll : allMovies).map((item) => (
+                      <MovieCard
+                        key={item.id}
+                        item={item}
+                        onPlay={handleWatchNow}
+                        onOpenDetails={handleOpenDetails}
+                        favorites={favorites}
+                        toggleFavorite={toggleFavorite}
+                      />
+                    ))}
+                  </ScrollRow>
 
                   {/* Row 4: Category Genres Visual Board */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-bold text-foreground tracking-tight flex items-center gap-2">
+                  <div className="space-y-3">
+                    <h3 className="text-base sm:text-lg font-bold text-white tracking-tight flex items-center gap-2">
                       <span className="h-3 w-1 bg-brand-primary rounded-full" />
                       Browse by Genre
                     </h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4">
                       {(genres.length > 0
                         ? genres.map(g => ({ id: String(g.id), name: g.name, imageUrl: '' }))
                         : []
                       ).slice(0, 10).map((g) => {
-
                         return (
                           <CategoryCard
                             key={g.id}
@@ -377,24 +365,18 @@ export default function Home() {
                   {/* Genre Movie Rows */}
                   {Object.entries(genreMovies).length > 0 && Object.entries(genreMovies).map(([genreName, movies]) => (
                     movies.length > 0 && (
-                      <div key={genreName} className="space-y-4">
-                        <h3 className="text-lg font-bold text-foreground tracking-tight flex items-center gap-2">
-                          <span className="h-3 w-1 bg-brand-secondary rounded-full" />
-                          {genreName} Movies
-                        </h3>
-                        <div className="flex gap-6 overflow-x-auto pb-4 no-scrollbar scroll-smooth">
-                          {movies.map((item) => (
-                            <MovieCard
-                              key={item.id}
-                              item={item}
-                              onPlay={handleWatchNow}
-                              onOpenDetails={handleOpenDetails}
-                              favorites={favorites}
-                              toggleFavorite={toggleFavorite}
-                            />
-                          ))}
-                        </div>
-                      </div>
+                      <ScrollRow key={genreName} title={`${genreName} Movies`} accentColor="secondary">
+                        {movies.map((item) => (
+                          <MovieCard
+                            key={item.id}
+                            item={item}
+                            onPlay={handleWatchNow}
+                            onOpenDetails={handleOpenDetails}
+                            favorites={favorites}
+                            toggleFavorite={toggleFavorite}
+                          />
+                        ))}
+                      </ScrollRow>
                     )
                   ))}
                 </>
@@ -402,16 +384,17 @@ export default function Home() {
 
               {/* MOVIES TAB */}
               {activeTab === "movies" && (
-                <div className="space-y-6">
+                <div className="space-y-4">
                   <div>
-                    <h2 className="text-3xl font-extrabold text-foreground">Blockbuster Movies</h2>
-                    <p className="text-brand-text-muted text-sm mt-1">Unlimited mock streaming. Instant theatrical releases.</p>
+                    <h2 className="text-xl sm:text-3xl font-extrabold text-white">Blockbuster Movies</h2>
+                    <p className="text-zinc-500 text-xs sm:text-sm mt-0.5">Unlimited streaming. Instant theatrical releases.</p>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
                     {getFilteredMedia("movie").map((item) => (
                       <MovieCard
                         key={item.id}
                         item={item}
+                        variant="grid"
                         onPlay={handleWatchNow}
                         onOpenDetails={handleOpenDetails}
                         favorites={favorites}
@@ -424,16 +407,17 @@ export default function Home() {
 
               {/* SERIES TAB */}
               {activeTab === "series" && (
-                <div className="space-y-6">
+                <div className="space-y-4">
                   <div>
-                    <h2 className="text-3xl font-extrabold text-foreground">Featured Series</h2>
-                    <p className="text-brand-text-muted text-sm mt-1">Binge-worthy premium drama, politics, and thrillers.</p>
+                    <h2 className="text-xl sm:text-3xl font-extrabold text-white">Featured Series</h2>
+                    <p className="text-zinc-500 text-xs sm:text-sm mt-0.5">Binge-worthy premium drama, politics, and thrillers.</p>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
                     {getFilteredMedia("series").map((item) => (
                       <MovieCard
                         key={item.id}
                         item={item}
+                        variant="grid"
                         onPlay={handleWatchNow}
                         onOpenDetails={handleOpenDetails}
                         favorites={favorites}
@@ -446,16 +430,17 @@ export default function Home() {
 
               {/* ANIME TAB */}
               {activeTab === "anime" && (
-                <div className="space-y-6">
+                <div className="space-y-4">
                   <div>
-                    <h2 className="text-3xl font-extrabold text-foreground">Global Anime</h2>
-                    <p className="text-brand-text-muted text-sm mt-1">Action packed cybernetic ninjas, mechs, and spirits.</p>
+                    <h2 className="text-xl sm:text-3xl font-extrabold text-white">Global Anime</h2>
+                    <p className="text-zinc-500 text-xs sm:text-sm mt-0.5">Action packed cybernetic ninjas, mechs, and spirits.</p>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
                     {getFilteredMedia("anime").map((item) => (
                       <MovieCard
                         key={item.id}
                         item={item}
+                        variant="grid"
                         onPlay={handleWatchNow}
                         onOpenDetails={handleOpenDetails}
                         favorites={favorites}
@@ -468,16 +453,17 @@ export default function Home() {
 
               {/* TRENDING TAB */}
               {activeTab === "trending" && (
-                <div className="space-y-6">
+                <div className="space-y-4">
                   <div>
-                    <h2 className="text-3xl font-extrabold text-foreground">Trending This Week</h2>
-                    <p className="text-brand-text-muted text-sm mt-1">The most watched films and series on Chiller right now.</p>
+                    <h2 className="text-xl sm:text-3xl font-extrabold text-white">Trending This Week</h2>
+                    <p className="text-zinc-500 text-xs sm:text-sm mt-0.5">The most watched films and series on Chiller right now.</p>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
                     {(trendingAll.length > 0 ? trendingAll : allMovies).map((item) => (
                       <MovieCard
                         key={item.id}
                         item={item}
+                        variant="grid"
                         onPlay={handleWatchNow}
                         onOpenDetails={handleOpenDetails}
                         favorites={favorites}

@@ -11,6 +11,8 @@ interface MovieCardProps {
   onOpenDetails: (item: MovieOrShow) => void;
   favorites: string[];
   toggleFavorite: (id: string) => void;
+  /** "scroll" = fixed width for horizontal rows, "grid" = w-full for grid pages */
+  variant?: "scroll" | "grid";
 }
 
 export default function MovieCard({
@@ -19,6 +21,7 @@ export default function MovieCard({
   onOpenDetails,
   favorites,
   toggleFavorite,
+  variant = "scroll",
 }: MovieCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const isFavorite = favorites.includes(item.id);
@@ -34,7 +37,11 @@ export default function MovieCard({
       onClick={() => goToDetail()}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className="relative flex-none w-[160px] sm:w-[200px] md:w-[240px] aspect-[2/3] rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800/40 cursor-pointer transition-all duration-300"
+      className={`relative aspect-[2/3] overflow-hidden bg-zinc-900 border border-zinc-800/40 cursor-pointer transition-all duration-300 ${
+        variant === "grid"
+          ? "w-full rounded-lg sm:rounded-xl"
+          : "flex-none w-[140px] sm:w-[180px] md:w-[220px] rounded-xl sm:rounded-2xl"
+      }`}
       style={{
         transform: isHovered ? 'scale(1.05)' : 'scale(1)',
         boxShadow: isHovered ? '0 0 30px rgba(215, 4, 102, 0.35)' : 'none',

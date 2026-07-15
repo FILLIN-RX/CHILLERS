@@ -14,7 +14,11 @@ export const getMovieStream = async (req: Request, res: Response, next: NextFunc
     });
 
     if (!result) {
-      res.json({ success: false, data: null, message: 'No stream available from any provider' });
+      res.json({
+        success: false,
+        data: null,
+        message: 'Aucun flux disponible. Tous les fournisseurs ont échoué.',
+      });
       return;
     }
 
@@ -47,7 +51,11 @@ export const getEpisodeStream = async (req: Request, res: Response, next: NextFu
     });
 
     if (!result) {
-      res.json({ success: false, data: null, message: 'No stream available from any provider' });
+      res.json({
+        success: false,
+        data: null,
+        message: 'Aucun flux disponible. Tous les fournisseurs ont échoué.',
+      });
       return;
     }
 

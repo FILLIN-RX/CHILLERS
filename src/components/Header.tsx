@@ -47,14 +47,14 @@ export default function Header({ onSearchClick }: HeaderProps) {
         ? "glass-nav shadow-lg" 
         : "bg-gradient-to-b from-black/90 via-black/40 to-transparent border-transparent"
     }`}>
-      <div className="mx-auto flex max-w-[1600px] items-center justify-between px-4 sm:px-8 md:px-12 lg:px-[4%] py-4">
+      <div className="mx-auto flex max-w-[1600px] items-center justify-between px-3 sm:px-8 md:px-12 lg:px-[4%] py-3 sm:py-4">
         
-        <div className="flex items-center gap-8">
+        <div className="flex items-center gap-6 sm:gap-8">
           <Link href="/" className="group flex items-center focus:outline-none">
             <img 
               src="/android-chrome-512x512.png" 
               alt="Chillers Logo" 
-              className="h-10 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
+              className="h-8 sm:h-10 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
             />
           </Link>
           

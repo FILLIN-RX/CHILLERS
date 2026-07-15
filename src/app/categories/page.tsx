@@ -23,8 +23,8 @@ export default function CategoriesPage() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-brand-dark pt-24 px-6 pb-20">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <main className="min-h-screen bg-brand-dark pt-[72px] px-6 pb-28">
+      <div className="max-w-7xl mx-auto space-y-6 pt-6">
         <div>
           <h2 className="text-3xl font-extrabold text-foreground">Explore Categories</h2>
           <p className="text-brand-text-muted text-sm mt-1">Find content curated by genre and editorial focus.</p>

@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ProviderManager = void 0;
 const axios_1 = __importDefault(require("axios"));
+const doodstream_provider_1 = require("./providers/doodstream.provider");
 const vidlink_provider_1 = require("./providers/vidlink.provider");
 const vidapi_provider_1 = require("./providers/vidapi.provider");
 const animekai_provider_1 = require("./providers/animekai.provider");
@@ -12,7 +13,8 @@ const VALIDATION_TIMEOUT = 5000;
 class ProviderManager {
     constructor() {
         this.providers = [
-            new animekai_provider_1.AnimeKaiProvider(),
+            new animekai_provider_1.AnimeKaiProvider(), // Anime first
+            new doodstream_provider_1.DoodStreamProvider(),
             new vidlink_provider_1.VidLinkProvider(),
             new vidapi_provider_1.VidAPIProvider(),
         ];
@@ -23,6 +25,11 @@ class ProviderManager {
             try {
                 const result = await provider.getMovieStream(query);
                 if (result && result.embedUrl) {
+                    // DoodStream: skip validation (trusted, direct links)
+                    if (result.provider === 'doodstream') {
+                        return { provider: result.provider, embedUrl: result.embedUrl };
+                    }
+                    // VidLink / VidAPI / AnimeKai: validate URL
                     const valid = await this.validateUrl(result.embedUrl);
                     if (valid) {
                         return { provider: result.provider, embedUrl: result.embedUrl };
@@ -41,6 +48,9 @@ class ProviderManager {
             try {
                 const result = await provider.getEpisodeStream(query);
                 if (result && result.embedUrl) {
+                    if (result.provider === 'doodstream') {
+                        return { provider: result.provider, embedUrl: result.embedUrl };
+                    }
                     const valid = await this.validateUrl(result.embedUrl);
                     if (valid) {
                         return { provider: result.provider, embedUrl: result.embedUrl };
@@ -76,8 +86,7 @@ class ProviderManager {
             });
             if (response.status >= 400)
                 return false;
-            // Check for common indicators that the stream is unavailable in the body
-            const body = response.data.toLowerCase();
+            const body = typeof response.data === 'string' ? response.data.toLowerCase() : '';
             const notFoundIndicators = ['not found', 'unavailable', 'error loading', 'no stream', 'content not available'];
             for (const indicator of notFoundIndicators) {
                 if (body.includes(indicator)) {

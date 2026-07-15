@@ -16,7 +16,9 @@ import {
   Cog6ToothIcon,
   ChevronRightIcon,
   ArrowDownTrayIcon,
+  FilmIcon,
 } from "@heroicons/react/24/solid";
+import NotificationModal from "./NotificationModal";
 
 interface VideoPlayerProps {
   item: MovieOrShow;
@@ -47,6 +49,7 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
   const [showControls, setShowControls] = useState(true);
   const [isEpisodeDrawerOpen, setIsEpisodeDrawerOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [notification, setNotification] = useState<{ title: string; message: string } | null>(null);
 
   // Use passed episode or none
   const currentEpisode = episode;
@@ -199,7 +202,7 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
   };
 
   // Helper to determine if the video is an iframe (VidLink, YouTube, etc.)
-  const isIframe = item.videoUrl?.includes("vidlink.pro") || item.videoUrl?.includes("youtube.com") || item.videoUrl?.includes("embed");
+  const isIframe = item.videoUrl?.includes("vidlink.pro") || item.videoUrl?.includes("youtube.com") || item.videoUrl?.includes("doodstream.com") || item.videoUrl?.includes("doodstream.com/e/");
 
   const [downloading, setDownloading] = useState(false);
 
@@ -209,21 +212,27 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
       const { startDownload, triggerDownload } = await import('@/app/api');
       const type = item.type === 'series' && currentEpisode ? 'series' : 'movie';
       const title = item.title;
-      const m3u8 = await startDownload(
+      const result = await startDownload(
         String(item.id),
         type,
         title,
-        undefined, // NOTE: Need to pass season info if available
+        undefined,
         currentEpisode?.number
       );
-      if (m3u8) {
-        triggerDownload(m3u8, `${title || 'video'}.mp4`);
+      if (result?.downloadUrl) {
+        triggerDownload(result.downloadUrl, `${title || 'video'}.mp4`);
       } else {
-        alert('Aucune source de téléchargement trouvée');
+        setNotification({
+          title: 'Téléchargement impossible',
+          message: 'Aucune source de téléchargement trouvée pour ce contenu.',
+        });
       }
     } catch (err) {
       console.error('Download failed:', err);
-      alert('Erreur lors du téléchargement');
+      setNotification({
+        title: 'Erreur technique',
+        message: 'Une erreur est survenue lors du téléchargement. Réessaie plus tard.',
+      });
     } finally {
       setDownloading(false);
     }
@@ -256,7 +265,20 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
           onClick={handlePlayPause}
         />
       ) : (
-        <div className="text-zinc-500 font-medium">Flux indisponible</div>
+        <div className="aspect-video flex flex-col items-center justify-center gap-4 text-zinc-500">
+          <FilmIcon className="h-12 w-12 text-zinc-700" />
+          <p className="font-medium text-lg">Flux indisponible</p>
+          <p className="text-sm text-zinc-600 max-w-md text-center">
+            Aucun fournisseur n'a pu diffuser ce contenu. 
+            Le fichier est peut-être manquant sur DoodStream ou les sources alternatives sont indisponibles.
+          </p>
+          <button
+            onClick={onBack}
+            className="px-5 py-2 rounded-full bg-[#D70466] text-white text-sm font-bold hover:bg-[#b5034f] transition-colors"
+          >
+            Retour
+          </button>
+        </div>
       )}
 
       {/* ─── HUD OVERLAYS (Only for Native Video) ────────────────────────── */}
@@ -348,9 +370,16 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
                 <button 
                   onClick={handleDownload}
                   disabled={downloading}
-                  className={`text-white transition-colors ${downloading ? "opacity-50 animate-pulse" : "hover:text-[#D70466]"}`}
+                  className={`text-white transition-colors ${downloading ? "opacity-70" : "hover:text-[#D70466]"}`}
                 >
-                  <ArrowDownTrayIcon className="h-6 w-6" />
+                  {downloading ? (
+                    <svg className="animate-spin h-6 w-6" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                  ) : (
+                    <ArrowDownTrayIcon className="h-6 w-6" />
+                  )}
                 </button>
                 <button 
                   onClick={() => setShowSettings(!showSettings)}
@@ -404,6 +433,15 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
             </div>
           )}
         </>
+      )}
+
+      {notification && (
+        <NotificationModal
+          isOpen={!!notification}
+          onClose={() => setNotification(null)}
+          title={notification.title}
+          message={notification.message}
+        />
       )}
     </div>
   );

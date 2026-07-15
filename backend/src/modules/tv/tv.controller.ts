@@ -21,6 +21,38 @@ export const getTrending = async (_req: Request, res: Response, next: NextFuncti
   }
 };
 
+export const getTopRated = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const page = Number(req.query.page) || 1;
+    const data = await tvService.getTopRated(page);
+    res.json({ success: true, data, message: null });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getByGenre = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const genreId = req.params.genreId as string;
+    const page = Number(req.query.page) || 1;
+    if (!genreId) throw new AppError('Genre ID is required', 400);
+    const data = await tvService.getByGenre(genreId, page);
+    res.json({ success: true, data, message: null });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getAnime = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const page = Number(req.query.page) || 1;
+    const data = await tvService.getAnime(page);
+    res.json({ success: true, data, message: null });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getDetails = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;

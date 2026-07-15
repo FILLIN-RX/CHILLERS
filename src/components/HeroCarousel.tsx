@@ -92,11 +92,12 @@ export default function HeroCarousel({
             <div key={slide.id} className="w-full h-full flex-shrink-0 relative">
               {/* Background Media Container */}
               <div className="absolute inset-0 w-full h-full bg-black">
-                {/* Static Backdrop Image */}
+                {/* Static Backdrop Image — brighter base */}
                 <img
                   src={slide.backdropUrl}
                   alt={slide.title}
                   className="w-full h-full object-cover object-center"
+                  style={{ filter: "brightness(0.85) saturate(1.1)" }}
                 />
 
                 {/* Autoplay background video (hidden when paused) */}
@@ -142,10 +143,10 @@ export default function HeroCarousel({
               </div>
 
               {/* Hero Content Area */}
-              <div className="absolute inset-0 z-10 flex flex-col justify-end px-4 sm:px-8 md:px-12 lg:px-[4%] pb-16 sm:pb-20 lg:pb-24 max-w-[1600px] mx-auto">
-                <div className="space-y-4 md:space-y-6 max-w-2xl">
+              <div className="absolute inset-0 z-10 flex flex-col justify-end px-4 sm:px-8 md:px-12 lg:px-[4%] pb-20 sm:pb-20 lg:pb-24 max-w-[1600px] mx-auto">
+                <div className="space-y-3 md:space-y-6 max-w-2xl">
                   {/* Metadata Badges */}
-                  <div className="flex flex-wrap items-center gap-3 text-xs md:text-sm text-zinc-300 font-medium">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs md:text-sm text-zinc-300 font-medium">
                     <span className="rounded bg-brand-primary/10 px-2.5 py-1 text-brand-primary font-bold border border-brand-primary/20 uppercase tracking-wider text-[10px]">
                       Featured
                     </span>
@@ -160,17 +161,17 @@ export default function HeroCarousel({
                   </div>
 
                   {/* Title */}
-                  <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl font-sans drop-shadow-md">
+                  <h1 className="text-2xl font-extrabold tracking-tight text-white sm:text-4xl md:text-6xl lg:text-7xl font-sans drop-shadow-md leading-tight">
                     {slide.title}
                   </h1>
 
-                  {/* Description */}
-                  <p className="text-sm sm:text-base md:text-lg text-zinc-200 max-w-2xl font-light leading-relaxed line-clamp-3 drop-shadow">
+                  {/* Description — hidden on very small screens */}
+                  <p className="hidden sm:block text-sm sm:text-base md:text-lg text-zinc-200 max-w-2xl font-light leading-relaxed line-clamp-3 drop-shadow">
                     {slide.description}
                   </p>
 
-                  {/* Genres */}
-                  <div className="flex flex-wrap gap-2 pt-1">
+                  {/* Genres — hidden on very small screens */}
+                  <div className="hidden sm:flex flex-wrap gap-2 pt-1">
                     {slide.genres.map((genre) => (
                       <span
                         key={genre}
@@ -182,18 +183,18 @@ export default function HeroCarousel({
                   </div>
 
                   {/* Actions */}
-                  <div className="flex flex-wrap items-center gap-4 pt-3">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-4 pt-2 sm:pt-3">
                     <button
                       onClick={() => onWatchNow(slide)}
-                      className="flex items-center gap-2 rounded-full bg-brand-primary hover:bg-brand-primary/95 text-white px-6 py-3 font-semibold text-sm transition-all duration-300 hover:scale-105 shadow-xl shadow-brand-primary/25 cursor-pointer"
+                      className="flex items-center gap-2 rounded-full bg-brand-primary hover:bg-brand-primary/95 text-white px-5 sm:px-6 py-2.5 sm:py-3 font-semibold text-sm transition-all duration-300 hover:scale-105 shadow-xl shadow-brand-primary/25 cursor-pointer"
                     >
-                      <PlayIcon className="h-5 w-5" />
+                      <PlayIcon className="h-4 w-4 sm:h-5 sm:w-5" />
                       Watch Now
                     </button>
 
                     <button
                       onClick={() => toggleFavorite(slide.id)}
-                      className={`flex items-center gap-2 rounded-full px-5 py-3 font-semibold text-sm transition-all duration-300 border backdrop-blur-sm hover:scale-105 cursor-pointer ${
+                      className={`flex items-center gap-2 rounded-full px-4 sm:px-5 py-2.5 sm:py-3 font-semibold text-sm transition-all duration-300 border backdrop-blur-sm hover:scale-105 cursor-pointer ${
                         isFavorite
                           ? "bg-zinc-850 text-brand-primary border-brand-primary/45"
                           : "bg-white/10 text-white border-white/10 hover:bg-white/20"
@@ -201,22 +202,23 @@ export default function HeroCarousel({
                     >
                       {isFavorite ? (
                         <>
-                          <CheckIcon className="h-5 w-5" />
-                          In Favorites
+                          <CheckIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                          <span className="hidden sm:inline">In Favorites</span>
                         </>
                       ) : (
                         <>
-                          <PlusIcon className="h-5 w-5" />
-                          Add to Favorites
+                          <PlusIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                          <span className="hidden sm:inline">Add to Favorites</span>
                         </>
                       )}
                     </button>
 
                     <button
                       onClick={() => onOpenDetails(slide)}
-                      className="rounded-full bg-black/40 border border-white/10 text-zinc-200 hover:text-white px-5 py-3 text-sm font-semibold transition-all duration-300 hover:bg-black/60 backdrop-blur-sm cursor-pointer"
+                      className="rounded-full bg-black/40 border border-white/10 text-zinc-200 hover:text-white px-4 sm:px-5 py-2.5 sm:py-3 text-sm font-semibold transition-all duration-300 hover:bg-black/60 backdrop-blur-sm cursor-pointer"
                     >
-                      More Details
+                      <span className="hidden sm:inline">More Details</span>
+                      <span className="sm:hidden">Details</span>
                     </button>
                   </div>
                 </div>

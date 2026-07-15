@@ -22,7 +22,7 @@ export default function ContinueWatchingCard({
   onOpenDetails,
 }: ContinueWatchingCardProps) {
   return (
-    <div className="group relative flex-none w-[200px] sm:w-[260px] md:w-[300px] bg-[#121214] rounded-2xl overflow-hidden border border-[#1F1F23]/60 hover:border-brand-primary/40 hover-glow cursor-pointer transition-all duration-300">
+    <div className="group relative flex-none w-[160px] sm:w-[220px] md:w-[280px] bg-[#121214] rounded-xl sm:rounded-2xl overflow-hidden border border-[#1F1F23]/60 hover:border-brand-primary/40 hover-glow cursor-pointer transition-all duration-300">
       
       {/* Thumbnail backdrop image with play overlay */}
       <div className="relative aspect-[2/3] w-full bg-zinc-950 overflow-hidden">

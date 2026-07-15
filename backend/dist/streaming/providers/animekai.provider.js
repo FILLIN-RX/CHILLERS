@@ -1,6 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AnimeKaiProvider = void 0;
+// AnimeKai supports anime by TMDB ID or by title slug
+// Priority: use TMDB ID embed (more reliable), fallback to title slug
 const BASE_URL = 'https://animekai.to';
 function slugify(title) {
     return title
@@ -15,21 +17,20 @@ class AnimeKaiProvider {
         this.name = 'animekai';
     }
     supports(query) {
-        return query.type === 'anime' && !!query.title;
+        return query.type === 'anime';
     }
     async getMovieStream(query) {
-        if (!query.title)
-            return null;
-        const slug = slugify(query.title);
-        const embedUrl = `${BASE_URL}/embed/${slug}`;
+        // Try TMDB-ID based embed first (most reliable)
+        const embedUrl = query.title
+            ? `${BASE_URL}/embed/${slugify(query.title)}`
+            : `${BASE_URL}/embed/tmdb-${query.tmdbId}`;
         return { provider: this.name, embedUrl, type: 'movie' };
     }
     async getEpisodeStream(query) {
-        if (!query.title)
-            return null;
-        const slug = slugify(query.title);
         const ep = query.episode || 1;
-        const embedUrl = `${BASE_URL}/embed/${slug}?ep=${ep}`;
+        const embedUrl = query.title
+            ? `${BASE_URL}/embed/${slugify(query.title)}?ep=${ep}`
+            : `${BASE_URL}/embed/tmdb-${query.tmdbId}?ep=${ep}`;
         return { provider: this.name, embedUrl, type: 'episode' };
     }
 }
