@@ -175,19 +175,21 @@ export const getDownloadByTitle = async (req: Request, res: Response, next: Next
       });
     }
 
-    // Fichier uploadé → API DoodStream d'abord (URL fraîche)
+    // Prefer the direct .mp4 / vidzy.cc link when it's available —
+    // it's a clean CDN URL that downloads reliably. The Doodstream
+    // protected download URL often returns a tiny HTML "downloader"
+    // page (a few KB) when fetched without the right cookies/Referer,
+    // which the user sees as a broken download.
     let downloadUrl: string | null = null;
-    if (match.fileCode) {
+    if (match.info.lien) {
+      downloadUrl = match.info.lien;
+    } else if (match.fileCode) {
       try {
         const apiUrl = await getFileDownloadUrl(match.fileCode);
         if (apiUrl) downloadUrl = apiUrl;
       } catch {
         // API indisponible
       }
-    }
-    // Fallback: lien stocké (vidzy scrappé)
-    if (!downloadUrl) {
-      downloadUrl = match.info.lien || null;
     }
 
     return res.json({
