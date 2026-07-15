@@ -83,9 +83,9 @@ export class DoodStreamProvider implements StreamingProvider {
     const match = this.findFile(query);
     if (!match) return null;
 
-    // Tier 1: direct MP4 from uploaded.json (lien → vidzy.cc CDN)
+    // Tier 1: direct MP4 from uploaded.json (lien → proxied through backend for Referer + CORS)
     if (match.info.lien) {
-      return match.info.lien;
+      return `/api/doodstream/stream?url=${encodeURIComponent(match.info.lien)}`;
     }
 
     // Tier 2: DoodStream API fresh download URL (proxied through backend)
