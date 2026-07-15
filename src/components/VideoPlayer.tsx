@@ -247,11 +247,15 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
       {/* ─── VIDEO / CONTENT ─────────────────────────────────────────────── */}
       {isIframe ? (
         <iframe
+          key={item.videoUrl}
           src={item.videoUrl}
-          className="w-full aspect-video border-none"
-          allow="autoplay; encrypted-media; fullscreen"
-          referrerPolicy="no-referrer"
+          className="w-full aspect-video border-none bg-black"
+          allow="autoplay; fullscreen; encrypted-media; picture-in-picture; gyroscope; accelerometer; clipboard-write"
+          allowFullScreen
+          referrerPolicy="origin"
           title={item.title}
+          scrolling="no"
+          loading="lazy"
         />
       ) : item.videoUrl ? (
         <video

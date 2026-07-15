@@ -140,8 +140,8 @@ export default function HeroCarousel({
                       data-hero-video
                       src={`${slide.videoUrl}?autoplay=1&controls=0&mute=1&loop=1&playlist=${slide.videoUrl.split('/').pop()}&enablejsapi=1`}
                       className="absolute inset-0 w-full h-full border-none pointer-events-none"
-                      allow="autoplay; encrypted-media"
-                      sandbox="allow-scripts allow-same-origin allow-forms"
+                      allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+                      allowFullScreen
                       title={slide.title}
                     />
                   ) : (

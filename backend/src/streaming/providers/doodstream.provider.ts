@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { StreamingProvider, StreamResult, StreamQuery } from './provider.interface';
-import { getFileDownloadUrl, getDirectDownloadUrl, listFiles } from '../../modules/doodstream/doodstream.service';
+import { getFileDownloadUrl, listFiles } from '../../modules/doodstream/doodstream.service';
 
 const UPLOADED_PATH = path.join(__dirname, '../../../uploaded.json');
 const SERIES_OUTPUT_PATH = path.join(__dirname, '../../../series-output.json');
@@ -18,7 +18,15 @@ function getUploadedFiles(): Record<string, any> {
 }
 
 function normalize(str: string): string {
-  return str.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20);
+  return str
+    .toLowerCase()
+    .replace(/[-–—:]/g, ' ')
+    .replace(/saison\s*\d+/gi, '')
+    .replace(/season\s*\d+/gi, '')
+    .replace(/[^a-z0-9 ]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 40);
 }
 
 const SE_PATTERN = /[Ss](\d+)[Ee](\d+)/;
@@ -186,33 +194,15 @@ export class DoodStreamProvider implements StreamingProvider {
     return null;
   }
 
-  private async getApiDirectUrl(fileCode: string): Promise<string | null> {
-    try {
-      const dlUrl = await getDirectDownloadUrl(fileCode);
-      if (dlUrl) {
-        return `/api/doodstream/stream?url=${encodeURIComponent(dlUrl)}`;
-      }
-    } catch {
-      // API unavailable, fall through
-    }
-    return null;
-  }
-
   private async getStreamUrl(query: StreamQuery): Promise<string | null> {
     const match = await this.findFile(query);
     if (!match) return null;
 
-    // Fichier uploadé sur DoodStream → API fresh URL ou embed
-    if (match.fileCode) {
-      const apiUrl = await this.getApiDirectUrl(match.fileCode);
-      if (apiUrl) return apiUrl;
+    if (match.fileCode)
       return `https://doodstream.com/e/${match.fileCode}`;
-    }
 
-    // Pas de fileCode → utiliser le lien direct si dispo
-    if (match.info.lien) {
-      return `/api/doodstream/stream?url=${encodeURIComponent(match.info.lien)}`;
-    }
+    if (match.info.lien)
+      return match.info.lien;
 
     return null;
   }

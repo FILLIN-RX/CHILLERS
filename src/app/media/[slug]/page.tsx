@@ -458,9 +458,9 @@ function MediaDetailPage() {
             <iframe
               src={`${trailerUrl}?autoplay=1&controls=1&rel=0&modestbranding=1`}
               className="w-full h-full border-none bg-black"
-              allow="autoplay; encrypted-media; picture-in-picture"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
+              allow="autoplay; encrypted-media; fullscreen; picture-in-picture; gyroscope; accelerometer"
               allowFullScreen
+              referrerPolicy="origin"
               title={item.title}
             />
           </div>
