@@ -30,4 +30,8 @@ router.get('/file/move', doodController.moveFile);
 router.get('/file/clone', doodController.cloneFile);
 router.get('/file/search', doodController.searchFiles);
 
+/* ── Series Episode Management ── */
+router.post('/series/episode', doodController.addSeriesEpisode);
+router.get('/series/episodes/:tmdbId', doodController.listSeriesEpisodes);
+
 export default router;

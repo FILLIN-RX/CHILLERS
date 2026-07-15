@@ -1,4 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
+import fs from 'fs';
+import path from 'path';
 import * as doodService from './doodstream.service';
 import { AppError } from '../../types';
 
@@ -197,6 +199,147 @@ export const cloneFile = async (req: Request, res: Response, next: NextFunction)
     if (!file_code) throw new AppError('Missing ?file_code= param', 400);
     const data = await doodService.cloneFile(file_code, fld_id);
     res.json({ success: true, data, message: null });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/* ── Series Episode Management ── */
+
+export const addSeriesEpisode = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { tmdb_id, season, episode, file_code, title, lien } = req.body as Record<string, string>;
+    if (!tmdb_id || !season || !episode || !file_code) {
+      throw new AppError('Missing required fields: tmdb_id, season, episode, file_code', 400);
+    }
+
+    const tmdbIdNum = Number(tmdb_id);
+    const seasonNum = Number(season);
+    const episodeNum = Number(episode);
+
+    // Create folder structure on DoodStream: _SERIES/{tmdbId}-{title}/Season {season}
+    const seriesFolderName = `${tmdbIdNum}-${(title || 'unknown').replace(/[^a-zA-Z0-9 ]/g, '').trim()}`;
+
+    // Look for existing _SERIES parent folder
+    let seriesFldId: string | null = null;
+    let seasonFldId: string | null = null;
+
+    const existingSeriesFolders = await doodService.listFolders('0', true);
+    const seriesFolders = existingSeriesFolders.folders || [];
+    for (const f of seriesFolders) {
+      if (f.label === seriesFolderName || f.name === seriesFolderName) {
+        seriesFldId = f.fld_id;
+        break;
+      }
+    }
+
+    if (!seriesFldId) {
+      // Also try to find or create _SERIES root
+      let rootFldId: string | null = null;
+      for (const f of seriesFolders) {
+        if (f.label === '_SERIES' || f.name === '_SERIES') {
+          rootFldId = f.fld_id;
+          break;
+        }
+      }
+      if (!rootFldId) {
+        const rootFolder = await doodService.createFolder('_SERIES');
+        rootFldId = rootFolder.fld_id;
+      }
+
+      const seriesFolder = await doodService.createFolder(seriesFolderName, rootFldId || undefined);
+      seriesFldId = seriesFolder.fld_id;
+    }
+
+    if (!seriesFldId) {
+      throw new AppError('Failed to create or find series folder', 500);
+    }
+
+    // Find or create Season folder inside series folder
+    const seasonFolderName = `Season ${seasonNum}`;
+    const seasonFoldersResult = await doodService.listFolders(seriesFldId, true);
+    const seasonFoldersList = seasonFoldersResult.folders || [];
+    for (const f of seasonFoldersList) {
+      if (f.label === seasonFolderName || f.name === seasonFolderName) {
+        seasonFldId = f.fld_id;
+        break;
+      }
+    }
+
+    if (!seasonFldId) {
+      const seasonFolder = await doodService.createFolder(seasonFolderName, seriesFldId);
+      seasonFldId = seasonFolder.fld_id;
+    }
+
+    if (!seasonFldId) {
+      throw new AppError('Failed to create or find season folder', 500);
+    }
+
+    // Move the file into the Season folder
+    await doodService.moveFile(file_code, seasonFldId);
+
+    // Update uploaded.json
+    const uploadedPath = path.join(__dirname, '../../../uploaded.json');
+    let uploaded: Record<string, any> = {};
+    if (fs.existsSync(uploadedPath)) {
+      uploaded = JSON.parse(fs.readFileSync(uploadedPath, 'utf-8'));
+    }
+
+    const key = `${tmdbIdNum}_S${seasonNum}E${episodeNum}`;
+    uploaded[key] = {
+      fileCode: file_code,
+      titre: title || `Episode ${episodeNum}`,
+      lien: lien || null,
+      tmdbId: tmdbIdNum,
+      season: seasonNum,
+      episode: episodeNum,
+      fldId: seasonFldId,
+    };
+
+    fs.writeFileSync(uploadedPath, JSON.stringify(uploaded, null, 2));
+
+    res.json({
+      success: true,
+      data: {
+        tmdbId: tmdbIdNum,
+        season: seasonNum,
+        episode: episodeNum,
+        fileCode: file_code,
+        fldId: seasonFldId,
+      },
+      message: null,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const listSeriesEpisodes = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const tmdbId = parseInt(req.params.tmdbId as string, 10);
+    if (isNaN(tmdbId)) throw new AppError('Valid TMDB ID is required', 400);
+
+    const uploadedPath = path.join(__dirname, '../../../uploaded.json');
+    let uploaded: Record<string, any> = {};
+    if (fs.existsSync(uploadedPath)) {
+      uploaded = JSON.parse(fs.readFileSync(uploadedPath, 'utf-8'));
+    }
+
+    const episodes: any[] = [];
+    for (const key of Object.keys(uploaded)) {
+      const file = uploaded[key];
+      if (file.tmdbId && Number(file.tmdbId) === tmdbId && file.season !== undefined && file.episode !== undefined) {
+        episodes.push(file);
+      }
+    }
+
+    // Sort by season then episode
+    episodes.sort((a, b) => {
+      if (a.season !== b.season) return a.season - b.season;
+      return a.episode - b.episode;
+    });
+
+    res.json({ success: true, data: { tmdbId, episodes }, message: null });
   } catch (error) {
     next(error);
   }

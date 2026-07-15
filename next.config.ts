@@ -10,8 +10,8 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
-        source: '/api/doodstream/:path*',
-        destination: 'https://chillers.onrender.com/api/doodstream/:path*',
+        source: '/api/:path*',
+        destination: 'https://chillers.onrender.com/api/:path*',
       },
     ];
   },

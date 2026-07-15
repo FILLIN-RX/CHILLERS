@@ -1,6 +1,6 @@
 import { MovieOrShow } from "./mockData";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://chillers.onrender.com/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "/api";
 const FETCH_TIMEOUT = 15000;
 
 async function fetchWithTimeout(url: string, options?: RequestInit): Promise<Response> {

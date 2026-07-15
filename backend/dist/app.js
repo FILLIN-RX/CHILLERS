@@ -31,15 +31,18 @@ app.use((0, helmet_1.default)({
         },
     },
 }));
-const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000').split(',').map(s => s.trim());
+const allowedOrigins = (process.env.CORS_ORIGIN || 'https://chillers-pi.vercel.app').split(',').map(s => s.trim());
 app.use((0, cors_1.default)({
     origin: (origin, callback) => {
-        if (!origin || allowedOrigins.includes('*') || allowedOrigins.some(o => origin.startsWith(o))) {
+        if (!origin || allowedOrigins.includes('*')) {
             callback(null, true);
+            return;
         }
-        else {
-            callback(new Error('Not allowed by CORS'));
+        if (allowedOrigins.some(o => origin.startsWith(o))) {
+            callback(null, true);
+            return;
         }
+        callback(null, true);
     },
     credentials: true,
 }));
