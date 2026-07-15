@@ -1,15 +1,20 @@
 import fs from 'fs';
 import path from 'path';
 import { StreamingProvider, StreamResult, StreamQuery } from './provider.interface';
-import { getDirectDownloadUrl, listFiles } from '../../modules/doodstream/doodstream.service';
+import { getFileDownloadUrl, getDirectDownloadUrl, listFiles } from '../../modules/doodstream/doodstream.service';
 
 const UPLOADED_PATH = path.join(__dirname, '../../../uploaded.json');
+const SERIES_OUTPUT_PATH = path.join(__dirname, '../../../series-output.json');
 
 function getUploadedFiles(): Record<string, any> {
+  const all: Record<string, any> = {};
   if (fs.existsSync(UPLOADED_PATH)) {
-    return JSON.parse(fs.readFileSync(UPLOADED_PATH, 'utf-8'));
+    Object.assign(all, JSON.parse(fs.readFileSync(UPLOADED_PATH, 'utf-8')));
   }
-  return {};
+  if (fs.existsSync(SERIES_OUTPUT_PATH)) {
+    Object.assign(all, JSON.parse(fs.readFileSync(SERIES_OUTPUT_PATH, 'utf-8')));
+  }
+  return all;
 }
 
 function normalize(str: string): string {
@@ -35,23 +40,27 @@ export class DoodStreamProvider implements StreamingProvider {
 
   private findByTmdbId(tmdbId: number, season?: number, episode?: number): { fileCode: string; info: any } | null {
     const uploaded = getUploadedFiles();
+    let seriesFallback: { fileCode: string; info: any } | null = null;
     for (const key of Object.keys(uploaded)) {
       const file = uploaded[key];
       if (file.tmdbId && Number(file.tmdbId) === tmdbId) {
-        // If season/episode are requested, only match entries with matching S/E
         if (season !== undefined && episode !== undefined) {
           if (file.season === season && file.episode === episode) {
             return { fileCode: file.fileCode, info: file };
           }
           continue;
         }
-        // No S/E requested → prefer entries without S/E (movies)
         if (!file.season && !file.episode) {
           return { fileCode: file.fileCode, info: file };
         }
+        // Sans S/E, garder le premier match série comme fallback
+        if (!seriesFallback) {
+          seriesFallback = { fileCode: file.fileCode, info: file };
+        }
       }
     }
-    return null;
+    // Si pas de film trouvé, retourner le premier épisode trouvé
+    return seriesFallback;
   }
 
   private findByTitle(title: string, season?: number, episode?: number): { fileCode: string; info: any } | null {
@@ -80,6 +89,19 @@ export class DoodStreamProvider implements StreamingProvider {
           continue;
         }
         if (!file.season && !file.episode) return { fileCode: file.fileCode, info: file };
+      }
+    }
+
+    // Third pass: no S/E filter → accept any match (series entries too)
+    if (season === undefined && episode === undefined) {
+      const search10 = search.slice(0, 10);
+      for (const key of Object.keys(uploaded)) {
+        const file = uploaded[key];
+        const fileTitle = normalize(file.titre || '');
+        if (fileTitle === search || fileTitle.includes(search) || search.includes(fileTitle) ||
+            fileTitle.includes(search10) || search10.includes(fileTitle.slice(0, 10))) {
+          return { fileCode: file.fileCode, info: file };
+        }
       }
     }
 
@@ -126,24 +148,32 @@ export class DoodStreamProvider implements StreamingProvider {
     const season = query.season;
     const episode = query.episode;
 
-    // Option A: search uploaded.json by tmdbId + season + episode
     if (query.tmdbId) {
       const byId = this.findByTmdbId(query.tmdbId, season, episode);
-      if (byId) return byId;
+      if (byId) {
+        console.log(`[DoodStream] Match by tmdbId=${query.tmdbId} S${season}E${episode} → ${byId.fileCode}`);
+        return byId;
+      }
     }
 
     if (query.title) {
       const byTitle = this.findByTitle(query.title, season, episode);
-      if (byTitle) return byTitle;
+      if (byTitle) {
+        console.log(`[DoodStream] Match by title="${query.title}" S${season}E${episode} → ${byTitle.fileCode}`);
+        return byTitle;
+      }
     }
 
     // Option B fallback: if we have season+episode but no json match, try DoodStream folder listing
     if (query.tmdbId && season !== undefined && episode !== undefined) {
       const fallback = await this.findByFolderFallback(query.tmdbId, season, episode);
-      if (fallback) return fallback;
+      if (fallback) {
+        console.log(`[DoodStream] Match by folder fallback tmdbId=${query.tmdbId} S${season}E${episode} → ${fallback.fileCode}`);
+        return fallback;
+      }
     }
 
-    // Final fallback: match without S/E (same as old behavior)
+    // Final fallback: match without S/E
     if (query.tmdbId) {
       const byId = this.findByTmdbId(query.tmdbId);
       if (byId) return byId;
@@ -152,6 +182,7 @@ export class DoodStreamProvider implements StreamingProvider {
       return this.findByTitle(query.title);
     }
 
+    console.log(`[DoodStream] No match for tmdbId=${query.tmdbId} title="${query.title}" S${season}E${episode}`);
     return null;
   }
 
@@ -171,17 +202,19 @@ export class DoodStreamProvider implements StreamingProvider {
     const match = await this.findFile(query);
     if (!match) return null;
 
-    // Tier 1: direct MP4 from uploaded.json (lien → proxied through backend)
+    // Fichier uploadé sur DoodStream → API fresh URL ou embed
+    if (match.fileCode) {
+      const apiUrl = await this.getApiDirectUrl(match.fileCode);
+      if (apiUrl) return apiUrl;
+      return `https://doodstream.com/e/${match.fileCode}`;
+    }
+
+    // Pas de fileCode → utiliser le lien direct si dispo
     if (match.info.lien) {
       return `/api/doodstream/stream?url=${encodeURIComponent(match.info.lien)}`;
     }
 
-    // Tier 2: DoodStream API fresh download URL (proxied through backend)
-    const apiUrl = await this.getApiDirectUrl(match.fileCode);
-    if (apiUrl) return apiUrl;
-
-    // Tier 3: DoodStream embed player (fallback)
-    return `https://doodstream.com/e/${match.fileCode}`;
+    return null;
   }
 
   async getMovieStream(query: StreamQuery): Promise<StreamResult | null> {
@@ -200,6 +233,16 @@ export class DoodStreamProvider implements StreamingProvider {
     const query: StreamQuery = { tmdbId: tmdbId || 0, title };
     const match = await this.findFile(query);
     if (!match) return null;
-    return match.info.lien || `https://doodstream.com/d/${match.fileCode}`;
+
+    if (match.fileCode) {
+      try {
+        const dlUrl = await getFileDownloadUrl(match.fileCode);
+        if (dlUrl) return dlUrl;
+      } catch {
+        // API indisponible, fallback au lien stocké
+      }
+    }
+
+    return match.info.lien || null;
   }
 }

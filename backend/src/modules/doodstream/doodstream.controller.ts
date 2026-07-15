@@ -278,15 +278,15 @@ export const addSeriesEpisode = async (req: Request, res: Response, next: NextFu
     // Move the file into the Season folder
     await doodService.moveFile(file_code, seasonFldId);
 
-    // Update uploaded.json
-    const uploadedPath = path.join(__dirname, '../../../uploaded.json');
-    let uploaded: Record<string, any> = {};
-    if (fs.existsSync(uploadedPath)) {
-      uploaded = JSON.parse(fs.readFileSync(uploadedPath, 'utf-8'));
+    // Update series-output.json
+    const outputPath = path.join(__dirname, '../../../series-output.json');
+    let output: Record<string, any> = {};
+    if (fs.existsSync(outputPath)) {
+      output = JSON.parse(fs.readFileSync(outputPath, 'utf-8'));
     }
 
     const key = `${tmdbIdNum}_S${seasonNum}E${episodeNum}`;
-    uploaded[key] = {
+    output[key] = {
       fileCode: file_code,
       titre: title || `Episode ${episodeNum}`,
       lien: lien || null,
@@ -296,7 +296,7 @@ export const addSeriesEpisode = async (req: Request, res: Response, next: NextFu
       fldId: seasonFldId,
     };
 
-    fs.writeFileSync(uploadedPath, JSON.stringify(uploaded, null, 2));
+    fs.writeFileSync(outputPath, JSON.stringify(output, null, 2));
 
     res.json({
       success: true,
@@ -319,15 +319,15 @@ export const listSeriesEpisodes = async (req: Request, res: Response, next: Next
     const tmdbId = parseInt(req.params.tmdbId as string, 10);
     if (isNaN(tmdbId)) throw new AppError('Valid TMDB ID is required', 400);
 
-    const uploadedPath = path.join(__dirname, '../../../uploaded.json');
-    let uploaded: Record<string, any> = {};
-    if (fs.existsSync(uploadedPath)) {
-      uploaded = JSON.parse(fs.readFileSync(uploadedPath, 'utf-8'));
+    const outputPath = path.join(__dirname, '../../../series-output.json');
+    let output: Record<string, any> = {};
+    if (fs.existsSync(outputPath)) {
+      output = JSON.parse(fs.readFileSync(outputPath, 'utf-8'));
     }
 
     const episodes: any[] = [];
-    for (const key of Object.keys(uploaded)) {
-      const file = uploaded[key];
+    for (const key of Object.keys(output)) {
+      const file = output[key];
       if (file.tmdbId && Number(file.tmdbId) === tmdbId && file.season !== undefined && file.episode !== undefined) {
         episodes.push(file);
       }

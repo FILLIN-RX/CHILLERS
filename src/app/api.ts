@@ -439,7 +439,10 @@ export async function startDownload(
 ): Promise<{ downloadUrl: string; fileCode: string } | null> {
   try {
     if (title) {
-      const res = await fetchWithTimeout(`${API_BASE_URL}/doodstream/download?title=${encodeURIComponent(title)}`);
+      let doodUrl = `${API_BASE_URL}/doodstream/download?title=${encodeURIComponent(title)}`;
+      if (season !== undefined) doodUrl += `&season=${season}`;
+      if (episode !== undefined) doodUrl += `&episode=${episode}`;
+      const res = await fetchWithTimeout(doodUrl);
       const json = await res.json();
       if (json.success && json.data?.downloadUrl) {
         return { downloadUrl: json.data.downloadUrl, fileCode: json.data.fileCode };

@@ -217,7 +217,7 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
         String(item.id),
         type,
         title,
-        undefined,
+        currentEpisode?.season ?? undefined,
         currentEpisode?.number
       );
       if (result?.downloadUrl) {

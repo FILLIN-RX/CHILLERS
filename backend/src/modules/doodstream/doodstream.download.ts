@@ -2,9 +2,10 @@ import { Request, Response, NextFunction } from 'express';
 import fs from 'fs';
 import path from 'path';
 import axios from 'axios';
-import { listFiles } from './doodstream.service';
+import { listFiles, getFileDownloadUrl } from './doodstream.service';
 
 const UPLOADED_PATH = path.join(__dirname, '../../../uploaded.json');
+const SERIES_OUTPUT_PATH = path.join(__dirname, '../../../series-output.json');
 
 const SE_PATTERN = /[Ss](\d+)[Ee](\d+)/;
 
@@ -17,10 +18,14 @@ function parseSeasonEpisode(filename: string): { season: number; episode: number
 }
 
 function getUploadedFiles(): Record<string, any> {
+  const all: Record<string, any> = {};
   if (fs.existsSync(UPLOADED_PATH)) {
-    return JSON.parse(fs.readFileSync(UPLOADED_PATH, 'utf-8'));
+    Object.assign(all, JSON.parse(fs.readFileSync(UPLOADED_PATH, 'utf-8')));
   }
-  return {};
+  if (fs.existsSync(SERIES_OUTPUT_PATH)) {
+    Object.assign(all, JSON.parse(fs.readFileSync(SERIES_OUTPUT_PATH, 'utf-8')));
+  }
+  return all;
 }
 
 function normalize(str: string): string {
@@ -29,6 +34,7 @@ function normalize(str: string): string {
 
 function findByTmdbId(tmdbId: number, season?: number, episode?: number): { fileCode: string; info: any } | null {
   const uploaded = getUploadedFiles();
+  let seriesFallback: { fileCode: string; info: any } | null = null;
   for (const key of Object.keys(uploaded)) {
     const file = uploaded[key];
     if (file.tmdbId && Number(file.tmdbId) === tmdbId) {
@@ -41,9 +47,12 @@ function findByTmdbId(tmdbId: number, season?: number, episode?: number): { file
       if (!file.season && !file.episode) {
         return { fileCode: file.fileCode, info: file };
       }
+      if (!seriesFallback) {
+        seriesFallback = { fileCode: file.fileCode, info: file };
+      }
     }
   }
-  return null;
+  return seriesFallback;
 }
 
 function findByTitle(title: string, season?: number, episode?: number): { fileCode: string; info: any } | null {
@@ -71,6 +80,19 @@ function findByTitle(title: string, season?: number, episode?: number): { fileCo
         continue;
       }
       if (!file.season && !file.episode) return { fileCode: file.fileCode, info: file };
+    }
+  }
+
+  // Third pass: no S/E filter → accept any match (series entries too)
+  if (season === undefined && episode === undefined) {
+    const search10 = search.slice(0, 10);
+    for (const key of Object.keys(uploaded)) {
+      const file = uploaded[key];
+      const fileTitle = normalize(file.titre || '');
+      if (fileTitle === search || fileTitle.includes(search) || search.includes(fileTitle) ||
+          fileTitle.includes(search10) || search10.includes(fileTitle.slice(0, 10))) {
+        return { fileCode: file.fileCode, info: file };
+      }
     }
   }
 
@@ -153,12 +175,27 @@ export const getDownloadByTitle = async (req: Request, res: Response, next: Next
       });
     }
 
+    // Fichier uploadé → API DoodStream d'abord (URL fraîche)
+    let downloadUrl: string | null = null;
+    if (match.fileCode) {
+      try {
+        const apiUrl = await getFileDownloadUrl(match.fileCode);
+        if (apiUrl) downloadUrl = apiUrl;
+      } catch {
+        // API indisponible
+      }
+    }
+    // Fallback: lien stocké (vidzy scrappé)
+    if (!downloadUrl) {
+      downloadUrl = match.info.lien || null;
+    }
+
     return res.json({
       success: true,
       data: {
         fileCode: match.fileCode,
-        directUrl: match.info.lien || null,
-        downloadUrl: match.info.lien || `https://doodstream.com/d/${match.fileCode}`,
+        directUrl: downloadUrl,
+        downloadUrl,
         title: match.info.titre || title || '',
         year: match.info.year || null,
         season: match.info.season || null,

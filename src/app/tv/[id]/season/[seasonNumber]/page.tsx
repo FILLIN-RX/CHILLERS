@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
-import { getSeasonDetails, getMediaDetails, getStreamUrl } from "@/app/api";
+import { getSeasonDetails, getMediaDetails, getStreamUrl, startDownload, triggerDownload } from "@/app/api";
 import { Episode } from "@/app/mockData";
 import VideoPlayer from "@/components/VideoPlayer";
 import {
@@ -25,6 +25,7 @@ export default function SeasonPage() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [streamUrl, setStreamUrl] = useState("");
   const [streamLoading, setStreamLoading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const playerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -38,6 +39,7 @@ export default function SeasonPage() {
             title: ep.name,
             duration: `${ep.runtime || 24}m`,
             number: ep.episode_number,
+            season: Number(seasonNumber),
             thumbnail: ep.still_path ? `https://image.tmdb.org/t/p/w500${ep.still_path}` : "",
             synopsis: ep.overview,
           }));
@@ -188,7 +190,7 @@ export default function SeasonPage() {
               </p>
             </div>
 
-            <div className="flex gap-3 pt-2">
+            <div className="flex gap-3 pt-2 flex-wrap">
               <button
                 onClick={goPrev}
                 disabled={currentIndex === 0}
@@ -204,6 +206,38 @@ export default function SeasonPage() {
               >
                 Suivant
                 <ChevronRightIcon className="h-4 w-4" />
+              </button>
+              <button
+                onClick={async () => {
+                  if (!currentEpisode) return;
+                  setDownloading(true);
+                  try {
+                    const result = await startDownload(
+                      id as string, 'series', showTitle, Number(seasonNumber), currentEpisode.number
+                    );
+                    if (result?.downloadUrl) {
+                      triggerDownload(result.downloadUrl, `${showTitle || 'video'}-S${seasonNumber}E${currentEpisode.number}.mp4`);
+                    }
+                  } catch (err) {
+                    console.error('Download failed:', err);
+                  } finally {
+                    setDownloading(false);
+                  }
+                }}
+                disabled={downloading || !currentEpisode}
+                className="flex items-center gap-2 px-6 py-3 rounded-full bg-zinc-900 border border-zinc-800 text-white font-bold text-sm hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              >
+                {downloading ? (
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                ) : (
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                  </svg>
+                )}
+                Télécharger
               </button>
             </div>
           </div>

@@ -3,6 +3,7 @@ export interface Episode {
   title: string;
   duration: string;
   number: number;
+  season?: number;
   thumbnail: string;
   synopsis: string;
 }
