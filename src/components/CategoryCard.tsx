@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 interface Category {
   id: string;
   name: string;
@@ -19,11 +20,12 @@ export default function CategoryCard({ category, onClick }: CategoryCardProps) {
       className="group relative aspect-[16/10] w-full rounded-2xl overflow-hidden bg-zinc-950 border border-zinc-800/60 hover-glow cursor-pointer transition-all duration-300"
     >
       {/* Category Image */}
-      <img
+      <Image
         src={category.imageUrl}
         alt={category.name}
-        className="absolute inset-0 w-full h-full object-cover filter brightness-75 group-hover:scale-105 group-hover:brightness-90 transition-all duration-500"
-        loading="lazy"
+        fill
+        className="object-cover brightness-75 group-hover:scale-105 group-hover:brightness-90 transition-all duration-500"
+        sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 20vw"
       />
 
       {/* Luxury Cinematic Gradient Overlay */}

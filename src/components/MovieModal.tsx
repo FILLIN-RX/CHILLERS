@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { MovieOrShow, Season, Episode } from "@/app/mockData";
 import { getSeasonDetails } from "@/app/api";
 import { XMarkIcon, PlayIcon, PlusIcon, CheckIcon, StarIcon, ChevronDownIcon } from "@heroicons/react/24/solid";
@@ -85,10 +86,13 @@ export default function MovieModal({
         
         {/* Backdrop Banner Image */}
         <div className="relative aspect-[16/9] w-full bg-zinc-900">
-          <img
+          <Image
             src={item.backdropUrl}
             alt={item.title}
-            className="w-full h-full object-cover"
+            fill
+            className="object-cover"
+            sizes="(max-width: 768px) 100vw, 900px"
+            priority
           />
           <div className="absolute inset-0 banner-overlay" />
 

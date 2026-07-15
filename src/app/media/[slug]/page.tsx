@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import Image from "next/image";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { getMediaDetails, getPopularMovies, getPopularTV, getStreamUrl, startDownload, triggerDownload, getPopularMoviesPage, getPopularTVPage, getAnimeSeriesPage, getMoviesByGenrePage, getTVByGenrePage, getMovieGenres, getTVGenres, Genre } from "@/app/api";
 import GenreFilterBar from "@/components/GenreFilterBar";
@@ -177,11 +178,14 @@ function MediaDetailPage() {
       </div>
 
       <div className="relative w-full h-[85vh] overflow-hidden">
-        <img
+        <Image
           src={item.backdropUrl}
           alt={item.title}
-          className="absolute inset-0 w-full h-full object-cover scale-105"
+          fill
+          className="object-cover scale-105"
           style={{ filter: "brightness(0.65) saturate(1.05)" }}
+          sizes="100vw"
+          priority
         />
 
         <div className="absolute inset-0 bg-gradient-to-r from-[#09090B]/80 via-[#09090B]/40 to-transparent" />
@@ -190,8 +194,14 @@ function MediaDetailPage() {
         <div className="absolute inset-0 flex items-end pb-16 px-6 sm:px-12 lg:px-20">
           <div className="flex flex-col sm:flex-row gap-8 items-start max-w-6xl w-full mx-auto">
 
-            <div className="hidden sm:block flex-none w-44 lg:w-56 rounded-2xl overflow-hidden shadow-2xl border border-white/10 ring-1 ring-white/5">
-              <img src={item.posterUrl} alt={item.title} className="w-full h-full object-cover" />
+            <div className="hidden sm:block relative flex-none w-44 lg:w-56 rounded-2xl overflow-hidden shadow-2xl border border-white/10 ring-1 ring-white/5">
+              <Image
+                src={item.posterUrl}
+                alt={item.title}
+                fill
+                className="object-cover"
+                sizes="(max-width: 1024px) 176px, 224px"
+              />
             </div>
 
             <div className="flex-1 space-y-4">
@@ -356,7 +366,13 @@ function MediaDetailPage() {
                 >
                   <div className="aspect-[2/3] w-full rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800 relative">
                     {season.posterUrl ? (
-                      <img src={season.posterUrl} alt={season.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      <Image
+                        src={season.posterUrl}
+                        alt={season.name}
+                        fill
+                        className="object-cover group-hover:scale-105 transition-transform duration-500"
+                        sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 20vw"
+                      />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <FilmIcon className="h-12 w-12 text-zinc-700" />
@@ -394,10 +410,12 @@ function MediaDetailPage() {
                   className="group cursor-pointer space-y-2"
                 >
                   <div className="aspect-[2/3] w-full rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800 relative">
-                    <img
+                    <Image
                       src={sim.posterUrl}
                       alt={sim.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      fill
+                      className="object-cover group-hover:scale-105 transition-transform duration-500"
+                      sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
                       <PlayIcon className="h-8 w-8 text-white mx-auto mb-2 opacity-90" />

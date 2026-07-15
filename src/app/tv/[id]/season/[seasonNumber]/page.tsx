@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { getSeasonDetails, getMediaDetails, getStreamUrl } from "@/app/api";
 import { Episode } from "@/app/mockData";
@@ -222,7 +223,7 @@ export default function SeasonPage() {
                 >
                   <div className="flex-none w-24 aspect-video rounded-lg overflow-hidden bg-zinc-800 relative">
                     {ep.thumbnail ? (
-                      <img src={ep.thumbnail} alt={ep.title} className="w-full h-full object-cover" />
+                      <Image src={ep.thumbnail} alt={ep.title} fill className="object-cover" sizes="96px" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <FilmIcon className="h-5 w-5 text-zinc-600" />

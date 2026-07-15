@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { MovieOrShow } from "@/app/mockData";
 import { PlayIcon } from "@heroicons/react/24/solid";
 
@@ -26,11 +27,12 @@ export default function ContinueWatchingCard({
       
       {/* Thumbnail backdrop image with play overlay */}
       <div className="relative aspect-[2/3] w-full bg-zinc-950 overflow-hidden">
-        <img
+        <Image
           src={item.posterUrl || item.backdropUrl}
           alt={item.title}
-          className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 scale-100 group-hover:scale-105"
-          loading="lazy"
+          fill
+          className="object-cover transition-transform duration-500 scale-100 group-hover:scale-105"
+          sizes="(max-width: 640px) 160px, (max-width: 768px) 220px, 280px"
         />
         
         {/* Dark overlay */}

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 import { MovieOrShow } from "@/app/mockData";
 import { PlayIcon, PauseIcon, PlusIcon, CheckIcon, ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/solid";
 import { StarIcon } from "@heroicons/react/24/solid";
@@ -122,11 +123,14 @@ export default function HeroCarousel({
               {/* Background Media Container */}
               <div className="absolute inset-0 w-full h-full bg-black">
                 {/* Static Backdrop Image — brighter base */}
-                <img
+                <Image
                   src={slide.backdropUrl}
                   alt={slide.title}
-                  className="w-full h-full object-cover object-center"
+                  fill
+                  className="object-cover object-center"
                   style={{ filter: "brightness(0.85) saturate(1.1)" }}
+                  sizes="100vw"
+                  priority={index === 0}
                 />
 
                 {/* Autoplay background video (hidden when paused) */}

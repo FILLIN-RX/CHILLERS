@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { MovieOrShow } from "@/app/mockData";
 import { PlayIcon, PlusIcon, CheckIcon, StarIcon, InformationCircleIcon } from "@heroicons/react/24/solid";
@@ -48,12 +49,13 @@ export default function MovieCard({
       }}
     >
       {/* Poster Image */}
-      <img
+      <Image
         src={item.posterUrl}
         alt={item.title}
-        className="absolute inset-0 w-full h-full object-cover transition-transform duration-500"
+        fill
+        className="object-cover transition-transform duration-500"
         style={{ transform: isHovered ? 'scale(1.05)' : 'scale(1)' }}
-        loading="lazy"
+        sizes="(max-width: 640px) 140px, (max-width: 768px) 180px, 220px"
       />
 
       {/* Media Type Tag (Top Right) */}

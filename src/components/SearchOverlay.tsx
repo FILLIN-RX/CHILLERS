@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { MovieOrShow } from "@/app/mockData";
 import { searchMedia, getTrendingMovies, getMovieGenres, Genre } from "@/app/api";
@@ -169,12 +170,13 @@ export default function SearchOverlay({ isOpen, onClose, onOpenDetails }: Search
                       boxShadow: hoveredId === item.id ? '0 0 25px rgba(215, 4, 102, 0.35)' : 'none',
                     }}
                   >
-                    <img
+                    <Image
                       src={item.posterUrl}
                       alt={item.title}
-                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-500"
+                      fill
+                      className="object-cover transition-transform duration-500"
                       style={{ transform: hoveredId === item.id ? 'scale(1.08)' : 'scale(1)' }}
-                      loading="lazy"
+                      sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 16vw"
                     />
 
                     {/* TMDB Rating Badge */}

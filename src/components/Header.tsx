@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MagnifyingGlassIcon, GlobeAltIcon } from "@heroicons/react/24/outline";
@@ -51,10 +52,13 @@ export default function Header({ onSearchClick }: HeaderProps) {
         
         <div className="flex items-center gap-6 sm:gap-8">
           <Link href="/" className="group flex items-center focus:outline-none">
-            <img 
+            <Image 
               src="/android-chrome-512x512.png" 
               alt="Chillers Logo" 
+              width={40}
+              height={40}
               className="h-8 sm:h-10 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
+              priority
             />
           </Link>
           
