@@ -198,11 +198,13 @@ export class DoodStreamProvider implements StreamingProvider {
     const match = await this.findFile(query);
     if (!match) return null;
 
-    if (match.fileCode)
-      return `https://doodstream.com/e/${match.fileCode}`;
+    // Prefer the direct .mp4 / vidzy.cc link when it's available — it
+    // plays in a native <video> element with no ads, no anti-embed
+    // scripts, and no risk of the embed provider breaking out of the
+    // iframe (window.top.history.back).
+    if (match.info.lien) return match.info.lien;
 
-    if (match.info.lien)
-      return match.info.lien;
+    if (match.fileCode) return `https://doodstream.com/e/${match.fileCode}`;
 
     return null;
   }

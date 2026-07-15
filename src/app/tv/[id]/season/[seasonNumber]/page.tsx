@@ -91,6 +91,7 @@ export default function SeasonPage() {
     setStreamLoading(true);
     try {
       const stream = await getStreamUrl(id as string, 'series', Number(seasonNumber), ep.number, title);
+      console.log("Stream URL loaded:", stream?.embedUrl);
       setStreamUrl(stream?.embedUrl || "");
     } catch (err) {
       console.error("Stream error", err);
@@ -99,15 +100,12 @@ export default function SeasonPage() {
     }
   }, [id, seasonNumber, showTitle]);
 
-  // Re-load stream when user switches episode (not on first load — handled above)
-  const [initialLoadDone, setInitialLoadDone] = useState(false);
+  // Load stream when current episode changes
   useEffect(() => {
-    if (!initialLoadDone && episodes.length > 0) {
-      setInitialLoadDone(true);
-      return; // skip — first episode already loaded in fetchSeason
+    if (currentEpisode) {
+      loadStream(currentEpisode);
     }
-    if (currentEpisode && initialLoadDone) loadStream(currentEpisode);
-  }, [currentIndex]); // only track index changes
+  }, [currentIndex, loadStream, currentEpisode]);
 
   const goNext = () => {
     if (currentIndex < episodes.length - 1) {

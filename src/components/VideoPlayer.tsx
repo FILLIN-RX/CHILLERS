@@ -126,8 +126,21 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore key events that originate from inside iframes
+      // (VidLink, YouTube, DoodStream, etc. handle their own keyboard input).
+      if (e.target instanceof HTMLElement && e.target.tagName === "IFRAME") return;
+
+      // Escape: only react if there's an open overlay or we are in
+      // fullscreen. Otherwise the browser may fire a synthetic Escape
+      // when an iframe takes focus or autoplay is rejected, which would
+      // immediately call onBack() and pop the user out of the page.
+      if (e.code === "Escape" && !isEpisodeDrawerOpen && !showSettings && !document.fullscreenElement) {
+        return;
+      }
+
       switch (e.code) {
         case "Space":
+        case "KeyK":
           e.preventDefault();
           handlePlayPause();
           break;
@@ -146,13 +159,16 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
         case "Escape":
           if (isEpisodeDrawerOpen) setIsEpisodeDrawerOpen(false);
           else if (showSettings) setShowSettings(false);
-          else onBack();
+          else if (document.fullscreenElement) toggleFullscreen();
+          // Do not call onBack() on bare Escape — that caused the
+          // auto-back bug. Users can still close the player with the X
+          // button or by clicking outside.
           break;
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isPlaying, isEpisodeDrawerOpen, showSettings]);
+  }, [isPlaying, isEpisodeDrawerOpen, showSettings, isFullscreen]);
 
   // ─── HANDLERS ───────────────────────────────────────────────────────────────
 
@@ -209,7 +225,7 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
                     item.videoUrl?.includes("doodstream.com/e/")) && 
                    !item.videoUrl?.includes("vidzy.cc") &&
                    !item.videoUrl?.includes("playmogo.com");
-
+  
   const [downloading, setDownloading] = useState(false);
 
   const handleDownload = async () => {
@@ -261,6 +277,12 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
           title={item.title}
           scrolling="no"
           loading="lazy"
+          // Sandbox: block top-frame navigation. Some embed providers
+          // (DoodStream, etc.) ship anti-embed scripts that call
+          // `window.top.history.back()` or `window.top.location = ...`
+          // to bust out of the iframe. Without `allow-top-navigation`
+          // those scripts can no longer affect the parent page.
+          sandbox="allow-scripts allow-same-origin allow-presentation allow-popups allow-popups-to-escape-sandbox allow-forms"
         />
       ) : item.videoUrl ? (
         <video
