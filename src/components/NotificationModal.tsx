@@ -55,6 +55,7 @@ export default function NotificationModal({
       >
         <button
           onClick={onClose}
+          aria-label="Fermer"
           className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 text-white/60 hover:text-white transition-all"
         >
           <XMarkIcon className="h-5 w-5" />

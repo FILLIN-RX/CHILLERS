@@ -30,10 +30,6 @@ interface VideoPlayerProps {
 export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   
-  useEffect(() => {
-    console.log("VideoPlayer - URL set to:", item.videoUrl);
-  }, [item.videoUrl]);
-
   const containerRef = useRef<HTMLDivElement>(null);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -92,7 +88,8 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
     const key = `chiller_progress_${item.id}_${currentEpisode?.id || 'movie'}`;
     const saved = localStorage.getItem(key);
     if (saved && videoRef.current) {
-      const parsed = JSON.parse(saved);
+      let parsed: { time: number };
+      try { parsed = JSON.parse(saved); } catch (e) { return; }
       const handleMetadata = () => {
         if (videoRef.current) videoRef.current.currentTime = parsed.time;
       };
@@ -315,7 +312,7 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
             <div className="flex items-center gap-6">
               {/* Volume */}
               <div className="flex items-center gap-3 group/vol">
-                <button onClick={toggleMute} className="text-white hover:text-[#D70466] transition-colors">
+                <button onClick={toggleMute} aria-label={isMuted || volume === 0 ? "Activer le son" : "Couper le son"} className="text-white hover:text-[#D70466] transition-colors">
                   {isMuted || volume === 0 ? <SpeakerXMarkIcon className="h-6 w-6" /> : <SpeakerWaveIcon className="h-6 w-6" />}
                 </button>
                 <input 
@@ -333,6 +330,7 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
               {/* Exit */}
               <button 
                 onClick={onBack}
+                aria-label="Fermer le lecteur"
                 className="p-2 rounded-full hover:bg-white/10 text-white transition-all transform hover:rotate-90"
               >
                 <XMarkIcon className="h-7 w-7" />
@@ -359,13 +357,13 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
             {/* Controls */}
             <div className="p-6 pt-2 flex items-center justify-between">
               <div className="flex items-center gap-8">
-                <button onClick={() => handleSkip(-10)} className="text-white/70 hover:text-white transition-colors">
+                <button onClick={() => handleSkip(-10)} aria-label="Reculer de 10 secondes" className="text-white/70 hover:text-white transition-colors">
                   <BackwardIcon className="h-7 w-7" />
                 </button>
-                <button onClick={handlePlayPause} className="bg-white text-black p-4 rounded-full hover:scale-110 transition-transform shadow-xl">
+                <button onClick={handlePlayPause} aria-label={isPlaying ? "Mettre en pause" : "Lire"} className="bg-white text-black p-4 rounded-full hover:scale-110 transition-transform shadow-xl">
                   {isPlaying ? <PauseIcon className="h-8 w-8" /> : <PlayIcon className="h-8 w-8 translate-x-0.5" />}
                 </button>
-                <button onClick={() => handleSkip(10)} className="text-white/70 hover:text-white transition-colors">
+                <button onClick={() => handleSkip(10)} aria-label="Avancer de 10 secondes" className="text-white/70 hover:text-white transition-colors">
                   <ForwardIcon className="h-7 w-7" />
                 </button>
               </div>
@@ -374,6 +372,7 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
                 <button 
                   onClick={handleDownload}
                   disabled={downloading}
+                  aria-label={downloading ? "Téléchargement en cours" : "Télécharger"}
                   className={`text-white transition-colors ${downloading ? "opacity-70" : "hover:text-[#D70466]"}`}
                 >
                   {downloading ? (
@@ -387,11 +386,12 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
                 </button>
                 <button 
                   onClick={() => setShowSettings(!showSettings)}
+                  aria-label="Paramètres"
                   className={`text-white transition-colors ${showSettings ? "text-[#D70466]" : "hover:text-[#D70466]"}`}
                 >
                   <Cog6ToothIcon className="h-6 w-6" />
                 </button>
-                <button onClick={toggleFullscreen} className="text-white hover:text-[#D70466] transition-colors">
+                <button onClick={toggleFullscreen} aria-label={isFullscreen ? "Quitter le plein écran" : "Plein écran"} className="text-white hover:text-[#D70466] transition-colors">
                   {isFullscreen ? <ArrowsPointingInIcon className="h-6 w-6" /> : <ArrowsPointingOutIcon className="h-6 w-6" />}
                 </button>
               </div>

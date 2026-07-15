@@ -66,7 +66,7 @@ export default function GenreFilterBar({
       {/* "All" pill */}
       <button
         onClick={() => onSelect(null)}
-        className={`flex-none px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold border transition-all duration-200 focus:outline-none whitespace-nowrap cursor-pointer active:scale-95 ${
+        className={`flex-none px-4 min-h-[44px] rounded-full text-xs sm:text-sm font-semibold border transition-all duration-200 focus:outline-none whitespace-nowrap cursor-pointer active:scale-95 flex items-center ${
           activeGenreId === null
             ? "bg-brand-primary border-brand-primary text-white shadow-md shadow-brand-primary/30"
             : "bg-zinc-900 border-zinc-700 text-zinc-300 hover:border-zinc-500 hover:text-white"
@@ -82,7 +82,7 @@ export default function GenreFilterBar({
             key={genre.id}
             ref={isActive ? activeRef : undefined}
             onClick={() => onSelect(String(genre.id))}
-            className={`flex-none px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold border transition-all duration-200 focus:outline-none whitespace-nowrap cursor-pointer active:scale-95 ${
+            className={`flex-none px-4 min-h-[44px] rounded-full text-xs sm:text-sm font-semibold border transition-all duration-200 focus:outline-none whitespace-nowrap cursor-pointer active:scale-95 flex items-center ${
               isActive
                 ? "bg-brand-primary border-brand-primary text-white shadow-md shadow-brand-primary/30"
                 : "bg-zinc-900 border-zinc-700 text-zinc-300 hover:border-zinc-500 hover:text-white"

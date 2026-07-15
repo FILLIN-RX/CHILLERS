@@ -86,7 +86,7 @@ export default function MovieCard({
                 onPlay(item);
               }}
               className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-primary text-white hover:bg-brand-primary/90 transition-colors shadow-lg cursor-pointer"
-              title="Play"
+              aria-label="Lire"
             >
               <PlayIcon className="h-5 w-5 translate-x-0.5" />
             </button>
@@ -101,7 +101,7 @@ export default function MovieCard({
                   ? "bg-zinc-800/50 text-brand-primary border-brand-primary/40"
                   : "bg-white/10 text-white border-white/20 hover:bg-white/20"
               }`}
-              title={isFavorite ? "Remove from Favorites" : "Add to Favorites"}
+              aria-label={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
             >
               {isFavorite ? (
                 <CheckIcon className="h-5 w-5" />
@@ -116,7 +116,7 @@ export default function MovieCard({
                 goToDetail();
               }}
               className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-850 transition-colors cursor-pointer"
-              title="Voir les détails"
+              aria-label="Voir les détails"
             >
               <InformationCircleIcon className="h-5 w-5" />
             </button>

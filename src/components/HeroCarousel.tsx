@@ -92,7 +92,7 @@ export default function HeroCarousel({
           <div className="w-16 h-16 rounded-full bg-zinc-800 flex items-center justify-center">
             <span className="text-3xl text-zinc-500">!</span>
           </div>
-          <h2 className="text-white text-xl font-bold">Connexion impossible</h2>
+          <h1 className="text-white text-xl font-bold">Connexion impossible</h1>
           <p className="text-zinc-400 text-sm">
             Le service est temporairement indisponible. Vérifie ta connexion ou réessaie plus tard.
           </p>
@@ -167,6 +167,7 @@ export default function HeroCarousel({
               <div className="absolute top-1/2 right-[10%] md:right-[15%] -translate-y-1/2 hidden md:block z-20">
                 <button
                   onClick={() => onWatchNow(slide)}
+                  aria-label={`Regarder ${slide.title}`}
                   className="flex h-24 w-24 items-center justify-center rounded-full bg-brand-primary/20 hover:bg-brand-primary/30 border border-brand-primary/50 text-white cursor-pointer transition-all duration-500 hover:scale-110 shadow-3xl hover:shadow-brand-primary/40 group backdrop-blur-sm"
                 >
                   <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-primary group-hover:bg-brand-primary/90 transition-all duration-300">
@@ -265,8 +266,8 @@ export default function HeroCarousel({
       <div className="absolute right-4 bottom-16 z-20 flex items-center gap-2">
         <button
           onClick={togglePause}
+          aria-label={isPaused ? "Play video" : "Pause video"}
           className="flex h-10 w-10 items-center justify-center rounded-full bg-black/50 border border-white/15 text-white hover:bg-brand-primary/40 hover:border-brand-primary/50 backdrop-blur-md transition-all duration-300 cursor-pointer group"
-          title={isPaused ? "Play video" : "Pause video"}
         >
           {isPaused ? (
             <PlayIcon className="h-5 w-5 ml-0.5" />
@@ -276,15 +277,15 @@ export default function HeroCarousel({
         </button>
         <button
           onClick={handlePrev}
+          aria-label="Previous slide"
           className="flex h-10 w-10 items-center justify-center rounded-full bg-black/40 border border-white/10 text-zinc-300 hover:text-white hover:bg-black/60 backdrop-blur-sm transition-all duration-300 cursor-pointer"
-          title="Previous slide"
         >
           <ChevronLeftIcon className="h-5 w-5" />
         </button>
         <button
           onClick={handleNext}
+          aria-label="Next slide"
           className="flex h-10 w-10 items-center justify-center rounded-full bg-black/40 border border-white/10 text-zinc-300 hover:text-white hover:bg-black/60 backdrop-blur-sm transition-all duration-300 cursor-pointer"
-          title="Next slide"
         >
           <ChevronRightIcon className="h-5 w-5" />
         </button>

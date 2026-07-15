@@ -99,6 +99,7 @@ export default function MovieModal({
           {/* Close Button overlay */}
           <button
             onClick={onClose}
+            aria-label="Fermer"
             className="absolute top-4 right-4 z-20 p-2 rounded-full bg-black/60 text-zinc-400 hover:text-white border border-white/10 hover:bg-black/85 transition-colors focus:outline-none"
           >
             <XMarkIcon className="h-6 w-6" />

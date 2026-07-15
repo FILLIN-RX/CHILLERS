@@ -98,8 +98,8 @@ export default function Header({ onSearchClick }: HeaderProps) {
         <div className="flex items-center gap-4 text-zinc-400">
           <button
             onClick={onSearchClick}
+            aria-label="Rechercher"
             className="p-2 rounded-full hover:bg-zinc-900 hover:border-zinc-800 hover:text-white transition-colors focus:outline-none border border-transparent"
-            title="Search"
           >
             <MagnifyingGlassIcon className="h-5 w-5" />
           </button>

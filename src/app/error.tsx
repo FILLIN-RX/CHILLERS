@@ -19,7 +19,7 @@ export default function Error({
         <div className="w-16 h-16 rounded-full bg-zinc-800 flex items-center justify-center">
           <span className="text-3xl text-zinc-500">!</span>
         </div>
-        <h2 className="text-white text-xl font-bold">Une erreur est survenue</h2>
+        <h1 className="text-white text-xl font-bold">Une erreur est survenue</h1>
         <p className="text-zinc-400 text-sm">
           Le service est temporairement indisponible. Réessaie ou reviens plus tard.
         </p>

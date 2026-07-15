@@ -96,6 +96,7 @@ export default function SearchOverlay({ isOpen, onClose, onOpenDetails }: Search
         {/* Close Button */}
         <button
           onClick={onClose}
+          aria-label="Fermer la recherche"
           className="p-2 rounded-full bg-brand-card text-brand-text-muted hover:text-foreground border border-brand-border hover:border-brand-primary/30 transition-all focus:outline-none"
         >
           <XMarkIcon className="h-6 w-6" />

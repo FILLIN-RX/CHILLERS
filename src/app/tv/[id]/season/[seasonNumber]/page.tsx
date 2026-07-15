@@ -144,20 +144,22 @@ export default function SeasonPage() {
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={goPrev}
-                  disabled={currentIndex === 0}
-                  className="p-3 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-300 hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                >
-                  <ChevronLeftIcon className="h-5 w-5" />
-                </button>
-                <button
-                  onClick={goNext}
-                  disabled={currentIndex >= episodes.length - 1}
-                  className="p-3 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-300 hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                >
-                  <ChevronRightIcon className="h-5 w-5" />
-                </button>
+        <button
+          onClick={goPrev}
+          disabled={currentIndex === 0}
+          aria-label="Épisode précédent"
+          className="p-3 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-300 hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+        >
+          <ChevronLeftIcon className="h-5 w-5" />
+        </button>
+        <button
+          onClick={goNext}
+          disabled={currentIndex >= episodes.length - 1}
+          aria-label="Épisode suivant"
+          className="p-3 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-300 hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+        >
+          <ChevronRightIcon className="h-5 w-5" />
+        </button>
               </div>
             </div>
 

@@ -55,10 +55,10 @@ export default function ScrollRow({
     <div className={`space-y-3 ${className}`}>
       {/* Row header */}
       <div className="flex items-center justify-between pr-1">
-        <h3 className="text-base sm:text-lg font-bold text-white tracking-tight flex items-center gap-2">
+        <h2 className="text-base sm:text-lg font-bold text-white tracking-tight flex items-center gap-2">
           <span className={`h-3 w-1 ${accentClass} rounded-full`} />
           {title}
-        </h3>
+        </h2>
 
         {/* Desktop navigation arrows */}
         <div className="hidden sm:flex items-center gap-1.5">
@@ -110,8 +110,8 @@ export default function ScrollRow({
             aria-label="Scroll left"
             className="sm:hidden absolute left-0 top-0 h-full w-10 z-20 flex items-center justify-start pl-1 bg-gradient-to-r from-black/60 to-transparent cursor-pointer"
           >
-            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-black/70 border border-white/20 backdrop-blur-sm">
-              <ChevronLeftIcon className="h-4 w-4 text-white" />
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/70 border border-white/20 backdrop-blur-sm">
+              <ChevronLeftIcon className="h-5 w-5 text-white" />
             </span>
           </button>
         )}
@@ -123,8 +123,8 @@ export default function ScrollRow({
             aria-label="Scroll right"
             className="sm:hidden absolute right-0 top-0 h-full w-10 z-20 flex items-center justify-end pr-1 bg-gradient-to-l from-black/60 to-transparent cursor-pointer"
           >
-            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-black/70 border border-white/20 backdrop-blur-sm">
-              <ChevronRightIcon className="h-4 w-4 text-white" />
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/70 border border-white/20 backdrop-blur-sm">
+              <ChevronRightIcon className="h-5 w-5 text-white" />
             </span>
           </button>
         )}

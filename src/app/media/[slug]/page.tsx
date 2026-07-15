@@ -69,12 +69,17 @@ function MediaDetailPage() {
 
   useEffect(() => {
     fetchData();
-    const saved = JSON.parse(localStorage.getItem("chiller_favorites") || "[]");
-    setIsFavorite(saved.includes(id));
+    try {
+      const saved = JSON.parse(localStorage.getItem("chiller_favorites") || "[]");
+      setIsFavorite(saved.includes(id));
+    } catch (e) { /* ignore */ }
   }, [fetchData, id]);
 
   const toggleFavorite = () => {
-    const saved: string[] = JSON.parse(localStorage.getItem("chiller_favorites") || "[]");
+    let saved: string[] = [];
+    try {
+      saved = JSON.parse(localStorage.getItem("chiller_favorites") || "[]");
+    } catch (e) { /* ignore */ }
     const next = saved.includes(id) ? saved.filter((f) => f !== id) : [...saved, id];
     localStorage.setItem("chiller_favorites", JSON.stringify(next));
     setIsFavorite(next.includes(id));
@@ -296,7 +301,7 @@ function MediaDetailPage() {
                   )}
                 </button>
 
-                <button className="flex items-center gap-2 px-5 py-3 rounded-full bg-white/10 border border-white/20 text-white hover:bg-white/20 transition-all hover:scale-105 font-bold text-sm">
+                <button aria-label="Partager" className="flex items-center gap-2 px-5 py-3 rounded-full bg-white/10 border border-white/20 text-white hover:bg-white/20 transition-all hover:scale-105 font-bold text-sm">
                   <ShareIcon className="h-5 w-5" />
                 </button>
               </div>
@@ -383,9 +388,9 @@ function MediaDetailPage() {
                     </div>
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-white group-hover:text-[#D70466] transition-colors truncate">
+                    <h3 className="text-sm font-bold text-white group-hover:text-[#D70466] transition-colors truncate">
                       {season.name}
-                    </h4>
+                    </h3>
                     <p className="text-xs text-zinc-500 mt-0.5">
                       {season.episodeCount ?? season.episodes.length} épisode{(season.episodeCount ?? season.episodes.length) !== 1 ? "s" : ""}
                     </p>
@@ -422,9 +427,9 @@ function MediaDetailPage() {
                     </div>
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-white group-hover:text-[#D70466] transition-colors truncate">
+                    <h3 className="text-sm font-bold text-white group-hover:text-[#D70466] transition-colors truncate">
                       {sim.title}
-                    </h4>
+                    </h3>
                     <div className="flex items-center gap-2 text-xs text-zinc-500 mt-0.5">
                       <span>{sim.year}</span>
                       <span>•</span>
