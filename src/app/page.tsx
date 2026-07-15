@@ -1,11 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import BottomNav from "@/components/BottomNav";
 import HeroCarousel from "@/components/HeroCarousel";
 import MovieCard from "@/components/MovieCard";
-import CategoryCard from "@/components/CategoryCard";
 import ContinueWatchingCard from "@/components/ContinueWatchingCard";
 import ScrollRow from "@/components/ScrollRow";
 import MovieModal from "@/components/MovieModal";
@@ -25,11 +24,13 @@ import {
   getMediaDetails,
   getStreamUrl,
   getMovieGenres,
+  getMoviesByGenre,
   getAnimeSeries,
   Genre,
 } from "./api";
 
 export default function Home() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<string>("home");
 
   // Media Playback & Modal States
@@ -52,6 +53,7 @@ export default function Home() {
   const [seriesData, setSeriesData] = useState<MovieOrShow[]>([]);
   const [animeData, setAnimeData] = useState<MovieOrShow[]>([]);
   const [genres, setGenres] = useState<Genre[]>([]);
+  const [genreRows, setGenreRows] = useState<{ title: string; items: MovieOrShow[] }[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [activeSeason, setActiveSeason] = useState<Season | null>(null);
 
@@ -71,7 +73,13 @@ export default function Home() {
     loadContinueWatchingHistory();
   }, [playingVideo]);
 
-  // Home tab: charge trending + hero + genres
+  const HOME_GENRES = [
+    { id: '16', title: 'Animation' },
+    { id: '28', title: 'Action' },
+    { id: '10749', title: 'Romance' },
+  ];
+
+  // Home tab: charge trending + hero + genres + 3 genre rows
   const loadHomeData = useCallback(async () => {
     setIsLoadingData(true);
     try {
@@ -84,7 +92,15 @@ export default function Home() {
       if (allTrending.length > 0) setTrendingAll(allTrending);
       if (popular.length > 0) setMoviesData(popular);
       setHeroSlides(popular.slice(0, 5));
-      getMovieGenres().then(setGenres).catch(() => {});
+
+      const [genreList, ...genreResults] = await Promise.all([
+        getMovieGenres(),
+        ...HOME_GENRES.map(g => getMoviesByGenre(g.id)),
+      ]);
+      if (genreList.length > 0) setGenres(genreList);
+      const rows = HOME_GENRES.map((g, i) => ({ title: g.title, items: genreResults[i] || [] }))
+        .filter(r => r.items.length > 0);
+      if (rows.length > 0) setGenreRows(rows);
     } catch (err) {
       console.error("Failed to load home data", err);
     } finally {
@@ -141,7 +157,6 @@ export default function Home() {
   const loadContinueWatchingHistory = () => {
     const history: { item: MovieOrShow; progress: number; remaining: string; episodeName?: string; updatedAt: number }[] = [];
     
-    // Look for chiller_progress_* keys in localStorage
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (key && key.startsWith("chiller_progress_")) {
@@ -149,12 +164,23 @@ export default function Home() {
           const raw = localStorage.getItem(key);
           if (raw) {
             const parsed = JSON.parse(raw);
-            // Match corresponding media item from our data
-            const allData = [...trendingAll, ...moviesData, ...seriesData];
-            const foundItem = allData.find((m) => m.id === parsed.id);
-            if (foundItem) {
+            if (parsed.title) {
               history.push({
-                item: foundItem,
+                item: {
+                  id: parsed.id,
+                  title: parsed.title,
+                  type: parsed.type || 'movie',
+                  posterUrl: parsed.posterUrl || '',
+                  backdropUrl: parsed.backdropUrl || '',
+                  description: '',
+                  synopsis: '',
+                  rating: 0,
+                  year: 0,
+                  duration: '',
+                  genres: [],
+                  cast: [],
+                  videoUrl: '',
+                },
                 progress: parsed.progress,
                 remaining: parsed.remaining,
                 episodeName: parsed.episodeName,
@@ -168,7 +194,6 @@ export default function Home() {
       }
     }
 
-    // Sort by most recently watched
     history.sort((a, b) => b.updatedAt - a.updatedAt);
     setContinueWatching(history.map(({ item, progress, remaining, episodeName }) => ({ item, progress, remaining, episodeName })));
   };
@@ -298,31 +323,21 @@ export default function Home() {
                     ))}
                   </ScrollRow>
 
-                  {/* Row 4: Category Genres Visual Board */}
-                  <div className="space-y-3">
-                    <h3 className="text-base sm:text-lg font-bold text-white tracking-tight flex items-center gap-2">
-                      <span className="h-3 w-1 bg-brand-primary rounded-full" />
-                      Browse by Genre
-                    </h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4">
-                      {(genres.length > 0
-                        ? genres.map(g => ({ id: String(g.id), name: g.name, imageUrl: '' }))
-                        : []
-                      ).slice(0, 10).map((g) => {
-                        return (
-                          <CategoryCard
-                            key={g.id}
-                            category={{
-                              id: g.id,
-                              name: g.name,
-                              imageUrl: `https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=600&auto=format&fit=crop`,
-                            }}
-                            onClick={() => { setActiveTab("categories"); }}
-                          />
-                        );
-                      })}
-                    </div>
-                  </div>
+                  {/* Genre rows: Animation, Action, Romance */}
+                  {genreRows.map((row) => (
+                    <ScrollRow key={row.title} title={row.title} accentColor="secondary">
+                      {row.items.map((item) => (
+                        <MovieCard
+                          key={item.id}
+                          item={item}
+                          onPlay={handleWatchNow}
+                          onOpenDetails={handleOpenDetails}
+                          favorites={favorites}
+                          toggleFavorite={toggleFavorite}
+                        />
+                      ))}
+                    </ScrollRow>
+                  ))}
 
 
                 </>

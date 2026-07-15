@@ -460,6 +460,7 @@ function MediaListingPage() {
   const params = useParams();
   const type = params?.slug as string;
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [items, setItems] = useState<MovieOrShow[]>([]);
   const [page, setPage] = useState(1);
@@ -501,6 +502,14 @@ function MediaListingPage() {
     setActiveGenreId(null);
     setPage(1);
   }, [type]);
+
+  // Read ?genre= from URL on mount
+  useEffect(() => {
+    const genreParam = searchParams?.get("genre");
+    if (genreParam) {
+      setActiveGenreId(genreParam);
+    }
+  }, [searchParams]);
 
   // Reset to page 1 when genre changes
   useEffect(() => {

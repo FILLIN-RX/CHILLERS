@@ -111,6 +111,10 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
       const progressPercent = Math.min((currentTime / duration) * 100, 100);
       localStorage.setItem(`chiller_progress_${item.id}_${currentEpisode?.id || 'movie'}`, JSON.stringify({
         id: item.id,
+        title: item.title,
+        type: item.type,
+        posterUrl: item.posterUrl,
+        backdropUrl: item.backdropUrl,
         episodeId: currentEpisode?.id,
         time: currentTime,
         duration: duration,

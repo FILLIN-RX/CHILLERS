@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import CategoryCard from "@/components/CategoryCard";
 import { getMovieGenres, Genre } from "@/app/api";
 
 export default function CategoriesPage() {
+  const router = useRouter();
   const [genres, setGenres] = useState<Genre[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -43,7 +45,7 @@ export default function CategoriesPage() {
                   imageUrl: `https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=600&auto=format&fit=crop`,
                 }}
                 onClick={(c) => {
-                  window.location.href = `/search?q=${encodeURIComponent(c.name)}`;
+                  router.push(`/media/movies?genre=${c.id}`);
                 }}
               />
             ))}

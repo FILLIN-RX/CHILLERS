@@ -1,8 +1,9 @@
 "use client";
 
 import React from "react";
-import { HomeIcon, FilmIcon, TvIcon, MagnifyingGlassIcon, HeartIcon } from "@heroicons/react/24/outline";
-import { HomeIcon as HomeIconSolid, FilmIcon as FilmIconSolid, TvIcon as TvIconSolid, HeartIcon as HeartIconSolid } from "@heroicons/react/24/solid";
+import { HomeIcon, FilmIcon, TvIcon, MagnifyingGlassIcon, HeartIcon, Squares2X2Icon } from "@heroicons/react/24/outline";
+import { HomeIcon as HomeIconSolid, FilmIcon as FilmIconSolid, TvIcon as TvIconSolid, HeartIcon as HeartIconSolid, Squares2X2Icon as Squares2X2IconSolid } from "@heroicons/react/24/solid";
+import { useRouter } from "next/navigation";
 
 interface BottomNavProps {
   activeTab: string;
@@ -11,10 +12,12 @@ interface BottomNavProps {
 }
 
 export default function BottomNav({ activeTab, setActiveTab, onSearchClick }: BottomNavProps) {
+  const router = useRouter();
   const items = [
     { id: "home", label: "Home", icon: HomeIcon, activeIcon: HomeIconSolid },
     { id: "movies", label: "Movies", icon: FilmIcon, activeIcon: FilmIconSolid },
     { id: "series", label: "Series", icon: TvIcon, activeIcon: TvIconSolid },
+    { id: "categories", label: "Categories", icon: Squares2X2Icon, activeIcon: Squares2X2IconSolid },
     { id: "search", label: "Search", icon: MagnifyingGlassIcon, activeIcon: MagnifyingGlassIcon },
     { id: "favorites", label: "Favorites", icon: HeartIcon, activeIcon: HeartIconSolid },
   ];
@@ -35,6 +38,10 @@ export default function BottomNav({ activeTab, setActiveTab, onSearchClick }: Bo
               onClick={() => {
                 if (item.id === "search") {
                   onSearchClick();
+                } else if (item.id === "categories") {
+                  router.push("/categories");
+                } else if (item.id === "favorites") {
+                  setActiveTab(item.id);
                 } else {
                   setActiveTab(item.id);
                 }
