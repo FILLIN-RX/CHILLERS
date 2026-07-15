@@ -2,16 +2,21 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   images: {
+    // Disable server-side optimization — images come directly from CDN
+    unoptimized: true,
     remotePatterns: [
       { protocol: "https", hostname: "image.tmdb.org" },
       { protocol: "https", hostname: "images.unsplash.com" },
     ],
   },
   async rewrites() {
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL
+      ? process.env.NEXT_PUBLIC_API_URL.replace(/\/api\/?$/, '')
+      : 'http://localhost:4000/api';
     return [
       {
         source: '/api/:path*',
-        destination: 'https://chillers.onrender.com/api/:path*',
+        destination: `${backendUrl}/api/:path*`,
       },
     ];
   },
@@ -27,11 +32,11 @@ const nextConfig: NextConfig = {
             value: [
               "default-src 'self'",
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.youtube.com https://s.ytimg.com",
-              "frame-src 'self' https://vidlink.pro https://vidapi.xyz https://doodstream.com https://d0000d.com https://www.youtube.com https://animekai.to https://*.vidzy.cc https://vidsrc.xyz https://embed.su",
+              "frame-src 'self' https://vidlink.pro https://vidapi.xyz https://doodstream.com https://d0000d.com https://www.youtube.com https://animekai.to https://*.vidzy.cc https://vidsrc.xyz https://embed.su https://playmogo.com",
               "media-src 'self' blob: data: https://*.vidzy.cc https://vidlink.pro https://vidapi.xyz",
-              "img-src 'self' data: blob: https://image.tmdb.org https://images.unsplash.com https://*.tmdb.org",
-              "style-src 'self' 'unsafe-inline'",
-              "connect-src 'self' https://chillers.onrender.com https://api.themoviedb.org",
+              "img-src 'self' data: blob: https://image.tmdb.org https://images.unsplash.com https://*.tmdb.org https://*.vidzy.cc",
+              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+              "connect-src 'self' http://localhost:4000 https://chillers.onrender.com https://api.themoviedb.org",
               "font-src 'self' data:",
             ].join('; '),
           },

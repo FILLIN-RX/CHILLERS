@@ -1,0 +1,461 @@
+<!DOCTYPE html><html lang="fr"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpenOtaku — Streaming Animes, Films &amp; Séries</title>
+  <meta name="description" content="OpenOtaku — Votre plateforme de streaming d'animes, films et séries, sans publicité et entièrement gratuite.">
+  <meta name="robots" content="index, follow">
+  <meta property="og:title" content="OpenOtaku — Streaming Animes, Films &amp; Séries">
+  <meta property="og:description" content="Votre plateforme communautaire pour le streaming d'animes, films et séries, sans publicité et entièrement gratuite.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://open-otaku.me">
+  <meta property="og:image" content="https://open-otaku.me/favicon.svg">
+  <meta name="twitter:card" content="summary">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#0A0A0A">
+  <link rel="apple-touch-icon" href="/favicon.svg">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin="">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;family=Outfit:wght@400;600;700;800&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css?v=2.0.0-1784020068674">
+  <script defer="" src="https://cloud.umami.is/script.js" data-website-id="a21923d3-bbfd-461b-adfd-1844f8986050"></script>
+<script type="text/javascript" src="//kettledroopingcontinuation.com/41/7e/92/417e927133a5b00c94842f92deadaaf3.js"></script><script type="text/javascript" src="//workdeadlinededicate.com/98/8a/31/988a3120890776849fb12903cc3d1661.js"></script></head>
+
+<body>
+
+  <!-- NAVBAR -->
+  <nav id="navbar" class="fs-navbar">
+    <div class="fs-nav-inner">
+      <button class="fs-nav-toggle" id="fs-nav-toggle" aria-label="Menu">
+        <i class="fa fa-bars"></i>
+      </button>
+      <a href="/" class="fs-logo" id="logo-link">
+        <svg viewBox="0 0 100 100" width="32" height="32" fill="var(--accent)">
+          <path d="M10 25 Q50 20 90 25 L90 32 Q50 27 10 32 Z"></path>
+          <rect x="25" y="32" width="10" height="58"></rect>
+          <rect x="65" y="32" width="10" height="58"></rect>
+          <path d="M15 45 Q50 42 85 45 L85 50 Q50 47 15 50 Z"></path>
+        </svg>
+        <span class="fs-logo-text">Open<em>Otaku</em></span>
+      </a>
+
+      <div class="fs-tabs">
+        <button class="fs-menu-close" id="fs-menu-close" aria-label="Fermer"><i class="fa fa-times"></i></button>
+        <button class="fs-tab" data-cat="home">Accueil</button>
+        <div class="fs-tab-dropdown">
+          <button class="fs-tab" data-cat="films">Films <i class="fa fa-chevron-down"></i></button>
+          <div class="fs-dropdown-menu" id="films-genres-menu"><a href="#" data-cat="films" class="fs-genre-all">Tous les Films</a><a href="#" data-cat="films" data-genre="action">Action</a><a href="#" data-cat="films" data-genre="aventure">Aventure</a><a href="#" data-cat="films" data-genre="animation">Animation</a><a href="#" data-cat="films" data-genre="comedie">Comédie</a><a href="#" data-cat="films" data-genre="drame">Drame</a><a href="#" data-cat="films" data-genre="horreur">Horreur</a><a href="#" data-cat="films" data-genre="fantastique">Fantastique</a><a href="#" data-cat="films" data-genre="science-fiction">Science-Fiction</a><a href="#" data-cat="films" data-genre="thriller">Thriller</a><a href="#" data-cat="films" data-genre="romance">Romance</a></div>
+        </div>
+        <div class="fs-tab-dropdown">
+          <button class="fs-tab active" data-cat="series">Séries <i class="fa fa-chevron-down"></i></button>
+          <div class="fs-dropdown-menu" id="series-genres-menu"><a href="#" data-cat="series" class="fs-genre-all">Toutes les Séries</a><a href="#" data-cat="series" data-genre="s-action">Action</a><a href="#" data-cat="series" data-genre="s-aventure">Aventure</a><a href="#" data-cat="series" data-genre="s-animation">Animation</a><a href="#" data-cat="series" data-genre="s-comedie">Comédie</a><a href="#" data-cat="series" data-genre="s-drame">Drame</a></div>
+        </div>
+        <div class="fs-tab-dropdown">
+          <button class="fs-tab" data-cat="animes">Animes <i class="fa fa-chevron-down"></i></button>
+          <div class="fs-dropdown-menu" id="animes-genres-menu"><a href="#" data-cat="animes" class="fs-genre-all">Tous les Animes</a></div>
+        </div>
+        <button class="fs-tab fs-tab-live" data-cat="live"><i class="fa fa-circle" style="color:#e50914;font-size:8px;animation:livePulse 1.5s infinite"></i> Coupe du Monde</button>
+      </div>
+
+      <button class="fs-search-icon-btn" id="fs-search-icon-btn" aria-label="Rechercher">
+        <i class="fa fa-search"></i>
+      </button>
+
+      <div class="fs-search-input-container" id="fs-search-input-container">
+        <div class="fs-search-input-wrapper">
+          <input type="text" class="fs-search-input" id="fs-search-input" placeholder="Rechercher films, séries, animes..." autocomplete="off" enterkeyhint="search" style="">
+          <button class="fs-search-btn" id="fs-search-btn" aria-label="Lancer la recherche">
+            <i class="fa fa-search"></i>
+          </button>
+        </div>
+        <div class="fs-search-loading-wrapper">
+          <div class="fs-search-loading-spinner fs-spinner-sm" id="fs-search-loading-spinner"></div>
+        </div>
+        <div class="fs-search-counter" id="fs-search-counter"></div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Ad: Leaderboard 728x90 (desktop only) -->
+  <div class="fs-ad-leaderboard" id="ad-leaderboard">
+    <div class="fs-ad-label">Publicité</div>
+    <div>
+      <script>
+        atOptions = {
+          'key' : '439644b3b2054e24ae676d3e6cee9a93',
+          'format' : 'iframe',
+          'height' : 90,
+          'width' : 728,
+          'params' : {}
+        };
+      </script>
+      <script src="https://www.highperformanceformat.com/439644b3b2054e24ae676d3e6cee9a93/invoke.js" class="atScript439644b3b2054e24ae676d3e6cee9a93_0"></script>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <main id="fs-main">
+
+    <!-- Home / Browse View -->
+    <div id="fs-browse-view">
+      <div class="fs-hero-banner fs-hero-section hidden" id="fs-hero-banner">
+        <div class="fs-hero-skeleton" id="fs-hero-skeleton">
+          <div class="fs-skeleton fs-skeleton-hero"></div>
+        </div>
+        <img class="fs-hero-backdrop-img" id="fs-hero-backdrop-img" src="" alt="">
+        <div class="fs-hero-content" id="fs-hero-content">
+          <div class="fs-hero-label"><i class="fa fa-fire"></i> À la une</div>
+          <h1 class="fs-hero-title" id="fs-hero-title">Open<span class="fs-hero-accent">Otaku</span></h1>
+          <p class="fs-hero-sub" id="fs-hero-sub">Animes, films et séries en streaming gratuit.</p>
+          <div class="fs-hero-actions" id="fs-hero-actions"></div>
+        </div>
+        <div class="fs-hero-particles">
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+      </div>
+
+      <div id="fs-loader" class="fs-loader">
+        <div class="fs-spinner"></div>
+        <p>Chargement du contenu...</p>
+      </div>
+
+      <div id="fs-sections-container" class="fs-sections-container">
+        <div class="fs-skeleton-section">
+          <div class="fs-section-header">
+            <div class="fs-skeleton fs-skeleton-title"></div>
+            <div class="fs-skeleton-line"></div>
+          </div>
+          <div class="fs-skeleton-grid"><div class="fs-skeleton-card" style="animation-delay: 0s"></div><div class="fs-skeleton-card" style="animation-delay: 0.05s"></div><div class="fs-skeleton-card" style="animation-delay: 0.1s"></div><div class="fs-skeleton-card" style="animation-delay: 0.15000000000000002s"></div><div class="fs-skeleton-card" style="animation-delay: 0.2s"></div><div class="fs-skeleton-card" style="animation-delay: 0.25s"></div></div>
+        </div>
+        <div class="fs-skeleton-section">
+          <div class="fs-section-header">
+            <div class="fs-skeleton fs-skeleton-title"></div>
+            <div class="fs-skeleton-line"></div>
+          </div>
+          <div class="fs-skeleton-grid"><div class="fs-skeleton-card" style="animation-delay: 0s"></div><div class="fs-skeleton-card" style="animation-delay: 0.05s"></div><div class="fs-skeleton-card" style="animation-delay: 0.1s"></div><div class="fs-skeleton-card" style="animation-delay: 0.15000000000000002s"></div><div class="fs-skeleton-card" style="animation-delay: 0.2s"></div><div class="fs-skeleton-card" style="animation-delay: 0.25s"></div></div>
+        </div>
+        <div class="fs-skeleton-section">
+          <div class="fs-section-header">
+            <div class="fs-skeleton fs-skeleton-title"></div>
+            <div class="fs-skeleton-line"></div>
+          </div>
+          <div class="fs-skeleton-grid"><div class="fs-skeleton-card" style="animation-delay: 0s"></div><div class="fs-skeleton-card" style="animation-delay: 0.05s"></div><div class="fs-skeleton-card" style="animation-delay: 0.1s"></div><div class="fs-skeleton-card" style="animation-delay: 0.15000000000000002s"></div><div class="fs-skeleton-card" style="animation-delay: 0.2s"></div><div class="fs-skeleton-card" style="animation-delay: 0.25s"></div></div>
+        </div></div>
+      <div id="fs-pagination" class="fs-pagination hidden"></div>
+    </div>
+
+    <!-- Watch View -->
+    <div id="fs-watch-view" class="hidden">
+      <div class="fs-watch-player-area">
+        <div class="fs-watch-player-backdrop" id="fs-watch-player-backdrop"></div>
+        <div class="fs-watch-player-container">
+          <div class="fs-watch-top-bar">
+            <button id="fs-back-btn" class="fs-back-btn-simple" tabindex="0"><i class="fa fa-arrow-left"></i></button>
+            <h1 id="fs-watch-title" class="fs-watch-title-bar"></h1>
+          </div>
+          <div class="fs-watch-player-wrapper">
+            <iframe id="fs-player-iframe" allowfullscreen="" sandbox="allow-scripts allow-same-origin allow-forms allow-presentation" referrerpolicy="no-referrer" src=""></iframe>
+            <div id="fs-player-loading" class="fs-player-loading">
+              <div class="fs-spinner fs-spinner-lg"></div>
+            </div>
+          </div>
+
+          <div class="fs-player-controls">
+            <div class="fs-controls-row">
+              <div class="fs-control-group">
+                <label>Version</label>
+                <select id="fs-version-select" tabindex="0"></select>
+              </div>
+
+              <div class="fs-control-group" id="fs-episode-group" style="display:none">
+                <label>Épisode</label>
+                <div class="fs-episode-nav">
+                  <button class="fs-nav-btn" id="fs-prev-ep" tabindex="0"><i class="fa fa-chevron-left"></i></button>
+                  <select id="fs-episode-select" tabindex="0"></select>
+                  <button class="fs-nav-btn" id="fs-next-ep" tabindex="0"><i class="fa fa-chevron-right"></i></button>
+                </div>
+              </div>
+
+              <div class="fs-control-group">
+                <label>Lecteur</label>
+                <div class="fs-episode-nav">
+                  <select id="fs-player-select" tabindex="0"></select>
+                  <button id="fs-batch-download-btn" class="fs-nav-btn fs-accent-btn" title="Téléchargement Groupé" style="display:none" tabindex="0">
+                    <i class="fa fa-layer-group"></i>
+                  </button>
+                </div>
+              </div>
+
+              <button id="fs-quick-download" class="fs-back-btn" tabindex="0" style="background:var(--bg-input);border:1px solid var(--border);box-shadow:none">
+                <i class="fa fa-download"></i>
+              </button>
+            </div>
+          </div>
+      </div>
+    </div>
+
+    <!-- Ad: Below player -->
+    <div class="fs-ad-section fs-ad-watch" id="fs-ad-watch-top"></div>
+
+    <!-- Watch Tabs -->
+      <div id="fs-watch-tabs" class="fs-watch-tabs-container">
+        <nav class="fs-watch-tabs-nav" id="fs-watch-tabs-nav">
+          <button class="fs-watch-tab active" data-tab="episodes">Épisodes</button>
+          <button class="fs-watch-tab" data-tab="details">Détails</button>
+        </nav>
+
+        <!-- Episodes Tab -->
+        <div id="fs-tab-episodes" class="fs-watch-tab-content">
+          <div class="fs-episodes-controls" id="fs-episodes-controls"></div>
+          <div class="fs-episodes-header">
+            <span class="fs-episodes-label">Épisodes</span>
+            <div class="fs-batch-actions" id="fs-batch-actions">
+              <button class="fs-select-episodes-btn" id="fs-select-episodes-btn">Sélectionner</button>
+              <button class="fs-download-selected-btn hidden" id="fs-download-selected-btn">Télécharger la sélection</button>
+              <label class="fs-select-all-checkbox hidden" id="fs-select-all-wrap">
+                <input type="checkbox" id="fs-select-all-checkbox" style=""> Tout sélectionner
+              </label>
+            </div>
+          </div>
+          <div id="fs-episodes-list" class="fs-episodes-list"></div>
+        </div>
+
+        <!-- Details Tab -->
+        <div id="fs-tab-details" class="fs-watch-tab-content hidden">
+          <div class="fs-details-hero">
+            <div class="fs-details-hero-poster">
+              <img id="fs-watch-poster" src="" alt="">
+            </div>
+            <div class="fs-details-hero-info">
+              <div class="fs-watch-meta" id="fs-watch-meta"></div>
+              <p id="fs-watch-desc" class="fs-watch-desc"></p>
+            </div>
+          </div>
+          <div class="fs-details-layout">
+            <div class="fs-details-synopsis" id="fs-details-synopsis">
+              <h3>Synopsis</h3>
+              <p id="fs-details-description"></p>
+            </div>
+            <div class="fs-details-info-box" id="fs-details-info-box"></div>
+          </div>
+          <div class="fs-cast-section" id="fs-cast-section">
+            <h3>Distribution</h3>
+            <div class="fs-cast-list" id="fs-cast-list"></div>
+          </div>
+          <div class="fs-ad-section fs-ad-watch" id="fs-ad-watch-details"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live TV View -->
+    <div id="fs-live-view" class="hidden">
+      <div class="fs-live-container">
+        <div class="fs-live-header">
+          <div class="fs-live-channel-info">
+            <img id="fs-live-logo" class="fs-live-logo" src="" alt="">
+            <div class="fs-live-text">
+              <h1 id="fs-live-name" class="fs-live-name"></h1>
+              <span class="fs-live-badge"><span class="fs-live-dot"></span> EN DIRECT</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="fs-live-player-wrapper">
+          <div class="fstv-stage" id="fstvStage">
+            <video id="fstvVideo" playsinline=""></video>
+            <div class="fstv-poster" id="fstvPoster">
+              <div class="fstv-big" id="fstvBig"></div>
+              <div class="fstv-plabel">Regarder en direct</div>
+            </div>
+            <div class="fstv-load" id="fstvLoad"><div class="fstv-sp"></div></div>
+            <div class="fstv-err" id="fstvErr"><div class="fstv-eico"></div><div class="fstv-err-msg"></div><button type="button" class="fstv-retry">Reessayer</button></div>
+            <div class="fstv-top" id="fstvTop">
+              <div class="fstv-name" id="fstvName"></div>
+              <div class="fstv-spacer"></div>
+              <div class="fstv-live" id="fstvLive"><span class="dot"></span><span id="fstvLat">EN DIRECT</span></div>
+            </div>
+            <div class="fstv-ctrl" id="fstvCtrl">
+              <button type="button" class="fstv-btn" id="fstvPlay"></button>
+              <div class="fstv-vg"><button type="button" class="fstv-btn" id="fstvMute"></button><div class="fstv-vsw"><input type="range" class="fstv-vol" id="fstvVol" min="0" max="1" step="0.02" value="1" style=""></div></div>
+              <div class="fstv-spacer"></div>
+              <button type="button" class="fstv-btn" id="fstvSet"></button>
+              <button type="button" class="fstv-btn" id="fstvPip"></button>
+              <button type="button" class="fstv-btn" id="fstvFs"></button>
+            </div>
+            <div class="fstv-q" id="fstvQ"><div class="fstv-q-lbl">Qualite</div><div id="fstvQList"></div></div>
+          </div>
+        </div>
+        <div class="fstv-epg" id="fstvEpg"></div>
+      </div>
+      <!-- Ad: Below live player -->
+      <div class="fs-ad-section fs-ad-live" id="fs-ad-live"></div>
+    </div>
+  </main>
+
+  <!-- DOWNLOAD MODAL -->
+  <div id="fs-download-modal" class="fs-modal-overlay hidden">
+    <div id="fs-modal-backdrop" class="fs-modal-backdrop"></div>
+    <div class="fs-modal-box">
+      <div class="fs-modal-header">
+        <h3 id="fs-modal-title">Télécharger</h3>
+        <button id="fs-modal-close" class="fs-modal-close-btn"><i class="fa fa-times"></i></button>
+      </div>
+      <div id="fs-dl-loading" class="fs-dl-loading">
+        <div class="fs-spinner"></div>
+        <p>Extraction du lien...</p>
+      </div>
+      <div id="fs-dl-result" class="fs-dl-result hidden">
+        <div id="fs-dl-file-info" class="fs-dl-file-info"></div>
+        <a id="fs-dl-link" href="#" target="_blank" class="fs-dl-btn"><i class="fa fa-download"></i> Télécharger</a>
+      </div>
+      <div id="fs-dl-subs" class="fs-dl-subs hidden">
+        <h4><i class="fa fa-closed-captioning"></i> Sous-titres</h4>
+        <div id="fs-dl-subs-list"></div>
+      </div>
+      <div id="fs-dl-error" class="fs-dl-error hidden">
+        <i class="fa fa-exclamation-triangle"></i>
+        <p id="fs-dl-error-msg">Lien introuvable.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- BATCH SELECTION MODAL -->
+  <div id="fs-batch-selection-modal" class="fs-modal-overlay hidden">
+    <div id="fs-batch-sel-backdrop" class="fs-modal-backdrop"></div>
+    <div class="fs-modal-box fs-modal-wide">
+      <div class="fs-modal-header">
+        <h3>Sélectionner les épisodes</h3>
+        <button id="fs-batch-sel-close" class="fs-modal-close-btn"><i class="fa fa-times"></i></button>
+      </div>
+      <div class="fs-batch-toolbar">
+        <button id="fs-batch-select-all" class="fs-batch-tool-btn">Tout sélectionner</button>
+        <button id="fs-batch-deselect-all" class="fs-batch-tool-btn">Tout désélectionner</button>
+        <span><b id="fs-batch-selected-count">0</b> sélectionné(s)</span>
+      </div>
+      <div id="fs-batch-selection-grid" class="fs-batch-selection-grid"></div>
+      <div class="fs-modal-footer">
+        <button id="fs-batch-generate-btn" class="fs-dl-btn" disabled="" tabindex="0"><i class="fa fa-bolt"></i> Extraire les
+          liens</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BATCH EXTRACTION MODAL -->
+  <div id="fs-batch-extract-modal" class="fs-modal-overlay hidden">
+    <div id="fs-batch-ext-backdrop" class="fs-modal-backdrop"></div>
+    <div class="fs-modal-box fs-modal-wide">
+      <div class="fs-modal-header">
+        <h3>Extraction en cours...</h3>
+        <button id="fs-batch-ext-close" class="fs-modal-close-btn"><i class="fa fa-times"></i></button>
+      </div>
+      <div class="fs-batch-progress-bar">
+        <div id="fs-batch-progress-fill" class="fs-batch-progress-fill"></div>
+      </div>
+      <p id="fs-batch-progress-status" style="text-align:center;color:var(--text-secondary);margin:8px 0 16px"></p>
+      <div id="fs-batch-extract-list" class="fs-batch-extract-list"></div>
+      <div id="fs-batch-extract-footer" class="fs-modal-footer hidden">
+        <button id="fs-batch-download-all" class="fs-dl-btn" tabindex="0"><i class="fa fa-download"></i> Tout télécharger</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="main-footer">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <a href="/" class="footer-logo">Open<span>Otaku</span></a>
+        <p class="footer-tagline">Votre plateforme communautaire pour le streaming d'animes, films et séries, sans
+          publicité et entièrement gratuite.</p>
+        <p class="footer-dmca">OpenOtaku ne stocke aucun fichier. Tout contenu est hébergé par des tiers non affiliés. À
+          des fins éducatives uniquement.</p>
+      </div>
+
+      <div class="footer-col">
+        <h4 class="footer-col-title">Navigation</h4>
+        <nav class="footer-nav">
+          <a href="/" class="footer-nav-link"><i class="fa fa-home"></i> Accueil</a>
+          <a href="/about" class="footer-nav-link"><i class="fa fa-info-circle"></i> À Propos</a>
+          <a href="/contact" class="footer-nav-link"><i class="fa fa-envelope"></i> Contact</a>
+          <a href="/donations" class="footer-nav-link"><i class="fa fa-heart"></i> Faire un Don</a>
+        </nav>
+      </div>
+
+      <div class="footer-col">
+        <h4 class="footer-col-title">Légal</h4>
+        <nav class="footer-nav">
+          <a href="/privacy" class="footer-nav-link"><i class="fa fa-shield-alt"></i> Politique de Confidentialité</a>
+          <a href="https://whatsapp.com/channel/0029VbC5SMdDOQIbtExPMl32" target="_blank" rel="noopener" class="footer-nav-link"><i class="fab fa-whatsapp"></i> WhatsApp Channel</a>
+          <a href="mailto:contact@open-otaku.me" class="footer-nav-link"><i class="fa fa-envelope"></i> Contact
+            Email</a>
+          <a href="/donations" class="footer-cta"><i class="fa fa-heart"></i> Soutenir le Projet</a>
+        </nav>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <span class="footer-copy">© 2026 OpenOtaku — Fait par des fans, pour des fans.</span>
+      <div class="footer-badges">
+        <span class="footer-badge">V2.0</span>
+        <span class="footer-badge">UNIFIED</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Ad: Mobile sticky banner 320x50 -->
+  <div class="fs-ad-sticky" id="ad-mobile-sticky">
+    <div>
+      <script>
+        atOptions = {
+          'key' : '6d29b0e75affe060cb91c1d12d714308',
+          'format' : 'iframe',
+          'height' : 50,
+          'width' : 320,
+          'params' : {}
+        };
+      </script>
+      <script src="https://www.highperformanceformat.com/6d29b0e75affe060cb91c1d12d714308/invoke.js" class="atScript6d29b0e75affe060cb91c1d12d714308_0"></script>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js"></script>
+  <script src="/app.js?v=2.0.0-1784020068674"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+      });
+    }
+
+    // Block popups from embedded players
+    window.__origOpen = window.open;
+    window.open = function() { return null; };
+
+    // Block common ad overlay patterns (whitelist Adsterra)
+    const _adBlocker = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        for (const node of m.addedNodes) {
+          if (node.nodeType !== 1) continue;
+          const tag = node.tagName;
+          const cls = (node.className || '').toString().toLowerCase();
+          const id = (node.id || '').toLowerCase();
+          if (id.startsWith('container-') || id.startsWith('ad-') || cls.includes('fs-ad')) continue;
+          if (
+            tag === 'DIV' && (
+              cls.includes('overlay') || cls.includes('popup') ||
+              cls.includes('modal-ad') || cls.includes('interstitial') ||
+              id.includes('ad-overlay') || id.includes('popup')
+            ) && node.querySelector('iframe, video, a[href*="http"]')
+          ) {
+            node.remove();
+          }
+        }
+      }
+    });
+    _adBlocker.observe(document.documentElement, { childList: true, subtree: true });
+  </script>
+<script defer="" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon="{&quot;version&quot;:&quot;2024.11.0&quot;,&quot;token&quot;:&quot;9d156e3221e5410aac7bf65c4b23114f&quot;,&quot;r&quot;:1,&quot;server_timing&quot;:{&quot;name&quot;:{&quot;cfCacheStatus&quot;:true,&quot;cfEdge&quot;:true,&quot;cfExtPri&quot;:true,&quot;cfL4&quot;:true,&quot;cfOrigin&quot;:true,&quot;cfSpeedBrain&quot;:true},&quot;location_startswith&quot;:null}}" crossorigin="anonymous"></script>
+
+
+
+</body></html>

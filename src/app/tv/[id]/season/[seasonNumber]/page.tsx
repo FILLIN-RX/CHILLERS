@@ -32,7 +32,15 @@ export default function SeasonPage() {
     async function fetchSeason() {
       setIsLoading(true);
       try {
-        const data = await getSeasonDetails(id as string, seasonNumber as string);
+        // Fetch title AND season in parallel
+        const [data, detail] = await Promise.all([
+          getSeasonDetails(id as string, seasonNumber as string),
+          getMediaDetails(id as string, true),
+        ]);
+
+        const title = detail?.title || "";
+        if (title) setShowTitle(title);
+
         if (data && data.episodes) {
           const mapped = data.episodes.map((ep: any) => ({
             id: String(ep.id),
@@ -45,8 +53,24 @@ export default function SeasonPage() {
           }));
           setEpisodes(mapped);
 
-          const detail = await getMediaDetails(id as string, true);
-          if (detail) setShowTitle(detail.title);
+          // Load stream for first episode with the resolved title immediately
+          if (mapped.length > 0) {
+            setStreamLoading(true);
+            try {
+              const stream = await getStreamUrl(
+                id as string,
+                'series',
+                Number(seasonNumber),
+                mapped[0].number,
+                title
+              );
+              setStreamUrl(stream?.embedUrl || "");
+            } catch (err) {
+              console.error("Stream error on initial load", err);
+            } finally {
+              setStreamLoading(false);
+            }
+          }
         }
       } catch (err) {
         console.error("Failed to load season", err);
@@ -59,11 +83,14 @@ export default function SeasonPage() {
 
   const currentEpisode = episodes[currentIndex];
 
-  const loadStream = useCallback(async (ep: Episode) => {
+  const loadStream = useCallback(async (ep: Episode, titleOverride?: string) => {
     if (!ep) return;
+    const title = titleOverride ?? showTitle;
+    // Don't load if no title yet — initial load handled in fetchSeason
+    if (!title) return;
     setStreamLoading(true);
     try {
-      const stream = await getStreamUrl(id as string, 'series', Number(seasonNumber), ep.number, showTitle);
+      const stream = await getStreamUrl(id as string, 'series', Number(seasonNumber), ep.number, title);
       setStreamUrl(stream?.embedUrl || "");
     } catch (err) {
       console.error("Stream error", err);
@@ -72,9 +99,15 @@ export default function SeasonPage() {
     }
   }, [id, seasonNumber, showTitle]);
 
+  // Re-load stream when user switches episode (not on first load — handled above)
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
   useEffect(() => {
-    if (currentEpisode) loadStream(currentEpisode);
-  }, [currentEpisode, loadStream]);
+    if (!initialLoadDone && episodes.length > 0) {
+      setInitialLoadDone(true);
+      return; // skip — first episode already loaded in fetchSeason
+    }
+    if (currentEpisode && initialLoadDone) loadStream(currentEpisode);
+  }, [currentIndex]); // only track index changes
 
   const goNext = () => {
     if (currentIndex < episodes.length - 1) {

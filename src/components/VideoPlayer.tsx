@@ -203,7 +203,12 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
   };
 
   // Helper to determine if the video is an iframe (VidLink, YouTube, etc.)
-  const isIframe = item.videoUrl?.includes("vidlink.pro") || item.videoUrl?.includes("youtube.com") || item.videoUrl?.includes("doodstream.com") || item.videoUrl?.includes("doodstream.com/e/");
+  const isIframe = (item.videoUrl?.includes("vidlink.pro") || 
+                    item.videoUrl?.includes("youtube.com") || 
+                    item.videoUrl?.includes("doodstream.com") || 
+                    item.videoUrl?.includes("doodstream.com/e/")) && 
+                   !item.videoUrl?.includes("vidzy.cc") &&
+                   !item.videoUrl?.includes("playmogo.com");
 
   const [downloading, setDownloading] = useState(false);
 

@@ -63,7 +63,8 @@
     "totalSlots": "100",
     "usedSlots": "8",
     "uploadedAt": "2026-07-15T13:51:07.559Z",
-    "fldId": "1799972"
+    "fldId": "1799972",
+    "tmdbId": 241882
   },
   "ride-or-die-saison-1_S01E02": {
     "titre": "Ride or Die - Saison 1",
@@ -74,7 +75,8 @@
     "totalSlots": "100",
     "usedSlots": "9",
     "uploadedAt": "2026-07-15T13:51:07.890Z",
-    "fldId": "1799972"
+    "fldId": "1799972",
+    "tmdbId": 241882
   },
   "ride-or-die-saison-1_S01E03": {
     "titre": "Ride or Die - Saison 1",
@@ -85,7 +87,8 @@
     "totalSlots": "100",
     "usedSlots": "10",
     "uploadedAt": "2026-07-15T13:51:08.200Z",
-    "fldId": "1799972"
+    "fldId": "1799972",
+    "tmdbId": 241882
   },
   "ride-or-die-saison-1_S01E04": {
     "titre": "Ride or Die - Saison 1",
@@ -96,7 +99,8 @@
     "totalSlots": "100",
     "usedSlots": "11",
     "uploadedAt": "2026-07-15T13:51:08.561Z",
-    "fldId": "1799972"
+    "fldId": "1799972",
+    "tmdbId": 241882
   },
   "ride-or-die-saison-1_S01E05": {
     "titre": "Ride or Die - Saison 1",
@@ -107,7 +111,8 @@
     "totalSlots": "100",
     "usedSlots": "12",
     "uploadedAt": "2026-07-15T13:51:08.918Z",
-    "fldId": "1799972"
+    "fldId": "1799972",
+    "tmdbId": 241882
   },
   "ride-or-die-saison-1_S01E06": {
     "titre": "Ride or Die - Saison 1",
@@ -118,7 +123,8 @@
     "totalSlots": "100",
     "usedSlots": "13",
     "uploadedAt": "2026-07-15T13:51:09.225Z",
-    "fldId": "1799972"
+    "fldId": "1799972",
+    "tmdbId": 241882
   },
   "ride-or-die-saison-1_S01E07": {
     "titre": "Ride or Die - Saison 1",
@@ -129,7 +135,8 @@
     "totalSlots": "100",
     "usedSlots": "14",
     "uploadedAt": "2026-07-15T13:51:09.677Z",
-    "fldId": "1799972"
+    "fldId": "1799972",
+    "tmdbId": 241882
   },
   "ride-or-die-saison-1_S01E08": {
     "titre": "Ride or Die - Saison 1",
@@ -140,7 +147,8 @@
     "totalSlots": "100",
     "usedSlots": "15",
     "uploadedAt": "2026-07-15T13:51:10.201Z",
-    "fldId": "1799972"
+    "fldId": "1799972",
+    "tmdbId": 241882
   },
   "lucky-saison-1_S01E01": {
     "titre": "Lucky - Saison 1",
@@ -173,7 +181,8 @@
     "totalSlots": "100",
     "usedSlots": "18",
     "uploadedAt": "2026-07-15T13:51:11.700Z",
-    "fldId": "1799976"
+    "fldId": "1799976",
+    "tmdbId": 285404
   },
   "plaisir-maximum-garanti-saison-1_S01E02": {
     "titre": "Plaisir maximum garanti - Saison 1",
@@ -184,7 +193,8 @@
     "totalSlots": "100",
     "usedSlots": "19",
     "uploadedAt": "2026-07-15T13:51:12.503Z",
-    "fldId": "1799976"
+    "fldId": "1799976",
+    "tmdbId": 285404
   },
   "plaisir-maximum-garanti-saison-1_S01E03": {
     "titre": "Plaisir maximum garanti - Saison 1",
@@ -195,7 +205,8 @@
     "totalSlots": "100",
     "usedSlots": "20",
     "uploadedAt": "2026-07-15T13:51:12.816Z",
-    "fldId": "1799976"
+    "fldId": "1799976",
+    "tmdbId": 285404
   },
   "plaisir-maximum-garanti-saison-1_S01E04": {
     "titre": "Plaisir maximum garanti - Saison 1",
@@ -206,7 +217,8 @@
     "totalSlots": "100",
     "usedSlots": "21",
     "uploadedAt": "2026-07-15T13:51:14.125Z",
-    "fldId": "1799976"
+    "fldId": "1799976",
+    "tmdbId": 285404
   },
   "plaisir-maximum-garanti-saison-1_S01E05": {
     "titre": "Plaisir maximum garanti - Saison 1",
@@ -217,7 +229,8 @@
     "totalSlots": "100",
     "usedSlots": "22",
     "uploadedAt": "2026-07-15T13:51:14.573Z",
-    "fldId": "1799976"
+    "fldId": "1799976",
+    "tmdbId": 285404
   },
   "plaisir-maximum-garanti-saison-1_S01E06": {
     "titre": "Plaisir maximum garanti - Saison 1",
@@ -228,7 +241,8 @@
     "totalSlots": "100",
     "usedSlots": "23",
     "uploadedAt": "2026-07-15T13:51:14.882Z",
-    "fldId": "1799976"
+    "fldId": "1799976",
+    "tmdbId": 285404
   },
   "plaisir-maximum-garanti-saison-1_S01E07": {
     "titre": "Plaisir maximum garanti - Saison 1",
@@ -239,7 +253,8 @@
     "totalSlots": "100",
     "usedSlots": "24",
     "uploadedAt": "2026-07-15T13:51:15.342Z",
-    "fldId": "1799976"
+    "fldId": "1799976",
+    "tmdbId": 285404
   },
   "plaisir-maximum-garanti-saison-1_S01E08": {
     "titre": "Plaisir maximum garanti - Saison 1",
@@ -250,7 +265,8 @@
     "totalSlots": "100",
     "usedSlots": "25",
     "uploadedAt": "2026-07-15T13:51:15.743Z",
-    "fldId": "1799976"
+    "fldId": "1799976",
+    "tmdbId": 285404
   },
   "plaisir-maximum-garanti-saison-1_S01E09": {
     "titre": "Plaisir maximum garanti - Saison 1",
@@ -261,7 +277,8 @@
     "totalSlots": "100",
     "usedSlots": "26",
     "uploadedAt": "2026-07-15T13:51:16.303Z",
-    "fldId": "1799976"
+    "fldId": "1799976",
+    "tmdbId": 285404
   },
   "plaisir-maximum-garanti-saison-1_S01E10": {
     "titre": "Plaisir maximum garanti - Saison 1",
@@ -272,7 +289,8 @@
     "totalSlots": "100",
     "usedSlots": "27",
     "uploadedAt": "2026-07-15T13:51:16.639Z",
-    "fldId": "1799976"
+    "fldId": "1799976",
+    "tmdbId": 285404
   },
   "trying-saison-5_S05E01": {
     "titre": "Trying - Saison 5",
@@ -338,7 +356,8 @@
     "totalSlots": "100",
     "usedSlots": "33",
     "uploadedAt": "2026-07-15T13:51:18.880Z",
-    "fldId": "1799982"
+    "fldId": "1799982",
+    "tmdbId": 208569
   },
   "will-trent-saison-4_S04E02": {
     "titre": "Will Trent - Saison 4",
@@ -349,7 +368,8 @@
     "totalSlots": "100",
     "usedSlots": "34",
     "uploadedAt": "2026-07-15T13:51:19.188Z",
-    "fldId": "1799982"
+    "fldId": "1799982",
+    "tmdbId": 208569
   },
   "will-trent-saison-4_S04E03": {
     "titre": "Will Trent - Saison 4",
@@ -360,7 +380,8 @@
     "totalSlots": "100",
     "usedSlots": "35",
     "uploadedAt": "2026-07-15T13:51:19.507Z",
-    "fldId": "1799982"
+    "fldId": "1799982",
+    "tmdbId": 208569
   },
   "will-trent-saison-4_S04E04": {
     "titre": "Will Trent - Saison 4",
@@ -371,7 +392,8 @@
     "totalSlots": "100",
     "usedSlots": "36",
     "uploadedAt": "2026-07-15T13:51:19.913Z",
-    "fldId": "1799982"
+    "fldId": "1799982",
+    "tmdbId": 208569
   },
   "will-trent-saison-4_S04E05": {
     "titre": "Will Trent - Saison 4",
@@ -382,7 +404,8 @@
     "totalSlots": "100",
     "usedSlots": "37",
     "uploadedAt": "2026-07-15T13:51:20.227Z",
-    "fldId": "1799982"
+    "fldId": "1799982",
+    "tmdbId": 208569
   },
   "will-trent-saison-4_S04E06": {
     "titre": "Will Trent - Saison 4",
@@ -393,7 +416,8 @@
     "totalSlots": "100",
     "usedSlots": "38",
     "uploadedAt": "2026-07-15T13:51:20.536Z",
-    "fldId": "1799982"
+    "fldId": "1799982",
+    "tmdbId": 208569
   },
   "will-trent-saison-4_S04E07": {
     "titre": "Will Trent - Saison 4",
@@ -404,7 +428,8 @@
     "totalSlots": "100",
     "usedSlots": "39",
     "uploadedAt": "2026-07-15T13:51:20.844Z",
-    "fldId": "1799982"
+    "fldId": "1799982",
+    "tmdbId": 208569
   },
   "will-trent-saison-4_S04E08": {
     "titre": "Will Trent - Saison 4",
@@ -415,7 +440,8 @@
     "totalSlots": "100",
     "usedSlots": "40",
     "uploadedAt": "2026-07-15T13:51:21.192Z",
-    "fldId": "1799982"
+    "fldId": "1799982",
+    "tmdbId": 208569
   },
   "will-trent-saison-4_S04E09": {
     "titre": "Will Trent - Saison 4",
@@ -426,7 +452,8 @@
     "totalSlots": "100",
     "usedSlots": "41",
     "uploadedAt": "2026-07-15T13:51:21.498Z",
-    "fldId": "1799982"
+    "fldId": "1799982",
+    "tmdbId": 208569
   },
   "will-trent-saison-4_S04E10": {
     "titre": "Will Trent - Saison 4",
@@ -437,7 +464,8 @@
     "totalSlots": "100",
     "usedSlots": "42",
     "uploadedAt": "2026-07-15T13:51:22.066Z",
-    "fldId": "1799982"
+    "fldId": "1799982",
+    "tmdbId": 208569
   },
   "will-trent-saison-4_S04E11": {
     "titre": "Will Trent - Saison 4",
@@ -448,7 +476,8 @@
     "totalSlots": "100",
     "usedSlots": "43",
     "uploadedAt": "2026-07-15T13:51:22.503Z",
-    "fldId": "1799982"
+    "fldId": "1799982",
+    "tmdbId": 208569
   },
   "will-trent-saison-4_S04E12": {
     "titre": "Will Trent - Saison 4",
@@ -459,7 +488,8 @@
     "totalSlots": "100",
     "usedSlots": "44",
     "uploadedAt": "2026-07-15T13:51:22.988Z",
-    "fldId": "1799982"
+    "fldId": "1799982",
+    "tmdbId": 208569
   },
   "will-trent-saison-4_S04E13": {
     "titre": "Will Trent - Saison 4",
@@ -470,7 +500,8 @@
     "totalSlots": "100",
     "usedSlots": "45",
     "uploadedAt": "2026-07-15T13:51:23.732Z",
-    "fldId": "1799982"
+    "fldId": "1799982",
+    "tmdbId": 208569
   },
   "will-trent-saison-4_S04E14": {
     "titre": "Will Trent - Saison 4",
@@ -481,7 +512,8 @@
     "totalSlots": "100",
     "usedSlots": "46",
     "uploadedAt": "2026-07-15T13:51:24.143Z",
-    "fldId": "1799982"
+    "fldId": "1799982",
+    "tmdbId": 208569
   },
   "will-trent-saison-4_S04E15": {
     "titre": "Will Trent - Saison 4",
@@ -492,7 +524,8 @@
     "totalSlots": "100",
     "usedSlots": "47",
     "uploadedAt": "2026-07-15T13:51:24.599Z",
-    "fldId": "1799982"
+    "fldId": "1799982",
+    "tmdbId": 208569
   },
   "will-trent-saison-4_S04E16": {
     "titre": "Will Trent - Saison 4",
@@ -503,7 +536,8 @@
     "totalSlots": "100",
     "usedSlots": "48",
     "uploadedAt": "2026-07-15T13:51:24.907Z",
-    "fldId": "1799982"
+    "fldId": "1799982",
+    "tmdbId": 208569
   },
   "will-trent-saison-4_S04E18": {
     "titre": "Will Trent - Saison 4",
@@ -514,7 +548,8 @@
     "totalSlots": "100",
     "usedSlots": "49",
     "uploadedAt": "2026-07-15T13:51:25.216Z",
-    "fldId": "1799982"
+    "fldId": "1799982",
+    "tmdbId": 208569
   },
   "the-westies-saison-1_S01E01": {
     "titre": "The Westies - Saison 1",
@@ -1460,7 +1495,8 @@
     "totalSlots": "100",
     "usedSlots": "11",
     "uploadedAt": "2026-07-15T15:18:14.156Z",
-    "fldId": "1800025"
+    "fldId": "1800025",
+    "tmdbId": 133841
   },
   "the-apartment-saison-1_S01E02": {
     "titre": "The Apartment - Saison 1",
@@ -1471,7 +1507,8 @@
     "totalSlots": "100",
     "usedSlots": "12",
     "uploadedAt": "2026-07-15T15:18:15.350Z",
-    "fldId": "1800025"
+    "fldId": "1800025",
+    "tmdbId": 133841
   },
   "enqu-tes-au-paradis-saison-2_S02E01": {
     "titre": "Enquêtes au paradis - Saison 2",
@@ -1482,7 +1519,8 @@
     "totalSlots": "100",
     "usedSlots": "13",
     "uploadedAt": "2026-07-15T15:18:16.340Z",
-    "fldId": "1800027"
+    "fldId": "1800027",
+    "tmdbId": 244978
   },
   "enqu-tes-au-paradis-saison-2_S02E02": {
     "titre": "Enquêtes au paradis - Saison 2",
@@ -1493,7 +1531,8 @@
     "totalSlots": "100",
     "usedSlots": "14",
     "uploadedAt": "2026-07-15T15:18:16.919Z",
-    "fldId": "1800027"
+    "fldId": "1800027",
+    "tmdbId": 244978
   },
   "enqu-tes-au-paradis-saison-2_S02E03": {
     "titre": "Enquêtes au paradis - Saison 2",
@@ -1504,7 +1543,8 @@
     "totalSlots": "100",
     "usedSlots": "15",
     "uploadedAt": "2026-07-15T15:18:17.368Z",
-    "fldId": "1800027"
+    "fldId": "1800027",
+    "tmdbId": 244978
   },
   "enqu-tes-au-paradis-saison-2_S02E04": {
     "titre": "Enquêtes au paradis - Saison 2",
@@ -1515,7 +1555,8 @@
     "totalSlots": "100",
     "usedSlots": "16",
     "uploadedAt": "2026-07-15T15:18:18.018Z",
-    "fldId": "1800027"
+    "fldId": "1800027",
+    "tmdbId": 244978
   },
   "enqu-tes-au-paradis-saison-2_S02E05": {
     "titre": "Enquêtes au paradis - Saison 2",
@@ -1526,7 +1567,8 @@
     "totalSlots": "100",
     "usedSlots": "17",
     "uploadedAt": "2026-07-15T15:18:19.025Z",
-    "fldId": "1800027"
+    "fldId": "1800027",
+    "tmdbId": 244978
   },
   "enqu-tes-au-paradis-saison-2_S02E06": {
     "titre": "Enquêtes au paradis - Saison 2",
@@ -1537,7 +1579,8 @@
     "totalSlots": "100",
     "usedSlots": "18",
     "uploadedAt": "2026-07-15T15:18:19.529Z",
-    "fldId": "1800027"
+    "fldId": "1800027",
+    "tmdbId": 244978
   },
   "fire-country-saison-4_S04E01": {
     "titre": "Fire Country - Saison 4",
@@ -2043,7 +2086,8 @@
     "totalSlots": "100",
     "usedSlots": "62",
     "uploadedAt": "2026-07-15T15:18:43.624Z",
-    "fldId": "1800044"
+    "fldId": "1800044",
+    "tmdbId": 252107
   },
   "star-city-saison-1_S01E02": {
     "titre": "Star City - Saison 1",
@@ -2054,7 +2098,8 @@
     "totalSlots": "100",
     "usedSlots": "63",
     "uploadedAt": "2026-07-15T15:18:43.948Z",
-    "fldId": "1800044"
+    "fldId": "1800044",
+    "tmdbId": 252107
   },
   "star-city-saison-1_S01E03": {
     "titre": "Star City - Saison 1",
@@ -2065,7 +2110,8 @@
     "totalSlots": "100",
     "usedSlots": "64",
     "uploadedAt": "2026-07-15T15:18:44.265Z",
-    "fldId": "1800044"
+    "fldId": "1800044",
+    "tmdbId": 252107
   },
   "star-city-saison-1_S01E04": {
     "titre": "Star City - Saison 1",
@@ -2076,7 +2122,8 @@
     "totalSlots": "100",
     "usedSlots": "65",
     "uploadedAt": "2026-07-15T15:18:44.581Z",
-    "fldId": "1800044"
+    "fldId": "1800044",
+    "tmdbId": 252107
   },
   "star-city-saison-1_S01E05": {
     "titre": "Star City - Saison 1",
@@ -2087,7 +2134,8 @@
     "totalSlots": "100",
     "usedSlots": "66",
     "uploadedAt": "2026-07-15T15:18:45.108Z",
-    "fldId": "1800044"
+    "fldId": "1800044",
+    "tmdbId": 252107
   },
   "star-city-saison-1_S01E06": {
     "titre": "Star City - Saison 1",
@@ -2098,7 +2146,8 @@
     "totalSlots": "100",
     "usedSlots": "67",
     "uploadedAt": "2026-07-15T15:18:45.480Z",
-    "fldId": "1800044"
+    "fldId": "1800044",
+    "tmdbId": 252107
   },
   "star-city-saison-1_S01E07": {
     "titre": "Star City - Saison 1",
@@ -2109,7 +2158,8 @@
     "totalSlots": "100",
     "usedSlots": "68",
     "uploadedAt": "2026-07-15T15:18:45.856Z",
-    "fldId": "1800044"
+    "fldId": "1800044",
+    "tmdbId": 252107
   },
   "star-city-saison-1_S01E08": {
     "titre": "Star City - Saison 1",
@@ -2120,7 +2170,8 @@
     "totalSlots": "100",
     "usedSlots": "69",
     "uploadedAt": "2026-07-15T15:18:46.310Z",
-    "fldId": "1800044"
+    "fldId": "1800044",
+    "tmdbId": 252107
   },
   "american-dad-saison-22_S22E03": {
     "titre": "American Dad! - Saison 22",
@@ -2132,5 +2183,1853 @@
     "usedSlots": "15",
     "uploadedAt": "2026-07-15T15:21:22.941Z",
     "fldId": "1800023"
+  },
+  "cape-fear-les-nerfs-vif-saison-1_S01E06": {
+    "titre": "Cape Fear - Les Nerfs à vif - Saison 1",
+    "fileCode": "84vgssj7ycpq",
+    "lien": "https://u14.vidzy.cc/v/06/00053/ppr96dj08exw_n/Cape.Fear.S01E06.MULTi.1080p.WEB.H264-SUPPLY.mp4?t=l3Xme2MWLS6I_9Gb1EK014xuEY1AETS975CWlN_QndI&s=1784129819&e=172800&f=268615&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 6,
+    "totalSlots": "100",
+    "usedSlots": "32",
+    "uploadedAt": "2026-07-15T16:59:40.108Z",
+    "fldId": "1800102"
+  },
+  "cape-fear-les-nerfs-vif-saison-1_S01E07": {
+    "titre": "Cape Fear - Les Nerfs à vif - Saison 1",
+    "fileCode": "b9g0t2vm8kv6",
+    "lien": "https://u14.vidzy.cc/v/08/00054/epkhl6p5hi2h_n/Cape.Fear.S01E07.MULTi.1080p.WEB.H265-GL0P.mp4?t=V__XjQjzCPltLMtsEYS7xeWKXAZro8KYtpJr67Vi7wo&s=1784129837&e=172800&f=272096&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 7,
+    "totalSlots": "100",
+    "usedSlots": "33",
+    "uploadedAt": "2026-07-15T16:59:40.506Z",
+    "fldId": "1800102"
+  },
+  "sugar-saison-2_S02E01": {
+    "titre": "Sugar - Saison 2",
+    "fileCode": "x2udbeowyg3o",
+    "lien": "https://u14.vidzy.cc/v/04/00052/mijvbcerusna_n/Sugar.2024.S02E01.MULTi.1080p.WEB.H264-SUPPLY.mp4?t=-CDuzlg1ezctwjMqc6-Dhq04VXpNmWJ0CWKTa90V4ms&s=1784129886&e=172800&f=263646&sp=1000&i=0.0",
+    "season": 2,
+    "episode": 1,
+    "totalSlots": "100",
+    "usedSlots": "34",
+    "uploadedAt": "2026-07-15T16:59:40.817Z",
+    "fldId": "1800104"
+  },
+  "sugar-saison-2_S02E02": {
+    "titre": "Sugar - Saison 2",
+    "fileCode": "dts2fya6f72l",
+    "lien": "https://u14.vidzy.cc/v/06/00053/58rdwdtmux8a_n/Sugar.S02E02.MULTi.1080p.WEB.H265-TyHD.mp4?t=uKAAajD6vVcyxtIFhc9HYegLtqIvjSvptcTH9vdWYpM&s=1784129903&e=172800&f=266582&sp=1000&i=0.0",
+    "season": 2,
+    "episode": 2,
+    "totalSlots": "100",
+    "usedSlots": "35",
+    "uploadedAt": "2026-07-15T16:59:41.140Z",
+    "fldId": "1800104"
+  },
+  "sugar-saison-2_S02E03": {
+    "titre": "Sugar - Saison 2",
+    "fileCode": "dilpflujeqcx",
+    "lien": "https://u14.vidzy.cc/v/03/00053/eddy1tunsi0l_n/Sugar.2024.S02E03.MULTi.1080p.WEB.H265-SUPPLY.mp4?t=iLPGcfeFpjKZvjznejcNIj3IyazPkrhBVWmeY3CMJEw&s=1784129920&e=172800&f=268609&sp=1000&i=0.0",
+    "season": 2,
+    "episode": 3,
+    "totalSlots": "100",
+    "usedSlots": "36",
+    "uploadedAt": "2026-07-15T16:59:41.962Z",
+    "fldId": "1800104"
+  },
+  "sugar-saison-2_S02E04": {
+    "titre": "Sugar - Saison 2",
+    "fileCode": "9ae4wwd8b8js",
+    "lien": "https://u14.vidzy.cc/v/06/00054/yevk2sruyhcn_n/Sugar.2024.S02E04.MULTi.1080p.WEB.H265-SUPPLY.mp4?t=udvi9zUupvfoQZoHZeupbzuHvgs1E0CaWHGGdq2xUe4&s=1784129937&e=172800&f=272091&sp=1000&i=0.0",
+    "season": 2,
+    "episode": 4,
+    "totalSlots": "100",
+    "usedSlots": "37",
+    "uploadedAt": "2026-07-15T16:59:42.445Z",
+    "fldId": "1800104"
+  },
+  "proud-saison-1_S01E01": {
+    "titre": "Proud - Saison 1",
+    "fileCode": "4zkaebx0ufvj",
+    "lien": "https://u14.vidzy.cc/v/07/00048/thks6z990hcw_n/Proud.S01E01.MULTi.1080p.WEB.H265-TyHD.mp4?t=eEB1W3ESdepsTksCL-E5rFJbvbamcvEEGY_oftG5FTU&s=1784129998&e=172800&f=244969&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 1,
+    "totalSlots": "100",
+    "usedSlots": "38",
+    "uploadedAt": "2026-07-15T16:59:42.759Z",
+    "fldId": "1800107"
+  },
+  "proud-saison-1_S01E02": {
+    "titre": "Proud - Saison 1",
+    "fileCode": "rla664dh67ap",
+    "lien": "https://u14.vidzy.cc/v/04/00052/p40gavfh0e47_n/Proud.S01E02.MULTi.1080p.HMAX.WEB.H265-THESYNDiCATE.mp4?t=3iV5ctbOk60xgZXGSTXvD_8LmjH6q08wDY91TWegxTw&s=1784130016&e=172800&f=263677&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 2,
+    "totalSlots": "100",
+    "usedSlots": "39",
+    "uploadedAt": "2026-07-15T16:59:43.163Z",
+    "fldId": "1800107"
+  },
+  "proud-saison-1_S01E03": {
+    "titre": "Proud - Saison 1",
+    "fileCode": "0jjam3k6rea4",
+    "lien": "https://u14.vidzy.cc/v/05/00053/hmoiasylsfdg_n/Proud.S01E03.MULTi.1080p.HMAX.WEB.SDR.H265-THESYNDiCATE.mp4?t=zp_uF17o29iqa5UooQgFMtPY72x1iupGqgqc4u_BDvA&s=1784130033&e=172800&f=266761&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 3,
+    "totalSlots": "100",
+    "usedSlots": "40",
+    "uploadedAt": "2026-07-15T16:59:43.800Z",
+    "fldId": "1800107"
+  },
+  "proud-saison-1_S01E04": {
+    "titre": "Proud - Saison 1",
+    "fileCode": "fz9oqiwpykrc",
+    "lien": "https://u14.vidzy.cc/v/06/00053/akdd94nzzw87_n/Proud.2026.S01E04.FRENCH.1080p.WEB.H264-SUPPLY.mp4?t=Zu2Yqh4AM7z-UOj-jDVwHp5Z9KZIx3N_o8PrHyGsmzs&s=1784130050&e=172800&f=268628&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 4,
+    "totalSlots": "100",
+    "usedSlots": "41",
+    "uploadedAt": "2026-07-15T16:59:44.122Z",
+    "fldId": "1800107"
+  },
+  "proud-saison-1_S01E05": {
+    "titre": "Proud - Saison 1",
+    "fileCode": "g71g3ile4ltu",
+    "lien": "https://u14.vidzy.cc/v/06/00054/9u6qbzgd2cmx_n/Proud.2026.s01e05.french.720p.web.h264-higgsboson.mp4?t=qvlrjvJaJNV-4aF2scOUMpuZlVd_HDs1bF2-z33yAOM&s=1784130067&e=172800&f=272215&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 5,
+    "totalSlots": "100",
+    "usedSlots": "42",
+    "uploadedAt": "2026-07-15T16:59:44.431Z",
+    "fldId": "1800107"
+  },
+  "ncis-enqu-tes-sp-ciales-saison-23_S23E01": {
+    "titre": "NCIS : Enquêtes spéciales - Saison 23",
+    "fileCode": "5i3wdp8lu7qh",
+    "lien": "https://v6.vidzy.cc/v/01/00037/plv5s6b9hipm_n/NCIS.S23E01.MULTi.1080p.WEB.H264-AMB3R.mp4?t=pNHy-yArKNtZEXHCRVeJzfMOmmX5cT6fyMyvjRCICoo&s=1784130123&e=172800&f=186608&sp=1000&i=0.0",
+    "season": 23,
+    "episode": 1,
+    "totalSlots": "100",
+    "usedSlots": "43",
+    "uploadedAt": "2026-07-15T16:59:44.797Z",
+    "fldId": "1800110"
+  },
+  "ncis-enqu-tes-sp-ciales-saison-23_S23E02": {
+    "titre": "NCIS : Enquêtes spéciales - Saison 23",
+    "fileCode": "em9svaw4vpik",
+    "lien": "https://v6.vidzy.cc/v/02/00037/sdv6y6j53p2x_n/NCIS.S23E02.MULTi.1080p.WEB.H264-AMB3R.mp4?t=iiUvNo7doUuYaN0KGJfwPzCQucbRunN1Gr8KUCKjl6E&s=1784130139&e=172800&f=186607&sp=1000&i=0.0",
+    "season": 23,
+    "episode": 2,
+    "totalSlots": "100",
+    "usedSlots": "44",
+    "uploadedAt": "2026-07-15T16:59:45.153Z",
+    "fldId": "1800110"
+  },
+  "ncis-enqu-tes-sp-ciales-saison-23_S23E03": {
+    "titre": "NCIS : Enquêtes spéciales - Saison 23",
+    "fileCode": "qv1n1vhr29db",
+    "lien": "https://u14.vidzy.cc/v/06/00039/zhnnmwaata6n_n/NCIS.S23E03.MULTi.1080p.WEB.H264-AMB3R.mp4?t=xa4oLGq22UMsAwCm3erD75VFWF713gqBDr_FUjSsySA&s=1784130156&e=172800&f=199898&sp=1000&i=0.0",
+    "season": 23,
+    "episode": 3,
+    "totalSlots": "100",
+    "usedSlots": "45",
+    "uploadedAt": "2026-07-15T16:59:45.515Z",
+    "fldId": "1800110"
+  },
+  "ncis-enqu-tes-sp-ciales-saison-23_S23E04": {
+    "titre": "NCIS : Enquêtes spéciales - Saison 23",
+    "fileCode": "tfx71nm9ftgf",
+    "lien": "https://u14.vidzy.cc/v/07/00039/x42vgv9rwv58_n/NCIS.S23E04.MULTi.1080p.WEB.H264-AMB3R.mp4?t=25jK2rhSc3Lt_2nn063wKC_ngC9Uvm8gaayBd5HwBE8&s=1784130173&e=172800&f=199899&sp=1000&i=0.0",
+    "season": 23,
+    "episode": 4,
+    "totalSlots": "100",
+    "usedSlots": "46",
+    "uploadedAt": "2026-07-15T16:59:45.837Z",
+    "fldId": "1800110"
+  },
+  "ncis-enqu-tes-sp-ciales-saison-23_S23E05": {
+    "titre": "NCIS : Enquêtes spéciales - Saison 23",
+    "fileCode": "8egdpnu1pu2n",
+    "lien": "https://u14.vidzy.cc/v/07/00041/vx1fgbwzb5zx_n/NCIS.S23E05.MULTi.1080p.WEB.H264-AMB3R.mp4?t=9irX7wOd4LlH9WrVaOqToZZS-qeOV2RFqSx8-_IiDiY&s=1784130191&e=172800&f=205485&sp=1000&i=0.0",
+    "season": 23,
+    "episode": 5,
+    "totalSlots": "100",
+    "usedSlots": "47",
+    "uploadedAt": "2026-07-15T16:59:46.281Z",
+    "fldId": "1800110"
+  },
+  "ncis-enqu-tes-sp-ciales-saison-23_S23E06": {
+    "titre": "NCIS : Enquêtes spéciales - Saison 23",
+    "fileCode": "p7zkx9bj3o6i",
+    "lien": "https://v6.vidzy.cc/v/03/00042/7l9sg8lo0teu_n/NCIS.S23E06.MULTi.1080p.WEB.H264-AMB3R.mp4?t=DQ9WVOylXaoVU0qEsJ7lfB6a-uvwpcQA3sVN6vTNDZg&s=1784130208&e=172800&f=211690&sp=1000&i=0.0",
+    "season": 23,
+    "episode": 6,
+    "totalSlots": "100",
+    "usedSlots": "48",
+    "uploadedAt": "2026-07-15T16:59:46.644Z",
+    "fldId": "1800110"
+  },
+  "ncis-enqu-tes-sp-ciales-saison-23_S23E07": {
+    "titre": "NCIS : Enquêtes spéciales - Saison 23",
+    "fileCode": "seehaio0bw5d",
+    "lien": "https://u14.vidzy.cc/v/07/00043/8qbo3pxi0jdn_n/NCIS.S23E07.MULTi.1080p.WEB.H264-AMB3R.mp4?t=l0qC8CB42iBTJUGXMvoWS2HO367WwMD4tAVi9M5SRW0&s=1784130225&e=172800&f=215043&sp=1000&i=0.0",
+    "season": 23,
+    "episode": 7,
+    "totalSlots": "100",
+    "usedSlots": "49",
+    "uploadedAt": "2026-07-15T16:59:47.103Z",
+    "fldId": "1800110"
+  },
+  "ncis-enqu-tes-sp-ciales-saison-23_S23E08": {
+    "titre": "NCIS : Enquêtes spéciales - Saison 23",
+    "fileCode": "mizo0i1mg90w",
+    "lien": "https://u14.vidzy.cc/v/07/00043/h158jnq624ci_n/NCIS.S23E08.FRENCH.720p.WEB.H264-AMB3R.mp4?t=H-mXndtu1smfAj_glM1dhXsUFdCFRLvD16uINjbs8l4&s=1784130242&e=172800&f=215040&sp=1000&i=0.0",
+    "season": 23,
+    "episode": 8,
+    "totalSlots": "100",
+    "usedSlots": "50",
+    "uploadedAt": "2026-07-15T16:59:47.581Z",
+    "fldId": "1800110"
+  },
+  "ncis-enqu-tes-sp-ciales-saison-23_S23E09": {
+    "titre": "NCIS : Enquêtes spéciales - Saison 23",
+    "fileCode": "7jxe6bqaonro",
+    "lien": "https://v6.vidzy.cc/v/02/00043/hkvgs7vilskz_n/NCIS.S23E09.MULTi.1080p.WEB.H264-AMB3R.mp4?t=mRDzftksmjovXjAO_sWFVcBbHTu7ik64csMDChJSa0c&s=1784130259&e=172800&f=218252&sp=1000&i=0.0",
+    "season": 23,
+    "episode": 9,
+    "totalSlots": "100",
+    "usedSlots": "51",
+    "uploadedAt": "2026-07-15T16:59:47.892Z",
+    "fldId": "1800110"
+  },
+  "ncis-enqu-tes-sp-ciales-saison-23_S23E10": {
+    "titre": "NCIS : Enquêtes spéciales - Saison 23",
+    "fileCode": "e1p0vcny92d9",
+    "lien": "https://v6.vidzy.cc/v/02/00043/z1semmr4u274_n/NCIS.S23E10.MULTi.1080p.WEB.H264-AMB3R.mp4?t=AdO4s30nOEyOYU4aVyv1ol9JQpiioYxVcFGcgc2VQPM&s=1784130276&e=172800&f=218249&sp=1000&i=0.0",
+    "season": 23,
+    "episode": 10,
+    "totalSlots": "100",
+    "usedSlots": "52",
+    "uploadedAt": "2026-07-15T16:59:48.203Z",
+    "fldId": "1800110"
+  },
+  "ncis-enqu-tes-sp-ciales-saison-23_S23E11": {
+    "titre": "NCIS : Enquêtes spéciales - Saison 23",
+    "fileCode": "o6ev0ooh73mo",
+    "lien": "https://u14.vidzy.cc/v/01/00048/a9jkk76nqwsy_n/NCIS.S23E11.MULTi.1080p.WEB.H264-AMB3R-FStream.mp4?t=43pveK05t63_p86b4kEdoYd4Y_6K6khpF5CDrhgYM8E&s=1784130293&e=172800&f=244737&sp=1000&i=0.0",
+    "season": 23,
+    "episode": 11,
+    "totalSlots": "100",
+    "usedSlots": "53",
+    "uploadedAt": "2026-07-15T16:59:48.587Z",
+    "fldId": "1800110"
+  },
+  "ncis-enqu-tes-sp-ciales-saison-23_S23E12": {
+    "titre": "NCIS : Enquêtes spéciales - Saison 23",
+    "fileCode": "nfly9oswgd19",
+    "lien": "https://u14.vidzy.cc/v/03/00049/9qb94lol1pe0_n/NCIS.S23E12.MULTi.1080p.WEB.H264-AMB3R.mp4?t=gvlfExNoV0h526CziDvG0rEZEBdUnTbgvxrgIXdraqA&s=1784130311&e=172800&f=249285&sp=1000&i=0.0",
+    "season": 23,
+    "episode": 12,
+    "totalSlots": "100",
+    "usedSlots": "54",
+    "uploadedAt": "2026-07-15T16:59:48.957Z",
+    "fldId": "1800110"
+  },
+  "ncis-enqu-tes-sp-ciales-saison-23_S23E13": {
+    "titre": "NCIS : Enquêtes spéciales - Saison 23",
+    "fileCode": "sedwwx379ak8",
+    "lien": "https://u14.vidzy.cc/v/05/00053/f2zhx831ydyy_n/NCIS.S23E13.MULTi.1080p.WEB.H264-AMB3R.mp4?t=hNUaPHJUL7ydsQmlo0Mr_kLyVo7i7PIg8x3RgFrEkZs&s=1784130328&e=172800&f=265998&sp=1000&i=0.0",
+    "season": 23,
+    "episode": 13,
+    "totalSlots": "100",
+    "usedSlots": "55",
+    "uploadedAt": "2026-07-15T16:59:49.267Z",
+    "fldId": "1800110"
+  },
+  "ncis-enqu-tes-sp-ciales-saison-23_S23E14": {
+    "titre": "NCIS : Enquêtes spéciales - Saison 23",
+    "fileCode": "b1zjt8lt698b",
+    "lien": "https://u14.vidzy.cc/v/02/00053/2bte98zn89e9_n/NCIS.S23E14.MULTi.1080p.WEB.H264-AMB3R.mp4?t=HwY6LOBrL1JDZgE6H3RV7rAakOW3UgzVr7VS4Aee2VQ&s=1784130345&e=172800&f=268323&sp=1000&i=0.0",
+    "season": 23,
+    "episode": 14,
+    "totalSlots": "100",
+    "usedSlots": "56",
+    "uploadedAt": "2026-07-15T16:59:49.583Z",
+    "fldId": "1800110"
+  },
+  "ncis-enqu-tes-sp-ciales-saison-23_S23E15": {
+    "titre": "NCIS : Enquêtes spéciales - Saison 23",
+    "fileCode": "mj9mbvrexo0o",
+    "lien": "https://u14.vidzy.cc/v/04/00054/g5gyf2qa5fsn_n/NCIS.S23E15.FRENCH.WEBRip.x264-FS-FStream.mp4?t=P7klwGcwoD4SkoCgASatyzX8TJiQW5iAx33g7MmB_0g&s=1784130362&e=172800&f=271989&sp=1000&i=0.0",
+    "season": 23,
+    "episode": 15,
+    "totalSlots": "100",
+    "usedSlots": "57",
+    "uploadedAt": "2026-07-15T16:59:49.894Z",
+    "fldId": "1800110"
+  },
+  "cabbage-your-life-saison-1_S01E01": {
+    "titre": "Cabbage Your Life - Saison 1",
+    "fileCode": "5symigcap8cg",
+    "lien": "https://u14.vidzy.cc/v/03/00054/ijdo6x2sosml_n/Cabbage.Your.Life.S01E01.VOSTFR.FANSUB.1080p.KCW.WEB-DL.AAC.H264-DFE.mp4?t=YtNyzdMvHBSB-hGshLbhumHluiUiM52U_p8oeCUhkDI&s=1784130412&e=172800&f=273342&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 1,
+    "totalSlots": "100",
+    "usedSlots": "58",
+    "uploadedAt": "2026-07-15T16:59:50.204Z",
+    "fldId": "1800113"
+  },
+  "cabbage-your-life-saison-1_S01E02": {
+    "titre": "Cabbage Your Life - Saison 1",
+    "fileCode": "2ibdvsmmblrr",
+    "lien": "https://u14.vidzy.cc/v/04/00054/gcvy8hn34fs9_n/Cabbage.Your.Life.S01E02.VOSTFR.FANSUB.1080p.KCW.WEB-DL.AAC.H264-DFE.mp4?t=bBkpSsNmr6AA7bwVOSgosM4Z3WDpvH1YgGLdqMxLIOE&s=1784130429&e=172800&f=273341&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 2,
+    "totalSlots": "100",
+    "usedSlots": "59",
+    "uploadedAt": "2026-07-15T16:59:50.516Z",
+    "fldId": "1800113"
+  },
+  "cabbage-your-life-saison-1_S01E03": {
+    "titre": "Cabbage Your Life - Saison 1",
+    "fileCode": "oj3otlwp1qx6",
+    "lien": "https://u14.vidzy.cc/v/04/00054/zbbnc77ncpwz_n/Cabbage.Your.Life.S01E03.VOSTFR.FANSUB.1080p.KCW.WEB-DL.AAC.H264-DFE.mp4?t=fCHaaC_jVQvM5ah-dM5DTtX6H78J8MB3dI_uaPs3vrA&s=1784130447&e=172800&f=273339&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 3,
+    "totalSlots": "100",
+    "usedSlots": "60",
+    "uploadedAt": "2026-07-15T16:59:50.823Z",
+    "fldId": "1800113"
+  },
+  "cabbage-your-life-saison-1_S01E04": {
+    "titre": "Cabbage Your Life - Saison 1",
+    "fileCode": "b7crjnbdsnvb",
+    "lien": "https://u14.vidzy.cc/v/06/00054/eq5yzulaah9i_n/Cabbage.Your.Life.S01E04.VOSTFR.FANSUB.1080p.KCW.WEB-DL.AAC.H264-DFE.mp4?t=u8nSayUhIPG-FjhxQ8l8lVk86aIfsOZ_1Qrvt000Tfw&s=1784130464&e=172800&f=273346&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 4,
+    "totalSlots": "100",
+    "usedSlots": "61",
+    "uploadedAt": "2026-07-15T16:59:51.132Z",
+    "fldId": "1800113"
+  },
+  "cabbage-your-life-saison-1_S01E05": {
+    "titre": "Cabbage Your Life - Saison 1",
+    "fileCode": "hjdl3osh8ts2",
+    "lien": "https://u14.vidzy.cc/v/03/00054/cf0ylluvsyd8_n/Cabbage.Your.Life.S01E05.VOSTFR.FANSUB.1080p.KCW.WEB-DL.AAC.H264-DFE.mp4?t=yR07e81Z_cPRciuMLv7ecLLeTIHOntHv1VacO629Xjk&s=1784130481&e=172800&f=273345&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 5,
+    "totalSlots": "100",
+    "usedSlots": "62",
+    "uploadedAt": "2026-07-15T16:59:51.444Z",
+    "fldId": "1800113"
+  },
+  "cabbage-your-life-saison-1_S01E06": {
+    "titre": "Cabbage Your Life - Saison 1",
+    "fileCode": "r3unbmnqhsry",
+    "lien": "https://u14.vidzy.cc/v/06/00054/rjf7laph9ebh_n/Cabbage.Your.Life.S01E06.VOSTFR.FANSUB.1080p.KCW.WEB-DL.AAC.H264-DFE].mp4?t=uoEMQDHHm9OffpwtiZhFR5TUzVmz24OB3B2rGMHJT7c&s=1784130498&e=172800&f=273334&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 6,
+    "totalSlots": "100",
+    "usedSlots": "63",
+    "uploadedAt": "2026-07-15T16:59:51.761Z",
+    "fldId": "1800113"
+  },
+  "cabbage-your-life-saison-1_S01E07": {
+    "titre": "Cabbage Your Life - Saison 1",
+    "fileCode": "tp4hski2sow0",
+    "lien": "https://u14.vidzy.cc/v/03/00054/97jmdlfi7zry_n/Cabbage.Your.Life.S01E07.VOSTFR.FANSUB.1080p.KCW.WEB-DL.AAC.H264-DFE.mp4?t=WeqrexljbyAqybA7vTTIPb3QXyTsFemTUROLjN7a8jQ&s=1784130515&e=172800&f=273340&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 7,
+    "totalSlots": "100",
+    "usedSlots": "64",
+    "uploadedAt": "2026-07-15T16:59:52.085Z",
+    "fldId": "1800113"
+  },
+  "cabbage-your-life-saison-1_S01E08": {
+    "titre": "Cabbage Your Life - Saison 1",
+    "fileCode": "3621kqm75k8s",
+    "lien": "https://u14.vidzy.cc/v/06/00054/9vota88w940q_n/Cabbage.Your.Life.S01E08.VOSTFR.FANSUB.1080p.KCW.WEB-DL.AAC.H264-DFE.mp4?t=o3VryujKnIs_jZRjcTIqIXLB_zp-8mv8UsEsG1-CiB4&s=1784130532&e=172800&f=273337&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 8,
+    "totalSlots": "100",
+    "usedSlots": "65",
+    "uploadedAt": "2026-07-15T16:59:52.397Z",
+    "fldId": "1800113"
+  },
+  "cabbage-your-life-saison-1_S01E09": {
+    "titre": "Cabbage Your Life - Saison 1",
+    "fileCode": "y367ftsgpqcv",
+    "lien": "https://u14.vidzy.cc/v/01/00054/a1oweyqao764_n/Cabbage.Your.Life.S01E09.VOSTFR.FANSUB.1080p.KCW.WEB-DL.AAC.H264-DFE.mp4?t=c1sTbISAJDUJWb9msU83kixSEuEbZeIJ39bDrOc5818&s=1784130550&e=172800&f=273344&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 9,
+    "totalSlots": "100",
+    "usedSlots": "66",
+    "uploadedAt": "2026-07-15T16:59:52.707Z",
+    "fldId": "1800113"
+  },
+  "cabbage-your-life-saison-1_S01E10": {
+    "titre": "Cabbage Your Life - Saison 1",
+    "fileCode": "xpawlz42xd28",
+    "lien": "https://u14.vidzy.cc/v/03/00054/nr4vh7ohoydm_n/Cabbage.Your.Life.S01E10.VOSTFR.FANSUB.1080p.KCW.WEB-DL.AAC.H264-DFE.mp4?t=JqWRykpS5Nt7UYIX-_6I2hSw370xQ0wYz9WnMEtGiJ4&s=1784130567&e=172800&f=273343&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 10,
+    "totalSlots": "100",
+    "usedSlots": "67",
+    "uploadedAt": "2026-07-15T16:59:53.018Z",
+    "fldId": "1800113"
+  },
+  "cabbage-your-life-saison-1_S01E11": {
+    "titre": "Cabbage Your Life - Saison 1",
+    "fileCode": "1aj46njsf7l3",
+    "lien": "https://u14.vidzy.cc/v/02/00054/pzu3bcmpfii0_n/Cabbage.Your.Life.S01E11.VOSTFR.FANSUB.1080p.KCW.WEB-DL.AAC.H264-DFE.mp4?t=ilOk0Qwqj3d9xyurN5CnUg2Nat4BvnfrepJ80v3fR6s&s=1784130584&e=172800&f=273335&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 11,
+    "totalSlots": "100",
+    "usedSlots": "68",
+    "uploadedAt": "2026-07-15T16:59:53.925Z",
+    "fldId": "1800113"
+  },
+  "cabbage-your-life-saison-1_S01E12": {
+    "titre": "Cabbage Your Life - Saison 1",
+    "fileCode": "87obn0cisz7g",
+    "lien": "https://u14.vidzy.cc/v/06/00054/2vuk2vq1g5v8_n/Cabbage.Your.Life.S01E12.FiNAL.VOSTFR.FANSUB.1080p.KCW.WEB-DL.AAC.H264-DFE.mp4?t=X8tUAmAyL9ZGvryJnDiyoNmmTM-B3GFwHW6BxbKp8Ys&s=1784130601&e=172800&f=273336&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 12,
+    "totalSlots": "100",
+    "usedSlots": "69",
+    "uploadedAt": "2026-07-15T16:59:54.742Z",
+    "fldId": "1800113"
+  },
+  "the-husband-saison-1_S01E01": {
+    "titre": "The Husband - Saison 1",
+    "fileCode": "3hwosbgszhab",
+    "lien": "https://u14.vidzy.cc/v/07/00054/fsx6fepgd4ip_n/The.Husband.S01E01.SUBFRENCH.1080p.DSNP.WEB.H264-BYOR.mp4?t=16vhKiPv1l3DK43hKzraJ9jjZmYBiIx6eQ79EmRLnew&s=1784130889&e=172800&f=273333&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 1,
+    "totalSlots": "100",
+    "usedSlots": "70",
+    "uploadedAt": "2026-07-15T16:59:55.432Z",
+    "fldId": "1800115"
+  },
+  "the-husband-saison-1_S01E02": {
+    "titre": "The Husband - Saison 1",
+    "fileCode": "zbgr4opbht2f",
+    "lien": "https://u14.vidzy.cc/v/06/00054/x7g9psvmjov3_n/The.Husband.S01E02.SUBFRENCH.1080p.DSNP.WEB.H264-BYOR.mp4?t=RVVEeMEIyz4_UECmAnksrle0MjaDfKVbWa967i8o0e8&s=1784130906&e=172800&f=273338&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 2,
+    "totalSlots": "100",
+    "usedSlots": "71",
+    "uploadedAt": "2026-07-15T16:59:55.766Z",
+    "fldId": "1800115"
+  },
+  "the-husband-saison-1_S01E03": {
+    "titre": "The Husband - Saison 1",
+    "fileCode": "cas73olcyx7q",
+    "lien": "https://u14.vidzy.cc/v/04/00054/pmzq467gwln0_n/The.Husband.2026.S01E03.VOSTFR.1080p.WEB.H264-ZT.mp4?t=AjO1ORr1ldvqDDcwlitMzovWJCpB9TE48gN0mi57QWY&s=1784130923&e=172800&f=274021&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 3,
+    "totalSlots": "100",
+    "usedSlots": "72",
+    "uploadedAt": "2026-07-15T16:59:56.175Z",
+    "fldId": "1800115"
+  },
+  "deep-revenge-saison-1_S01E01": {
+    "titre": "Deep Revenge - Saison 1",
+    "fileCode": "zqomyjv5wtl5",
+    "lien": "https://u14.vidzy.cc/v/01/00054/i3otf1m65led_n/Deep.Revenge.S01E01.VOSTFR.1080p.WEB.h264-EDITH.mp4?t=FkfkoSVsY2XzFKIGrH2hv-nvCzFHgD79tUHE43ooTfo&s=1784130986&e=172800&f=271958&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 1,
+    "totalSlots": "100",
+    "usedSlots": "73",
+    "uploadedAt": "2026-07-15T16:59:56.586Z",
+    "fldId": "1800117"
+  },
+  "harry-wild-saison-4_S04E01": {
+    "titre": "Harry Wild - Saison 4",
+    "fileCode": "9x1klem3hxdh",
+    "lien": "https://u14.vidzy.cc/v/07/00027/aiz366d1vbxq_n/Harry.Wild.S04E01.FRENCH.720p.WEB.x264-AMB3R.mkv.mp4?t=cTXgnF9cNojZN0jzVyNf_WB8Y1QeBQsBulqK0xkdfig&s=1784131239&e=172800&f=138340&sp=1000&i=0.0",
+    "season": 4,
+    "episode": 1,
+    "totalSlots": "100",
+    "usedSlots": "74",
+    "uploadedAt": "2026-07-15T16:59:56.896Z",
+    "fldId": "1800119"
+  },
+  "harry-wild-saison-4_S04E02": {
+    "titre": "Harry Wild - Saison 4",
+    "fileCode": "ahvlyas2i1eh",
+    "lien": "https://u14.vidzy.cc/v/05/00027/ylypuu0wnoxs_n/Harry.Wild.S04E02.FRENCH.720p.WEB.x264-AMB3R.mkv.mp4?t=9zTcx6Om7ZhgkI-3Hy3V2VNm0qhtmGk64p06M-v5Wgc&s=1784131256&e=172800&f=138338&sp=1000&i=0.0",
+    "season": 4,
+    "episode": 2,
+    "totalSlots": "100",
+    "usedSlots": "75",
+    "uploadedAt": "2026-07-15T16:59:57.206Z",
+    "fldId": "1800119"
+  },
+  "harry-wild-saison-4_S04E03": {
+    "titre": "Harry Wild - Saison 4",
+    "fileCode": "g8ngt67gc99g",
+    "lien": "https://u14.vidzy.cc/v/05/00028/vk24l62g0kf7_n/Harry.Wild.S04E03.FRENCH.720p.WEB.x264-AMB3R.mkv.mp4?t=CMaqo0s5p29AxiTtThyBLkPNb_EPJZUjw8MpOOiPUFs&s=1784131273&e=172800&f=142222&sp=1000&i=0.0",
+    "season": 4,
+    "episode": 3,
+    "totalSlots": "100",
+    "usedSlots": "76",
+    "uploadedAt": "2026-07-15T16:59:57.514Z",
+    "fldId": "1800119"
+  },
+  "harry-wild-saison-4_S04E04": {
+    "titre": "Harry Wild - Saison 4",
+    "fileCode": "k15wmyqc4sd0",
+    "lien": "https://u14.vidzy.cc/v/05/00028/fj3np3jc9mvk_n/Harry.Wild.S04E04.FRENCH.720p.WEB.x264-AMB3R.mkv.mp4?t=_vfYo-b5FCh2nt27FskAGIqbseuBRUB8fxD1kJJkUKE&s=1784131290&e=172800&f=142221&sp=1000&i=0.0",
+    "season": 4,
+    "episode": 4,
+    "totalSlots": "100",
+    "usedSlots": "77",
+    "uploadedAt": "2026-07-15T16:59:57.906Z",
+    "fldId": "1800119"
+  },
+  "harry-wild-saison-4_S04E05": {
+    "titre": "Harry Wild - Saison 4",
+    "fileCode": "4k7zhrol1u78",
+    "lien": "https://u14.vidzy.cc/v/08/00029/7ahkyyk5kdxl_n/Harry.Wild.S04E05.MULTI.1080p.WEB.H265-TyHD.mp4?t=eEisUeReqOKBIyXeEysh6dHH0EhmCUppawHBDVstN-U&s=1784131307&e=172800&f=145832&sp=1000&i=0.0",
+    "season": 4,
+    "episode": 5,
+    "totalSlots": "100",
+    "usedSlots": "78",
+    "uploadedAt": "2026-07-15T16:59:58.214Z",
+    "fldId": "1800119"
+  },
+  "harry-wild-saison-4_S04E06": {
+    "titre": "Harry Wild - Saison 4",
+    "fileCode": "w31gbhw9caot",
+    "lien": "https://v6.vidzy.cc/v/03/00029/ue41yc9o05g7_n/Harry.Wild.S04E06.MULTI.1080p.WEB.H265-TyHD.mp4?t=L0Dmh62l04Ld_eAOc0eSMuJPn9icbYEJplw0lLmWyDo&s=1784131324&e=172800&f=145833&sp=1000&i=0.0",
+    "season": 4,
+    "episode": 6,
+    "totalSlots": "100",
+    "usedSlots": "79",
+    "uploadedAt": "2026-07-15T16:59:58.523Z",
+    "fldId": "1800119"
+  },
+  "harry-wild-saison-4_S04E07": {
+    "titre": "Harry Wild - Saison 4",
+    "fileCode": "y05o7vqvxoxh",
+    "lien": "https://u14.vidzy.cc/v/01/00054/w9qxzxre1joi_n/harry.wild.s04e07.french.1080p.web.h264-higgsboson.mp4?t=f_Q1joc0vHhHuW3MJKTzEz9OLF890QRDCr9H4OMLXhA&s=1784131341&e=172800&f=271935&sp=1000&i=0.0",
+    "season": 4,
+    "episode": 7,
+    "totalSlots": "100",
+    "usedSlots": "80",
+    "uploadedAt": "2026-07-15T16:59:59.027Z",
+    "fldId": "1800119"
+  },
+  "harry-wild-saison-4_S04E08": {
+    "titre": "Harry Wild - Saison 4",
+    "fileCode": "ajiy8n3b5rkp",
+    "lien": "https://u14.vidzy.cc/v/01/00054/2q8ageuat4m4_n/harry.wild.s04e08.final.french.1080p.web.h264-higgsboson.mp4?t=eZhkyzu6uGKUFATR7Ww8Eq8_scVsr7XLPbwwO39_L5w&s=1784131358&e=172800&f=271936&sp=1000&i=0.0",
+    "season": 4,
+    "episode": 8,
+    "totalSlots": "100",
+    "usedSlots": "81",
+    "uploadedAt": "2026-07-15T16:59:59.754Z",
+    "fldId": "1800119"
+  },
+  "la-petite-maison-dans-la-prairie-2026_S01E01": {
+    "titre": "La Petite Maison dans la Prairie (2026) -",
+    "fileCode": "z33j7hla9jo2",
+    "lien": "https://u14.vidzy.cc/v/03/00054/0hngy61s6q6a_n/Little.House.on.the.Prairie.2026.S01E01.FRENCH.1080p.WEB.x264-SUPPLY.mp4?t=w1NNbiR1flLUDwO4ob8Wykqe-rqIiE1oETszdmJMPyU&s=1784132115&e=172800&f=271701&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 1,
+    "totalSlots": "100",
+    "usedSlots": "82",
+    "uploadedAt": "2026-07-15T17:00:00.261Z",
+    "fldId": "1800121"
+  },
+  "la-petite-maison-dans-la-prairie-2026_S01E02": {
+    "titre": "La Petite Maison dans la Prairie (2026) -",
+    "fileCode": "rnkijk1ll30o",
+    "lien": "https://u14.vidzy.cc/v/02/00054/2yz8v0ju1y21_n/Little.House.on.the.Prairie.2026.S01E02.FRENCH.1080p.WEB.x264-SUPPLY.mp4?t=GnM6iheeBZpNjZTUz22DnjYHXFgxzAue-TXJ4u0jjF4&s=1784132132&e=172800&f=271727&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 2,
+    "totalSlots": "100",
+    "usedSlots": "83",
+    "uploadedAt": "2026-07-15T17:00:00.569Z",
+    "fldId": "1800121"
+  },
+  "la-petite-maison-dans-la-prairie-2026_S01E03": {
+    "titre": "La Petite Maison dans la Prairie (2026) -",
+    "fileCode": "depyj7dmqgut",
+    "lien": "https://u14.vidzy.cc/v/04/00054/fp95pdoba6r8_n/Little.House.on.the.Prairie.2026.S01E03.FRENCH.1080p.WEB.x264-SUPPLY.mp4?t=O1pLWPHB2rdR2Af1kG2I9_ShX4MrlTBXTahh9wmz284&s=1784132149&e=172800&f=271730&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 3,
+    "totalSlots": "100",
+    "usedSlots": "84",
+    "uploadedAt": "2026-07-15T17:00:00.883Z",
+    "fldId": "1800121"
+  },
+  "la-petite-maison-dans-la-prairie-2026_S01E04": {
+    "titre": "La Petite Maison dans la Prairie (2026) -",
+    "fileCode": "eb70anaaur05",
+    "lien": "https://u14.vidzy.cc/v/08/00054/9rsbq4khw31c_n/Little.House.on.the.Prairie.2026.S01E04.FRENCH.1080p.WEB.x264-SUPPLY.mp4?t=d-Sx9hUhkF7puhTpVXDQn1BPV4d025DNpxK91RfNdPo&s=1784132166&e=172800&f=271728&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 4,
+    "totalSlots": "100",
+    "usedSlots": "85",
+    "uploadedAt": "2026-07-15T17:00:01.598Z",
+    "fldId": "1800121"
+  },
+  "la-petite-maison-dans-la-prairie-2026_S01E05": {
+    "titre": "La Petite Maison dans la Prairie (2026) -",
+    "fileCode": "l7z8nellqd1i",
+    "lien": "https://u14.vidzy.cc/v/08/00054/je7skyhzcz63_n/Little.House.on.the.Prairie.2026.S01E05.FRENCH.1080p.WEB.x264-SUPPLY.mp4?t=8UysNgkZVh3Q4M1Yom3lJGXd9Wf3g2MkKB93fIUBLJc&s=1784132183&e=172800&f=271731&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 5,
+    "totalSlots": "100",
+    "usedSlots": "86",
+    "uploadedAt": "2026-07-15T17:00:01.917Z",
+    "fldId": "1800121"
+  },
+  "la-petite-maison-dans-la-prairie-2026_S01E06": {
+    "titre": "La Petite Maison dans la Prairie (2026) -",
+    "fileCode": "hj8uxoympp23",
+    "lien": "https://u14.vidzy.cc/v/02/00054/c9l4lf1yqw9r_n/Little.House.on.the.Prairie.2026.S01E06.FRENCH.1080p.WEB.x264-SUPPLY.mp4?t=EgyAk2oB9ghwh6zjo0sqabmCS4p6QLwCpYYgXzjTrQA&s=1784132201&e=172800&f=271733&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 6,
+    "totalSlots": "100",
+    "usedSlots": "87",
+    "uploadedAt": "2026-07-15T17:00:02.232Z",
+    "fldId": "1800121"
+  },
+  "la-petite-maison-dans-la-prairie-2026_S01E07": {
+    "titre": "La Petite Maison dans la Prairie (2026) -",
+    "fileCode": "0anp3ivswtw7",
+    "lien": "https://u14.vidzy.cc/v/02/00054/kz4tpeytiw3q_n/Little.House.on.the.Prairie.2026.S01E07.FRENCH.1080p.WEB.x264-SUPPLY.mp4?t=9XpmexS21OcnVZ2SvNPTMzGZZLZ8VMVAt2PpGwbZIbo&s=1784132218&e=172800&f=271735&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 7,
+    "totalSlots": "100",
+    "usedSlots": "88",
+    "uploadedAt": "2026-07-15T17:00:02.625Z",
+    "fldId": "1800121"
+  },
+  "la-petite-maison-dans-la-prairie-2026_S01E08": {
+    "titre": "La Petite Maison dans la Prairie (2026) -",
+    "fileCode": "wa4y8n2wfijf",
+    "lien": "https://u14.vidzy.cc/v/06/00054/1ehpeh4pyjgh_n/Little.House.on.the.Prairie.2026.S01E08.FiNAL.FRENCH.1080p.WEB.x264-SUPPLY.mp4?t=84gXbcBtWSEZjHwgaC35u2lpJP9juoFDQ1Z3uLWoVd4&s=1784132235&e=172800&f=271738&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 8,
+    "totalSlots": "100",
+    "usedSlots": "89",
+    "uploadedAt": "2026-07-15T17:00:02.947Z",
+    "fldId": "1800121"
+  },
+  "the-iris-affair-saison-1_S01E01": {
+    "titre": "The Iris Affair - Saison 1",
+    "fileCode": "8lfo166c16zw",
+    "lien": "https://u14.vidzy.cc/v/01/00054/o5ea375rrcoy_n/The.Iris.Affair.S01E01.FRENCH.1080p.WEB.H265-GL0P.mp4?t=FfJEeHsVGu-WY0kskdUidISBQ4XjE_g35mhLYhfuE1Y&s=1784132293&e=172800&f=271822&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 1,
+    "totalSlots": "100",
+    "usedSlots": "90",
+    "uploadedAt": "2026-07-15T17:00:03.258Z",
+    "fldId": "1800123"
+  },
+  "the-iris-affair-saison-1_S01E02": {
+    "titre": "The Iris Affair - Saison 1",
+    "fileCode": "4uqlt99p6lj9",
+    "lien": "https://u14.vidzy.cc/v/02/00054/jxddg68z4ia1_n/The.Iris.Affair.S01E02.FRENCH.1080p.WEB.H265-GL0P.mp4?t=4oDRlMOynHUfpEXW0lB8mPOTn_joO-RdiRVKmaLZ7pI&s=1784132310&e=172800&f=271821&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 2,
+    "totalSlots": "100",
+    "usedSlots": "91",
+    "uploadedAt": "2026-07-15T17:00:03.860Z",
+    "fldId": "1800123"
+  },
+  "the-iris-affair-saison-1_S01E03": {
+    "titre": "The Iris Affair - Saison 1",
+    "fileCode": "wkkofcje85kw",
+    "lien": "https://u14.vidzy.cc/v/05/00054/x0moqcqp47qq_n/The.Iris.Affair.S01E03.FRENCH.1080p.WEB.H265-GL0P.mp4?t=8ody06GdN9u3pc95dB1lGjYyPPqJq_is1_5kAl3wV_g&s=1784132327&e=172800&f=271823&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 3,
+    "totalSlots": "100",
+    "usedSlots": "92",
+    "uploadedAt": "2026-07-15T17:00:04.270Z",
+    "fldId": "1800123"
+  },
+  "the-iris-affair-saison-1_S01E04": {
+    "titre": "The Iris Affair - Saison 1",
+    "fileCode": "y17fo4oucjmq",
+    "lien": "https://u14.vidzy.cc/v/06/00054/7v5s6dbuv9jf_n/The.Iris.Affair.S01E04.FRENCH.1080p.WEB.H265-GL0P.mp4?t=PsImlwlKrimt2iMq-sOWdmbJL4V0wTfFy6xtjQXhKJM&s=1784132344&e=172800&f=271826&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 4,
+    "totalSlots": "100",
+    "usedSlots": "93",
+    "uploadedAt": "2026-07-15T17:00:04.684Z",
+    "fldId": "1800123"
+  },
+  "the-iris-affair-saison-1_S01E05": {
+    "titre": "The Iris Affair - Saison 1",
+    "fileCode": "c92watbps8y9",
+    "lien": "https://u14.vidzy.cc/v/06/00054/q1tttnhkxlr4_n/The.Iris.Affair.S01E05.FRENCH.1080p.WEB.H265-GL0P.mp4?t=oawYYqb1YPhkMJ9qqeofeW5dVFRrffMPk9ekcZI19jA&s=1784132362&e=172800&f=271827&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 5,
+    "totalSlots": "100",
+    "usedSlots": "94",
+    "uploadedAt": "2026-07-15T17:00:05.507Z",
+    "fldId": "1800123"
+  },
+  "the-iris-affair-saison-1_S01E06": {
+    "titre": "The Iris Affair - Saison 1",
+    "fileCode": "q0nplxbs3tt6",
+    "lien": "https://u14.vidzy.cc/v/04/00054/h4ymkw7ttgqb_n/The.Iris.Affair.S01E06.FRENCH.1080p.WEB.H265-GL0P.mp4?t=cQlq5nxqzShhlZqFuZ5xtq34Nm94ganF5gDSnvxqQfw&s=1784132379&e=172800&f=271832&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 6,
+    "totalSlots": "100",
+    "usedSlots": "95",
+    "uploadedAt": "2026-07-15T17:00:05.920Z",
+    "fldId": "1800123"
+  },
+  "the-iris-affair-saison-1_S01E07": {
+    "titre": "The Iris Affair - Saison 1",
+    "fileCode": "c928x103y54o",
+    "lien": "https://u14.vidzy.cc/v/05/00054/iz3qx6vophx6_n/The.Iris.Affair.S01E07.FRENCH.1080p.WEB.H265-GL0P.mp4?t=ra-L6INB4iM8Y5en30QK38sZUnVRnvX_PncJw7hDDHg&s=1784132396&e=172800&f=271830&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 7,
+    "totalSlots": "100",
+    "usedSlots": "96",
+    "uploadedAt": "2026-07-15T17:00:06.241Z",
+    "fldId": "1800123"
+  },
+  "the-iris-affair-saison-1_S01E08": {
+    "titre": "The Iris Affair - Saison 1",
+    "fileCode": "qyo7l4nlj3n3",
+    "lien": "https://u14.vidzy.cc/v/05/00054/bpsg50fo5ka1_n/The.Iris.Affair.S01E08.FiNAL.FRENCH.1080p.WEB.H265-GL0P.mp4?t=0lOUOpR_Ii4zAz1tvSCLQ2ML3j9OscanRiSiCcGbUPk&s=1784132413&e=172800&f=271847&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 8,
+    "totalSlots": "100",
+    "usedSlots": "97",
+    "uploadedAt": "2026-07-15T17:00:06.551Z",
+    "fldId": "1800123"
+  },
+  "bellefleur-saison-3_S03E01": {
+    "titre": "Bellefleur - Saison 3",
+    "fileCode": "za21x1yak0x6",
+    "lien": "https://u14.vidzy.cc/v/01/00053/bkvrfd6zmdt6_n/Bellefleur.S03E01.FRENCH.AD.1080p.WEB.AC3.5.1.H264-TFA.mp4?t=LB7ofrCKHh74VkhN8qj_Gt0P_ejyef7HebWB1wHqg_k&s=1784132473&e=172800&f=268374&sp=1000&i=0.0",
+    "season": 3,
+    "episode": 1,
+    "totalSlots": "100",
+    "usedSlots": "98",
+    "uploadedAt": "2026-07-15T17:00:06.860Z",
+    "fldId": "1800125"
+  },
+  "bellefleur-saison-3_S03E02": {
+    "titre": "Bellefleur - Saison 3",
+    "fileCode": "sj0qvjphzpqr",
+    "lien": "https://u14.vidzy.cc/v/04/00053/zybq9c57l8lo_n/Bellefleur.S03E02.FRENCH.AD.1080p.WEB.AC3.5.1.H264-TFA.mp4?t=eR9ZRdRyhGwO-94YYyCmZ9eJZgjWcV7oPjrCqDsdeRg&s=1784132490&e=172800&f=268375&sp=1000&i=0.0",
+    "season": 3,
+    "episode": 2,
+    "totalSlots": "100",
+    "usedSlots": "99",
+    "uploadedAt": "2026-07-15T17:00:07.181Z",
+    "fldId": "1800125"
+  },
+  "doctor-on-the-edge-saison-1_S01E05": {
+    "titre": "Doctor on the Edge - Saison 1",
+    "fileCode": "f2z5ul7m18cc",
+    "lien": "https://u14.vidzy.cc/v/06/00049/g1ie6ucwcbng_n/Doctor.on.the.Edge.S01E05.VOSTFR.1080p.WEB.H264-FW.mp4?t=87fDEzpAaMEpTwbU6kQjz7oafhk94UrOjzMlhwi2RxU&s=1784134095&e=172800&f=246627&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 5,
+    "totalSlots": "100",
+    "usedSlots": "99",
+    "uploadedAt": "2026-07-15T17:00:25.362Z",
+    "fldId": "1800127"
+  },
+  "cape-fear-les-nerfs-vif-saison-1_S01E01": {
+    "titre": "Cape Fear - Les Nerfs à vif - Saison 1",
+    "fileCode": "vmeooj3rhd2k",
+    "lien": "https://v6.vidzy.cc/v/03/00048/zo6k324gkt8e_n/Cape.Fear.S01E01.VFF.1080p.WEB.H265-SUPPLY.mp4?t=w255l5a7r64QqiybiqsthMOuT4fbWN82X56OLZHW7c0&s=1784129734&e=172800&f=242867&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 1,
+    "totalSlots": "100",
+    "usedSlots": "2",
+    "uploadedAt": "2026-07-15T17:25:07.911Z",
+    "fldId": "1800102"
+  },
+  "cape-fear-les-nerfs-vif-saison-1_S01E02": {
+    "titre": "Cape Fear - Les Nerfs à vif - Saison 1",
+    "fileCode": "bko9a18rto0g",
+    "lien": "https://u14.vidzy.cc/v/07/00048/5hkuqmi22y9a_n/Cape.Fear.S01E02.TRUEFRENCH.1080p.WEB.H265-SUPPLY.mp4?t=u_2RSL3BQHZ2u3EDekIbrVwg08ALtzuDGmVwhY3GOTs&s=1784129751&e=172800&f=242865&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 2,
+    "totalSlots": "100",
+    "usedSlots": "3",
+    "uploadedAt": "2026-07-15T17:25:08.247Z",
+    "fldId": "1800102"
+  },
+  "cape-fear-les-nerfs-vif-saison-1_S01E03": {
+    "titre": "Cape Fear - Les Nerfs à vif - Saison 1",
+    "fileCode": "bbe3deh7hqsm",
+    "lien": "https://u14.vidzy.cc/v/02/00048/2jxf7910aweu_n/Cape.Fear.S01E03.MULTi.1080p.WEB.H264-SUPPLY.mp4?t=3YNWAOFgN5hsLaKD-Kaxa5x1MIO7zyDeJTo2dR_MW4U&s=1784129768&e=172800&f=244929&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 3,
+    "totalSlots": "100",
+    "usedSlots": "4",
+    "uploadedAt": "2026-07-15T17:25:08.616Z",
+    "fldId": "1800102"
+  },
+  "cape-fear-les-nerfs-vif-saison-1_S01E04": {
+    "titre": "Cape Fear - Les Nerfs à vif - Saison 1",
+    "fileCode": "czobm810ax32",
+    "lien": "https://u14.vidzy.cc/v/02/00052/nepw3n3ietoc_n/Cape.Fear.S01E04.MULTi.1080p.WEB.H264-SUPPLY.mp4?t=peRZjpLswdMi5XfWOPWQH-RktzR6n19ha8OtQxrjkSI&s=1784129785&e=172800&f=263650&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 4,
+    "totalSlots": "100",
+    "usedSlots": "5",
+    "uploadedAt": "2026-07-15T17:25:08.927Z",
+    "fldId": "1800102"
+  },
+  "cape-fear-les-nerfs-vif-saison-1_S01E05": {
+    "titre": "Cape Fear - Les Nerfs à vif - Saison 1",
+    "fileCode": "4w6cy1i0wgrw",
+    "lien": "https://u14.vidzy.cc/v/06/00053/5j5sfx63wszm_n/Cape.Fear.S01E05.MULTi.1080p.WEB.H265-TyHD.mp4?t=yS4F8JZGZD_vJhf6e7JXYTix91F1l9m17_jbhKWfP9U&s=1784129802&e=172800&f=266553&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 5,
+    "totalSlots": "100",
+    "usedSlots": "6",
+    "uploadedAt": "2026-07-15T17:25:09.479Z",
+    "fldId": "1800102"
+  },
+  "bellefleur-saison-3_S03E03": {
+    "titre": "Bellefleur - Saison 3",
+    "fileCode": "y6jd7i2tp4lq",
+    "lien": "https://u14.vidzy.cc/v/01/00054/0ok1mw4i5e1h_n/Bellefleur.S03E03.FRENCH.AD.1080p.WEB.AC3.5.1.H264-MTLQC.mp4?t=lyC9pC-n9IyqQ6oGoSDYn0Zh8Lpkq8MMVVvw1wRy1GA&s=1784132507&e=172800&f=271278&sp=1000&i=0.0",
+    "season": 3,
+    "episode": 3,
+    "totalSlots": "100",
+    "usedSlots": "7",
+    "uploadedAt": "2026-07-15T17:25:09.884Z",
+    "fldId": "1800125"
+  },
+  "bellefleur-saison-3_S03E04": {
+    "titre": "Bellefleur - Saison 3",
+    "fileCode": "29blm2pzagn4",
+    "lien": "https://u14.vidzy.cc/v/08/00054/lju4sd5kca8y_n/Bellefleur.S03E04.FRENCH.AD.1080p.WEB.AC3.5.1.H264-MTLQC.mp4?t=8fede_CYBZhMKV5OhNkJBZpHNg1lW56Ie8wlOh3eoiI&s=1784132525&e=172800&f=271279&sp=1000&i=0.0",
+    "season": 3,
+    "episode": 4,
+    "totalSlots": "100",
+    "usedSlots": "8",
+    "uploadedAt": "2026-07-15T17:25:10.196Z",
+    "fldId": "1800125"
+  },
+  "tracker-saison-3_S03E01": {
+    "titre": "Tracker - Saison 3",
+    "fileCode": "9fxrhmkac5pv",
+    "lien": "https://v6.vidzy.cc/v/04/00028/1rp6cep6lsq3_n/tracker.2024.s03e01.french.1080p.web.h264-higgsboson.mp4?t=IhnA4QSCmP_FFJNFTvBZqhzHlcPj1gi0EsVe_QO2BE4&s=1784133155&e=172800&f=142457&sp=1000&i=0.0",
+    "season": 3,
+    "episode": 1,
+    "totalSlots": "100",
+    "usedSlots": "9",
+    "uploadedAt": "2026-07-15T17:25:10.594Z",
+    "fldId": "1800134"
+  },
+  "tracker-saison-3_S03E02": {
+    "titre": "Tracker - Saison 3",
+    "fileCode": "wkbtwua0o9yb",
+    "lien": "https://v6.vidzy.cc/v/01/00028/zpcdgcbngvbg_n/tracker.2024.s03e02.french.1080p.web.h264-higgsboson.mp4?t=SGJC__2VeGdKtG2BVuq7dRGEe6vNwh5DS4g6KS6rb0I&s=1784133172&e=172800&f=142458&sp=1000&i=0.0",
+    "season": 3,
+    "episode": 2,
+    "totalSlots": "100",
+    "usedSlots": "10",
+    "uploadedAt": "2026-07-15T17:25:10.910Z",
+    "fldId": "1800134"
+  },
+  "tracker-saison-3_S03E03": {
+    "titre": "Tracker - Saison 3",
+    "fileCode": "y09nf8nijyve",
+    "lien": "https://u14.vidzy.cc/v/08/00029/qh3vzt52k83p_n/Tracker.2024.S03E03.MULTi.1080p.WEB.H264-SUPPLY.mp4?t=Jy8-bLVj6_boIngBheAahDw4js_0W3LHEZxFbl7zLCg&s=1784133189&e=172800&f=148827&sp=1000&i=0.0",
+    "season": 3,
+    "episode": 3,
+    "totalSlots": "100",
+    "usedSlots": "11",
+    "uploadedAt": "2026-07-15T17:25:11.222Z",
+    "fldId": "1800134"
+  },
+  "tracker-saison-3_S03E04": {
+    "titre": "Tracker - Saison 3",
+    "fileCode": "recwmk4xgkvn",
+    "lien": "https://u14.vidzy.cc/v/08/00029/doeuwqi918m8_n/Tracker.2024.S03E04.FRENCH.1080p.WEB.H264-SUPPLY.mp4?t=aUlrHi7ObZk0HBGsHPdsuvT8bzckF2Zuwf6jrkvSYEU&s=1784133206&e=172800&f=149647&sp=1000&i=0.0",
+    "season": 3,
+    "episode": 4,
+    "totalSlots": "100",
+    "usedSlots": "12",
+    "uploadedAt": "2026-07-15T17:25:11.532Z",
+    "fldId": "1800134"
+  },
+  "tracker-saison-3_S03E05": {
+    "titre": "Tracker - Saison 3",
+    "fileCode": "e6u8up62pqp4",
+    "lien": "https://u14.vidzy.cc/v/05/00030/wu3j9l7th6x1_n/Tracker.2024.S03E05.FRENCH.1080p.WEB.H264-SUPPLY.mp4?t=Tfr-BTZ-t5pk4aaDh1fJeV6Q_gDPVS61s5e24voCe6Q&s=1784133224&e=172800&f=150097&sp=1000&i=0.0",
+    "season": 3,
+    "episode": 5,
+    "totalSlots": "100",
+    "usedSlots": "13",
+    "uploadedAt": "2026-07-15T17:25:11.843Z",
+    "fldId": "1800134"
+  },
+  "tracker-saison-3_S03E06": {
+    "titre": "Tracker - Saison 3",
+    "fileCode": "2rvcdhzom4gd",
+    "lien": "https://u14.vidzy.cc/v/05/00030/splfyfvz9r27_n/Tracker.2024.S03E06.FRENCH.1080p.WEB.H264-SUPPLY.mp4?t=EX06l5i81eK5Msgg7Vf7A4U3hP9WImLLaoaEHsT6NTM&s=1784133241&e=172800&f=150925&sp=1000&i=0.0",
+    "season": 3,
+    "episode": 6,
+    "totalSlots": "100",
+    "usedSlots": "14",
+    "uploadedAt": "2026-07-15T17:25:12.153Z",
+    "fldId": "1800134"
+  },
+  "tracker-saison-3_S03E07": {
+    "titre": "Tracker - Saison 3",
+    "fileCode": "jhwe5bfptjgx",
+    "lien": "https://u14.vidzy.cc/v/07/00032/fi0kigazdqzq_n/Tracker.2024.S03E07.FRENCH.1080p.WEB.H264-SUPPLY.mp4?t=ewjpNNZUQox19CCHoyWYK57MAOcBzuCsyJAfIuuTv0o&s=1784133258&e=172800&f=161969&sp=1000&i=0.0",
+    "season": 3,
+    "episode": 7,
+    "totalSlots": "100",
+    "usedSlots": "15",
+    "uploadedAt": "2026-07-15T17:25:12.463Z",
+    "fldId": "1800134"
+  },
+  "tracker-saison-3_S03E08": {
+    "titre": "Tracker - Saison 3",
+    "fileCode": "8fyues8i8iyl",
+    "lien": "https://u14.vidzy.cc/v/08/00032/nqk60hpawd64_n/Tracker.S03e08.Multi.720P.Web.H264-Tfa.mp4?t=h4PWSzx3sx6encLYAa8d6mi1aqM5dzpkf_m2O6J1J5k&s=1784133275&e=172800&f=163319&sp=1000&i=0.0",
+    "season": 3,
+    "episode": 8,
+    "totalSlots": "100",
+    "usedSlots": "16",
+    "uploadedAt": "2026-07-15T17:25:12.842Z",
+    "fldId": "1800134"
+  },
+  "tracker-saison-3_S03E09": {
+    "titre": "Tracker - Saison 3",
+    "fileCode": "a1vir1ytuk8a",
+    "lien": "https://u14.vidzy.cc/v/08/00032/x1qolrcvt8h2_n/Tracker.2024.S03E09.MULTi.1080p.WEB.H264-SUPPLY.mp4?t=dvGna8WvLEFHlEnJLefL5Xf1K393HaczrgvFG5Q-1s4&s=1784133293&e=172800&f=164443&sp=1000&i=0.0",
+    "season": 3,
+    "episode": 9,
+    "totalSlots": "100",
+    "usedSlots": "17",
+    "uploadedAt": "2026-07-15T17:25:13.156Z",
+    "fldId": "1800134"
+  },
+  "tracker-saison-3_S03E10": {
+    "titre": "Tracker - Saison 3",
+    "fileCode": "a6rt0rgu6d6w",
+    "lien": "https://v6.vidzy.cc/v/04/00045/upe30engh8tq_n/Tracker.2024.s03e10.multi.1080p.web.h264-higgsboson.mp4?t=xsxXuUVzqtzBnn-ZgO4ONzcDlBod4HS1J-tNy6rRJYU&s=1784133310&e=172800&f=227907&sp=1000&i=0.0",
+    "season": 3,
+    "episode": 10,
+    "totalSlots": "100",
+    "usedSlots": "18",
+    "uploadedAt": "2026-07-15T17:25:13.560Z",
+    "fldId": "1800134"
+  },
+  "tracker-saison-3_S03E11": {
+    "titre": "Tracker - Saison 3",
+    "fileCode": "v7rd2z3orqzo",
+    "lien": "https://u14.vidzy.cc/v/03/00045/qrry45a6b3s9_n/Tracker.2024.S03E11.MULTi.1080p.WEB.H264-SUPPLY.mp4?t=5CDsBS5nOUD9pCQApRDJs9MI8sGXqxA74O7zbYepKVQ&s=1784133327&e=172800&f=228887&sp=1000&i=0.0",
+    "season": 3,
+    "episode": 11,
+    "totalSlots": "100",
+    "usedSlots": "19",
+    "uploadedAt": "2026-07-15T17:25:13.874Z",
+    "fldId": "1800134"
+  },
+  "tracker-saison-3_S03E12": {
+    "titre": "Tracker - Saison 3",
+    "fileCode": "kgk5lv8kxgra",
+    "lien": "https://v6.vidzy.cc/v/02/00045/3mkz5eutdsrq_n/Tracker.2024.S03E12.MULTi.1080p.WEB.H264-SUPPLY.mp4?t=_i0OWWQzH4BXMPTSFp5amLc0Znrddr2YNJENrv-kaic&s=1784133344&e=172800&f=228890&sp=1000&i=0.0",
+    "season": 3,
+    "episode": 12,
+    "totalSlots": "100",
+    "usedSlots": "20",
+    "uploadedAt": "2026-07-15T17:25:14.458Z",
+    "fldId": "1800134"
+  },
+  "tracker-saison-3_S03E13": {
+    "titre": "Tracker - Saison 3",
+    "fileCode": "kjezap82ltce",
+    "lien": "https://u14.vidzy.cc/v/03/00046/o0base4t4uk9_n/Tracker.S03E13.MULTi.VFF.1080p.WEBrip.EAC3.5.1.x265-TyHD.mp4?t=9xoCfRA5SqP1b83HGR0Rtug553_k-NpIfSY2tY6r7rY&s=1784133361&e=172800&f=231019&sp=1000&i=0.0",
+    "season": 3,
+    "episode": 13,
+    "totalSlots": "100",
+    "usedSlots": "21",
+    "uploadedAt": "2026-07-15T17:25:15.074Z",
+    "fldId": "1800134"
+  },
+  "tracker-saison-3_S03E14": {
+    "titre": "Tracker - Saison 3",
+    "fileCode": "76t9h5sx4c52",
+    "lien": "https://u14.vidzy.cc/v/01/00047/elvfbqita79x_n/Tracker.S03E14.MULTi.VFF.1080p.WEB.EAC3.5.1.H264-TFA.mp4?t=IXiG8PeTJKhMcad9f01iU5xx7YoF7wedrxmiontJr9M&s=1784133378&e=172800&f=238406&sp=1000&i=0.0",
+    "season": 3,
+    "episode": 14,
+    "totalSlots": "100",
+    "usedSlots": "22",
+    "uploadedAt": "2026-07-15T17:25:15.410Z",
+    "fldId": "1800134"
+  },
+  "tracker-saison-3_S03E15": {
+    "titre": "Tracker - Saison 3",
+    "fileCode": "wuvsrcc9nyya",
+    "lien": "https://v6.vidzy.cc/v/03/00047/yrdh5nx58fab_n/Tracker.2024.S03E15.MULTi.1080p.WEB.H264-FWFStream.mp4?t=YT9gT4AEGK_L2qPptlMvHbGGRmt62o_O-bq4nbpXi4k&s=1784133395&e=172800&f=238369&sp=1000&i=0.0",
+    "season": 3,
+    "episode": 15,
+    "totalSlots": "100",
+    "usedSlots": "23",
+    "uploadedAt": "2026-07-15T17:25:15.734Z",
+    "fldId": "1800134"
+  },
+  "tracker-saison-3_S03E16": {
+    "titre": "Tracker - Saison 3",
+    "fileCode": "b6vqxlzwoya1",
+    "lien": "https://u14.vidzy.cc/v/04/00048/k2fvwn7chk76_n/Tracker.2024.S03E16.MULTi.1080p.WEB.H264-FW.mp4?t=aCsrhbDRo_FExpa54GkvfYyWrrdgN6HMSRww-Y8l2U4&s=1784133413&e=172800&f=240386&sp=1000&i=0.0",
+    "season": 3,
+    "episode": 16,
+    "totalSlots": "100",
+    "usedSlots": "24",
+    "uploadedAt": "2026-07-15T17:25:16.119Z",
+    "fldId": "1800134"
+  },
+  "tracker-saison-3_S03E17": {
+    "titre": "Tracker - Saison 3",
+    "fileCode": "4xltjinxg681",
+    "lien": "https://v6.vidzy.cc/v/04/00047/89z9hhkkpq2j_n/Tracker.2024.S03E17.MULTi.1080p.WEB.H264-FW.mp4?t=JnmJXJprWQZ-4gaa_sUv2NZS81XrOm9zZbUrs6S32xM&s=1784133430&e=172800&f=238407&sp=1000&i=0.0",
+    "season": 3,
+    "episode": 17,
+    "totalSlots": "100",
+    "usedSlots": "25",
+    "uploadedAt": "2026-07-15T17:25:16.532Z",
+    "fldId": "1800134"
+  },
+  "tracker-saison-3_S03E18": {
+    "titre": "Tracker - Saison 3",
+    "fileCode": "jpd2ytzn9vgt",
+    "lien": "https://u14.vidzy.cc/v/02/00048/zxsu2eadf6z8_n/Tracker.2024.S03E18.MULTi.1080p.WEB.H264-FW-FStream.mp4?t=PhXxkny2Jnn6jja9HalDLg_Bc_nra_H6px7XpcTc430&s=1784133447&e=172800&f=244380&sp=1000&i=0.0",
+    "season": 3,
+    "episode": 18,
+    "totalSlots": "100",
+    "usedSlots": "26",
+    "uploadedAt": "2026-07-15T17:25:17.246Z",
+    "fldId": "1800134"
+  },
+  "tracker-saison-3_S03E19": {
+    "titre": "Tracker - Saison 3",
+    "fileCode": "sm7uqiw2xipz",
+    "lien": "https://u14.vidzy.cc/v/05/00048/3j7i1so2y5rn_n/Tracker.2024.S03E19.MULTi.1080p.WEB.H264-SUPPLY.mp4?t=sjkorMFUI_XgXs5SrhZ_Dk04yY-izp7uqM64DR1-ERs&s=1784133464&e=172800&f=244611&sp=1000&i=0.0",
+    "season": 3,
+    "episode": 19,
+    "totalSlots": "100",
+    "usedSlots": "27",
+    "uploadedAt": "2026-07-15T17:25:17.561Z",
+    "fldId": "1800134"
+  },
+  "tracker-saison-3_S03E20": {
+    "titre": "Tracker - Saison 3",
+    "fileCode": "3su8bfh0k7d8",
+    "lien": "https://u14.vidzy.cc/v/02/00049/kqn334h2nga3_n/Tracker.2024.S03E20.FRENCH.WEBRip.x264-FS-FStream.mp4?t=bL4HSaFLSiuKB2_s7yf3f0pTsvV6eRX7-KUe4OnTyQ4&s=1784133481&e=172800&f=246221&sp=1000&i=0.0",
+    "season": 3,
+    "episode": 20,
+    "totalSlots": "100",
+    "usedSlots": "28",
+    "uploadedAt": "2026-07-15T17:25:17.874Z",
+    "fldId": "1800134"
+  },
+  "tracker-saison-3_S03E21": {
+    "titre": "Tracker - Saison 3",
+    "fileCode": "956cl4stt7tz",
+    "lien": "https://u14.vidzy.cc/v/05/00053/nxpss94r0iah_n/Tracker.2024.S03E21.MULTi.1080p.WEB.H264-AMB3R.mp4?t=9_85zxfXDz2R3IK7WsiFbuwfq0xneuxbGwa-dkE2lK0&s=1784133498&e=172800&f=268542&sp=1000&i=0.0",
+    "season": 3,
+    "episode": 21,
+    "totalSlots": "100",
+    "usedSlots": "29",
+    "uploadedAt": "2026-07-15T17:25:18.268Z",
+    "fldId": "1800134"
+  },
+  "tracker-saison-3_S03E22": {
+    "titre": "Tracker - Saison 3",
+    "fileCode": "1bpw6um6qfjj",
+    "lien": "https://u14.vidzy.cc/v/03/00054/pq8a6xurvo7y_n/Tracker.2024.s03e22.final.multi.1080p.web.h264-higgsboson.mp4?t=RAT3FCtiAuK1AMU6OAJQJiSEVSppcuvu4eEqNFvYmU4&s=1784133523&e=172800&f=271248&sp=1000&i=0.0",
+    "season": 3,
+    "episode": 22,
+    "totalSlots": "100",
+    "usedSlots": "30",
+    "uploadedAt": "2026-07-15T17:25:18.680Z",
+    "fldId": "1800134"
+  },
+  "reborn-rookie-saison-1_S01E01": {
+    "titre": "Reborn Rookie - Saison 1",
+    "fileCode": "xbiywht9so9s",
+    "lien": "https://u14.vidzy.cc/v/05/00052/qcjgulouw4ep_n/Reborn.Rookie.S01E01.VOSTFR.1080p.VIKI.WEB.H264-DYDHZO.mp4?t=R0YW7uYNmPPpe-InEKx5JHRpb_F2hpjWGCTL67vBUfA&s=1784133618&e=172800&f=263613&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 1,
+    "totalSlots": "100",
+    "usedSlots": "31",
+    "uploadedAt": "2026-07-15T17:25:18.992Z",
+    "fldId": "1800136"
+  },
+  "reborn-rookie-saison-1_S01E02": {
+    "titre": "Reborn Rookie - Saison 1",
+    "fileCode": "vwuu5z23lr6q",
+    "lien": "https://u14.vidzy.cc/v/01/00052/8s6zlug1b9vj_n/Reborn.Rookie.S01E02.VOSTFR.1080p.VIKI.WEB.H264-DYDHZO.mp4?t=HmDLw8ghRgPz8zT75w2yo8gv_uQsjSBfXPKi3P98XWU&s=1784133635&e=172800&f=263611&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 2,
+    "totalSlots": "100",
+    "usedSlots": "32",
+    "uploadedAt": "2026-07-15T17:25:19.304Z",
+    "fldId": "1800136"
+  },
+  "reborn-rookie-saison-1_S01E03": {
+    "titre": "Reborn Rookie - Saison 1",
+    "fileCode": "bkhit3rqchg1",
+    "lien": "https://u14.vidzy.cc/v/04/00052/utpgw83fw3fu_n/Reborn.Rookie.S01E03.VOSTFR.1080p.VIKI.WEB.H264-DYDHZO.mp4?t=GQh9FsVOiQFFyRTsJYckbdUsNCrxviRGVJMd9i6dJ84&s=1784133652&e=172800&f=263617&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 3,
+    "totalSlots": "100",
+    "usedSlots": "33",
+    "uploadedAt": "2026-07-15T17:25:19.704Z",
+    "fldId": "1800136"
+  },
+  "reborn-rookie-saison-1_S01E04": {
+    "titre": "Reborn Rookie - Saison 1",
+    "fileCode": "sxvdh2mfl3qv",
+    "lien": "https://u14.vidzy.cc/v/05/00052/kq7y72sq9cdq_n/Reborn.Rookie.S01E04.VOSTFR.1080p.VIKI.WEB.H264-DYDHZO.mp4?t=ld41RVvbCQKDul47MPlf4kGP0pnRLvwX3qL0dd2BkCM&s=1784133669&e=172800&f=263607&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 4,
+    "totalSlots": "100",
+    "usedSlots": "34",
+    "uploadedAt": "2026-07-15T17:25:20.018Z",
+    "fldId": "1800136"
+  },
+  "reborn-rookie-saison-1_S01E05": {
+    "titre": "Reborn Rookie - Saison 1",
+    "fileCode": "t5utcfpatzd8",
+    "lien": "https://u14.vidzy.cc/v/04/00052/ruzswvomnsyi_n/Reborn.Rookie.S01E05.VOSTFR.1080p.VIKI.WEB.H264-DYDHZO.mp4?t=hWspwylnTTQVojWkHGMnU1mnjagT30BsZMbjUUEDdGo&s=1784133686&e=172800&f=263609&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 5,
+    "totalSlots": "100",
+    "usedSlots": "35",
+    "uploadedAt": "2026-07-15T17:25:20.328Z",
+    "fldId": "1800136"
+  },
+  "reborn-rookie-saison-1_S01E06": {
+    "titre": "Reborn Rookie - Saison 1",
+    "fileCode": "6dwugehutd6a",
+    "lien": "https://u14.vidzy.cc/v/06/00052/giorhacmcvf2_n/Reborn.Rookie.S01E06.VOSTFR.1080p.VIKI.WEB.H264-DYDHZO.mp4?t=3Hi1_jO7--IW8kqugso0L9wfy3JN0gsBaEdlqGY7uXw&s=1784133703&e=172800&f=263619&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 6,
+    "totalSlots": "100",
+    "usedSlots": "36",
+    "uploadedAt": "2026-07-15T17:25:20.641Z",
+    "fldId": "1800136"
+  },
+  "reborn-rookie-saison-1_S01E07": {
+    "titre": "Reborn Rookie - Saison 1",
+    "fileCode": "b0bxf7ld5muc",
+    "lien": "https://u14.vidzy.cc/v/01/00053/v5fra337gake_n/Reborn.Rookie.S01E07.VOSTFR.1080p.VIKI.WEB.H264-DYDHZO.mp4?t=W-mwpTNHrfFDM3STklcqD8UKPA27169eHgnHlVxYtP4&s=1784133721&e=172800&f=268177&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 7,
+    "totalSlots": "100",
+    "usedSlots": "37",
+    "uploadedAt": "2026-07-15T17:25:20.952Z",
+    "fldId": "1800136"
+  },
+  "reborn-rookie-saison-1_S01E08": {
+    "titre": "Reborn Rookie - Saison 1",
+    "fileCode": "084hidd4tac7",
+    "lien": "https://u14.vidzy.cc/v/08/00053/8xmgdfkspz98_n/Reborn.Rookie.S01E08.VOSTFR.1080p.VIKI.WEB.H264-DYDHZO.mp4?t=AIus0sjvORnDaBNnjnc8lvV5R4l6oI2gHJMiLHPOZVw&s=1784133738&e=172800&f=268178&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 8,
+    "totalSlots": "100",
+    "usedSlots": "38",
+    "uploadedAt": "2026-07-15T17:25:21.262Z",
+    "fldId": "1800136"
+  },
+  "reborn-rookie-saison-1_S01E09": {
+    "titre": "Reborn Rookie - Saison 1",
+    "fileCode": "omneuyue0buc",
+    "lien": "https://u14.vidzy.cc/v/08/00053/9i7gnyfr9s5i_n/Reborn.Rookie.S01E09.VOSTFR.1080p.VIKI.WEB.H264-DYDHZO.mp4?t=XmYrHDLEdAiut1JgCi0aVGX1cWOauMsQAwadpDHctn8&s=1784133755&e=172800&f=268183&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 9,
+    "totalSlots": "100",
+    "usedSlots": "39",
+    "uploadedAt": "2026-07-15T17:25:21.572Z",
+    "fldId": "1800136"
+  },
+  "reborn-rookie-saison-1_S01E10": {
+    "titre": "Reborn Rookie - Saison 1",
+    "fileCode": "a4bc3sfjvbq0",
+    "lien": "https://u14.vidzy.cc/v/03/00053/c2382ks8mpz4_n/Reborn.Rookie.S01E10.VOSTFR.1080p.VIKI.WEB.H264-DYDHZO.mp4?t=um6BH2JnlJzcuWYUNmgfFvXBVByfwSG_ieTUYVe1-PQ&s=1784133772&e=172800&f=268179&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 10,
+    "totalSlots": "100",
+    "usedSlots": "40",
+    "uploadedAt": "2026-07-15T17:25:21.888Z",
+    "fldId": "1800136"
+  },
+  "reborn-rookie-saison-1_S01E11": {
+    "titre": "Reborn Rookie - Saison 1",
+    "fileCode": "ez98ltvl2hu8",
+    "lien": "https://u14.vidzy.cc/v/01/00054/ys5ef8n3wau9_n/Reborn.Rookie.S01E11.VOSTFR.1080p-NOVA.mkv.mp4?t=l_4_b_Rw_Tewos_Ysc2t15c_4nMn_wMP_1i5BVHH85s&s=1784133789&e=172800&f=272956&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 11,
+    "totalSlots": "100",
+    "usedSlots": "41",
+    "uploadedAt": "2026-07-15T17:25:22.272Z",
+    "fldId": "1800136"
+  },
+  "reborn-rookie-saison-1_S01E12": {
+    "titre": "Reborn Rookie - Saison 1",
+    "fileCode": "vaf8r9lpcv0i",
+    "lien": "https://u14.vidzy.cc/v/06/00054/0xy0obbs5spp_n/Reborn.Rookie.S01E12.VOSTFR.1080p-NOVA.mkv.mp4?t=Vu5uDY3UUZBZA9U6p8AUkIu4_r5h0hs6pl9Sv0aFWwU&s=1784133809&e=172800&f=272957&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 12,
+    "totalSlots": "100",
+    "usedSlots": "42",
+    "uploadedAt": "2026-07-15T17:25:22.583Z",
+    "fldId": "1800136"
+  },
+  "i-m-not-afraid-saison-1_S01E01": {
+    "titre": "I'm not Afraid - Saison 1",
+    "fileCode": "3mi8gvx72bjn",
+    "lien": "https://u14.vidzy.cc/v/05/00054/jy7zu2e8dkl4_n/im.not.afraid.s01e01.french.1080p.web.x264-higgsboson.mp4?t=GaFnGlryKeIgvmwhk-a6WXSmb9adL_kq3j1gBC8Vzys&s=1784133866&e=172800&f=270788&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 1,
+    "totalSlots": "100",
+    "usedSlots": "43",
+    "uploadedAt": "2026-07-15T17:25:22.899Z",
+    "fldId": "1800138"
+  },
+  "i-m-not-afraid-saison-1_S01E02": {
+    "titre": "I'm not Afraid - Saison 1",
+    "fileCode": "ohtf3k31ao1h",
+    "lien": "https://u14.vidzy.cc/v/06/00054/cm0za6wgf8wf_n/im.not.afraid.s01e02.french.1080p.web.x264-higgsboson.mp4?t=FIMX_4qa31iHZxNWvN0qIH6106-hOTxn5EA0kNn6rbc&s=1784133884&e=172800&f=270792&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 2,
+    "totalSlots": "100",
+    "usedSlots": "44",
+    "uploadedAt": "2026-07-15T17:25:23.400Z",
+    "fldId": "1800138"
+  },
+  "i-m-not-afraid-saison-1_S01E03": {
+    "titre": "I'm not Afraid - Saison 1",
+    "fileCode": "xycbgirclgks",
+    "lien": "https://u14.vidzy.cc/v/08/00054/jjyppj38e02k_n/im.not.afraid.s01e03.french.1080p.web.x264-higgsboson.mp4?t=2n9kH4cV78Q4bT_QZEbtDF5_k79Q6ymsdF3aK0__XJs&s=1784133901&e=172800&f=270791&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 3,
+    "totalSlots": "100",
+    "usedSlots": "45",
+    "uploadedAt": "2026-07-15T17:25:23.821Z",
+    "fldId": "1800138"
+  },
+  "i-m-not-afraid-saison-1_S01E04": {
+    "titre": "I'm not Afraid - Saison 1",
+    "fileCode": "cythgdfsbdz1",
+    "lien": "https://u14.vidzy.cc/v/04/00054/ap26e23jmi2b_n/im.not.afraid.s01e04.french.1080p.web.x264-higgsboson.mp4?t=AgG9rftZ0SnGVZaODWBQ9TMuO0rAzfUH-g60HhLXfhE&s=1784133918&e=172800&f=270793&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 4,
+    "totalSlots": "100",
+    "usedSlots": "46",
+    "uploadedAt": "2026-07-15T17:25:24.221Z",
+    "fldId": "1800138"
+  },
+  "i-m-not-afraid-saison-1_S01E05": {
+    "titre": "I'm not Afraid - Saison 1",
+    "fileCode": "6ov5fmsmee46",
+    "lien": "https://u14.vidzy.cc/v/04/00054/z75tiitact9v_n/im.not.afraid.s01e05.french.1080p.web.x264-higgsboson.mp4?t=5dJcFmHyy2BYFPjEzEOs2f2wVM9oaPU-4evUDKu5emU&s=1784133935&e=172800&f=270796&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 5,
+    "totalSlots": "100",
+    "usedSlots": "47",
+    "uploadedAt": "2026-07-15T17:25:25.039Z",
+    "fldId": "1800138"
+  },
+  "i-m-not-afraid-saison-1_S01E06": {
+    "titre": "I'm not Afraid - Saison 1",
+    "fileCode": "dtrnivmu9y61",
+    "lien": "https://u14.vidzy.cc/v/04/00054/iytys1fmwe9l_n/im.not.afraid.s01e06.final.french.1080p.web.x264-higgsboson.mp4?t=wSN3bhSkrBZDUFrsoQ-BSxTrbg2Re_QRUZ0YEiEpX4Q&s=1784133952&e=172800&f=270794&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 6,
+    "totalSlots": "100",
+    "usedSlots": "48",
+    "uploadedAt": "2026-07-15T17:25:25.779Z",
+    "fldId": "1800138"
+  },
+  "doctor-on-the-edge-saison-1_S01E01": {
+    "titre": "Doctor on the Edge - Saison 1",
+    "fileCode": "sdstkcn8ejm0",
+    "lien": "https://v6.vidzy.cc/v/04/00048/vtqqfj6p44ui_n/Doctor.on.the.Edge.S01E01.VOSTFR.1080p.WEB.H264-FW.mp4?t=8Qwc8oW1tvIWChjPgiMfL2A-Qt3_a8NvvqvKY2mfgek&s=1784134027&e=172800&f=241379&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 1,
+    "totalSlots": "100",
+    "usedSlots": "49",
+    "uploadedAt": "2026-07-15T17:25:26.093Z",
+    "fldId": "1800127"
+  },
+  "doctor-on-the-edge-saison-1_S01E02": {
+    "titre": "Doctor on the Edge - Saison 1",
+    "fileCode": "92qk8kewr3go",
+    "lien": "https://u14.vidzy.cc/v/01/00048/omw1hjb37xq0_n/Doctor.On.The.Edge.S01E02.VOSTFR.1080p.WEBRip.AAC2.0.X265-NoTag_(1).mp4?t=HFXYfL06GENDT8mM3EMbeJaBLZd_lAS_CsdJBD8YAXI&s=1784134044&e=172800&f=244560&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 2,
+    "totalSlots": "100",
+    "usedSlots": "50",
+    "uploadedAt": "2026-07-15T17:25:26.409Z",
+    "fldId": "1800127"
+  },
+  "doctor-on-the-edge-saison-1_S01E03": {
+    "titre": "Doctor on the Edge - Saison 1",
+    "fileCode": "txxskzedkmm7",
+    "lien": "https://u14.vidzy.cc/v/03/00049/y991uq0veo5n_n/Doctor.on.the.Edge.S01E03.VOSTFR.1080p.WEB.AAC.2.0.H264-FW.mkv.mp4?t=xRgw-mDRuSqTj2u24Ceh9jOvrOT0NjyxougoGVR2SYY&s=1784134061&e=172800&f=246953&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 3,
+    "totalSlots": "100",
+    "usedSlots": "51",
+    "uploadedAt": "2026-07-15T17:25:26.721Z",
+    "fldId": "1800127"
+  },
+  "doctor-on-the-edge-saison-1_S01E04": {
+    "titre": "Doctor on the Edge - Saison 1",
+    "fileCode": "97xqldx86s9a",
+    "lien": "https://u14.vidzy.cc/v/03/00049/y3gocbt2vpzz_n/Doctor.on.the.Edge.S01E04.VOSTFR.1080p.WEB.H264-FW-FStream.mp4?t=uemxX4AGB7RPXYUqDC4bVKsg-BWzq2aim2_dlwbEZG4&s=1784134078&e=172800&f=246626&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 4,
+    "totalSlots": "100",
+    "usedSlots": "52",
+    "uploadedAt": "2026-07-15T17:25:27.035Z",
+    "fldId": "1800127"
+  },
+  "doctor-on-the-edge-saison-1_S01E06": {
+    "titre": "Doctor on the Edge - Saison 1",
+    "fileCode": "ijskchnwx9ru",
+    "lien": "https://u14.vidzy.cc/v/05/00049/t3l3za3sc2ri_n/Doctor.on.the.Edge.S01E06.VOSTFR.1080p.WEB.AAC.2.0.H264-FW.mkv.mp4?t=UwkXHsPF35egLor3gZvaC3QVdeRUxw_iIFiW7i4Np5s&s=1784134112&e=172800&f=246954&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 6,
+    "totalSlots": "100",
+    "usedSlots": "53",
+    "uploadedAt": "2026-07-15T17:25:27.358Z",
+    "fldId": "1800127"
+  },
+  "doctor-on-the-edge-saison-1_S01E07": {
+    "titre": "Doctor on the Edge - Saison 1",
+    "fileCode": "xi6nbhwmu0m4",
+    "lien": "https://u14.vidzy.cc/v/02/00052/333gcsqbp5y7_n/Doctor.On.The.Edge.S01E07.VOSTFR.1080p.WEBRip.AAC2.0.X265-NoTag.mp4?t=WPqFbro5_GxMUdcaDeIRF2GzU0HuUXksrNmBcWNGt18&s=1784134129&e=172800&f=264954&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 7,
+    "totalSlots": "100",
+    "usedSlots": "54",
+    "uploadedAt": "2026-07-15T17:25:27.728Z",
+    "fldId": "1800127"
+  },
+  "doctor-on-the-edge-saison-1_S01E08": {
+    "titre": "Doctor on the Edge - Saison 1",
+    "fileCode": "5i80uqox7h0a",
+    "lien": "https://u14.vidzy.cc/v/03/00053/66n4evjmwgjk_n/Doctor.on.the.Edge.S01E08.VOSTFR.1080p.WEB.H264-FW.mp4?t=tSWRnLTe96EqPDLgOjoSYRCdbF-WI3FPRH7lT8GvOXQ&s=1784134147&e=172800&f=265404&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 8,
+    "totalSlots": "100",
+    "usedSlots": "55",
+    "uploadedAt": "2026-07-15T17:25:28.048Z",
+    "fldId": "1800127"
+  },
+  "doctor-on-the-edge-saison-1_S01E09": {
+    "titre": "Doctor on the Edge - Saison 1",
+    "fileCode": "309nt2acsdnd",
+    "lien": "https://u14.vidzy.cc/v/05/00053/lseue196l62j_n/Doctor.on.the.Edge.S01E09.VOSTFR.1080p.WEB.H264-FW_(1).mp4?t=3YzjfOxeNLBmwxPb4G3Suail_b_6XD4z1fWRkOUDKpM&s=1784134164&e=172800&f=267804&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 9,
+    "totalSlots": "100",
+    "usedSlots": "56",
+    "uploadedAt": "2026-07-15T17:25:28.580Z",
+    "fldId": "1800127"
+  },
+  "doctor-on-the-edge-saison-1_S01E10": {
+    "titre": "Doctor on the Edge - Saison 1",
+    "fileCode": "cs4mym1uwqjl",
+    "lien": "https://u14.vidzy.cc/v/08/00053/afmn0xsvjsri_n/Doctor.on.the.Edge.S01E10.VOSTFR.1080p.WEB.H264-FW.mp4?t=urn8AdiCbh1k64qV8O8hzLQd8YxkY9VQjxBilK0Bweg&s=1784134181&e=172800&f=268054&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 10,
+    "totalSlots": "100",
+    "usedSlots": "57",
+    "uploadedAt": "2026-07-15T17:25:29.101Z",
+    "fldId": "1800127"
+  },
+  "doctor-on-the-edge-saison-1_S01E11": {
+    "titre": "Doctor on the Edge - Saison 1",
+    "fileCode": "muxf9ew94olh",
+    "lien": "https://u14.vidzy.cc/v/05/00054/nxf9mmwh6acu_n/Doctor.on.the.Edge.S01E11.SUBFRENCH.1080p.WEB.H264-SUPPLY.mp4?t=xv4dYfpO4tW4-BV2EPx8IU_9Vet3n1ekjgLltgYc-es&s=1784134198&e=172800&f=270784&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 11,
+    "totalSlots": "100",
+    "usedSlots": "58",
+    "uploadedAt": "2026-07-15T17:25:29.485Z",
+    "fldId": "1800127"
+  },
+  "doctor-on-the-edge-saison-1_S01E12": {
+    "titre": "Doctor on the Edge - Saison 1",
+    "fileCode": "t0lfkttr4stg",
+    "lien": "https://u14.vidzy.cc/v/03/00054/qhjtri7utr5g_n/Doctor.on.the.Edge.S01E12.FiNAL.SUBFRENCH.1080p.WEB.H264-SUPPLY.mp4?t=7vSjTzkDksD-TrHZkWypR_4BAV8MHHz-S49H77F4DFQ&s=1784134215&e=172800&f=270783&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 12,
+    "totalSlots": "100",
+    "usedSlots": "59",
+    "uploadedAt": "2026-07-15T17:25:29.798Z",
+    "fldId": "1800127"
+  },
+  "les-topuria-saison-1_S01E01": {
+    "titre": "Les Topuria - Saison 1",
+    "fileCode": "cprxakf883ot",
+    "lien": "https://u14.vidzy.cc/v/07/00049/xcdexb2wyvhw_n/The.Topurias.S01E01.DOC.SUBFRENCH.1080p.HMAX.WEB.H265-THESYNDiCATE.mp4?t=e6KbraaBcSLmK32XqoYV-p4RCdYj1U4M7rUEwzASffg&s=1784134277&e=172800&f=245397&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 1,
+    "totalSlots": "100",
+    "usedSlots": "60",
+    "uploadedAt": "2026-07-15T17:25:30.622Z",
+    "fldId": "1800140"
+  },
+  "les-topuria-saison-1_S01E02": {
+    "titre": "Les Topuria - Saison 1",
+    "fileCode": "jdz4xkyhhix1",
+    "lien": "https://u14.vidzy.cc/v/02/00049/baz4f94misme_n/The.Topurias.S01E02.DOC.SUBFRENCH.1080p.HMAX.WEB.H265-THESYNDiCATE.mp4?t=NG46Pkoz01BCQkFLWWqTZCQ5MdJFoIub40MZiKeitD4&s=1784134294&e=172800&f=245398&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 2,
+    "totalSlots": "100",
+    "usedSlots": "61",
+    "uploadedAt": "2026-07-15T17:25:30.972Z",
+    "fldId": "1800140"
+  },
+  "les-topuria-saison-1_S01E03": {
+    "titre": "Les Topuria - Saison 1",
+    "fileCode": "4afp7rxttmwf",
+    "lien": "https://u14.vidzy.cc/v/03/00054/2oeres33lstd_n/The.Topurias.S01E03.FiNAL.DOC.SUBFRENCH.1080p.HMAX.WEB.SDR.H265-BYOR.mp4?t=eihm61qHxQkV5aNHjp5zc7Eos9JZh6DL3B8cu8TqF0w&s=1784134311&e=172800&f=270739&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 3,
+    "totalSlots": "100",
+    "usedSlots": "62",
+    "uploadedAt": "2026-07-15T17:25:31.333Z",
+    "fldId": "1800140"
+  },
+  "found-saison-2_S02E01": {
+    "titre": "Found - Saison 2",
+    "fileCode": "dd5zwiixow19",
+    "lien": "https://v6.vidzy.cc/v/03/00031/fuclskzrygl1_n/Found.2023.S02E01.MULTi.1080p.WEB.DDP5.1.H264-BraD.mp4?t=44NhOqiTEZMSmryWutEP7q6PAxrZukj-gGQNYTvs1gc&s=1784134376&e=172800&f=155777&sp=1000&i=0.0",
+    "season": 2,
+    "episode": 1,
+    "totalSlots": "100",
+    "usedSlots": "63",
+    "uploadedAt": "2026-07-15T17:25:31.644Z",
+    "fldId": "1800142"
+  },
+  "found-saison-2_S02E02": {
+    "titre": "Found - Saison 2",
+    "fileCode": "oboz22wpk2yr",
+    "lien": "https://u14.vidzy.cc/v/03/00008/zcoo08pgd6bj_n/Found_S02E02_VF.mkv.mp4?t=kmCSLbtBzS6yLyx5zEHxi9OTTQA-9qdTfYqnKuVBeEI&s=1784134393&e=172800&f=44454&sp=1000&i=0.0",
+    "season": 2,
+    "episode": 2,
+    "totalSlots": "100",
+    "usedSlots": "64",
+    "uploadedAt": "2026-07-15T17:25:31.961Z",
+    "fldId": "1800142"
+  },
+  "found-saison-2_S02E03": {
+    "titre": "Found - Saison 2",
+    "fileCode": "hkopu4svr7v6",
+    "lien": "https://u14.vidzy.cc/v/02/00008/a1kdm91hx8qh_n/Found_S02E03_VF.mkv.mp4?t=k8M2_xG1-OkhkBbRR0Vsl6Hrk1SqATDvTE5b0-3u7-s&s=1784134410&e=172800&f=43253&sp=1000&i=0.0",
+    "season": 2,
+    "episode": 3,
+    "totalSlots": "100",
+    "usedSlots": "65",
+    "uploadedAt": "2026-07-15T17:25:32.275Z",
+    "fldId": "1800142"
+  },
+  "found-saison-2_S02E04": {
+    "titre": "Found - Saison 2",
+    "fileCode": "2fcj8w8toea4",
+    "lien": "https://u14.vidzy.cc/v/03/00008/p3q46wpdpu3w_n/Found_S02E04_VF.mkv.mp4?t=ZBJILWLIjQ1baRa3YIxjbAlucRA92euPPDI6h18FULc&s=1784134428&e=172800&f=44439&sp=1000&i=0.0",
+    "season": 2,
+    "episode": 4,
+    "totalSlots": "100",
+    "usedSlots": "66",
+    "uploadedAt": "2026-07-15T17:25:32.587Z",
+    "fldId": "1800142"
+  },
+  "found-saison-2_S02E05": {
+    "titre": "Found - Saison 2",
+    "fileCode": "8n8cyhvdtntt",
+    "lien": "https://u14.vidzy.cc/v/04/00008/nf2cwe262jqp_n/Found_S02E05_VF.mkv.mp4?t=Mtd5aABXkHO5zeak_6YUZHPMQ1Dw-eltJ_UMv5gA7TU&s=1784134445&e=172800&f=43989&sp=1000&i=0.0",
+    "season": 2,
+    "episode": 5,
+    "totalSlots": "100",
+    "usedSlots": "67",
+    "uploadedAt": "2026-07-15T17:25:32.912Z",
+    "fldId": "1800142"
+  },
+  "found-saison-2_S02E06": {
+    "titre": "Found - Saison 2",
+    "fileCode": "ybgw5eukl09p",
+    "lien": "https://u14.vidzy.cc/v/02/00008/9cyu2l0bcj4p_n/Found_S02E06_VF.mkv.mp4?t=HDReNFx34PdAzRItvJG7-EvdmTjoCtQGf0Hvz8quJDQ&s=1784134462&e=172800&f=44116&sp=1000&i=0.0",
+    "season": 2,
+    "episode": 6,
+    "totalSlots": "100",
+    "usedSlots": "68",
+    "uploadedAt": "2026-07-15T17:25:33.327Z",
+    "fldId": "1800142"
+  },
+  "found-saison-2_S02E07": {
+    "titre": "Found - Saison 2",
+    "fileCode": "kd0j8zhnbrvz",
+    "lien": "https://v6.vidzy.cc/v/02/00048/6rlpjucdlxza_n/Found.2023.S02E07.FRENCH.1080p.WEB.DDP5.1.H265-BraD.mp4?t=YnUxLMuGugE5t0LGc1M9eghG4ijphp-KSm8JMY-IEYY&s=1784134479&e=172800&f=243702&sp=1000&i=0.0",
+    "season": 2,
+    "episode": 7,
+    "totalSlots": "100",
+    "usedSlots": "69",
+    "uploadedAt": "2026-07-15T17:25:33.741Z",
+    "fldId": "1800142"
+  },
+  "found-saison-2_S02E08": {
+    "titre": "Found - Saison 2",
+    "fileCode": "iixbujjvtkyr",
+    "lien": "https://u14.vidzy.cc/v/06/00053/chk5gpgpjhf9_n/Found.2023.S02E08.FRENCH.1080p.WEB.DDP5.1.H265-BraD.mp4?t=8ed4-iB8Ug9xe3mhk68lNk3EL2ZhFvbdiSaxSCiyqWc&s=1784134496&e=172800&f=265017&sp=1000&i=0.0",
+    "season": 2,
+    "episode": 8,
+    "totalSlots": "100",
+    "usedSlots": "70",
+    "uploadedAt": "2026-07-15T17:25:34.096Z",
+    "fldId": "1800142"
+  },
+  "found-saison-2_S02E10": {
+    "titre": "Found - Saison 2",
+    "fileCode": "cv7dvog5cchl",
+    "lien": "https://u14.vidzy.cc/v/01/00053/7w6mvm06ar1q_n/Found.2023.S02E10.MULTi.1080p.WEB.DDP5.1.H264-BraD.mp4?t=-lbINuYyJUF6Nmq0djZM0Dw6XfwX6DlUb_5wXYkeEkY&s=1784134513&e=172800&f=265016&sp=1000&i=0.0",
+    "season": 2,
+    "episode": 10,
+    "totalSlots": "100",
+    "usedSlots": "71",
+    "uploadedAt": "2026-07-15T17:25:34.409Z",
+    "fldId": "1800142"
+  },
+  "found-saison-2_S02E11": {
+    "titre": "Found - Saison 2",
+    "fileCode": "7mg9c8pl73cm",
+    "lien": "https://u14.vidzy.cc/v/06/00053/u81hqekiblzk_n/Found.2023.S02E11.MULTi.1080p.WEB.DDP5.1.H264-BraD.mp4?t=eyAM8S9r3c1zkLtkUrvLUhpHuaj3korLVXDOD6b1ZDQ&s=1784134530&e=172800&f=265018&sp=1000&i=0.0",
+    "season": 2,
+    "episode": 11,
+    "totalSlots": "100",
+    "usedSlots": "72",
+    "uploadedAt": "2026-07-15T17:25:34.931Z",
+    "fldId": "1800142"
+  },
+  "found-saison-2_S02E12": {
+    "titre": "Found - Saison 2",
+    "fileCode": "rmflo99k8nfz",
+    "lien": "https://u14.vidzy.cc/v/07/00053/s2rxvhdq82xz_n/Found.2023.S02E12.FRENCH.1080p.WEB.DDP5.1.H265-BraD.mp4?t=RZCw1ozrJ7XTGkFttGE99KAmWQCMU2ygX9lDxRWn4x8&s=1784134548&e=172800&f=265015&sp=1000&i=0.0",
+    "season": 2,
+    "episode": 12,
+    "totalSlots": "100",
+    "usedSlots": "73",
+    "uploadedAt": "2026-07-15T17:25:35.349Z",
+    "fldId": "1800142"
+  },
+  "found-saison-2_S02E13": {
+    "titre": "Found - Saison 2",
+    "fileCode": "bxadwnawsquh",
+    "lien": "https://u14.vidzy.cc/v/05/00053/ud4bzishwbo3_n/Found.2023.S02E13.MULTi.1080p.WEB.DDP5.1.H264-BraD.mp4?t=aC8TdNAWzwJSsAbRpwdLYVDFdfX_obsxlWT0hM7cZA0&s=1784134565&e=172800&f=265452&sp=1000&i=0.0",
+    "season": 2,
+    "episode": 13,
+    "totalSlots": "100",
+    "usedSlots": "74",
+    "uploadedAt": "2026-07-15T17:25:35.659Z",
+    "fldId": "1800142"
+  },
+  "found-saison-2_S02E14": {
+    "titre": "Found - Saison 2",
+    "fileCode": "roy53t52qfv2",
+    "lien": "https://u14.vidzy.cc/v/03/00053/5lnzhv5pzr71_n/Found.2023.S02E14.FRENCH.1080p.WEB.DDP5.1.H265-BraD.mp4?t=5cAGwn8JDi9fVatpMAlOHIWq-iXR9-WYMgWy5YroDS8&s=1784134582&e=172800&f=265944&sp=1000&i=0.0",
+    "season": 2,
+    "episode": 14,
+    "totalSlots": "100",
+    "usedSlots": "75",
+    "uploadedAt": "2026-07-15T17:25:36.063Z",
+    "fldId": "1800142"
+  },
+  "found-saison-2_S02E15": {
+    "titre": "Found - Saison 2",
+    "fileCode": "iuawognpjv9f",
+    "lien": "https://u14.vidzy.cc/v/02/00053/l182f11o1zeb_n/Found.2023.S02E15.MULTi.1080p.WEB.DDP5.1.H264-BraD.mp4?t=PAOoi3e5tj1rgm12iCu9X-lLSDv-2pa30EYsYwQwdBA&s=1784134605&e=172800&f=266348&sp=1000&i=0.0",
+    "season": 2,
+    "episode": 15,
+    "totalSlots": "100",
+    "usedSlots": "76",
+    "uploadedAt": "2026-07-15T17:25:36.381Z",
+    "fldId": "1800142"
+  },
+  "found-saison-2_S02E16": {
+    "titre": "Found - Saison 2",
+    "fileCode": "r4s9047qbl2i",
+    "lien": "https://u14.vidzy.cc/v/04/00053/xep8scohf78g_n/Found.2023.S02E16.MULTi.1080p.WEB.DDP5.1.H264-BraD.mp4?t=_ITPaWiK3n58OhU1JOmo_1ceAZys1e5HnYKigE9KKTk&s=1784134616&e=172800&f=267102&sp=1000&i=0.0",
+    "season": 2,
+    "episode": 16,
+    "totalSlots": "100",
+    "usedSlots": "77",
+    "uploadedAt": "2026-07-15T17:25:36.910Z",
+    "fldId": "1800142"
+  },
+  "found-saison-2_S02E17": {
+    "titre": "Found - Saison 2",
+    "fileCode": "uwwzrac8ea92",
+    "lien": "https://u14.vidzy.cc/v/01/00053/5imxs22v30bk_n/Found.2023.S02E17.MULTi.1080p.WEB.DDP5.1.H265-BraD.mp4?t=TjE8pchmvM8yHi48r9_-0RUVZz-XQfVdtFMI7pWfaqg&s=1784134635&e=172800&f=267780&sp=1000&i=0.0",
+    "season": 2,
+    "episode": 17,
+    "totalSlots": "100",
+    "usedSlots": "78",
+    "uploadedAt": "2026-07-15T17:25:37.221Z",
+    "fldId": "1800142"
+  },
+  "found-saison-2_S02E18": {
+    "titre": "Found - Saison 2",
+    "fileCode": "nahjdnvj4yv6",
+    "lien": "https://u14.vidzy.cc/v/02/00053/70k6nxo9c5ie_n/Found.2023.S02E18.MULTi.1080p.WEB.DDP5.1.H264-BraD.mp4?t=EAWBZs9dDxWafxMQ8zY2yjUrD52p5iTyzwplJm0PzqI&s=1784134650&e=172800&f=267782&sp=1000&i=0.0",
+    "season": 2,
+    "episode": 18,
+    "totalSlots": "100",
+    "usedSlots": "79",
+    "uploadedAt": "2026-07-15T17:25:37.533Z",
+    "fldId": "1800142"
+  },
+  "found-saison-2_S02E19": {
+    "titre": "Found - Saison 2",
+    "fileCode": "srkoauo7zeuf",
+    "lien": "https://u14.vidzy.cc/v/06/00054/jjec3d3kpggf_n/Found.2023.S02E19.MULTi.1080p.WEB.DDP5.1.H265-BraD.mp4?t=qN54OJ32JqqnCtyv5QZoyj8Kb6v7z2M4k0eQK9e-jEk&s=1784134667&e=172800&f=270737&sp=1000&i=0.0",
+    "season": 2,
+    "episode": 19,
+    "totalSlots": "100",
+    "usedSlots": "80",
+    "uploadedAt": "2026-07-15T17:25:37.844Z",
+    "fldId": "1800142"
+  },
+  "dr-amy-saison-2_S02E01": {
+    "titre": "Dr Amy - Saison 2",
+    "fileCode": "vyxbj70yndub",
+    "lien": "https://u14.vidzy.cc/v/07/00048/qb0glunq5go7_n/Doc.2025.S02E01.MULTi.1080p.WEB.DDP5.1.H264-BraD.mp4?t=qAn0ahXkT6Qd1lPXfBdDAn4lWxLyTNCFnL9oKpOFGwg&s=1784134725&e=172800&f=243710&sp=1000&i=0.0",
+    "season": 2,
+    "episode": 1,
+    "totalSlots": "100",
+    "usedSlots": "81",
+    "uploadedAt": "2026-07-15T17:25:38.448Z",
+    "fldId": "1800144"
+  },
+  "dr-amy-saison-2_S02E02": {
+    "titre": "Dr Amy - Saison 2",
+    "fileCode": "hhfw6xaoaarr",
+    "lien": "https://u14.vidzy.cc/v/04/00053/hel2j4oz8kok_n/Doc.2025.S02E02.MULTi.1080p.WEB.DDP5.1.H264-BraD.mp4?t=RHpQAyNET4WS-PdbtFAmTHZ2k8eMxaFtMl2G5zCZGEE&s=1784134742&e=172800&f=265013&sp=1000&i=0.0",
+    "season": 2,
+    "episode": 2,
+    "totalSlots": "100",
+    "usedSlots": "82",
+    "uploadedAt": "2026-07-15T17:25:38.944Z",
+    "fldId": "1800144"
+  },
+  "dr-amy-saison-2_S02E03": {
+    "titre": "Dr Amy - Saison 2",
+    "fileCode": "j44009r29ych",
+    "lien": "https://u14.vidzy.cc/v/05/00053/7gdnrp14m1vc_n/Doc.2025.S02E03.MULTi.1080p.WEB.DDP5.1.H264-BraD.mp4?t=PCYC_IjXLXAm6lD4Q2YJIgTfiwniDFQSgeV1qCCIh7Y&s=1784134760&e=172800&f=265012&sp=1000&i=0.0",
+    "season": 2,
+    "episode": 3,
+    "totalSlots": "100",
+    "usedSlots": "83",
+    "uploadedAt": "2026-07-15T17:25:39.351Z",
+    "fldId": "1800144"
+  },
+  "dr-amy-saison-2_S02E04": {
+    "titre": "Dr Amy - Saison 2",
+    "fileCode": "ig749icstn43",
+    "lien": "https://u14.vidzy.cc/v/01/00053/j19t08ih33x1_n/Doc.2025.S02E04.RATED.FRENCH.1080p.WEB.H264-BraD.mp4?t=1qa3qfLtRm3jkm13QUPIwtEsvhZlODAIWrXyaGBFHSI&s=1784134777&e=172800&f=267458&sp=1000&i=0.0",
+    "season": 2,
+    "episode": 4,
+    "totalSlots": "100",
+    "usedSlots": "84",
+    "uploadedAt": "2026-07-15T17:25:39.664Z",
+    "fldId": "1800144"
+  },
+  "dr-amy-saison-2_S02E05": {
+    "titre": "Dr Amy - Saison 2",
+    "fileCode": "ov2ppkmgb4mo",
+    "lien": "https://u14.vidzy.cc/v/05/00054/gdtunrg6hml9_n/Doc.2025.S02E05.MULTi.1080p.WEB.DDP5.1.H265-BraD.mp4?t=a4P03zK9PJ5uahaZSfTpmpHHyLbP8mQmr0r85iHOGCY&s=1784134794&e=172800&f=270738&sp=1000&i=0.0",
+    "season": 2,
+    "episode": 5,
+    "totalSlots": "100",
+    "usedSlots": "85",
+    "uploadedAt": "2026-07-15T17:25:40.258Z",
+    "fldId": "1800144"
+  },
+  "the-agency-saison-2_S02E02": {
+    "titre": "The Agency - Saison 2",
+    "fileCode": "9cby3rflk4o2",
+    "lien": "https://u14.vidzy.cc/v/02/00052/y6krscf2qqay_n/The.Agency.2024.S02E01.Kick.the.Wasps.Nest.VOSTFR.1080p.PMTP.WEB-DL.DD5.1.x264-NEWT[NATSU].mp4?t=RI5X9ftdr1r3Gwmfq5F3tkQdZGd92_kQt8AcX2hSr-Y&s=1784134864&e=172800&f=264462&sp=1000&i=0.0",
+    "season": 2,
+    "episode": 2,
+    "totalSlots": "100",
+    "usedSlots": "86",
+    "uploadedAt": "2026-07-15T17:25:40.702Z",
+    "fldId": "1800146"
+  },
+  "the-agency-saison-2_S02E03": {
+    "titre": "The Agency - Saison 2",
+    "fileCode": "ea06w6bqn5ad",
+    "lien": "https://u14.vidzy.cc/v/02/00053/afih0zcmhcfi_n/The.Agency.2024.S02E03.1080p.10bit.WEBRip.6CH.x265.HEVC-PSA_(1).mp4?t=Jv88obnYN3pgCy-Znfmj6SZONiKuNuj2qavdulV9v0E&s=1784134898&e=172800&f=266298&sp=1000&i=0.0",
+    "season": 2,
+    "episode": 3,
+    "totalSlots": "100",
+    "usedSlots": "87",
+    "uploadedAt": "2026-07-15T17:25:41.100Z",
+    "fldId": "1800146"
+  },
+  "the-agency-saison-2_S02E04": {
+    "titre": "The Agency - Saison 2",
+    "fileCode": "k7jlvhdjgifb",
+    "lien": "https://u14.vidzy.cc/v/08/00053/zfc8vp6b3dho_n/The.Agency.2024.S02E04.Dead.End.1080p.AMZN.WEB-DL.DD5.1.H.264-playWEB.mp4?t=a0_A-Ys-Y-N1_xSWOGNwfS34_F6WjxmygyeAmwL1Xyo&s=1784134915&e=172800&f=266299&sp=1000&i=0.0",
+    "season": 2,
+    "episode": 4,
+    "totalSlots": "100",
+    "usedSlots": "88",
+    "uploadedAt": "2026-07-15T17:25:41.420Z",
+    "fldId": "1800146"
+  },
+  "the-agency-saison-2_S02E05": {
+    "titre": "The Agency - Saison 2",
+    "fileCode": "v2w4mw0uffbc",
+    "lien": "https://u14.vidzy.cc/v/04/00053/roywjhgii84l_n/The.Agency.2024.S02E05.Out.Cold.1080p.AMZN.WEB-DL.DD5.1.H.264-playWEB.mp4?t=5nOvsnsHyLS9cJ98OiCv58yYiPfurmYRE4bK5S1lcow&s=1784134932&e=172800&f=268280&sp=1000&i=0.0",
+    "season": 2,
+    "episode": 5,
+    "totalSlots": "100",
+    "usedSlots": "89",
+    "uploadedAt": "2026-07-15T17:25:42.030Z",
+    "fldId": "1800146"
+  },
+  "the-agency-saison-2_S02E06": {
+    "titre": "The Agency - Saison 2",
+    "fileCode": "dbc5mb9e695p",
+    "lien": "https://u14.vidzy.cc/v/04/00053/ss0bcv4uisr7_n/The.Agency.2024.S02E06.Officially.a.Ghost.1080p.AMZN.WEB-DL.DD5.1.H.264-playWEB.mp4?t=YNMjVEq1GRp1_Tdst1P0ITrQftOZ1vwT6zugw9ZYRSU&s=1784134949&e=172800&f=268279&sp=1000&i=0.0",
+    "season": 2,
+    "episode": 6,
+    "totalSlots": "100",
+    "usedSlots": "90",
+    "uploadedAt": "2026-07-15T17:25:42.545Z",
+    "fldId": "1800146"
+  },
+  "the-agency-saison-2_S02E07": {
+    "titre": "The Agency - Saison 2",
+    "fileCode": "7gieog747rdz",
+    "lien": "https://u14.vidzy.cc/v/08/00054/yt1w4ioimbj0_n/The.Agency.2024.S02E07.Drown.Him.Then.Throw.Him.a.Lifejacket.VOSTFR.1080p.PMTP.WEB-DL.DD5.1.x264-NEWT[NATSU].mp4?t=TPcNzhzzoYaIzjxinrMd5frNgB7Or1CAoYAv3adErLk&s=1784134966&e=172800&f=270659&sp=1000&i=0.0",
+    "season": 2,
+    "episode": 7,
+    "totalSlots": "100",
+    "usedSlots": "91",
+    "uploadedAt": "2026-07-15T17:25:42.863Z",
+    "fldId": "1800146"
+  },
+  "the-agency-saison-2_S02E08": {
+    "titre": "The Agency - Saison 2",
+    "fileCode": "dwx5s6pyovud",
+    "lien": "https://u14.vidzy.cc/v/03/00054/rv3ucqhlsdt5_n/The.Agency.2024.S02E08.False.Flag.Attack.VOSTFR.1080p.PMTP.WEB-DL.DD5.1.x264-NEWT[NATSU].mp4?t=_F4THCFjJ6YUyXgATYhumltyOaRcGAKkwhWyf5zIPzI&s=1784134983&e=172800&f=270663&sp=1000&i=0.0",
+    "season": 2,
+    "episode": 8,
+    "totalSlots": "100",
+    "usedSlots": "92",
+    "uploadedAt": "2026-07-15T17:25:43.366Z",
+    "fldId": "1800146"
+  },
+  "the-agency-saison-2_S02E09": {
+    "titre": "The Agency - Saison 2",
+    "fileCode": "iwy8f093oble",
+    "lien": "https://u14.vidzy.cc/v/02/00054/l1g2uok10bl4_n/The.Agency.2024.S02E09.Rogue.Cell.VOSTFR.1080p.PMTP.WEB-DL.DD5.1.x264-NEWT[NATSU].mp4?t=i3TXYAa_YpNbvZHlUXU1hJMuH0ootxqXM-dbOqvWOkc&s=1784135000&e=172800&f=270664&sp=1000&i=0.0",
+    "season": 2,
+    "episode": 9,
+    "totalSlots": "100",
+    "usedSlots": "93",
+    "uploadedAt": "2026-07-15T17:25:43.773Z",
+    "fldId": "1800146"
+  },
+  "the-agency-saison-2_S02E10": {
+    "titre": "The Agency - Saison 2",
+    "fileCode": "bb57np3ieuh1",
+    "lien": "https://u14.vidzy.cc/v/03/00054/9rskbym4r4ni_n/The.Agency.2024.S02E10.FiNAL.King.Sacrifice.VOSTFR.1080p.PMTP.WEB-DL.DD5.1.x264-NEWT[NATSU].mp4?t=R8gmdItWvgltrS9gJl3uH4WY_eTJ0UUvpzQOOyvNsR8&s=1784135018&e=172800&f=270675&sp=1000&i=0.0",
+    "season": 2,
+    "episode": 10,
+    "totalSlots": "100",
+    "usedSlots": "94",
+    "uploadedAt": "2026-07-15T17:25:44.187Z",
+    "fldId": "1800146"
+  },
+  "trion-saison-1_S01E01": {
+    "titre": "Trion - Saison 1",
+    "fileCode": "v766bm40ickd",
+    "lien": "https://u14.vidzy.cc/v/02/00053/zh1f0w7wf4hf_n/Trion.S01E01.VOSTFR.1080p.AMZN.WEB-DL.DDP5.1.H264-RAWR.mp4?t=w8V0iOMpxmemLiHicf_HYleM7biokBAS8W1IQuWWs3E&s=1784135074&e=172800&f=268232&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 1,
+    "totalSlots": "100",
+    "usedSlots": "95",
+    "uploadedAt": "2026-07-15T17:25:44.590Z",
+    "fldId": "1800148"
+  },
+  "trion-saison-1_S01E02": {
+    "titre": "Trion - Saison 1",
+    "fileCode": "zhpndpmevn8l",
+    "lien": "https://u14.vidzy.cc/v/01/00053/fwcc0y20aly5_n/Trion.S01E02.VOSTFR.1080p.AMZN.WEB-DL.DDP5.1.H264-RAWR.mp4?t=adL3Ddokb_d3yktIFouL--vmhvcVy9M_aKEQhCAaUFw&s=1784135091&e=172800&f=268626&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 2,
+    "totalSlots": "100",
+    "usedSlots": "96",
+    "uploadedAt": "2026-07-15T17:25:44.905Z",
+    "fldId": "1800148"
+  },
+  "trion-saison-1_S01E03": {
+    "titre": "Trion - Saison 1",
+    "fileCode": "ua5kirkmi6mg",
+    "lien": "https://u14.vidzy.cc/v/08/00054/u9bgtht58csb_n/Trion.S01E03.VOSTFR.1080p.AMZN.WEB-DL.DDP5.1.H264-RAWR.mp4?t=c4Rl8Ws4RvF09-ACYY7QkGPa4KEYiE2_P9He72iyX_4&s=1784135108&e=172800&f=270341&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 3,
+    "totalSlots": "100",
+    "usedSlots": "97",
+    "uploadedAt": "2026-07-15T17:25:45.304Z",
+    "fldId": "1800148"
+  },
+  "trion-saison-1_S01E04": {
+    "titre": "Trion - Saison 1",
+    "fileCode": "63trk2inluod",
+    "lien": "https://u14.vidzy.cc/v/05/00054/7dgj0l5tz0g6_n/Trion.S01E04.VOSTFR.1080p.AMZN.WEB-DL.DDP5.1.H264-RAWR.mp4?t=1AzaUywOMRkunmQly00sBFdgi_cCCPr4997-4oanEao&s=1784135125&e=172800&f=270340&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 4,
+    "totalSlots": "100",
+    "usedSlots": "98",
+    "uploadedAt": "2026-07-15T17:25:45.618Z",
+    "fldId": "1800148"
+  },
+  "trion-saison-1_S01E05": {
+    "titre": "Trion - Saison 1",
+    "fileCode": "9x95lvtfn85t",
+    "lien": "https://u14.vidzy.cc/v/03/00054/r5v2ltpy66am_n/Trion.S01E05.1080p.AMZN.WEB-DL.DDP5.1.H264-RAWR.mp4?t=MtJisJzMtPHxyeyX4VEoJu_vFuQ9IHknbRFiZGjWJmM&s=1784135142&e=172800&f=270500&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 5,
+    "totalSlots": "100",
+    "usedSlots": "99",
+    "uploadedAt": "2026-07-15T17:25:46.033Z",
+    "fldId": "1800148"
+  },
+  "trion-saison-1_S01E06": {
+    "titre": "Trion - Saison 1",
+    "fileCode": "uddr3iy7woya",
+    "lien": "https://u14.vidzy.cc/v/03/00054/kct1n3couyh6_n/Trion.S01E06.1080p.AMZN.WEB-DL.DDP5.1.H264-RAWR.mp4?t=6dqvg4EWB3OPQW8kCX_0adXahA07wZAX2D7zm5i2-do&s=1784135159&e=172800&f=270501&sp=1000&i=0.0",
+    "season": 1,
+    "episode": 6,
+    "totalSlots": "100",
+    "usedSlots": "99",
+    "uploadedAt": "2026-07-15T17:25:46.347Z",
+    "fldId": "1800148"
   }
 }
