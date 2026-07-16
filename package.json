@@ -2,6 +2,20 @@
   "name": "chillers",
   "version": "0.1.0",
   "private": true,
+  "browserslist": {
+    "production": [
+      ">0.3%",
+      "not dead",
+      "not op_mini all",
+      "iOS >= 15",
+      "Safari >= 15"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
