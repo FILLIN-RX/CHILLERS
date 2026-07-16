@@ -10,8 +10,6 @@ import { MovieOrShow } from "@/app/mockData";
 import {
   ArrowLeftIcon,
   PlayIcon,
-  PlusIcon,
-  CheckIcon,
   StarIcon,
   ClockIcon,
   CalendarDaysIcon,
@@ -36,7 +34,6 @@ function MediaDetailPage() {
   const [item, setItem] = useState<MovieOrShow | null>(null);
   const [similar, setSimilar] = useState<MovieOrShow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isFavorite, setIsFavorite] = useState(false);
   const [trailerOpen, setTrailerOpen] = useState(false);
   const [trailerUrl, setTrailerUrl] = useState<string | null>(null);
   const [notification, setNotification] = useState<{ title: string; message: string } | null>(null);
@@ -69,21 +66,7 @@ function MediaDetailPage() {
 
   useEffect(() => {
     fetchData();
-    try {
-      const saved = JSON.parse(localStorage.getItem("chiller_favorites") || "[]");
-      setIsFavorite(saved.includes(id));
-    } catch (e) { /* ignore */ }
   }, [fetchData, id]);
-
-  const toggleFavorite = () => {
-    let saved: string[] = [];
-    try {
-      saved = JSON.parse(localStorage.getItem("chiller_favorites") || "[]");
-    } catch (e) { /* ignore */ }
-    const next = saved.includes(id) ? saved.filter((f) => f !== id) : [...saved, id];
-    localStorage.setItem("chiller_favorites", JSON.stringify(next));
-    setIsFavorite(next.includes(id));
-  };
 
   const handleWatch = async () => {
     if (!isTV && item && !item.videoUrl) {
@@ -267,18 +250,6 @@ function MediaDetailPage() {
                   </button>
                 )}
 
-                <button
-                  onClick={toggleFavorite}
-                  className={`flex items-center gap-2 px-5 py-3 rounded-full font-bold text-sm transition-all hover:scale-105 border ${
-                    isFavorite
-                      ? "bg-[#D70466]/20 border-[#D70466]/50 text-[#D70466]"
-                      : "bg-white/10 border-white/20 text-white hover:bg-white/20"
-                  }`}
-                >
-                  {isFavorite ? <CheckIcon className="h-5 w-5" /> : <PlusIcon className="h-5 w-5" />}
-                  {isFavorite ? "Dans ma liste" : "Ma liste"}
-                </button>
-                
                 <button 
                   className={`flex items-center gap-2 px-5 py-3 rounded-full font-bold text-sm transition-all hover:scale-105 border ${
                     downloading
@@ -498,28 +469,11 @@ function MediaListingPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
-  const [favorites, setFavorites] = useState<string[]>([]);
 
   // Genre filter state
   const [genres, setGenres] = useState<Genre[]>([]);
   const [genresLoading, setGenresLoading] = useState(true);
   const [activeGenreId, setActiveGenreId] = useState<string | null>(null);
-
-  // Load favorites
-  useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem("chiller_favorites") || "[]");
-      setFavorites(saved);
-    } catch { /* ignore */ }
-  }, []);
-
-  const toggleFavorite = (id: string) => {
-    const next = favorites.includes(id)
-      ? favorites.filter((f) => f !== id)
-      : [...favorites, id];
-    setFavorites(next);
-    localStorage.setItem("chiller_favorites", JSON.stringify(next));
-  };
 
   // Fetch genres depending on content type
   useEffect(() => {
@@ -661,8 +615,6 @@ function MediaListingPage() {
                   variant="grid"
                   onPlay={(i) => router.push(`/media/${i.id}?type=${i.type === "series" || i.type === "anime" ? "tv" : "movie"}`)}
                   onOpenDetails={(i) => router.push(`/media/${i.id}?type=${i.type === "series" || i.type === "anime" ? "tv" : "movie"}`)}
-                  favorites={favorites}
-                  toggleFavorite={toggleFavorite}
                 />
               ))
           }

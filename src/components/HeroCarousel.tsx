@@ -3,15 +3,13 @@
 import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { MovieOrShow } from "@/app/mockData";
-import { PlayIcon, PauseIcon, PlusIcon, CheckIcon, ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/solid";
+import { PlayIcon, PauseIcon, ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/solid";
 import { StarIcon } from "@heroicons/react/24/solid";
 
 interface HeroCarouselProps {
   slides: MovieOrShow[];
   onWatchNow: (movie: MovieOrShow) => void;
   onOpenDetails: (movie: MovieOrShow) => void;
-  favorites: string[];
-  toggleFavorite: (id: string) => void;
   slideTimings?: number[];
 }
 
@@ -19,8 +17,6 @@ export default function HeroCarousel({
   slides,
   onWatchNow,
   onOpenDetails,
-  favorites,
-  toggleFavorite,
   slideTimings,
 }: HeroCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -115,7 +111,6 @@ export default function HeroCarousel({
         style={{ transform: `translateX(-${currentIndex * 100}%)` }}
       >
         {slides.map((slide, index) => {
-          const isFavorite = favorites.includes(slide.id);
           const isActive = index === currentIndex;
 
           return (
@@ -224,27 +219,6 @@ export default function HeroCarousel({
                     >
                       <PlayIcon className="h-4 w-4 sm:h-5 sm:w-5" />
                       Watch Now
-                    </button>
-
-                    <button
-                      onClick={() => toggleFavorite(slide.id)}
-                      className={`flex items-center gap-2 rounded-full px-4 sm:px-5 py-2.5 sm:py-3 font-semibold text-sm transition-all duration-300 border backdrop-blur-sm hover:scale-105 cursor-pointer ${
-                        isFavorite
-                          ? "bg-zinc-850 text-brand-primary border-brand-primary/45"
-                          : "bg-white/10 text-white border-white/10 hover:bg-white/20"
-                      }`}
-                    >
-                      {isFavorite ? (
-                        <>
-                          <CheckIcon className="h-4 w-4 sm:h-5 sm:w-5" />
-                          <span className="hidden sm:inline">In Favorites</span>
-                        </>
-                      ) : (
-                        <>
-                          <PlusIcon className="h-4 w-4 sm:h-5 sm:w-5" />
-                          <span className="hidden sm:inline">Add to Favorites</span>
-                        </>
-                      )}
                     </button>
 
                     <button

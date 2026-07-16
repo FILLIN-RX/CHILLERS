@@ -4,14 +4,12 @@ import React, { useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { MovieOrShow } from "@/app/mockData";
-import { PlayIcon, PlusIcon, CheckIcon, StarIcon, InformationCircleIcon } from "@heroicons/react/24/solid";
+import { PlayIcon, StarIcon, InformationCircleIcon } from "@heroicons/react/24/solid";
 
 interface MovieCardProps {
   item: MovieOrShow;
   onPlay: (item: MovieOrShow) => void;
   onOpenDetails: (item: MovieOrShow) => void;
-  favorites: string[];
-  toggleFavorite: (id: string) => void;
   /** "scroll" = fixed width for horizontal rows, "grid" = w-full for grid pages */
   variant?: "scroll" | "grid";
 }
@@ -20,12 +18,9 @@ export default function MovieCard({
   item,
   onPlay,
   onOpenDetails,
-  favorites,
-  toggleFavorite,
   variant = "scroll",
 }: MovieCardProps) {
   const [isHovered, setIsHovered] = useState(false);
-  const isFavorite = favorites.includes(item.id);
   const router = useRouter();
 
   const goToDetail = () => {
@@ -89,25 +84,6 @@ export default function MovieCard({
               aria-label="Lire"
             >
               <PlayIcon className="h-5 w-5 translate-x-0.5" />
-            </button>
-
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleFavorite(item.id);
-              }}
-              className={`flex h-9 w-9 items-center justify-center rounded-full border backdrop-blur-sm transition-colors cursor-pointer ${
-                isFavorite
-                  ? "bg-zinc-800/50 text-brand-primary border-brand-primary/40"
-                  : "bg-white/10 text-white border-white/20 hover:bg-white/20"
-              }`}
-              aria-label={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
-            >
-              {isFavorite ? (
-                <CheckIcon className="h-5 w-5" />
-              ) : (
-                <PlusIcon className="h-5 w-5" />
-              )}
             </button>
 
             <button

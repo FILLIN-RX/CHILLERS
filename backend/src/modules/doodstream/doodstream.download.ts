@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import axios from 'axios';
 import { listFiles, getFileDownloadUrl } from './doodstream.service';
+import tmdbClient from '../../config/tmdb';
 
 const UPLOADED_PATH = path.join(__dirname, '../../../uploaded.json');
 const SERIES_OUTPUT_PATH = path.join(__dirname, '../../../series-output.json');
@@ -17,14 +18,32 @@ function parseSeasonEpisode(filename: string): { season: number; episode: number
   return null;
 }
 
+let cachedUploadedFiles: Record<string, any> | null = null;
+let lastCacheTime = 0;
+const CACHE_TTL = 30 * 1000; // 30 seconds
+
 function getUploadedFiles(): Record<string, any> {
+  const now = Date.now();
+  if (cachedUploadedFiles && (now - lastCacheTime < CACHE_TTL)) {
+    return cachedUploadedFiles;
+  }
   const all: Record<string, any> = {};
   if (fs.existsSync(UPLOADED_PATH)) {
-    Object.assign(all, JSON.parse(fs.readFileSync(UPLOADED_PATH, 'utf-8')));
+    try {
+      Object.assign(all, JSON.parse(fs.readFileSync(UPLOADED_PATH, 'utf-8')));
+    } catch (e) {
+      console.error('Error reading UPLOADED_PATH:', e);
+    }
   }
   if (fs.existsSync(SERIES_OUTPUT_PATH)) {
-    Object.assign(all, JSON.parse(fs.readFileSync(SERIES_OUTPUT_PATH, 'utf-8')));
+    try {
+      Object.assign(all, JSON.parse(fs.readFileSync(SERIES_OUTPUT_PATH, 'utf-8')));
+    } catch (e) {
+      console.error('Error reading SERIES_OUTPUT_PATH:', e);
+    }
   }
+  cachedUploadedFiles = all;
+  lastCacheTime = now;
   return all;
 }
 
@@ -255,7 +274,8 @@ export const proxyDownload = async (req: Request, res: Response, next: NextFunct
       'decompress': false,
     });
 
-    const upstreamType = (response.headers['content-type'] || '').toLowerCase();
+    const rawContentType = response.headers['content-type'];
+    const upstreamType = (typeof rawContentType === 'string' ? rawContentType : '').toLowerCase();
     const isHtml = upstreamType.includes('text/html') || upstreamType.includes('application/xhtml');
 
     if (isHtml) {
@@ -322,5 +342,140 @@ export const proxyStream = async (req: Request, res: Response, next: NextFunctio
     if (!res.headersSent) {
       res.status(502).json({ success: false, message: 'Stream unavailable' });
     }
+  }
+};
+
+export const getSeriesDownloadCheck = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { tmdb_id } = req.query as Record<string, string>;
+
+    if (!tmdb_id) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: 'Missing ?tmdb_id= param',
+      });
+    }
+
+    const tmdbIdNum = Number(tmdb_id);
+    if (isNaN(tmdbIdNum)) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: 'Invalid tmdb_id',
+      });
+    }
+
+    // 1. Fetch TV series details from TMDB to get all seasons and episode counts
+    const tmdbRes = await tmdbClient.get(`/tv/${tmdbIdNum}`);
+    const seriesData = tmdbRes.data;
+
+    if (!seriesData || !seriesData.seasons) {
+      return res.status(404).json({
+        success: false,
+        data: null,
+        message: 'Series not found on TMDB',
+      });
+    }
+
+    // 2. Build the list of expected episodes (skip season 0 = specials)
+    const expectedEpisodes: { season: number; episode: number }[] = [];
+    for (const season of seriesData.seasons) {
+      const seasonNum = season.season_number;
+      if (seasonNum === 0 || !season.episode_count) continue;
+
+      for (let epNum = 1; epNum <= season.episode_count; epNum++) {
+        expectedEpisodes.push({ season: seasonNum, episode: epNum });
+      }
+    }
+
+    // 3. Check each episode against the local JSON database
+    const uploaded = getUploadedFiles();
+    const missing: { season: number; episode: number }[] = [];
+    const found: { season: number; episode: number; fileCode: string; downloadUrl: string | null }[] = [];
+
+    for (const ep of expectedEpisodes) {
+      let match: { fileCode: string; info: any } | null = null;
+
+      for (const key of Object.keys(uploaded)) {
+        const file = uploaded[key];
+        if (
+          file.tmdbId &&
+          Number(file.tmdbId) === tmdbIdNum &&
+          file.season === ep.season &&
+          file.episode === ep.episode
+        ) {
+          match = { fileCode: file.fileCode, info: file };
+          break;
+        }
+      }
+
+      if (!match) {
+        // Fallback: try DoodStream folder listing via the existing helper
+        try {
+          match = await findByFolderFallback(tmdbIdNum, ep.season, ep.episode);
+        } catch {
+          // ignore
+        }
+      }
+
+      if (match) {
+        let downloadUrl: string | null = null;
+        const storedLien = match.info?.lien;
+        const isDirectUrl =
+          !!storedLien &&
+          !/doodstream\.com\/e\//i.test(storedLien) &&
+          !/doodstream\.com\/d\//i.test(storedLien);
+
+        if (isDirectUrl) {
+          downloadUrl = storedLien;
+        } else if (match.fileCode) {
+          try {
+            const apiUrl = await getFileDownloadUrl(match.fileCode);
+            if (apiUrl && !/doodstream\.com\/e\//i.test(apiUrl)) {
+              downloadUrl = apiUrl;
+            }
+          } catch {
+            // API unavailable
+          }
+        }
+
+        found.push({
+          season: ep.season,
+          episode: ep.episode,
+          fileCode: match.fileCode,
+          downloadUrl,
+        });
+      } else {
+        missing.push({ season: ep.season, episode: ep.episode });
+      }
+    }
+
+    // 4. If any episodes are missing, block the download
+    if (missing.length > 0) {
+      return res.json({
+        success: false,
+        data: {
+          missing,
+          found: found.length,
+          total: expectedEpisodes.length,
+          seriesTitle: seriesData.name || seriesData.title || null,
+        },
+        message: `Série incomplète : ${missing.length} épisode(s) manquant(s)`,
+      });
+    }
+
+    // 5. All episodes found — return their download URLs
+    return res.json({
+      success: true,
+      data: {
+        episodes: found,
+        total: found.length,
+        seriesTitle: seriesData.name || seriesData.title || null,
+      },
+      message: null,
+    });
+  } catch (error) {
+    next(error);
   }
 };

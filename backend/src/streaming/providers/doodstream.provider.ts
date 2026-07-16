@@ -6,14 +6,32 @@ import { getFileDownloadUrl, listFiles } from '../../modules/doodstream/doodstre
 const UPLOADED_PATH = path.join(__dirname, '../../../uploaded.json');
 const SERIES_OUTPUT_PATH = path.join(__dirname, '../../../series-output.json');
 
+let cachedUploadedFiles: Record<string, any> | null = null;
+let lastCacheTime = 0;
+const CACHE_TTL = 30 * 1000; // 30 seconds
+
 function getUploadedFiles(): Record<string, any> {
+  const now = Date.now();
+  if (cachedUploadedFiles && (now - lastCacheTime < CACHE_TTL)) {
+    return cachedUploadedFiles;
+  }
   const all: Record<string, any> = {};
   if (fs.existsSync(UPLOADED_PATH)) {
-    Object.assign(all, JSON.parse(fs.readFileSync(UPLOADED_PATH, 'utf-8')));
+    try {
+      Object.assign(all, JSON.parse(fs.readFileSync(UPLOADED_PATH, 'utf-8')));
+    } catch (e) {
+      console.error('Error reading UPLOADED_PATH:', e);
+    }
   }
   if (fs.existsSync(SERIES_OUTPUT_PATH)) {
-    Object.assign(all, JSON.parse(fs.readFileSync(SERIES_OUTPUT_PATH, 'utf-8')));
+    try {
+      Object.assign(all, JSON.parse(fs.readFileSync(SERIES_OUTPUT_PATH, 'utf-8')));
+    } catch (e) {
+      console.error('Error reading SERIES_OUTPUT_PATH:', e);
+    }
   }
+  cachedUploadedFiles = all;
+  lastCacheTime = now;
   return all;
 }
 

@@ -4,15 +4,13 @@ import React, { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { MovieOrShow, Season, Episode } from "@/app/mockData";
 import { getSeasonDetails } from "@/app/api";
-import { XMarkIcon, PlayIcon, PlusIcon, CheckIcon, StarIcon, ChevronDownIcon } from "@heroicons/react/24/solid";
+import { XMarkIcon, PlayIcon, StarIcon } from "@heroicons/react/24/solid";
 
 interface MovieModalProps {
   item: MovieOrShow | null;
   isOpen: boolean;
   onClose: () => void;
   onWatch: (item: MovieOrShow, episode?: Episode) => void;
-  favorites: string[];
-  toggleFavorite: (id: string) => void;
   onOpenDetails: (item: MovieOrShow) => void;
 }
 
@@ -21,8 +19,6 @@ export default function MovieModal({
   isOpen,
   onClose,
   onWatch,
-  favorites,
-  toggleFavorite,
   onOpenDetails,
 }: MovieModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
@@ -64,8 +60,6 @@ export default function MovieModal({
   };
 
   if (!isOpen || !item) return null;
-
-  const isFavorite = favorites.includes(item.id);
 
   // Close modal when clicking outside
   const handleOverlayClick = (e: React.MouseEvent) => {
@@ -138,27 +132,6 @@ export default function MovieModal({
               >
                 <PlayIcon className="h-5 w-5" />
                 Watch Now
-              </button>
-
-              <button
-                onClick={() => toggleFavorite(item.id)}
-                className={`flex items-center gap-2 rounded-full px-5 py-2.5 font-bold text-sm transition-all border backdrop-blur-sm cursor-pointer ${
-                  isFavorite
-                    ? "bg-zinc-800/40 text-brand-primary border-brand-primary/30"
-                    : "bg-white/5 text-white border-white/10 hover:bg-white/10"
-                }`}
-              >
-                {isFavorite ? (
-                  <>
-                    <CheckIcon className="h-5 w-5" />
-                    In Favorites
-                  </>
-                ) : (
-                  <>
-                    <PlusIcon className="h-5 w-5" />
-                    Add to Favorites
-                  </>
-                )}
               </button>
             </div>
 

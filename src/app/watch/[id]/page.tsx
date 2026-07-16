@@ -12,6 +12,7 @@ import {
   getPopularTV,
   startDownload,
   triggerDownload,
+  checkSeriesDownloads,
 } from "@/app/api";
 import { MovieOrShow, Episode } from "@/app/mockData";
 import VideoPlayer from "@/components/VideoPlayer";
@@ -20,8 +21,6 @@ import MovieCard from "@/components/MovieCard";
 import {
   ArrowLeftIcon,
   PlayIcon,
-  PlusIcon,
-  CheckIcon,
   StarIcon,
   ClockIcon,
   CalendarDaysIcon,
@@ -47,7 +46,6 @@ function WatchContent() {
   const [streamUrl, setStreamUrl] = useState("");
   const [streamLoading, setStreamLoading] = useState(true);
   const [pageLoading, setPageLoading] = useState(true);
-  const [isFavorite, setIsFavorite] = useState(false);
 
   // ─── TV-specific state ──────────────────────────────────────────────────
   const [episodes, setEpisodes] = useState<Episode[]>([]);
@@ -59,20 +57,11 @@ function WatchContent() {
 
   // ─── UI feedback ────────────────────────────────────────────────────────
   const [downloading, setDownloading] = useState(false);
+  const [seriesDownloading, setSeriesDownloading] = useState(false);
   const [notification, setNotification] = useState<{ title: string; message: string } | null>(null);
 
   const playerRef = useRef<HTMLDivElement>(null);
   const currentEpisode = episodes[currentEpisodeIndex];
-
-  // ─── Load favorites from localStorage ───────────────────────────────────
-  useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem("chiller_favorites") || "[]");
-      setIsFavorite(saved.includes(id));
-    } catch {
-      /* ignore */
-    }
-  }, [id]);
 
   // ─── Fetch details + first stream in parallel ───────────────────────────
   useEffect(() => {
@@ -187,19 +176,6 @@ function WatchContent() {
     [episodes, id, item]
   );
 
-  // ─── Favorite toggle ────────────────────────────────────────────────────
-  const toggleFavorite = () => {
-    let saved: string[] = [];
-    try {
-      saved = JSON.parse(localStorage.getItem("chiller_favorites") || "[]");
-    } catch {
-      /* ignore */
-    }
-    const next = saved.includes(id) ? saved.filter((f) => f !== id) : [...saved, id];
-    localStorage.setItem("chiller_favorites", JSON.stringify(next));
-    setIsFavorite(next.includes(id));
-  };
-
   // ─── Download ───────────────────────────────────────────────────────────
   const handleDownload = async () => {
     setDownloading(true);
@@ -234,6 +210,62 @@ function WatchContent() {
       });
     } finally {
       setDownloading(false);
+    }
+  };
+
+  // ─── Series Download ──────────────────────────────────────────────────
+  const handleSeriesDownload = async () => {
+    if (!item) return;
+    setSeriesDownloading(true);
+    try {
+      const result = await checkSeriesDownloads(item.id);
+      if (!result.success) {
+        const missing = result.data?.missing;
+        let msg = 'Tous les épisodes sont disponibles.';
+        if (missing && missing.length > 0) {
+          msg = `Épisode(s) manquant(s) : ${missing.map((m: any) => `S${m.season}E${m.episode}`).join(', ')}`;
+        }
+        setNotification({
+          title: 'Téléchargement impossible',
+          message: result.message || msg,
+        });
+        return;
+      }
+
+      const episodes = result.data?.episodes || [];
+      if (episodes.length === 0) {
+        setNotification({
+          title: 'Aucun épisode',
+          message: 'Aucun épisode trouvé pour cette série.',
+        });
+        return;
+      }
+
+      // Download each episode with 800ms spacing
+      for (let i = 0; i < episodes.length; i++) {
+        const ep = episodes[i];
+        if (ep.downloadUrl) {
+          const filename = `${item.title}-S${String(ep.season).padStart(2, '0')}E${String(ep.episode).padStart(2, '0')}.mp4`;
+          triggerDownload(ep.downloadUrl, filename);
+        }
+        // Wait 800ms between downloads to avoid rate limiting
+        if (i < episodes.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 800));
+        }
+      }
+
+      setNotification({
+        title: 'Téléchargement lancé',
+        message: `${episodes.length} épisode(s) en cours de téléchargement.`,
+      });
+    } catch (err) {
+      console.error('Series download failed:', err);
+      setNotification({
+        title: 'Erreur technique',
+        message: 'Une erreur est survenue lors du téléchargement de la série.',
+      });
+    } finally {
+      setSeriesDownloading(false);
     }
   };
 
@@ -429,22 +461,6 @@ function WatchContent() {
           {/* ── Action row ──────────────────────────────────────────── */}
           <div className="flex flex-wrap gap-2 sm:gap-3 pt-1">
             <button
-              onClick={toggleFavorite}
-              className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-full font-bold text-xs sm:text-sm transition-all border ${
-                isFavorite
-                  ? "bg-brand-primary/20 border-brand-primary/50 text-brand-primary"
-                  : "bg-white/10 border-white/20 text-white hover:bg-white/20"
-              }`}
-            >
-              {isFavorite ? (
-                <CheckIcon className="h-4 w-4 sm:h-5 sm:w-5" />
-              ) : (
-                <PlusIcon className="h-4 w-4 sm:h-5 sm:w-5" />
-              )}
-              <span>{isFavorite ? "Dans ma liste" : "Ma liste"}</span>
-            </button>
-
-            <button
               onClick={handleDownload}
               disabled={downloading}
               className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-full font-bold text-xs sm:text-sm border transition-all ${
@@ -478,6 +494,43 @@ function WatchContent() {
               )}
               <span className="hidden sm:inline">Télécharger</span>
             </button>
+
+            {isTV && (
+              <button
+                onClick={handleSeriesDownload}
+                disabled={seriesDownloading}
+                className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-full font-bold text-xs sm:text-sm border transition-all ${
+                  seriesDownloading
+                    ? "bg-zinc-800 border-zinc-700 text-zinc-400 cursor-not-allowed"
+                    : "bg-white/10 border-white/20 text-white hover:bg-white/20"
+                }`}
+              >
+                {seriesDownloading ? (
+                  <svg
+                    className="animate-spin h-4 w-4 sm:h-5 sm:w-5"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                    />
+                  </svg>
+                ) : (
+                  <ArrowDownTrayIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                )}
+                <span className="hidden sm:inline">Télécharger toute la série</span>
+              </button>
+            )}
 
             <button
               onClick={handleShare}
@@ -559,8 +612,6 @@ function WatchContent() {
                       }`
                     )
                   }
-                  favorites={[]}
-                  toggleFavorite={() => {}}
                 />
               ))}
             </div>

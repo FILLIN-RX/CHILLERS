@@ -10,5 +10,36 @@ const tmdbClient = axios.create({
   },
 });
 
+// Simple in-memory cache for TMDB API calls (5 minutes TTL)
+interface CacheEntry {
+  data: any;
+  expiry: number;
+}
+
+const cache = new Map<string, CacheEntry>();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+const originalGet = tmdbClient.get;
+
+// Override axios.get to return cached data when available
+// @ts-ignore
+tmdbClient.get = async function (url: string, config?: any) {
+  const cacheKey = JSON.stringify({ url, params: config?.params });
+  const cached = cache.get(cacheKey);
+  const now = Date.now();
+
+  if (cached && cached.expiry > now) {
+    return { data: cached.data };
+  }
+
+  const response = await originalGet.call(this, url, config) as any;
+  cache.set(cacheKey, {
+    data: response.data,
+    expiry: Date.now() + CACHE_DURATION,
+  });
+
+  return response;
+};
+
 export default tmdbClient;
 

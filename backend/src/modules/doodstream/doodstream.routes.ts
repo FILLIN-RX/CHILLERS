@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import * as doodController from './doodstream.controller';
-import { getDownloadByTitle, proxyDownload, proxyStream } from './doodstream.download';
+import { getDownloadByTitle, proxyDownload, proxyStream, getSeriesDownloadCheck } from './doodstream.download';
 
 const router = Router();
 
@@ -33,5 +33,6 @@ router.get('/file/search', doodController.searchFiles);
 /* ── Series Episode Management ── */
 router.post('/series/episode', doodController.addSeriesEpisode);
 router.get('/series/episodes/:tmdbId', doodController.listSeriesEpisodes);
+router.get('/series/download-check', getSeriesDownloadCheck);
 
 export default router;

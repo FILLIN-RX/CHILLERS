@@ -51,9 +51,6 @@ function Home() {
   const [selectedMovie, setSelectedMovie] = useState<MovieOrShow | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Favorites / Watchlist state
-  const [favorites, setFavorites] = useState<string[]>([]);
-
   // Continue Watching History
   const [continueWatching, setContinueWatching] = useState<
     { item: MovieOrShow; progress: number; remaining: string; episodeName?: string }[]
@@ -69,19 +66,8 @@ function Home() {
   const [genreRows, setGenreRows] = useState<{ title: string; items: MovieOrShow[] }[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
 
-  // Load favorites & continue watching from localStorage on mount
+  // Load continue watching from localStorage on mount
   useEffect(() => {
-    // Load Favorites
-    const savedFavorites = localStorage.getItem("chiller_favorites");
-    if (savedFavorites) {
-      try {
-        setFavorites(JSON.parse(savedFavorites));
-      } catch (e) {
-        console.error("Failed to parse favorites", e);
-      }
-    }
-
-    // Load Continue Watching
     loadContinueWatchingHistory();
   }, []);
 
@@ -92,24 +78,41 @@ function Home() {
   ];
 
   // Home tab: charge trending + hero + genres + 3 genre rows
+  // Home tab: charge trending + hero + genres + 3 genre rows + series + anime
   const loadHomeData = useCallback(async () => {
     setIsLoadingData(true);
     try {
-      const [trending, trendingTV, popular] = await Promise.all([
-        getTrendingMovies(),
-        getTrendingTV(),
-        getPopularMovies(),
+      const fetchWithCatch = async <T,>(promise: Promise<T>, fallback: T): Promise<T> => {
+        try {
+          return await promise;
+        } catch (e) {
+          console.error("Failed fetching section:", e);
+          return fallback;
+        }
+      };
+
+      const [trending, trendingTV, popular, popularTV, anime, genreList] = await Promise.all([
+        fetchWithCatch(getTrendingMovies(), []),
+        fetchWithCatch(getTrendingTV(), []),
+        fetchWithCatch(getPopularMovies(), []),
+        fetchWithCatch(getPopularTV(), []),
+        fetchWithCatch(getAnimeSeries(), []),
+        fetchWithCatch(getMovieGenres(), []),
       ]);
+
       const allTrending = [...trending, ...trendingTV];
       if (allTrending.length > 0) setTrendingAll(allTrending);
-      if (popular.length > 0) setMoviesData(popular);
-      setHeroSlides(popular.slice(0, 5));
-
-      const [genreList, ...genreResults] = await Promise.all([
-        getMovieGenres(),
-        ...HOME_GENRES.map(g => getMoviesByGenre(g.id)),
-      ]);
+      if (popular.length > 0) {
+        setMoviesData(popular);
+        setHeroSlides(popular.slice(0, 5));
+      }
+      if (popularTV.length > 0) setSeriesData(popularTV);
+      if (anime.length > 0) setAnimeData(anime);
       if (genreList.length > 0) setGenres(genreList);
+
+      const genreResults = await Promise.all(
+        HOME_GENRES.map(g => fetchWithCatch(getMoviesByGenre(g.id), []))
+      );
       const rows = HOME_GENRES.map((g, i) => ({ title: g.title, items: genreResults[i] || [] }))
         .filter(r => r.items.length > 0);
       if (rows.length > 0) setGenreRows(rows);
@@ -189,16 +192,6 @@ function Home() {
     setContinueWatching(history.map(({ item, progress, remaining, episodeName }) => ({ item, progress, remaining, episodeName })));
   };
 
-  // Toggle Favorite Action
-  const toggleFavorite = (id: string) => {
-    const nextFavorites = favorites.includes(id)
-      ? favorites.filter((favId) => favId !== id)
-      : [...favorites, id];
-    
-    setFavorites(nextFavorites);
-    localStorage.setItem("chiller_favorites", JSON.stringify(nextFavorites));
-  };
-
   // Media triggers — open modal immediately, then enrich with full TMDB details in background
   const handleOpenDetails = async (item: MovieOrShow) => {
     setSelectedMovie(item);
@@ -242,8 +235,6 @@ function Home() {
                 slides={heroSlides}
                 onWatchNow={handleWatchNow}
                 onOpenDetails={handleOpenDetails}
-                favorites={favorites}
-                toggleFavorite={toggleFavorite}
                 slideTimings={[20000, 20000, 20000, 20000, 20000]}
               />
             )}
@@ -277,37 +268,106 @@ function Home() {
               
               {activeTab === "home" && (
                 <>
-                  {/* Row 1: Trending Movies & Shows */}
-                  <ScrollRow title="Trending Worldwide" accentColor="primary">
-                    {trendingAll.map((item) => (
-                      <MovieCard
-                        key={item.id}
-                        item={item}
-                        onPlay={handleWatchNow}
-                        onOpenDetails={handleOpenDetails}
-                        favorites={favorites}
-                        toggleFavorite={toggleFavorite}
-                      />
-                    ))}
-                  </ScrollRow>
+                  {isLoadingData ? (
+                    <>
+                      {/* Skeletons while loading */}
+                      <ScrollRow title="Trending Worldwide" accentColor="primary">
+                        {Array.from({ length: 6 }).map((_, i) => (
+                          <div
+                            key={`trending-sk-${i}`}
+                            className="flex-none w-[140px] sm:w-[180px] md:w-[220px] aspect-[2/3] rounded-xl sm:rounded-2xl bg-zinc-900/60 skeleton-loading border border-zinc-800/40"
+                          />
+                        ))}
+                      </ScrollRow>
 
-                  {/* Genre rows: Animation, Action, Romance */}
-                  {genreRows.map((row) => (
-                    <ScrollRow key={row.title} title={row.title} accentColor="secondary">
-                      {row.items.map((item) => (
-                        <MovieCard
-                          key={item.id}
-                          item={item}
-                          onPlay={handleWatchNow}
-                          onOpenDetails={handleOpenDetails}
-                          favorites={favorites}
-                          toggleFavorite={toggleFavorite}
-                        />
+                      <ScrollRow title="Popular TV Shows" accentColor="primary">
+                        {Array.from({ length: 6 }).map((_, i) => (
+                          <div
+                            key={`series-sk-${i}`}
+                            className="flex-none w-[140px] sm:w-[180px] md:w-[220px] aspect-[2/3] rounded-xl sm:rounded-2xl bg-zinc-900/60 skeleton-loading border border-zinc-800/40"
+                          />
+                        ))}
+                      </ScrollRow>
+
+                      <ScrollRow title="Anime Collection" accentColor="secondary">
+                        {Array.from({ length: 6 }).map((_, i) => (
+                          <div
+                            key={`anime-sk-${i}`}
+                            className="flex-none w-[140px] sm:w-[180px] md:w-[220px] aspect-[2/3] rounded-xl sm:rounded-2xl bg-zinc-900/60 skeleton-loading border border-zinc-800/40"
+                          />
+                        ))}
+                      </ScrollRow>
+
+                      {HOME_GENRES.map((g) => (
+                        <ScrollRow key={`genre-sk-${g.title}`} title={g.title} accentColor="secondary">
+                          {Array.from({ length: 6 }).map((_, i) => (
+                            <div
+                              key={`genre-item-sk-${g.id}-${i}`}
+                              className="flex-none w-[140px] sm:w-[180px] md:w-[220px] aspect-[2/3] rounded-xl sm:rounded-2xl bg-zinc-900/60 skeleton-loading border border-zinc-800/40"
+                            />
+                          ))}
+                        </ScrollRow>
                       ))}
-                    </ScrollRow>
-                  ))}
+                    </>
+                  ) : (
+                    <>
+                      {/* Row 1: Trending Worldwide */}
+                      {trendingAll.length > 0 && (
+                        <ScrollRow title="Trending Worldwide" accentColor="primary">
+                          {trendingAll.map((item) => (
+                            <MovieCard
+                              key={item.id}
+                              item={item}
+                              onPlay={handleWatchNow}
+                              onOpenDetails={handleOpenDetails}
+                            />
+                          ))}
+                        </ScrollRow>
+                      )}
 
+                      {/* Row 2: Popular TV Shows */}
+                      {seriesData.length > 0 && (
+                        <ScrollRow title="Popular TV Shows" accentColor="primary">
+                          {seriesData.map((item) => (
+                            <MovieCard
+                              key={item.id}
+                              item={item}
+                              onPlay={handleWatchNow}
+                              onOpenDetails={handleOpenDetails}
+                            />
+                          ))}
+                        </ScrollRow>
+                      )}
 
+                      {/* Row 3: Anime Collection */}
+                      {animeData.length > 0 && (
+                        <ScrollRow title="Anime Collection" accentColor="secondary">
+                          {animeData.map((item) => (
+                            <MovieCard
+                              key={item.id}
+                              item={item}
+                              onPlay={handleWatchNow}
+                              onOpenDetails={handleOpenDetails}
+                            />
+                          ))}
+                        </ScrollRow>
+                      )}
+
+                      {/* Genre rows: Animation, Action, Romance */}
+                      {genreRows.map((row) => (
+                        <ScrollRow key={row.title} title={row.title} accentColor="secondary">
+                          {row.items.map((item) => (
+                            <MovieCard
+                              key={item.id}
+                              item={item}
+                              onPlay={handleWatchNow}
+                              onOpenDetails={handleOpenDetails}
+                            />
+                          ))}
+                        </ScrollRow>
+                      ))}
+                    </>
+                  )}
                 </>
               )}
 
@@ -326,8 +386,6 @@ function Home() {
                         variant="grid"
                         onPlay={handleWatchNow}
                         onOpenDetails={handleOpenDetails}
-                        favorites={favorites}
-                        toggleFavorite={toggleFavorite}
                       />
                     ))}
                   </div>
@@ -349,8 +407,6 @@ function Home() {
                         variant="grid"
                         onPlay={handleWatchNow}
                         onOpenDetails={handleOpenDetails}
-                        favorites={favorites}
-                        toggleFavorite={toggleFavorite}
                       />
                     ))}
                   </div>
@@ -372,8 +428,6 @@ function Home() {
                         variant="grid"
                         onPlay={handleWatchNow}
                         onOpenDetails={handleOpenDetails}
-                        favorites={favorites}
-                        toggleFavorite={toggleFavorite}
                       />
                     ))}
                   </div>
@@ -395,8 +449,6 @@ function Home() {
                         variant="grid"
                         onPlay={handleWatchNow}
                         onOpenDetails={handleOpenDetails}
-                        favorites={favorites}
-                        toggleFavorite={toggleFavorite}
                       />
                     ))}
                   </div>
@@ -416,8 +468,6 @@ function Home() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onWatch={handleWatchNow}
-        favorites={favorites}
-        toggleFavorite={toggleFavorite}
         onOpenDetails={(movie) => {
           setSelectedMovie(movie); // navigate to new movie details in modal without reloads
         }}

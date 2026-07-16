@@ -1,7 +1,7 @@
 import { MovieOrShow } from "./mockData";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "/api";
-const FETCH_TIMEOUT = 15000;
+const FETCH_TIMEOUT = 45000;
 
 async function fetchWithTimeout(url: string, options?: RequestInit): Promise<Response> {
   const controller = new AbortController();
@@ -466,6 +466,24 @@ export async function startDownload(
     console.error('Error starting download:', error);
   }
   return null;
+}
+
+export async function checkSeriesDownloads(tmdbId: string): Promise<{
+  success: boolean;
+  data?: { missing?: { season: number; episode: number }[]; episodes?: { season: number; episode: number; fileCode: string; downloadUrl: string | null }[]; total?: number; seriesTitle?: string | null };
+  message?: string | null;
+}> {
+  try {
+    const res = await fetchWithTimeout(`${API_BASE_URL}/doodstream/series/download-check?tmdb_id=${tmdbId}`);
+    const json = await res.json();
+    if (json.success && json.data) {
+      return { success: true, data: json.data, message: json.message };
+    }
+    return { success: false, data: json.data || undefined, message: json.message || 'Série incomplète ou indisponible' };
+  } catch (error) {
+    console.error('Error checking series downloads:', error);
+    return { success: false, message: 'Erreur lors de la vérification de la série' };
+  }
 }
 
 export function triggerDownload(downloadUrl: string, filename: string = 'video.mp4') {
