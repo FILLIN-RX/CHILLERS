@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { HeartIcon, CameraIcon } from "@heroicons/react/24/solid";
+import { HeartIcon, CameraIcon, InformationCircleIcon, EnvelopeIcon, ShieldCheckIcon, PlayIcon } from "@heroicons/react/24/solid";
 
 export default function Footer() {
   return (
@@ -28,10 +28,30 @@ export default function Footer() {
           <div className="space-y-3">
             <h4 className="text-xs font-extrabold uppercase tracking-widest text-foreground">Liens</h4>
             <ul className="space-y-2 text-xs text-brand-text-muted font-medium">
-              <li><Link href="/about" className="hover:text-brand-primary transition-colors">À Propos</Link></li>
-              <li><Link href="/contact" className="hover:text-brand-primary transition-colors">Contact</Link></li>
-              <li><Link href="/support" className="hover:text-brand-primary transition-colors">Soutenir</Link></li>
-              <li><Link href="/privacy" className="hover:text-brand-primary transition-colors">Politique de confidentialité</Link></li>
+              <li>
+                <Link href="/about" className="flex items-center gap-2 hover:text-brand-primary transition-colors">
+                  <InformationCircleIcon className="h-3.5 w-3.5" />
+                  À Propos
+                </Link>
+              </li>
+              <li>
+                <Link href="/contact" className="flex items-center gap-2 hover:text-brand-primary transition-colors">
+                  <EnvelopeIcon className="h-3.5 w-3.5" />
+                  Contact
+                </Link>
+              </li>
+              <li>
+                <Link href="/support" className="flex items-center gap-2 hover:text-brand-primary transition-colors">
+                  <HeartIcon className="h-3.5 w-3.5" />
+                  Soutenir
+                </Link>
+              </li>
+              <li>
+                <Link href="/privacy" className="flex items-center gap-2 hover:text-brand-primary transition-colors">
+                  <ShieldCheckIcon className="h-3.5 w-3.5" />
+                  Politique de confidentialité
+                </Link>
+              </li>
             </ul>
           </div>
 
@@ -39,10 +59,30 @@ export default function Footer() {
           <div className="space-y-3">
             <h4 className="text-xs font-extrabold uppercase tracking-widest text-foreground">Categories</h4>
             <ul className="space-y-2 text-xs text-brand-text-muted font-medium">
-              <li><a href="#" className="hover:text-brand-primary transition-colors">Action & Adventure</a></li>
-              <li><a href="#" className="hover:text-brand-primary transition-colors">Sci-Fi & Cyberpunk</a></li>
-              <li><a href="#" className="hover:text-brand-primary transition-colors">Anime Blockbusters</a></li>
-              <li><a href="#" className="hover:text-brand-primary transition-colors">Cultural Documentaries</a></li>
+              <li>
+                <a href="#" className="flex items-center gap-2 hover:text-brand-primary transition-colors">
+                  <PlayIcon className="h-3.5 w-3.5" />
+                  Action & Adventure
+                </a>
+              </li>
+              <li>
+                <a href="#" className="flex items-center gap-2 hover:text-brand-primary transition-colors">
+                  <PlayIcon className="h-3.5 w-3.5" />
+                  Sci-Fi & Cyberpunk
+                </a>
+              </li>
+              <li>
+                <a href="#" className="flex items-center gap-2 hover:text-brand-primary transition-colors">
+                  <PlayIcon className="h-3.5 w-3.5" />
+                  Anime Blockbusters
+                </a>
+              </li>
+              <li>
+                <a href="#" className="flex items-center gap-2 hover:text-brand-primary transition-colors">
+                  <PlayIcon className="h-3.5 w-3.5" />
+                  Cultural Documentaries
+                </a>
+              </li>
             </ul>
           </div>
 
@@ -89,11 +129,20 @@ export default function Footer() {
         <div className="border-t border-brand-border pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-brand-text-muted/80 font-semibold">
           <span>&copy; {new Date().getFullYear()} Chillers. No rights reserved.</span>
           <div className="flex items-center gap-4">
-            <Link href="/about" className="hover:text-brand-primary transition-colors">À Propos</Link>
+            <Link href="/about" className="flex items-center gap-1.5 hover:text-brand-primary transition-colors">
+              <InformationCircleIcon className="h-3 w-3" />
+              À Propos
+            </Link>
             <span>•</span>
-            <Link href="/contact" className="hover:text-brand-primary transition-colors">Contact</Link>
+            <Link href="/contact" className="flex items-center gap-1.5 hover:text-brand-primary transition-colors">
+              <EnvelopeIcon className="h-3 w-3" />
+              Contact
+            </Link>
             <span>•</span>
-            <Link href="/privacy" className="hover:text-brand-primary transition-colors">Confidentialité</Link>
+            <Link href="/privacy" className="flex items-center gap-1.5 hover:text-brand-primary transition-colors">
+              <ShieldCheckIcon className="h-3 w-3" />
+              Confidentialité
+            </Link>
           </div>
         </div>
 

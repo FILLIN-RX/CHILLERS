@@ -492,7 +492,7 @@ function WatchContent() {
               ) : (
                 <ArrowDownTrayIcon className="h-3.5 w-3.5" />
               )}
-              <span className="hidden sm:inline">
+              <span>
                 {downloading ? _("download.preparing") : streamUnavailable ? "Bientôt dispo" : _("download.single")}
               </span>
             </button>
