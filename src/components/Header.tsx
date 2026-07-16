@@ -34,6 +34,8 @@ export default function Header({ onSearchClick }: HeaderProps) {
     return "home";
   })();
 
+  const isDetailPage = /^\/media\/(?!movies$|series$|anime$)/.test(pathname) || pathname.startsWith("/tv/") || pathname.startsWith("/watch/");
+
   const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
@@ -47,6 +49,8 @@ export default function Header({ onSearchClick }: HeaderProps) {
 
   return (
     <header className={`fixed top-0 left-0 w-full z-45 transition-all duration-500 ${
+      isDetailPage ? "hidden sm:block" : ""
+    } ${
       isScrolled 
         ? "glass-nav shadow-lg" 
         : "bg-gradient-to-b from-black/90 via-black/40 to-transparent border-transparent"
