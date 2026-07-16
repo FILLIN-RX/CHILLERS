@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { getSeasonDetails, getMediaDetails, getStreamUrl, startDownload, triggerDownload } from "@/app/api";
 import { Episode } from "@/app/mockData";
 import VideoPlayer from "@/components/VideoPlayer";
+import { useLanguage } from "@/i18n/LanguageContext";
 import {
   ArrowLeftIcon,
   PlayIcon,
@@ -18,6 +19,7 @@ export default function SeasonPage() {
   const params = useParams();
   const router = useRouter();
   const { id, seasonNumber } = params;
+  const { translate: _ } = useLanguage();
 
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [showTitle, setShowTitle] = useState("");
@@ -181,7 +183,7 @@ export default function SeasonPage() {
         <button
           onClick={goPrev}
           disabled={currentIndex === 0}
-          aria-label="Épisode précédent"
+          aria-label={_("common.previous")}
           className="p-3 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-300 hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
         >
           <ChevronLeftIcon className="h-5 w-5" />
@@ -189,7 +191,7 @@ export default function SeasonPage() {
         <button
           onClick={goNext}
           disabled={currentIndex >= episodes.length - 1}
-          aria-label="Épisode suivant"
+          aria-label={_("common.next")}
           className="p-3 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-300 hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
         >
           <ChevronRightIcon className="h-5 w-5" />

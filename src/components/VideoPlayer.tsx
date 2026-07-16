@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useLanguage } from "@/i18n/LanguageContext";
 import { MovieOrShow, Episode } from "@/app/mockData";
 import {
   PlayIcon,
@@ -28,6 +29,7 @@ interface VideoPlayerProps {
 }
 
 export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: VideoPlayerProps) {
+  const { translate: _ } = useLanguage();
   const videoRef = useRef<HTMLVideoElement>(null);
   
   const containerRef = useRef<HTMLDivElement>(null);
@@ -403,7 +405,7 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
                 <button 
                   onClick={handleDownload}
                   disabled={downloading}
-                  aria-label={downloading ? "Téléchargement en cours" : "Télécharger"}
+                  aria-label={downloading ? _("download.preparing") : _("download.single")}
                   className={`text-white transition-colors ${downloading ? "opacity-70" : "hover:text-[#D70466]"}`}
                 >
                   {downloading ? (

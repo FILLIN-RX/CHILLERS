@@ -4,7 +4,9 @@ import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { MagnifyingGlassIcon, GlobeAltIcon } from "@heroicons/react/24/outline";
+import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
+import { useLanguage } from "@/i18n/LanguageContext";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 interface HeaderProps {
   onSearchClick: () => void;
@@ -12,11 +14,12 @@ interface HeaderProps {
 
 export default function Header({ onSearchClick }: HeaderProps) {
   const pathname = usePathname();
+  const { translate: _ } = useLanguage();
 
   const tabs = [
-    { id: "home", label: "Home", href: "/" },
-    { id: "movies", label: "Movies", href: "/media/movies" },
-    { id: "series", label: "Series", href: "/media/series" },
+    { id: "home", label: _("nav.home"), href: "/" },
+    { id: "movies", label: _("nav.movies"), href: "/media/movies" },
+    { id: "series", label: _("nav.series"), href: "/media/series" },
     { id: "anime", label: "Anime", href: "/media/anime" },
   ];
 
@@ -87,7 +90,7 @@ export default function Header({ onSearchClick }: HeaderProps) {
                   : "text-zinc-400 hover:text-white"
               }`}
             >
-              Categories
+              {_("nav.categories")}
               {activeTab === "categories" && (
                 <span className="absolute bottom-0 left-0 h-[2px] w-full bg-brand-primary rounded-full" />
               )}
@@ -98,23 +101,13 @@ export default function Header({ onSearchClick }: HeaderProps) {
         <div className="flex items-center gap-4 text-zinc-400">
           <button
             onClick={onSearchClick}
-            aria-label="Rechercher"
+            aria-label={_("nav.search")}
             className="p-2 rounded-full hover:bg-zinc-900 hover:border-zinc-800 hover:text-white transition-colors focus:outline-none border border-transparent"
           >
             <MagnifyingGlassIcon className="h-5 w-5" />
           </button>
 
-          <div className="relative group hidden sm:block">
-            <button className="flex items-center gap-1.5 p-2 rounded-full transition-colors focus:outline-none border border-transparent hover:bg-zinc-900 hover:border-zinc-800 hover:text-white">
-              <GlobeAltIcon className="h-5 w-5" />
-              <span className="text-xs font-semibold">EN</span>
-            </button>
-            <div className="absolute right-0 top-full mt-2 w-32 origin-top-right rounded-xl p-1 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-200 shadow-2xl z-50 border bg-zinc-950 border-zinc-800">
-              <button className="w-full text-left px-3 py-1.5 text-xs rounded-lg font-medium hover:bg-zinc-900 text-white">English</button>
-              <button className="w-full text-left px-3 py-1.5 text-xs rounded-lg hover:bg-zinc-900 text-zinc-400">Français</button>
-              <button className="w-full text-left px-3 py-1.5 text-xs rounded-lg hover:bg-zinc-900 text-zinc-400">Español</button>
-            </div>
-          </div>
+          <LanguageSwitcher />
         </div>
       </div>
     </header>

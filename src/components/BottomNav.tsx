@@ -16,25 +16,24 @@ import {
   TvIcon as TvIconSolid,
   Squares2X2Icon as Squares2X2IconSolid,
 } from "@heroicons/react/24/solid";
+import { useLanguage } from "@/i18n/LanguageContext";
 
 interface BottomNavProps {
   onSearchClick: () => void;
 }
 
-const items = [
-  { id: "home", label: "Home", icon: HomeIcon, activeIcon: HomeIconSolid, href: "/" },
-  { id: "movies", label: "Movies", icon: FilmIcon, activeIcon: FilmIconSolid, href: "/media/movies" },
-  { id: "series", label: "Series", icon: TvIcon, activeIcon: TvIconSolid, href: "/media/series" },
-  { id: "categories", label: "Categories", icon: Squares2X2Icon, activeIcon: Squares2X2IconSolid, href: "/categories" },
-  { id: "search", label: "Search", icon: MagnifyingGlassIcon, activeIcon: MagnifyingGlassIcon },
-] as const;
-
 export default function BottomNav({ onSearchClick }: BottomNavProps) {
   const pathname = usePathname();
-  // Hide the nav while the user is in native fullscreen (any element).
-  // This keeps the player fully immersive on /watch, /media, /tv, etc.
-  // without disabling navigation on the rest of the app.
+  const { translate: _ } = useLanguage();
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const items = [
+    { id: "home", label: _("bottomNav.home"), icon: HomeIcon, activeIcon: HomeIconSolid, href: "/" },
+    { id: "movies", label: _("bottomNav.movies"), icon: FilmIcon, activeIcon: FilmIconSolid, href: "/media/movies" },
+    { id: "series", label: _("bottomNav.series"), icon: TvIcon, activeIcon: TvIconSolid, href: "/media/series" },
+    { id: "categories", label: _("bottomNav.categories"), icon: Squares2X2Icon, activeIcon: Squares2X2IconSolid, href: "/categories" },
+    { id: "search", label: _("bottomNav.search"), icon: MagnifyingGlassIcon, activeIcon: MagnifyingGlassIcon },
+  ] as const;
 
   useEffect(() => {
     const update = () => setIsFullscreen(!!document.fullscreenElement);
@@ -43,7 +42,6 @@ export default function BottomNav({ onSearchClick }: BottomNavProps) {
     return () => document.removeEventListener("fullscreenchange", update);
   }, []);
 
-  // Active tab derived from the route — works on every page, not just home.
   const activeTab: string = (() => {
     if (pathname === "/") return "home";
     if (pathname.startsWith("/media/movies")) return "movies";
@@ -70,7 +68,7 @@ export default function BottomNav({ onSearchClick }: BottomNavProps) {
               <button
                 key={item.id}
                 onClick={onSearchClick}
-                aria-label="Ouvrir la recherche"
+                aria-label={_("bottomNav.search")}
                 className={`relative flex flex-col items-center gap-0.5 py-1.5 px-2 min-w-[52px] rounded-xl transition-all duration-200 focus:outline-none active:scale-90 ${
                   isActive ? "text-brand-primary" : "text-zinc-500"
                 }`}

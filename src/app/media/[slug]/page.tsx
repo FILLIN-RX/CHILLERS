@@ -7,6 +7,7 @@ import { getMediaDetails, getPopularMovies, getPopularTV, getStreamUrl, startDow
 import GenreFilterBar from "@/components/GenreFilterBar";
 import NotificationModal from "@/components/NotificationModal";
 import { MovieOrShow } from "@/app/mockData";
+import { useLanguage } from "@/i18n/LanguageContext";
 import {
   ArrowLeftIcon,
   PlayIcon,
@@ -27,6 +28,7 @@ function MediaDetailPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { translate: _ } = useLanguage();
 
   const id = params?.slug as string;
   const isTV = searchParams?.get("type") === "tv" || searchParams?.get("type") === "series";
@@ -75,8 +77,8 @@ function MediaDetailPage() {
         setItem({ ...item, videoUrl: stream.embedUrl });
       } else {
         setNotification({
-          title: 'Flux indisponible',
-          message: 'Aucun flux trouvé pour ce film. Le fichier est peut-être manquant sur les serveurs de diffusion.',
+          title: _("media.streamUnavailable"),
+          message: _("media.streamUnavailableDesc"),
         });
       }
     }
@@ -94,16 +96,16 @@ function MediaDetailPage() {
         triggerDownload(result.downloadUrl, `${item?.title || 'video'}.mp4`);
       } else {
         setNotification({
-          title: 'Téléchargement impossible',
-          message: 'Aucune source de téléchargement trouvée pour ce contenu.',
+          title: _("download.impossible"),
+          message: _("download.noSource"),
         });
       }
     } catch (err) {
       console.error('Download failed:', err);
-      setNotification({
-        title: 'Erreur technique',
-        message: 'Une erreur est survenue lors du téléchargement. Réessaie plus tard.',
-      });
+        setNotification({
+          title: _("download.techError"),
+          message: _("download.techErrorDesc"),
+        });
     } finally {
       setDownloading(false);
     }
@@ -117,7 +119,7 @@ function MediaDetailPage() {
             onClick={() => router.back()}
             className="flex items-center gap-2 px-4 py-2 rounded-full bg-black/70 backdrop-blur-sm border border-white/10 text-sm font-semibold text-white hover:bg-black/90 transition-all"
           >
-            <ArrowLeftIcon className="h-4 w-4" /> Retour
+            <ArrowLeftIcon className="h-4 w-4" /> {_("media.back")}
           </button>
         </div>
 
@@ -137,12 +139,12 @@ function MediaDetailPage() {
       <div className="min-h-screen bg-[#09090B] flex items-center justify-center text-white">
         <div className="text-center space-y-4">
           <FilmIcon className="h-16 w-16 text-zinc-700 mx-auto" />
-          <p className="text-zinc-400 text-lg">Film introuvable.</p>
+          <p className="text-zinc-400 text-lg">{_("media.notFound")}</p>
           <button
             onClick={() => router.back()}
             className="px-6 py-2 rounded-full bg-[#D70466] text-white text-sm font-bold hover:bg-[#b5034f] transition-colors"
           >
-            Retour
+            {_("media.back")}
           </button>
         </div>
       </div>
@@ -161,7 +163,7 @@ function MediaDetailPage() {
           className="flex items-center gap-2 px-4 py-2 rounded-full bg-black/70 backdrop-blur-sm border border-white/10 text-sm font-semibold text-white hover:bg-white/10 transition-all group"
         >
           <ArrowLeftIcon className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
-          Retour
+          {_("media.back")}
         </button>
       </div>
 
@@ -237,7 +239,7 @@ function MediaDetailPage() {
                   className="flex items-center gap-2 px-7 py-3 rounded-full bg-[#D70466] hover:bg-[#b5034f] text-white font-bold text-sm transition-all hover:scale-105 shadow-lg shadow-[#D70466]/30"
                 >
                   <PlayIcon className="h-5 w-5 translate-x-0.5" />
-                  Regarder
+                  {_("media.watch")}
                 </button>
 
                 {isYouTube && (
@@ -246,7 +248,7 @@ function MediaDetailPage() {
                     className="flex items-center gap-2 px-7 py-3 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white font-bold text-sm transition-all hover:scale-105"
                   >
                     <FilmIcon className="h-5 w-5" />
-                    Bande-annonce
+                    {_("media.trailer")}
                   </button>
                 )}
 
@@ -265,14 +267,14 @@ function MediaDetailPage() {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                       </svg>
-                      Préparation...
+                      {_("download.preparing")}
                     </>
                   ) : (
-                    "Télécharger"
+                    _("download.single")
                   )}
                 </button>
 
-                <button aria-label="Partager" className="flex items-center gap-2 px-5 py-3 rounded-full bg-white/10 border border-white/20 text-white hover:bg-white/20 transition-all hover:scale-105 font-bold text-sm">
+                <button aria-label={_("media.share")} className="flex items-center gap-2 px-5 py-3 rounded-full bg-white/10 border border-white/20 text-white hover:bg-white/20 transition-all hover:scale-105 font-bold text-sm">
                   <ShareIcon className="h-5 w-5" />
                 </button>
               </div>
@@ -285,10 +287,10 @@ function MediaDetailPage() {
         <section className="space-y-4">
           <h2 className="text-2xl font-black text-white flex items-center gap-3">
             <span className="h-5 w-1 rounded-full bg-[#D70466]" />
-            Synopsis
+            {_("media.synopsis")}
           </h2>
           <p className="text-zinc-300 text-base leading-relaxed max-w-3xl">
-            {item.synopsis || item.description || "Aucun synopsis disponible."}
+            {item.synopsis || item.description || _("media.noSynopsis")}
           </p>
         </section>
 
@@ -296,7 +298,7 @@ function MediaDetailPage() {
           <section className="space-y-4">
             <h2 className="text-2xl font-black text-white flex items-center gap-3">
               <span className="h-5 w-1 rounded-full bg-[#7C3AED]" />
-              Casting
+              {_("media.cast")}
             </h2>
             <div className="flex flex-wrap gap-3">
               {item.cast.map((actor) => (
@@ -315,7 +317,7 @@ function MediaDetailPage() {
           <section ref={playerRef} className="space-y-4">
             <h2 className="text-2xl font-black text-white flex items-center gap-3">
               <span className="h-5 w-1 rounded-full bg-[#D70466]" />
-              Lecture
+              {_("media.watch")}
             </h2>
             <div className="w-full rounded-3xl overflow-hidden border border-zinc-800 shadow-2xl bg-black relative">
               {item.videoUrl ? (
@@ -329,7 +331,7 @@ function MediaDetailPage() {
               ) : (
                 <div className="aspect-video flex flex-col items-center justify-center gap-3 text-zinc-500">
                   <div className="animate-spin h-10 w-10 border-4 border-[#D70466] border-t-transparent rounded-full" />
-                  <p className="text-xs uppercase tracking-widest font-bold">Chargement du flux…</p>
+                  <p className="text-xs uppercase tracking-widest font-bold">{_("media.loadingStream")}</p>
                 </div>
               )}
             </div>
@@ -340,7 +342,7 @@ function MediaDetailPage() {
           <section className="space-y-6">
             <h2 className="text-2xl font-black text-white flex items-center gap-3">
               <span className="h-5 w-1 rounded-full bg-[#D70466]" />
-              Saisons
+              {_("media.season")}s
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {item.seasons.filter(s => s.seasonNumber > 0).map((season) => (
@@ -372,7 +374,7 @@ function MediaDetailPage() {
                       {season.name}
                     </h3>
                     <p className="text-xs text-zinc-500 mt-0.5">
-                      {season.episodeCount ?? season.episodes.length} épisode{(season.episodeCount ?? season.episodes.length) !== 1 ? "s" : ""}
+                       {season.episodeCount ?? season.episodes.length} {_("media.episodes")}
                     </p>
                   </div>
                 </div>
@@ -385,7 +387,7 @@ function MediaDetailPage() {
           <section className="space-y-6">
             <h2 className="text-2xl font-black text-white flex items-center gap-3">
               <span className="h-5 w-1 rounded-full bg-[#7C3AED]" />
-              Vous pourriez aussi aimer
+              {_("media.youMightAlsoLike")}
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5">
               {similar.map((sim) => (
@@ -464,6 +466,7 @@ function MediaListingPage() {
   const type = params?.slug as string;
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { translate: _ } = useLanguage();
 
   const [items, setItems] = useState<MovieOrShow[]>([]);
   const [page, setPage] = useState(1);
@@ -554,9 +557,9 @@ function MediaListingPage() {
   };
 
   const titles: Record<string, { title: string; subtitle: string }> = {
-    movies: { title: "Movies", subtitle: "Unlimited streaming. Instant theatrical releases." },
-    series: { title: "Series", subtitle: "Binge-worthy premium drama, politics, and thrillers." },
-    anime: { title: "Anime", subtitle: "Action-packed anime sourced from AnimeKai." },
+    movies: { title: _("home.blockbusterMovies"), subtitle: _("home.blockbusterSubtitle") },
+    series: { title: _("home.featuredSeries"), subtitle: _("home.featuredSeriesSubtitle") },
+    anime: { title: _("home.globalAnime"), subtitle: _("search.animePoweredBy") },
   };
   const { title, subtitle } = titles[type] || { title: type, subtitle: "" };
 
@@ -589,7 +592,7 @@ function MediaListingPage() {
           </div>
           {!isLoading && (
             <span className="text-xs text-zinc-500">
-              Page <span className="text-white font-bold">{page}</span>/{totalPages}
+              {_("common.page")} <span className="text-white font-bold">{page}</span>/{_("common.of")} {totalPages}
             </span>
           )}
         </div>
@@ -597,8 +600,7 @@ function MediaListingPage() {
         {/* Anime banner */}
         {type === "anime" && (
           <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-brand-secondary/10 border border-brand-secondary/30">
-            <span className="text-lg">🎌</span>
-            <p className="text-xs font-bold text-white">Powered by AnimeKai</p>
+            <p className="text-xs font-bold text-white">{_("search.animePoweredBy")}</p>
           </div>
         )}
 
@@ -629,7 +631,7 @@ function MediaListingPage() {
               className="flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-semibold border transition-all focus:outline-none disabled:opacity-30 disabled:cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white cursor-pointer"
             >
               <ChevronLeftIcon className="h-4 w-4" />
-              <span className="hidden sm:inline">Précédent</span>
+              <span className="hidden sm:inline">{_("common.previous")}</span>
             </button>
 
             {buildPages().map((p, idx) =>
@@ -655,7 +657,7 @@ function MediaListingPage() {
               disabled={page === totalPages}
               className="flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-semibold border transition-all focus:outline-none disabled:opacity-30 disabled:cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white cursor-pointer"
             >
-              <span className="hidden sm:inline">Suivant</span>
+              <span className="hidden sm:inline">{_("common.next")}</span>
               <ChevronRightIcon className="h-4 w-4" />
             </button>
           </div>

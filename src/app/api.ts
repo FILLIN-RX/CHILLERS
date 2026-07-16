@@ -9,6 +9,9 @@ async function fetchWithTimeout(url: string, options?: RequestInit): Promise<Res
   try {
     const res = await fetch(url, { ...options, signal: controller.signal });
     return res;
+  } catch (error) {
+    alert('Erreur API : ' + error);
+    throw error;
   } finally {
     clearTimeout(timeout);
   }

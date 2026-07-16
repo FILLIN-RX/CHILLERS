@@ -5,6 +5,7 @@ import Image from "next/image";
 import { MovieOrShow, Season, Episode } from "@/app/mockData";
 import { getSeasonDetails } from "@/app/api";
 import { XMarkIcon, PlayIcon, StarIcon } from "@heroicons/react/24/solid";
+import { useLanguage } from "@/i18n/LanguageContext";
 
 interface MovieModalProps {
   item: MovieOrShow | null;
@@ -24,6 +25,7 @@ export default function MovieModal({
   const modalRef = useRef<HTMLDivElement>(null);
   const [activeSeason, setActiveSeason] = useState<Season | null>(null);
   const [episodes, setEpisodes] = useState<Episode[]>([]);
+  const { translate: _ } = useLanguage();
 
   useEffect(() => {
     if (isOpen) {
@@ -43,7 +45,6 @@ export default function MovieModal({
 
   const handleSeasonChange = async (season: Season) => {
     setActiveSeason(season);
-    // Fetch episodes for the selected season
     if (item) {
         const data = await getSeasonDetails(item.id, String(season.seasonNumber));
         if (data && data.episodes) {
@@ -61,7 +62,6 @@ export default function MovieModal({
 
   if (!isOpen || !item) return null;
 
-  // Close modal when clicking outside
   const handleOverlayClick = (e: React.MouseEvent) => {
     if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
       onClose();
@@ -78,7 +78,6 @@ export default function MovieModal({
         className="relative w-full max-w-4xl bg-brand-card rounded-3xl border border-brand-border overflow-hidden shadow-2xl my-8 glass-modal"
       >
         
-        {/* Backdrop Banner Image */}
         <div className="relative aspect-[16/9] w-full bg-zinc-900">
           <Image
             src={item.backdropUrl}
@@ -90,16 +89,14 @@ export default function MovieModal({
           />
           <div className="absolute inset-0 banner-overlay" />
 
-          {/* Close Button overlay */}
           <button
             onClick={onClose}
-            aria-label="Fermer"
+            aria-label={_("common.close")}
             className="absolute top-4 right-4 z-20 p-2 rounded-full bg-black/60 text-zinc-400 hover:text-white border border-white/10 hover:bg-black/85 transition-colors focus:outline-none"
           >
             <XMarkIcon className="h-6 w-6" />
           </button>
 
-          {/* Title & Metadata Overlaid on Backdrop */}
           <div className="absolute inset-x-0 bottom-0 p-6 md:p-8 space-y-3">
             <span className="rounded bg-brand-primary text-white text-[10px] font-bold px-2.5 py-1 uppercase tracking-wider border border-brand-primary/20">
               {item.type}
@@ -120,10 +117,8 @@ export default function MovieModal({
           </div>
         </div>
 
-        {/* Details & Info Section */}
         <div className="p-6 md:p-8 grid grid-cols-1 md:grid-cols-3 gap-8">
           
-          {/* Left / Middle: Synopsis & Buttons */}
           <div className="md:col-span-2 space-y-6">
             <div className="flex flex-wrap items-center gap-4">
               <button
@@ -131,27 +126,25 @@ export default function MovieModal({
                 className="flex items-center gap-2 rounded-full bg-brand-primary hover:bg-brand-primary/90 text-white px-6 py-2.5 font-bold text-sm transition-all duration-200 shadow-xl shadow-brand-primary/20 cursor-pointer"
               >
                 <PlayIcon className="h-5 w-5" />
-                Watch Now
+                {_("media.watch")}
               </button>
             </div>
 
             <div className="space-y-2">
               <h3 className="text-sm font-extrabold uppercase tracking-widest text-brand-text-muted">
-                Synopsis
+                {_("media.synopsis")}
               </h3>
               <p className="text-foreground/80 text-sm sm:text-base font-light leading-relaxed">
                 {item.synopsis}
               </p>
             </div>
             
-            {/* Season & Episode Section */}
             {item.seasons && item.seasons.length > 0 && (
                 <div className="space-y-4 pt-6">
                     <h3 className="text-sm font-extrabold uppercase tracking-widest text-brand-text-muted">
-                        Episodes
+                        {_("watch.episodes")}
                     </h3>
                     
-                    {/* Season Selector */}
                     <div className="flex items-center gap-2 bg-brand-card p-1 rounded-lg border border-brand-border">
                         {item.seasons.map((season) => (
                             <button
@@ -168,7 +161,6 @@ export default function MovieModal({
                         ))}
                     </div>
 
-                    {/* Episode List */}
                     <div className="space-y-2">
                         {episodes.map((ep) => (
                             <div key={ep.id} onClick={() => onWatch(item, ep)} className="flex items-center gap-4 p-3 bg-brand-card rounded-lg border border-brand-border cursor-pointer hover:bg-white/5 transition-colors">
@@ -185,11 +177,10 @@ export default function MovieModal({
             )}
           </div>
 
-          {/* Right Panel: Cast, Genres, Info details */}
           <div className="space-y-5 bg-brand-card p-5 rounded-2xl border border-brand-border">
             <div className="space-y-1">
               <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-text-muted">
-                Cast
+                {_("media.cast")}
               </span>
               <p className="text-xs text-foreground font-medium">
                 {item.cast.join(", ")}
@@ -198,7 +189,7 @@ export default function MovieModal({
 
             <div className="space-y-1">
               <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-text-muted">
-                Genres
+                {_("media.genres")}
               </span>
               <div className="flex flex-wrap gap-1.5 pt-0.5">
                 {item.genres.map((g) => (
@@ -214,7 +205,7 @@ export default function MovieModal({
 
             <div className="space-y-1">
               <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-text-muted">
-                Duration
+                {_("media.duration")}
               </span>
               <p className="text-xs text-foreground font-semibold">{item.duration}</p>
             </div>

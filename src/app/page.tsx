@@ -7,7 +7,7 @@ import MovieCard from "@/components/MovieCard";
 import ContinueWatchingCard from "@/components/ContinueWatchingCard";
 import ScrollRow from "@/components/ScrollRow";
 import MovieModal from "@/components/MovieModal";
-
+import { useLanguage } from "@/i18n/LanguageContext";
 import {
   MovieOrShow,
 } from "./mockData";
@@ -33,11 +33,12 @@ export default function HomePage() {
 }
 
 function HomeFallback() {
+  const { translate: _ } = useLanguage();
   return (
     <div className="min-h-screen bg-brand-dark flex items-center justify-center">
       <div className="flex flex-col items-center gap-4">
         <div className="h-12 w-12 border-4 border-zinc-700 border-t-brand-primary rounded-full animate-spin" />
-        <p className="text-zinc-500 font-bold tracking-widest uppercase text-sm">Chargement…</p>
+        <p className="text-zinc-500 font-bold tracking-widest uppercase text-sm">{_("common.loading")}</p>
       </div>
     </div>
   );
@@ -45,18 +46,16 @@ function HomeFallback() {
 
 function Home() {
   const router = useRouter();
+  const { translate: _ } = useLanguage();
   const [activeTab, setActiveTab] = useState<string>("home");
 
-  // Media Playback & Modal States
   const [selectedMovie, setSelectedMovie] = useState<MovieOrShow | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Continue Watching History
   const [continueWatching, setContinueWatching] = useState<
     { item: MovieOrShow; progress: number; remaining: string; episodeName?: string }[]
   >([]);
 
-  // Live TMDB Data — lazy loaded per tab
   const [heroSlides, setHeroSlides] = useState<MovieOrShow[]>([]);
   const [trendingAll, setTrendingAll] = useState<MovieOrShow[]>([]);
   const [moviesData, setMoviesData] = useState<MovieOrShow[]>([]);
@@ -66,7 +65,6 @@ function Home() {
   const [genreRows, setGenreRows] = useState<{ title: string; items: MovieOrShow[] }[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
 
-  // Load continue watching from localStorage on mount
   useEffect(() => {
     loadContinueWatchingHistory();
   }, []);
@@ -77,8 +75,6 @@ function Home() {
     { id: '10749', title: 'Romance' },
   ];
 
-  // Home tab: charge trending + hero + genres + 3 genre rows
-  // Home tab: charge trending + hero + genres + 3 genre rows + series + anime
   const loadHomeData = useCallback(async () => {
     setIsLoadingData(true);
     try {
@@ -127,26 +123,20 @@ function Home() {
     if (activeTab === "home" && trendingAll.length === 0) loadHomeData();
   }, [activeTab, loadHomeData]);
 
-  // Movies tab: charge popular movies si pas déjà faits
   useEffect(() => {
     if (activeTab !== "movies" || moviesData.length > 0) return;
     getPopularMovies().then(setMoviesData).catch(() => {});
   }, [activeTab]);
 
-  // Series tab: charge popular TV
   useEffect(() => {
     if (activeTab !== "series" || seriesData.length > 0) return;
     getPopularTV().then(setSeriesData).catch(() => {});
   }, [activeTab]);
 
-  // Anime tab: charge anime series
   useEffect(() => {
     if (activeTab !== "anime" || animeData.length > 0) return;
     getAnimeSeries().then(setAnimeData).catch(() => {});
   }, [activeTab]);
-
-  // Trending tab: déjà chargé avec home, rien à faire
-  // Categories tab: déjà chargé avec home (genres)
 
   const loadContinueWatchingHistory = () => {
     const history: { item: MovieOrShow; progress: number; remaining: string; episodeName?: string; updatedAt: number }[] = [];
@@ -192,7 +182,6 @@ function Home() {
     setContinueWatching(history.map(({ item, progress, remaining, episodeName }) => ({ item, progress, remaining, episodeName })));
   };
 
-  // Media triggers — open modal immediately, then enrich with full TMDB details in background
   const handleOpenDetails = async (item: MovieOrShow) => {
     setSelectedMovie(item);
     setIsModalOpen(true);
@@ -201,12 +190,9 @@ function Home() {
       const full = await getMediaDetails(item.id, isTV);
       if (full) setSelectedMovie(full);
     } catch (e) {
-      // keep the card data already shown
     }
   };
 
-  // Navigate to dedicated /watch/[id] page — the user explicitly chose
-  // to leave the home and enter the immersive player screen.
   const handleWatchNow = (item: MovieOrShow) => {
     setIsModalOpen(false);
     const typeParam =
@@ -224,12 +210,9 @@ function Home() {
   return (
     <div className="flex-1 flex flex-col bg-brand-dark transition-colors duration-300">
 
-      {/* Main Content Area */}
       <main className="flex-grow transition-all duration-300">
-        {/* Standard Browsing Portal Hub */}
         <div className="space-y-10 pb-24">
             
-            {/* HERO CAROUSEL — no padding-top, goes behind the navbar */}
             {activeTab === "home" && (
               <HeroCarousel
                 slides={heroSlides}
@@ -239,13 +222,11 @@ function Home() {
               />
             )}
 
-            {/* PADDING-TOP only for non-hero tabs — pushes content below navbar */}
             {activeTab !== "home" && <div className="pt-[72px]" />}
 
-            {/* CONTINUE WATCHING CONTAINER (Dynamic) */}
             {continueWatching.length > 0 && activeTab === "home" && (
               <div className="max-w-[1600px] mx-auto px-4 sm:px-8 md:px-12 lg:px-[4%]">
-                <ScrollRow title="Continue Watching" accentColor="secondary">
+                <ScrollRow title={_("home.continueWatching")} accentColor="secondary">
                   {continueWatching.map(({ item, progress, remaining, episodeName }) => (
                     <ContinueWatchingCard
                       key={item.id}
@@ -261,17 +242,13 @@ function Home() {
               </div>
             )}
 
-
-
-            {/* MAIN TAB SWITCH CONTENT CONTAINER */}
             <div className="max-w-[1600px] mx-auto px-2 sm:px-6 md:px-12 lg:px-[4%] space-y-10">
               
               {activeTab === "home" && (
                 <>
                   {isLoadingData ? (
                     <>
-                      {/* Skeletons while loading */}
-                      <ScrollRow title="Trending Worldwide" accentColor="primary">
+                      <ScrollRow title={_("home.trending")} accentColor="primary">
                         {Array.from({ length: 6 }).map((_, i) => (
                           <div
                             key={`trending-sk-${i}`}
@@ -280,7 +257,7 @@ function Home() {
                         ))}
                       </ScrollRow>
 
-                      <ScrollRow title="Popular TV Shows" accentColor="primary">
+                      <ScrollRow title={_("home.popularSeries")} accentColor="primary">
                         {Array.from({ length: 6 }).map((_, i) => (
                           <div
                             key={`series-sk-${i}`}
@@ -289,7 +266,7 @@ function Home() {
                         ))}
                       </ScrollRow>
 
-                      <ScrollRow title="Anime Collection" accentColor="secondary">
+                      <ScrollRow title={_("home.animeCollection")} accentColor="secondary">
                         {Array.from({ length: 6 }).map((_, i) => (
                           <div
                             key={`anime-sk-${i}`}
@@ -311,9 +288,8 @@ function Home() {
                     </>
                   ) : (
                     <>
-                      {/* Row 1: Trending Worldwide */}
                       {trendingAll.length > 0 && (
-                        <ScrollRow title="Trending Worldwide" accentColor="primary">
+                        <ScrollRow title={_("home.trending")} accentColor="primary">
                           {trendingAll.map((item) => (
                             <MovieCard
                               key={item.id}
@@ -325,9 +301,8 @@ function Home() {
                         </ScrollRow>
                       )}
 
-                      {/* Row 2: Popular TV Shows */}
                       {seriesData.length > 0 && (
-                        <ScrollRow title="Popular TV Shows" accentColor="primary">
+                        <ScrollRow title={_("home.popularSeries")} accentColor="primary">
                           {seriesData.map((item) => (
                             <MovieCard
                               key={item.id}
@@ -339,9 +314,8 @@ function Home() {
                         </ScrollRow>
                       )}
 
-                      {/* Row 3: Anime Collection */}
                       {animeData.length > 0 && (
-                        <ScrollRow title="Anime Collection" accentColor="secondary">
+                        <ScrollRow title={_("home.animeCollection")} accentColor="secondary">
                           {animeData.map((item) => (
                             <MovieCard
                               key={item.id}
@@ -353,7 +327,6 @@ function Home() {
                         </ScrollRow>
                       )}
 
-                      {/* Genre rows: Animation, Action, Romance */}
                       {genreRows.map((row) => (
                         <ScrollRow key={row.title} title={row.title} accentColor="secondary">
                           {row.items.map((item) => (
@@ -371,12 +344,11 @@ function Home() {
                 </>
               )}
 
-              {/* MOVIES TAB */}
               {activeTab === "movies" && (
                 <div className="space-y-4">
                   <div>
-                    <h2 className="text-xl sm:text-3xl font-extrabold text-white">Blockbuster Movies</h2>
-                    <p className="text-zinc-500 text-xs sm:text-sm mt-0.5">Unlimited streaming. Instant theatrical releases.</p>
+                    <h2 className="text-xl sm:text-3xl font-extrabold text-white">{_("home.blockbusterMovies")}</h2>
+                    <p className="text-zinc-500 text-xs sm:text-sm mt-0.5">{_("home.blockbusterSubtitle")}</p>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
                     {getFilteredMedia("movie").map((item) => (
@@ -392,12 +364,11 @@ function Home() {
                 </div>
               )}
 
-              {/* SERIES TAB */}
               {activeTab === "series" && (
                 <div className="space-y-4">
                   <div>
-                    <h2 className="text-xl sm:text-3xl font-extrabold text-white">Featured Series</h2>
-                    <p className="text-zinc-500 text-xs sm:text-sm mt-0.5">Binge-worthy premium drama, politics, and thrillers.</p>
+                    <h2 className="text-xl sm:text-3xl font-extrabold text-white">{_("home.featuredSeries")}</h2>
+                    <p className="text-zinc-500 text-xs sm:text-sm mt-0.5">{_("home.featuredSeriesSubtitle")}</p>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
                     {getFilteredMedia("series").map((item) => (
@@ -413,12 +384,11 @@ function Home() {
                 </div>
               )}
 
-              {/* ANIME TAB */}
               {activeTab === "anime" && (
                 <div className="space-y-4">
                   <div>
-                    <h2 className="text-xl sm:text-3xl font-extrabold text-white">Global Anime</h2>
-                    <p className="text-zinc-500 text-xs sm:text-sm mt-0.5">Action packed cybernetic ninjas, mechs, and spirits.</p>
+                    <h2 className="text-xl sm:text-3xl font-extrabold text-white">{_("home.globalAnime")}</h2>
+                    <p className="text-zinc-500 text-xs sm:text-sm mt-0.5">{_("home.globalAnimeSubtitle")}</p>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
                     {getFilteredMedia("anime").map((item) => (
@@ -434,12 +404,11 @@ function Home() {
                 </div>
               )}
 
-              {/* TRENDING TAB */}
               {activeTab === "trending" && (
                 <div className="space-y-4">
                   <div>
-                    <h2 className="text-xl sm:text-3xl font-extrabold text-white">Trending This Week</h2>
-                    <p className="text-zinc-500 text-xs sm:text-sm mt-0.5">The most watched films and series on Chiller right now.</p>
+                    <h2 className="text-xl sm:text-3xl font-extrabold text-white">{_("home.trendingThisWeek")}</h2>
+                    <p className="text-zinc-500 text-xs sm:text-sm mt-0.5">{_("home.trendingSubtitle")}</p>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
                     {trendingAll.map((item) => (
@@ -455,25 +424,20 @@ function Home() {
                 </div>
               )}
 
-
-
             </div>
 
           </div>
       </main>
 
-      {/* Single full-screen overlay modal for detailed descriptions */}
       <MovieModal
         item={selectedMovie}
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onWatch={handleWatchNow}
         onOpenDetails={(movie) => {
-          setSelectedMovie(movie); // navigate to new movie details in modal without reloads
+          setSelectedMovie(movie);
         }}
       />
-
-      {/* Mobile Bottom Navigation is now in AppShell so it shows on every page. */}
 
     </div>
   );
