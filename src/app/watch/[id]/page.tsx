@@ -311,7 +311,7 @@ function WatchContent() {
     return (
       <div className="min-h-screen bg-[#09090B] text-white">
         <div className="pt-[88px] max-w-7xl mx-auto px-4 sm:px-6 space-y-6">
-          <div className="aspect-video w-full bg-zinc-900 rounded-3xl animate-pulse" />
+          <div className="w-full min-h-[300px] sm:min-h-[400px] bg-zinc-900 rounded-3xl animate-pulse" />
           <div className="space-y-3">
             <div className="flex gap-2">
               <div className="h-6 w-16 bg-zinc-800 rounded-full animate-pulse" />
@@ -368,7 +368,7 @@ function WatchContent() {
         }`}
       >
         <div ref={playerRef} className="scroll-mt-24">
-          <div className="w-full aspect-video rounded-2xl sm:rounded-3xl overflow-hidden border border-zinc-800 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)] bg-black relative">
+          <div className="w-full min-h-[300px] sm:min-h-[400px] rounded-2xl sm:rounded-3xl overflow-hidden border border-zinc-800 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)] bg-black relative">
             {streamUnavailable ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-6">
                 <div className="w-20 h-20 rounded-full bg-zinc-800/80 flex items-center justify-center border border-zinc-700/50">

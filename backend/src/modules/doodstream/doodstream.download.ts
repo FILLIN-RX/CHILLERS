@@ -367,7 +367,11 @@ export const getSeriesDownloadCheck = async (req: Request, res: Response, next: 
     }
 
     // 1. Fetch TV series details from TMDB to get all seasons and episode counts
-    const tmdbRes = await tmdbClient.get(`/tv/${tmdbIdNum}`);
+    const language = req.query.language as string | undefined;
+    const { toTMDBLanguage } = await import('../../config/language');
+    const tmdbRes = await tmdbClient.get(`/tv/${tmdbIdNum}`, {
+      params: { language: toTMDBLanguage(language) },
+    });
     const seriesData = tmdbRes.data;
 
     if (!seriesData || !seriesData.seasons) {

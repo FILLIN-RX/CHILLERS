@@ -10,6 +10,7 @@ export interface StreamQuery {
   title?: string;
   season?: number;
   episode?: number;
+  language?: string;
 }
 
 export interface StreamingProvider {

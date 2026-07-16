@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { type Language, defaultLanguage, t, translations } from "./index";
+import { clearTmdbCache } from "@/app/api";
 
 interface LanguageContextType {
   lang: Language;
@@ -43,6 +44,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     } catch {
       /* noop */
     }
+    clearTmdbCache();
   }, []);
 
   const translate = useCallback(

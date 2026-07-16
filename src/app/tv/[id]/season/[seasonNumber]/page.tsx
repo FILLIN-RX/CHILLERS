@@ -201,19 +201,17 @@ export default function SeasonPage() {
 
             <div className="w-full rounded-3xl overflow-hidden border border-zinc-800 shadow-2xl bg-black relative">
               {streamLoading || !mockItem ? (
-                <div className="aspect-video flex flex-col items-center justify-center gap-3 text-zinc-500">
+                <div className="w-full min-h-[300px] sm:min-h-[400px] flex flex-col items-center justify-center gap-3 text-zinc-500">
                   <div className="animate-spin h-10 w-10 border-4 border-[#D70466] border-t-transparent rounded-full" />
                   <p className="text-xs uppercase tracking-widest font-bold">Chargement du flux…</p>
                 </div>
               ) : (
-                <div className="max-h-[70vh]">
-                  <VideoPlayer
-                    key={`${currentEpisode?.id ?? 'ep'}-${streamUrl}`}
-                    item={mockItem}
-                    onBack={() => {}}
-                    onOpenDetails={() => {}}
-                  />
-                </div>
+                <VideoPlayer
+                  key={`${currentEpisode?.id ?? 'ep'}-${streamUrl}`}
+                  item={mockItem}
+                  onBack={() => {}}
+                  onOpenDetails={() => {}}
+                />
               )}
             </div>
 

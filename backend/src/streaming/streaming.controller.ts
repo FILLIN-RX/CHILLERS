@@ -11,6 +11,7 @@ export const getMovieStream = async (req: Request, res: Response, next: NextFunc
       tmdbId: id,
       type: (req.query.type as 'movie' | 'tv' | 'anime') || 'movie',
       title: req.query.title as string | undefined,
+      language: (req.query.language as string) || 'fr',
     });
 
     if (!result) {
@@ -48,6 +49,7 @@ export const getEpisodeStream = async (req: Request, res: Response, next: NextFu
       title: req.query.title as string | undefined,
       season,
       episode,
+      language: (req.query.language as string) || 'fr',
     });
 
     if (!result) {

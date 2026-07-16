@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import { errorMiddleware } from './middleware/error.middleware';
+import { clearCache } from './config/tmdb';
 import moviesRoutes from './modules/movies/movies.routes';
 import tvRoutes from './modules/tv/tv.routes';
 import searchRoutes from './modules/search/search.routes';
@@ -50,6 +51,11 @@ app.use(express.json());
 
 app.get('/api/health', (_req, res) => {
   res.json({ success: true, data: { status: 'ok' }, message: null });
+});
+
+app.post('/api/clear-cache', (_req, res) => {
+  clearCache();
+  res.json({ success: true, data: null, message: 'TMDB cache cleared' });
 });
 
 app.use('/api/movies', moviesRoutes);

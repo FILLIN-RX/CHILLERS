@@ -48,6 +48,9 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
   const [isEpisodeDrawerOpen, setIsEpisodeDrawerOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [notification, setNotification] = useState<{ title: string; message: string } | null>(null);
+  const [isVideoLoading, setIsVideoLoading] = useState(true);
+  const [iframeActivated, setIframeActivated] = useState(false);
+  const [isPortrait, setIsPortrait] = useState(false);
 
   // Use passed episode or none
   const currentEpisode = episode;
@@ -65,14 +68,24 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
   }, [isPlaying, isEpisodeDrawerOpen, showSettings]);
 
   useEffect(() => {
-    const handleMouseMove = () => resetControlsTimeout();
-    window.addEventListener("mousemove", handleMouseMove);
+    const handleUserActivity = () => resetControlsTimeout();
+    window.addEventListener("mousemove", handleUserActivity);
+    window.addEventListener("touchstart", handleUserActivity);
     resetControlsTimeout();
     return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mousemove", handleUserActivity);
+      window.removeEventListener("touchstart", handleUserActivity);
       if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
     };
   }, [resetControlsTimeout]);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(orientation: portrait)');
+    const handler = (e: MediaQueryListEvent | MediaQueryList) => setIsPortrait(e.matches);
+    handler(mq);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
 
   // Load progress
   useEffect(() => {
@@ -265,38 +278,54 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
   return (
     <div
       ref={containerRef}
-      className={`w-full aspect-video relative bg-black rounded-lg overflow-hidden transition-opacity duration-500 ${showControls ? "cursor-default" : "cursor-none"}`}
+      className={`w-full min-h-[300px] sm:min-h-[400px] relative bg-black rounded-lg overflow-hidden transition-opacity duration-500 ${showControls ? "cursor-default" : "cursor-none"}`}
     >
       {/* ─── VIDEO / CONTENT ─────────────────────────────────────────────── */}
       {isIframe ? (
-        <iframe
-          key={item.videoUrl}
-          src={item.videoUrl}
-          className="absolute inset-0 w-full h-full border-none bg-black"
-          allow="autoplay; fullscreen; encrypted-media; picture-in-picture; gyroscope; accelerometer; clipboard-write"
-          allowFullScreen
-          referrerPolicy="origin"
-          title={item.title}
-          scrolling="no"
-          loading="lazy"
-          // Sandbox: block top-frame navigation. Some embed providers
-          // (DoodStream, etc.) ship anti-embed scripts that call
-          // `window.top.history.back()` or `window.top.location = ...`
-          // to bust out of the iframe. Without `allow-top-navigation`
-          // those scripts can no longer affect the parent page.
-          sandbox="allow-scripts allow-same-origin allow-presentation allow-popups allow-popups-to-escape-sandbox allow-forms"
-        />
+        <>
+          <iframe
+            key={item.videoUrl}
+            src={item.videoUrl}
+            className="absolute inset-0 w-full h-full border-none bg-black"
+            allow="autoplay; fullscreen; encrypted-media; picture-in-picture; gyroscope; accelerometer; clipboard-write"
+            allowFullScreen
+            referrerPolicy="origin"
+            title={item.title}
+            scrolling="no"
+            loading="lazy"
+            sandbox="allow-scripts allow-same-origin allow-presentation allow-popups allow-popups-to-escape-sandbox allow-forms"
+          />
+          {!iframeActivated && (
+            <div
+              className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/60 cursor-pointer sm:hidden"
+              onClick={() => setIframeActivated(true)}
+            >
+              <PlayIcon className="h-12 w-12 text-white/80" />
+              <p className="text-sm font-bold text-white/70">Toucher pour lire</p>
+            </div>
+          )}
+        </>
       ) : item.videoUrl ? (
         <video
           ref={videoRef}
           src={item.videoUrl}
           className="absolute inset-0 w-full h-full object-contain"
-          autoPlay
+          playsInline
+          webkit-playsinline="true"
           onPlay={() => setIsPlaying(true)}
           onPause={() => setIsPlaying(false)}
           onTimeUpdate={() => setCurrentTime(videoRef.current?.currentTime || 0)}
+          onLoadedData={() => setIsVideoLoading(false)}
           onLoadedMetadata={() => setDuration(videoRef.current?.duration || 0)}
+          onWaiting={() => setIsVideoLoading(true)}
+          onCanPlay={() => setIsVideoLoading(false)}
           onClick={handlePlayPause}
+          onTouchEnd={(e) => {
+            if (!showControls) {
+              e.preventDefault();
+              resetControlsTimeout();
+            }
+          }}
         />
       ) : (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-zinc-500">
@@ -315,15 +344,62 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
         </div>
       )}
 
-      {/* ─── HUD OVERLAYS (Only for Native Video) ────────────────────────── */}
-      {!isIframe && (
+      {/* ─── Native Video Overlays ───────────────────────────────────────── */}
+      {!isIframe && item.videoUrl && (
         <>
+          {/* Loading Spinner */}
+          {isVideoLoading && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/60 z-20">
+              <div className="animate-spin h-12 w-12 border-4 border-[#D70466] border-t-transparent rounded-full" />
+              <p className="text-xs uppercase tracking-widest font-bold text-white/70">Chargement…</p>
+            </div>
+          )}
+
+          {/* Play Overlay (shown when paused and not loading) */}
+          {!isPlaying && !isVideoLoading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/30 z-10">
+              <button
+                onClick={handlePlayPause}
+                className="bg-white/20 backdrop-blur-md text-white p-6 rounded-full hover:bg-white/30 hover:scale-110 transition-all shadow-2xl"
+                aria-label="Lire"
+              >
+                <PlayIcon className="h-12 w-12 translate-x-1" />
+              </button>
+            </div>
+          )}
+
+          {/* Portrait → Landscape prompt (mobile only) */}
+          {isPortrait && (
+            <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-5 bg-black/80 sm:hidden">
+              <svg className="h-16 w-16 text-white/60 animate-bounce" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="4" y="2" width="16" height="20" rx="2" />
+                <line x1="12" y1="18" x2="12" y2="18.01" />
+              </svg>
+              <p className="text-white/80 text-base font-bold text-center px-8">
+                Tourne ton téléphone
+              </p>
+              <p className="text-white/50 text-sm text-center px-8 max-w-xs">
+                Mode paysage recommandé pour la meilleure expérience
+              </p>
+            </div>
+          )}
+
           {/* Gradient Shadows */}
           <div className={`absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/60 pointer-events-none transition-opacity duration-500 ${showControls || !isPlaying ? "opacity-100" : "opacity-0"}`} />
 
           {/* TOP BAR */}
           <div className={`absolute top-0 inset-x-0 p-6 flex items-start justify-between transition-all duration-500 transform ${showControls || !isPlaying ? "translate-y-0 opacity-100" : "-translate-y-4 opacity-0"}`}>
-            <div className="flex flex-col">
+            {/* Close button (mobile: top-left, desktop: part of right section) */}
+            <button
+              onClick={onBack}
+              aria-label="Fermer le lecteur"
+              className="p-2 rounded-full hover:bg-white/10 text-white transition-all transform hover:rotate-90 sm:hidden"
+            >
+              <XMarkIcon className="h-7 w-7" />
+            </button>
+
+            {/* Branding & metadata (hidden on mobile) */}
+            <div className="hidden sm:flex flex-col">
               <div className="flex items-center gap-3">
                 <span className="text-[#D70466] font-black tracking-tighter text-xl">CHILLERS+</span>
                 <div className="h-4 w-[1px] bg-white/20" />
@@ -342,7 +418,7 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
               </p>
             </div>
 
-            <div className="flex items-center gap-6">
+            <div className="hidden sm:flex items-center gap-6">
               {/* Volume */}
               <div className="flex items-center gap-3 group/vol">
                 <button onClick={toggleMute} aria-label={isMuted || volume === 0 ? "Activer le son" : "Couper le son"} className="text-white hover:text-[#D70466] transition-colors">

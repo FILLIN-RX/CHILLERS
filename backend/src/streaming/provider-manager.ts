@@ -216,11 +216,17 @@ export class ProviderManager {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         },
+        maxRedirects: 5,
       });
 
       if (response.status >= 400) return false;
 
       const body = typeof response.data === 'string' ? response.data.toLowerCase() : '';
+      const contentLength = body.length;
+
+      // Too short = error/redirect/minimal fallback page
+      if (contentLength < 200) return false;
+
       const notFoundIndicators = [
         'not found',
         'unavailable',
@@ -234,10 +240,39 @@ export class ProviderManager {
         'non disponible',
         'aucun contenu',
         'n\'existe pas',
+        'this video is not available',
+        'video not found',
+        'no video',
+        'content unavailable',
+        'stream not found',
+        'sorry',
+        'page not found',
+        'file not found',
+        'nothing found',
+        'aucun résultat',
+        'ne correspond',
+        'page introuvable',
+        'fichier introuvable',
+        'contenu non trouvé',
+        'film introuvable',
+        'série introuvable',
+        'nothing here',
+        'no content',
+        'empty',
+        'error 404',
+        'error 500',
       ];
 
       for (const indicator of notFoundIndicators) {
         if (body.includes(indicator)) {
+          return false;
+        }
+      }
+
+      // VidLink fallback pages are typically very minimal HTML without a real player
+      // Check that the response has meaningful content (player scripts, video elements, etc.)
+      if (url.includes('vidlink.pro')) {
+        if (!body.includes('vidlink') && !body.includes('player') && !body.includes('video') && !body.includes('iframe')) {
           return false;
         }
       }
