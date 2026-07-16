@@ -169,7 +169,7 @@ function MediaDetailPage() {
   const isYouTube = trailerUrl?.includes("youtube.com") || trailerUrl?.includes("embed");
 
   return (
-    <div className="min-h-screen bg-[#09090B] text-white pb-20 sm:pb-0">
+    <div className="flex-1 flex flex-col bg-[#09090B] text-white pb-20 sm:pb-0">
 
       {/* Back button — positioned just below the navbar */}
       <div className="fixed top-[72px] left-4 sm:left-6 z-40">
@@ -346,12 +346,21 @@ function MediaDetailPage() {
               <span className="h-5 w-1 rounded-full bg-[#D70466]" />
               Lecture
             </h2>
-            <div className="w-full rounded-3xl overflow-hidden border border-zinc-800 shadow-2xl">
-              <VideoPlayer 
-                item={item!} 
-                onBack={() => {}}
-                onOpenDetails={(item) => router.push(`/media/${item.id}?type=${item.type}`)} 
-              />
+            <div className="w-full rounded-3xl overflow-hidden border border-zinc-800 shadow-2xl bg-black relative">
+              {item.videoUrl ? (
+                <div className="max-h-[70vh]">
+                  <VideoPlayer
+                    item={item!}
+                    onBack={() => {}}
+                    onOpenDetails={(it) => router.push(`/media/${it.id}?type=${it.type}`)}
+                  />
+                </div>
+              ) : (
+                <div className="aspect-video flex flex-col items-center justify-center gap-3 text-zinc-500">
+                  <div className="animate-spin h-10 w-10 border-4 border-[#D70466] border-t-transparent rounded-full" />
+                  <p className="text-xs uppercase tracking-widest font-bold">Chargement du flux…</p>
+                </div>
+              )}
             </div>
           </section>
         )}

@@ -175,21 +175,43 @@ export const getDownloadByTitle = async (req: Request, res: Response, next: Next
       });
     }
 
-    // Prefer the direct .mp4 / vidzy.cc link when it's available —
-    // it's a clean CDN URL that downloads reliably. The Doodstream
-    // protected download URL often returns a tiny HTML "downloader"
-    // page (a few KB) when fetched without the right cookies/Referer,
-    // which the user sees as a broken download.
+    // Decide which URL to actually hand back to the client.
+    //
+    // 1) The stored "lien" is a direct .mp4 / vidzy.cc URL → best
+    //    option, downloads cleanly.
+    // 2) Otherwise, ask the Doodstream API for a fresh protected
+    //    download URL via the file_code.
+    //
+    // We must reject Doodstream *embed* pages (doodstream.com/e/...)
+    // because the proxy fetches them as if they were video files and
+    // they return a tiny HTML "downloader" page — that's the broken
+    // KB-sized downloads the user was seeing for series.
     let downloadUrl: string | null = null;
-    if (match.info.lien) {
-      downloadUrl = match.info.lien;
+    const storedLien: string | undefined = match.info.lien;
+    const isDirectMediaUrl =
+      !!storedLien &&
+      !/doodstream\.com\/e\//i.test(storedLien) &&
+      !/doodstream\.com\/d\//i.test(storedLien);
+
+    if (isDirectMediaUrl) {
+      downloadUrl = storedLien;
     } else if (match.fileCode) {
       try {
         const apiUrl = await getFileDownloadUrl(match.fileCode);
-        if (apiUrl) downloadUrl = apiUrl;
+        if (apiUrl && !/doodstream\.com\/e\//i.test(apiUrl)) {
+          downloadUrl = apiUrl;
+        }
       } catch {
         // API indisponible
       }
+    }
+
+    if (!downloadUrl) {
+      return res.json({
+        success: false,
+        data: null,
+        message: 'No downloadable URL found for this episode',
+      });
     }
 
     return res.json({
@@ -223,11 +245,34 @@ export const proxyDownload = async (req: Request, res: Response, next: NextFunct
     const response = await axios.get(url, {
       responseType: 'stream',
       timeout: 300000,
+      maxContentLength: Infinity,
+      maxRedirects: 5,
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Referer': 'https://vidzy.cc/',
       },
+      // Don't try to decompress — we want raw bytes piped through
+      'decompress': false,
     });
+
+    const upstreamType = (response.headers['content-type'] || '').toLowerCase();
+    const isHtml = upstreamType.includes('text/html') || upstreamType.includes('application/xhtml');
+
+    if (isHtml) {
+      // The upstream returned an HTML page (Doodstream "click to
+      // download" page, an error page, etc.) — refuse to forward it
+      // as a .mp4 download. The user would otherwise get a tiny
+      // unplayable file.
+      console.warn(`[PROXY] Refusing HTML upstream (${upstreamType}) for ${url}`);
+      response.data.destroy();
+      if (!res.headersSent) {
+        return res.status(502).json({
+          success: false,
+          message: 'Upstream returned HTML, not a video file',
+        });
+      }
+      return;
+    }
 
     const contentLength = response.headers['content-length'] as string | undefined;
     if (contentLength) {

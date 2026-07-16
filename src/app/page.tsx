@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import BottomNav from "@/components/BottomNav";
 import HeroCarousel from "@/components/HeroCarousel";
@@ -8,12 +8,9 @@ import MovieCard from "@/components/MovieCard";
 import ContinueWatchingCard from "@/components/ContinueWatchingCard";
 import ScrollRow from "@/components/ScrollRow";
 import MovieModal from "@/components/MovieModal";
-import VideoPlayer from "@/components/VideoPlayer";
 
 import {
   MovieOrShow,
-  Episode,
-  Season,
 } from "./mockData";
 
 import {
@@ -22,21 +19,38 @@ import {
   getPopularMovies,
   getPopularTV,
   getMediaDetails,
-  getStreamUrl,
   getMovieGenres,
   getMoviesByGenre,
   getAnimeSeries,
   Genre,
 } from "./api";
 
-export default function Home() {
+export default function HomePage() {
+  return (
+    <Suspense fallback={<HomeFallback />}>
+      <Home />
+    </Suspense>
+  );
+}
+
+function HomeFallback() {
+  return (
+    <div className="min-h-screen bg-brand-dark flex items-center justify-center">
+      <div className="flex flex-col items-center gap-4">
+        <div className="h-12 w-12 border-4 border-zinc-700 border-t-brand-primary rounded-full animate-spin" />
+        <p className="text-zinc-500 font-bold tracking-widest uppercase text-sm">Chargement…</p>
+      </div>
+    </div>
+  );
+}
+
+function Home() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<string>("home");
 
   // Media Playback & Modal States
   const [selectedMovie, setSelectedMovie] = useState<MovieOrShow | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [playingVideo, setPlayingVideo] = useState<{ item: MovieOrShow; episode?: Episode } | null>(null);
 
   // Favorites / Watchlist state
   const [favorites, setFavorites] = useState<string[]>([]);
@@ -55,7 +69,6 @@ export default function Home() {
   const [genres, setGenres] = useState<Genre[]>([]);
   const [genreRows, setGenreRows] = useState<{ title: string; items: MovieOrShow[] }[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
-  const [activeSeason, setActiveSeason] = useState<Season | null>(null);
 
   // Load favorites & continue watching from localStorage on mount
   useEffect(() => {
@@ -71,7 +84,7 @@ export default function Home() {
 
     // Load Continue Watching
     loadContinueWatchingHistory();
-  }, [playingVideo]);
+  }, []);
 
   const HOME_GENRES = [
     { id: '16', title: 'Animation' },
@@ -132,27 +145,6 @@ export default function Home() {
 
   // Trending tab: déjà chargé avec home, rien à faire
   // Categories tab: déjà chargé avec home (genres)
-
-  // Handle ?play=1 redirect from detail page (uses sessionStorage bridge)
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("play") === "1") {
-      try {
-        const raw = sessionStorage.getItem("chiller_play_item");
-        if (raw) {
-          const item = JSON.parse(raw) as MovieOrShow;
-          sessionStorage.removeItem("chiller_play_item");
-          // Resolve the actual stream URL (separate from trailer)
-          getStreamUrl(item.id, item.type === 'series' || item.type === 'anime' ? item.type : 'movie', undefined, undefined, item.title).then(stream => {
-            const updated = stream ? { ...item, videoUrl: stream.embedUrl } : { ...item, videoUrl: '' };
-            setPlayingVideo({ item: updated, episode: undefined });
-          });
-          // Clean URL without reload
-          window.history.replaceState({}, "", "/");
-        }
-      } catch (e) { /* ignore */ }
-    }
-  }, []);
 
   const loadContinueWatchingHistory = () => {
     const history: { item: MovieOrShow; progress: number; remaining: string; episodeName?: string; updatedAt: number }[] = [];
@@ -221,24 +213,13 @@ export default function Home() {
     }
   };
 
-  const handleWatchNow = async (item: MovieOrShow, episode?: Episode) => {
+  // Navigate to dedicated /watch/[id] page — the user explicitly chose
+  // to leave the home and enter the immersive player screen.
+  const handleWatchNow = (item: MovieOrShow) => {
     setIsModalOpen(false);
-    
-    // Clear videoUrl before fetching stream to prevent trailer from playing initially
-    setPlayingVideo({ item: { ...item, videoUrl: '' }, episode });
-    
-    let stream;
-    if (episode) {
-      stream = await getStreamUrl(item.id, item.type === 'documentary' ? 'movie' : item.type, activeSeason?.seasonNumber, episode.number, item.title);
-    } else {
-      stream = await getStreamUrl(item.id, item.type === 'documentary' ? 'movie' : item.type, undefined, undefined, item.title);
-    }
-    
-    if (stream) {
-      setPlayingVideo({ item: { ...item, videoUrl: stream.embedUrl }, episode });
-    } else {
-      setPlayingVideo({ item: { ...item, videoUrl: '' }, episode });
-    }
+    const typeParam =
+      item.type === "series" || item.type === "anime" ? "tv" : "movie";
+    router.push(`/watch/${item.id}?type=${typeParam}`);
   };
 
   const getFilteredMedia = (type: 'movie' | 'series' | 'anime') => {
@@ -249,24 +230,12 @@ export default function Home() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-brand-dark transition-colors duration-300">
-      
+    <div className="flex-1 flex flex-col bg-brand-dark transition-colors duration-300">
+
       {/* Main Content Area */}
       <main className="flex-grow transition-all duration-300">
-        {playingVideo ? (
-          /* Immersive Custom Video Player Mode */
-          <VideoPlayer
-            item={playingVideo.item}
-            episode={playingVideo.episode}
-            onBack={() => {
-              setPlayingVideo(null);
-              loadContinueWatchingHistory();
-            }}
-            onOpenDetails={handleOpenDetails}
-          />
-        ) : (
-          /* Standard Browsing Portal Hub */
-          <div className="space-y-10 pb-24">
+        {/* Standard Browsing Portal Hub */}
+        <div className="space-y-10 pb-24">
             
             {/* HERO CAROUSEL — no padding-top, goes behind the navbar */}
             {activeTab === "home" && (
@@ -440,7 +409,6 @@ export default function Home() {
             </div>
 
           </div>
-        )}
       </main>
 
       {/* Single full-screen overlay modal for detailed descriptions */}
@@ -457,16 +425,11 @@ export default function Home() {
       />
 
       {/* Mobile Bottom Navigation */}
-      {!playingVideo && (
-        <BottomNav
-          activeTab={activeTab}
-          setActiveTab={(tab) => {
-            setActiveTab(tab);
-            setPlayingVideo(null);
-          }}
-          onSearchClick={() => window.dispatchEvent(new Event("open-search"))}
-        />
-      )}
+      <BottomNav
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        onSearchClick={() => window.dispatchEvent(new Event("open-search"))}
+      />
 
     </div>
   );

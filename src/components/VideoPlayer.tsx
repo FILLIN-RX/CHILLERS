@@ -261,16 +261,16 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
   };
 
   return (
-    <div 
+    <div
       ref={containerRef}
-      className={`w-full relative z-[9999] bg-black rounded-lg overflow-hidden transition-opacity duration-500 ${showControls ? "cursor-default" : "cursor-none"}`}
+      className={`w-full aspect-video relative bg-black rounded-lg overflow-hidden transition-opacity duration-500 ${showControls ? "cursor-default" : "cursor-none"}`}
     >
       {/* ─── VIDEO / CONTENT ─────────────────────────────────────────────── */}
       {isIframe ? (
         <iframe
           key={item.videoUrl}
           src={item.videoUrl}
-          className="w-full aspect-video border-none bg-black"
+          className="absolute inset-0 w-full h-full border-none bg-black"
           allow="autoplay; fullscreen; encrypted-media; picture-in-picture; gyroscope; accelerometer; clipboard-write"
           allowFullScreen
           referrerPolicy="origin"
@@ -288,7 +288,7 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
         <video
           ref={videoRef}
           src={item.videoUrl}
-          className="w-full h-full object-contain"
+          className="absolute inset-0 w-full h-full object-contain"
           autoPlay
           onPlay={() => setIsPlaying(true)}
           onPause={() => setIsPlaying(false)}
@@ -297,11 +297,11 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
           onClick={handlePlayPause}
         />
       ) : (
-        <div className="aspect-video flex flex-col items-center justify-center gap-4 text-zinc-500">
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-zinc-500">
           <FilmIcon className="h-12 w-12 text-zinc-700" />
           <p className="font-medium text-lg">Flux indisponible</p>
-          <p className="text-sm text-zinc-600 max-w-md text-center">
-            Aucun fournisseur n'a pu diffuser ce contenu. 
+          <p className="text-sm text-zinc-600 max-w-md text-center px-4">
+            Aucun fournisseur n'a pu diffuser ce contenu.
             Le fichier est peut-être manquant sur DoodStream ou les sources alternatives sont indisponibles.
           </p>
           <button

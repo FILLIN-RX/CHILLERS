@@ -26,6 +26,7 @@ export default function SeasonPage() {
   const [streamUrl, setStreamUrl] = useState("");
   const [streamLoading, setStreamLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   const playerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -154,7 +155,7 @@ export default function SeasonPage() {
   } : null;
 
   return (
-    <div className="min-h-screen bg-[#09090B] text-white">
+    <div className="flex-1 flex flex-col bg-[#09090B] text-white">
       {/* Back button — positioned just below the navbar */}
       <div className="fixed top-[72px] left-4 sm:left-6 z-40">
         <button
@@ -166,7 +167,7 @@ export default function SeasonPage() {
         </button>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-[72px] pb-12">
+      <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 pt-[72px] pb-12 flex-1">
         <div className="flex flex-col lg:flex-row gap-6">
           <div className="flex-1 min-w-0 space-y-4" ref={playerRef}>
             <div className="flex items-center justify-between">
@@ -196,20 +197,20 @@ export default function SeasonPage() {
               </div>
             </div>
 
-            <div className="w-full rounded-3xl overflow-hidden border border-zinc-800 shadow-2xl bg-black">
-              {streamLoading ? (
-                <div className="aspect-video flex items-center justify-center">
+            <div className="w-full rounded-3xl overflow-hidden border border-zinc-800 shadow-2xl bg-black relative">
+              {streamLoading || !mockItem ? (
+                <div className="aspect-video flex flex-col items-center justify-center gap-3 text-zinc-500">
                   <div className="animate-spin h-10 w-10 border-4 border-[#D70466] border-t-transparent rounded-full" />
+                  <p className="text-xs uppercase tracking-widest font-bold">Chargement du flux…</p>
                 </div>
-              ) : mockItem ? (
-                <VideoPlayer
-                  item={mockItem}
-                  onBack={() => {}}
-                  onOpenDetails={() => {}}
-                />
               ) : (
-                <div className="aspect-video flex items-center justify-center text-zinc-500">
-                  Aucun épisode trouvé
+                <div className="max-h-[70vh]">
+                  <VideoPlayer
+                    key={`${currentEpisode?.id ?? 'ep'}-${streamUrl}`}
+                    item={mockItem}
+                    onBack={() => {}}
+                    onOpenDetails={() => {}}
+                  />
                 </div>
               )}
             </div>
@@ -242,15 +243,19 @@ export default function SeasonPage() {
                 onClick={async () => {
                   if (!currentEpisode) return;
                   setDownloading(true);
+                  setDownloadError(null);
                   try {
                     const result = await startDownload(
                       id as string, 'series', showTitle, Number(seasonNumber), currentEpisode.number
                     );
                     if (result?.downloadUrl) {
                       triggerDownload(result.downloadUrl, `${showTitle || 'video'}-S${seasonNumber}E${currentEpisode.number}.mp4`);
+                    } else {
+                      setDownloadError("Aucune source de téléchargement trouvée pour cet épisode. Le fichier est peut-être encore en cours d'upload sur DoodStream ou les sources alternatives sont indisponibles.");
                     }
                   } catch (err) {
                     console.error('Download failed:', err);
+                    setDownloadError("Une erreur est survenue lors du téléchargement. Réessaie plus tard.");
                   } finally {
                     setDownloading(false);
                   }
@@ -271,6 +276,12 @@ export default function SeasonPage() {
                 Télécharger
               </button>
             </div>
+
+            {downloadError && (
+              <div className="mt-4 p-4 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-300 text-sm">
+                {downloadError}
+              </div>
+            )}
           </div>
 
           <div className="w-full lg:w-80 xl:w-96 flex-none space-y-3">

@@ -22,7 +22,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         onOpenDetails={() => setIsSearchOpen(false)}
       />
       <Header onSearchClick={() => setIsSearchOpen(true)} />
-      {children}
+      <main className="flex-1 flex flex-col">{children}</main>
       <Footer />
     </>
   );

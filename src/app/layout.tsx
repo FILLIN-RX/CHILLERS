@@ -39,7 +39,7 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
     >
-      <body suppressHydrationWarning className="min-h-full flex flex-col bg-brand-dark text-foreground selection:bg-brand-primary selection:text-white">
+      <body suppressHydrationWarning className="min-h-screen flex flex-col bg-brand-dark text-foreground selection:bg-brand-primary selection:text-white">
         <AppShell>{children}</AppShell>
       </body>
     </html>
