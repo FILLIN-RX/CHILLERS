@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { HeartIcon } from "@heroicons/react/24/solid";
+import { HeartIcon, CameraIcon } from "@heroicons/react/24/solid";
 
 export default function Footer() {
   return (
@@ -15,7 +15,7 @@ export default function Footer() {
           {/* Brand Info */}
           <div className="space-y-4">
             <h3 className="text-xl font-black tracking-wider text-foreground">
-              CHILL<span className="text-brand-primary">ER</span>
+              CHILL<span className="text-brand-primary">ERS</span>
             </h3>
             <p className="text-xs text-brand-text-muted font-light leading-relaxed max-w-xs">
               L'expérience ultime du streaming gratuit. Films, séries, anime — accès instantané, zéro pub.
@@ -23,6 +23,16 @@ export default function Footer() {
             <p className="text-[10px] text-zinc-500 font-medium italic leading-relaxed">
               Chillers ne stocke aucun fichier. Tout contenu est hébergé par des tiers non affiliés. À des fins éducatives uniquement.
             </p>
+          </div>
+
+          <div className="space-y-3">
+            <h4 className="text-xs font-extrabold uppercase tracking-widest text-foreground">Liens</h4>
+            <ul className="space-y-2 text-xs text-brand-text-muted font-medium">
+              <li><Link href="/about" className="hover:text-brand-primary transition-colors">À Propos</Link></li>
+              <li><Link href="/contact" className="hover:text-brand-primary transition-colors">Contact</Link></li>
+              <li><Link href="/support" className="hover:text-brand-primary transition-colors">Soutenir</Link></li>
+              <li><Link href="/privacy" className="hover:text-brand-primary transition-colors">Politique de confidentialité</Link></li>
+            </ul>
           </div>
 
           {/* Categories Links */}
@@ -65,7 +75,7 @@ export default function Footer() {
                 f
               </a>
               <a href="#" className="h-8 w-8 rounded-full bg-brand-card border border-brand-border hover:border-brand-primary flex items-center justify-center text-brand-text-muted hover:text-brand-primary transition-all">
-                📷
+                <CameraIcon className="h-4 w-4" />
               </a>
               <a href="#" className="h-8 w-8 rounded-full bg-brand-card border border-brand-border hover:border-brand-primary flex items-center justify-center text-brand-text-muted hover:text-brand-primary transition-all">
                 ▶
@@ -79,11 +89,11 @@ export default function Footer() {
         <div className="border-t border-brand-border pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-brand-text-muted/80 font-semibold">
           <span>&copy; {new Date().getFullYear()} Chillers. No rights reserved.</span>
           <div className="flex items-center gap-4">
-            <a href="#" className="hover:text-brand-primary transition-colors">Terms of Service</a>
+            <Link href="/about" className="hover:text-brand-primary transition-colors">À Propos</Link>
             <span>•</span>
-            <a href="#" className="hover:text-brand-primary transition-colors">Privacy Policy</a>
+            <Link href="/contact" className="hover:text-brand-primary transition-colors">Contact</Link>
             <span>•</span>
-            <a href="#" className="hover:text-brand-primary transition-colors">Cookie settings</a>
+            <Link href="/privacy" className="hover:text-brand-primary transition-colors">Confidentialité</Link>
           </div>
         </div>
 
