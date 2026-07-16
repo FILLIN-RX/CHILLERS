@@ -351,14 +351,13 @@ function WatchContent() {
 
   return (
     <div className="min-h-screen bg-[#09090B] text-white">
-      <div className="fixed top-[80px] left-4 sm:left-6 z-40">
+      <div className="fixed top-0 left-0 z-40 p-4">
         <button
           onClick={() => router.back()}
           aria-label={_("media.back")}
-          className="flex items-center gap-2 px-4 py-2 rounded-full bg-black/70 backdrop-blur-md border border-white/10 text-sm font-semibold text-white hover:bg-white/10 hover:border-white/20 transition-all group shadow-lg"
+          className="flex items-center justify-center w-10 h-10 rounded-full bg-black/70 backdrop-blur-md border border-white/10 text-white hover:bg-white/10 hover:border-white/20 transition-all shadow-lg"
         >
-          <ArrowLeftIcon className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
-          <span className="hidden sm:inline">{_("media.back")}</span>
+          <ArrowLeftIcon className="h-5 w-5" />
         </button>
       </div>
 

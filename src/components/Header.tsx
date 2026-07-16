@@ -34,25 +34,33 @@ export default function Header({ onSearchClick }: HeaderProps) {
     return "home";
   })();
 
-  const isDetailPage = /^\/media\/(?!movies$|series$|anime$)/.test(pathname) || pathname.startsWith("/tv/") || pathname.startsWith("/watch/");
+  const isDetailPage = /^\/media\/(?!movies$|series$|anime$)(.+)$/.test(pathname) || pathname.startsWith("/tv/") || pathname.startsWith("/watch/");
+  const isListingPage = pathname.startsWith("/media/movies") || pathname.startsWith("/media/series") || pathname.startsWith("/media/anime");
 
   const [isScrolled, setIsScrolled] = useState(false);
+  const [hideMobile, setHideMobile] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
+      const scrolled = window.scrollY > 20;
+      setIsScrolled(scrolled);
+      if (isListingPage) {
+        setHideMobile(scrolled);
+      }
     };
     window.addEventListener("scroll", handleScroll);
     handleScroll();
     return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+  }, [isListingPage]);
 
   return (
     <header className={`fixed top-0 left-0 w-full z-45 transition-all duration-500 ${
-      isDetailPage ? "hidden sm:block" : ""
+      isDetailPage ? "max-sm:hidden" : ""
+    } ${
+      hideMobile ? "-translate-y-full sm:translate-y-0" : ""
     } ${
       isScrolled 
-        ? "glass-nav shadow-lg" 
+        ? "bg-zinc-900/95 shadow-lg border-b border-white/10" 
         : "bg-gradient-to-b from-black/90 via-black/40 to-transparent border-transparent"
     }`}>
       <div className="mx-auto flex max-w-[1600px] items-center justify-between px-3 sm:px-8 md:px-12 lg:px-[4%] py-3 sm:py-4">
@@ -102,11 +110,11 @@ export default function Header({ onSearchClick }: HeaderProps) {
           </nav>
         </div>
 
-        <div className="flex items-center gap-4 text-zinc-400">
+        <div className="flex items-center gap-4 text-zinc-400 bg-black/60 sm:bg-transparent rounded-full px-3 py-1.5 sm:px-0 sm:py-0">
           <button
             onClick={onSearchClick}
             aria-label={_("nav.search")}
-            className="p-2 rounded-full hover:bg-zinc-900 hover:border-zinc-800 hover:text-white transition-colors focus:outline-none border border-transparent"
+            className="p-2 rounded-full hover:bg-zinc-800 hover:text-white transition-colors focus:outline-none"
           >
             <MagnifyingGlassIcon className="h-5 w-5" />
           </button>

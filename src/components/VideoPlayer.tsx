@@ -51,6 +51,7 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
   const [isVideoLoading, setIsVideoLoading] = useState(true);
   const [iframeActivated, setIframeActivated] = useState(false);
   const [isPortrait, setIsPortrait] = useState(false);
+  const [dismissPortraitPrompt, setDismissPortraitPrompt] = useState(false);
 
   // Use passed episode or none
   const currentEpisode = episode;
@@ -369,8 +370,15 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
           )}
 
           {/* Portrait → Landscape prompt (mobile only) */}
-          {isPortrait && (
+          {isPortrait && !dismissPortraitPrompt && (
             <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-5 bg-black/80 sm:hidden">
+              <button
+                onClick={() => setDismissPortraitPrompt(true)}
+                className="absolute top-4 right-4 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-all z-10"
+                aria-label="Fermer"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
               <svg className="h-16 w-16 text-white/60 animate-bounce" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="4" y="2" width="16" height="20" rx="2" />
                 <line x1="12" y1="18" x2="12" y2="18.01" />

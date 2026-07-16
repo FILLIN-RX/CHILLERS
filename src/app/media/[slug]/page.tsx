@@ -114,12 +114,13 @@ function MediaDetailPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#09090B] text-white flex flex-col">
-        <div className="fixed top-[72px] left-4 sm:left-6 z-40">
+        <div className="fixed top-0 left-0 z-40 p-4">
           <button
             onClick={() => router.back()}
-            className="flex items-center gap-2 px-4 py-2 rounded-full bg-black/70 backdrop-blur-sm border border-white/10 text-sm font-semibold text-white hover:bg-black/90 transition-all"
+            aria-label={_("media.back")}
+            className="flex items-center justify-center w-10 h-10 rounded-full bg-black/70 backdrop-blur-sm border border-white/10 text-white hover:bg-black/90 transition-all"
           >
-            <ArrowLeftIcon className="h-4 w-4" /> {_("media.back")}
+            <ArrowLeftIcon className="h-5 w-5" />
           </button>
         </div>
 
@@ -156,14 +157,14 @@ function MediaDetailPage() {
   return (
     <div className="flex-1 flex flex-col bg-[#09090B] text-white pb-20 sm:pb-0">
 
-      {/* Back button — positioned just below the navbar */}
-      <div className="fixed top-[72px] left-4 sm:left-6 z-40">
+      {/* Back button */}
+      <div className="fixed top-0 left-0 z-40 p-4">
         <button
           onClick={() => router.back()}
-          className="flex items-center gap-2 px-4 py-2 rounded-full bg-black/70 backdrop-blur-sm border border-white/10 text-sm font-semibold text-white hover:bg-white/10 transition-all group"
+          aria-label={_("media.back")}
+          className="flex items-center justify-center w-10 h-10 rounded-full bg-black/70 backdrop-blur-sm border border-white/10 text-white hover:bg-white/10 transition-all"
         >
-          <ArrowLeftIcon className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
-          {_("media.back")}
+          <ArrowLeftIcon className="h-5 w-5" />
         </button>
       </div>
 
