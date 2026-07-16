@@ -1,4 +1,5 @@
 import axios from 'axios';
+import dns from 'dns';
 
 const tmdbClient = axios.create({
   baseURL: 'https://api.themoviedb.org/3',
@@ -7,6 +8,10 @@ const tmdbClient = axios.create({
   headers: {
     Authorization: 'Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI1ODY4ZjBmM2NmZTg1MTZmYmQ1NmE2YjNiNzJmOGYwZiIsIm5iZiI6MTc4Mzk0MDMzNi42ODMsInN1YiI6IjZhNTRjNGYwY2M4ZTIzNDZhNWI1MmUxYiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.33Zn39ASeHdHwv7jxe5-qaPhi-5uSvGqfAOPCSW8ddM',
     'Content-Type': 'application/json',
+  },
+  // @ts-ignore
+  lookup: (hostname: string, options: any, cb: (err: Error | null, address: any, family?: number) => void) => {
+    dns.lookup(hostname, { ...options, family: 4 }, cb);
   },
 });
 
