@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import BottomNav from "@/components/BottomNav";
 import HeroCarousel from "@/components/HeroCarousel";
 import MovieCard from "@/components/MovieCard";
 import ContinueWatchingCard from "@/components/ContinueWatchingCard";
@@ -424,12 +423,7 @@ function Home() {
         }}
       />
 
-      {/* Mobile Bottom Navigation */}
-      <BottomNav
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        onSearchClick={() => window.dispatchEvent(new Event("open-search"))}
-      />
+      {/* Mobile Bottom Navigation is now in AppShell so it shows on every page. */}
 
     </div>
   );
