@@ -45,6 +45,7 @@ function WatchContent() {
   const [item, setItem] = useState<MovieOrShow | null>(null);
   const [streamUrl, setStreamUrl] = useState("");
   const [streamLoading, setStreamLoading] = useState(true);
+  const [streamUnavailable, setStreamUnavailable] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
 
   // ─── TV-specific state ──────────────────────────────────────────────────
@@ -104,7 +105,13 @@ function WatchContent() {
               eps[0].number,
               detail?.title
             );
-            if (!cancelled && stream) setStreamUrl(stream.embedUrl);
+            if (!cancelled && stream) {
+              setStreamUrl(stream.embedUrl);
+            } else if (!cancelled) {
+              setStreamUnavailable(true);
+            }
+          } else if (!cancelled) {
+            setStreamUnavailable(true);
           }
           setSeasonLoading(false);
         } else {
@@ -115,7 +122,11 @@ function WatchContent() {
             undefined,
             detail?.title
           );
-          if (!cancelled && stream) setStreamUrl(stream.embedUrl);
+          if (!cancelled && stream) {
+            setStreamUrl(stream.embedUrl);
+          } else if (!cancelled) {
+            setStreamUnavailable(true);
+          }
         }
 
         // 3) Similar content
@@ -155,16 +166,16 @@ function WatchContent() {
       setStreamLoading(true);
       setStreamUrl("");
       try {
+        setStreamUnavailable(false);
         const stream = await getStreamUrl(id, "series", 1, ep.number, item.title);
-        if (stream) setStreamUrl(stream.embedUrl);
-        else {
-          setNotification({
-            title: "Flux indisponible",
-            message: "Aucun flux trouvé pour cet épisode.",
-          });
+        if (stream) {
+          setStreamUrl(stream.embedUrl);
+        } else {
+          setStreamUnavailable(true);
         }
       } catch (err) {
         console.error("Episode stream error:", err);
+        setStreamUnavailable(true);
       } finally {
         setStreamLoading(false);
       }
@@ -307,7 +318,7 @@ function WatchContent() {
       : { ...item, videoUrl: streamUrl }
     : null;
 
-  const showPlayerSkeleton = streamLoading || !streamUrl || !playerItem;
+  const showPlayerSkeleton = (streamLoading || !playerItem) && !streamUnavailable;
   const showPageSkeleton = pageLoading && !item;
 
   // ─── Loading state ──────────────────────────────────────────────────────
@@ -376,7 +387,30 @@ function WatchContent() {
         {/* ── Hero player area ──────────────────────────────────────── */}
         <div ref={playerRef} className="scroll-mt-24">
           <div className="w-full aspect-video rounded-2xl sm:rounded-3xl overflow-hidden border border-zinc-800 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)] bg-black relative">
-            {showPlayerSkeleton ? (
+            {streamUnavailable ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-6">
+                <div className="w-20 h-20 rounded-full bg-zinc-800/80 flex items-center justify-center border border-zinc-700/50">
+                  <FilmIcon className="h-10 w-10 text-zinc-500" />
+                </div>
+                <div className="text-center max-w-md space-y-2">
+                  <h3 className="text-lg sm:text-xl font-bold text-white">
+                    Bientôt disponible
+                  </h3>
+                  <p className="text-zinc-400 text-sm leading-relaxed">
+                    Ce contenu n'est pas encore disponible sur notre plateforme. 
+                    Notre équipe travaille pour l'ajouter très prochainement.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-brand-primary/10 border border-brand-primary/20">
+                  <svg className="animate-pulse h-3 w-3 text-brand-primary" viewBox="0 0 8 8" fill="currentColor">
+                    <circle cx="4" cy="4" r="4" />
+                  </svg>
+                  <span className="text-xs font-bold text-brand-primary uppercase tracking-wider">
+                    Coming soon
+                  </span>
+                </div>
+              </div>
+            ) : showPlayerSkeleton ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-zinc-500">
                 <div className="animate-spin h-10 w-10 border-4 border-brand-primary border-t-transparent rounded-full" />
                 <p className="text-xs uppercase tracking-widest font-bold">

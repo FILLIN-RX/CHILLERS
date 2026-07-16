@@ -14,6 +14,52 @@ function parseTitre(titre: string): { seriesName: string; season: number } | nul
   return { seriesName: match[1].trim(), season: parseInt(match[2], 10) };
 }
 
+// Normalize a string for comparison: lowercase, remove accents, keep alphanum
+function normalize(str: string): string {
+  return str
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9 ]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Jaccard similarity between two name strings
+function nameSimilarity(a: string, b: string): number {
+  const wordsA = new Set(normalize(a).split(' ').filter(w => w.length > 1));
+  const wordsB = new Set(normalize(b).split(' ').filter(w => w.length > 1));
+  if (wordsA.size === 0 && wordsB.size === 0) return 1;
+  let intersect = 0;
+  for (const w of wordsA) if (wordsB.has(w)) intersect++;
+  const union = new Set([...wordsA, ...wordsB]).size;
+  return intersect / union;
+}
+
+// Extract episode title from a Doodstream lien URL filename
+// Patterns: "Series.Name.S01E01.EpisodeTitle.1080p.WEB.mkv"
+function extractEpisodeTitleFromFilename(filename: string): string | null {
+  // Remove quality/codec tags
+  const cleaned = filename
+    .replace(/\.(?:mkv|mp4|avi|mov)$/i, '')
+    .replace(/\.[A-Za-z0-9]+(?:-[A-Za-z0-9]+)?$/g, '')
+    .replace(/\.(?:1080p|720p|480p|2160p|WEB|BLURAY|BRRiP|WEBRiP|HDTV|x264|x265|H264|H265|MULTi|VFF|VOSTFR|FRENCH|TRUEFRENCH|SUPPLY|TyHD|GL0P|d4kid|AMZN|NF|iT|iTA|iNTERNAL|PROPER|REPACK)\..*/gi, '')
+    .replace(/[._]/g, ' ')
+    .trim();
+
+  // Try to extract after SXXEYY pattern
+  const seMatch = cleaned.match(/[sS]\d+[eE]\d+\s+(.+)/);
+  if (seMatch) {
+    const title = seMatch[1].trim();
+    // Filter out generic titles like "Episode 1" or "Épisode 1"
+    if (title && !/^(?:episode|épisode|ep)\s*\d+$/i.test(title) && title.length > 2) {
+      return title;
+    }
+  }
+
+  return null;
+}
+
 interface SeriesEntry {
   titre: string;
   season: number;
@@ -116,6 +162,14 @@ async function main() {
       const candidate = results[i];
       console.log(`  Candidat ${i + 1}: "${candidate.name}" (id: ${candidate.id}, popularité: ${candidate.popularity})`);
 
+      // Step 0: check name similarity to avoid false positives
+      const sim = nameSimilarity(seriesName, candidate.name);
+      if (sim < 0.3) {
+        console.log(`    ❌ Similarité de nom trop faible: ${sim.toFixed(2)} — ignoré`);
+        continue;
+      }
+      console.log(`    ✅ Similarité de nom: ${sim.toFixed(2)}`);
+
       // Step 1: check if season exists
       const details = await getTvDetails(candidate.id);
       if (!details) {
@@ -131,7 +185,7 @@ async function main() {
       }
       console.log(`    ✅ Saison ${season} existe sur TMDB`);
 
-      // Step 2: check exact episode count
+      // Step 2: get TMDB season episodes
       const seasonDetail = await getSeasonDetails(candidate.id, season);
       if (!seasonDetail) {
         console.log(`    → Impossible de récupérer les épisodes de la saison ${season}`);
@@ -140,20 +194,62 @@ async function main() {
 
       const tmdbEpisodes = seasonDetail.episodes || [];
       const tmdbCount = tmdbEpisodes.length;
-      if (tmdbCount !== uploadedCount) {
-        console.log(`    ❌ Nombre d'épisodes TMDB: ${tmdbCount}, uploadés: ${uploadedCount} — pas de match`);
-        continue;
-      }
-      console.log(`    ✅ Nombre d'épisodes exact: ${tmdbCount}`);
 
-      // Match found!
-      console.log(`    ✅ LIEN RÉUSSI → tmdbId=${candidate.id}`);
-      for (const entry of group.entries) {
-        entry.tmdbId = candidate.id;
+      // Step 3: check by episode titles (most reliable)
+      const uploadedEpTitles: { ep: number; title: string | null }[] = group.entries.map(e => {
+        const filename = (e.lien || '').split('/').pop()?.split('?')[0] || '';
+        return { ep: e.episode, title: extractEpisodeTitleFromFilename(filename) };
+      });
+      const titleMatches = uploadedEpTitles.filter(u => {
+        if (!u.title) return false;
+        const tmdbEp = tmdbEpisodes.find((te: any) => te.episode_number === u.ep);
+        if (!tmdbEp || !tmdbEp.name) return false;
+        const epSim = nameSimilarity(u.title, tmdbEp.name);
+        return epSim > 0.4;
+      });
+
+      if (titleMatches.length > 0) {
+        console.log(`    ✅ Match par titres d'épisodes: ${titleMatches.length} correspondance(s) (ex: "${titleMatches[0].title}" ≈ TMDB "${tmdbEpisodes.find((te: any) => te.episode_number === titleMatches[0].ep)?.name}")`);
+        console.log(`    ✅ LIEN RÉUSSI → tmdbId=${candidate.id}`);
+        for (const entry of group.entries) {
+          entry.tmdbId = candidate.id;
+        }
+        linked++;
+        matched = true;
+        break;
       }
-      linked++;
-      matched = true;
-      break;
+
+      // Step 4: strict match by exact episode count (fallback)
+      if (tmdbCount === uploadedCount) {
+        console.log(`    ⚠ Nombre d'épisodes exact: ${tmdbCount} — lien par décompte (nom validé: ${sim.toFixed(2)})`);
+        console.log(`    ✅ LIEN RÉUSSI → tmdbId=${candidate.id}`);
+        for (const entry of group.entries) {
+          entry.tmdbId = candidate.id;
+        }
+        linked++;
+        matched = true;
+        break;
+      }
+
+      // Step 5: relaxed match — uploaded <= TMDB + episode numbers overlap + name validated
+      if (uploadedCount <= tmdbCount) {
+        const uploadedEpNumbers = new Set(group.entries.map(e => e.episode));
+        const tmdbEpNumbers = new Set(tmdbEpisodes.map((e: any) => e.episode_number));
+        const anyNumMatch = [...uploadedEpNumbers].some(n => tmdbEpNumbers.has(n));
+
+        if (anyNumMatch) {
+          console.log(`    ⚠ Nombre d'épisodes TMDB: ${tmdbCount}, uploadés: ${uploadedCount} — match relâché par numéros (nom validé: ${sim.toFixed(2)})`);
+          console.log(`    ✅ LIEN RÉUSSI (relâché) → tmdbId=${candidate.id}`);
+          for (const entry of group.entries) {
+            entry.tmdbId = candidate.id;
+          }
+          linked++;
+          matched = true;
+          break;
+        }
+      }
+
+      console.log(`    ❌ Nombre d'épisodes TMDB: ${tmdbCount}, uploadés: ${uploadedCount} — pas de match`);
     }
 
     if (!matched) {

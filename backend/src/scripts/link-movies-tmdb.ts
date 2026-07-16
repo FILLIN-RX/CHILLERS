@@ -1,0 +1,151 @@
+import dotenv from 'dotenv';
+import path from 'path';
+dotenv.config({ path: path.join(__dirname, '../../.env') });
+
+import fs from 'fs';
+import tmdbClient from '../config/tmdb';
+
+const UPLOADED_PATH = path.join(__dirname, '../../uploaded.json');
+const ERROR_LOG_PATH = path.join(__dirname, '../../tmdb-movie-link-errors.log');
+
+function normalize(str: string): string {
+  return str
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9 ]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function nameSimilarity(a: string, b: string): number {
+  const wordsA = new Set(normalize(a).split(' ').filter(w => w.length > 1));
+  const wordsB = new Set(normalize(b).split(' ').filter(w => w.length > 1));
+  if (wordsA.size === 0 && wordsB.size === 0) return 1;
+  let intersect = 0;
+  for (const w of wordsA) if (wordsB.has(w)) intersect++;
+  const union = new Set([...wordsA, ...wordsB]).size;
+  return intersect / union;
+}
+
+interface MovieEntry {
+  titre: string;
+  fileCode: string;
+  tmdbId?: number | null;
+  year?: number | null;
+  lien?: string;
+  [key: string]: any;
+}
+
+async function searchTmdbMovie(query: string, year?: number | null): Promise<any[]> {
+  try {
+    const params: Record<string, any> = { query, page: 1 };
+    if (year) params.year = year;
+    const { data } = await tmdbClient.get('/search/movie', { params });
+    return data.results || [];
+  } catch (err: any) {
+    console.error(`[TMDB] Search error for "${query}":`, err.message);
+    return [];
+  }
+}
+
+async function main() {
+  if (!fs.existsSync(UPLOADED_PATH)) {
+    console.error('uploaded.json not found');
+    process.exit(1);
+  }
+
+  const raw: Record<string, MovieEntry> = JSON.parse(
+    fs.readFileSync(UPLOADED_PATH, 'utf-8')
+  );
+
+  // Find entries without tmdbId (movies only = no season field)
+  const toLink: { key: string; entry: MovieEntry }[] = [];
+  for (const [key, entry] of Object.entries(raw)) {
+    if (!entry.tmdbId && entry.season === undefined) {
+      toLink.push({ key, entry });
+    }
+  }
+
+  if (toLink.length === 0) {
+    console.log('Aucun film à lier.');
+    return;
+  }
+
+  let linked = 0;
+  let failed = 0;
+  const errors: string[] = [];
+  const total = toLink.length;
+
+  for (let idx = 0; idx < total; idx++) {
+    const { key, entry } = toLink[idx];
+    const title = entry.titre || key;
+    const year = entry.year || undefined;
+
+    console.log(`\n[${idx + 1}/${total}] "${title}"${year ? ` (${year})` : ''}`);
+
+    const results = await searchTmdbMovie(title, year);
+    if (results.length === 0) {
+      errors.push(`[SEARCH] No TMDB results for "${title}"`);
+      failed++;
+      continue;
+    }
+
+    let matched = false;
+    for (let i = 0; i < Math.min(3, results.length); i++) {
+      const candidate = results[i];
+      const candidateTitle = candidate.title || candidate.name || '';
+      const candidateYear = candidate.release_date
+        ? new Date(candidate.release_date).getFullYear()
+        : null;
+
+      console.log(`  Candidat ${i + 1}: "${candidateTitle}" (id: ${candidate.id}, année: ${candidateYear}, popularité: ${candidate.popularity})`);
+
+      // Step 1: name similarity
+      const sim = nameSimilarity(title, candidateTitle);
+      if (sim < 0.3) {
+        console.log(`    ❌ Similarité trop faible: ${sim.toFixed(2)} — ignoré`);
+        continue;
+      }
+      console.log(`    ✅ Similarité: ${sim.toFixed(2)}`);
+
+      // Step 2: year check (if we have it)
+      if (year && candidateYear && Math.abs(year - candidateYear) > 2) {
+        console.log(`    ❌ Année différente: uploadé=${year}, TMDB=${candidateYear} — ignoré`);
+        continue;
+      }
+
+      // Step 3: take the best match by similarity * popularity
+      if (sim >= 0.5 || (sim >= 0.3 && i === 0)) {
+        console.log(`    ✅ LIEN RÉUSSI → tmdbId=${candidate.id}`);
+        raw[key].tmdbId = candidate.id;
+        linked++;
+        matched = true;
+        break;
+      }
+
+      console.log(`    ❌ Similarité insuffisante (${sim.toFixed(2)}) pour lier sans certitude`);
+    }
+
+    if (!matched) {
+      errors.push(`[NO MATCH] "${title}" — aucun candidat TMDB valide`);
+      failed++;
+    }
+  }
+
+  // Write updated uploaded.json
+  fs.writeFileSync(UPLOADED_PATH, JSON.stringify(raw, null, 2), 'utf-8');
+  
+  console.log(`\n=== RÉSULTAT ===`);
+  console.log(`✅ Liés: ${linked}`);
+  console.log(`❌ Échecs: ${failed}`);
+  console.log(`📊 Total traités: ${total}`);
+
+  if (errors.length > 0) {
+    const logContent = errors.join('\n') + '\n';
+    fs.appendFileSync(ERROR_LOG_PATH, logContent + '\n', 'utf-8');
+    console.log(`\nErreurs logguées dans tmdb-movie-link-errors.log`);
+  }
+}
+
+main().catch(err => console.error('[FATAL]', err));
