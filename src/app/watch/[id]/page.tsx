@@ -473,9 +473,9 @@ function WatchContent() {
           <div className="flex flex-wrap gap-2 sm:gap-3 pt-1">
             <button
               onClick={handleDownload}
-              disabled={downloading}
+              disabled={downloading || streamUnavailable}
               className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-full font-bold text-xs sm:text-sm border transition-all ${
-                downloading
+                downloading || streamUnavailable
                   ? "bg-zinc-800 border-zinc-700 text-zinc-400 cursor-not-allowed"
                   : "bg-white/10 border-white/20 text-white hover:bg-white/20"
               }`}
@@ -500,10 +500,17 @@ function WatchContent() {
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
                   />
                 </svg>
+              ) : streamUnavailable ? (
+                <>
+                  <svg className="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                  </svg>
+                  <span className="hidden sm:inline">Bientôt disponible</span>
+                </>
               ) : (
                 <ArrowDownTrayIcon className="h-4 w-4 sm:h-5 sm:w-5" />
               )}
-              <span className="hidden sm:inline">{_("download.single")}</span>
+              {!streamUnavailable && !downloading && <span className="hidden sm:inline">{_("download.single")}</span>}
             </button>
 
             {isTV && (

@@ -255,12 +255,12 @@ function MediaDetailPage() {
 
                 <button 
                   className={`flex items-center gap-2 px-5 py-3 rounded-full font-bold text-sm transition-all hover:scale-105 border ${
-                    downloading
-                      ? "bg-zinc-800 border-zinc-700 text-zinc-400"
+                    downloading || (!loading && !item.videoUrl)
+                      ? "bg-zinc-800 border-zinc-700 text-zinc-400 cursor-not-allowed"
                       : "bg-white/10 border-white/20 text-white hover:bg-white/20"
                   }`}
                   onClick={handleDownload}
-                  disabled={downloading}
+                  disabled={downloading || (!loading && !item.videoUrl)}
                 >
                   {downloading ? (
                     <>
@@ -269,6 +269,13 @@ function MediaDetailPage() {
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                       </svg>
                       {_("download.preparing")}
+                    </>
+                  ) : !loading && !item.videoUrl ? (
+                    <>
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                      </svg>
+                      Bientôt disponible
                     </>
                   ) : (
                     _("download.single")
@@ -471,6 +478,14 @@ function MediaListingPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
+  const [headerHidden, setHeaderHidden] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => setHeaderHidden(window.scrollY > 20);
+    window.addEventListener("scroll", handleScroll);
+    handleScroll();
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   // Genre filter state
   const [genres, setGenres] = useState<Genre[]>([]);
@@ -568,8 +583,10 @@ function MediaListingPage() {
   return (
     <main className="min-h-screen bg-brand-dark pb-28">
 
-      {/* ── Sticky filter bar (just below fixed navbar at 72px) ── */}
-      <div className="sticky top-[64px] z-30 bg-brand-dark/95 backdrop-blur-md border-b border-zinc-800/50 px-2 sm:px-6 md:px-12 lg:px-[4%] py-2.5">
+      {/* ── Sticky filter bar ── */}
+      <div className={`sticky z-30 bg-brand-dark/95 backdrop-blur-md border-b border-zinc-800/50 px-2 sm:px-6 md:px-12 lg:px-[4%] py-2.5 transition-all duration-500 ${
+        headerHidden ? "top-0" : "top-[64px]"
+      }`}>
         <GenreFilterBar
           genres={genres}
           activeGenreId={activeGenreId}
