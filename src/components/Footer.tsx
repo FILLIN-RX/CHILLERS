@@ -1,6 +1,8 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
+import { HeartIcon } from "@heroicons/react/24/solid";
 
 export default function Footer() {
   return (
@@ -16,7 +18,10 @@ export default function Footer() {
               CHILL<span className="text-brand-primary">ER</span>
             </h3>
             <p className="text-xs text-brand-text-muted font-light leading-relaxed max-w-xs">
-              Chiller is a luxury streaming ecosystem providing instant access to award-winning cinema, exclusive series, documentaries, and global anime blockbusters.
+              L'expérience ultime du streaming gratuit. Films, séries, anime — accès instantané, zéro pub.
+            </p>
+            <p className="text-[10px] text-zinc-500 font-medium italic leading-relaxed">
+              Chillers ne stocke aucun fichier. Tout contenu est hébergé par des tiers non affiliés. À des fins éducatives uniquement.
             </p>
           </div>
 
@@ -31,15 +36,19 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Editorial & Collections Links */}
+          {/* Support / Donate */}
           <div className="space-y-3">
-            <h4 className="text-xs font-extrabold uppercase tracking-widest text-foreground">Editorial</h4>
-            <ul className="space-y-2 text-xs text-brand-text-muted font-medium">
-              <li><a href="#" className="hover:text-brand-primary transition-colors">African Cinema (Canal+ Style)</a></li>
-              <li><a href="#" className="hover:text-brand-primary transition-colors">Trending Worldwide</a></li>
-              <li><a href="#" className="hover:text-brand-primary transition-colors">New Releases This Week</a></li>
-              <li><a href="#" className="hover:text-brand-primary transition-colors">Top Rated Masterpieces</a></li>
-            </ul>
+            <h4 className="text-xs font-extrabold uppercase tracking-widest text-foreground">Soutenir</h4>
+            <p className="text-xs text-brand-text-muted font-light">
+              Le projet vit grâce à vos dons. Orange Money & Mobile Money acceptés.
+            </p>
+            <Link
+              href="/support"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-brand-primary text-white text-xs font-bold hover:bg-brand-primary/90 transition-all shadow-lg shadow-brand-primary/30"
+            >
+              <HeartIcon className="h-4 w-4" />
+              Nous soutenir
+            </Link>
           </div>
 
           {/* Socials & Newsletter Info */}
@@ -68,7 +77,7 @@ export default function Footer() {
 
         {/* Bottom Rights & Policy Row */}
         <div className="border-t border-brand-border pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-brand-text-muted/80 font-semibold">
-          <span>&copy; {new Date().getFullYear()} Chiller Inc. No rights reserved. v1.1.2</span>
+          <span>&copy; {new Date().getFullYear()} Chillers. No rights reserved.</span>
           <div className="flex items-center gap-4">
             <a href="#" className="hover:text-brand-primary transition-colors">Terms of Service</a>
             <span>•</span>

@@ -17,6 +17,7 @@ import {
   FilmIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  ArrowDownTrayIcon,
 } from "@heroicons/react/24/solid";
 import { ShareIcon } from "@heroicons/react/24/outline";
 import VideoPlayer from "@/components/VideoPlayer";
@@ -116,7 +117,7 @@ function MediaDetailPage() {
       <div className="min-h-screen bg-[#09090B] text-white flex flex-col">
         <div className="fixed top-0 left-0 z-40 p-4">
           <button
-            onClick={() => router.back()}
+            onClick={() => { window.scrollTo(0, 0); router.back(); }}
             aria-label={_("media.back")}
             className="flex items-center justify-center w-10 h-10 rounded-full bg-black/70 backdrop-blur-sm border border-white/10 text-white hover:bg-black/90 transition-all"
           >
@@ -142,7 +143,7 @@ function MediaDetailPage() {
           <FilmIcon className="h-16 w-16 text-zinc-700 mx-auto" />
           <p className="text-zinc-400 text-lg">{_("media.notFound")}</p>
           <button
-            onClick={() => router.back()}
+            onClick={() => { window.scrollTo(0, 0); router.back(); }}
             className="px-6 py-2 rounded-full bg-[#D70466] text-white text-sm font-bold hover:bg-[#b5034f] transition-colors"
           >
             {_("media.back")}
@@ -160,7 +161,7 @@ function MediaDetailPage() {
       {/* Back button */}
       <div className="fixed top-0 left-0 z-40 p-4">
         <button
-          onClick={() => router.back()}
+          onClick={() => { window.scrollTo(0, 0); router.back(); }}
           aria-label={_("media.back")}
           className="flex items-center justify-center w-10 h-10 rounded-full bg-black/70 backdrop-blur-sm border border-white/10 text-white hover:bg-white/10 transition-all"
         >
@@ -200,46 +201,46 @@ function MediaDetailPage() {
                 {item.genres.slice(0, 3).map((g) => (
                   <span
                     key={g}
-                    className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest border border-[#D70466]/40 text-[#D70466] bg-[#D70466]/10"
+                    className="px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-widest border border-[#D70466]/40 text-[#D70466] bg-[#D70466]/10"
                   >
                     {g}
                   </span>
                 ))}
               </div>
 
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white leading-tight drop-shadow-xl">
+              <h1 className="text-xl sm:text-5xl lg:text-7xl font-black text-white leading-tight drop-shadow-xl">
                 {item.title}
               </h1>
 
-              <div className="flex flex-wrap items-center gap-4 text-sm text-zinc-300 font-medium">
-                <div className="flex items-center gap-1.5 text-amber-400">
-                  <StarIcon className="h-4 w-4" />
+              <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-base text-zinc-300 font-medium">
+                <div className="flex items-center gap-1 sm:gap-1.5 text-amber-400">
+                  <StarIcon className="h-3.5 w-3.5 sm:h-5 sm:w-5" />
                   <span className="font-bold">{item.rating}</span>
                   <span className="text-zinc-500">/10</span>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <CalendarDaysIcon className="h-4 w-4 text-zinc-500" />
+                <div className="flex items-center gap-1 sm:gap-1.5">
+                  <CalendarDaysIcon className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-zinc-500" />
                   {item.year}
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <ClockIcon className="h-4 w-4 text-zinc-500" />
+                <div className="flex items-center gap-1 sm:gap-1.5">
+                  <ClockIcon className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-zinc-500" />
                   {item.duration}
                 </div>
-                <span className="px-2 py-0.5 rounded border border-zinc-700 text-zinc-400 text-xs uppercase tracking-wider">
+                <span className="px-2 py-0.5 rounded border border-zinc-700 text-zinc-400 text-[10px] sm:text-xs uppercase tracking-wider">
                   {item.type}
                 </span>
               </div>
 
-              <p className="text-zinc-300 text-base leading-relaxed max-w-2xl line-clamp-3">
+              <p className="text-zinc-300 text-sm sm:text-lg leading-relaxed max-w-2xl line-clamp-3">
                 {item.synopsis || item.description}
               </p>
 
               <div className="flex items-center gap-2 pt-2 overflow-x-auto no-scrollbar">
                 <button
                   onClick={handleWatch}
-                  className="flex-none flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#D70466] hover:bg-[#b5034f] text-white font-bold text-xs transition-all hover:scale-105 shadow-lg shadow-[#D70466]/30"
+                  className="flex-none flex items-center gap-1.5 px-3 sm:px-6 py-1.5 sm:py-3 rounded-full bg-[#D70466] hover:bg-[#b5034f] text-white font-bold text-[11px] sm:text-sm transition-all hover:scale-105 shadow-lg shadow-[#D70466]/30"
                 >
-                  <PlayIcon className="h-4 w-4" />
+                  <PlayIcon className="h-3.5 w-3.5 sm:h-5 sm:w-5" />
                   <span className="sm:hidden">Film</span>
                   <span className="hidden sm:inline">{_("media.watch")}</span>
                 </button>
@@ -247,16 +248,16 @@ function MediaDetailPage() {
                 {isYouTube && (
                   <button
                     onClick={() => setTrailerOpen(true)}
-                    className="flex-none flex items-center gap-1.5 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white font-bold text-xs transition-all hover:scale-105"
+                    className="flex-none flex items-center gap-1.5 px-3 sm:px-6 py-1.5 sm:py-3 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white font-bold text-[11px] sm:text-sm transition-all hover:scale-105"
                   >
-                    <FilmIcon className="h-4 w-4" />
+                    <FilmIcon className="h-3.5 w-3.5 sm:h-5 sm:w-5" />
                     <span className="sm:hidden">Bande-annonce</span>
                     <span className="hidden sm:inline">{_("media.trailer")}</span>
                   </button>
                 )}
 
                 <button 
-                  className={`flex-none flex items-center gap-1.5 px-4 py-2 rounded-full font-bold text-xs transition-all hover:scale-105 border whitespace-nowrap ${
+                  className={`flex-none flex items-center gap-1.5 px-3 sm:px-6 py-1.5 sm:py-3 rounded-full font-bold text-[11px] sm:text-sm transition-all hover:scale-105 border whitespace-nowrap ${
                     downloading || (!loading && !item.videoUrl)
                       ? "bg-zinc-800 border-zinc-700 text-zinc-400 cursor-not-allowed"
                       : "bg-white/10 border-white/20 text-white hover:bg-white/20"
@@ -266,7 +267,7 @@ function MediaDetailPage() {
                 >
                   {downloading ? (
                     <>
-                      <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
+                      <svg className="animate-spin h-3 w-3 sm:h-4 sm:w-4" viewBox="0 0 24 24" fill="none">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                       </svg>
@@ -275,22 +276,20 @@ function MediaDetailPage() {
                     </>
                   ) : !loading && !item.videoUrl ? (
                     <>
-                      <svg className="h-3.5 w-3.5 flex-none" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                      <svg className="h-3 w-3 sm:h-4 sm:w-4 flex-none" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                       </svg>
                       <span className="sm:hidden">Bientôt</span>
                       <span className="hidden sm:inline">Bientôt disponible</span>
                     </>
                   ) : (
-                    <>
-                      <span className="sm:hidden">DL</span>
-                      <span className="hidden sm:inline">{_("download.single")}</span>
-                    </>
+                    <ArrowDownTrayIcon className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1.5" />
                   )}
+                  {!downloading && (loading || item.videoUrl) && <span className="hidden sm:inline">{_("download.single")}</span>}
                 </button>
 
-                <button aria-label={_("media.share")} className="flex-none flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/10 border border-white/20 text-white hover:bg-white/20 transition-all hover:scale-105 font-bold text-xs">
-                  <ShareIcon className="h-4 w-4" />
+                <button aria-label={_("media.share")} className="flex-none flex items-center gap-1.5 px-2.5 sm:px-5 py-1.5 sm:py-3 rounded-full bg-white/10 border border-white/20 text-white hover:bg-white/20 transition-all hover:scale-105 font-bold text-[11px] sm:text-sm">
+                  <ShareIcon className="h-3.5 w-3.5 sm:h-5 sm:w-5" />
                 </button>
               </div>
             </div>
@@ -298,28 +297,28 @@ function MediaDetailPage() {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 sm:px-12 lg:px-20 py-16 space-y-16">
-        <section className="space-y-4">
-          <h2 className="text-2xl font-black text-white flex items-center gap-3">
-            <span className="h-5 w-1 rounded-full bg-[#D70466]" />
+      <div className="max-w-6xl mx-auto px-4 sm:px-12 lg:px-20 py-12 sm:py-16 space-y-12 sm:space-y-16">
+        <section className="space-y-3 sm:space-y-4">
+          <h2 className="text-lg sm:text-2xl font-black text-white flex items-center gap-3">
+            <span className="h-4 w-1 sm:h-5 sm:w-1 rounded-full bg-[#D70466]" />
             {_("media.synopsis")}
           </h2>
-          <p className="text-zinc-300 text-base leading-relaxed max-w-3xl">
+          <p className="text-zinc-300 text-sm sm:text-lg leading-relaxed max-w-3xl">
             {item.synopsis || item.description || _("media.noSynopsis")}
           </p>
         </section>
 
         {item.cast && item.cast.length > 0 && item.cast[0] !== "Cast Info Unavailable" && (
-          <section className="space-y-4">
-            <h2 className="text-2xl font-black text-white flex items-center gap-3">
-              <span className="h-5 w-1 rounded-full bg-[#7C3AED]" />
+          <section className="space-y-3 sm:space-y-4">
+            <h2 className="text-lg sm:text-2xl font-black text-white flex items-center gap-3">
+              <span className="h-4 w-1 sm:h-5 sm:w-1 rounded-full bg-[#7C3AED]" />
               {_("media.cast")}
             </h2>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-2 sm:gap-3">
               {item.cast.map((actor) => (
                 <span
                   key={actor}
-                  className="px-4 py-2 rounded-full bg-zinc-900 border border-zinc-800 text-sm font-medium text-zinc-300 hover:border-zinc-600 transition-colors"
+                  className="px-3 sm:px-4 py-1 sm:py-2 rounded-full bg-zinc-900 border border-zinc-800 text-[11px] sm:text-sm font-medium text-zinc-300 hover:border-zinc-600 transition-colors"
                 >
                   {actor}
                 </span>
@@ -329,9 +328,9 @@ function MediaDetailPage() {
         )}
 
         {!isTV && (
-          <section ref={playerRef} className="space-y-4">
-            <h2 className="text-2xl font-black text-white flex items-center gap-3">
-              <span className="h-5 w-1 rounded-full bg-[#D70466]" />
+          <section ref={playerRef} className="space-y-3 sm:space-y-4">
+            <h2 className="text-lg sm:text-2xl font-black text-white flex items-center gap-3">
+              <span className="h-4 w-1 sm:h-5 sm:w-1 rounded-full bg-[#D70466]" />
               {_("media.watch")}
             </h2>
             <div className="w-full rounded-3xl overflow-hidden border border-zinc-800 shadow-2xl bg-black relative">
@@ -352,9 +351,9 @@ function MediaDetailPage() {
         )}
 
         {isTV && item.seasons && item.seasons.length > 0 && (
-          <section className="space-y-6">
-            <h2 className="text-2xl font-black text-white flex items-center gap-3">
-              <span className="h-5 w-1 rounded-full bg-[#D70466]" />
+          <section className="space-y-4 sm:space-y-6">
+            <h2 className="text-lg sm:text-2xl font-black text-white flex items-center gap-3">
+              <span className="h-4 w-1 sm:h-5 sm:w-1 rounded-full bg-[#D70466]" />
               {_("media.season")}s
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
@@ -397,9 +396,9 @@ function MediaDetailPage() {
         )}
 
         {similar.length > 0 && (
-          <section className="space-y-6">
-            <h2 className="text-2xl font-black text-white flex items-center gap-3">
-              <span className="h-5 w-1 rounded-full bg-[#7C3AED]" />
+          <section className="space-y-4 sm:space-y-6">
+            <h2 className="text-lg sm:text-2xl font-black text-white flex items-center gap-3">
+              <span className="h-4 w-1 sm:h-5 sm:w-1 rounded-full bg-[#7C3AED]" />
               {_("media.youMightAlsoLike")}
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5">

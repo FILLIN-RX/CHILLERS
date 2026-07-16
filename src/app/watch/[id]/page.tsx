@@ -353,7 +353,7 @@ function WatchContent() {
     <div className="min-h-screen bg-[#09090B] text-white">
       <div className="fixed top-0 left-0 z-40 p-4">
         <button
-          onClick={() => router.back()}
+          onClick={() => { window.scrollTo(0, 0); router.back(); }}
           aria-label={_("media.back")}
           className="flex items-center justify-center w-10 h-10 rounded-full bg-black/70 backdrop-blur-md border border-white/10 text-white hover:bg-white/10 hover:border-white/20 transition-all shadow-lg"
         >
@@ -491,13 +491,6 @@ function WatchContent() {
                 </svg>
               ) : (
                 <ArrowDownTrayIcon className="h-3.5 w-3.5" />
-              )}
-              {downloading ? (
-                <span className="sm:hidden">...</span>
-              ) : streamUnavailable ? (
-                <span className="sm:hidden">Bientôt</span>
-              ) : (
-                <span className="sm:hidden">DL</span>
               )}
               <span className="hidden sm:inline">
                 {downloading ? _("download.preparing") : streamUnavailable ? "Bientôt dispo" : _("download.single")}

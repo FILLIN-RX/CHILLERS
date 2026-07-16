@@ -161,7 +161,7 @@ export default function SeasonPage() {
       {/* Back button — positioned just below the navbar */}
       <div className="fixed top-0 left-0 z-40 p-4">
         <button
-          onClick={() => router.back()}
+          onClick={() => { window.scrollTo(0, 0); router.back(); }}
           aria-label="Retour"
           className="flex items-center justify-center w-10 h-10 rounded-full bg-black/70 backdrop-blur-sm border border-white/10 text-white hover:bg-white/10 transition-all"
         >
