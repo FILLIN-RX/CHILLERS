@@ -234,27 +234,29 @@ function MediaDetailPage() {
                 {item.synopsis || item.description}
               </p>
 
-              <div className="flex flex-wrap gap-3 pt-2">
+              <div className="flex items-center gap-2 pt-2 overflow-x-auto no-scrollbar">
                 <button
                   onClick={handleWatch}
-                  className="flex items-center gap-2 px-7 py-3 rounded-full bg-[#D70466] hover:bg-[#b5034f] text-white font-bold text-sm transition-all hover:scale-105 shadow-lg shadow-[#D70466]/30"
+                  className="flex-none flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#D70466] hover:bg-[#b5034f] text-white font-bold text-xs transition-all hover:scale-105 shadow-lg shadow-[#D70466]/30"
                 >
-                  <PlayIcon className="h-5 w-5 translate-x-0.5" />
-                  {_("media.watch")}
+                  <PlayIcon className="h-4 w-4" />
+                  <span className="sm:hidden">Film</span>
+                  <span className="hidden sm:inline">{_("media.watch")}</span>
                 </button>
 
                 {isYouTube && (
                   <button
                     onClick={() => setTrailerOpen(true)}
-                    className="flex items-center gap-2 px-7 py-3 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white font-bold text-sm transition-all hover:scale-105"
+                    className="flex-none flex items-center gap-1.5 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white font-bold text-xs transition-all hover:scale-105"
                   >
-                    <FilmIcon className="h-5 w-5" />
-                    {_("media.trailer")}
+                    <FilmIcon className="h-4 w-4" />
+                    <span className="sm:hidden">Bande-annonce</span>
+                    <span className="hidden sm:inline">{_("media.trailer")}</span>
                   </button>
                 )}
 
                 <button 
-                  className={`flex items-center gap-2 px-5 py-3 rounded-full font-bold text-sm transition-all hover:scale-105 border ${
+                  className={`flex-none flex items-center gap-1.5 px-4 py-2 rounded-full font-bold text-xs transition-all hover:scale-105 border whitespace-nowrap ${
                     downloading || (!loading && !item.videoUrl)
                       ? "bg-zinc-800 border-zinc-700 text-zinc-400 cursor-not-allowed"
                       : "bg-white/10 border-white/20 text-white hover:bg-white/20"
@@ -264,26 +266,31 @@ function MediaDetailPage() {
                 >
                   {downloading ? (
                     <>
-                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                      <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                       </svg>
-                      {_("download.preparing")}
+                      <span className="sm:hidden">...</span>
+                      <span className="hidden sm:inline">{_("download.preparing")}</span>
                     </>
                   ) : !loading && !item.videoUrl ? (
                     <>
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                      <svg className="h-3.5 w-3.5 flex-none" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                       </svg>
-                      Bientôt disponible
+                      <span className="sm:hidden">Bientôt</span>
+                      <span className="hidden sm:inline">Bientôt disponible</span>
                     </>
                   ) : (
-                    _("download.single")
+                    <>
+                      <span className="sm:hidden">DL</span>
+                      <span className="hidden sm:inline">{_("download.single")}</span>
+                    </>
                   )}
                 </button>
 
-                <button aria-label={_("media.share")} className="flex items-center gap-2 px-5 py-3 rounded-full bg-white/10 border border-white/20 text-white hover:bg-white/20 transition-all hover:scale-105 font-bold text-sm">
-                  <ShareIcon className="h-5 w-5" />
+                <button aria-label={_("media.share")} className="flex-none flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/10 border border-white/20 text-white hover:bg-white/20 transition-all hover:scale-105 font-bold text-xs">
+                  <ShareIcon className="h-4 w-4" />
                 </button>
               </div>
             </div>

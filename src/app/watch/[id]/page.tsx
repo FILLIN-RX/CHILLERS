@@ -470,82 +470,59 @@ function WatchContent() {
             </p>
           )}
 
-          <div className="flex flex-wrap gap-2 sm:gap-3 pt-1">
+          <div className="flex items-center gap-2 pt-1 overflow-x-auto no-scrollbar">
             <button
               onClick={handleDownload}
               disabled={downloading || streamUnavailable}
-              className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-full font-bold text-xs sm:text-sm border transition-all ${
+              className={`flex-none flex items-center gap-1.5 px-3 py-2 rounded-full font-bold text-xs border transition-all whitespace-nowrap ${
                 downloading || streamUnavailable
                   ? "bg-zinc-800 border-zinc-700 text-zinc-400 cursor-not-allowed"
                   : "bg-white/10 border-white/20 text-white hover:bg-white/20"
               }`}
             >
               {downloading ? (
-                <svg
-                  className="animate-spin h-4 w-4 sm:h-5 sm:w-5"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                  />
+                <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
               ) : streamUnavailable ? (
-                <>
-                  <svg className="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                  </svg>
-                  <span className="hidden sm:inline">Bientôt disponible</span>
-                </>
+                <svg className="h-3.5 w-3.5 flex-none" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
               ) : (
-                <ArrowDownTrayIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                <ArrowDownTrayIcon className="h-3.5 w-3.5" />
               )}
-              {!streamUnavailable && !downloading && <span className="hidden sm:inline">{_("download.single")}</span>}
+              {downloading ? (
+                <span className="sm:hidden">...</span>
+              ) : streamUnavailable ? (
+                <span className="sm:hidden">Bientôt</span>
+              ) : (
+                <span className="sm:hidden">DL</span>
+              )}
+              <span className="hidden sm:inline">
+                {downloading ? _("download.preparing") : streamUnavailable ? "Bientôt dispo" : _("download.single")}
+              </span>
             </button>
 
             {isTV && (
               <button
                 onClick={handleSeriesDownload}
                 disabled={seriesDownloading}
-                className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-full font-bold text-xs sm:text-sm border transition-all ${
+                className={`flex-none flex items-center gap-1.5 px-3 py-2 rounded-full font-bold text-xs border transition-all whitespace-nowrap ${
                   seriesDownloading
                     ? "bg-zinc-800 border-zinc-700 text-zinc-400 cursor-not-allowed"
                     : "bg-white/10 border-white/20 text-white hover:bg-white/20"
                 }`}
               >
                 {seriesDownloading ? (
-                  <svg
-                    className="animate-spin h-4 w-4 sm:h-5 sm:w-5"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                    />
+                  <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
                 ) : (
-                  <ArrowDownTrayIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                  <ArrowDownTrayIcon className="h-3.5 w-3.5" />
                 )}
+                <span className="sm:hidden">Série</span>
                 <span className="hidden sm:inline">{_("download.all")}</span>
               </button>
             )}
@@ -553,9 +530,10 @@ function WatchContent() {
             <button
               onClick={handleShare}
               aria-label={_("media.share")}
-              className="flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-full font-bold text-xs sm:text-sm bg-white/10 border border-white/20 text-white hover:bg-white/20 transition-all"
+              className="flex-none flex items-center gap-1.5 px-3 py-2 rounded-full font-bold text-xs bg-white/10 border border-white/20 text-white hover:bg-white/20 transition-all whitespace-nowrap"
             >
-              <ShareIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+              <ShareIcon className="h-3.5 w-3.5" />
+              <span className="sm:hidden">Partager</span>
               <span className="hidden sm:inline">{_("media.share")}</span>
             </button>
           </div>
