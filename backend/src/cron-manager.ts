@@ -47,8 +47,8 @@ function runNodeScript(name: string, scriptRelativePath: string) {
  */
 function runScrapingTasks() {
     console.log(`[${new Date().toISOString()}] [Cron] Lancement des tâches de scraping (quotidien)...`);
-    runScript('Scraping Films', 'scraping/core/scrape-films.js');
-    runScript('Scraping Séries', 'scraping/core/scrape-series.ts');
+    runNodeScript('Scraping Films', 'scraping/core/scrape-films.js');
+    runNodeScript('Scraping Séries', 'scraping/core/scrape-series.js');
 }
 
 function runMaintenanceTasks() {
