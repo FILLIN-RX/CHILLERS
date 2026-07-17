@@ -2,7 +2,6 @@
 FROM node:24-bullseye-slim
 
 # Install system dependencies minimales pour Playwright
-# L'utilisation de --no-install-recommends réduit la taille de l'image
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     fonts-liberation \
@@ -11,6 +10,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     xdg-utils \
     wget && \
     rm -rf /var/lib/apt/lists/*
+
+# Configurer le dossier d'installation de Playwright pour qu'il soit persistant et connu
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
 # Set working directory
 WORKDIR /app
@@ -28,7 +30,6 @@ COPY . .
 WORKDIR /app/backend
 
 # Install Playwright browsers et leurs dépendances système
-# 'install-deps' garantit que toutes les libs manquantes pour Chromium sont présentes
 RUN npx playwright install chromium && \
     npx playwright install-deps chromium
 
