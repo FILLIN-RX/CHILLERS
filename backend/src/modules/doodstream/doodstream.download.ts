@@ -4,6 +4,8 @@ import path from 'path';
 import axios from 'axios';
 import { listFiles, getFileDownloadUrl } from './doodstream.service';
 import tmdbClient from '../../config/tmdb';
+import Movie from '../../models/Movie';
+import Serie from '../../models/Serie';
 
 const UPLOADED_PATH = path.join(__dirname, '../../../uploaded.json');
 const SERIES_OUTPUT_PATH = path.join(__dirname, '../../../series-output.json');
@@ -153,6 +155,46 @@ async function findByFolderFallback(tmdbId: number, season: number, episode: num
   return null;
 }
 
+async function findByMongoDB(title?: string, tmdbId?: number, season?: number, episode?: number): Promise<{ fileCode: string; info: any } | null> {
+  try {
+    if (!tmdbId && !title) return null;
+
+    if (!season && !episode) {
+      const movie = await Movie.findOne({
+        $or: [
+          ...(tmdbId ? [{ tmdbId }] : []),
+          ...(title ? [{ titre: { $regex: new RegExp(title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } }] : []),
+        ],
+      }).exec();
+      if (movie?.lien) {
+        return { fileCode: '', info: { lien: movie.lien, titre: movie.titre } };
+      }
+    }
+
+    if (season !== undefined && episode !== undefined) {
+      const series = await Serie.findOne({
+        $or: [
+          ...(tmdbId ? [{ tmdbId }] : []),
+          ...(title ? [{ titre: { $regex: new RegExp(title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } }] : []),
+        ],
+      }).exec();
+
+      if (series) {
+        const epLabel = `S${String(season).padStart(2, '0')}E${String(episode).padStart(2, '0')}`;
+        const found = series.episodes.find(
+          (ep: any) => ep.episode?.toUpperCase() === epLabel
+        );
+        if (found?.lien) {
+          return { fileCode: '', info: { lien: found.lien, titre: `${series.titre} ${epLabel}` } };
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[DoodStream Download] MongoDB query error:', err);
+  }
+  return null;
+}
+
 export const getDownloadByTitle = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { title, tmdb_id, file_code, season, episode } = req.query as Record<string, string>;
@@ -184,6 +226,11 @@ export const getDownloadByTitle = async (req: Request, res: Response, next: Next
     // Fallback: if season+episode requested but not found in json, try DoodStream folder listing
     if (!match && tmdb_id && seasonNum !== undefined && episodeNum !== undefined) {
       match = await findByFolderFallback(Number(tmdb_id), seasonNum, episodeNum);
+    }
+
+    // MongoDB fallback
+    if (!match) {
+      match = await findByMongoDB(title, tmdb_id ? Number(tmdb_id) : undefined, seasonNum, episodeNum);
     }
 
     if (!match) {

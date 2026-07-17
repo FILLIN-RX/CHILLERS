@@ -2,6 +2,8 @@ import fs from 'fs';
 import path from 'path';
 import { StreamingProvider, StreamResult, StreamQuery } from './provider.interface';
 import { getFileDownloadUrl, listFiles } from '../../modules/doodstream/doodstream.service';
+import Serie from '../../models/Serie';
+import Movie from '../../models/Movie';
 
 const UPLOADED_PATH = path.join(__dirname, '../../../uploaded.json');
 const SERIES_OUTPUT_PATH = path.join(__dirname, '../../../series-output.json');
@@ -170,6 +172,46 @@ export class DoodStreamProvider implements StreamingProvider {
     return null;
   }
 
+  private async findByMongoDB(query: StreamQuery): Promise<{ fileCode: string; info: any } | null> {
+    try {
+      if (query.type === 'movie' || (!query.season && !query.episode)) {
+        const movie = await Movie.findOne({
+          $or: [
+            ...(query.tmdbId ? [{ tmdbId: query.tmdbId }] : []),
+            ...(query.title ? [{ titre: { $regex: new RegExp(query.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } }] : []),
+          ],
+        }).exec();
+        if (movie?.lien) {
+          console.log(`[DoodStream] MongoDB match movie="${movie.titre}" → ${movie.lien.slice(0, 60)}`);
+          return { fileCode: '', info: { lien: movie.lien, titre: movie.titre } };
+        }
+      }
+
+      if (query.season !== undefined && query.episode !== undefined) {
+        const series = await Serie.findOne({
+          $or: [
+            ...(query.tmdbId ? [{ tmdbId: query.tmdbId }] : []),
+            ...(query.title ? [{ titre: { $regex: new RegExp(query.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } }] : []),
+          ],
+        }).exec();
+
+        if (series) {
+          const epLabel = `S${String(query.season).padStart(2, '0')}E${String(query.episode).padStart(2, '0')}`;
+          const found = series.episodes.find(
+            (ep: any) => ep.episode?.toUpperCase() === epLabel
+          );
+          if (found?.lien) {
+            console.log(`[DoodStream] MongoDB match series="${series.titre}" ${epLabel} → ${found.lien.slice(0, 60)}`);
+            return { fileCode: '', info: { lien: found.lien, titre: `${series.titre} ${epLabel}` } };
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[DoodStream] MongoDB query error:', err);
+    }
+    return null;
+  }
+
   private async findFile(query: StreamQuery): Promise<{ fileCode: string; info: any } | null> {
     const season = query.season;
     const episode = query.episode;
@@ -197,6 +239,13 @@ export class DoodStreamProvider implements StreamingProvider {
         console.log(`[DoodStream] Match by folder fallback tmdbId=${query.tmdbId} S${season}E${episode} → ${fallback.fileCode}`);
         return fallback;
       }
+    }
+
+    // MongoDB fallback
+    const mongo = await this.findByMongoDB(query);
+    if (mongo) {
+      console.log(`[DoodStream] Match by MongoDB for tmdbId=${query.tmdbId} title="${query.title}"`);
+      return mongo;
     }
 
     // Final fallback: match without S/E

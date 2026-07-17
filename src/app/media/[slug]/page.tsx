@@ -72,7 +72,11 @@ function MediaDetailPage() {
   }, [fetchData, id]);
 
   const handleWatch = async () => {
-    if (!isTV && item && !item.videoUrl) {
+    if (isTV && item) {
+      router.push(`/watch/${item.id}?type=tv`, { scroll: false });
+      return;
+    }
+    if (item && !item.videoUrl) {
       const stream = await getStreamUrl(item.id, 'movie', undefined, undefined, item.title);
       if (stream) {
         setItem({ ...item, videoUrl: stream.embedUrl });
@@ -92,7 +96,7 @@ function MediaDetailPage() {
     setDownloading(true);
     try {
       const type = isTV ? 'series' : 'movie';
-      const result = await startDownload(id, type, item?.title);
+      const result = await startDownload(id, type, item?.title || id);
       if (result?.downloadUrl) {
         triggerDownload(result.downloadUrl, `${item?.title || 'video'}.mp4`);
       } else {

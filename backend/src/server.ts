@@ -1,6 +1,6 @@
 import app from './app';
 import { connectDB } from './config/db';
-// import './cron-manager';
+import './cron-manager';
 
 const PORT = process.env.PORT || 4000;
 

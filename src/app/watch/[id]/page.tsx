@@ -98,7 +98,7 @@ function WatchContent() {
               "series",
               1,
               eps[0].number,
-              detail?.title
+              detail?.title || id
             );
             if (!cancelled && stream) {
               setStreamUrl(stream.embedUrl);
@@ -115,7 +115,7 @@ function WatchContent() {
             "movie",
             undefined,
             undefined,
-            detail?.title
+            detail?.title || id
           );
           if (!cancelled && stream) {
             setStreamUrl(stream.embedUrl);
@@ -160,7 +160,7 @@ function WatchContent() {
       setStreamUrl("");
       try {
         setStreamUnavailable(false);
-        const stream = await getStreamUrl(id, "series", 1, ep.number, item.title);
+        const stream = await getStreamUrl(id, "series", 1, ep.number, item.title || id);
         if (stream) {
           setStreamUrl(stream.embedUrl);
         } else {

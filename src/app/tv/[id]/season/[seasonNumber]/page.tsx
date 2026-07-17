@@ -65,7 +65,7 @@ export default function SeasonPage() {
                 'series',
                 Number(seasonNumber),
                 mapped[0].number,
-                title
+                title || id as string
               );
               setStreamUrl(stream?.embedUrl || "");
             } catch (err) {
@@ -88,9 +88,7 @@ export default function SeasonPage() {
 
   const loadStream = useCallback(async (ep: Episode, titleOverride?: string) => {
     if (!ep) return;
-    const title = titleOverride ?? showTitle;
-    // Don't load if no title yet — initial load handled in fetchSeason
-    if (!title) return;
+    const title = titleOverride ?? (showTitle || id as string);
     setStreamLoading(true);
     try {
       const stream = await getStreamUrl(id as string, 'series', Number(seasonNumber), ep.number, title);
@@ -246,7 +244,7 @@ export default function SeasonPage() {
                   setDownloadError(null);
                   try {
                     const result = await startDownload(
-                      id as string, 'series', showTitle, Number(seasonNumber), currentEpisode.number
+                      id as string, 'series', showTitle || id as string, Number(seasonNumber), currentEpisode.number
                     );
                     if (result?.downloadUrl) {
                       triggerDownload(result.downloadUrl, `${showTitle || 'video'}-S${seasonNumber}E${currentEpisode.number}.mp4`);

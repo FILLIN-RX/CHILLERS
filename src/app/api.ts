@@ -373,14 +373,59 @@ export async function searchMedia(query: string, page = 1): Promise<MovieOrShow[
   try {
     const res = await fetchWithTimeout(`${API_BASE_URL}/search?q=${encodeURIComponent(query)}&page=${page}&language=${getLang()}`);
     const json = await res.json();
-    if (json.success && json.data.results) {
-      return json.data.results
+    if (!json.success) return [];
+
+    const results: MovieOrShow[] = [];
+
+    // 1. MongoDB local results
+    const local = json.data?.localResults;
+    if (local) {
+      for (const m of local.movies || []) {
+        results.push({
+          id: m.tmdbId ? String(m.tmdbId) : String(m._id),
+          title: m.titre,
+          type: 'movie',
+          description: '',
+          synopsis: '',
+          backdropUrl: 'https://images.unsplash.com/photo-1578894381163-e72c17f2d45f?q=80&w=1200',
+          posterUrl: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=400',
+          rating: 0,
+          year: 0,
+          duration: '',
+          genres: ['Movie'],
+          cast: [],
+        });
+      }
+      for (const s of local.series || []) {
+        results.push({
+          id: s.tmdbId ? String(s.tmdbId) : String(s._id),
+          title: s.titre,
+          type: 'series',
+          description: '',
+          synopsis: '',
+          backdropUrl: 'https://images.unsplash.com/photo-1578894381163-e72c17f2d45f?q=80&w=1200',
+          posterUrl: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=400',
+          rating: 0,
+          year: 0,
+          duration: '',
+          genres: ['Series'],
+          cast: [],
+        });
+      }
+    }
+
+    // 2. TMDB results
+    if (json.data?.tmdbResults?.results) {
+      const tmdb = json.data.tmdbResults.results
         .filter((item: any) => item.media_type === "movie" || item.media_type === "tv")
         .map((item: any) => {
           const type = item.media_type === "tv" ? "series" : "movie";
           return mapTMDBToMovieOrShow(item, type as any);
         });
+      results.push(...tmdb);
     }
+
+    return results;
   } catch (error) {
     console.error("Error searching media:", error);
   }
