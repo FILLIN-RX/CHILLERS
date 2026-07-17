@@ -1,45 +1,41 @@
 import cron from 'node-cron';
-import { exec } from 'child_process';
+import { spawn } from 'child_process';
 import path from 'path';
 
-/**
- * Exécute un script TypeScript via npx tsx
- */
-function runScript(name: string, scriptRelativePath: string) {
-    const fullPath = path.join(__dirname, scriptRelativePath);
+function runProcess(name: string, command: string, args: string[]) {
     const startTime = new Date().toISOString();
-    console.log(`[${startTime}] [Cron] Lancement : ${name} (${scriptRelativePath})`);
-    
-    exec(`npx tsx ${fullPath}`, (error, stdout, stderr) => {
-        const endTime = new Date().toISOString();
-        if (error) {
-            console.error(`[${endTime}] [Cron] ERREUR : ${name} (${scriptRelativePath})`);
-            console.error(error);
-            return;
+    console.log(`[${startTime}] [Cron] Lancement : ${name} (${command} ${args.join(' ')})`);
+
+    const child = spawn(command, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+
+    child.stdout.on('data', (data) => {
+        for (const line of data.toString().split('\n').filter((l: string) => l)) {
+            console.log(`[${name}] ${line}`);
         }
-        console.log(`[${endTime}] [Cron] Terminé avec succès : ${name}`);
-        if (stdout) console.log(`[${endTime}] [Cron] Output ${name}:`, stdout); // Log complet
+    });
+
+    child.stderr.on('data', (data) => {
+        for (const line of data.toString().split('\n').filter((l: string) => l)) {
+            console.error(`[${name}] ${line}`);
+        }
+    });
+
+    child.on('close', (code) => {
+        const endTime = new Date().toISOString();
+        if (code === 0) {
+            console.log(`[${endTime}] [Cron] Terminé avec succès : ${name}`);
+        } else {
+            console.error(`[${endTime}] [Cron] ERREUR : ${name} (code: ${code})`);
+        }
     });
 }
 
-/**
- * Exécute un script JS natif (node)
- */
+function runScript(name: string, scriptRelativePath: string) {
+    runProcess(name, 'npx', ['tsx', path.join(__dirname, scriptRelativePath)]);
+}
+
 function runNodeScript(name: string, scriptRelativePath: string) {
-    const fullPath = path.join(__dirname, scriptRelativePath);
-    const startTime = new Date().toISOString();
-    console.log(`[${startTime}] [Cron] Lancement : ${name} (${scriptRelativePath})`);
-    
-    exec(`node ${fullPath}`, (error, stdout, stderr) => {
-        const endTime = new Date().toISOString();
-        if (error) {
-            console.error(`[${endTime}] [Cron] ERREUR : ${name} (${scriptRelativePath})`);
-            console.error(error);
-            return;
-        }
-        console.log(`[${endTime}] [Cron] Terminé avec succès : ${name}`);
-        if (stdout) console.log(`[${endTime}] [Cron] Output ${name}:`, stdout); // Log complet
-    });
+    runProcess(name, 'node', [path.join(__dirname, scriptRelativePath)]);
 }
 
 /**

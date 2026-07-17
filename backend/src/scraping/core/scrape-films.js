@@ -21,7 +21,7 @@ async function scrapeFilms() {
         await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
         
         try {
-            await page.waitForSelector('.fs-card', { timeout: 15000 });
+            await page.waitForSelector('.fs-card', { timeout: 30000 });
         } catch (e) {
             console.log("Fin de la liste.");
             hasMorePages = false;
