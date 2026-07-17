@@ -5,6 +5,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ProviderManager = void 0;
 const axios_1 = __importDefault(require("axios"));
+const child_process_1 = require("child_process");
+const path_1 = __importDefault(require("path"));
 const doodstream_provider_1 = require("./providers/doodstream.provider");
 const vidlink_provider_1 = require("./providers/vidlink.provider");
 const vidapi_provider_1 = require("./providers/vidapi.provider");
@@ -18,12 +20,13 @@ const CIRCUIT_BREAKER_COOLDOWN = 60000;
 class ProviderManager {
     constructor() {
         this.health = new Map();
+        // Ordre de priorité: Doodstream, Otaku, Autres...
         this.providers = [
-            new animekai_provider_1.AnimeKaiProvider(),
             new doodstream_provider_1.DoodStreamProvider(),
+            new otaku_provider_1.OtakuProvider(),
+            new animekai_provider_1.AnimeKaiProvider(),
             new vidlink_provider_1.VidLinkProvider(),
             new vidapi_provider_1.VidAPIProvider(),
-            new otaku_provider_1.OtakuProvider(),
         ];
     }
     async getMovieStream(query) {
@@ -113,14 +116,7 @@ class ProviderManager {
                     reason: 'no result returned',
                 };
             }
-            if (result.provider === 'doodstream' || result.provider === 'otaku') {
-                this.recordSuccess(provider.name);
-                return {
-                    provider: provider.name,
-                    status: 'success',
-                    reason: result.embedUrl,
-                };
-            }
+            // Self-healing trigger: validate URL
             const valid = await this.validateUrl(result.embedUrl);
             if (valid) {
                 this.recordSuccess(provider.name);
@@ -130,12 +126,19 @@ class ProviderManager {
                     reason: result.embedUrl,
                 };
             }
-            this.recordFailure(provider.name);
-            return {
-                provider: provider.name,
-                status: 'fail',
-                reason: 'URL validation failed',
-            };
+            else {
+                this.recordFailure(provider.name);
+                // TRIGGER BACKGROUND RE-SCRAPE
+                console.log(`[Self-Healing] Triggering background re-scrape for: ${provider.name} - ${query.title}`);
+                const scriptPath = path_1.default.join(__dirname, '../scraping/core/on-demand-fetch.ts');
+                const typeArg = type === 'movie' ? 'movie' : 'series';
+                (0, child_process_1.exec)(`npx tsx ${scriptPath} "${query.title}" "${typeArg}" "${query.episode || ''}"`);
+                return {
+                    provider: provider.name,
+                    status: 'fail',
+                    reason: 'URL validation failed, re-scraping triggered',
+                };
+            }
         }
         catch (err) {
             this.recordFailure(provider.name);
