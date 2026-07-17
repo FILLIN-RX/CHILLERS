@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chillers — Player Vidéo & Iframe</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            background-color: #09090B;
+            color: #F4F4F5;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            width: 100%;
+            max-width: 900px;
+            background: #18181B;
+            border: 1px solid #27272A;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
+            margin-top: 20px;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        header h1 {
+            font-size: 24px;
+            font-weight: 800;
+            margin-bottom: 8px;
+            letter-spacing: -0.025em;
+        }
+        header h1 span {
+            color: #D70466;
+        }
+        header p {
+            font-size: 14px;
+            color: #A1A1AA;
+        }
+        .input-group {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        input[type="text"] {
+            flex: 1;
+            background-color: #09090B;
+            border: 1px solid #27272A;
+            color: #F4F4F5;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 15px;
+            outline: none;
+            transition: border-color 0.15s ease-in-out;
+        }
+        input[type="text"]:focus {
+            border-color: #D70466;
+        }
+        button {
+            background-color: #D70466;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.15s ease-in-out;
+            white-space: nowrap;
+        }
+        button:hover {
+            background-color: #B5034F;
+        }
+        .mode-selector {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #A1A1AA;
+        }
+        .mode-option {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+        }
+        .mode-option input {
+            accent-color: #D70466;
+        }
+        .player-wrapper {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background-color: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #27272A;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        iframe, video {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: none;
+        }
+        .active {
+            display: block;
+        }
+        .placeholder-text {
+            color: #71717A;
+            font-size: 14px;
+            text-align: center;
+            padding: 20px;
+        }
+        .placeholder-text svg {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 12px;
+            color: #3F3F46;
+        }
+        .quick-links {
+            margin-top: 20px;
+            border-top: 1px solid #27272A;
+            padding-top: 16px;
+        }
+        .quick-links h3 {
+            font-size: 13px;
+            font-weight: 600;
+            color: #71717A;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .links-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 8px;
+        }
+        .quick-btn {
+            background-color: #18181B;
+            border: 1px solid #27272A;
+            color: #A1A1AA;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            text-align: left;
+            cursor: pointer;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            transition: all 0.15s ease-in-out;
+        }
+        .quick-btn:hover {
+            border-color: #D70466;
+            color: #F4F4F5;
+            background-color: #202023;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>Chillers <span>Player</span></h1>
+            <p>Collez n'importe quel lien vidéo ou d'intégration (iframe) pour lancer la lecture instantanément</p>
+        </header>
+
+        <div class="input-group">
+            <input type="text" id="videoUrl" placeholder="Ex: https://vidlink.pro/movie/1339713 ou lien .mp4, YouTube..." autofocus>
+            <button onclick="loadVideo()">Lire la vidéo</button>
+        </div>
+
+        <div class="mode-selector">
+            <label class="mode-option">
+                <input type="radio" name="playMode" value="auto" checked onchange="handleModeChange()">
+                <span>Détection automatique</span>
+            </label>
+            <label class="mode-option">
+                <input type="radio" name="playMode" value="iframe" onchange="handleModeChange()">
+                <span>Iframe / Embed</span>
+            </label>
+            <label class="mode-option">
+                <input type="radio" name="playMode" value="video" onchange="handleModeChange()">
+                <span>Lecteur Direct (MP4, WEBM...)</span>
+            </label>
+        </div>
+
+        <div class="player-wrapper">
+            <!-- Placeholder -->
+            <div id="placeholder" class="placeholder-text">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.91 11.672a.375.375 0 0 1 0 .656l-5.603 3.113a.375.375 0 0 1-.557-.328V8.887c0-.286.307-.466.557-.327l5.603 3.112Z" />
+                </svg>
+                <p>En attente d'un lien vidéo...</p>
+            </div>
+
+            <!-- Iframe Player -->
+            <iframe id="iframePlayer" allowfullscreen allow="autoplay; encrypted-media; picture-in-picture"></iframe>
+
+            <!-- HTML5 Video Player -->
+            <video id="videoPlayer" controls autoplay></video>
+        </div>
+
+        <div class="quick-links">
+            <h3>Exemples rapides</h3>
+            <div class="links-grid">
+                <button class="quick-btn" onclick="quickPlay('https://vidlink.pro/tv/94997/1/1')">House of the Dragon (Iframe)</button>
+                <button class="quick-btn" onclick="quickPlay('https://vidlink.pro/movie/1339713')">Obsession (Iframe)</button>
+                <button class="quick-btn" onclick="quickPlay('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4')">Big Buck Bunny (Direct MP4)</button>
+                <button class="quick-btn" onclick="quickPlay('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4')">Elephants Dream (Direct MP4)</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const iframePlayer = document.getElementById('iframePlayer');
+        const videoPlayer = document.getElementById('videoPlayer');
+        const placeholder = document.getElementById('placeholder');
+        const videoUrlInput = document.getElementById('videoUrl');
+
+        // Écouter la touche Entrée sur l'input
+        videoUrlInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                loadVideo();
+            }
+        });
+
+        // Lecture rapide depuis les exemples
+        function quickPlay(url) {
+            videoUrlInput.value = url;
+            loadVideo();
+        }
+
+        // Détecter si l'URL est un fichier vidéo direct
+        function isDirectVideo(url) {
+            const videoExtensions = ['.mp4', '.webm', '.ogg', '.m3u8', '.mp3', '.mkv', '.mov'];
+            try {
+                const parsedUrl = new URL(url);
+                const pathname = parsedUrl.pathname.toLowerCase();
+                return videoExtensions.some(ext => pathname.endsWith(ext));
+            } catch (e) {
+                // Si ce n'est pas une URL valide complète, on fait une vérification simple sur la chaîne
+                return videoExtensions.some(ext => url.toLowerCase().includes(ext));
+            }
+        }
+
+        function loadVideo() {
+            let url = videoUrlInput.value.trim();
+            if (!url) {
+                alert("Veuillez entrer une URL valide.");
+                return;
+            }
+
+            // Normalisation basique de l'URL
+            if (!/^https?:\/\//i.test(url)) {
+                url = 'https://' + url;
+                videoUrlInput.value = url;
+            }
+
+            // Récupérer le mode sélectionné
+            const mode = document.querySelector('input[name="playMode"]:checked').value;
+            let useDirectVideo = false;
+
+            if (mode === 'auto') {
+                useDirectVideo = isDirectVideo(url);
+            } else if (mode === 'video') {
+                useDirectVideo = true;
+            }
+
+            // Masquer tout par défaut
+            placeholder.style.display = 'none';
+            iframePlayer.classList.remove('active');
+            videoPlayer.classList.remove('active');
+            
+            // Arrêter toute lecture en cours
+            iframePlayer.src = '';
+            videoPlayer.pause();
+            videoPlayer.src = '';
+
+            if (useDirectVideo) {
+                // Charger dans le lecteur HTML5 <video>
+                videoPlayer.src = url;
+                videoPlayer.classList.add('active');
+                videoPlayer.play().catch(err => {
+                    console.log("Lecture automatique bloquée ou erreur de chargement :", err);
+                });
+            } else {
+                // Charger dans l'Iframe
+                iframePlayer.src = url;
+                iframePlayer.classList.add('active');
+            }
+        }
+
+        function handleModeChange() {
+            const url = videoUrlInput.value.trim();
+            if (url) {
+                loadVideo();
+            }
+        }
+    </script>
+</body>
+</html>

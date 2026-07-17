@@ -42,7 +42,8 @@ const search = async (req, res, next) => {
         if (!query.trim())
             throw new types_1.AppError('Query parameter "q" is required', 400);
         const page = Number(req.query.page) || 1;
-        const data = await searchService.searchMulti(query, page);
+        const language = req.query.language;
+        const data = await searchService.searchMulti(query, page, language);
         res.json({ success: true, data, message: null });
     }
     catch (error) {

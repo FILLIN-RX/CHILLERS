@@ -45,6 +45,7 @@ const getMovieStream = async (req, res, next) => {
             tmdbId: id,
             type: req.query.type || 'movie',
             title: req.query.title,
+            language: req.query.language || 'fr',
         });
         if (!result) {
             res.json({
@@ -80,6 +81,7 @@ const getEpisodeStream = async (req, res, next) => {
             title: req.query.title,
             season,
             episode,
+            language: req.query.language || 'fr',
         });
         if (!result) {
             res.json({

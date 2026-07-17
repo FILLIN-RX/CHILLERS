@@ -112,21 +112,22 @@ export const getDirectDownloadUrl = async (fileCode: string) => {
 };
 
 export const getFileDownloadUrl = async (fileCode: string): Promise<string | null> => {
-  // Tier 1: /file/dl (direct download URL)
-  try {
-    const { data } = await doodClient.get('/file/dl', { params: { file_code: fileCode } });
-    if (data.result) return data.result as string;
-  } catch {
-    // fall through
-  }
-
-  // Tier 2: /file/info → protected_dl
+  // Tier 1: /file/info → protected_dl
   try {
     const { data } = await doodClient.get('/file/info', { params: { file_code: fileCode } });
     const info = data.result?.[0];
     if (info?.protected_dl) {
       return `https://doodstream.com${info.protected_dl}`;
     }
+  } catch {
+    // fall through
+  }
+
+  // Tier 2: /file/clone → download_url
+  try {
+    const { data } = await doodClient.get('/file/clone', { params: { file_code: fileCode } });
+    if (data.result?.download_url) return data.result.download_url;
+    if (data.result?.protected_download) return data.result.protected_download;
   } catch {
     // fall through
   }

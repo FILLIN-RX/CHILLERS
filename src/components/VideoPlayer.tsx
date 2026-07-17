@@ -267,10 +267,6 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
       }
     } catch (err) {
       console.error('Download failed:', err);
-      setNotification({
-        title: 'Erreur technique',
-        message: 'Une erreur est survenue lors du téléchargement. Réessaie plus tard.',
-      });
     } finally {
       setDownloading(false);
     }

@@ -35,9 +35,10 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getTvGenres = exports.getMovieGenres = void 0;
 const genresService = __importStar(require("./genres.service"));
-const getMovieGenres = async (_req, res, next) => {
+const getMovieGenres = async (req, res, next) => {
     try {
-        const data = await genresService.getMovieGenres();
+        const language = req.query.language;
+        const data = await genresService.getMovieGenres(language);
         res.json({ success: true, data, message: null });
     }
     catch (error) {
@@ -45,9 +46,10 @@ const getMovieGenres = async (_req, res, next) => {
     }
 };
 exports.getMovieGenres = getMovieGenres;
-const getTvGenres = async (_req, res, next) => {
+const getTvGenres = async (req, res, next) => {
     try {
-        const data = await genresService.getTvGenres();
+        const language = req.query.language;
+        const data = await genresService.getTvGenres(language);
         res.json({ success: true, data, message: null });
     }
     catch (error) {

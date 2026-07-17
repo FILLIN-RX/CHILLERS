@@ -5,9 +5,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.searchMulti = void 0;
 const tmdb_1 = __importDefault(require("../../config/tmdb"));
-const searchMulti = async (query, page = 1) => {
+const language_1 = require("../../config/language");
+const searchMulti = async (query, page = 1, language) => {
     const { data } = await tmdb_1.default.get('/search/multi', {
-        params: { query, page },
+        params: { query, page, language: (0, language_1.toTMDBLanguage)(language) },
     });
     return data;
 };

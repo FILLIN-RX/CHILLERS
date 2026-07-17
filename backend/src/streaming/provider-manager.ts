@@ -1,12 +1,16 @@
 import axios from 'axios';
+import { exec } from 'child_process';
+import path from 'path';
 import { StreamingProvider, StreamQuery } from './providers/provider.interface';
 import { DoodStreamProvider } from './providers/doodstream.provider';
 import { VidLinkProvider } from './providers/vidlink.provider';
 import { VidAPIProvider } from './providers/vidapi.provider';
 import { AnimeKaiProvider } from './providers/animekai.provider';
+import { OtakuProvider } from './providers/otaku.provider';
 
 const VALIDATION_TIMEOUT = 5000;
 const PROVIDER_TIMEOUT = 10000;
+const OTAKU_TIMEOUT = 60000;
 const CIRCUIT_BREAKER_THRESHOLD = 3;
 const CIRCUIT_BREAKER_COOLDOWN = 60_000;
 
@@ -27,9 +31,11 @@ export class ProviderManager {
   private health: Map<string, ProviderHealth> = new Map();
 
   constructor() {
+    // Ordre de priorité: Doodstream, Otaku, Autres...
     this.providers = [
-      new AnimeKaiProvider(),
       new DoodStreamProvider(),
+      new OtakuProvider(),
+      new AnimeKaiProvider(),
       new VidLinkProvider(),
       new VidAPIProvider(),
     ];
@@ -138,7 +144,8 @@ export class ProviderManager {
     }
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT);
+    const timeout = provider.name === 'otaku' ? OTAKU_TIMEOUT : PROVIDER_TIMEOUT;
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     try {
       const result = await (type === 'movie'
@@ -154,16 +161,9 @@ export class ProviderManager {
         };
       }
 
-      if (result.provider === 'doodstream') {
-        this.recordSuccess(provider.name);
-        return {
-          provider: provider.name,
-          status: 'success',
-          reason: result.embedUrl,
-        };
-      }
-
+      // Self-healing trigger: validate URL
       const valid = await this.validateUrl(result.embedUrl);
+      
       if (valid) {
         this.recordSuccess(provider.name);
         return {
@@ -171,18 +171,25 @@ export class ProviderManager {
           status: 'success',
           reason: result.embedUrl,
         };
-      }
+      } else {
+        this.recordFailure(provider.name);
+        
+        // TRIGGER BACKGROUND RE-SCRAPE
+        console.log(`[Self-Healing] Triggering background re-scrape for: ${provider.name} - ${query.title}`);
+        const scriptPath = path.join(__dirname, '../scraping/core/on-demand-fetch.ts');
+        const typeArg = type === 'movie' ? 'movie' : 'series';
+        exec(`npx tsx ${scriptPath} "${query.title}" "${typeArg}" "${query.episode || ''}"`);
 
-      this.recordFailure(provider.name);
-      return {
-        provider: provider.name,
-        status: 'fail',
-        reason: 'URL validation failed',
-      };
+        return {
+          provider: provider.name,
+          status: 'fail',
+          reason: 'URL validation failed, re-scraping triggered',
+        };
+      }
     } catch (err: any) {
       this.recordFailure(provider.name);
       const msg = err?.name === 'AbortError'
-        ? `timeout (${PROVIDER_TIMEOUT}ms)`
+        ? `timeout (${timeout}ms)`
         : err?.message || 'unknown error';
       return {
         provider: provider.name,

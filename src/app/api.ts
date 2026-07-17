@@ -19,7 +19,6 @@ async function fetchWithTimeout(url: string, options?: RequestInit): Promise<Res
     const res = await fetch(url, { ...options, signal: controller.signal });
     return res;
   } catch (error) {
-    alert('Erreur API : ' + error);
     throw error;
   } finally {
     clearTimeout(timeout);
@@ -508,11 +507,10 @@ export async function clearTmdbCache(): Promise<void> {
 }
 
 export function triggerDownload(downloadUrl: string, filename: string = 'video.mp4') {
-  if (typeof document === "undefined") return;
-  const link = document.createElement('a');
-  link.href = `${API_BASE_URL}/doodstream/download/proxy?url=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(filename)}`;
-  link.download = filename;
-  link.click();
+  if (typeof window === "undefined") return;
+
+  // Vidzy/DoodStream direct links — open in new tab
+  window.open(downloadUrl, '_blank');
 }
 
 export interface Genre {

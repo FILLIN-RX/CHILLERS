@@ -36,10 +36,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getSeasonDetails = exports.getDetails = exports.getAnime = exports.getByGenre = exports.getTopRated = exports.getTrending = exports.getPopular = void 0;
 const tvService = __importStar(require("./tv.service"));
 const types_1 = require("../../types");
+function getLang(req) {
+    return req.query.language;
+}
 const getPopular = async (req, res, next) => {
     try {
         const page = Number(req.query.page) || 1;
-        const data = await tvService.getPopular(page);
+        const data = await tvService.getPopular(page, getLang(req));
         res.json({ success: true, data, message: null });
     }
     catch (error) {
@@ -47,9 +50,9 @@ const getPopular = async (req, res, next) => {
     }
 };
 exports.getPopular = getPopular;
-const getTrending = async (_req, res, next) => {
+const getTrending = async (req, res, next) => {
     try {
-        const data = await tvService.getTrending();
+        const data = await tvService.getTrending(getLang(req));
         res.json({ success: true, data, message: null });
     }
     catch (error) {
@@ -60,7 +63,7 @@ exports.getTrending = getTrending;
 const getTopRated = async (req, res, next) => {
     try {
         const page = Number(req.query.page) || 1;
-        const data = await tvService.getTopRated(page);
+        const data = await tvService.getTopRated(page, getLang(req));
         res.json({ success: true, data, message: null });
     }
     catch (error) {
@@ -74,7 +77,7 @@ const getByGenre = async (req, res, next) => {
         const page = Number(req.query.page) || 1;
         if (!genreId)
             throw new types_1.AppError('Genre ID is required', 400);
-        const data = await tvService.getByGenre(genreId, page);
+        const data = await tvService.getByGenre(genreId, page, getLang(req));
         res.json({ success: true, data, message: null });
     }
     catch (error) {
@@ -85,7 +88,7 @@ exports.getByGenre = getByGenre;
 const getAnime = async (req, res, next) => {
     try {
         const page = Number(req.query.page) || 1;
-        const data = await tvService.getAnime(page);
+        const data = await tvService.getAnime(page, getLang(req));
         res.json({ success: true, data, message: null });
     }
     catch (error) {
@@ -98,7 +101,7 @@ const getDetails = async (req, res, next) => {
         const id = req.params.id;
         if (!id)
             throw new types_1.AppError('TV show ID is required', 400);
-        const data = await tvService.getDetails(id);
+        const data = await tvService.getDetails(id, getLang(req));
         res.json({ success: true, data, message: null });
     }
     catch (error) {
@@ -112,7 +115,7 @@ const getSeasonDetails = async (req, res, next) => {
         const seasonNumber = req.params.seasonNumber;
         if (!id || !seasonNumber)
             throw new types_1.AppError('TV show ID and season number are required', 400);
-        const data = await tvService.getSeasonDetails(id, seasonNumber);
+        const data = await tvService.getSeasonDetails(id, seasonNumber, getLang(req));
         res.json({ success: true, data, message: null });
     }
     catch (error) {

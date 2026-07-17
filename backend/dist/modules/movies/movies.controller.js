@@ -36,10 +36,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getByGenre = exports.getTrailer = exports.getRecommendations = exports.getDetails = exports.getTopRated = exports.getUpcoming = exports.getTrending = exports.getPopular = void 0;
 const moviesService = __importStar(require("./movies.service"));
 const types_1 = require("../../types");
+function getLang(req) {
+    return req.query.language;
+}
 const getPopular = async (req, res, next) => {
     try {
         const page = Number(req.query.page) || 1;
-        const data = await moviesService.getPopular(page);
+        const data = await moviesService.getPopular(page, getLang(req));
         res.json({ success: true, data, message: null });
     }
     catch (error) {
@@ -47,9 +50,9 @@ const getPopular = async (req, res, next) => {
     }
 };
 exports.getPopular = getPopular;
-const getTrending = async (_req, res, next) => {
+const getTrending = async (req, res, next) => {
     try {
-        const data = await moviesService.getTrending();
+        const data = await moviesService.getTrending(getLang(req));
         res.json({ success: true, data, message: null });
     }
     catch (error) {
@@ -60,7 +63,7 @@ exports.getTrending = getTrending;
 const getUpcoming = async (req, res, next) => {
     try {
         const page = Number(req.query.page) || 1;
-        const data = await moviesService.getUpcoming(page);
+        const data = await moviesService.getUpcoming(page, getLang(req));
         res.json({ success: true, data, message: null });
     }
     catch (error) {
@@ -71,7 +74,7 @@ exports.getUpcoming = getUpcoming;
 const getTopRated = async (req, res, next) => {
     try {
         const page = Number(req.query.page) || 1;
-        const data = await moviesService.getTopRated(page);
+        const data = await moviesService.getTopRated(page, getLang(req));
         res.json({ success: true, data, message: null });
     }
     catch (error) {
@@ -84,7 +87,7 @@ const getDetails = async (req, res, next) => {
         const id = req.params.id;
         if (!id)
             throw new types_1.AppError('Movie ID is required', 400);
-        const data = await moviesService.getDetails(id);
+        const data = await moviesService.getDetails(id, getLang(req));
         res.json({ success: true, data, message: null });
     }
     catch (error) {
@@ -97,7 +100,7 @@ const getRecommendations = async (req, res, next) => {
         const id = req.params.id;
         if (!id)
             throw new types_1.AppError('Movie ID is required', 400);
-        const data = await moviesService.getRecommendations(id);
+        const data = await moviesService.getRecommendations(id, getLang(req));
         res.json({ success: true, data, message: null });
     }
     catch (error) {
@@ -110,7 +113,7 @@ const getTrailer = async (req, res, next) => {
         const id = req.params.id;
         if (!id)
             throw new types_1.AppError('Movie ID is required', 400);
-        const data = await moviesService.getTrailer(id);
+        const data = await moviesService.getTrailer(id, getLang(req));
         res.json({ success: true, data, message: null });
     }
     catch (error) {
@@ -124,7 +127,7 @@ const getByGenre = async (req, res, next) => {
         const page = Number(req.query.page) || 1;
         if (!genreId)
             throw new types_1.AppError('Genre ID is required', 400);
-        const data = await moviesService.getByGenre(genreId, page);
+        const data = await moviesService.getByGenre(genreId, page, getLang(req));
         res.json({ success: true, data, message: null });
     }
     catch (error) {

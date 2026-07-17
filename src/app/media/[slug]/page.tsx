@@ -103,10 +103,6 @@ function MediaDetailPage() {
       }
     } catch (err) {
       console.error('Download failed:', err);
-        setNotification({
-          title: _("download.techError"),
-          message: _("download.techErrorDesc"),
-        });
     } finally {
       setDownloading(false);
     }

@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chillers — Test Player</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #09090B; color: #fff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+
+    #player-bar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      background: #111; border-bottom: 1px solid #222;
+      display: none; flex-direction: column;
+    }
+    #player-bar.active { display: flex; }
+    #player-bar video { width: 100%; max-height: 50vh; background: #000; }
+    #player-bar .info {
+      padding: 8px 16px; display: flex; align-items: center; justify-content: space-between;
+      font-size: 13px; color: #999;
+    }
+    #player-bar .info .title { color: #D70466; font-weight: 700; }
+    #player-bar .info .source { color: #22C55E; font-size: 11px; margin-left: 8px; }
+    #player-bar .info button {
+      background: #D70466; border: none; color: #fff; padding: 4px 12px;
+      border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;
+    }
+
+    .header { padding: 80px 20px 20px; text-align: center; }
+    .header h1 { font-size: 28px; font-weight: 900; }
+    .header h1 span { color: #D70466; }
+    .header p { color: #666; font-size: 13px; margin-top: 4px; }
+
+    .stats {
+      display: flex; justify-content: center; gap: 16px; padding: 12px 20px;
+      font-size: 13px; color: #888; flex-wrap: wrap;
+    }
+    .stats .ok { color: #22C55E; font-weight: 700; }
+    .stats .err { color: #EF4444; font-weight: 700; }
+    .stats .dl-ok { color: #A855F7; font-weight: 700; }
+    .stats .otaku { color: #F59E0B; font-weight: 700; }
+
+    .search-wrap { padding: 0 20px 16px; max-width: 600px; margin: 0 auto; }
+    .search-wrap input {
+      width: 100%; padding: 10px 16px; border-radius: 10px;
+      background: #18181B; border: 1px solid #27272A; color: #fff;
+      font-size: 14px; outline: none;
+    }
+    .search-wrap input:focus { border-color: #D70466; }
+    .search-wrap input::placeholder { color: #555; }
+
+    .list { max-width: 900px; margin: 0 auto; padding: 0 20px 80px; }
+    .item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 14px; margin-bottom: 6px;
+      background: #18181B; border: 1px solid #1E1E22; border-radius: 10px;
+      transition: border-color 0.2s;
+    }
+    .item:hover { border-color: #333; }
+    .item.playing { border-color: #D70466; background: #1a1018; }
+    .item .idx { min-width: 24px; text-align: center; font-size: 10px; color: #555; font-weight: 700; }
+    .item .title { flex: 1; font-size: 12px; font-weight: 600; color: #ddd; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+    .item .code { font-size: 9px; color: #555; font-family: monospace; flex-shrink: 0; max-width: 60px; overflow: hidden; text-overflow: ellipsis; }
+    .item .badge {
+      font-size: 9px; padding: 2px 6px; border-radius: 4px;
+      font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; flex-shrink: 0;
+    }
+    .badge.ok { background: #22C55E20; color: #22C55E; }
+    .badge.err { background: #EF444420; color: #EF4444; }
+    .badge.pending { background: #F59E0B20; color: #F59E0B; }
+    .badge.fetching { background: #3B82F620; color: #3B82F6; }
+    .badge.dl-ok { background: #A855F720; color: #A855F7; }
+    .badge.otaku-ok { background: #F59E0B20; color: #F59E0B; }
+
+    .item .btn-group { display: flex; gap: 3px; flex-shrink: 0; }
+    .item button {
+      padding: 5px 8px; border-radius: 6px;
+      border: none; color: #fff;
+      font-size: 10px; font-weight: 700; cursor: pointer;
+      transition: background 0.2s; white-space: nowrap;
+    }
+    .btn-play { background: #D70466; }
+    .btn-play:hover { background: #b5034f; }
+    .btn-dl { background: #7C3AED; }
+    .btn-dl:hover { background: #6D28D9; }
+    .btn-otaku { background: #F59E0B; color: #000; }
+    .btn-otaku:hover { background: #D97706; }
+    button:disabled { background: #333 !important; color: #666 !important; cursor: not-allowed; }
+
+    .empty { text-align: center; padding: 60px 20px; color: #555; font-size: 14px; }
+
+    .loading { text-align: center; padding: 60px 20px; color: #D70466; font-size: 14px; }
+    .loading::after { content: ''; display: inline-block; width: 16px; height: 16px;
+      border: 2px solid #D70466; border-top-color: transparent; border-radius: 50%;
+      animation: spin 0.8s linear infinite; margin-left: 8px; vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .api-url { max-width: 600px; margin: 0 auto 12px; padding: 0 20px; display: flex; gap: 8px; }
+    .api-url input {
+      flex: 1; padding: 8px 12px; border-radius: 8px; font-size: 12px;
+      background: #18181B; border: 1px solid #27272A; color: #D70466; outline: none;
+      font-family: monospace;
+    }
+    .api-url input:focus { border-color: #D70466; }
+    .api-url button {
+      padding: 8px 14px; border-radius: 8px; border: 1px solid #333;
+      background: transparent; color: #888; font-size: 11px; font-weight: 600; cursor: pointer;
+    }
+    .api-url button:hover { border-color: #D70466; color: #D70466; }
+
+    #log-panel {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 90;
+      background: #111; border-top: 1px solid #222; max-height: 200px;
+      overflow-y: auto; padding: 8px 16px; font-family: monospace;
+      font-size: 11px; color: #888; display: none;
+    }
+    #log-panel.open { display: block; }
+    #log-panel .log-ok { color: #22C55E; }
+    #log-panel .log-err { color: #EF4444; }
+    #log-panel .log-info { color: #3B82F6; }
+    #log-panel .log-otaku { color: #F59E0B; }
+
+    .toggle-log {
+      position: fixed; bottom: 8px; right: 8px; z-index: 91;
+      background: #18181B; border: 1px solid #333; color: #888;
+      padding: 6px 12px; border-radius: 8px; font-size: 11px; cursor: pointer;
+    }
+    .toggle-log:hover { border-color: #D70466; color: #D70466; }
+
+    .legend {
+      max-width: 900px; margin: 0 auto; padding: 0 20px 8px;
+      display: flex; gap: 12px; font-size: 10px; color: #555; flex-wrap: wrap;
+    }
+    .legend span { display: flex; align-items: center; gap: 4px; }
+    .legend .dot { width: 8px; height: 8px; border-radius: 50%; }
+  </style>
+</head>
+<body>
+
+  <div id="player-bar">
+    <video id="main-video" controls playsinline></video>
+    <div class="info">
+      <div>
+        <span class="title" id="player-title">—</span>
+        <span class="source" id="player-source"></span>
+      </div>
+      <button onclick="closePlayer()">Fermer</button>
+    </div>
+  </div>
+
+  <div class="header">
+    <h1>CHILL<span>ERS</span> + Test Player</h1>
+    <p>uploaded.json — Vidzy + DoodStream + Open-Otaku fallback</p>
+  </div>
+
+  <div class="api-url">
+    <input type="text" id="api-base" value="/api" placeholder="API base URL">
+    <button onclick="saveApiUrl()">Sauver</button>
+  </div>
+
+  <div class="stats">
+    <span>Total: <strong id="stat-total">—</strong></span>
+    <span>Stream: <span class="ok" id="stat-ok">0</span></span>
+    <span>DL: <span class="dl-ok" id="stat-dl">0</span></span>
+    <span>Otaku: <span class="otaku" id="stat-otaku">0</span></span>
+    <span>Erreur: <span class="err" id="stat-err">0</span></span>
+  </div>
+
+  <div class="legend">
+    <span><span class="dot" style="background:#D70466"></span> ▶ Lire direct</span>
+    <span><span class="dot" style="background:#7C3AED"></span> ⬇ Download</span>
+    <span><span class="dot" style="background:#F59E0B"></span> 🔗 Otaku fallback</span>
+  </div>
+
+  <div class="search-wrap">
+    <input type="text" id="search" placeholder="Rechercher un film..." oninput="filterList()">
+  </div>
+
+  <div class="list" id="list">
+    <div class="loading">Chargement de uploaded.json…</div>
+  </div>
+
+  <div id="log-panel"></div>
+  <button class="toggle-log" onclick="document.getElementById('log-panel').classList.toggle('open')">Logs</button>
+
+<script>
+  const API_BASE = () => localStorage.getItem('chillers-api-url') || '/api';
+  let movies = [];
+  let streamState = {};
+  let dlState = {};
+  let otakuState = {};
+  let currentKey = null;
+
+  function log(msg, cls = 'log-info') {
+    const panel = document.getElementById('log-panel');
+    const line = document.createElement('div');
+    line.className = cls;
+    line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+    panel.prepend(line);
+  }
+
+  function saveApiUrl() {
+    const val = document.getElementById('api-base').value.trim();
+    if (val) {
+      localStorage.setItem('chillers-api-url', val);
+      log('API base sauvé: ' + val);
+    }
+  }
+
+  async function init() {
+    document.getElementById('api-base').value = API_BASE();
+
+    try {
+      const res = await fetch('/uploaded.json');
+      const raw = await res.json();
+      movies = Object.entries(raw).map(([key, val]) => ({
+        key,
+        titre: val.titre || key,
+        fileCode: val.fileCode,
+        lien: val.lien,
+        tmdbId: val.tmdbId,
+      }));
+    } catch {
+      document.getElementById('list').innerHTML = '<div class="empty">Erreur: impossible de charger uploaded.json</div>';
+      return;
+    }
+
+    movies.forEach(m => {
+      streamState[m.key] = 'pending';
+      dlState[m.key] = 'pending';
+      otakuState[m.key] = 'pending';
+    });
+
+    document.getElementById('stat-total').textContent = movies.length;
+    renderList();
+  }
+
+  function renderList() {
+    const query = document.getElementById('search').value.toLowerCase();
+    const list = document.getElementById('list');
+    let html = '';
+
+    movies.forEach((m, i) => {
+      if (query && !m.titre.toLowerCase().includes(query)) return;
+
+      const ss = streamState[m.key];
+      const ds = dlState[m.key];
+      const os = otakuState[m.key];
+      const ssLabel = { ok: 'Stream', err: 'ERR', pending: '—', fetching: '...' }[ss];
+      const dsLabel = { ok: 'DL', err: 'DL ERR', pending: '—', fetching: '...' }[ds];
+      const osLabel = { ok: 'Otaku', err: 'ERR', pending: '—', fetching: '...' }[os];
+      const ssClass = ss === 'ok' ? 'ok' : ss === 'err' ? 'err' : ss === 'fetching' ? 'fetching' : 'pending';
+      const dsClass = ds === 'ok' ? 'dl-ok' : ds === 'err' ? 'dl-err' : ds === 'fetching' ? 'fetching' : 'pending';
+      const osClass = os === 'ok' ? 'otaku-ok' : os === 'err' ? 'dl-err' : os === 'fetching' ? 'fetching' : 'pending';
+
+      html += `
+        <div class="item ${currentKey === m.key ? 'playing' : ''}" id="item-${i}">
+          <span class="idx">${i + 1}</span>
+          <span class="title">${escapeHtml(m.titre)}</span>
+          <span class="code" title="${m.fileCode}">${m.fileCode}</span>
+          <span class="badge ${ssClass}">${ssLabel}</span>
+          <span class="badge ${dsClass}">${dsLabel}</span>
+          <span class="badge ${osClass}">${osLabel}</span>
+          <div class="btn-group">
+            <button class="btn-play" onclick="playDirect(${i})" title="Lire lien vidzy">▶</button>
+            <button class="btn-dl" onclick="downloadDirect(${i})" title="Download lien vidzy">⬇</button>
+            <button class="btn-otaku" onclick="searchOtaku(${i})" ${otakuState[m.key] === 'fetching' ? 'disabled' : ''} title="Search open-otaku.me">🔗</button>
+          </div>
+        </div>`;
+    });
+
+    if (!html) html = '<div class="empty">Aucun résultat</div>';
+    list.innerHTML = html;
+  }
+
+  function filterList() { renderList(); }
+
+  function playDirect(idx) {
+    const m = movies[idx];
+    if (!m.lien) { log(`Pas de lien pour "${m.titre}"`, 'log-err'); return; }
+
+    const bar = document.getElementById('player-bar');
+    const video = document.getElementById('main-video');
+    const titleEl = document.getElementById('player-title');
+    const sourceEl = document.getElementById('player-source');
+
+    bar.classList.add('active');
+    titleEl.textContent = m.titre;
+    sourceEl.textContent = '[vidzy direct]';
+    video.src = m.lien;
+    video.play().catch(() => {});
+    currentKey = m.key;
+    streamState[m.key] = 'ok';
+    updateStats();
+    bar.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    renderList();
+    log(`▶ ${m.titre} → ${m.lien.slice(0, 80)}...`, 'log-ok');
+  }
+
+  function downloadDirect(idx) {
+    const m = movies[idx];
+    if (!m.lien) { log(`Pas de lien pour "${m.titre}"`, 'log-err'); return; }
+
+    log(`⬇ Download: ${m.lien.slice(0, 100)}...`, 'log-ok');
+    window.open(m.lien, '_blank');
+    dlState[m.key] = 'ok';
+    updateStats();
+    renderList();
+  }
+
+  async function searchOtaku(idx) {
+    const m = movies[idx];
+    const base = API_BASE();
+
+    otakuState[m.key] = 'fetching';
+    updateStats();
+    renderList();
+
+    log(`[Otaku] Recherche "${m.titre}" sur open-otaku.me...`, 'log-otaku');
+
+    try {
+      const res = await fetch(`${base}/otaku/search-and-cache?title=${encodeURIComponent(m.titre)}&type=movie`);
+      const json = await res.json();
+
+      if (json.success && json.data?.lien) {
+        otakuState[m.key] = 'ok';
+        log(`[Otaku] ✅ ${m.titre} → ${json.data.lien.slice(0, 100)}...`, 'log-ok');
+
+        // Auto-play the otaku link
+        const bar = document.getElementById('player-bar');
+        const video = document.getElementById('main-video');
+        const titleEl = document.getElementById('player-title');
+        const sourceEl = document.getElementById('player-source');
+
+        bar.classList.add('active');
+        titleEl.textContent = m.titre;
+        sourceEl.textContent = '[open-otaku.me]';
+        video.src = json.data.lien;
+        video.play().catch(() => {});
+        currentKey = m.key;
+        streamState[m.key] = 'ok';
+        bar.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        otakuState[m.key] = 'err';
+        log(`[Otaku] ❌ ${json.message || 'Aucun résultat'}`, 'log-err');
+      }
+    } catch (e) {
+      otakuState[m.key] = 'err';
+      log(`[Otaku] Error: ${e.message}`, 'log-err');
+    }
+
+    updateStats();
+    renderList();
+  }
+
+  function closePlayer() {
+    const bar = document.getElementById('player-bar');
+    const video = document.getElementById('main-video');
+    video.pause();
+    video.src = '';
+    bar.classList.remove('active');
+    currentKey = null;
+    renderList();
+  }
+
+  function updateStats() {
+    let ok = 0, dl = 0, otaku = 0, err = 0;
+    movies.forEach(m => {
+      if (streamState[m.key] === 'ok') ok++;
+      if (dlState[m.key] === 'ok') dl++;
+      if (otakuState[m.key] === 'ok') otaku++;
+      if (streamState[m.key] === 'err' || dlState[m.key] === 'err') err++;
+    });
+    document.getElementById('stat-ok').textContent = ok;
+    document.getElementById('stat-dl').textContent = dl;
+    document.getElementById('stat-otaku').textContent = otaku;
+    document.getElementById('stat-err').textContent = err;
+  }
+
+  function escapeHtml(str) {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  init();
+</script>
+</body>
+</html>

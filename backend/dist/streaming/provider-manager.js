@@ -9,8 +9,10 @@ const doodstream_provider_1 = require("./providers/doodstream.provider");
 const vidlink_provider_1 = require("./providers/vidlink.provider");
 const vidapi_provider_1 = require("./providers/vidapi.provider");
 const animekai_provider_1 = require("./providers/animekai.provider");
+const otaku_provider_1 = require("./providers/otaku.provider");
 const VALIDATION_TIMEOUT = 5000;
 const PROVIDER_TIMEOUT = 10000;
+const OTAKU_TIMEOUT = 60000;
 const CIRCUIT_BREAKER_THRESHOLD = 3;
 const CIRCUIT_BREAKER_COOLDOWN = 60000;
 class ProviderManager {
@@ -21,6 +23,7 @@ class ProviderManager {
             new doodstream_provider_1.DoodStreamProvider(),
             new vidlink_provider_1.VidLinkProvider(),
             new vidapi_provider_1.VidAPIProvider(),
+            new otaku_provider_1.OtakuProvider(),
         ];
     }
     async getMovieStream(query) {
@@ -96,7 +99,8 @@ class ProviderManager {
             };
         }
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT);
+        const timeout = provider.name === 'otaku' ? OTAKU_TIMEOUT : PROVIDER_TIMEOUT;
+        const timeoutId = setTimeout(() => controller.abort(), timeout);
         try {
             const result = await (type === 'movie'
                 ? provider.getMovieStream(query)
@@ -109,7 +113,7 @@ class ProviderManager {
                     reason: 'no result returned',
                 };
             }
-            if (result.provider === 'doodstream') {
+            if (result.provider === 'doodstream' || result.provider === 'otaku') {
                 this.recordSuccess(provider.name);
                 return {
                     provider: provider.name,
@@ -136,7 +140,7 @@ class ProviderManager {
         catch (err) {
             this.recordFailure(provider.name);
             const msg = err?.name === 'AbortError'
-                ? `timeout (${PROVIDER_TIMEOUT}ms)`
+                ? `timeout (${timeout}ms)`
                 : err?.message || 'unknown error';
             return {
                 provider: provider.name,
@@ -168,10 +172,15 @@ class ProviderManager {
                 headers: {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
                 },
+                maxRedirects: 5,
             });
             if (response.status >= 400)
                 return false;
             const body = typeof response.data === 'string' ? response.data.toLowerCase() : '';
+            const contentLength = body.length;
+            // Too short = error/redirect/minimal fallback page
+            if (contentLength < 200)
+                return false;
             const notFoundIndicators = [
                 'not found',
                 'unavailable',
@@ -185,9 +194,37 @@ class ProviderManager {
                 'non disponible',
                 'aucun contenu',
                 'n\'existe pas',
+                'this video is not available',
+                'video not found',
+                'no video',
+                'content unavailable',
+                'stream not found',
+                'sorry',
+                'page not found',
+                'file not found',
+                'nothing found',
+                'aucun résultat',
+                'ne correspond',
+                'page introuvable',
+                'fichier introuvable',
+                'contenu non trouvé',
+                'film introuvable',
+                'série introuvable',
+                'nothing here',
+                'no content',
+                'empty',
+                'error 404',
+                'error 500',
             ];
             for (const indicator of notFoundIndicators) {
                 if (body.includes(indicator)) {
+                    return false;
+                }
+            }
+            // VidLink fallback pages are typically very minimal HTML without a real player
+            // Check that the response has meaningful content (player scripts, video elements, etc.)
+            if (url.includes('vidlink.pro')) {
+                if (!body.includes('vidlink') && !body.includes('player') && !body.includes('video') && !body.includes('iframe')) {
                     return false;
                 }
             }

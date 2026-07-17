@@ -206,10 +206,6 @@ function WatchContent() {
       }
     } catch (err) {
       console.error("Download failed:", err);
-      setNotification({
-        title: _("download.techError"),
-        message: _("download.techErrorDesc"),
-      });
     } finally {
       setDownloading(false);
     }
@@ -260,10 +256,6 @@ function WatchContent() {
       });
     } catch (err) {
       console.error('Series download failed:', err);
-      setNotification({
-        title: _("download.techError"),
-        message: _("download.techErrorDesc"),
-      });
     } finally {
       setSeriesDownloading(false);
     }
@@ -286,10 +278,6 @@ function WatchContent() {
         message: _("watch.linkCopiedDesc"),
       });
     } catch {
-      setNotification({
-        title: _("watch.shareUnavailable"),
-        message: _("watch.shareUnavailableDesc"),
-      });
     }
   };
 

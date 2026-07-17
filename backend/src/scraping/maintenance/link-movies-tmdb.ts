@@ -3,9 +3,9 @@ import path from 'path';
 dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 import fs from 'fs';
-import tmdbClient from '../config/tmdb';
+import tmdbClient from '../../config/tmdb';
 
-const UPLOADED_PATH = path.join(__dirname, '../../uploaded.json');
+const UPLOADED_PATH = path.join(__dirname, '../core/uploaded.json');
 const ERROR_LOG_PATH = path.join(__dirname, '../../tmdb-movie-link-errors.log');
 
 function normalize(str: string): string {
