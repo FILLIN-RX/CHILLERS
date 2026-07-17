@@ -20,7 +20,9 @@ async function testConnection() {
         console.log("✅ Connexion réussie à MongoDB !");
         
         // Tester une opération simple (lister les collections)
-        const collections = await mongoose.connection.db.listCollections().toArray();
+        const db = mongoose.connection.db;
+        if (!db) throw new Error("Database not connected");
+        const collections = await db.listCollections().toArray();
         console.log("Collections trouvées :", collections.map(c => c.name));
         
         await mongoose.disconnect();

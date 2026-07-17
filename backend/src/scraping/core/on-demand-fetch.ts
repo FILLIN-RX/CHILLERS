@@ -1,6 +1,6 @@
 import { searchAndNavigateToSeries, getSpecificEpisodeLink } from '../../modules/otaku/otaku.service';
 import { chromium } from 'playwright';
-import { browserConfig } from '../config/browser';
+import { browserConfig } from '../../config/browser';
 import Movie from '../../models/Movie';
 import Serie from '../../models/Serie';
 

@@ -1,4 +1,4 @@
-import doodClient from '../modules/doodstream/doodstream.client';
+import doodClient from '../../modules/doodstream/doodstream.client';
 
 async function main() {
   const fileCode = 'hz34fygr7sbr';

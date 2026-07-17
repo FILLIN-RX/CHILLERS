@@ -1,4 +1,4 @@
-import { isLinkDead } from './link-checker';
+import { isLinkDead } from './core/link-checker';
 import { getSpecificEpisodeLink, searchAndNavigateToSeries } from '../modules/otaku/otaku.service';
 import { chromium } from 'playwright';
 

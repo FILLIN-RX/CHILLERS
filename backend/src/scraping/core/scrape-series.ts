@@ -1,7 +1,8 @@
 import { chromium } from 'playwright';
 import mongoose from 'mongoose';
 import Serie from '../../models/Serie';
-import { browserConfig } from '../config/browser';
+import { browserConfig } from '../../config/browser';
+import { connectDB } from '../../config/db';
 
 async function scrapeSeriesDetails() {
     await connectDB();

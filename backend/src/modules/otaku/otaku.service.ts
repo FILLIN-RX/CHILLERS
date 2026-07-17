@@ -15,6 +15,10 @@ async function getBrowser(): Promise<Browser> {
   return browser;
 }
 
+function normalize(str: string): string {
+  return str.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20);
+}
+
 export interface OtakuResult {
   titre: string;
   lien: string;

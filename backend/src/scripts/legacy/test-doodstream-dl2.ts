@@ -2,7 +2,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 dotenv.config({ path: path.join(__dirname, '../../.env') });
 
-import { getFileDownloadUrl } from '../modules/doodstream/doodstream.service';
+import { getFileDownloadUrl } from '../../modules/doodstream/doodstream.service';
 
 async function main() {
   const fileCode = 'hz34fygr7sbr'; // The Chi S08E01
