@@ -5,7 +5,7 @@
   "main": "dist/server.js",
   "scripts": {
     "start": "node dist/server.js",
-    "build": "tsc",
+    "build": "tsc && cp src/scraping/core/scrape-films.js dist/scraping/core/scrape-films.js",
     "dev": "tsx watch src/server.ts",
     "preview": "node dist/server.js",
     "upload": "npx tsx src/scripts/upload-doodstream.ts",

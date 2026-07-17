@@ -47,19 +47,19 @@ function runNodeScript(name: string, scriptRelativePath: string) {
  */
 function runScrapingTasks() {
     console.log(`[${new Date().toISOString()}] [Cron] Lancement des tâches de scraping (quotidien)...`);
-    runScript('Scraping Films', 'scraping/core/scrape-films.js');
-    runScript('Scraping Séries', 'scraping/core/scrape-series.ts');
+    runNodeScript('Scraping Films', 'scraping/core/scrape-films.js');
+    runNodeScript('Scraping Séries', 'scraping/core/scrape-series.js');
 }
 
 function runMaintenanceTasks() {
     console.log(`[${new Date().toISOString()}] [Cron] Lancement des tâches de maintenance (horaire)...`);
     
     // 1. Maintenance des liens morts
-    runScript('Maintenance Liens', 'scraping/maintenance/maintainer.ts');
+    runNodeScript('Maintenance Liens', 'scraping/maintenance/maintainer.js');
     
     // 2. Linking TMDB
-    runScript('Linking TMDB Films', 'scraping/maintenance/link-movies-tmdb.ts');
-    runScript('Linking TMDB Séries', 'scraping/maintenance/link-series-tmdb.ts');
+    runNodeScript('Linking TMDB Films', 'scraping/maintenance/link-movies-tmdb.js');
+    runNodeScript('Linking TMDB Séries', 'scraping/maintenance/link-series-tmdb.js');
 }
 
 // 1. Lancer immédiatement au démarrage du serveur
