@@ -70,7 +70,7 @@ function runMaintenanceTasks() {
     //    collection Serie. Le DoodStreamProvider lit Mongo en priorité.
     //    NB: on pointe vers src/ (le helper data-paths résout les JSON
     //    de manière absolue, donc OK depuis l'un ou l'autre).
-    runScript('Sync Séries → MongoDB', '../src/scraping/maintenance/sync-series-to-mongo.ts');
+    runNodeScript('Sync Séries → MongoDB', 'scraping/maintenance/sync-series-to-mongo.js');
 }
 
 // 1. Lancer immédiatement au démarrage du serveur
