@@ -2,12 +2,12 @@ import fs from 'fs';
 import path from 'path';
 import axios from 'axios';
 import dotenv from 'dotenv';
+import { SERIES_OUTPUT_PATH } from '../../config/data-paths';
 
 dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 const API_KEY = process.env.DOODSTREAM_API_KEY;
 const BASE_URL = 'https://doodapi.co/api';
-const OUTPUT_PATH = path.join(__dirname, '../../series-output.json');
 
 async function sleep(ms: number) {
   return new Promise(r => setTimeout(r, ms));
@@ -47,12 +47,12 @@ async function main() {
     process.exit(1);
   }
 
-  if (!fs.existsSync(OUTPUT_PATH)) {
+  if (!fs.existsSync(SERIES_OUTPUT_PATH)) {
     console.error('[ERROR] series-output.json introuvable');
     process.exit(1);
   }
 
-  const uploaded = JSON.parse(fs.readFileSync(OUTPUT_PATH, 'utf-8'));
+  const uploaded = JSON.parse(fs.readFileSync(SERIES_OUTPUT_PATH, 'utf-8'));
   const episodes = Object.entries(uploaded).filter(
     ([, v]: [string, any]) => v.season && v.episode && !v.fldId
   );
@@ -157,7 +157,7 @@ async function main() {
     }
   }
 
-  fs.writeFileSync(OUTPUT_PATH, JSON.stringify(uploaded, null, 2));
+  fs.writeFileSync(SERIES_OUTPUT_PATH, JSON.stringify(uploaded, null, 2));
   console.log(`\n[DONE] ${moved} déplacés, ${failed} échoués`);
 }
 

@@ -53,13 +53,24 @@ function runScrapingTasks() {
 
 function runMaintenanceTasks() {
     console.log(`[${new Date().toISOString()}] [Cron] Lancement des tâches de maintenance (horaire)...`);
-    
+
     // 1. Maintenance des liens morts
     runNodeScript('Maintenance Liens', 'scraping/maintenance/maintainer.js');
-    
-    // 2. Linking TMDB
+
+    // 2. Linking TMDB (les scripts .js compilés lisent leurs JSON
+    //    via src/config/data-paths.ts, donc OK depuis dist/).
     runNodeScript('Linking TMDB Films', 'scraping/maintenance/link-movies-tmdb.js');
     runNodeScript('Linking TMDB Séries', 'scraping/maintenance/link-series-tmdb.js');
+
+    // 3. Organisation des fichiers Doodstream (déplace dans le dossier série)
+    runNodeScript('Organize Séries Doodstream', 'scraping/maintenance/organize-series.js');
+
+    // 4. Sync séries vers MongoDB — pousse les épisodes enrichis
+    //    (fileCode, season, episodeNumber, fldId, tmdbId) dans la
+    //    collection Serie. Le DoodStreamProvider lit Mongo en priorité.
+    //    NB: on pointe vers src/ (le helper data-paths résout les JSON
+    //    de manière absolue, donc OK depuis l'un ou l'autre).
+    runScript('Sync Séries → MongoDB', '../src/scraping/maintenance/sync-series-to-mongo.ts');
 }
 
 // 1. Lancer immédiatement au démarrage du serveur

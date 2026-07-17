@@ -1,17 +1,20 @@
 import fs from 'fs';
-import path from 'path';
 import { StreamingProvider, StreamResult, StreamQuery } from './provider.interface';
 import { getFileDownloadUrl, listFiles } from '../../modules/doodstream/doodstream.service';
 import Serie from '../../models/Serie';
 import Movie from '../../models/Movie';
-
-const UPLOADED_PATH = path.join(__dirname, '../../../uploaded.json');
-const SERIES_OUTPUT_PATH = path.join(__dirname, '../../../series-output.json');
+import { UPLOADED_PATH, SERIES_OUTPUT_PATH } from '../../config/data-paths';
 
 let cachedUploadedFiles: Record<string, any> | null = null;
 let lastCacheTime = 0;
 const CACHE_TTL = 30 * 1000; // 30 seconds
 
+/**
+ * Lecture disque (fallback). En priorité on lit directement dans MongoDB
+ * (collection Serie / Movie) — le runtime ne dépend plus de l'état du
+ * filesystem. Ce cache disque ne sert qu'à absorber le cas où la base
+ * n'est pas encore synchronisée (post-scrape, pré-premier sync).
+ */
 function getUploadedFiles(): Record<string, any> {
   const now = Date.now();
   if (cachedUploadedFiles && (now - lastCacheTime < CACHE_TTL)) {
@@ -188,21 +191,36 @@ export class DoodStreamProvider implements StreamingProvider {
       }
 
       if (query.season !== undefined && query.episode !== undefined) {
+        const safeTitle = query.title
+          ? query.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+          : null;
         const series = await Serie.findOne({
           $or: [
             ...(query.tmdbId ? [{ tmdbId: query.tmdbId }] : []),
-            ...(query.title ? [{ titre: { $regex: new RegExp(query.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } }] : []),
+            ...(safeTitle ? [{ titre: { $regex: new RegExp(safeTitle, 'i') } }] : []),
           ],
         }).exec();
 
         if (series) {
-          const epLabel = `S${String(query.season).padStart(2, '0')}E${String(query.episode).padStart(2, '0')}`;
+          // Lookup précis via les champs typés (season / episodeNumber),
+          // profitera de l'index composé défini dans le modèle Serie.
           const found = series.episodes.find(
-            (ep: any) => ep.episode?.toUpperCase() === epLabel
+            (ep: any) => ep.season === query.season && ep.episodeNumber === query.episode
           );
-          if (found?.lien) {
-            console.log(`[DoodStream] MongoDB match series="${series.titre}" ${epLabel} → ${found.lien.slice(0, 60)}`);
-            return { fileCode: '', info: { lien: found.lien, titre: `${series.titre} ${epLabel}` } };
+          if (found) {
+            const epLabel = `S${String(query.season).padStart(2, '0')}E${String(query.episode).padStart(2, '0')}`;
+            console.log(
+              `[DoodStream] MongoDB match series="${series.titre}" ${epLabel} fileCode=${found.fileCode || '∅'}`
+            );
+            return {
+              fileCode: found.fileCode || '',
+              info: {
+                lien: found.lien,
+                titre: `${series.titre} ${epLabel}`,
+                fldId: found.fldId,
+                tmdbId: found.tmdbId,
+              },
+            };
           }
         }
       }
@@ -216,6 +234,16 @@ export class DoodStreamProvider implements StreamingProvider {
     const season = query.season;
     const episode = query.episode;
 
+    // 1. MongoDB d'abord — c'est la source de vérité après sync.
+    //    Rapide, indexé, et profite du shape enrichi (fileCode + season/episodeNumber).
+    const mongo = await this.findByMongoDB(query);
+    if (mongo) {
+      console.log(`[DoodStream] Match by MongoDB for tmdbId=${query.tmdbId} title="${query.title}"`);
+      return mongo;
+    }
+
+    // 2. Fallback disque — utile si la base n'a pas encore été synchronisée
+    //    (post-scrape, pré-premier sync-series-to-mongo).
     if (query.tmdbId) {
       const byId = this.findByTmdbId(query.tmdbId, season, episode);
       if (byId) {
@@ -232,7 +260,7 @@ export class DoodStreamProvider implements StreamingProvider {
       }
     }
 
-    // Option B fallback: if we have season+episode but no json match, try DoodStream folder listing
+    // 3. Option B fallback: si on a season+episode + tmdbId, lister le dossier DoodStream
     if (query.tmdbId && season !== undefined && episode !== undefined) {
       const fallback = await this.findByFolderFallback(query.tmdbId, season, episode);
       if (fallback) {
@@ -241,14 +269,7 @@ export class DoodStreamProvider implements StreamingProvider {
       }
     }
 
-    // MongoDB fallback
-    const mongo = await this.findByMongoDB(query);
-    if (mongo) {
-      console.log(`[DoodStream] Match by MongoDB for tmdbId=${query.tmdbId} title="${query.title}"`);
-      return mongo;
-    }
-
-    // Final fallback: match without S/E
+    // 4. Dernier recours: match sans S/E
     if (query.tmdbId) {
       const byId = this.findByTmdbId(query.tmdbId);
       if (byId) return byId;

@@ -32,10 +32,11 @@ async function scrapeFilms() {
         console.log(`Films trouvés sur la page : ${cards.length}`);
 
         for (let i = 0; i < cards.length; i++) {
+            let titre = `<film #${i}>`;
             try {
                 let currentCards = await page.$$('.fs-card');
                 let card = currentCards[i];
-                let titre = await card.$eval('.fs-card-title', el => el.innerText.trim());
+                titre = await card.$eval('.fs-card-title', el => el.innerText.trim());
 
                 if (titre.includes("Saison") || titre.includes("Épisode")) continue;
 
@@ -49,7 +50,7 @@ async function scrapeFilms() {
                 await card.click();
                 await page.waitForLoadState('domcontentloaded');
                 await page.waitForTimeout(1000);
-                
+
                 const pageUrl = page.url();
 
                 await page.click('button#fs-quick-download', { force: true });
@@ -70,9 +71,13 @@ async function scrapeFilms() {
                 await page.goto(url, { waitUntil: 'domcontentloaded' });
                 await page.waitForSelector('.fs-card');
             } catch (e) {
-                console.error(`Erreur film ${titre}:`, e);
-                await page.goto(url, { waitUntil: 'domcontentloaded' });
-                await page.waitForSelector('.fs-card');
+                console.error(`Erreur film ${titre}:`, e.message);
+                try {
+                    await page.goto(url, { waitUntil: 'domcontentloaded' });
+                    await page.waitForSelector('.fs-card');
+                } catch (recoveryErr) {
+                    console.error(`Récupération échouée pour ${titre}:`, recoveryErr.message);
+                }
             }
         }
         currentPage++;

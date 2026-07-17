@@ -2,23 +2,12 @@ import fs from 'fs';
 import path from 'path';
 import axios from 'axios';
 import dotenv from 'dotenv';
+import { SERIES_PATH, SERIES_OUTPUT_PATH } from '../../config/data-paths';
 
 dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 const API_KEY = process.env.DOODSTREAM_API_KEY;
 const BASE_URL = 'https://doodapi.co/api';
-
-function getSeriesPath(): string {
-  if (process.env.SERIES_PATH) return process.env.SERIES_PATH;
-  const localPath = path.join(__dirname, '../../series.json');
-  if (fs.existsSync(localPath)) return localPath;
-  const scrappingPath = '/home/ruxel/scrapping/series.json';
-  if (fs.existsSync(scrappingPath)) return scrappingPath;
-  return localPath;
-}
-
-const SERIES_PATH = getSeriesPath();
-const OUTPUT_PATH = path.join(__dirname, '../../series-output.json');
 
 const SAISON_PATTERN = /[Ss]aison\s*(\d+)/;
 const EP_PATTERN = /[ÉEé]p\s*[\.:]?\s*(\d+)/;
@@ -44,14 +33,14 @@ async function sleep(ms: number) {
 }
 
 function loadOutput(): Record<string, any> {
-  if (fs.existsSync(OUTPUT_PATH)) {
-    return JSON.parse(fs.readFileSync(OUTPUT_PATH, 'utf-8'));
+  if (fs.existsSync(SERIES_OUTPUT_PATH)) {
+    return JSON.parse(fs.readFileSync(SERIES_OUTPUT_PATH, 'utf-8'));
   }
   return {};
 }
 
 function saveOutput(data: Record<string, any>) {
-  fs.writeFileSync(OUTPUT_PATH, JSON.stringify(data, null, 2));
+  fs.writeFileSync(SERIES_OUTPUT_PATH, JSON.stringify(data, null, 2));
 }
 
 async function uploadToDoodStream(title: string, directUrl: string) {
@@ -81,7 +70,7 @@ async function main() {
     totalEpisodes += series.episodes?.length || 0;
   }
   console.log(`[UPLOAD] ${allSeries.length} séries, ${totalEpisodes} épisodes dans ${SERIES_PATH}`);
-  console.log(`[OUTPUT] ${OUTPUT_PATH}\n`);
+  console.log(`[OUTPUT] ${SERIES_OUTPUT_PATH}\n`);
 
   let success = 0;
   let skipped = 0;
@@ -161,7 +150,7 @@ async function main() {
   }
 
   console.log(`\n[DONE] ${success} uploadés, ${skipped} déjà faits, ${failed} échoués`);
-  console.log(`[FILE] ${OUTPUT_PATH}`);
+  console.log(`[FILE] ${SERIES_OUTPUT_PATH}`);
 }
 
 main().catch(err => {

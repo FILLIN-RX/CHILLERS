@@ -4,8 +4,8 @@ dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 import fs from 'fs';
 import tmdbClient from '../../config/tmdb';
+import { SERIES_OUTPUT_PATH } from '../../config/data-paths';
 
-const SERIES_OUTPUT_PATH = path.join(__dirname, '../core/series-output.json');
 const ERROR_LOG_PATH = path.join(__dirname, '../../tmdb-link-errors.log');
 
 function parseTitre(titre: string): { seriesName: string; season: number } | null {
