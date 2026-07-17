@@ -11,9 +11,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget && \
     rm -rf /var/lib/apt/lists/*
 
-# Configurer le dossier d'installation de Playwright pour qu'il soit persistant et connu
-ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
-
 # Set working directory
 WORKDIR /app
 

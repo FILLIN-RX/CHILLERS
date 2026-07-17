@@ -1,13 +1,13 @@
 import fs from 'fs';
-import path from 'path';
 import { chromium, Page } from 'playwright';
 import { browserConfig } from '../../config/browser';
 import { isLinkDead } from '../core/link-checker';
 import { createBackup } from '../core/backup';
 import { sendNotification } from '../core/notifier';
 import { getSpecificEpisodeLink, searchAndNavigateToSeries } from '../../modules/otaku/otaku.service';
+import { SERIES_PATH } from '../../config/data-paths';
 
-const SERIES_FILE = path.join(__dirname, '../core/series.json');
+const SERIES_FILE = SERIES_PATH;
 const BASE_URL = 'https://www.open-otaku.me';
 
 async function repairSeriesLinks() {
