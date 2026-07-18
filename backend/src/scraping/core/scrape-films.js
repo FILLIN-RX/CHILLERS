@@ -1,18 +1,36 @@
 const { chromium } = require('playwright');
 const mongoose = require('mongoose');
 const Movie = require('../../models/Movie').default;
+const ScraperState = require('../../models/ScraperState').default;
 const { connectDB } = require('../../config/db');
-const { browserConfig } = require('../../config/browser'); // Note: devra être converti en export/import JS si besoin
+const { browserConfig } = require('../../config/browser');
+
+async function getLastPage() {
+    try {
+        const state = await ScraperState.findOne({ name: 'films' });
+        return state ? state.lastPage : 1;
+    } catch {
+        return 1;
+    }
+}
+
+async function saveLastPage(page) {
+    await ScraperState.findOneAndUpdate(
+        { name: 'films' },
+        { $set: { lastPage: page, updatedAt: new Date() } },
+        { upsert: true }
+    );
+}
 
 async function scrapeFilms() {
     await connectDB();
 
     const browser = await chromium.launch(browserConfig);
     const page = await browser.newPage();
-    
-    // Pour la reprise, on pourrait stocker la page dans MongoDB au lieu de STATE_FILE
-    let currentPage = 1;
+
+    let currentPage = await getLastPage();
     let hasMorePages = true;
+    console.log(`Reprise à la page ${currentPage}`);
 
     while (hasMorePages) {
         const url = `https://www.open-otaku.me/?cat=films&page=${currentPage}`;
@@ -81,6 +99,7 @@ async function scrapeFilms() {
             }
         }
         currentPage++;
+        await saveLastPage(currentPage);
     }
     await browser.close();
     await mongoose.disconnect();

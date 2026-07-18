@@ -10,7 +10,7 @@ import MovieModal from "@/components/MovieModal";
 import { useLanguage } from "@/i18n/LanguageContext";
 import {
   MovieOrShow,
-} from "./mockData";
+} from "../mockData";
 
 import {
   getTrendingMovies,
@@ -22,7 +22,7 @@ import {
   getMoviesByGenre,
   getAnimeSeries,
   Genre,
-} from "./api";
+} from "../api";
 
 export default function HomePage() {
   return (

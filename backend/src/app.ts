@@ -13,6 +13,7 @@ import streamingRoutes from './streaming/streaming.routes';
 import downloadRoutes from './modules/download/download.routes';
 import doodstreamRoutes from './modules/doodstream/doodstream.routes';
 import otakuRoutes from './modules/otaku/otaku.routes';
+import adminRoutes from './modules/admin/admin.routes';
 
 import path from 'path';
 dotenv.config({ path: path.join(__dirname, '../.env') });
@@ -67,6 +68,7 @@ app.use('/api/stream', streamingRoutes);
 app.use('/api/download', downloadRoutes);
 app.use('/api/doodstream', doodstreamRoutes);
 app.use('/api/otaku', otakuRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.use((_req, res) => {
   res.status(404).json({

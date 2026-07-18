@@ -1,72 +1,82 @@
 import cron from 'node-cron';
 import { spawn } from 'child_process';
 import path from 'path';
+import fs from 'fs';
+import { appendLog } from './config/log-buffer';
+
+const isDev = process.env.NODE_ENV !== 'production';
+
+function resolveScript(relativePath: string): string {
+    const fullPath = path.join(__dirname, relativePath);
+    if (!isDev) return fullPath;
+    const tsPath = fullPath.replace(/\.js$/, '.ts');
+    if (fs.existsSync(tsPath)) return tsPath;
+    return fullPath;
+}
 
 function runProcess(name: string, command: string, args: string[]) {
     const startTime = new Date().toISOString();
-    console.log(`[${startTime}] [Cron] Lancement : ${name} (${command} ${args.join(' ')})`);
+    const header = `[Cron] Lancement : ${name}`;
+    console.log(`[${startTime}] ${header}`);
+    appendLog(header);
 
     const child = spawn(command, args, { stdio: ['ignore', 'pipe', 'pipe'] });
 
     child.stdout.on('data', (data) => {
         for (const line of data.toString().split('\n').filter((l: string) => l)) {
-            console.log(`[${name}] ${line}`);
+            const msg = `[${name}] ${line}`;
+            console.log(msg);
+            appendLog(msg);
         }
     });
 
     child.stderr.on('data', (data) => {
         for (const line of data.toString().split('\n').filter((l: string) => l)) {
-            console.error(`[${name}] ${line}`);
+            const msg = `[${name}] ${line}`;
+            console.error(msg);
+            appendLog(msg);
         }
     });
 
     child.on('close', (code) => {
         const endTime = new Date().toISOString();
-        if (code === 0) {
-            console.log(`[${endTime}] [Cron] Terminé avec succès : ${name}`);
-        } else {
-            console.error(`[${endTime}] [Cron] ERREUR : ${name} (code: ${code})`);
-        }
+        const msg = code === 0
+            ? `[Cron] Terminé avec succès : ${name}`
+            : `[Cron] ERREUR : ${name} (code: ${code})`;
+        console.log(`[${endTime}] ${msg}`);
+        appendLog(msg);
     });
 }
 
 function runScript(name: string, scriptRelativePath: string) {
-    runProcess(name, 'npx', ['tsx', path.join(__dirname, scriptRelativePath)]);
+    runProcess(name, 'npx', ['tsx', resolveScript(scriptRelativePath)]);
 }
 
 function runNodeScript(name: string, scriptRelativePath: string) {
-    runProcess(name, 'node', [path.join(__dirname, scriptRelativePath)]);
+    runProcess(name, 'node', [resolveScript(scriptRelativePath)]);
 }
 
 /**
  * Liste des tâches à exécuter immédiatement au démarrage ou via cron quotidien
+ * En dev (tsx) les scripts .js importent des modules .ts → utiliser tsx
+ * En prod (node dist/) les .js compilés s'importent entre eux → utiliser node
  */
 function runScrapingTasks() {
     console.log(`[${new Date().toISOString()}] [Cron] Lancement des tâches de scraping (quotidien)...`);
-    runNodeScript('Scraping Films', 'scraping/core/scrape-films.js');
-    runNodeScript('Scraping Séries', 'scraping/core/scrape-series.js');
+    const runner = isDev ? runScript : runNodeScript;
+    runner('Scraping Films', 'scraping/core/scrape-films.js');
+    runner('Scraping Séries', 'scraping/core/scrape-series.js');
 }
 
 function runMaintenanceTasks() {
     console.log(`[${new Date().toISOString()}] [Cron] Lancement des tâches de maintenance (horaire)...`);
+    const runner = isDev ? runScript : runNodeScript;
 
-    // 1. Maintenance des liens morts
-    runNodeScript('Maintenance Liens', 'scraping/maintenance/maintainer.js');
-
-    // 2. Linking TMDB (les scripts .js compilés lisent leurs JSON
-    //    via src/config/data-paths.ts, donc OK depuis dist/).
-    runNodeScript('Linking TMDB Films', 'scraping/maintenance/link-movies-tmdb.js');
-    runNodeScript('Linking TMDB Séries', 'scraping/maintenance/link-series-tmdb.js');
-
-    // 3. Organisation des fichiers Doodstream (déplace dans le dossier série)
-    runNodeScript('Organize Séries Doodstream', 'scraping/maintenance/organize-series.js');
-
-    // 4. Sync séries vers MongoDB — pousse les épisodes enrichis
-    //    (fileCode, season, episodeNumber, fldId, tmdbId) dans la
-    //    collection Serie. Le DoodStreamProvider lit Mongo en priorité.
-    //    NB: on pointe vers src/ (le helper data-paths résout les JSON
-    //    de manière absolue, donc OK depuis l'un ou l'autre).
-    runNodeScript('Sync Séries → MongoDB', 'scraping/maintenance/sync-series-to-mongo.js');
+    runner('Maintenance Liens', 'scraping/maintenance/maintainer.js');
+    runner('Linking TMDB Films', 'scraping/maintenance/link-movies-tmdb.js');
+    runner('Linking TMDB Séries', 'scraping/maintenance/link-series-tmdb.js');
+    runner('Organize Séries Doodstream', 'scraping/maintenance/organize-series.js');
+    runner('Sync Séries → MongoDB', 'scraping/maintenance/sync-series-to-mongo.js');
 }
 
 // 1. Lancer immédiatement au démarrage du serveur

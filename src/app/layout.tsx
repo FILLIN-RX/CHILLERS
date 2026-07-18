@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import AppShell from "@/components/AppShell";
 import { LanguageProvider } from "@/i18n/LanguageContext";
+import AdminShortcut from "@/components/AdminShortcut";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -42,7 +42,8 @@ export default function RootLayout({
     >
       <body suppressHydrationWarning className="min-h-screen flex flex-col bg-brand-dark text-foreground selection:bg-brand-primary selection:text-white">
         <LanguageProvider>
-          <AppShell>{children}</AppShell>
+          <AdminShortcut />
+          {children}
         </LanguageProvider>
       </body>
     </html>

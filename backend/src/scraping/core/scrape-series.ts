@@ -1,24 +1,25 @@
 import { chromium } from 'playwright';
 import mongoose from 'mongoose';
-import fs from 'fs';
-import path from 'path';
 import Serie from '../../models/Serie';
+import ScraperState from '../../models/ScraperState';
 import { browserConfig } from '../../config/browser';
 import { connectDB } from '../../config/db';
 
-const STATE_FILE = path.join(__dirname, 'state-series.json');
-
-function loadState() {
+async function loadState(): Promise<{ lastPage: number }> {
     try {
-        const data = fs.readFileSync(STATE_FILE, 'utf-8');
-        return JSON.parse(data);
+        const state = await ScraperState.findOne({ name: 'series' });
+        return { lastPage: state?.lastPage || 1 };
     } catch {
         return { lastPage: 1 };
     }
 }
 
-function saveState(lastPage: number) {
-    fs.writeFileSync(STATE_FILE, JSON.stringify({ lastPage }, null, 4));
+async function saveState(lastPage: number) {
+    await ScraperState.findOneAndUpdate(
+        { name: 'series' },
+        { $set: { lastPage, updatedAt: new Date() } },
+        { upsert: true }
+    );
 }
 
 async function scrapeSeriesDetails() {
@@ -27,7 +28,7 @@ async function scrapeSeriesDetails() {
     const browser = await chromium.launch(browserConfig);
     const page = await browser.newPage();
 
-    const state = loadState();
+    const state = await loadState();
     let currentPage = state.lastPage;
     let hasMorePages = true;
 
@@ -114,7 +115,7 @@ async function scrapeSeriesDetails() {
             }
         }
         currentPage++;
-        saveState(currentPage);
+        await saveState(currentPage);
     }
     await browser.close();
     await mongoose.disconnect();

@@ -18,6 +18,7 @@ const streaming_routes_1 = __importDefault(require("./streaming/streaming.routes
 const download_routes_1 = __importDefault(require("./modules/download/download.routes"));
 const doodstream_routes_1 = __importDefault(require("./modules/doodstream/doodstream.routes"));
 const otaku_routes_1 = __importDefault(require("./modules/otaku/otaku.routes"));
+const admin_routes_1 = __importDefault(require("./modules/admin/admin.routes"));
 const path_1 = __importDefault(require("path"));
 dotenv_1.default.config({ path: path_1.default.join(__dirname, '../.env') });
 const app = (0, express_1.default)();
@@ -65,6 +66,7 @@ app.use('/api/stream', streaming_routes_1.default);
 app.use('/api/download', download_routes_1.default);
 app.use('/api/doodstream', doodstream_routes_1.default);
 app.use('/api/otaku', otaku_routes_1.default);
+app.use('/api/admin', admin_routes_1.default);
 app.use((_req, res) => {
     res.status(404).json({
         success: false,

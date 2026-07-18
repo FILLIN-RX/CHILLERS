@@ -675,3 +675,101 @@ export async function getByGenreMultiple(genres: { id: string; name: string }[],
   );
   return Object.fromEntries(entries);
 }
+
+/* ─── Admin API ─── */
+
+function getAdminToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem('admin-token');
+}
+
+async function adminFetch(url: string, options?: RequestInit) {
+  const token = getAdminToken();
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetchWithTimeout(`${API_BASE_URL}/admin${url}`, { ...options, headers });
+  return res.json();
+}
+
+export async function adminLogin(username: string, password: string) {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/admin/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  });
+  const data = await res.json();
+  if (data.success && data.data?.token) {
+    localStorage.setItem('admin-token', data.data.token);
+  }
+  return data;
+}
+
+export async function adminVerify() {
+  return adminFetch('/auth/verify');
+}
+
+export async function adminLogout() {
+  localStorage.removeItem('admin-token');
+}
+
+export async function adminGetDashboard() {
+  return adminFetch('/dashboard');
+}
+
+export async function adminGetLogs(type = 'all', lines = 100) {
+  return adminFetch(`/logs?type=${type}&lines=${lines}`);
+}
+
+export async function adminGetDeadLinks() {
+  return adminFetch('/dead-links');
+}
+
+export async function adminGetSettings() {
+  return adminFetch('/settings');
+}
+
+export async function adminUpdateSettings(settings: Record<string, string>) {
+  return adminFetch('/settings', {
+    method: 'PUT',
+    body: JSON.stringify(settings),
+  });
+}
+
+export async function adminTriggerScrape(type: string) {
+  return adminFetch('/scrape/trigger', {
+    method: 'POST',
+    body: JSON.stringify({ type }),
+  });
+}
+
+export async function adminClearCache() {
+  return adminFetch('/clear-cache', { method: 'POST' });
+}
+
+export async function adminGetCollection(type: string, q = '', page = 1, limit = 50) {
+  return adminFetch(`/collection?type=${type}&q=${encodeURIComponent(q)}&page=${page}&limit=${limit}`);
+}
+
+export async function adminGetScraperState() {
+  return adminFetch('/scraper-state');
+}
+
+export async function adminGetSerie(id: string) {
+  return adminFetch(`/serie/${id}`);
+}
+
+export async function adminGetTmdbStats() {
+  return adminFetch('/tmdb/stats');
+}
+
+export async function adminTriggerTmdbLink(type: string) {
+  return adminFetch('/tmdb/link', {
+    method: 'POST',
+    body: JSON.stringify({ type }),
+  });
+}
+
+export function adminGetLogsStreamUrl(): string {
+  const token = getAdminToken();
+  return `${API_BASE_URL}/admin/logs/stream?token=${token}`;
+}
