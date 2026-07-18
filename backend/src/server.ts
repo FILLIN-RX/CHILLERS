@@ -2,7 +2,6 @@ import app from './app';
 import { connectDB } from './config/db';
 import bcrypt from 'bcryptjs';
 import Admin from './models/Admin';
-import './cron-manager';
 
 const PORT = process.env.PORT || 4000;
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { adminGetSerie } from '@/app/api';
+import { adminGetSerie, startDownload, triggerDownload } from '@/app/api';
 import { IconFolderOpen, IconBack } from '@/components/Icons';
 
 interface Episode {
@@ -30,6 +30,7 @@ export default function AdminSerieDetail() {
   const router = useRouter();
   const [serie, setSerie] = useState<SerieDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [downloadingEp, setDownloadingEp] = useState<string | null>(null);
 
   useEffect(() => {
     adminGetSerie(id).then(res => {
@@ -116,6 +117,7 @@ export default function AdminSerieDetail() {
                     <th style={{ padding: '0.625rem 1rem', textAlign: 'left' }}>Lien</th>
                     <th style={{ padding: '0.625rem 1rem', textAlign: 'left' }}>Doodstream</th>
                     <th style={{ padding: '0.625rem 1rem', textAlign: 'left' }}>TMDB</th>
+                    <th style={{ padding: '0.625rem 1rem', textAlign: 'center' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -145,6 +147,68 @@ export default function AdminSerieDetail() {
                               {ep.tmdbId ? '✓ Lié' : '—'}
                             </span>
                           </td>
+                          <td style={{ padding: '0.625rem 1rem', textAlign: 'center' }}>
+                            <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'center' }}>
+                              <a
+                                href={isDead ? (ep.tmdbId || serie.tmdbId ? `/watch/${ep.tmdbId || serie.tmdbId}?type=tv` : '#') : ep.lien}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title="Lire"
+                                style={{
+                                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                  width: 30, height: 30, borderRadius: 6, border: 'none',
+                                  background: '#1a1a2e', color: isDead ? '#444' : '#6366f1',
+                                  cursor: isDead ? 'default' : 'pointer', fontSize: '0.8125rem',
+                                  opacity: isDead ? 0.3 : 1, textDecoration: 'none',
+                                  pointerEvents: isDead ? 'none' : 'auto',
+                                }}
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                  <polygon points="5 3 19 12 5 21 5 3" />
+                                </svg>
+                              </a>
+                              <button
+                                onClick={async () => {
+                                  setDownloadingEp(ep.episode);
+                                  try {
+                                    const result = await startDownload(
+                                      ep.tmdbId ? String(ep.tmdbId) : serie._id,
+                                      'series',
+                                      serie.titre,
+                                      ep.season,
+                                      ep.episodeNumber,
+                                    );
+                                    if (result?.downloadUrl) {
+                                      triggerDownload(result.downloadUrl, `${serie.titre}-${ep.episode}.mp4`);
+                                    }
+                                  } catch { } finally { setDownloadingEp(null); }
+                                }}
+                                disabled={downloadingEp === ep.episode || isDead}
+                                title="Télécharger"
+                                style={{
+                                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                  width: 30, height: 30, borderRadius: 6, border: 'none',
+                                  background: '#1a1a2e', color: isDead ? '#444' : '#22c55e',
+                                  cursor: (downloadingEp === ep.episode || isDead) ? 'default' : 'pointer',
+                                  fontSize: '0.8125rem', opacity: (downloadingEp === ep.episode || isDead) ? 0.3 : 1,
+                                }}
+                              >
+                                {downloadingEp === ep.episode ? (
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <circle cx="12" cy="12" r="10" />
+                                    <line x1="12" y1="8" x2="12" y2="12" />
+                                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                                  </svg>
+                                ) : (
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                    <polyline points="7 10 12 15 17 10" />
+                                    <line x1="12" y1="15" x2="12" y2="3" />
+                                  </svg>
+                                )}
+                              </button>
+                            </div>
+                          </td>
                         </tr>
                       );
                     })}
@@ -153,6 +217,7 @@ export default function AdminSerieDetail() {
             </div>
           </div>
         ))}
+
     </div>
   );
 }

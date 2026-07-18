@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { adminGetCollection } from '@/app/api';
+import { adminGetCollection, startDownload, triggerDownload } from '@/app/api';
 
 interface Movie {
   _id: string;
@@ -19,6 +19,7 @@ export default function AdminMovies() {
   const [totalPages, setTotalPages] = useState(1);
   const [q, setQ] = useState('');
   const [loading, setLoading] = useState(true);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const limit = 50;
 
   const fetch = useCallback(async (search: string, p: number) => {
@@ -86,6 +87,7 @@ export default function AdminMovies() {
                   <th style={{ padding: '0.75rem 1rem', textAlign: 'left' }}>TMDB</th>
                   <th style={{ padding: '0.75rem 1rem', textAlign: 'left' }}>Lien</th>
                   <th style={{ padding: '0.75rem 1rem', textAlign: 'left' }}>Ajouté</th>
+                  <th style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -104,6 +106,59 @@ export default function AdminMovies() {
                     </td>
                     <td style={{ padding: '0.75rem 1rem', color: '#888', fontSize: '0.75rem' }}>
                       {new Date(m.createdAt).toLocaleDateString()}
+                    </td>
+                    <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
+                      <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'center' }}>
+                        <a
+                          href={m.lien && m.lien !== '#' ? m.lien : `/watch/${m.tmdbId || m._id}?type=movie`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Lire"
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                            width: 32, height: 32, borderRadius: 8, border: 'none',
+                            background: '#1a1a2e', color: '#6366f1', cursor: 'pointer', fontSize: '0.875rem',
+                            textDecoration: 'none',
+                          }}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <polygon points="5 3 19 12 5 21 5 3" />
+                          </svg>
+                        </a>
+                        <button
+                          onClick={async () => {
+                            setDownloadingId(m._id);
+                            try {
+                              const result = await startDownload(m.tmdbId ? String(m.tmdbId) : m._id, 'movie', m.titre);
+                              if (result?.downloadUrl) {
+                                triggerDownload(result.downloadUrl, `${m.titre}.mp4`);
+                              }
+                            } catch { } finally { setDownloadingId(null); }
+                          }}
+                          disabled={downloadingId === m._id}
+                          title="Télécharger"
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                            width: 32, height: 32, borderRadius: 8, border: 'none',
+                            background: '#1a1a2e', color: '#22c55e', cursor: downloadingId === m._id ? 'default' : 'pointer',
+                            fontSize: '0.875rem', opacity: downloadingId === m._id ? 0.5 : 1,
+                          }}
+                        >
+                          {downloadingId === m._id ? (
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <circle cx="12" cy="12" r="10" />
+                              <line x1="12" y1="8" x2="12" y2="12" />
+                              <line x1="12" y1="16" x2="12.01" y2="16" />
+                            </svg>
+                          ) : (
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                              <polyline points="7 10 12 15 17 10" />
+                              <line x1="12" y1="15" x2="12" y2="3" />
+                            </svg>
+                          )}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -126,6 +181,7 @@ export default function AdminMovies() {
           )}
         </>
       )}
+
     </div>
   );
 }

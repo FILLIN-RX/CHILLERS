@@ -769,6 +769,25 @@ export async function adminTriggerTmdbLink(type: string) {
   });
 }
 
+export async function adminCronStart() {
+  return adminFetch('/cron/start', { method: 'POST' });
+}
+
+export async function adminCronStop() {
+  return adminFetch('/cron/stop', { method: 'POST' });
+}
+
+export async function adminCronStatus() {
+  return adminFetch('/cron/status');
+}
+
+export async function adminRunMaintenance(type: string) {
+  return adminFetch('/maintenance/run', {
+    method: 'POST',
+    body: JSON.stringify({ type }),
+  });
+}
+
 export function adminGetLogsStreamUrl(): string {
   const token = getAdminToken();
   return `${API_BASE_URL}/admin/logs/stream?token=${token}`;

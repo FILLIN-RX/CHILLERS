@@ -234,13 +234,21 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
     return `${h > 0 ? h + ":" : ""}${m < 10 && h > 0 ? "0" : ""}${m}:${s < 10 ? "0" : ""}${s}`;
   };
 
+  // Helper to convert DoodStream download links to embed links
+  const toEmbedUrl = (url?: string) => {
+    if (!url) return url;
+    const m = url.match(/doodstream\.com\/(?:d|e)\/([a-zA-Z0-9]+)/);
+    return m ? `https://doodstream.com/e/${m[1]}` : url;
+  };
+
+  const videoUrl = toEmbedUrl(item.videoUrl);
+
   // Helper to determine if the video is an iframe (VidLink, YouTube, etc.)
-  const isIframe = (item.videoUrl?.includes("vidlink.pro") || 
-                    item.videoUrl?.includes("youtube.com") || 
-                    item.videoUrl?.includes("doodstream.com") || 
-                    item.videoUrl?.includes("doodstream.com/e/")) && 
-                   !item.videoUrl?.includes("vidzy.cc") &&
-                   !item.videoUrl?.includes("playmogo.com");
+  const isIframe = (videoUrl?.includes("vidlink.pro") || 
+                    videoUrl?.includes("youtube.com") || 
+                    videoUrl?.includes("doodstream.com")) && 
+                   !videoUrl?.includes("vidzy.cc") &&
+                   !videoUrl?.includes("playmogo.com");
   
   const [downloading, setDownloading] = useState(false);
 
@@ -281,8 +289,8 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
       {isIframe ? (
         <>
           <iframe
-            key={item.videoUrl}
-            src={item.videoUrl}
+            key={videoUrl}
+            src={videoUrl}
             className="absolute inset-0 w-full h-full border-none bg-black"
             allow="autoplay; fullscreen; encrypted-media; picture-in-picture; gyroscope; accelerometer; clipboard-write"
             allowFullScreen
@@ -302,10 +310,10 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
             </div>
           )}
         </>
-      ) : item.videoUrl ? (
+      ) : videoUrl ? (
         <video
           ref={videoRef}
-          src={item.videoUrl}
+          src={videoUrl}
           className="absolute inset-0 w-full h-full object-contain"
           playsInline
           webkit-playsinline="true"
@@ -342,7 +350,7 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
       )}
 
       {/* ─── Native Video Overlays ───────────────────────────────────────── */}
-      {!isIframe && item.videoUrl && (
+      {!isIframe && videoUrl && (
         <>
           {/* Loading Spinner */}
           {isVideoLoading && (

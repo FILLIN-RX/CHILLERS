@@ -42,6 +42,8 @@ function WatchContent() {
     typeParam === "tv" ||
     typeParam === "series" ||
     typeParam === "anime";
+  const seasonParam = searchParams?.get("season");
+  const episodeParam = searchParams?.get("episode");
 
   const [item, setItem] = useState<MovieOrShow | null>(null);
   const [streamUrl, setStreamUrl] = useState("");
@@ -77,27 +79,35 @@ function WatchContent() {
 
         if (isTV) {
           setSeasonLoading(true);
-          const seasonData = await getSeasonDetails(id, "1");
+          const targetSeason = seasonParam || "1";
+          const seasonData = await getSeasonDetails(id, targetSeason);
           if (cancelled) return;
           if (seasonData?.episodes?.length) {
-            const eps: Episode[] = seasonData.episodes.map((ep: any) => ({
-              id: String(ep.id),
-              title: ep.name || `${_("media.episode")} ${ep.episode_number}`,
-              duration: `${ep.runtime || 24}m`,
-              number: ep.episode_number,
-              season: 1,
-              thumbnail: ep.still_path
-                ? `https://image.tmdb.org/t/p/w500${ep.still_path}`
-                : "",
-              synopsis: ep.overview || "",
-            }));
+            const targetEp = episodeParam ? parseInt(episodeParam) : undefined;
+            let startIdx = 0;
+            const eps: Episode[] = seasonData.episodes.map((ep: any, idx: number) => {
+              if (targetEp && ep.episode_number === targetEp) startIdx = idx;
+              return {
+                id: String(ep.id),
+                title: ep.name || `${_("media.episode")} ${ep.episode_number}`,
+                duration: `${ep.runtime || 24}m`,
+                number: ep.episode_number,
+                season: parseInt(targetSeason),
+                thumbnail: ep.still_path
+                  ? `https://image.tmdb.org/t/p/w500${ep.still_path}`
+                  : "",
+                synopsis: ep.overview || "",
+              };
+            });
             setEpisodes(eps);
+            setCurrentEpisodeIndex(startIdx);
 
+            const firstEpNumber = eps[startIdx]?.number || eps[0].number;
             const stream = await getStreamUrl(
               id,
               "series",
-              1,
-              eps[0].number,
+              parseInt(targetSeason),
+              firstEpNumber,
               detail?.title || id
             );
             if (!cancelled && stream) {
@@ -160,7 +170,7 @@ function WatchContent() {
       setStreamUrl("");
       try {
         setStreamUnavailable(false);
-        const stream = await getStreamUrl(id, "series", 1, ep.number, item.title || id);
+        const stream = await getStreamUrl(id, "series", ep.season || 1, ep.number, item.title || id);
         if (stream) {
           setStreamUrl(stream.embedUrl);
         } else {

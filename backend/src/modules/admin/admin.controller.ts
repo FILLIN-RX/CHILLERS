@@ -7,8 +7,7 @@ import { clearCache } from '../../config/tmdb';
 import Admin from '../../models/Admin';
 import Movie from '../../models/Movie';
 import Serie from '../../models/Serie';
-import { exec } from 'child_process';
-import path from 'path';
+import { startCron, stopCron, getCronStatus, runScrapingTasks, runMaintenanceTasks, runner, stopTask, getRunningTasks } from '../../cron-manager';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'chiller-admin-secret-change-me';
 
@@ -97,18 +96,13 @@ export async function updateSettings(req: AuthRequest, res: Response) {
 
 export async function triggerScrape(req: AuthRequest, res: Response) {
     const type = req.body.type as string || 'series';
-
-    const scriptPath = type === 'films'
-        ? path.join(__dirname, '../../scraping/core/scrape-films.js')
-        : path.join(__dirname, '../../scraping/core/scrape-series.js');
-
-    exec(`node ${scriptPath}`, (error, stdout, stderr) => {
-        if (error) {
-            res.json({ success: true, data: { status: 'error', message: error.message, output: stderr }, message: null });
-            return;
-        }
-        res.json({ success: true, data: { status: 'done', output: stdout }, message: null });
-    });
+    if (type === 'films' || type === 'all') {
+        runner('Scraping Films', 'scraping/core/scrape-films.js');
+    }
+    if (type === 'series' || type === 'all') {
+        runner('Scraping Séries', 'scraping/core/scrape-series.js');
+    }
+    res.json({ success: true, data: { status: 'launched', message: `Scraping ${type} lancé` }, message: null });
 }
 
 export async function clearTmdbCache(_req: AuthRequest, res: Response) {
@@ -168,15 +162,60 @@ export async function tmdbStats(_req: AuthRequest, res: Response) {
 export async function triggerTmdbLink(req: AuthRequest, res: Response) {
     const type = req.body.type as string || 'series';
     const scriptName = type === 'movies' ? 'link-movies-tmdb.ts' : 'link-series-tmdb.ts';
-    const scriptPath = path.join(__dirname, `../../scraping/maintenance/${scriptName}`);
+    const label = type === 'movies' ? 'Linking TMDB Films' : 'Linking TMDB Séries';
+    runner(label, `scraping/maintenance/${scriptName}`);
+    res.json({ success: true, data: { status: 'launched', message: `${label} lancé` }, message: null });
+}
 
-    exec(`npx tsx ${scriptPath}`, { cwd: path.join(__dirname, '../..') }, (error, stdout, stderr) => {
-        if (error) {
-            res.json({ success: true, data: { status: 'error', message: error.message, output: stderr }, message: null });
-            return;
-        }
-        res.json({ success: true, data: { status: 'done', output: stdout }, message: null });
-    });
+export async function cronStart(_req: AuthRequest, res: Response) {
+    startCron();
+    res.json({ success: true, data: getCronStatus(), message: null });
+}
+
+export async function cronStop(_req: AuthRequest, res: Response) {
+    stopCron();
+    res.json({ success: true, data: getCronStatus(), message: null });
+}
+
+export async function cronStatus(_req: AuthRequest, res: Response) {
+    res.json({ success: true, data: getCronStatus(), message: null });
+}
+
+export async function runningTasks(_req: AuthRequest, res: Response) {
+    res.json({ success: true, data: getRunningTasks(), message: null });
+}
+
+export async function stopTaskHandler(req: AuthRequest, res: Response) {
+    const name = req.params.name;
+    const killed = stopTask(name);
+    res.json({ success: true, data: { killed, name }, message: killed ? null : `Aucune tâche en cours: ${name}` });
+}
+
+export async function runMaintenance(req: AuthRequest, res: Response) {
+    const type = req.body.type as string || 'all';
+
+    const scripts: Record<string, { label: string, path: string }> = {
+        'dead-links': { label: 'Maintenance Liens', path: 'scraping/maintenance/maintainer.js' },
+        'tmdb-movies': { label: 'Linking TMDB Films', path: 'scraping/maintenance/link-movies-tmdb.js' },
+        'tmdb-series': { label: 'Linking TMDB Séries', path: 'scraping/maintenance/link-series-tmdb.js' },
+        'organize': { label: 'Organize Séries Doodstream', path: 'scraping/maintenance/organize-series.js' },
+        'sync': { label: 'Sync Séries → MongoDB', path: 'scraping/maintenance/sync-series-to-mongo.js' },
+    };
+
+    if (type === 'all') {
+        runMaintenanceTasks();
+        res.json({ success: true, data: { status: 'launched', message: 'Toutes les tâches de maintenance lancées' }, message: null });
+        return;
+    }
+
+    const script = scripts[type];
+    if (!script) {
+        res.status(400).json({ success: false, data: null, message: `Type inconnu: ${type}` });
+        return;
+    }
+
+    runner(script.label, script.path);
+    res.json({ success: true, data: { status: 'launched', message: `${script.label} lancé` }, message: null });
 }
 
 export async function collection(req: AuthRequest, res: Response) {

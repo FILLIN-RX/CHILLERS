@@ -1,10 +1,14 @@
-import cron from 'node-cron';
-import { spawn } from 'child_process';
+import cron, { ScheduledTask } from 'node-cron';
+import { spawn, ChildProcess } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import { appendLog } from './config/log-buffer';
 
 const isDev = process.env.NODE_ENV !== 'production';
+
+let cronTasks: ScheduledTask[] = [];
+let isRunning = false;
+const runningProcesses: Map<string, ChildProcess> = new Map();
 
 function resolveScript(relativePath: string): string {
     const fullPath = path.join(__dirname, relativePath);
@@ -21,6 +25,7 @@ function runProcess(name: string, command: string, args: string[]) {
     appendLog(header);
 
     const child = spawn(command, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    runningProcesses.set(name, child);
 
     child.stdout.on('data', (data) => {
         for (const line of data.toString().split('\n').filter((l: string) => l)) {
@@ -39,6 +44,7 @@ function runProcess(name: string, command: string, args: string[]) {
     });
 
     child.on('close', (code) => {
+        runningProcesses.delete(name);
         const endTime = new Date().toISOString();
         const msg = code === 0
             ? `[Cron] Terminé avec succès : ${name}`
@@ -46,6 +52,18 @@ function runProcess(name: string, command: string, args: string[]) {
         console.log(`[${endTime}] ${msg}`);
         appendLog(msg);
     });
+}
+
+export function stopTask(name: string): boolean {
+    const child = runningProcesses.get(name);
+    if (!child) return false;
+    appendLog(`[Admin] Arrêt demandé : ${name}`);
+    child.kill('SIGTERM');
+    return true;
+}
+
+export function getRunningTasks(): string[] {
+    return Array.from(runningProcesses.keys());
 }
 
 function runScript(name: string, scriptRelativePath: string) {
@@ -56,22 +74,16 @@ function runNodeScript(name: string, scriptRelativePath: string) {
     runProcess(name, 'node', [resolveScript(scriptRelativePath)]);
 }
 
-/**
- * Liste des tâches à exécuter immédiatement au démarrage ou via cron quotidien
- * En dev (tsx) les scripts .js importent des modules .ts → utiliser tsx
- * En prod (node dist/) les .js compilés s'importent entre eux → utiliser node
- */
-function runScrapingTasks() {
-    console.log(`[${new Date().toISOString()}] [Cron] Lancement des tâches de scraping (quotidien)...`);
-    const runner = isDev ? runScript : runNodeScript;
+export const runner = isDev ? runScript : runNodeScript;
+
+export function runScrapingTasks() {
+    console.log(`[${new Date().toISOString()}] [Cron] Lancement des tâches de scraping...`);
     runner('Scraping Films', 'scraping/core/scrape-films.js');
     runner('Scraping Séries', 'scraping/core/scrape-series.js');
 }
 
-function runMaintenanceTasks() {
-    console.log(`[${new Date().toISOString()}] [Cron] Lancement des tâches de maintenance (horaire)...`);
-    const runner = isDev ? runScript : runNodeScript;
-
+export function runMaintenanceTasks() {
+    console.log(`[${new Date().toISOString()}] [Cron] Lancement des tâches de maintenance...`);
     runner('Maintenance Liens', 'scraping/maintenance/maintainer.js');
     runner('Linking TMDB Films', 'scraping/maintenance/link-movies-tmdb.js');
     runner('Linking TMDB Séries', 'scraping/maintenance/link-series-tmdb.js');
@@ -79,18 +91,26 @@ function runMaintenanceTasks() {
     runner('Sync Séries → MongoDB', 'scraping/maintenance/sync-series-to-mongo.js');
 }
 
-// 1. Lancer immédiatement au démarrage du serveur
-runScrapingTasks();
-runMaintenanceTasks();
+export function startCron() {
+    if (isRunning) return;
+    cronTasks = [
+        cron.schedule('0 * * * *', runMaintenanceTasks),
+        cron.schedule('0 3 * * *', runScrapingTasks),
+    ];
+    isRunning = true;
+    appendLog('[Cron] Tâches planifiées démarrées (toutes les heures + scraping 03:00)');
+    console.log('[Cron] Tâches planifiées démarrées.');
+}
 
-// 2. Planifier : Maintenance toutes les heures
-cron.schedule('0 * * * *', () => {
-    runMaintenanceTasks();
-});
+export function stopCron() {
+    if (!isRunning) return;
+    cronTasks.forEach(t => t.stop());
+    cronTasks = [];
+    isRunning = false;
+    appendLog('[Cron] Tâches planifiées arrêtées');
+    console.log('[Cron] Tâches planifiées arrêtées.');
+}
 
-// 3. Planifier : Scraping tous les jours à 03:00
-cron.schedule('0 3 * * *', () => {
-    runScrapingTasks();
-});
-
-console.log("[Cron] Gestionnaire de tâches planifiées (Cron) démarré (Fréquence : toutes les heures, + exécution au démarrage).");
+export function getCronStatus() {
+    return { running: isRunning, tasks: cronTasks.length };
+}

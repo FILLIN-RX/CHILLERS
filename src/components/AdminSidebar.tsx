@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { adminLogout } from '@/app/api';
-import { IconDashboard, IconMovie, IconTv, IconLogs, IconLink, IconSettings, IconLogout, IconBack } from '@/components/Icons';
+import { IconDashboard, IconMovie, IconTv, IconLogs, IconLink, IconSettings, IconLogout, IconBack, IconCron } from '@/components/Icons';
 import { IconTmdb } from '@/components/Icons';
 
 const NAV_ITEMS = [
@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { href: '/admin/tmdb', label: 'TMDB', icon: IconTmdb },
   { href: '/admin/logs', label: 'Logs', icon: IconLogs },
   { href: '/admin/dead-links', label: 'Liens morts', icon: IconLink },
+  { href: '/admin/cron', label: 'Tâches', icon: IconCron },
   { href: '/admin/settings', label: 'Paramètres', icon: IconSettings },
 ];
 

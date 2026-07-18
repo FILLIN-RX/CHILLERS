@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Player</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #0a0a0a;
+  color: #fff;
+  font-family: system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem;
+}
+.container {
+  width: 100%;
+  max-width: 960px;
+  margin-top: 2rem;
+}
+.input-area {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+input[type="text"] {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  border: 1px solid #333;
+  background: #111;
+  color: #fff;
+  font-size: 0.9rem;
+  outline: none;
+}
+input[type="text"]:focus { border-color: #6366f1; }
+button {
+  padding: 0.75rem 1.5rem;
+  border-radius: 10px;
+  border: none;
+  background: #6366f1;
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+button:hover { background: #5558e6; }
+.player-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid #222;
+}
+.player-wrap iframe,
+.player-wrap video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+.player-wrap video { object-fit: contain; }
+.placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  color: #555;
+}
+.placeholder svg { opacity: 0.4; }
+.placeholder p { font-size: 0.9rem; }
+.info { margin-top: 1rem; font-size: 0.8rem; color: #555; text-align: center; }
+.error { color: #ef4444; margin-top: 0.5rem; font-size: 0.85rem; display: none; }
+.examples { margin-top: 1.5rem; }
+.examples h3 { color: #555; font-size: 0.8rem; margin-bottom: 0.5rem; }
+.examples button {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.75rem;
+  margin: 0.25rem;
+  border-radius: 8px;
+  color: #aaa;
+}
+.examples button:hover { border-color: #6366f1; color: #fff; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="input-area">
+    <input type="text" id="urlInput" placeholder="Colle le lien de la vidéo (embed ou direct)...">
+    <button onclick="loadVideo()">Lire</button>
+  </div>
+  <div class="player-wrap" id="playerWrap">
+    <div class="placeholder" id="placeholder">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <polygon points="5 3 19 12 5 21 5 3" />
+      </svg>
+      <p>Colle un lien et clique Lire</p>
+    </div>
+  </div>
+  <div class="error" id="errorMsg"></div>
+  <div class="info">Soutient les liens VidLink, DoodStream, YouTube et les vidéos directes (mp4, webm)</div>
+  <div class="examples">
+    <h3>Tests rapides :</h3>
+    <button onclick="loadExample('https://vidlink.pro/movie/550')">VidLink (Fight Club)</button>
+    <button onclick="loadExample('https://doodstream.com/e/example')">DoodStream embed</button>
+    <button onclick="loadExample('https://www.youtube.com/embed/dQw4w9WgXcQ')">YouTube embed</button>
+  </div>
+</div>
+
+<script>
+function toEmbed(u) {
+  const m = u.match(/doodstream\.com\/(?:d|e)\/([a-zA-Z0-9]+)/);
+  return m ? 'https://doodstream.com/e/' + m[1] : u;
+}
+
+function loadVideo() {
+  const url = toEmbed(document.getElementById('urlInput').value.trim());
+  if (!url) return;
+  play(url);
+}
+
+function loadExample(url) {
+  document.getElementById('urlInput').value = toEmbed(url);
+  play(toEmbed(url));
+}
+
+function play(url) {
+  const wrap = document.getElementById('playerWrap');
+  const placeholder = document.getElementById('placeholder');
+  const error = document.getElementById('errorMsg');
+  error.style.display = 'none';
+
+  // Nettoyer l'ancien contenu
+  const oldPlayer = wrap.querySelector('.player');
+  if (oldPlayer) oldPlayer.remove();
+  placeholder.style.display = 'flex';
+
+  const isDirectVideo = /\.(mp4|webm|ogg|mov|avi|mkv)(\?|$)/i.test(url);
+
+  const isEmbed =
+    !isDirectVideo && (
+      url.includes('vidlink.pro') ||
+      url.includes('doodstream.com') ||
+      url.includes('youtube.com') ||
+      url.includes('youtu.be') ||
+      url.includes('vidzy.cc') ||
+      url.includes('playmogo.com')
+    );
+
+  const player = document.createElement(isEmbed ? 'iframe' : 'video');
+  player.className = 'player';
+
+  if (isEmbed) {
+    player.src = url;
+    player.allow = 'autoplay; fullscreen; encrypted-media';
+    player.allowFullscreen = true;
+  } else if (isDirectVideo) {
+    player.src = url;
+    player.controls = true;
+    player.autoplay = true;
+  } else {
+    // Tentative en iframe quand même
+    player.src = url;
+    player.allow = 'autoplay; fullscreen; encrypted-media';
+    player.allowFullscreen = true;
+  }
+
+  player.onerror = () => showError('Impossible de lire cette vidéo.');
+  player.onload = () => { placeholder.style.display = 'none'; };
+
+  // Si c'est un iframe, cacher le placeholder après un délai
+  if (isEmbed) {
+    setTimeout(() => { placeholder.style.display = 'none'; }, 2000);
+  }
+
+  placeholder.style.display = 'none';
+  wrap.appendChild(player);
+}
+
+function showError(msg) {
+  const error = document.getElementById('errorMsg');
+  error.textContent = msg;
+  error.style.display = 'block';
+}
+</script>
+</body>
+</html>

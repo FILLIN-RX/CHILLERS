@@ -71,7 +71,13 @@ export function getTmdbLinkErrors(lines: number = 100) {
 }
 
 export function getCronLogs(lines: number = 100) {
-    return readLogFile('cron-manager.log', lines);
+    try {
+        const { getLogs } = require('../../config/log-buffer');
+        const logs = getLogs(lines);
+        return logs.length > 0 ? logs : ['(buffer vide)'];
+    } catch {
+        return readLogFile('cron-manager.log', lines);
+    }
 }
 
 export async function searchCollection(type: string, q: string, page: number, limit: number) {

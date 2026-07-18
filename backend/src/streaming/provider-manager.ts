@@ -2,8 +2,8 @@ import axios from 'axios';
 import { exec } from 'child_process';
 import path from 'path';
 import { StreamingProvider, StreamQuery } from './providers/provider.interface';
+import { MongoDBProvider } from './providers/mongodb.provider';
 import { DoodStreamProvider } from './providers/doodstream.provider';
-import { VidLinkProvider } from './providers/vidlink.provider';
 import { VidAPIProvider } from './providers/vidapi.provider';
 import { AnimeKaiProvider } from './providers/animekai.provider';
 import { OtakuProvider } from './providers/otaku.provider';
@@ -31,12 +31,12 @@ export class ProviderManager {
   private health: Map<string, ProviderHealth> = new Map();
 
   constructor() {
-    // Ordre de priorité: Doodstream, Otaku, Autres...
+    // Ordre de priorité: MongoDB (liens stockés), Doodstream, Otaku, Autres...
     this.providers = [
+      new MongoDBProvider(),
       new DoodStreamProvider(),
       new OtakuProvider(),
       new AnimeKaiProvider(),
-      new VidLinkProvider(),
       new VidAPIProvider(),
     ];
   }
@@ -161,8 +161,8 @@ export class ProviderManager {
         };
       }
 
-      // Self-healing trigger: validate URL
-      const valid = await this.validateUrl(result.embedUrl);
+      // Skip validation for MongoDB — URLs already stored in our DB
+      const valid = provider.name === 'mongodb' || await this.validateUrl(result.embedUrl);
       
       if (valid) {
         this.recordSuccess(provider.name);
