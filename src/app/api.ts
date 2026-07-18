@@ -788,6 +788,14 @@ export async function adminRunMaintenance(type: string) {
   });
 }
 
+export async function adminGetRunningTasks() {
+  return adminFetch('/tasks/running');
+}
+
+export async function adminStopTask(name: string) {
+  return adminFetch(`/tasks/stop/${encodeURIComponent(name)}`, { method: 'POST' });
+}
+
 export function adminGetLogsStreamUrl(): string {
   const token = getAdminToken();
   return `${API_BASE_URL}/admin/logs/stream?token=${token}`;

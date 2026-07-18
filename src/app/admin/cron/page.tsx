@@ -2,22 +2,34 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { adminCronStart, adminCronStop, adminCronStatus, adminTriggerScrape, adminRunMaintenance, adminTriggerTmdbLink } from '@/app/api';
+import { adminCronStart, adminCronStop, adminCronStatus, adminTriggerScrape, adminRunMaintenance, adminTriggerTmdbLink, adminGetRunningTasks, adminStopTask } from '@/app/api';
+
+const ALL_TASK_NAMES = [
+  'Scraping Films', 'Scraping Séries',
+  'Maintenance Liens', 'Linking TMDB Films', 'Linking TMDB Séries',
+  'Organize Séries Doodstream', 'Sync Séries → MongoDB',
+];
 
 export default function AdminCron() {
   const router = useRouter();
   const [cronRunning, setCronRunning] = useState(false);
   const [loading, setLoading] = useState(true);
   const [lastTask, setLastTask] = useState<string | null>(null);
+  const [runningTasks, setRunningTasks] = useState<string[]>([]);
 
   const fetchStatus = useCallback(async () => {
     try {
-      const res = await adminCronStatus();
-      if (res.success) setCronRunning(res.data.running);
+      const [cronRes, tasksRes] = await Promise.all([adminCronStatus(), adminGetRunningTasks()]);
+      if (cronRes.success) setCronRunning(cronRes.data.running);
+      if (tasksRes.success) setRunningTasks(tasksRes.data);
     } catch { } finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { fetchStatus(); }, [fetchStatus]);
+  useEffect(() => {
+    fetchStatus();
+    const id = setInterval(fetchStatus, 3000);
+    return () => clearInterval(id);
+  }, [fetchStatus]);
 
   const run = async (label: string, action: () => Promise<any>) => {
     setLastTask(`${label}...`);
@@ -29,18 +41,58 @@ export default function AdminCron() {
     }
   };
 
-  const btn = (label: string, action: () => Promise<any>, color = '#6366f1') => (
-    <button
-      onClick={() => run(label, action)}
-      style={{
-        padding: '0.5rem 1rem', borderRadius: 8, border: 'none',
-        background: color, color: '#fff', cursor: 'pointer',
-        fontSize: '0.8125rem', fontWeight: 600, whiteSpace: 'nowrap',
-      }}
-    >
-      {label}
-    </button>
+  const isRunning = (label: string) => runningTasks.includes(label);
+
+  const btn = (label: string, action: () => Promise<any>, color = '#6366f1') => {
+    const busy = isRunning(label);
+    return (
+      <button
+        onClick={() => run(label, action)}
+        disabled={busy}
+        style={{
+          padding: '0.5rem 1rem', borderRadius: 8, border: 'none',
+          background: busy ? '#444' : color, color: busy ? '#888' : '#fff',
+          cursor: busy ? 'not-allowed' : 'pointer',
+          fontSize: '0.8125rem', fontWeight: 600, whiteSpace: 'nowrap',
+          opacity: busy ? 0.6 : 1,
+        }}
+      >
+        {busy ? '⏳ En cours...' : label}
+      </button>
+    );
+  };
+
+  const row = (label: string, action: () => Promise<any>, color: string) => (
+    <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+      {btn(label, action, color)}
+      {isRunning(label) && (
+        <button
+          onClick={async () => {
+            await adminStopTask(label);
+            setLastTask(`${label} ⏹ Arrêt demandé`);
+          }}
+          style={{
+            padding: '0.25rem 0.6rem', borderRadius: 6, border: 'none',
+            background: '#ef4444', color: '#fff', cursor: 'pointer',
+            fontSize: '0.75rem', fontWeight: 600,
+          }}
+          title="Arrêter"
+        >
+          ⏹ Arrêter
+        </button>
+      )}
+    </div>
   );
+
+  const runAll = async (label: string, actions: (() => Promise<any>)[]) => {
+    setLastTask(`${label}...`);
+    try {
+      await Promise.all(actions.map(a => a()));
+      setLastTask(`${label} ✓ Lancé avec succès`);
+    } catch {
+      setLastTask(`${label} ✗ Erreur`);
+    }
+  };
 
   return (
     <div>
@@ -77,6 +129,15 @@ export default function AdminCron() {
           </div>
         </div>
 
+        {/* Running tasks indicator */}
+        {runningTasks.length > 0 && (
+          <div style={{ background: '#1a1a2e', border: '1px solid #f59e0b', borderRadius: 12, padding: '0.75rem 1rem' }}>
+            <span style={{ color: '#f59e0b', fontSize: '0.8125rem', fontWeight: 600 }}>
+              ⚡ Tâches en cours : {runningTasks.join(', ')}
+            </span>
+          </div>
+        )}
+
         {/* Scraping */}
         <div style={{ background: '#181825', border: '1px solid #252535', borderRadius: 14, padding: '1.25rem' }}>
           <h2 style={{ color: '#fff', fontSize: '1rem', fontWeight: 600, margin: '0 0 0.75rem 0' }}>
@@ -86,9 +147,20 @@ export default function AdminCron() {
             Récupère les nouveaux films et séries depuis open-otaku.me.
           </p>
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            {btn('Scraping Films', () => adminTriggerScrape('films'))}
-            {btn('Scraping Séries', () => adminTriggerScrape('series'))}
-            {btn('Les deux', async () => { await adminTriggerScrape('films'); await adminTriggerScrape('series'); })}
+            {row('Scraping Films', () => adminTriggerScrape('films'), '#6366f1')}
+            {row('Scraping Séries', () => adminTriggerScrape('series'), '#6366f1')}
+            <button
+              onClick={() => runAll('Scraping Films+Séries', [() => adminTriggerScrape('films'), () => adminTriggerScrape('series')])}
+              disabled={isRunning('Scraping Films') || isRunning('Scraping Séries')}
+              style={{
+                padding: '0.5rem 1rem', borderRadius: 8, border: 'none',
+                background: '#6366f1', color: '#fff', cursor: 'pointer',
+                fontSize: '0.8125rem', fontWeight: 600, whiteSpace: 'nowrap',
+                opacity: isRunning('Scraping Films') || isRunning('Scraping Séries') ? 0.6 : 1,
+              }}
+            >
+              Les deux
+            </button>
           </div>
         </div>
 
@@ -101,12 +173,23 @@ export default function AdminCron() {
             Vérification des liens, liaison TMDB, synchronisation.
           </p>
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            {btn('Vérifier liens morts', () => adminRunMaintenance('dead-links'))}
-            {btn('Lier TMDB Films', () => adminRunMaintenance('tmdb-movies'))}
-            {btn('Lier TMDB Séries', () => adminRunMaintenance('tmdb-series'))}
-            {btn('Organiser DoodStream', () => adminRunMaintenance('organize'))}
-            {btn('Sync MongoDB', () => adminRunMaintenance('sync'))}
-            {btn('Toute la maintenance', () => adminRunMaintenance('all'))}
+            {row('Maintenance Liens', () => adminRunMaintenance('dead-links'), '#22c55e')}
+            {row('Linking TMDB Films', () => adminRunMaintenance('tmdb-movies'), '#22c55e')}
+            {row('Linking TMDB Séries', () => adminRunMaintenance('tmdb-series'), '#22c55e')}
+            {row('Organize Séries Doodstream', () => adminRunMaintenance('organize'), '#22c55e')}
+            {row('Sync Séries → MongoDB', () => adminRunMaintenance('sync'), '#22c55e')}
+            <button
+              onClick={() => run('Toute la maintenance', () => adminRunMaintenance('all'))}
+              disabled={ALL_TASK_NAMES.some(n => runningTasks.includes(n))}
+              style={{
+                padding: '0.5rem 1rem', borderRadius: 8, border: 'none',
+                background: '#22c55e', color: '#fff', cursor: 'pointer',
+                fontSize: '0.8125rem', fontWeight: 600, whiteSpace: 'nowrap',
+                opacity: ALL_TASK_NAMES.some(n => runningTasks.includes(n)) ? 0.6 : 1,
+              }}
+            >
+              Toute la maintenance
+            </button>
           </div>
         </div>
 
@@ -119,8 +202,8 @@ export default function AdminCron() {
             Lie les films/séries scrapés à leur fiche TMDB.
           </p>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
-            {btn('Lier Films TMDB', () => adminTriggerTmdbLink('movies'))}
-            {btn('Lier Séries TMDB', () => adminTriggerTmdbLink('series'))}
+            {row('Linking TMDB Films', () => adminTriggerTmdbLink('movies'), '#f59e0b')}
+            {row('Linking TMDB Séries', () => adminTriggerTmdbLink('series'), '#f59e0b')}
           </div>
         </div>
 
