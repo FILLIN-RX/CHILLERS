@@ -4,6 +4,30 @@ const Movie = require('../../models/Movie').default;
 const ScraperState = require('../../models/ScraperState').default;
 const { connectDB } = require('../../config/db');
 const { browserConfig } = require('../../config/browser');
+const { UqloadClient } = require('../../modules/uqload/uqload.client').UqloadClient;
+
+async function uploadToUqload(client, titre, lien, movieId) {
+  if (!client) return;
+  try {
+    console.log(`  -> Upload Uqload: ${titre}`);
+    const { fileCode, directLink } = await client.uploadByUrlAndGetLink(lien, titre);
+    const bestQuality = directLink?.versions?.find(v => v.name === 'n') || directLink?.versions?.[0];
+    await Movie.updateOne(
+      { _id: movieId },
+      {
+        $set: {
+          uqloadCode: fileCode,
+          uqloadLink: bestQuality ? bestQuality.url : null,
+          uqloadQualities: directLink?.versions || [],
+          uqloadHls: directLink?.hls_direct || null,
+        }
+      }
+    );
+    console.log(`  -> ✅ Uqload: ${titre} → ${fileCode}`);
+  } catch (e) {
+    console.log(`  -> ⏭ Uqload ignoré pour ${titre}: ${e.message}`);
+  }
+}
 
 async function getLastPage() {
     try {
@@ -27,6 +51,8 @@ async function scrapeFilms() {
 
     const browser = await chromium.launch(browserConfig);
     const page = await browser.newPage();
+    const apiKey = process.env.UQLOAD_API_KEY;
+    const uqload = apiKey ? new UqloadClient(apiKey) : null;
 
     let currentPage = await getLastPage();
     let hasMorePages = true;
@@ -78,12 +104,15 @@ async function scrapeFilms() {
                 let link = dlLink ? await dlLink.getAttribute('href') : "#";
 
                 if (link && link !== "#") {
-                    await Movie.findOneAndUpdate(
+                    const saved = await Movie.findOneAndUpdate(
                         { titre: titre },
                         { $set: { titre, pageUrl, lien: link } },
-                        { upsert: true }
+                        { upsert: true, returnDocument: 'after' }
                     );
                     console.log(`Film sauvegardé dans MongoDB : ${titre}`);
+                    if (saved) {
+                        await uploadToUqload(uqload, titre, link, saved._id.toString());
+                    }
                 }
 
                 await page.goto(url, { waitUntil: 'domcontentloaded' });

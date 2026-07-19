@@ -11,6 +11,8 @@ export interface IEpisode {
     totalSlots?: string;
     usedSlots?: string;
     uploadedAt?: Date;
+    uqloadCode?: string;
+    uqloadLink?: string;
 }
 
 export interface ISerie extends Document {
@@ -32,7 +34,9 @@ const EpisodeSchema: Schema = new Schema({
     tmdbId: { type: Number },
     totalSlots: { type: String },
     usedSlots: { type: String },
-    uploadedAt: { type: Date }
+    uploadedAt: { type: Date },
+    uqloadCode: { type: String },
+    uqloadLink: { type: String },
 }, { _id: false });
 
 const SerieSchema: Schema = new Schema({

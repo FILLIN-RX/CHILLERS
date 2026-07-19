@@ -824,3 +824,31 @@ export function adminGetLogsStreamUrl(): string {
   const token = getAdminToken();
   return `${API_BASE_URL}/admin/logs/stream?token=${token}`;
 }
+
+export async function adminUqloadStatus() {
+  return adminFetch('/uqload/status');
+}
+
+export async function adminUqloadPending() {
+  return adminFetch('/uqload/pending');
+}
+
+export async function adminUqloadUploadMovies() {
+  return adminFetch('/uqload/upload/movies', { method: 'POST' });
+}
+
+export async function adminUqloadUploadSeries() {
+  return adminFetch('/uqload/upload/series', { method: 'POST' });
+}
+
+export async function adminUqloadUploadMovie(id: string) {
+  return adminFetch(`/uqload/upload/movie/${id}`, { method: 'POST' });
+}
+
+export async function adminUqloadUploadEpisode(serieId: string, episodeIndex: number) {
+  return adminFetch(`/uqload/upload/serie/${serieId}/episode/${episodeIndex}`, { method: 'POST' });
+}
+
+export async function adminUqloadStop() {
+  return adminFetch('/uqload/stop', { method: 'POST' });
+}

@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import axios from 'axios';
 import { AuthRequest } from './admin.middleware';
 import * as adminService from './admin.service';
 import { clearCache } from '../../config/tmdb';
@@ -8,8 +9,36 @@ import Admin from '../../models/Admin';
 import Movie from '../../models/Movie';
 import Serie from '../../models/Serie';
 import { startCron, stopCron, getCronStatus, runScrapingTasks, runMaintenanceTasks, runner, stopTask, getRunningTasks } from '../../cron-manager';
+import { UqloadClient } from '../uqload/uqload.client';
+import { uploadMoviesBatch, uploadSeriesBatch, uploadSingleMovie, uploadSingleEpisode, stopUpload, isUploadRunning } from '../uqload/uqload.uploader';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'chiller-admin-secret-change-me';
+const SCRAPER_API_URL = process.env.SCRAPER_API_URL;
+
+async function scraperProxy(req: AuthRequest, res: Response, endpoint: string, method: 'get' | 'post' = 'post') {
+  if (!SCRAPER_API_URL) {
+    return null;
+  }
+  try {
+    const token = req.headers.authorization?.startsWith('Bearer ')
+      ? req.headers.authorization.split(' ')[1]
+      : req.query.token;
+    const response = await axios({
+      method,
+      url: `${SCRAPER_API_URL}/api${endpoint}`,
+      data: method === 'post' ? req.body : undefined,
+      params: method === 'get' ? { ...req.query, token } : { token },
+      headers: { 'Content-Type': 'application/json' },
+      timeout: 5000,
+    });
+    res.json(response.data);
+    return true;
+  } catch (e: any) {
+    console.error(`[ScraperProxy] Erreur vers ${SCRAPER_API_URL}${endpoint}:`, e.message);
+    res.status(502).json({ success: false, data: null, message: `Scraper injoignable: ${e.message}` });
+    return true;
+  }
+}
 
 export async function login(req: AuthRequest, res: Response) {
     const { username, password } = req.body;
@@ -95,6 +124,7 @@ export async function updateSettings(req: AuthRequest, res: Response) {
 }
 
 export async function triggerScrape(req: AuthRequest, res: Response) {
+    if (await scraperProxy(req, res, '/scrape/trigger')) return;
     const type = req.body.type as string || 'series';
     if (type === 'films' || type === 'all') {
         runner('Scraping Films', 'scraping/core/scrape-films.js');
@@ -192,6 +222,7 @@ export async function stopTaskHandler(req: AuthRequest, res: Response) {
 }
 
 export async function runMaintenance(req: AuthRequest, res: Response) {
+    if (await scraperProxy(req, res, '/maintenance/run')) return;
     const type = req.body.type as string || 'all';
 
     const scripts: Record<string, { label: string, path: string }> = {
@@ -226,6 +257,155 @@ export async function collection(req: AuthRequest, res: Response) {
         const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
         const data = await adminService.searchCollection(type, q, page, limit);
         res.json({ success: true, data, message: null });
+    } catch (e: any) {
+        res.status(500).json({ success: false, data: null, message: e.message });
+    }
+}
+
+function getUqloadClient(): UqloadClient | null {
+    const apiKey = process.env.UQLOAD_API_KEY;
+    if (!apiKey) return null;
+    return new UqloadClient(apiKey);
+}
+
+export async function uqloadUploadMovies(req: AuthRequest, res: Response) {
+    const client = getUqloadClient();
+    if (!client) {
+        res.status(400).json({ success: false, data: null, message: 'UQLOAD_API_KEY non configurée' });
+        return;
+    }
+    if (isUploadRunning()) {
+        res.status(409).json({ success: false, data: null, message: 'Un upload est déjà en cours' });
+        return;
+    }
+    const result = await uploadMoviesBatch(client);
+    res.json({ success: true, data: result, message: null });
+}
+
+export async function uqloadUploadSeries(req: AuthRequest, res: Response) {
+    const client = getUqloadClient();
+    if (!client) {
+        res.status(400).json({ success: false, data: null, message: 'UQLOAD_API_KEY non configurée' });
+        return;
+    }
+    if (isUploadRunning()) {
+        res.status(409).json({ success: false, data: null, message: 'Un upload est déjà en cours' });
+        return;
+    }
+    const result = await uploadSeriesBatch(client);
+    res.json({ success: true, data: result, message: null });
+}
+
+export async function uqloadUploadMovie(req: AuthRequest, res: Response) {
+    const client = getUqloadClient();
+    if (!client) {
+        res.status(400).json({ success: false, data: null, message: 'UQLOAD_API_KEY non configurée' });
+        return;
+    }
+    try {
+        await uploadSingleMovie(client, req.params.id as string);
+        res.json({ success: true, data: null, message: 'Upload terminé' });
+    } catch (e: any) {
+        res.status(500).json({ success: false, data: null, message: e.message });
+    }
+}
+
+export async function uqloadUploadEpisode(req: AuthRequest, res: Response) {
+    const client = getUqloadClient();
+    if (!client) {
+        res.status(400).json({ success: false, data: null, message: 'UQLOAD_API_KEY non configurée' });
+        return;
+    }
+    try {
+        await uploadSingleEpisode(client, req.params.id as string, parseInt(req.params.index as string, 10));
+        res.json({ success: true, data: null, message: 'Upload terminé' });
+    } catch (e: any) {
+        res.status(500).json({ success: false, data: null, message: e.message });
+    }
+}
+
+export async function uqloadStop(_req: AuthRequest, res: Response) {
+    stopUpload();
+    res.json({ success: true, data: null, message: 'Arrêt demandé' });
+}
+
+export async function uqloadStatus(_req: AuthRequest, res: Response) {
+    const apiKey = process.env.UQLOAD_API_KEY;
+    if (!apiKey) {
+        res.json({ success: true, data: { configured: false, message: 'UQLOAD_API_KEY non configurée' }, message: null });
+        return;
+    }
+    try {
+        const client = new UqloadClient(apiKey);
+        const [accountInfo, moviesPending, seriesPending] = await Promise.all([
+            client.getAccountInfo(),
+            Movie.countDocuments({ $or: [{ uqloadCode: { $eq: null } }, { uqloadCode: { $exists: false } }] }),
+            Serie.countDocuments({ 'episodes.uqloadCode': { $eq: null } }),
+        ]);
+
+        res.json({
+            success: true,
+            data: {
+                configured: true,
+                isUploading: isUploadRunning(),
+                account: {
+                    login: accountInfo.result.login,
+                    storageLeft: accountInfo.result.storage_left,
+                    storageUsed: accountInfo.result.storage_used,
+                    premium: accountInfo.result.premium === 1,
+                    premiumExpire: accountInfo.result.premium_expire,
+                },
+                pending: {
+                    movies: moviesPending,
+                    series: seriesPending,
+                },
+            },
+            message: null,
+        });
+    } catch (e: any) {
+        res.status(500).json({ success: false, data: { configured: true, error: e.message }, message: e.message });
+    }
+}
+
+export async function uqloadPending(_req: AuthRequest, res: Response) {
+    try {
+        const [movies, series] = await Promise.all([
+            Movie.find({ $or: [{ uqloadCode: { $eq: null } }, { uqloadCode: { $exists: false } }] })
+                .select('titre lien uqloadCode createdAt')
+                .sort({ createdAt: -1 })
+                .limit(200)
+                .lean(),
+            Serie.find({ 'episodes.uqloadCode': { $eq: null } })
+                .select('titre episodes')
+                .sort({ createdAt: -1 })
+                .limit(200)
+                .lean(),
+        ]);
+
+        const seriesEpisodes: any[] = [];
+        for (const serie of series) {
+            for (const ep of serie.episodes || []) {
+                if (!ep.uqloadCode) {
+                    seriesEpisodes.push({
+                        serieTitre: serie.titre,
+                        episode: ep.episode,
+                        lien: ep.lien,
+                        uqloadCode: ep.uqloadCode || null,
+                    });
+                }
+            }
+        }
+
+        res.json({
+            success: true,
+            data: {
+                movies: movies.map(m => ({ titre: m.titre, lien: m.lien, uqloadCode: m.uqloadCode || null, createdAt: m.createdAt })),
+                series: seriesEpisodes.slice(0, 200),
+                totalMovies: movies.length,
+                totalEpisodes: seriesEpisodes.length,
+            },
+            message: null,
+        });
     } catch (e: any) {
         res.status(500).json({ success: false, data: null, message: e.message });
     }

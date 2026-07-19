@@ -27,4 +27,12 @@ router.get('/movie/:id', adminMiddleware, adminController.getMovie);
 router.get('/tmdb/stats', adminMiddleware, adminController.tmdbStats);
 router.post('/tmdb/link', adminMiddleware, adminController.triggerTmdbLink);
 
+router.post('/uqload/upload/movies', adminMiddleware, adminController.uqloadUploadMovies);
+router.post('/uqload/upload/series', adminMiddleware, adminController.uqloadUploadSeries);
+router.post('/uqload/upload/movie/:id', adminMiddleware, adminController.uqloadUploadMovie);
+router.post('/uqload/upload/serie/:id/episode/:index', adminMiddleware, adminController.uqloadUploadEpisode);
+router.post('/uqload/stop', adminMiddleware, adminController.uqloadStop);
+router.get('/uqload/status', adminMiddleware, adminController.uqloadStatus);
+router.get('/uqload/pending', adminMiddleware, adminController.uqloadPending);
+
 export default router;
