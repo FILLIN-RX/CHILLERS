@@ -186,7 +186,7 @@ export async function runningTasks(_req: AuthRequest, res: Response) {
 }
 
 export async function stopTaskHandler(req: AuthRequest, res: Response) {
-    const name = req.params.name;
+    const name = Array.isArray(req.params.name) ? req.params.name[0] : req.params.name;
     const killed = stopTask(name);
     res.json({ success: true, data: { killed, name }, message: killed ? null : `Aucune tâche en cours: ${name}` });
 }
