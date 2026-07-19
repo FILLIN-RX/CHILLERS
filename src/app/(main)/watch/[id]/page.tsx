@@ -66,6 +66,8 @@ function WatchContent() {
 
   useEffect(() => {
     if (!id) return;
+    const controller = new AbortController();
+    const signal = controller.signal;
     let cancelled = false;
     setPageLoading(true);
     setStreamLoading(true);
@@ -73,14 +75,14 @@ function WatchContent() {
 
     (async () => {
       try {
-        const detail = await getMediaDetails(id, isTV);
+        const detail = await getMediaDetails(id, isTV, signal);
         if (cancelled) return;
         if (detail) setItem(detail);
 
         if (isTV) {
           setSeasonLoading(true);
           const targetSeason = seasonParam || "1";
-          const seasonData = await getSeasonDetails(id, targetSeason);
+          const seasonData = await getSeasonDetails(id, targetSeason, signal);
           if (cancelled) return;
           if (seasonData?.episodes?.length) {
             const targetEp = episodeParam ? parseInt(episodeParam) : undefined;
@@ -108,7 +110,8 @@ function WatchContent() {
               "series",
               parseInt(targetSeason),
               firstEpNumber,
-              detail?.title || id
+              detail?.title || id,
+              signal
             );
             if (!cancelled && stream) {
               setStreamUrl(stream.embedUrl);
@@ -125,7 +128,8 @@ function WatchContent() {
             "movie",
             undefined,
             undefined,
-            detail?.title || id
+            detail?.title || id,
+            signal
           );
           if (!cancelled && stream) {
             setStreamUrl(stream.embedUrl);
@@ -135,18 +139,19 @@ function WatchContent() {
         }
 
         if (isTV) {
-          const list = await getPopularTV();
+          const list = await getPopularTV(1, signal);
           if (!cancelled) setSimilar(list.filter((m) => m.id !== id).slice(0, 10));
         } else {
-          const recs = await getMovieRecommendations(id);
+          const recs = await getMovieRecommendations(id, signal);
           if (!cancelled && recs.length > 0) {
             setSimilar(recs.slice(0, 10));
           } else {
-            const popular = await getPopularMovies();
+            const popular = await getPopularMovies(1, signal);
             if (!cancelled) setSimilar(popular.filter((m) => m.id !== id).slice(0, 10));
           }
         }
       } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
         console.error("Watch page load error:", err);
       } finally {
         if (!cancelled) {
@@ -158,6 +163,7 @@ function WatchContent() {
 
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [id, isTV]);
 

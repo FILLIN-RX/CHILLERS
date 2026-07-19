@@ -1,6 +1,6 @@
 import { MovieOrShow } from "./mockData";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "/api";
+const API_BASE_URL = "/api";
 const FETCH_TIMEOUT = 45000;
 
 function getLang(): string {
@@ -12,16 +12,27 @@ function getLang(): string {
   }
 }
 
-async function fetchWithTimeout(url: string, options?: RequestInit): Promise<Response> {
+async function fetchWithTimeout(url: string, options?: RequestInit & { signal?: AbortSignal | null }): Promise<Response> {
+  const externalSignal = options?.signal ?? undefined;
+  if (externalSignal?.aborted) {
+    throw new DOMException("The operation was aborted.", "AbortError");
+  }
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
+
+  const onExternalAbort = () => controller.abort(externalSignal?.reason);
+  externalSignal?.addEventListener("abort", onExternalAbort, { once: true });
+
   try {
-    const res = await fetch(url, { ...options, signal: controller.signal });
+    const { signal: _, ...fetchOptions } = options || {};
+    const res = await fetch(url, { ...fetchOptions, signal: controller.signal });
     return res;
   } catch (error) {
     throw error;
   } finally {
     clearTimeout(timeout);
+    externalSignal?.removeEventListener("abort", onExternalAbort);
   }
 }
 
@@ -153,53 +164,57 @@ export function mapTMDBToMovieOrShow(
   };
 }
 
-export async function getTrendingMovies(): Promise<MovieOrShow[]> {
+export async function getTrendingMovies(signal?: AbortSignal): Promise<MovieOrShow[]> {
   try {
-    const res = await fetchWithTimeout(`${API_BASE_URL}/movies/trending?language=${getLang()}`);
+    const res = await fetchWithTimeout(`${API_BASE_URL}/movies/trending?language=${getLang()}`, { signal });
     const json = await res.json();
     if (json.success && json.data.results) {
       return json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "movie"));
     }
   } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") throw error;
     console.error("Error fetching trending movies:", error);
   }
   return [];
 }
 
-export async function getTrendingTV(): Promise<MovieOrShow[]> {
+export async function getTrendingTV(signal?: AbortSignal): Promise<MovieOrShow[]> {
   try {
-    const res = await fetchWithTimeout(`${API_BASE_URL}/tv/trending?language=${getLang()}`);
+    const res = await fetchWithTimeout(`${API_BASE_URL}/tv/trending?language=${getLang()}`, { signal });
     const json = await res.json();
     if (json.success && json.data.results) {
       return json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "series"));
     }
   } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") throw error;
     console.error("Error fetching trending series:", error);
   }
   return [];
 }
 
-export async function getPopularMovies(page = 1): Promise<MovieOrShow[]> {
+export async function getPopularMovies(page = 1, signal?: AbortSignal): Promise<MovieOrShow[]> {
   try {
-    const res = await fetchWithTimeout(`${API_BASE_URL}/movies/popular?page=${page}&language=${getLang()}`);
+    const res = await fetchWithTimeout(`${API_BASE_URL}/movies/popular?page=${page}&language=${getLang()}`, { signal });
     const json = await res.json();
     if (json.success && json.data.results) {
       return json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "movie"));
     }
   } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") throw error;
     console.error("Error fetching popular movies:", error);
   }
   return [];
 }
 
-export async function getPopularTV(page = 1): Promise<MovieOrShow[]> {
+export async function getPopularTV(page = 1, signal?: AbortSignal): Promise<MovieOrShow[]> {
   try {
-    const res = await fetchWithTimeout(`${API_BASE_URL}/tv/popular?page=${page}&language=${getLang()}`);
+    const res = await fetchWithTimeout(`${API_BASE_URL}/tv/popular?page=${page}&language=${getLang()}`, { signal });
     const json = await res.json();
     if (json.success && json.data.results) {
       return json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "series"));
     }
   } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") throw error;
     console.error("Error fetching popular series:", error);
   }
   return [];
@@ -218,14 +233,15 @@ export async function getTopRatedTV(page = 1): Promise<MovieOrShow[]> {
   return [];
 }
 
-export async function getAnimeSeries(page = 1): Promise<MovieOrShow[]> {
+export async function getAnimeSeries(page = 1, signal?: AbortSignal): Promise<MovieOrShow[]> {
   try {
-    const res = await fetchWithTimeout(`${API_BASE_URL}/tv/anime?page=${page}&language=${getLang()}`);
+    const res = await fetchWithTimeout(`${API_BASE_URL}/tv/anime?page=${page}&language=${getLang()}`, { signal });
     const json = await res.json();
     if (json.success && json.data.results) {
       return json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "anime"));
     }
   } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") throw error;
     console.error("Error fetching anime:", error);
   }
   return [];
@@ -305,36 +321,38 @@ export async function getTopRatedMovies(page = 1): Promise<MovieOrShow[]> {
   return [];
 }
 
-export async function getMediaDetails(id: string, isTV: boolean = false): Promise<MovieOrShow | null> {
+export async function getMediaDetails(id: string, isTV: boolean = false, signal?: AbortSignal): Promise<MovieOrShow | null> {
   try {
     const endpoint = isTV ? `tv/${id}` : `movies/${id}`;
-    const res = await fetchWithTimeout(`${API_BASE_URL}/${endpoint}?language=${getLang()}`);
+    const res = await fetchWithTimeout(`${API_BASE_URL}/${endpoint}?language=${getLang()}`, { signal });
     const json = await res.json();
     if (json.success && json.data) {
       return mapTMDBToMovieOrShow(json.data, isTV ? "series" : "movie");
     }
   } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") throw error;
     console.error("Error fetching media details:", error);
   }
   return null;
 }
 
-export async function getSeasonDetails(id: string, seasonNumber: string): Promise<any | null> {
+export async function getSeasonDetails(id: string, seasonNumber: string, signal?: AbortSignal): Promise<any | null> {
   try {
-    const res = await fetchWithTimeout(`${API_BASE_URL}/tv/${id}/season/${seasonNumber}?language=${getLang()}`);
+    const res = await fetchWithTimeout(`${API_BASE_URL}/tv/${id}/season/${seasonNumber}?language=${getLang()}`, { signal });
     const json = await res.json();
     if (json.success && json.data) {
       return json.data;
     }
   } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") throw error;
     console.error("Error fetching season details:", error);
   }
   return null;
 }
 
-export async function getMovieRecommendations(id: string): Promise<MovieOrShow[]> {
+export async function getMovieRecommendations(id: string, signal?: AbortSignal): Promise<MovieOrShow[]> {
   try {
-    const res = await fetchWithTimeout(`${API_BASE_URL}/movies/${id}/recommendations?language=${getLang()}`);
+    const res = await fetchWithTimeout(`${API_BASE_URL}/movies/${id}/recommendations?language=${getLang()}`, { signal });
     const json = await res.json();
     if (json.success && json.data.results) {
       return json.data.results
@@ -346,6 +364,7 @@ export async function getMovieRecommendations(id: string): Promise<MovieOrShow[]
         });
     }
   } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") throw error;
     console.error("Error fetching recommendations:", error);
   }
   return [];
@@ -462,7 +481,8 @@ export async function getStreamUrl(
   type: 'movie' | 'series' | 'anime' = 'movie',
   season?: number,
   episode?: number,
-  title?: string
+  title?: string,
+  signal?: AbortSignal
 ): Promise<{ embedUrl: string; provider: string } | null> {
   try {
     const isTv = type === 'series' || type === 'anime';
@@ -476,7 +496,7 @@ export async function getStreamUrl(
     params.set('type', type);
     params.set('language', getLang());
     if (title) params.set('title', title);
-    const res = await fetchWithTimeout(`${API_BASE_URL}/${endpoint}?${params.toString()}`);
+    const res = await fetchWithTimeout(`${API_BASE_URL}/${endpoint}?${params.toString()}`, { signal });
     const json = await res.json();
     if (json.success && json.data?.embedUrl) {
       return { embedUrl: json.data.embedUrl, provider: json.provider || 'unknown' };
@@ -485,6 +505,7 @@ export async function getStreamUrl(
       console.warn(`Stream unavailable for "${title || id}": ${json.message || 'unknown reason'}`);
     }
   } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") throw error;
     console.error("Error fetching stream URL:", error);
   }
   return null;
@@ -563,12 +584,13 @@ export interface Genre {
   name: string;
 }
 
-export async function getMovieGenres(): Promise<Genre[]> {
+export async function getMovieGenres(signal?: AbortSignal): Promise<Genre[]> {
   try {
-    const res = await fetchWithTimeout(`${API_BASE_URL}/genres/movie?language=${getLang()}`);
+    const res = await fetchWithTimeout(`${API_BASE_URL}/genres/movie?language=${getLang()}`, { signal });
     const json = await res.json();
     if (json.success && Array.isArray(json.data)) return json.data;
   } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") throw error;
     console.error("Error fetching movie genres:", error);
   }
   return [];
@@ -628,25 +650,27 @@ export async function getTVByGenrePage(genreId: string, page = 1): Promise<{ res
   return { results: [], totalPages: 1 };
 }
 
-export async function getTVGenres(): Promise<Genre[]> {
+export async function getTVGenres(signal?: AbortSignal): Promise<Genre[]> {
   try {
-    const res = await fetchWithTimeout(`${API_BASE_URL}/genres/tv?language=${getLang()}`);
+    const res = await fetchWithTimeout(`${API_BASE_URL}/genres/tv?language=${getLang()}`, { signal });
     const json = await res.json();
     if (json.success && Array.isArray(json.data)) return json.data;
   } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") throw error;
     console.error("Error fetching TV genres:", error);
   }
   return [];
 }
 
-export async function getMoviesByGenre(genreId: string, page = 1): Promise<MovieOrShow[]> {
+export async function getMoviesByGenre(genreId: string, page = 1, signal?: AbortSignal): Promise<MovieOrShow[]> {
   try {
-    const res = await fetchWithTimeout(`${API_BASE_URL}/movies/genre/${genreId}?page=${page}&language=${getLang()}`);
+    const res = await fetchWithTimeout(`${API_BASE_URL}/movies/genre/${genreId}?page=${page}&language=${getLang()}`, { signal });
     const json = await res.json();
     if (json.success && json.data.results) {
       return json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "movie"));
     }
   } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") throw error;
     console.error(`Error fetching movies for genre ${genreId}:`, error);
   }
   return [];

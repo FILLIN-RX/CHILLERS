@@ -75,25 +75,26 @@ function Home() {
     { id: '10749', title: 'Romance' },
   ];
 
-  const loadHomeData = useCallback(async () => {
+  const loadHomeData = useCallback(async (signal?: AbortSignal) => {
     setIsLoadingData(true);
     try {
       const fetchWithCatch = async <T,>(promise: Promise<T>, fallback: T): Promise<T> => {
         try {
           return await promise;
         } catch (e) {
+          if (e instanceof DOMException && e.name === "AbortError") throw e;
           console.error("Failed fetching section:", e);
           return fallback;
         }
       };
 
       const [trending, trendingTV, popular, popularTV, anime, genreList] = await Promise.all([
-        fetchWithCatch(getTrendingMovies(), []),
-        fetchWithCatch(getTrendingTV(), []),
-        fetchWithCatch(getPopularMovies(), []),
-        fetchWithCatch(getPopularTV(), []),
-        fetchWithCatch(getAnimeSeries(), []),
-        fetchWithCatch(getMovieGenres(), []),
+        fetchWithCatch(getTrendingMovies(signal), []),
+        fetchWithCatch(getTrendingTV(signal), []),
+        fetchWithCatch(getPopularMovies(1, signal), []),
+        fetchWithCatch(getPopularTV(1, signal), []),
+        fetchWithCatch(getAnimeSeries(1, signal), []),
+        fetchWithCatch(getMovieGenres(signal), []),
       ]);
 
       const allTrending = [...trending, ...trendingTV];
@@ -107,12 +108,13 @@ function Home() {
       if (genreList.length > 0) setGenres(genreList);
 
       const genreResults = await Promise.all(
-        HOME_GENRES.map(g => fetchWithCatch(getMoviesByGenre(g.id), []))
+        HOME_GENRES.map(g => fetchWithCatch(getMoviesByGenre(g.id, 1, signal), []))
       );
       const rows = HOME_GENRES.map((g, i) => ({ title: g.title, items: genreResults[i] || [] }))
         .filter(r => r.items.length > 0);
       if (rows.length > 0) setGenreRows(rows);
     } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") throw err;
       console.error("Failed to load home data", err);
     } finally {
       setIsLoadingData(false);
@@ -120,22 +122,32 @@ function Home() {
   }, []);
 
   useEffect(() => {
-    if (activeTab === "home" && trendingAll.length === 0) loadHomeData();
+    if (activeTab === "home" && trendingAll.length === 0) {
+      const controller = new AbortController();
+      loadHomeData(controller.signal).catch(() => {});
+      return () => controller.abort();
+    }
   }, [activeTab, loadHomeData]);
 
   useEffect(() => {
     if (activeTab !== "movies" || moviesData.length > 0) return;
-    getPopularMovies().then(setMoviesData).catch(() => {});
+    const controller = new AbortController();
+    getPopularMovies(1, controller.signal).then(setMoviesData).catch(() => {});
+    return () => controller.abort();
   }, [activeTab]);
 
   useEffect(() => {
     if (activeTab !== "series" || seriesData.length > 0) return;
-    getPopularTV().then(setSeriesData).catch(() => {});
+    const controller = new AbortController();
+    getPopularTV(1, controller.signal).then(setSeriesData).catch(() => {});
+    return () => controller.abort();
   }, [activeTab]);
 
   useEffect(() => {
     if (activeTab !== "anime" || animeData.length > 0) return;
-    getAnimeSeries().then(setAnimeData).catch(() => {});
+    const controller = new AbortController();
+    getAnimeSeries(1, controller.signal).then(setAnimeData).catch(() => {});
+    return () => controller.abort();
   }, [activeTab]);
 
   const loadContinueWatchingHistory = () => {
