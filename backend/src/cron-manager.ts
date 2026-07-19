@@ -92,6 +92,7 @@ export function runMaintenanceTasks() {
         return;
     }
     console.log(`[${new Date().toISOString()}] [Cron] Lancement des tâches de maintenance...`);
+    runner('Vérification Liens Morts', 'scraping/maintenance/check-all-links.js');
     runner('Maintenance Liens', 'scraping/maintenance/maintainer.js');
     runner('Linking TMDB Films', 'scraping/maintenance/link-movies-tmdb.js');
     runner('Linking TMDB Séries', 'scraping/maintenance/link-series-tmdb.js');
@@ -102,11 +103,11 @@ export function runMaintenanceTasks() {
 export function startCron() {
     if (isRunning) return;
     cronTasks = [
-        cron.schedule('0 * * * *', runMaintenanceTasks),
+        cron.schedule('*/10 * * * *', runMaintenanceTasks),
         cron.schedule('0 3 * * *', runScrapingTasks),
     ];
     isRunning = true;
-    appendLog('[Cron] Tâches planifiées démarrées (toutes les heures + scraping 03:00)');
+    appendLog('[Cron] Tâches planifiées démarrées (toutes les 10min + scraping 03:00)');
     console.log('[Cron] Tâches planifiées démarrées.');
 }
 

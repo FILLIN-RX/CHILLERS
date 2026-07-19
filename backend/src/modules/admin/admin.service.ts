@@ -3,6 +3,7 @@ import path from 'path';
 import mongoose from 'mongoose';
 import Movie from '../../models/Movie';
 import Serie from '../../models/Serie';
+import DeadLink from '../../models/DeadLink';
 
 const LOG_DIR = path.join(__dirname, '../..');
 
@@ -47,20 +48,24 @@ export async function getDashboardStats() {
 }
 
 export async function getDeadLinks() {
-    const series = await Serie.find({ 'episodes.lien': { $in: ['#', null, ''] } })
-        .select('titre episodes')
+    const dead = await DeadLink.find()
+        .sort({ lastChecked: -1 })
         .limit(200)
         .lean();
+    return dead.map(d => ({ _id: d._id, titre: d.titre, episode: d.episode, lien: d.lien }));
+}
 
-    const results: any[] = [];
-    for (const s of series) {
-        for (const ep of (s.episodes || [])) {
-            if (!ep.lien || ep.lien === '#') {
-                results.push({ titre: s.titre, episode: ep.episode, lien: ep.lien || 'manquant' });
-            }
-        }
+export async function appealDeadLink(id: string) {
+    const link = await DeadLink.findById(id);
+    if (!link) return { found: false, alive: false };
+
+    const { isLinkDead } = await import('../../scraping/core/link-checker');
+    const dead = await isLinkDead(link.lien);
+    if (!dead) {
+        await DeadLink.findByIdAndDelete(id);
+        return { found: true, alive: true, titre: link.titre, episode: link.episode };
     }
-    return results;
+    return { found: true, alive: false, titre: link.titre, episode: link.episode };
 }
 
 export function getTmdbLinkErrors(lines: number = 100) {

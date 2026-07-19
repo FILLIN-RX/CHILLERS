@@ -9,6 +9,7 @@ router.get('/auth/verify', adminMiddleware, adminController.verify);
 router.get('/dashboard', adminMiddleware, adminController.dashboard);
 router.get('/logs', adminMiddleware, adminController.logs);
 router.get('/dead-links', adminMiddleware, adminController.deadLinks);
+router.post('/dead-links/appeal/:id', adminMiddleware, adminController.appealDeadLink);
 router.get('/settings', adminMiddleware, adminController.getSettings);
 router.put('/settings', adminMiddleware, adminController.updateSettings);
 router.post('/scrape/trigger', adminMiddleware, adminController.triggerScrape);

@@ -108,6 +108,19 @@ export async function deadLinks(_req: AuthRequest, res: Response) {
     }
 }
 
+export async function appealDeadLink(req: AuthRequest, res: Response) {
+    try {
+        const result = await adminService.appealDeadLink(req.params.id);
+        if (!result.found) {
+            res.status(404).json({ success: false, data: null, message: 'Lien introuvable' });
+            return;
+        }
+        res.json({ success: true, data: result, message: result.alive ? 'Lien rétabli !' : 'Toujours mort' });
+    } catch (e: any) {
+        res.status(500).json({ success: false, data: null, message: e.message });
+    }
+}
+
 export async function getSettings(_req: AuthRequest, res: Response) {
     const settings = adminService.getSettings();
     res.json({ success: true, data: settings, message: null });
@@ -227,6 +240,7 @@ export async function runMaintenance(req: AuthRequest, res: Response) {
 
     const scripts: Record<string, { label: string, path: string }> = {
         'dead-links': { label: 'Maintenance Liens', path: 'scraping/maintenance/maintainer.js' },
+        'check-all-links': { label: 'Vérification Liens Morts', path: 'scraping/maintenance/check-all-links.js' },
         'tmdb-movies': { label: 'Linking TMDB Films', path: 'scraping/maintenance/link-movies-tmdb.js' },
         'tmdb-series': { label: 'Linking TMDB Séries', path: 'scraping/maintenance/link-series-tmdb.js' },
         'organize': { label: 'Organize Séries Doodstream', path: 'scraping/maintenance/organize-series.js' },

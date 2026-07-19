@@ -748,6 +748,10 @@ export async function adminGetDeadLinks() {
   return adminFetch('/dead-links');
 }
 
+export async function adminAppealDeadLink(id: string) {
+  return adminFetch(`/dead-links/appeal/${id}`, { method: 'POST' });
+}
+
 export async function adminGetSettings() {
   return adminFetch('/settings');
 }
