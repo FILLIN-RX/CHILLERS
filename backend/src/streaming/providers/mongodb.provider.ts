@@ -2,11 +2,10 @@ import { StreamingProvider, StreamResult, StreamQuery } from './provider.interfa
 import Movie from '../../models/Movie';
 import Serie from '../../models/Serie';
 
-function toEmbedUrl(url: string, uqloadLink?: string): string {
-  if (uqloadLink) return uqloadLink;
-  const match = url.match(/doodstream\.com\/(?:d|e)\/([a-zA-Z0-9]+)/);
+function toEmbedUrl(lien: string): string {
+  const match = lien.match(/doodstream\.com\/(?:d|e)\/([a-zA-Z0-9]+)/);
   if (match) return `https://doodstream.com/e/${match[1]}`;
-  return url;
+  return lien;
 }
 
 export class MongoDBProvider implements StreamingProvider {
@@ -25,9 +24,8 @@ export class MongoDBProvider implements StreamingProvider {
         ],
       }).exec();
 
-      if (movie?.lien && movie.lien !== '#') {
-        return { provider: this.name, embedUrl: toEmbedUrl(movie.lien, movie.uqloadLink), type: 'movie' };
-      }
+      if (!movie?.lien || movie.lien === '#') return null;
+      return { provider: this.name, embedUrl: toEmbedUrl(movie.lien), type: 'movie' };
     } catch (err) {
       console.error('[MongoDB] getMovieStream error:', err);
     }
@@ -45,14 +43,13 @@ export class MongoDBProvider implements StreamingProvider {
         ],
       }).exec();
 
-      if (serie) {
-        const ep = serie.episodes.find(
-          (e: any) => e.season === query.season && e.episodeNumber === query.episode
-        );
-        if (ep?.lien && ep.lien !== '#') {
-          return { provider: this.name, embedUrl: toEmbedUrl(ep.lien, ep.uqloadLink), type: 'episode' };
-        }
-      }
+      if (!serie) return null;
+
+      const ep = serie.episodes.find(
+        (e: any) => Number(e.season) === Number(query.season) && Number(e.episodeNumber) === Number(query.episode)
+      );
+      if (!ep?.lien || ep.lien === '#') return null;
+      return { provider: this.name, embedUrl: toEmbedUrl(ep.lien), type: 'episode' };
     } catch (err) {
       console.error('[MongoDB] getEpisodeStream error:', err);
     }

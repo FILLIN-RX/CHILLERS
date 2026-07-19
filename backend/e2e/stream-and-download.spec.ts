@@ -19,7 +19,24 @@ test.describe('Streaming + Download', () => {
         await expect(videoEl.first()).toBeVisible({ timeout: 30_000 });
         const videoSrc = await videoEl.first().getAttribute('src');
         expect(videoSrc).toBeTruthy();
-        console.log(`  ✓ Stream: ${videoSrc?.substring(0, 70)}…`);
+        console.log(`  ✓ Stream src: ${videoSrc?.substring(0, 70)}…`);
+
+        // Vérifie que la vidéo avance vraiment
+        await page.evaluate(() => {
+          const v = document.querySelector('video');
+          if (v) v.play();
+        });
+        await page.waitForTimeout(3_000);
+        const playbackState = await page.evaluate(() => {
+          const v = document.querySelector('video');
+          if (!v) return null;
+          return { paused: v.paused, currentTime: v.currentTime, readyState: v.readyState };
+        });
+        expect(playbackState).not.toBeNull();
+        expect(playbackState!.paused).toBe(false);
+        expect(playbackState!.currentTime).toBeGreaterThan(0);
+        expect(playbackState!.readyState).toBeGreaterThanOrEqual(3);
+        console.log(`  ✓ Video plays: currentTime=${playbackState!.currentTime.toFixed(2)}s`);
 
         const downloadBtn = page.locator('button').filter({ hasText: /Download|Télécharger/ }).first();
         await expect(downloadBtn).toBeVisible({ timeout: 10_000 });
@@ -82,7 +99,23 @@ test.describe('Streaming + Download', () => {
         await expect(videoEl.first()).toBeVisible({ timeout: 30_000 });
         const videoSrc = await videoEl.first().getAttribute('src');
         expect(videoSrc).toBeTruthy();
-        console.log(`  ✓ Stream: ${videoSrc?.substring(0, 70)}…`);
+        console.log(`  ✓ Stream src: ${videoSrc?.substring(0, 70)}…`);
+
+        await page.evaluate(() => {
+          const v = document.querySelector('video');
+          if (v) v.play();
+        });
+        await page.waitForTimeout(3_000);
+        const playbackState = await page.evaluate(() => {
+          const v = document.querySelector('video');
+          if (!v) return null;
+          return { paused: v.paused, currentTime: v.currentTime, readyState: v.readyState };
+        });
+        expect(playbackState).not.toBeNull();
+        expect(playbackState!.paused).toBe(false);
+        expect(playbackState!.currentTime).toBeGreaterThan(0);
+        expect(playbackState!.readyState).toBeGreaterThanOrEqual(3);
+        console.log(`  ✓ Video plays: currentTime=${playbackState!.currentTime.toFixed(2)}s`);
 
         const downloadBtn = page.locator('button').filter({ hasText: /Télécharger|Download/ }).first();
         await expect(downloadBtn).toBeVisible({ timeout: 10_000 });
