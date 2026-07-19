@@ -1,4 +1,8 @@
 import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+import path from 'path';
+
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 export interface Episode {
   episode: string;
@@ -17,11 +21,17 @@ interface SerieEntry {
 
 let cached: SerieEntry[] | null = null;
 
+async function ensureConnected() {
+  if (mongoose.connection.readyState !== 1) {
+    const uri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27111/chillers';
+    await mongoose.connect(uri, { serverSelectionTimeoutMS: 5000 });
+  }
+}
+
 async function loadSeries(): Promise<SerieEntry[]> {
   if (cached) return cached;
 
-  const uri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27111/chillers';
-  await mongoose.connect(uri, { serverSelectionTimeoutMS: 5000 });
+  await ensureConnected();
 
   const db = mongoose.connection.db;
   const series = await db.collection('series')
@@ -47,7 +57,6 @@ async function loadSeries(): Promise<SerieEntry[]> {
     }
   }
 
-  await mongoose.disconnect();
   cached = eligible;
   return eligible;
 }

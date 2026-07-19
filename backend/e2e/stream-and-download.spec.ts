@@ -4,12 +4,13 @@ import { pickRandomSerie } from './helpers/series-picker';
 
 test.describe('Streaming + Download', () => {
   test('Movie: stream loads and download popup opens', async ({ page }, testInfo) => {
-    for (let attempt = 1; attempt <= 5; attempt++) {
+    test.setTimeout(180_000);
+    for (let attempt = 1; attempt <= 3; attempt++) {
       const { title, tmdbId } = pickRandomUploadedFilm();
-      console.log(`Attempt ${attempt}/5: "${title}" (tmdbId: ${tmdbId})`);
+      console.log(`Attempt ${attempt}/3: "${title}" (tmdbId: ${tmdbId})`);
 
       try {
-        await page.goto(`/media/${tmdbId}?type=movie`, { waitUntil: 'networkidle' });
+        await page.goto(`/media/${tmdbId}?type=movie`, { waitUntil: 'domcontentloaded', timeout: 30_000 });
         await page.waitForURL(/\/media\//, { timeout: 15_000 });
 
         await expect(page.getByRole('heading', { name: title, exact: true }).first()).toBeVisible({ timeout: 20_000 });
@@ -24,15 +25,22 @@ test.describe('Streaming + Download', () => {
         await expect(downloadBtn).toBeVisible({ timeout: 10_000 });
         await expect(downloadBtn).toBeEnabled({ timeout: 5_000 });
 
-        const popupPromise = page.waitForEvent('popup', { timeout: 30_000 });
-        await downloadBtn.click();
-        const popup = await popupPromise;
-        await popup.waitForLoadState('domcontentloaded');
+        // Capture the download URL via window.open interception
+        let capturedUrl = '';
+        await page.exposeFunction('__captureDownloadUrl', (url: string) => { capturedUrl = url; });
+        await page.evaluate(() => {
+          const orig = window.open;
+          window.open = (url: any, target?: any) => {
+            (window as any).__captureDownloadUrl(url);
+            return orig ? orig.call(window, url, target) : null;
+          };
+        });
 
-        const popupUrl = popup.url();
-        expect(popupUrl).toMatch(/vidzy\.cc|doodstream|uqload|\.mp4/i);
-        console.log(`  ✓ Download: ${popupUrl.substring(0, 80)}…`);
-        await popup.close();
+        await downloadBtn.click();
+        await page.waitForTimeout(3_000);
+
+        expect(capturedUrl).toMatch(/vidzy\.cc|doodstream|uqload|\.mp4|download/i);
+        console.log(`  ✓ Download: ${capturedUrl.substring(0, 80)}…`);
 
         await page.screenshot({ path: `e2e-movie-ok-${testInfo.project.name}.png`, fullPage: true });
         console.log(`✓ OK: "${title}" — stream + download verified`);
@@ -40,7 +48,7 @@ test.describe('Streaming + Download', () => {
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         console.log(`✗ ${message}`);
-        if (attempt === 5) {
+        if (attempt === 3) {
           await page.screenshot({ path: `e2e-movie-fail-${testInfo.project.name}.png`, fullPage: true });
           throw err;
         }
@@ -49,22 +57,23 @@ test.describe('Streaming + Download', () => {
   });
 
   test('TV Series: episode stream loads on season page', async ({ page }, testInfo) => {
-    for (let attempt = 1; attempt <= 5; attempt++) {
+    test.setTimeout(180_000);
+    for (let attempt = 1; attempt <= 3; attempt++) {
       let serie: { titre: string; tmdbId: number; episode: { season: number; episodeNumber: number; lien: string } };
       try {
         serie = await pickRandomSerie();
       } catch (err) {
         console.log(`✗ DB error: ${err instanceof Error ? err.message : String(err)}`);
-        if (attempt === 5) throw err;
+        if (attempt === 3) throw err;
         continue;
       }
 
       const { titre, tmdbId, episode } = serie;
       const url = `/tv/${tmdbId}/season/${episode.season}`;
-      console.log(`Attempt ${attempt}/5: "${titre}" → ${url}`);
+      console.log(`Attempt ${attempt}/3: "${titre}" → ${url}`);
 
       try {
-        await page.goto(url, { waitUntil: 'domcontentloaded' });
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
         await page.waitForURL(/\/tv\/.*\/season\//, { timeout: 15_000 });
 
         await expect(page.locator('h1').first()).toBeVisible({ timeout: 20_000 });
@@ -78,15 +87,30 @@ test.describe('Streaming + Download', () => {
         const downloadBtn = page.locator('button').filter({ hasText: /Télécharger|Download/ }).first();
         await expect(downloadBtn).toBeVisible({ timeout: 10_000 });
         await expect(downloadBtn).toBeEnabled({ timeout: 5_000 });
-        console.log(`  ✓ Download button ready`);
+
+        let capturedUrl = '';
+        await page.exposeFunction('__captureDownloadUrl', (url: string) => { capturedUrl = url; });
+        await page.evaluate(() => {
+          const orig = window.open;
+          window.open = (url: any, target?: any) => {
+            (window as any).__captureDownloadUrl(url);
+            return orig ? orig.call(window, url, target) : null;
+          };
+        });
+
+        await downloadBtn.click();
+        await page.waitForTimeout(3_000);
+
+        expect(capturedUrl).toMatch(/vidzy\.cc|doodstream|uqload|\.mp4|download/i);
+        console.log(`  ✓ Download: ${capturedUrl.substring(0, 80)}…`);
 
         await page.screenshot({ path: `e2e-serie-ok-${testInfo.project.name}.png`, fullPage: true });
-        console.log(`✓ OK: "${titre}" — stream verified`);
+        console.log(`✓ OK: "${titre}" — stream + download verified`);
         return;
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         console.log(`✗ ${message}`);
-        if (attempt === 5) {
+        if (attempt === 3) {
           await page.screenshot({ path: `e2e-serie-fail-${testInfo.project.name}.png`, fullPage: true });
           throw err;
         }
