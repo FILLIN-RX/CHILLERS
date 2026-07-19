@@ -261,12 +261,23 @@ function MediaDetailPage() {
 
               <div className="flex items-center gap-2 pt-2 overflow-x-auto no-scrollbar">
                 <button
-                  onClick={handleWatch}
-                  className="flex-none flex items-center gap-1.5 px-3 sm:px-6 py-1.5 sm:py-3 rounded-full bg-[#D70466] hover:bg-[#b5034f] text-white font-bold text-[11px] sm:text-sm transition-all hover:scale-105 shadow-lg shadow-[#D70466]/30"
+                  onClick={!loading && !isTV && !item.videoUrl ? undefined : handleWatch}
+                  className={`flex-none flex items-center gap-1.5 px-3 sm:px-6 py-1.5 sm:py-3 rounded-full font-bold text-[11px] sm:text-sm transition-all hover:scale-105 shadow-lg whitespace-nowrap ${
+                    !loading && !isTV && !item.videoUrl
+                      ? "bg-zinc-800 border border-zinc-700 text-zinc-400 cursor-not-allowed shadow-none"
+                      : "bg-[#D70466] hover:bg-[#b5034f] text-white shadow-lg shadow-[#D70466]/30"
+                  }`}
+                  disabled={!loading && !isTV && !item.videoUrl}
                 >
-                  <PlayIcon className="h-3.5 w-3.5 sm:h-5 sm:w-5" />
-                  <span className="sm:hidden">Film</span>
-                  <span className="hidden sm:inline">{_("media.watch")}</span>
+                  {!loading && !isTV && !item.videoUrl ? (
+                    <svg className="h-3.5 w-3.5 sm:h-5 sm:w-5 flex-none" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                    </svg>
+                  ) : (
+                    <PlayIcon className="h-3.5 w-3.5 sm:h-5 sm:w-5" />
+                  )}
+                  <span className="sm:hidden">{!loading && !isTV && !item.videoUrl ? 'Bientôt' : isTV ? 'Série' : 'Film'}</span>
+                  <span className="hidden sm:inline">{!loading && !isTV && !item.videoUrl ? 'Bientôt disponible' : _("media.watch")}</span>
                 </button>
 
                 {isYouTube && (
