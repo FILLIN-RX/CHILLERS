@@ -373,7 +373,9 @@ export async function getMovieRecommendations(id: string, signal?: AbortSignal):
 export async function getRecommendedForYou(): Promise<MovieOrShow[]> {
   try {
     // Fetch top popular movies and use their recommendations
-    const pop = await getPopularMovies();
+    // P3-F: pass an undefined signal explicitly so the signature is consistent
+    // with every other call site (TS noImplicitAny would otherwise infer `any`).
+    const pop = await getPopularMovies(1, undefined);
     const topIds = pop.slice(0, 5).map(m => m.id);
     const allRecs = await Promise.all(topIds.map(id => getMovieRecommendations(id)));
     const seen = new Set<string>();
@@ -388,9 +390,12 @@ export async function getRecommendedForYou(): Promise<MovieOrShow[]> {
   }
 }
 
-export async function searchMedia(query: string, page = 1): Promise<MovieOrShow[]> {
+export async function searchMedia(query: string, page = 1, signal?: AbortSignal): Promise<MovieOrShow[]> {
   try {
-    const res = await fetchWithTimeout(`${API_BASE_URL}/search?q=${encodeURIComponent(query)}&page=${page}&language=${getLang()}`);
+    const res = await fetchWithTimeout(
+      `${API_BASE_URL}/search?q=${encodeURIComponent(query)}&page=${page}&language=${getLang()}`,
+      { signal },
+    );
     const json = await res.json();
     if (!json.success) return [];
 
@@ -446,6 +451,9 @@ export async function searchMedia(query: string, page = 1): Promise<MovieOrShow[
 
     return results;
   } catch (error) {
+    // Re-throw AbortError so callers (e.g. SearchOverlay) know the request was
+    // cancelled and can avoid setting state on an unmounted/stale query.
+    if (error instanceof DOMException && error.name === "AbortError") throw error;
     console.error("Error searching media:", error);
   }
   return [];
@@ -589,7 +597,7 @@ export async function getMovieGenres(signal?: AbortSignal): Promise<Genre[]> {
 export async function getAllMovies(page = 1): Promise<MovieOrShow[]> {
   try {
     const [popular, topRated, trending] = await Promise.all([
-      getPopularMovies(page),
+      getPopularMovies(page, undefined),
       getTopRatedMovies(page),
       fetch(`${API_BASE_URL}/movies/trending?language=${getLang()}`).then(r => r.json()).then(j =>
         j.success ? j.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "movie")) : []
@@ -845,4 +853,22 @@ export async function adminUqloadUploadEpisode(serieId: string, episodeIndex: nu
 
 export async function adminUqloadStop() {
   return adminFetch('/uqload/stop', { method: 'POST' });
+}
+
+export async function adminUqloadPendingBoth() {
+  return adminFetch('/uqload/pending-both');
+}
+
+export async function adminRescrapeDeadLink(id: string, headless: boolean = true) {
+  return adminFetch(`/dead-links/rescrape/${id}`, {
+    method: 'POST',
+    body: JSON.stringify({ headless }),
+  });
+}
+
+export async function adminLinkTmdb(type: 'movies' | 'series', id: string, tmdbId: number) {
+  return adminFetch('/collection/link-tmdb', {
+    method: 'POST',
+    body: JSON.stringify({ type, id, tmdbId }),
+  });
 }

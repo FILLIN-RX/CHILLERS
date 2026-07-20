@@ -17,6 +17,7 @@ import {
   Squares2X2Icon as Squares2X2IconSolid,
 } from "@heroicons/react/24/solid";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { getActiveNavTab } from "@/lib/navActive";
 
 interface BottomNavProps {
   onSearchClick: () => void;
@@ -42,22 +43,15 @@ export default function BottomNav({ onSearchClick }: BottomNavProps) {
     return () => document.removeEventListener("fullscreenchange", update);
   }, []);
 
-  const activeTab: string = (() => {
-    if (pathname === "/") return "home";
-    if (pathname.startsWith("/media/movies")) return "movies";
-    if (pathname.startsWith("/media/series") || pathname.startsWith("/media/anime") || pathname.startsWith("/tv")) return "series";
-    if (pathname.startsWith("/categories")) return "categories";
-    if (pathname.startsWith("/watch") || pathname.startsWith("/media/")) return "home";
-    return "home";
-  })();
+  // Shared with <Header> so the underline and the dot never disagree
+  // (e.g. on /categories both light up "Catégories" now).
+  const activeTab = getActiveNavTab(pathname);
 
   if (isFullscreen) return null;
 
   return (
-    <nav
-      className="fixed bottom-0 left-0 w-full z-50 md:hidden border-t border-zinc-800/60"
-      style={{ background: "var(--glass-nav-bg)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" }}
-    >
+    // P3-D: use the .glass-nav utility class instead of inline style + JS var.
+    <nav className="glass-nav fixed bottom-0 left-0 w-full z-50 md:hidden border-t border-zinc-800/60">
       <div className="flex items-center justify-around py-2 px-1 pb-[max(8px,env(safe-area-inset-bottom))]">
         {items.map((item) => {
           const Icon = activeTab === item.id ? item.activeIcon : item.icon;

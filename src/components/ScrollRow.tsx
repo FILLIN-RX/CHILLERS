@@ -92,15 +92,19 @@ export default function ScrollRow({
       {/* Scrollable row with side fade masks */}
       <div className="relative group/row">
         {/* Left fade mask (desktop only) */}
+        {/* P3-A: fade masks are desktop-only (md+ = ≥768px). The mobile tap-target
+            arrows below use `sm:hidden` (<640px), so there's a 640-768px band
+            where neither renders — preferable to having both at the 640px
+            boundary where the fade and the tap target would visually fight. */}
         <div
-          className={`pointer-events-none absolute left-0 top-0 h-full w-12 z-10 transition-opacity duration-300 hidden sm:block
-            bg-gradient-to-r from-[var(--background)] to-transparent ${canScrollLeft ? "opacity-100" : "opacity-0"}`}
+          className={`pointer-events-none absolute left-0 top-0 h-full w-12 z-10 transition-opacity duration-300 hidden md:block
+            bg-gradient-to-r from-brand-dark to-transparent ${canScrollLeft ? "opacity-100" : "opacity-0"}`}
         />
 
         {/* Right fade mask (desktop only) */}
         <div
-          className={`pointer-events-none absolute right-0 top-0 h-full w-12 z-10 transition-opacity duration-300 hidden sm:block
-            bg-gradient-to-l from-[var(--background)] to-transparent ${canScrollRight ? "opacity-100" : "opacity-0"}`}
+          className={`pointer-events-none absolute right-0 top-0 h-full w-12 z-10 transition-opacity duration-300 hidden md:block
+            bg-gradient-to-l from-brand-dark to-transparent ${canScrollRight ? "opacity-100" : "opacity-0"}`}
         />
 
         {/* Left arrow overlay (mobile tap target) */}

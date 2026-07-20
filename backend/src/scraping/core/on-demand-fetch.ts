@@ -51,3 +51,29 @@ export async function fetchMissingMedia(title: string, type: 'movie' | 'series',
     await browser.close();
     return result;
 }
+
+if (process.argv[1] && process.argv[1].includes('on-demand-fetch')) {
+    const title = process.argv[2];
+    const type = process.argv[3] as 'movie' | 'series';
+    const episodeNum = process.argv[4];
+
+    if (title && type) {
+        fetchMissingMedia(title, type, episodeNum)
+            .then((result) => {
+                if (result) {
+                    console.log(`[OnDemand] Successfully fetched: ${JSON.stringify(result)}`);
+                    process.exit(0);
+                } else {
+                    console.log(`[OnDemand] Failed to fetch missing media for: "${title}"`);
+                    process.exit(1);
+                }
+            })
+            .catch((err) => {
+                console.error(`[OnDemand] Error executing fetch:`, err);
+                process.exit(1);
+            });
+    } else {
+        console.error('Usage: npx tsx on-demand-fetch.ts <title> <type> [episodeNum]');
+        process.exit(1);
+    }
+}

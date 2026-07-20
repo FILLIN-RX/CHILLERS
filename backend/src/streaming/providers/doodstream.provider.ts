@@ -1,9 +1,37 @@
 import fs from 'fs';
+import axios from 'axios';
 import { StreamingProvider, StreamResult, StreamQuery } from './provider.interface';
 import { getFileDownloadUrl, listFiles } from '../../modules/doodstream/doodstream.service';
 import Serie from '../../models/Serie';
 import Movie from '../../models/Movie';
 import { UPLOADED_PATH, SERIES_OUTPUT_PATH } from '../../config/data-paths';
+
+async function isLinkAlive(url: string): Promise<boolean> {
+  if (!url || url === '#') return false;
+  try {
+    const res = await axios.head(url, {
+      timeout: 3000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      },
+    });
+    return res.status >= 200 && res.status < 400;
+  } catch {
+    try {
+      const res = await axios.get(url, {
+        timeout: 3000,
+        responseType: 'stream',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        },
+      });
+      res.data.destroy();
+      return res.status >= 200 && res.status < 400;
+    } catch {
+      return false;
+    }
+  }
+}
 
 let cachedUploadedFiles: Record<string, any> | null = null;
 let lastCacheTime = 0;
@@ -290,7 +318,11 @@ export class DoodStreamProvider implements StreamingProvider {
     // plays in a native <video> element with no ads, no anti-embed
     // scripts, and no risk of the embed provider breaking out of the
     // iframe (window.top.history.back).
-    if (match.info.lien) return match.info.lien;
+    if (match.info.lien) {
+      const alive = await isLinkAlive(match.info.lien);
+      if (alive) return match.info.lien;
+      console.log(`[DoodStream] Direct link is dead, falling back to fileCode: ${match.fileCode || 'none'}`);
+    }
 
     if (match.fileCode) return `https://doodstream.com/e/${match.fileCode}`;
 
@@ -317,12 +349,20 @@ export class DoodStreamProvider implements StreamingProvider {
     if (match.fileCode) {
       try {
         const dlUrl = await getFileDownloadUrl(match.fileCode);
-        if (dlUrl) return dlUrl;
+        if (dlUrl) {
+          const alive = await isLinkAlive(dlUrl);
+          if (alive) return dlUrl;
+        }
       } catch {
         // API indisponible, fallback au lien stocké
       }
     }
 
-    return match.info.lien || null;
+    if (match.info.lien) {
+      const alive = await isLinkAlive(match.info.lien);
+      if (alive) return match.info.lien;
+    }
+
+    return null;
   }
 }

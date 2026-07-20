@@ -11,14 +11,14 @@ export default function Footer() {
         
         {/* Top Info Grid */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          
+
           {/* Brand Info */}
           <div className="space-y-4">
-            <h3 className="text-xl font-black tracking-wider text-foreground">
+            <h2 className="text-xl font-black tracking-wider text-foreground">
               CHILL<span className="text-brand-primary">ERS</span>
-            </h3>
+            </h2>
             <p className="text-xs text-brand-text-muted font-light leading-relaxed max-w-xs">
-              L'expérience ultime du streaming gratuit. Films, séries, anime — accès instantané, zéro pub.
+              L{"'"}expérience ultime du streaming gratuit. Films, séries, anime — accès instantané, zéro pub.
             </p>
             <p className="text-[10px] text-zinc-500 font-medium italic leading-relaxed">
               Chillers ne stocke aucun fichier. Tout contenu est hébergé par des tiers non affiliés. À des fins éducatives uniquement.
@@ -26,7 +26,7 @@ export default function Footer() {
           </div>
 
           <div className="space-y-3">
-            <h4 className="text-xs font-extrabold uppercase tracking-widest text-foreground">Liens</h4>
+            <h3 className="text-xs font-extrabold uppercase tracking-widest text-foreground">Liens</h3>
             <ul className="space-y-2 text-xs text-brand-text-muted font-medium">
               <li>
                 <Link href="/about" className="flex items-center gap-2 hover:text-brand-primary transition-colors">
@@ -55,42 +55,55 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Categories Links */}
+          {/* Categories Links — point to the /categories page with a query for
+              the specific genre so the destination isn't a dead-end. */}
           <div className="space-y-3">
-            <h4 className="text-xs font-extrabold uppercase tracking-widest text-foreground">Categories</h4>
+            <h3 className="text-xs font-extrabold uppercase tracking-widest text-foreground">Categories</h3>
             <ul className="space-y-2 text-xs text-brand-text-muted font-medium">
               <li>
-                <a href="#" className="flex items-center gap-2 hover:text-brand-primary transition-colors">
+                <Link
+                  href={{ pathname: "/categories", query: { genre: "Action & Adventure" } }}
+                  className="flex items-center gap-2 hover:text-brand-primary transition-colors"
+                >
                   <PlayIcon className="h-3.5 w-3.5" />
-                  Action & Adventure
-                </a>
+                  Action &amp; Adventure
+                </Link>
               </li>
               <li>
-                <a href="#" className="flex items-center gap-2 hover:text-brand-primary transition-colors">
+                <Link
+                  href={{ pathname: "/categories", query: { genre: "Sci-Fi & Cyberpunk" } }}
+                  className="flex items-center gap-2 hover:text-brand-primary transition-colors"
+                >
                   <PlayIcon className="h-3.5 w-3.5" />
-                  Sci-Fi & Cyberpunk
-                </a>
+                  Sci-Fi &amp; Cyberpunk
+                </Link>
               </li>
               <li>
-                <a href="#" className="flex items-center gap-2 hover:text-brand-primary transition-colors">
+                <Link
+                  href={{ pathname: "/categories", query: { genre: "Anime" } }}
+                  className="flex items-center gap-2 hover:text-brand-primary transition-colors"
+                >
                   <PlayIcon className="h-3.5 w-3.5" />
                   Anime Blockbusters
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#" className="flex items-center gap-2 hover:text-brand-primary transition-colors">
+                <Link
+                  href={{ pathname: "/categories", query: { genre: "Documentary" } }}
+                  className="flex items-center gap-2 hover:text-brand-primary transition-colors"
+                >
                   <PlayIcon className="h-3.5 w-3.5" />
                   Cultural Documentaries
-                </a>
+                </Link>
               </li>
             </ul>
           </div>
 
           {/* Support / Donate */}
           <div className="space-y-3">
-            <h4 className="text-xs font-extrabold uppercase tracking-widest text-foreground">Soutenir</h4>
+            <h3 className="text-xs font-extrabold uppercase tracking-widest text-foreground">Soutenir</h3>
             <p className="text-xs text-brand-text-muted font-light">
-              Le projet vit grâce à vos dons. Orange Money & Mobile Money acceptés.
+              Le projet vit grâce à vos dons. Orange Money &amp; Mobile Money acceptés.
             </p>
             <Link
               href="/support"
@@ -101,25 +114,42 @@ export default function Footer() {
             </Link>
           </div>
 
-          {/* Socials & Newsletter Info */}
+          {/* Socials & Newsletter Info — these don't have real URLs yet, so use
+              <button type="button"> that no-ops cleanly instead of <a href="#">. */}
           <div className="space-y-3">
-            <h4 className="text-xs font-extrabold uppercase tracking-widest text-foreground">Join the Chill</h4>
+            <h3 className="text-xs font-extrabold uppercase tracking-widest text-foreground">Join the Chill</h3>
             <p className="text-xs text-brand-text-muted font-light">
               Follow us on social channels to keep up with premier releases.
             </p>
             <div className="flex items-center gap-3 pt-2">
-              <a href="#" className="h-8 w-8 rounded-full bg-brand-card border border-brand-border hover:border-brand-primary flex items-center justify-center text-brand-text-muted hover:text-brand-primary transition-all">
+              <button
+                type="button"
+                aria-label="X (Twitter)"
+                className="h-8 w-8 rounded-full bg-brand-card border border-brand-border hover:border-brand-primary flex items-center justify-center text-brand-text-muted hover:text-brand-primary transition-all"
+              >
                 𝕏
-              </a>
-              <a href="#" className="h-8 w-8 rounded-full bg-brand-card border border-brand-border hover:border-brand-primary flex items-center justify-center text-brand-text-muted hover:text-brand-primary transition-all">
+              </button>
+              <button
+                type="button"
+                aria-label="Facebook"
+                className="h-8 w-8 rounded-full bg-brand-card border border-brand-border hover:border-brand-primary flex items-center justify-center text-brand-text-muted hover:text-brand-primary transition-all"
+              >
                 f
-              </a>
-              <a href="#" className="h-8 w-8 rounded-full bg-brand-card border border-brand-border hover:border-brand-primary flex items-center justify-center text-brand-text-muted hover:text-brand-primary transition-all">
+              </button>
+              <button
+                type="button"
+                aria-label="Instagram"
+                className="h-8 w-8 rounded-full bg-brand-card border border-brand-border hover:border-brand-primary flex items-center justify-center text-brand-text-muted hover:text-brand-primary transition-all"
+              >
                 <CameraIcon className="h-4 w-4" />
-              </a>
-              <a href="#" className="h-8 w-8 rounded-full bg-brand-card border border-brand-border hover:border-brand-primary flex items-center justify-center text-brand-text-muted hover:text-brand-primary transition-all">
+              </button>
+              <button
+                type="button"
+                aria-label="YouTube"
+                className="h-8 w-8 rounded-full bg-brand-card border border-brand-border hover:border-brand-primary flex items-center justify-center text-brand-text-muted hover:text-brand-primary transition-all"
+              >
                 ▶
-              </a>
+              </button>
             </div>
           </div>
 

@@ -33,9 +33,26 @@ export class MongoDBProvider implements StreamingProvider {
         ],
       }).exec();
 
-      if (!movie?.lien || movie.lien === '#') return null;
-      if (await isDead(movie.lien)) return null;
-      return { provider: this.name, embedUrl: toEmbedUrl(movie.lien), type: 'movie' };
+      if (!movie) return null;
+
+      let embedUrl = '';
+      if (movie.uqloadLink && movie.uqloadLink !== '#') {
+        const dead = await isDead(movie.uqloadLink);
+        if (!dead) {
+          embedUrl = toEmbedUrl(movie.uqloadLink);
+        }
+      }
+
+      if (!embedUrl && movie.lien && movie.lien !== '#') {
+        const dead = await isDead(movie.lien);
+        if (!dead) {
+          embedUrl = toEmbedUrl(movie.lien);
+        }
+      }
+
+      if (!embedUrl) return null;
+
+      return { provider: this.name, embedUrl, type: 'movie' };
     } catch (err) {
       console.error('[MongoDB] getMovieStream error:', err);
     }
@@ -58,9 +75,27 @@ export class MongoDBProvider implements StreamingProvider {
       const ep = serie.episodes.find(
         (e: any) => Number(e.season) === Number(query.season) && Number(e.episodeNumber) === Number(query.episode)
       );
-      if (!ep?.lien || ep.lien === '#') return null;
-      if (await isDead(ep.lien)) return null;
-      return { provider: this.name, embedUrl: toEmbedUrl(ep.lien), type: 'episode' };
+
+      if (!ep) return null;
+
+      let embedUrl = '';
+      if (ep.uqloadLink && ep.uqloadLink !== '#') {
+        const dead = await isDead(ep.uqloadLink);
+        if (!dead) {
+          embedUrl = toEmbedUrl(ep.uqloadLink);
+        }
+      }
+
+      if (!embedUrl && ep.lien && ep.lien !== '#') {
+        const dead = await isDead(ep.lien);
+        if (!dead) {
+          embedUrl = toEmbedUrl(ep.lien);
+        }
+      }
+
+      if (!embedUrl) return null;
+
+      return { provider: this.name, embedUrl, type: 'episode' };
     } catch (err) {
       console.error('[MongoDB] getEpisodeStream error:', err);
     }

@@ -87,7 +87,7 @@ export default function MovieCard({
                 e.stopPropagation();
                 goToDetail();
               }}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-850 transition-colors cursor-pointer"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
               aria-label={_("media.details")}
             >
               <InformationCircleIcon className="h-5 w-5" />

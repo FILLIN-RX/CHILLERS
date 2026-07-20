@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 import { LanguageProvider } from "@/i18n/LanguageContext";
+import { type Language, defaultLanguage } from "@/i18n";
 import AdminShortcut from "@/components/AdminShortcut";
 import "./globals.css";
 
@@ -30,18 +32,33 @@ export const metadata: Metadata = {
   manifest: "/site.webmanifest",
 };
 
-export default function RootLayout({
+// P2-#30: resolve the language from the cookie on the server so the first
+// paint already has the right translations. Middleware guarantees the cookie
+// exists, so this is just a typed read. In Next 16 `cookies()` is async.
+async function resolveInitialLang(): Promise<Language> {
+  try {
+    const store = await cookies();
+    const c = store.get("chillers-lang")?.value;
+    if (c === "fr" || c === "en") return c;
+  } catch {
+    /* cookies() throws in some server contexts; fall through to default */
+  }
+  return defaultLanguage;
+}
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const initialLang = await resolveInitialLang();
   return (
     <html
-      lang="en"
+      lang={initialLang}
       className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
     >
       <body suppressHydrationWarning className="min-h-screen flex flex-col bg-brand-dark text-foreground selection:bg-brand-primary selection:text-white">
-        <LanguageProvider>
+        <LanguageProvider initialLang={initialLang}>
           <AdminShortcut />
           {children}
         </LanguageProvider>

@@ -93,7 +93,7 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
     // Listener for VidLink progress events
     const handleMessage = (event: MessageEvent) => {
       if (event.origin !== 'https://vidlink.pro') return;
-      
+
       if (event.data?.type === 'MEDIA_DATA') {
         const mediaData = event.data.data;
         localStorage.setItem('vidLinkProgress', JSON.stringify(mediaData));
@@ -103,15 +103,25 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
 
     const key = `chiller_progress_${item.id}_${currentEpisode?.id || 'movie'}`;
     const saved = localStorage.getItem(key);
-    if (saved && videoRef.current) {
+    // P1-#3: capture the node up-front so the cleanup doesn't dereference a
+    // possibly-swapped videoRef.current. P1-#11: only remove the listener if
+    // it hasn't fired yet — otherwise we've already restored the position and
+    // React will tear down the node for us.
+    const node = videoRef.current;
+    if (saved && node) {
       let parsed: { time: number };
-      try { parsed = JSON.parse(saved); } catch (e) { return; }
+      try { parsed = JSON.parse(saved); } catch (e) {
+        window.removeEventListener('message', handleMessage);
+        return;
+      }
+      let loaded = false;
       const handleMetadata = () => {
+        loaded = true;
         if (videoRef.current) videoRef.current.currentTime = parsed.time;
       };
-      videoRef.current.addEventListener("loadedmetadata", handleMetadata);
+      node.addEventListener("loadedmetadata", handleMetadata);
       return () => {
-        videoRef.current?.removeEventListener("loadedmetadata", handleMetadata);
+        if (!loaded) node.removeEventListener("loadedmetadata", handleMetadata);
         window.removeEventListener("message", handleMessage);
       };
     }
@@ -316,7 +326,6 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
           src={videoUrl}
           className="absolute inset-0 w-full h-full object-contain"
           playsInline
-          webkit-playsinline="true"
           onPlay={() => setIsPlaying(true)}
           onPause={() => setIsPlaying(false)}
           onTimeUpdate={() => setCurrentTime(videoRef.current?.currentTime || 0)}

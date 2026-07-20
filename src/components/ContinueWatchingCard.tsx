@@ -14,6 +14,11 @@ interface ContinueWatchingCardProps {
   onOpenDetails: (item: MovieOrShow) => void;
 }
 
+// Local fallback used when the continue-watching record from localStorage has no
+// posterUrl/backdropUrl (page.tsx falls back to "" on missing data). Without this
+// Next/Image would receive src="" and either throw or render a broken image.
+const PLACEHOLDER_POSTER = "https://images.unsplash.com/photo-1578894381163-e72c17f2d45f?q=80&w=400";
+
 export default function ContinueWatchingCard({
   item,
   progress,
@@ -28,7 +33,7 @@ export default function ContinueWatchingCard({
       {/* Thumbnail backdrop image with play overlay */}
       <div className="relative aspect-[2/3] w-full bg-zinc-950 overflow-hidden">
         <Image
-          src={item.posterUrl || item.backdropUrl}
+          src={item.posterUrl || item.backdropUrl || PLACEHOLDER_POSTER}
           alt={item.title}
           fill
           className="object-cover transition-transform duration-500 scale-100 group-hover:scale-105"
@@ -67,11 +72,16 @@ export default function ContinueWatchingCard({
           <span className="text-zinc-500 font-medium normal-case">{remainingTime}</span>
         </div>
 
-        <h4 
-          onClick={() => onOpenDetails(item)}
-          className="text-sm font-bold text-white group-hover:text-brand-primary transition-colors truncate"
-        >
-          {item.title}
+        {/* P3-G: <h4> with onClick isn't a real button. Wrap the heading text in
+            a <button> so keyboard/AT users can activate it. */}
+        <h4 className="text-sm font-bold text-white group-hover:text-brand-primary transition-colors truncate">
+          <button
+            type="button"
+            onClick={() => onOpenDetails(item)}
+            className="text-left w-full truncate hover:underline focus:outline-none focus-visible:ring-1 focus-visible:ring-brand-primary rounded"
+          >
+            {item.title}
+          </button>
         </h4>
 
         {episodeName && (

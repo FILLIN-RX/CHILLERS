@@ -8,6 +8,33 @@ import Movie from '../../models/Movie';
 import Serie from '../../models/Serie';
 import { UPLOADED_PATH, SERIES_OUTPUT_PATH } from '../../config/data-paths';
 
+async function isLinkAlive(url: string): Promise<boolean> {
+  if (!url || url === '#') return false;
+  try {
+    const res = await axios.head(url, {
+      timeout: 3000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      },
+    });
+    return res.status >= 200 && res.status < 400;
+  } catch {
+    try {
+      const res = await axios.get(url, {
+        timeout: 3000,
+        responseType: 'stream',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        },
+      });
+      res.data.destroy();
+      return res.status >= 200 && res.status < 400;
+    } catch {
+      return false;
+    }
+  }
+}
+
 const SE_PATTERN = /[Ss](\d+)[Ee](\d+)/;
 
 function parseSeasonEpisode(filename: string): { season: number; episode: number } | null {
@@ -259,8 +286,13 @@ export const getDownloadByTitle = async (req: Request, res: Response, next: Next
       !/doodstream\.com\/d\//i.test(storedLien);
 
     if (isDirectMediaUrl) {
-      downloadUrl = storedLien;
-    } else if (match.fileCode) {
+      const alive = await isLinkAlive(storedLien);
+      if (alive) {
+        downloadUrl = storedLien;
+      }
+    }
+
+    if (!downloadUrl && match.fileCode) {
       try {
         const apiUrl = await getFileDownloadUrl(match.fileCode);
         if (apiUrl && !/doodstream\.com\/e\//i.test(apiUrl)) {
@@ -269,6 +301,11 @@ export const getDownloadByTitle = async (req: Request, res: Response, next: Next
       } catch {
         // API indisponible
       }
+    }
+
+    // Last resort fallback
+    if (!downloadUrl && isDirectMediaUrl) {
+      downloadUrl = storedLien;
     }
 
     if (!downloadUrl) {
@@ -478,8 +515,13 @@ export const getSeriesDownloadCheck = async (req: Request, res: Response, next: 
           !/doodstream\.com\/d\//i.test(storedLien);
 
         if (isDirectUrl) {
-          downloadUrl = storedLien;
-        } else if (match.fileCode) {
+          const alive = await isLinkAlive(storedLien);
+          if (alive) {
+            downloadUrl = storedLien;
+          }
+        }
+
+        if (!downloadUrl && match.fileCode) {
           try {
             const apiUrl = await getFileDownloadUrl(match.fileCode);
             if (apiUrl && !/doodstream\.com\/e\//i.test(apiUrl)) {
@@ -488,6 +530,11 @@ export const getSeriesDownloadCheck = async (req: Request, res: Response, next: 
           } catch {
             // API unavailable
           }
+        }
+
+        // Last resort fallback
+        if (!downloadUrl && isDirectUrl) {
+          downloadUrl = storedLien;
         }
 
         found.push({

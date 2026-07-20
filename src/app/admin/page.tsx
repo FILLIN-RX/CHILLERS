@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { adminGetDashboard, adminClearCache, adminTriggerScrape, adminGetScraperState } from '@/app/api';
+import { adminGetDashboard, adminClearCache, adminTriggerScrape, adminGetScraperState, adminUqloadStatus } from '@/app/api';
 import Spinner from '@/components/Spinner';
-import { IconMovie, IconTv, IconLogs, IconLink, IconSettings, IconTmdb } from '@/components/Icons';
+import { IconMovie, IconTv, IconLogs, IconLink, IconSettings, IconTmdb, IconUqload } from '@/components/Icons';
 
 interface RecentMovie {
   _id: string; titre: string; tmdbId?: number; addedAt: string; ago: string;
@@ -28,6 +28,7 @@ const SHORTCUTS = [
   { href: '/admin/movies', label: 'Films', icon: IconMovie, color: '#6366f1' },
   { href: '/admin/series', label: 'Séries', icon: IconTv, color: '#22c55e' },
   { href: '/admin/tmdb', label: 'TMDB', icon: IconTmdb, color: '#0d9488' },
+  { href: '/admin/uqload', label: 'Uqload', icon: IconUqload, color: '#f59e0b' },
   { href: '/admin/logs', label: 'Logs', icon: IconLogs, color: '#f59e0b' },
   { href: '/admin/dead-links', label: 'Liens morts', icon: IconLink, color: '#ef4444' },
   { href: '/admin/settings', label: 'Paramètres', icon: IconSettings, color: '#a855f7' },
@@ -36,6 +37,7 @@ const SHORTCUTS = [
 export default function AdminDashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [scraper, setScraper] = useState<ScraperStateData | null>(null);
+  const [uqload, setUqload] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [configMsg, setConfigMsg] = useState('');
 
@@ -43,9 +45,11 @@ export default function AdminDashboard() {
     Promise.all([
       adminGetDashboard(),
       adminGetScraperState().catch(() => ({ success: false })),
-    ]).then(([d, s]: any) => {
+      adminUqloadStatus().then(r => r.data).catch(() => null),
+    ]).then(([d, s, u]: any) => {
       if (d.success) setData(d.data);
       if (s.success) setScraper(s.data);
+      if (u?.configured) setUqload(u);
       setLoading(false);
     });
   }, []);
@@ -97,6 +101,17 @@ export default function AdminDashboard() {
           <p style={{ color: data.deadLinks > 0 ? '#ef4444' : '#22c55e', fontSize: '2rem', fontWeight: 700, margin: '0.25rem 0' }}>{data.deadLinks}</p>
           <p style={{ color: '#6b6b80', fontSize: '0.75rem' }}>Uptime: {uptime(data.uptime)}</p>
         </div>
+        {uqload && (
+          <div style={card}>
+            <p style={{ color: '#6b6b80', fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Uqload</p>
+            <p style={{ color: '#fff', fontSize: '2rem', fontWeight: 700, margin: '0.25rem 0' }}>
+              {formatBytes(uqload.account?.storageUsed)}<span style={{ fontSize: '0.875rem', color: '#6b6b80' }}> / {formatBytes(uqload.account?.storageLeft)}</span>
+            </p>
+            <p style={{ color: '#f59e0b', fontSize: '0.75rem' }}>
+              {uqload.pending?.movies ?? 0} films · {uqload.pending?.series ?? 0} épisodes en attente
+            </p>
+          </div>
+        )}
       </div>
 
       {/* SHORTCUTS */}
@@ -241,4 +256,14 @@ export default function AdminDashboard() {
       {configMsg && <p style={{ color: '#22c55e', fontSize: '0.875rem', marginTop: '0.75rem' }}>{configMsg}</p>}
     </div>
   );
+}
+
+function formatBytes(bytes: number | string): string {
+  const n = typeof bytes === 'string' ? parseInt(bytes, 10) : bytes;
+  if (!n || isNaN(n)) return '?';
+  const units = ['o', 'Ko', 'Mo', 'Go', 'To'];
+  let i = 0;
+  let size = n;
+  while (size >= 1024 && i < units.length - 1) { size /= 1024; i++; }
+  return `${size.toFixed(1)} ${units[i]}`;
 }

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { adminGetSerie, startDownload, triggerDownload } from '@/app/api';
 import { IconFolderOpen, IconBack } from '@/components/Icons';
+import TmdbLinkModal from '../../components/TmdbLinkModal';
 
 interface Episode {
   episode: string;
@@ -13,6 +14,8 @@ interface Episode {
   fileCode?: string;
   fldId?: string;
   tmdbId?: number;
+  uqloadCode?: string;
+  uqloadLink?: string;
 }
 
 interface SerieDetail {
@@ -31,6 +34,7 @@ export default function AdminSerieDetail() {
   const [serie, setSerie] = useState<SerieDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [downloadingEp, setDownloadingEp] = useState<string | null>(null);
+  const [linkModal, setLinkModal] = useState<{ docId: string; tmdbId?: number } | null>(null);
 
   useEffect(() => {
     adminGetSerie(id).then(res => {
@@ -89,9 +93,13 @@ export default function AdminSerieDetail() {
             <span style={{ color: deadCount > 0 ? '#ef4444' : '#22c55e' }}>
               {deadCount > 0 ? `${deadCount} lien(s) mort(s)` : '✓ tous OK'}
             </span>
-            {serie.tmdbId && (
-              <span style={{ color: '#22c55e' }}>✓ Lié TMDB (#{serie.tmdbId})</span>
-            )}
+            <button onClick={() => setLinkModal({ docId: serie._id, tmdbId: serie.tmdbId })} style={{
+              background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+              color: serie.tmdbId ? '#22c55e' : '#ef4444', fontSize: '0.8125rem',
+              textDecoration: 'underline', textDecorationColor: serie.tmdbId ? '#22c55e' : '#ef4444',
+            }}>
+              {serie.tmdbId ? `✓ Lié TMDB (#${serie.tmdbId})` : '✗ Lier TMDB'}
+            </button>
           </div>
           <a href={serie.pageUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#6366f1', fontSize: '0.8125rem', textDecoration: 'none', marginTop: '0.25rem', display: 'inline-block' }}>
             Voir sur open-otaku.me →
@@ -115,7 +123,8 @@ export default function AdminSerieDetail() {
                   <tr style={{ borderBottom: '1px solid #252535', color: '#6b6b80', textTransform: 'uppercase', fontSize: '0.6875rem', letterSpacing: '0.05em' }}>
                     <th style={{ padding: '0.625rem 1rem', textAlign: 'left' }}>Épisode</th>
                     <th style={{ padding: '0.625rem 1rem', textAlign: 'left' }}>Lien</th>
-                    <th style={{ padding: '0.625rem 1rem', textAlign: 'left' }}>Doodstream</th>
+                    <th style={{ padding: '0.625rem 1rem', textAlign: 'center' }}>Uqload</th>
+                    <th style={{ padding: '0.625rem 1rem', textAlign: 'center' }}>Doodstream</th>
                     <th style={{ padding: '0.625rem 1rem', textAlign: 'left' }}>TMDB</th>
                     <th style={{ padding: '0.625rem 1rem', textAlign: 'center' }}>Actions</th>
                   </tr>
@@ -137,9 +146,14 @@ export default function AdminSerieDetail() {
                               </a>
                             )}
                           </td>
-                          <td style={{ padding: '0.625rem 1rem' }}>
+                          <td style={{ padding: '0.625rem 1rem', textAlign: 'center' }}>
+                            <span style={{ color: ep.uqloadCode ? '#22c55e' : '#6b6b80', fontSize: '0.75rem' }}>
+                              {ep.uqloadCode ? (ep.uqloadLink ? '✓' : '⏳') : '—'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '0.625rem 1rem', textAlign: 'center' }}>
                             <span style={{ color: ep.fileCode ? '#22c55e' : '#6b6b80', fontSize: '0.75rem' }}>
-                              {ep.fileCode ? '✓ Uploadé' : '—'}
+                              {ep.fileCode ? '✓' : '—'}
                             </span>
                           </td>
                           <td style={{ padding: '0.625rem 1rem' }}>
@@ -218,6 +232,18 @@ export default function AdminSerieDetail() {
           </div>
         ))}
 
+      {linkModal && (
+        <TmdbLinkModal
+          type="series"
+          docId={linkModal.docId}
+          currentTmdbId={linkModal.tmdbId}
+          onClose={() => setLinkModal(null)}
+          onLinked={(tmdbId) => {
+            setSerie(prev => prev ? { ...prev, tmdbId } : prev);
+            setLinkModal(null);
+          }}
+        />
+      )}
     </div>
   );
 }

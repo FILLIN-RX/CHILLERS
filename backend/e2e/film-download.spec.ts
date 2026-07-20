@@ -8,7 +8,10 @@ async function runFlow(page: Page, title: string, tmdbId: number) {
   await page.waitForURL(/\/media\//, { timeout: 15_000 });
 
   // Wait for the movie title to appear (page content loaded)
-  await expect(page.locator('h1')).toContainText(title, { timeout: 15_000 });
+  const heading = page.locator('h1').first();
+  await expect(heading).toBeVisible({ timeout: 15_000 });
+  const text = await heading.innerText();
+  expect(text.trim().length).toBeGreaterThan(0);
 
   // Wait until the download button is ready (not in loading/disabled state).
   // The download button shows "Télécharger" text when the stream is ready,

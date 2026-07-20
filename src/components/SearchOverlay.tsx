@@ -7,11 +7,51 @@ import { MovieOrShow } from "@/app/mockData";
 import { searchMedia, getTrendingMovies, getMovieGenres, Genre } from "@/app/api";
 import { XMarkIcon, MagnifyingGlassIcon, PlayIcon, StarIcon } from "@heroicons/react/24/outline";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { acquireModalScrollLock, releaseModalScrollLock } from "@/lib/modalScrollLock";
 
 interface SearchOverlayProps {
   isOpen: boolean;
   onClose: () => void;
   onOpenDetails: (item: MovieOrShow) => void;
+}
+
+// Module-scope caches so the trending movies and genres are fetched at most once
+// per session, not on every SearchOverlay open (P1-#15).
+let trendingCache: MovieOrShow[] | null = null;
+let trendingPromise: Promise<MovieOrShow[]> | null = null;
+let genresCache: Genre[] | null = null;
+let genresPromise: Promise<Genre[]> | null = null;
+
+function getCachedTrending(): Promise<MovieOrShow[]> {
+  if (trendingCache) return Promise.resolve(trendingCache);
+  if (trendingPromise) return trendingPromise;
+  trendingPromise = getTrendingMovies()
+    .then((d) => {
+      trendingCache = d;
+      trendingPromise = null;
+      return d;
+    })
+    .catch((e) => {
+      trendingPromise = null;
+      throw e;
+    });
+  return trendingPromise;
+}
+
+function getCachedGenres(): Promise<Genre[]> {
+  if (genresCache) return Promise.resolve(genresCache);
+  if (genresPromise) return genresPromise;
+  genresPromise = getMovieGenres()
+    .then((d) => {
+      genresCache = d;
+      genresPromise = null;
+      return d;
+    })
+    .catch((e) => {
+      genresPromise = null;
+      throw e;
+    });
+  return genresPromise;
 }
 
 export default function SearchOverlay({ isOpen, onClose, onOpenDetails }: SearchOverlayProps) {
@@ -31,22 +71,34 @@ export default function SearchOverlay({ isOpen, onClose, onOpenDetails }: Search
     router.push(`/media/${item.id}?type=${typeParam}`, { scroll: false });
   };
 
+  // Lock body scroll while open (P1-#18 — refcounted so it composes with other modals).
   useEffect(() => {
-    if (isOpen) {
-      inputRef.current?.focus();
-      document.body.style.overflow = "hidden";
-      getTrendingMovies().then(setTrendingMovies);
-      getMovieGenres().then(setGenres);
-    } else {
-      document.body.style.overflow = "unset";
-    }
-    return () => {
-      document.body.style.overflow = "unset";
-    };
+    if (!isOpen) return;
+    acquireModalScrollLock();
+    inputRef.current?.focus();
+    return () => releaseModalScrollLock();
   }, [isOpen]);
 
+  // Lazy-load cached trending/genres once per session (P1-#15).
   useEffect(() => {
+    if (!isOpen) return;
+    if (trendingCache) setTrendingMovies(trendingCache);
+    else getCachedTrending().then(setTrendingMovies).catch(() => {});
+    if (genresCache) setGenres(genresCache);
+    else getCachedGenres().then(setGenres).catch(() => {});
+  }, [isOpen]);
+
+  // Keyboard shortcuts: Esc closes the overlay, Cmd/Ctrl+K focuses the input
+  // (P2-#19). Both listeners are only attached while the overlay is open so
+  // the global hotkey doesn't fight with other open modals.
+  useEffect(() => {
+    if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+        return;
+      }
       if ((e.ctrlKey || e.metaKey) && e.key === "k") {
         e.preventDefault();
         inputRef.current?.focus();
@@ -54,31 +106,48 @@ export default function SearchOverlay({ isOpen, onClose, onOpenDetails }: Search
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [isOpen, onClose]);
 
+  // Debounced search with AbortController so fast typing doesn't race
+  // (P0-#5). Only the latest in-flight request can update `results`.
   useEffect(() => {
     if (query.trim() === "") {
       setResults([]);
       return;
     }
 
+    const controller = new AbortController();
     setIsSearching(true);
     const timer = setTimeout(async () => {
-      const apiResults = await searchMedia(query);
-      setResults(apiResults);
-      setIsSearching(false);
+      try {
+        const apiResults = await searchMedia(query, 1, controller.signal);
+        if (!controller.signal.aborted) {
+          setResults(apiResults);
+          setIsSearching(false);
+        }
+      } catch (e) {
+        if (e instanceof DOMException && e.name === "AbortError") return;
+        console.error("Search failed", e);
+        if (!controller.signal.aborted) {
+          setResults([]);
+          setIsSearching(false);
+        }
+      }
     }, 300);
 
-    return () => { clearTimeout(timer); setIsSearching(false); };
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+    };
   }, [query]);
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col glass-modal transition-all duration-300">
-      
+
       <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-8 md:px-12 lg:px-[4%] py-6 flex items-center justify-between border-b border-brand-border">
-        
+
         <div className="flex-1 flex items-center gap-3">
           <MagnifyingGlassIcon className="h-6 w-6 text-brand-primary" />
           <input

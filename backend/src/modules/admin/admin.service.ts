@@ -52,7 +52,7 @@ export async function getDeadLinks() {
         .sort({ lastChecked: -1 })
         .limit(200)
         .lean();
-    return dead.map(d => ({ _id: d._id, titre: d.titre, episode: d.episode, lien: d.lien }));
+    return dead.map(d => ({ _id: d._id, titre: d.titre, episode: d.episode, lien: d.lien, type: d.type }));
 }
 
 export async function appealDeadLink(id: string) {
@@ -90,8 +90,11 @@ export async function searchCollection(type: string, q: string, page: number, li
     const filter: any = {};
     if (q) filter.titre = { $regex: q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
 
+    const projection = type === 'series'
+      ? 'titre pageUrl lien tmdbId createdAt episodes.uqloadCode episodes.fileCode episodes.episode episodes.season episodes.episodeNumber episodes.lien'
+      : 'titre pageUrl lien tmdbId createdAt uqloadCode uqloadLink fileCode uqloadQualities';
     const [items, total] = await Promise.all([
-        Model.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+        Model.find(filter, projection).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
         Model.countDocuments(filter),
     ]);
     return { items, total, page, limit, totalPages: Math.ceil(total / limit) };

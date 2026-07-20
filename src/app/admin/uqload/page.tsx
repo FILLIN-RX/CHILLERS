@@ -1,20 +1,22 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { adminUqloadStatus, adminUqloadPending, adminUqloadUploadMovies, adminUqloadUploadSeries, adminUqloadStop } from '@/app/api';
+import { adminUqloadStatus, adminUqloadPending, adminUqloadPendingBoth, adminUqloadUploadMovies, adminUqloadUploadSeries, adminUqloadStop } from '@/app/api';
 
 export default function AdminUqload() {
   const [status, setStatus] = useState<any>(null);
   const [pending, setPending] = useState<any>(null);
+  const [pendingBoth, setPendingBoth] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [tab, setTab] = useState<'status' | 'pending'>('status');
+  const [tab, setTab] = useState<'status' | 'pending' | 'missing'>('status');
 
   const fetchData = () => {
     setLoading(true);
     Promise.all([
       adminUqloadStatus().then(d => setStatus(d.data)),
       adminUqloadPending().then(d => setPending(d.data)),
+      adminUqloadPendingBoth().then(d => setPendingBoth(d.data)),
     ]).finally(() => setLoading(false));
   };
 
@@ -58,6 +60,7 @@ export default function AdminUqload() {
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button onClick={() => setTab('status')} style={{ ...btnBase, background: tab === 'status' ? '#6366f1' : '#252535', color: '#fff' }}>Statut</button>
           <button onClick={() => setTab('pending')} style={{ ...btnBase, background: tab === 'pending' ? '#6366f1' : '#252535', color: '#fff' }}>En attente</button>
+          <button onClick={() => setTab('missing')} style={{ ...btnBase, background: tab === 'missing' ? '#f59e0b' : '#252535', color: '#fff' }}>Manquants</button>
           <button onClick={fetchData} style={{ ...btnBase, background: '#252535', color: '#fff' }}>⟳</button>
         </div>
       </div>
@@ -93,12 +96,21 @@ export default function AdminUqload() {
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
             <div style={card}>
-              <div style={label}>Films en attente</div>
+              <div style={label}>Films en attente Uqload</div>
               <div style={value}>{status.pending?.movies ?? '?'}</div>
             </div>
             <div style={card}>
-              <div style={label}>Épisodes en attente</div>
+              <div style={label}>Épisodes en attente Uqload</div>
               <div style={value}>{status.pending?.series ?? '?'}</div>
+            </div>
+            <div style={{ ...card, borderColor: (status.pendingBoth?.movies ?? 0) > 0 ? '#f59e0b55' : '#252535' }}>
+              <div style={label}>Ni Uqload ni DoodStream</div>
+              <div style={{ ...value, color: (status.pendingBoth?.movies ?? 0) > 0 ? '#fbbf24' : '#4ade80' }}>
+                {status.pendingBoth?.movies ?? 0} films
+              </div>
+              <div style={{ color: '#6b6b80', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                {status.pendingBoth?.series ?? 0} épisodes
+              </div>
             </div>
           </div>
 
@@ -141,8 +153,8 @@ export default function AdminUqload() {
                 {(pending?.movies || []).slice(0, 50).map((m: any, i: number) => (
                   <div key={i} style={{ background: '#181825', border: '1px solid #252535', borderRadius: 8, padding: '0.5rem 0.75rem', fontSize: '0.8125rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{m.titre}</span>
-                    <span style={{ color: '#6b6b80', fontSize: '0.6875rem', marginLeft: '0.5rem', flexShrink: 0 }}>
-                      {m.lien ? (m.lien.includes('doodstream') ? 'Doodstream' : 'Direct') : 'Aucun lien'}
+                    <span style={{ color: m.fileCode ? '#22c55e' : '#6b6b80', fontSize: '0.6875rem', marginLeft: '0.5rem', flexShrink: 0 }}>
+                      {m.fileCode ? 'DoodStream ✓' : m.lien?.includes('doodstream') ? 'DoodStream' : 'Direct'}
                     </span>
                   </div>
                 ))}
@@ -162,13 +174,74 @@ export default function AdminUqload() {
                     <span style={{ color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                       {e.serieTitre} — {e.episode}
                     </span>
-                    <span style={{ color: '#6b6b80', fontSize: '0.6875rem', marginLeft: '0.5rem', flexShrink: 0 }}>
-                      {e.lien ? 'Lien OK' : 'Aucun lien'}
+                    <span style={{ color: e.fileCode ? '#22c55e' : '#6b6b80', fontSize: '0.6875rem', marginLeft: '0.5rem', flexShrink: 0 }}>
+                      {e.fileCode ? 'DoodStream ✓' : 'Lien OK'}
                     </span>
                   </div>
                 ))}
                 {(!pending?.series || pending.series.length === 0) && (
                   <div style={{ color: '#6b6b80', fontSize: '0.875rem' }}>Tous les épisodes sont uploadés ✓</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {tab === 'missing' && (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+            <div style={{ ...card, borderColor: '#f59e0b55' }}>
+              <div style={label}>Films sur aucun service</div>
+              <div style={{ ...value, color: '#fbbf24' }}>{pendingBoth?.totalMovies ?? 0}</div>
+            </div>
+            <div style={{ ...card, borderColor: '#f59e0b55' }}>
+              <div style={label}>Épisodes sur aucun service</div>
+              <div style={{ ...value, color: '#fbbf24' }}>{pendingBoth?.totalEpisodes ?? 0}</div>
+            </div>
+          </div>
+
+          <p style={{ color: '#6b6b80', fontSize: '0.8125rem', marginBottom: '1rem' }}>
+            Ces contenus ne sont ni sur Uqload ni sur DoodStream. Utilisez le script CLI <code style={{ background: '#252535', padding: '0.125rem 0.375rem', borderRadius: 4 }}>npm run upload-uqload</code> pour les uploader.
+          </p>
+
+          <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
+            <div style={{ flex: '1 1 400px' }}>
+              <h3 style={{ color: '#6b6b80', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 0.75rem 0' }}>
+                Films manquants ({pendingBoth?.movies?.length || 0} affichés)
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                {(pendingBoth?.movies || []).slice(0, 50).map((m: any, i: number) => (
+                  <div key={i} style={{ background: '#181825', border: '1px solid #252535', borderRadius: 8, padding: '0.5rem 0.75rem', fontSize: '0.8125rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{m.titre}</span>
+                    <span style={{ color: '#6b6b80', fontSize: '0.6875rem', marginLeft: '0.5rem', flexShrink: 0 }}>
+                      {m.tmdbId ? 'TMDB ✓' : '—'}
+                    </span>
+                  </div>
+                ))}
+                {(!pendingBoth?.movies || pendingBoth.movies.length === 0) && (
+                  <div style={{ color: '#4ade80', fontSize: '0.875rem' }}>Tous les films sont sur au moins un service ✓</div>
+                )}
+              </div>
+            </div>
+
+            <div style={{ flex: '1 1 400px' }}>
+              <h3 style={{ color: '#6b6b80', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 0.75rem 0' }}>
+                Épisodes manquants ({pendingBoth?.series?.length || 0} affichés)
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                {(pendingBoth?.series || []).slice(0, 50).map((e: any, i: number) => (
+                  <div key={i} style={{ background: '#181825', border: '1px solid #252535', borderRadius: 8, padding: '0.5rem 0.75rem', fontSize: '0.8125rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                      {e.serieTitre} — S{e.season}E{e.episodeNumber}
+                    </span>
+                    <span style={{ color: '#6b6b80', fontSize: '0.6875rem', marginLeft: '0.5rem', flexShrink: 0 }}>
+                      {e.lien ? 'Lien OK' : 'Aucun lien'}
+                    </span>
+                  </div>
+                ))}
+                {(!pendingBoth?.series || pendingBoth.series.length === 0) && (
+                  <div style={{ color: '#4ade80', fontSize: '0.875rem' }}>Tous les épisodes sont sur au moins un service ✓</div>
                 )}
               </div>
             </div>

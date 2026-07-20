@@ -10,6 +10,7 @@ router.get('/dashboard', adminMiddleware, adminController.dashboard);
 router.get('/logs', adminMiddleware, adminController.logs);
 router.get('/dead-links', adminMiddleware, adminController.deadLinks);
 router.post('/dead-links/appeal/:id', adminMiddleware, adminController.appealDeadLink);
+router.post('/dead-links/rescrape/:id', adminMiddleware, adminController.rescrapeDeadLink);
 router.get('/settings', adminMiddleware, adminController.getSettings);
 router.put('/settings', adminMiddleware, adminController.updateSettings);
 router.post('/scrape/trigger', adminMiddleware, adminController.triggerScrape);
@@ -27,6 +28,7 @@ router.get('/serie/:id', adminMiddleware, adminController.getSerie);
 router.get('/movie/:id', adminMiddleware, adminController.getMovie);
 router.get('/tmdb/stats', adminMiddleware, adminController.tmdbStats);
 router.post('/tmdb/link', adminMiddleware, adminController.triggerTmdbLink);
+router.post('/collection/link-tmdb', adminMiddleware, adminController.linkTmdb);
 
 router.post('/uqload/upload/movies', adminMiddleware, adminController.uqloadUploadMovies);
 router.post('/uqload/upload/series', adminMiddleware, adminController.uqloadUploadSeries);
@@ -35,5 +37,6 @@ router.post('/uqload/upload/serie/:id/episode/:index', adminMiddleware, adminCon
 router.post('/uqload/stop', adminMiddleware, adminController.uqloadStop);
 router.get('/uqload/status', adminMiddleware, adminController.uqloadStatus);
 router.get('/uqload/pending', adminMiddleware, adminController.uqloadPending);
+router.get('/uqload/pending-both', adminMiddleware, adminController.uqloadPendingBoth);
 
 export default router;

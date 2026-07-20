@@ -7,6 +7,7 @@ import { DoodStreamProvider } from './providers/doodstream.provider';
 import { VidAPIProvider } from './providers/vidapi.provider';
 import { AnimeKaiProvider } from './providers/animekai.provider';
 import { OtakuProvider } from './providers/otaku.provider';
+import { VidLinkProvider } from './providers/vidlink.provider';
 
 const VALIDATION_TIMEOUT = 5000;
 const PROVIDER_TIMEOUT = 10000;
@@ -37,6 +38,7 @@ export class ProviderManager {
       new DoodStreamProvider(),
       new OtakuProvider(),
       new AnimeKaiProvider(),
+      new VidLinkProvider(),
       new VidAPIProvider(),
     ];
   }
@@ -217,76 +219,153 @@ export class ProviderManager {
   }
 
   private async validateUrl(url: string): Promise<boolean> {
+    // Skip validation for Doodstream/Playmogo embeds since they are protected by Cloudflare/DDOS-GUARD
+    if (
+      url.includes('doodstream.com/e/') ||
+      url.includes('playmogo.com/e/') ||
+      url.includes('dood.to/e/') ||
+      url.includes('dood.sh/e/') ||
+      url.includes('dood.so/e/') ||
+      url.includes('dood.cx/e/') ||
+      url.includes('dood.la/e/') ||
+      url.includes('dood.wf/e/') ||
+      url.includes('dood.pm/e/')
+    ) {
+      return true;
+    }
+
     try {
+      // 1. Try a HEAD request first to verify video URLs quickly without downloading body
+      try {
+        const headResponse = await axios.head(url, {
+          timeout: VALIDATION_TIMEOUT,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          },
+          maxRedirects: 5,
+        });
+
+        if (headResponse.status >= 200 && headResponse.status < 400) {
+          const contentType = headResponse.headers['content-type'] || '';
+          if (
+            contentType.includes('video/') ||
+            contentType.includes('application/x-mpegurl') ||
+            contentType.includes('application/vnd.apple.mpegurl')
+          ) {
+            return true;
+          }
+        }
+      } catch (headErr) {
+        // HEAD failed, fall back to GET stream
+      }
+
+      // 2. Perform GET request with stream response to inspect headers / small body chunk
       const response = await axios.get(url, {
         timeout: VALIDATION_TIMEOUT,
+        responseType: 'stream',
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         },
         maxRedirects: 5,
       });
 
-      if (response.status >= 400) return false;
-
-      const body = typeof response.data === 'string' ? response.data.toLowerCase() : '';
-      const contentLength = body.length;
-
-      // Too short = error/redirect/minimal fallback page
-      if (contentLength < 200) return false;
-
-      const notFoundIndicators = [
-        'not found',
-        'unavailable',
-        'error loading',
-        'no stream',
-        'content not available',
-        '404',
-        'introuvable',
-        'indisponible',
-        'erreur',
-        'non disponible',
-        'aucun contenu',
-        'n\'existe pas',
-        'this video is not available',
-        'video not found',
-        'no video',
-        'content unavailable',
-        'stream not found',
-        'sorry',
-        'page not found',
-        'file not found',
-        'nothing found',
-        'aucun résultat',
-        'ne correspond',
-        'page introuvable',
-        'fichier introuvable',
-        'contenu non trouvé',
-        'film introuvable',
-        'série introuvable',
-        'nothing here',
-        'no content',
-        'empty',
-        'error 404',
-        'error 500',
-      ];
-
-      for (const indicator of notFoundIndicators) {
-        if (body.includes(indicator)) {
-          return false;
-        }
+      if (response.status >= 400) {
+        response.data.destroy();
+        return false;
       }
 
-      // VidLink fallback pages are typically very minimal HTML without a real player
-      // Check that the response has meaningful content (player scripts, video elements, etc.)
-      if (url.includes('vidlink.pro')) {
-        if (!body.includes('vidlink') && !body.includes('player') && !body.includes('video') && !body.includes('iframe')) {
-          return false;
-        }
+      const contentType = (response.headers['content-type'] || '').toLowerCase();
+      if (
+        contentType.includes('video/') ||
+        contentType.includes('application/x-mpegurl') ||
+        contentType.includes('application/vnd.apple.mpegurl')
+      ) {
+        response.data.destroy();
+        return true;
       }
 
-      return true;
+      // If it is HTML, read the first 50KB to check for error indicators
+      return new Promise<boolean>((resolve) => {
+        let body = '';
+        const stream = response.data;
+
+        stream.on('data', (chunk: any) => {
+          body += chunk.toString('utf8');
+          if (body.length > 50000) {
+            stream.destroy();
+          }
+        });
+
+        stream.on('end', () => {
+          resolve(this.checkBodyForErrors(body, url));
+        });
+
+        stream.on('error', () => {
+          resolve(false);
+        });
+      });
     } catch {
       return false;
     }
+  }
+
+  private checkBodyForErrors(body: string, url: string): boolean {
+    const text = body.toLowerCase();
+    if (text.length < 200) return false;
+
+    const notFoundIndicators = [
+      'not found',
+      'unavailable',
+      'error loading',
+      'no stream',
+      'content not available',
+      '404',
+      'introuvable',
+      'indisponible',
+      'erreur',
+      'non disponible',
+      'aucun contenu',
+      'n\'existe pas',
+      'this video is not available',
+      'video not found',
+      'no video',
+      'content unavailable',
+      'stream not found',
+      'sorry',
+      'page not found',
+      'file not found',
+      'nothing found',
+      'aucun résultat',
+      'ne correspond',
+      'page introuvable',
+      'fichier introuvable',
+      'contenu non trouvé',
+      'film introuvable',
+      'série introuvable',
+      'nothing here',
+      'no content',
+      'empty',
+      'error 404',
+      'error 500',
+    ];
+
+    for (const indicator of notFoundIndicators) {
+      if (text.includes(indicator)) {
+        return false;
+      }
+    }
+
+    if (url.includes('vidlink.pro')) {
+      if (
+        !text.includes('vidlink') &&
+        !text.includes('player') &&
+        !text.includes('video') &&
+        !text.includes('iframe')
+      ) {
+        return false;
+      }
+    }
+
+    return true;
   }
 }

@@ -4,7 +4,8 @@ dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 import fs from 'fs';
 import tmdbClient from '../../config/tmdb';
-import { UPLOADED_PATH } from '../../config/data-paths';
+import { connectDB } from '../../config/db';
+import Movie from '../../models/Movie';
 
 const ERROR_LOG_PATH = path.join(__dirname, '../../tmdb-movie-link-errors.log');
 
@@ -28,15 +29,6 @@ function nameSimilarity(a: string, b: string): number {
   return intersect / union;
 }
 
-interface MovieEntry {
-  titre: string;
-  fileCode: string;
-  tmdbId?: number | null;
-  year?: number | null;
-  lien?: string;
-  [key: string]: any;
-}
-
 async function searchTmdbMovie(query: string, year?: number | null): Promise<any[]> {
   try {
     const params: Record<string, any> = { query, page: 1 };
@@ -50,27 +42,18 @@ async function searchTmdbMovie(query: string, year?: number | null): Promise<any
 }
 
 async function main() {
-  if (!fs.existsSync(UPLOADED_PATH)) {
-    console.error('uploaded.json not found');
-    process.exit(1);
-  }
+  await connectDB();
 
-  const raw: Record<string, MovieEntry> = JSON.parse(
-    fs.readFileSync(UPLOADED_PATH, 'utf-8')
-  );
-
-  // Find entries without tmdbId (movies only = no season field)
-  const toLink: { key: string; entry: MovieEntry }[] = [];
-  for (const [key, entry] of Object.entries(raw)) {
-    if (!entry.tmdbId && entry.season === undefined) {
-      toLink.push({ key, entry });
-    }
-  }
+  const toLink = await Movie.find({ tmdbId: { $exists: false } })
+    .select('titre lien tmdbId createdAt')
+    .lean();
 
   if (toLink.length === 0) {
-    console.log('Aucun film à lier.');
+    console.log('Aucun film à lier (tous ont déjà un tmdbId).');
     return;
   }
+
+  console.log(`${toLink.length} films sans TMDB à traiter\n`);
 
   let linked = 0;
   let failed = 0;
@@ -78,13 +61,12 @@ async function main() {
   const total = toLink.length;
 
   for (let idx = 0; idx < total; idx++) {
-    const { key, entry } = toLink[idx];
-    const title = entry.titre || key;
-    const year = entry.year || undefined;
+    const movie = toLink[idx];
+    const title = movie.titre;
 
-    console.log(`\n[${idx + 1}/${total}] "${title}"${year ? ` (${year})` : ''}`);
+    console.log(`[${idx + 1}/${total}] "${title}"`);
 
-    const results = await searchTmdbMovie(title, year);
+    const results = await searchTmdbMovie(title);
     if (results.length === 0) {
       errors.push(`[SEARCH] No TMDB results for "${title}"`);
       failed++;
@@ -99,32 +81,22 @@ async function main() {
         ? new Date(candidate.release_date).getFullYear()
         : null;
 
-      console.log(`  Candidat ${i + 1}: "${candidateTitle}" (id: ${candidate.id}, année: ${candidateYear}, popularité: ${candidate.popularity})`);
+      console.log(`  Candidat ${i + 1}: "${candidateTitle}" (id: ${candidate.id})`);
 
-      // Step 1: name similarity
       const sim = nameSimilarity(title, candidateTitle);
       if (sim < 0.3) {
-        console.log(`    ❌ Similarité trop faible: ${sim.toFixed(2)} — ignoré`);
+        console.log(`    ❌ Similarité: ${sim.toFixed(2)} — ignoré`);
         continue;
       }
       console.log(`    ✅ Similarité: ${sim.toFixed(2)}`);
 
-      // Step 2: year check (if we have it)
-      if (year && candidateYear && Math.abs(year - candidateYear) > 2) {
-        console.log(`    ❌ Année différente: uploadé=${year}, TMDB=${candidateYear} — ignoré`);
-        continue;
-      }
-
-      // Step 3: take the best match by similarity * popularity
       if (sim >= 0.5 || (sim >= 0.3 && i === 0)) {
         console.log(`    ✅ LIEN RÉUSSI → tmdbId=${candidate.id}`);
-        raw[key].tmdbId = candidate.id;
+        await Movie.updateOne({ _id: movie._id }, { $set: { tmdbId: candidate.id } });
         linked++;
         matched = true;
         break;
       }
-
-      console.log(`    ❌ Similarité insuffisante (${sim.toFixed(2)}) pour lier sans certitude`);
     }
 
     if (!matched) {
@@ -133,9 +105,6 @@ async function main() {
     }
   }
 
-  // Write updated uploaded.json
-  fs.writeFileSync(UPLOADED_PATH, JSON.stringify(raw, null, 2), 'utf-8');
-  
   console.log(`\n=== RÉSULTAT ===`);
   console.log(`✅ Liés: ${linked}`);
   console.log(`❌ Échecs: ${failed}`);

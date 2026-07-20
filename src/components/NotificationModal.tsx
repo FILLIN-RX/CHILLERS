@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef } from "react";
 import { XMarkIcon } from "@heroicons/react/24/solid";
+import { acquireModalScrollLock, releaseModalScrollLock } from "@/lib/modalScrollLock";
 
 interface NotificationModalProps {
   isOpen: boolean;
@@ -19,14 +20,11 @@ export default function NotificationModal({
   const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "unset";
-    }
-    return () => {
-      document.body.style.overflow = "unset";
-    };
+    if (!isOpen) return;
+    // Reference-counted so a second modal (e.g. SearchOverlay) opening on
+    // top of this one doesn't unlock scroll when this one closes.
+    acquireModalScrollLock();
+    return () => releaseModalScrollLock();
   }, [isOpen]);
 
   useEffect(() => {

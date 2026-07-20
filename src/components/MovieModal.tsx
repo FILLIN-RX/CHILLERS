@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import Image from "next/image";
 import { MovieOrShow, Season, Episode } from "@/app/mockData";
 import { getSeasonDetails } from "@/app/api";
 import { XMarkIcon, PlayIcon, StarIcon } from "@heroicons/react/24/solid";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { acquireModalScrollLock, releaseModalScrollLock } from "@/lib/modalScrollLock";
 
 interface MovieModalProps {
   item: MovieOrShow | null;
@@ -25,40 +26,71 @@ export default function MovieModal({
   const modalRef = useRef<HTMLDivElement>(null);
   const [activeSeason, setActiveSeason] = useState<Season | null>(null);
   const [episodes, setEpisodes] = useState<Episode[]>([]);
+  const [seasonLoading, setSeasonLoading] = useState(false);
   const { translate: _ } = useLanguage();
 
+  // Lock body scroll while open. Decoupled from data loading so closing the
+  // modal unmounts the lock immediately even if a season fetch is in flight.
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-      if (item?.seasons && item.seasons.length > 0) {
-        handleSeasonChange(item.seasons[0]);
-      }
-    } else {
-      document.body.style.overflow = "unset";
+    if (!isOpen) return;
+    acquireModalScrollLock();
+    return () => releaseModalScrollLock();
+  }, [isOpen]);
+
+  // Reset transient state when the modal closes (or swaps item).
+  useEffect(() => {
+    if (!isOpen) {
       setActiveSeason(null);
       setEpisodes([]);
+      setSeasonLoading(false);
     }
-    return () => {
-      document.body.style.overflow = "unset";
-    };
-  }, [isOpen, item]);
+  }, [isOpen, item?.id]);
 
-  const handleSeasonChange = async (season: Season) => {
-    setActiveSeason(season);
-    if (item) {
+  // Fetch the first season's episodes when the modal opens on a series.
+  // Stable identity via useCallback so the effect doesn't re-fire on every render.
+  const handleSeasonChange = useCallback(
+    async (season: Season) => {
+      if (!item) return;
+      setActiveSeason(season);
+      setSeasonLoading(true);
+      try {
         const data = await getSeasonDetails(item.id, String(season.seasonNumber));
         if (data && data.episodes) {
-            setEpisodes(data.episodes.map((ep: any) => ({
-                id: String(ep.id),
-                title: ep.name,
-                duration: `${ep.runtime || 24}m`,
-                number: ep.episode_number,
-                thumbnail: ep.still_path ? `https://image.tmdb.org/t/p/w500${ep.still_path}` : "",
-                synopsis: ep.overview,
-            })));
+          setEpisodes(
+            data.episodes.map((ep: any) => ({
+              id: String(ep.id),
+              title: ep.name,
+              duration: `${ep.runtime || 24}m`,
+              number: ep.episode_number,
+              thumbnail: ep.still_path
+                ? `https://image.tmdb.org/t/p/w500${ep.still_path}`
+                : "",
+              synopsis: ep.overview,
+            })),
+          );
+        } else {
+          setEpisodes([]);
         }
+      } catch (e) {
+        console.error("Failed to load season details", e);
+        setEpisodes([]);
+      } finally {
+        setSeasonLoading(false);
+      }
+    },
+    [item?.id],
+  );
+
+  // Auto-load first season only when opening on a series (separated from the
+  // reset effect so the two never trigger setState on the same render).
+  useEffect(() => {
+    if (isOpen && item?.seasons && item.seasons.length > 0 && !activeSeason) {
+      handleSeasonChange(item.seasons[0]);
     }
-  };
+    // handleSeasonChange is intentionally omitted: its identity is stable per
+    // item.id, and including it would re-fire the effect on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, item?.id, activeSeason, handleSeasonChange]);
 
   if (!isOpen || !item) return null;
 
@@ -77,7 +109,7 @@ export default function MovieModal({
         ref={modalRef}
         className="relative w-full max-w-4xl bg-brand-card rounded-3xl border border-brand-border overflow-hidden shadow-2xl my-8 glass-modal"
       >
-        
+
         <div className="relative aspect-[16/9] w-full bg-zinc-900">
           <Image
             src={item.backdropUrl}
@@ -118,7 +150,7 @@ export default function MovieModal({
         </div>
 
         <div className="p-6 md:p-8 grid grid-cols-1 md:grid-cols-3 gap-8">
-          
+
           <div className="md:col-span-2 space-y-6">
             <div className="flex flex-wrap items-center gap-4">
               <button
@@ -138,13 +170,13 @@ export default function MovieModal({
                 {item.synopsis}
               </p>
             </div>
-            
+
             {item.seasons && item.seasons.length > 0 && (
                 <div className="space-y-4 pt-6">
                     <h3 className="text-sm font-extrabold uppercase tracking-widest text-brand-text-muted">
                         {_("watch.episodes")}
                     </h3>
-                    
+
                     <div className="flex items-center gap-2 bg-brand-card p-1 rounded-lg border border-brand-border">
                         {item.seasons.map((season) => (
                             <button
@@ -162,16 +194,33 @@ export default function MovieModal({
                     </div>
 
                     <div className="space-y-2">
-                        {episodes.map((ep) => (
-                            <div key={ep.id} onClick={() => onWatch(item, ep)} className="flex items-center gap-4 p-3 bg-brand-card rounded-lg border border-brand-border cursor-pointer hover:bg-white/5 transition-colors">
-                                <span className="text-brand-text-muted font-bold text-lg">{ep.number}</span>
-                                <div className="flex-grow">
-                                    <h4 className="text-sm font-bold text-foreground">{ep.title}</h4>
-                                    <p className="text-xs text-brand-text-muted">{ep.duration}</p>
+                        {seasonLoading ? (
+                            Array.from({ length: 4 }).map((_, i) => (
+                                <div
+                                    key={`ep-sk-${i}`}
+                                    className="flex items-center gap-4 p-3 bg-brand-card rounded-lg border border-brand-border skeleton-loading h-[68px]"
+                                />
+                            ))
+                        ) : episodes.length === 0 ? (
+                            <p className="text-sm text-brand-text-muted py-4 text-center">
+                                {_("watch.noEpisodesDesc")}
+                            </p>
+                        ) : (
+                            episodes.map((ep) => (
+                                <div
+                                    key={ep.id}
+                                    onClick={() => onWatch(item, ep)}
+                                    className="flex items-center gap-4 p-3 bg-brand-card rounded-lg border border-brand-border cursor-pointer hover:bg-white/5 transition-colors"
+                                >
+                                    <span className="text-brand-text-muted font-bold text-lg">{ep.number}</span>
+                                    <div className="flex-grow">
+                                        <h4 className="text-sm font-bold text-foreground">{ep.title}</h4>
+                                        <p className="text-xs text-brand-text-muted">{ep.duration}</p>
+                                    </div>
+                                    <PlayIcon className="h-6 w-6 text-brand-primary" />
                                 </div>
-                                <PlayIcon className="h-6 w-6 text-brand-primary" />
-                            </div>
-                        ))}
+                            ))
+                        )}
                     </div>
                 </div>
             )}

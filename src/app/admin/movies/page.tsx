@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { adminGetCollection, startDownload, triggerDownload } from '@/app/api';
+import TmdbLinkModal from '../components/TmdbLinkModal';
 
 interface Movie {
   _id: string;
@@ -10,6 +11,9 @@ interface Movie {
   lien: string;
   tmdbId?: number;
   createdAt: string;
+  uqloadCode?: string;
+  uqloadLink?: string;
+  fileCode?: string;
 }
 
 export default function AdminMovies() {
@@ -20,6 +24,7 @@ export default function AdminMovies() {
   const [q, setQ] = useState('');
   const [loading, setLoading] = useState(true);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [linkModal, setLinkModal] = useState<{ docId: string; tmdbId?: number } | null>(null);
   const limit = 50;
 
   const fetch = useCallback(async (search: string, p: number) => {
@@ -85,6 +90,8 @@ export default function AdminMovies() {
                 <tr style={{ borderBottom: '1px solid #2a2a2a', color: '#888', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em' }}>
                   <th style={{ padding: '0.75rem 1rem', textAlign: 'left' }}>Titre</th>
                   <th style={{ padding: '0.75rem 1rem', textAlign: 'left' }}>TMDB</th>
+                  <th style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>Uqload</th>
+                  <th style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>DoodStream</th>
                   <th style={{ padding: '0.75rem 1rem', textAlign: 'left' }}>Lien</th>
                   <th style={{ padding: '0.75rem 1rem', textAlign: 'left' }}>Ajouté</th>
                   <th style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>Actions</th>
@@ -95,8 +102,22 @@ export default function AdminMovies() {
                   <tr key={m._id} style={{ borderBottom: '1px solid #2a2a2a' }}>
                     <td style={{ padding: '0.75rem 1rem', color: '#fff' }}>{m.titre}</td>
                     <td style={{ padding: '0.75rem 1rem' }}>
-                      <span style={{ color: m.tmdbId ? '#22c55e' : '#ef4444', fontSize: '0.75rem' }}>
-                        {m.tmdbId ? '✓ Lié' : '✗ Non'}
+                      <button onClick={() => setLinkModal({ docId: m._id, tmdbId: m.tmdbId })} style={{
+                        background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                        color: m.tmdbId ? '#22c55e' : '#ef4444', fontSize: '0.75rem', textDecoration: 'underline',
+                        textDecorationColor: m.tmdbId ? '#22c55e' : '#ef4444',
+                      }}>
+                        {m.tmdbId ? `✓ ${m.tmdbId}` : '✗ Lier'}
+                      </button>
+                    </td>
+                    <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
+                      <span style={{ color: m.uqloadCode ? '#22c55e' : '#6b6b80', fontSize: '0.75rem' }}>
+                        {m.uqloadCode ? '✓' : '—'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
+                      <span style={{ color: m.fileCode ? '#22c55e' : '#6b6b80', fontSize: '0.75rem' }}>
+                        {m.fileCode ? '✓' : '—'}
                       </span>
                     </td>
                     <td style={{ padding: '0.75rem 1rem' }}>
@@ -182,6 +203,18 @@ export default function AdminMovies() {
         </>
       )}
 
+      {linkModal && (
+        <TmdbLinkModal
+          type="movies"
+          docId={linkModal.docId}
+          currentTmdbId={linkModal.tmdbId}
+          onClose={() => setLinkModal(null)}
+          onLinked={(tmdbId) => {
+            setItems(prev => prev.map(it => it._id === linkModal.docId ? { ...it, tmdbId } : it));
+            setLinkModal(null);
+          }}
+        />
+      )}
     </div>
   );
 }

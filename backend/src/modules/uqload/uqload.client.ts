@@ -75,4 +75,8 @@ export class UqloadClient {
     const dlResult = await this.getDirectLink(fileCode);
     return { fileCode, directLink: dlResult.result };
   }
+
+  async uploadByUrlAsync(videoUrl: string, title?: string): Promise<string> {
+    return this.uploadByUrl(videoUrl, title);
+  }
 }

@@ -24,6 +24,20 @@ import {
   Genre,
 } from "../api";
 
+const HOME_GENRES = [
+  { id: '16', title: 'Animation' },
+  { id: '28', title: 'Action' },
+  { id: '10749', title: 'Romance' },
+];
+
+type TabFetcher = (signal: AbortSignal) => Promise<MovieOrShow[]>;
+
+const TAB_FETCHERS: Record<string, TabFetcher> = {
+  movies: (signal) => getPopularMovies(1, signal),
+  series: (signal) => getPopularTV(1, signal),
+  anime: (signal) => getAnimeSeries(1, signal),
+};
+
 export default function HomePage() {
   return (
     <Suspense fallback={<HomeFallback />}>
@@ -65,94 +79,11 @@ function Home() {
   const [genreRows, setGenreRows] = useState<{ title: string; items: MovieOrShow[] }[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
 
-  useEffect(() => {
-    loadContinueWatchingHistory();
-  }, []);
-
-  const HOME_GENRES = [
-    { id: '16', title: 'Animation' },
-    { id: '28', title: 'Action' },
-    { id: '10749', title: 'Romance' },
-  ];
-
-  const loadHomeData = useCallback(async (signal?: AbortSignal) => {
-    setIsLoadingData(true);
-    try {
-      const fetchWithCatch = async <T,>(promise: Promise<T>, fallback: T): Promise<T> => {
-        try {
-          return await promise;
-        } catch (e) {
-          if (e instanceof DOMException && e.name === "AbortError") throw e;
-          console.error("Failed fetching section:", e);
-          return fallback;
-        }
-      };
-
-      const [trending, trendingTV, popular, popularTV, anime, genreList] = await Promise.all([
-        fetchWithCatch(getTrendingMovies(signal), []),
-        fetchWithCatch(getTrendingTV(signal), []),
-        fetchWithCatch(getPopularMovies(1, signal), []),
-        fetchWithCatch(getPopularTV(1, signal), []),
-        fetchWithCatch(getAnimeSeries(1, signal), []),
-        fetchWithCatch(getMovieGenres(signal), []),
-      ]);
-
-      const allTrending = [...trending, ...trendingTV];
-      if (allTrending.length > 0) setTrendingAll(allTrending);
-      if (popular.length > 0) {
-        setMoviesData(popular);
-        setHeroSlides(popular.slice(0, 5));
-      }
-      if (popularTV.length > 0) setSeriesData(popularTV);
-      if (anime.length > 0) setAnimeData(anime);
-      if (genreList.length > 0) setGenres(genreList);
-
-      const genreResults = await Promise.all(
-        HOME_GENRES.map(g => fetchWithCatch(getMoviesByGenre(g.id, 1, signal), []))
-      );
-      const rows = HOME_GENRES.map((g, i) => ({ title: g.title, items: genreResults[i] || [] }))
-        .filter(r => r.items.length > 0);
-      if (rows.length > 0) setGenreRows(rows);
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") throw err;
-      console.error("Failed to load home data", err);
-    } finally {
-      setIsLoadingData(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (activeTab === "home" && trendingAll.length === 0) {
-      const controller = new AbortController();
-      loadHomeData(controller.signal).catch(() => {});
-      return () => controller.abort();
-    }
-  }, [activeTab, loadHomeData]);
-
-  useEffect(() => {
-    if (activeTab !== "movies" || moviesData.length > 0) return;
-    const controller = new AbortController();
-    getPopularMovies(1, controller.signal).then(setMoviesData).catch(() => {});
-    return () => controller.abort();
-  }, [activeTab]);
-
-  useEffect(() => {
-    if (activeTab !== "series" || seriesData.length > 0) return;
-    const controller = new AbortController();
-    getPopularTV(1, controller.signal).then(setSeriesData).catch(() => {});
-    return () => controller.abort();
-  }, [activeTab]);
-
-  useEffect(() => {
-    if (activeTab !== "anime" || animeData.length > 0) return;
-    const controller = new AbortController();
-    getAnimeSeries(1, controller.signal).then(setAnimeData).catch(() => {});
-    return () => controller.abort();
-  }, [activeTab]);
-
-  const loadContinueWatchingHistory = () => {
+  // Continue-watching is read from localStorage. Declared BEFORE the useEffect
+  // that calls it so the effect's first run can't hit a TDZ (P0-#8).
+  const loadContinueWatchingHistory = useCallback(() => {
     const history: { item: MovieOrShow; progress: number; remaining: string; episodeName?: string; updatedAt: number }[] = [];
-    
+
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (key && key.startsWith("chiller_progress_")) {
@@ -191,8 +122,93 @@ function Home() {
     }
 
     history.sort((a, b) => b.updatedAt - a.updatedAt);
-    setContinueWatching(history.map(({ item, progress, remaining, episodeName }) => ({ item, progress, remaining, episodeName })));
+    setContinueWatching(
+      history.map(({ item, progress, remaining, episodeName }) => ({
+        item,
+        progress,
+        remaining,
+        episodeName,
+      })),
+    );
+  }, []);
+
+  useEffect(() => {
+    loadContinueWatchingHistory();
+  }, [loadContinueWatchingHistory]);
+
+  const loadHomeData = useCallback(async (signal?: AbortSignal) => {
+    setIsLoadingData(true);
+    try {
+      const fetchWithCatch = async <T,>(promise: Promise<T>, fallback: T): Promise<T> => {
+        try {
+          return await promise;
+        } catch (e) {
+          if (e instanceof DOMException && e.name === "AbortError") throw e;
+          console.error("Failed fetching section:", e);
+          return fallback;
+        }
+      };
+
+      const [trending, trendingTV, popular, popularTV, anime, genreList] = await Promise.all([
+        fetchWithCatch(getTrendingMovies(signal), []),
+        fetchWithCatch(getTrendingTV(signal), []),
+        fetchWithCatch(getPopularMovies(1, signal), []),
+        fetchWithCatch(getPopularTV(1, signal), []),
+        fetchWithCatch(getAnimeSeries(1, signal), []),
+        fetchWithCatch(getMovieGenres(signal), []),
+      ]);
+
+      const allTrending = [...trending, ...trendingTV];
+      if (allTrending.length > 0) setTrendingAll(allTrending);
+      if (popular.length > 0) {
+        setMoviesData(popular);
+        setHeroSlides(popular.slice(0, 5));
+      }
+      if (popularTV.length > 0) setSeriesData(popularTV);
+      if (anime.length > 0) setAnimeData(anime);
+      if (genreList.length > 0) setGenres(genreList);
+
+      const genreResults = await Promise.all(
+        HOME_GENRES.map((g) => fetchWithCatch(getMoviesByGenre(g.id, 1, signal), [])),
+      );
+      const rows = HOME_GENRES.map((g, i) => ({ title: g.title, items: genreResults[i] || [] })).filter(
+        (r) => r.items.length > 0,
+      );
+      if (rows.length > 0) setGenreRows(rows);
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") throw err;
+      console.error("Failed to load home data", err);
+    } finally {
+      setIsLoadingData(false);
+    }
+  }, []);
+
+  // Home tab: load all rows once. Aborted on unmount or tab change.
+  useEffect(() => {
+    if (activeTab !== "home") return;
+    if (trendingAll.length > 0) return; // already loaded
+    const controller = new AbortController();
+    loadHomeData(controller.signal).catch(() => {});
+    return () => controller.abort();
+  }, [activeTab, trendingAll.length, loadHomeData]);
+
+  // P1-#22: one effect dispatches on `activeTab` instead of three near-identical
+  // effects. Each tab fetcher is in TAB_FETCHERS; the matching setter is in
+  // TAB_SETTERS so we don't have to pass the setter through the fetcher.
+  const TAB_SETTERS: Record<string, React.Dispatch<React.SetStateAction<MovieOrShow[]>>> = {
+    movies: setMoviesData,
+    series: setSeriesData,
+    anime: setAnimeData,
   };
+
+  useEffect(() => {
+    const fetcher = TAB_FETCHERS[activeTab];
+    const setter = TAB_SETTERS[activeTab];
+    if (!fetcher || !setter) return;
+    const controller = new AbortController();
+    fetcher(controller.signal).then(setter).catch(() => {});
+    return () => controller.abort();
+  }, [activeTab]);
 
   const handleOpenDetails = async (item: MovieOrShow) => {
     setSelectedMovie(item);
@@ -224,7 +240,7 @@ function Home() {
 
       <main className="flex-grow transition-all duration-300">
         <div className="space-y-10 pb-24">
-            
+
             {activeTab === "home" && (
               <HeroCarousel
                 slides={heroSlides}
@@ -255,7 +271,7 @@ function Home() {
             )}
 
             <div className="max-w-[1600px] mx-auto px-2 sm:px-6 md:px-12 lg:px-[4%] space-y-10">
-              
+
               {activeTab === "home" && (
                 <>
                   {isLoadingData ? (

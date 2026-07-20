@@ -45,18 +45,35 @@ export default function HeroCarousel({
     setIsPaused((prev) => !prev);
   };
 
+  // P1-#2: split into two effects so the <video> mute/pause action doesn't
+  // re-fire every time the user changes slide, and the iframe postMessage
+  // doesn't accidentally hit an iframe from a different slide.
+  // 1. Local <video> element: pause/play when [isPaused] changes.
   useEffect(() => {
-    if (videoRef.current) {
-      isPaused ? videoRef.current.pause() : videoRef.current.play();
-    }
-    const iframe = document.querySelector('iframe[data-hero-video]') as HTMLIFrameElement | null;
+    const node = videoRef.current;
+    if (!node) return;
+    if (isPaused) node.pause();
+    else node.play().catch(() => {});
+  }, [isPaused, currentIndex]);
+
+  // 2. YouTube iframe: postMessage only when [isPaused] changes, and only to
+  // the iframe currently marked data-hero-video. (We re-query on each effect
+  // run because the iframe DOM node swaps with `currentIndex`.)
+  useEffect(() => {
+    const iframe = document.querySelector(
+      'iframe[data-hero-video]',
+    ) as HTMLIFrameElement | null;
     if (iframe?.contentWindow) {
       iframe.contentWindow.postMessage(
-        JSON.stringify({ event: 'command', func: isPaused ? 'pauseVideo' : 'playVideo', args: '' }),
-        '*'
+        JSON.stringify({
+          event: 'command',
+          func: isPaused ? 'pauseVideo' : 'playVideo',
+          args: '',
+        }),
+        '*',
       );
     }
-  }, [isPaused]);
+  }, [isPaused, currentIndex]);
 
   const handlePrev = () => {
     setCurrentIndex((prev) => (prev === 0 ? slides.length - 1 : prev - 1));
@@ -124,7 +141,7 @@ export default function HeroCarousel({
                 />
 
                 {isActive && slide.videoUrl && !isPaused && (
-                  slide.videoUrl.includes("youtube") || slide.videoUrl.includes("embed") ? (
+                  slide.videoUrl.startsWith("https://www.youtube.com/embed/") ? (
                     <iframe
                       data-hero-video
                       src={`${slide.videoUrl}?autoplay=1&controls=0&mute=1&loop=1&playlist=${slide.videoUrl.split('/').pop()}&enablejsapi=1`}
@@ -151,14 +168,16 @@ export default function HeroCarousel({
                 <div className="absolute inset-x-0 top-0 h-32 banner-overlay-top" />
               </div>
 
-              <div className="absolute top-1/2 right-[10%] md:right-[15%] -translate-y-1/2 hidden md:block z-20">
+              {/* P3-B: was `hidden md:block` which made the play button invisible
+                  on mobile. Show on all viewports; right offset scales down. */}
+              <div className="absolute top-1/2 right-[5%] sm:right-[10%] md:right-[15%] -translate-y-1/2 z-20">
                 <button
                   onClick={() => onWatchNow(slide)}
                   aria-label={`${_("hero.watchNow")} ${slide.title}`}
-                  className="flex h-24 w-24 items-center justify-center rounded-full bg-brand-primary/20 hover:bg-brand-primary/30 border border-brand-primary/50 text-white cursor-pointer transition-all duration-500 hover:scale-110 shadow-3xl hover:shadow-brand-primary/40 group backdrop-blur-sm"
+                  className="flex h-14 w-14 sm:h-20 sm:w-20 md:h-24 md:w-24 items-center justify-center rounded-full bg-brand-primary/20 hover:bg-brand-primary/30 border border-brand-primary/50 text-white cursor-pointer transition-all duration-500 hover:scale-110 shadow-3xl hover:shadow-brand-primary/40 group backdrop-blur-sm"
                 >
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-primary group-hover:bg-brand-primary/90 transition-all duration-300">
-                    <PlayIcon className="h-8 w-8 text-white translate-x-0.5" />
+                  <div className="flex h-10 w-10 sm:h-14 sm:w-14 md:h-16 md:w-16 items-center justify-center rounded-full bg-brand-primary group-hover:bg-brand-primary/90 transition-all duration-300">
+                    <PlayIcon className="h-5 w-5 sm:h-7 sm:w-7 md:h-8 md:w-8 text-white translate-x-0.5" />
                   </div>
                 </button>
               </div>

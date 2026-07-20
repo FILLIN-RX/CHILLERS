@@ -19,7 +19,7 @@ interface LanguageContextType {
 
 const LanguageContext = createContext<LanguageContextType | null>(null);
 
-function getBrowserLanguage(): Language {
+function readStoredLanguage(): Language {
   if (typeof window === "undefined") return defaultLanguage;
   const stored = localStorage.getItem("chillers-lang") as Language | null;
   if (stored && (stored === "fr" || stored === "en")) return stored;
@@ -28,19 +28,43 @@ function getBrowserLanguage(): Language {
   return defaultLanguage;
 }
 
-export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState<Language>(defaultLanguage);
-  const [mounted, setMounted] = useState(false);
+interface LanguageProviderProps {
+  children: ReactNode;
+  // P2-#30: server passes the language resolved from the `chillers-lang`
+  // cookie. This is the language the layout was rendered with, so the first
+  // client paint already matches — no flash on hydration.
+  initialLang?: Language;
+}
+
+export function LanguageProvider({ children, initialLang }: LanguageProviderProps) {
+  // Seed state with whatever the server resolved. If the client also has a
+  // localStorage value that's *different*, we still want the server value on
+  // first render to avoid a hydration mismatch — then `useEffect` below
+  // upgrades to the client value.
+  const [lang, setLangState] = useState<Language>(initialLang ?? defaultLanguage);
 
   useEffect(() => {
-    setLangState(getBrowserLanguage());
-    setMounted(true);
+    // After hydration, prefer localStorage / navigator.language over whatever
+    // the cookie said. This is the "step up" step: it may still cause a
+    // one-frame switch, but only for users whose cookie and localStorage
+    // disagree (rare; first-visit users see no flash at all).
+    const clientLang = readStoredLanguage();
+    if (clientLang !== lang) {
+      setLangState(clientLang);
+    }
+    // We only want this to run once on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const setLang = useCallback((newLang: Language) => {
     setLangState(newLang);
     try {
       localStorage.setItem("chillers-lang", newLang);
+      // Mirror to cookie so the next request from this browser also renders
+      // in the chosen language. We set it via document.cookie (rather than
+      // waiting for a full server round-trip) so the switch is immediate.
+      const oneYear = 60 * 60 * 24 * 365;
+      document.cookie = `chillers-lang=${newLang}; path=/; max-age=${oneYear}; samesite=lax`;
     } catch {
       /* noop */
     }
@@ -52,16 +76,6 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       t(lang, path, params),
     [lang],
   );
-
-  if (!mounted) {
-    const fallbackT = (path: string, params?: Record<string, string | number>) =>
-      t(defaultLanguage, path, params);
-    return (
-      <LanguageContext.Provider value={{ lang: defaultLanguage, setLang, translate: fallbackT }}>
-        {children}
-      </LanguageContext.Provider>
-    );
-  }
 
   return (
     <LanguageContext.Provider value={{ lang, setLang, translate }}>

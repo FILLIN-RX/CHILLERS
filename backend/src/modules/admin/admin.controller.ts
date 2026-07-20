@@ -5,9 +5,12 @@ import axios from 'axios';
 import { AuthRequest } from './admin.middleware';
 import * as adminService from './admin.service';
 import { clearCache } from '../../config/tmdb';
+import { chromium } from 'playwright';
+import { appendLog } from '../../config/log-buffer';
 import Admin from '../../models/Admin';
 import Movie from '../../models/Movie';
 import Serie from '../../models/Serie';
+import DeadLink from '../../models/DeadLink';
 import { startCron, stopCron, getCronStatus, runScrapingTasks, runMaintenanceTasks, runner, stopTask, getRunningTasks } from '../../cron-manager';
 import { UqloadClient } from '../uqload/uqload.client';
 import { uploadMoviesBatch, uploadSeriesBatch, uploadSingleMovie, uploadSingleEpisode, stopUpload, isUploadRunning } from '../uqload/uqload.uploader';
@@ -121,6 +124,185 @@ export async function appealDeadLink(req: AuthRequest, res: Response) {
     }
 }
 
+export async function rescrapeDeadLink(req: AuthRequest, res: Response) {
+    try {
+        const deadLink = await DeadLink.findById(req.params.id).lean();
+        if (!deadLink) {
+            res.status(404).json({ success: false, data: null, message: 'Lien introuvable' });
+            return;
+        }
+
+        const headless = req.body.headless !== false;
+        const { titre, episode, type } = deadLink;
+        appendLog(`[Rescrape] Début — "${titre}" (${episode}, headless: ${headless})`);
+
+        res.json({ success: true, data: { status: 'launched', titre, episode, type }, message: 'Rescrape lancé' });
+
+        setTimeout(async () => {
+            try {
+                const browser = await chromium.launch({
+                    headless,
+                    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+                });
+                const page = await browser.newPage();
+                page.on('console', msg => appendLog(`[Browser] ${msg.text()}`));
+
+                // Try to navigate directly to pageUrl if available
+                let pageUrl: string | null = null;
+                if (type === 'series') {
+                    const doc = await Serie.findOne({ titre }, 'pageUrl').lean();
+                    pageUrl = doc?.pageUrl || null;
+                } else {
+                    const doc = await Movie.findOne({ titre }, 'pageUrl').lean();
+                    pageUrl = doc?.pageUrl || null;
+                }
+
+                if (pageUrl) {
+                    appendLog(`[Rescrape] Navigation directe vers ${pageUrl}`);
+                    await page.goto(pageUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+                    await page.waitForTimeout(2000);
+                } else {
+                    const searchUrl = type === 'series' ? 'https://www.open-otaku.me/?cat=series' : 'https://www.open-otaku.me/';
+                    appendLog(`[Rescrape] Recherche sur ${searchUrl}`);
+                    await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+                    await page.waitForTimeout(2000);
+
+                    const searchBtn = page.locator('#fs-search-icon-btn');
+                    if (await searchBtn.count() > 0) {
+                        await searchBtn.click();
+                        await page.waitForTimeout(1000);
+                    }
+
+                    const searchInput = page.locator('input[type="search"], input[type="text"], #fs-search-input, .fs-search-input');
+                    if (await searchInput.count() > 0) {
+                        await searchInput.first().fill(titre);
+                        await page.keyboard.press('Enter');
+                        await page.waitForTimeout(3000);
+                    } else {
+                        await page.goto(`https://www.open-otaku.me/?s=${encodeURIComponent(titre)}`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+                        await page.waitForTimeout(3000);
+                    }
+
+                    const cards = await page.locator('.fs-card').all();
+                    if (cards.length === 0) {
+                        appendLog(`[Rescrape] ❌ Aucun résultat pour "${titre}"`);
+                        await browser.close();
+                        return;
+                    }
+                    appendLog(`[Rescrape] ${cards.length} résultat(s) trouvé(s)`);
+
+                    let targetCard = cards[0];
+                    const searchNorm = titre.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20);
+                    for (const card of cards) {
+                        const cardTitle = await card.locator('.fs-card-title').innerText().catch(() => '');
+                        const cardNorm = cardTitle.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20);
+                        if (cardNorm === searchNorm) { targetCard = card; break; }
+                    }
+
+                    await targetCard.click();
+                    await page.waitForLoadState('domcontentloaded');
+                    await page.waitForTimeout(2000);
+                }
+
+                appendLog(`[Rescrape] Page détail ouverte`);
+
+                let newLink: string | null = null;
+
+                if (type === 'series' && episode) {
+                    const epNum = episode.replace(/.*?(\d+)/, '$1');
+                    appendLog(`[Rescrape] Recherche épisode ${episode}`);
+
+                    const selected = await page.evaluate((epNum) => {
+                        const select = document.querySelector('#fs-episode-select') as HTMLSelectElement | null;
+                        if (!select) return false;
+                        const option = Array.from(select.options).find(o => o.text.trim().includes(epNum));
+                        if (option) {
+                            select.value = option.value;
+                            select.dispatchEvent(new Event('change'));
+                            return true;
+                        }
+                        return false;
+                    }, epNum);
+
+                    if (!selected) {
+                        appendLog(`[Rescrape] ❌ Épisode ${episode} non trouvé dans le dropdown`);
+                        await browser.close();
+                        return;
+                    }
+                    await page.waitForTimeout(4000);
+                }
+
+                const dlBtn = page.locator('button#fs-quick-download, .fs-download-btn, button:has-text("Download")');
+                if (await dlBtn.count() > 0) {
+                    await dlBtn.first().click({ force: true });
+                    appendLog(`[Rescrape] Téléchargement cliqué, attente du lien...`);
+                    await page.waitForTimeout(10000);
+
+                    const dlLink = page.locator('a#fs-dl-link');
+                    if (await dlLink.count() > 0) {
+                        newLink = await dlLink.first().getAttribute('href');
+                    }
+
+                    if (!newLink || newLink === '#') {
+                        const allLinks = await page.locator('a[href]').all();
+                        for (const link of allLinks) {
+                            const href = await link.getAttribute('href');
+                            if (href && (href.includes('.mp4') || href.includes('vidzy') || href.includes('doodstream'))) {
+                                newLink = href;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                await browser.close();
+
+                if (!newLink || newLink === '#') {
+                    appendLog(`[Rescrape] ❌ Aucun lien trouvé pour "${titre}"`);
+                    return;
+                }
+
+                appendLog(`[Rescrape] ✅ Nouveau lien: ${newLink.substring(0, 80)}...`);
+
+                if (type === 'series') {
+                    const serie = await Serie.findOne({ titre });
+                    if (serie) {
+                        const ep = serie.episodes.find(e => e.episode === episode);
+                        if (ep) {
+                            ep.lien = newLink;
+                            await serie.save();
+                            appendLog(`[Rescrape] ✅ Série mise à jour: ${titre} / ${episode}`);
+                        } else {
+                            appendLog(`[Rescrape] ⚠ Épisode "${episode}" non trouvé dans la série`);
+                        }
+                    } else {
+                        appendLog(`[Rescrape] ⚠ Série "${titre}" introuvable dans MongoDB`);
+                    }
+                } else {
+                    const updated = await Movie.findOneAndUpdate(
+                        { titre },
+                        { $set: { lien: newLink } },
+                        { new: true }
+                    );
+                    if (updated) {
+                        appendLog(`[Rescrape] ✅ Film mis à jour: ${titre}`);
+                    } else {
+                        appendLog(`[Rescrape] ⚠ Film "${titre}" introuvable dans MongoDB`);
+                    }
+                }
+
+                await DeadLink.findByIdAndDelete(req.params.id);
+                appendLog(`[Rescrape] ✅ Entrée lien mort supprimée`);
+
+            } catch (e: any) {
+                appendLog(`[Rescrape] ❌ Erreur: ${e.message}`);
+            }
+        }, 100);
+    } catch (e: any) {
+        res.status(500).json({ success: false, data: null, message: e.message });
+    }
+}
+
 export async function getSettings(_req: AuthRequest, res: Response) {
     const settings = adminService.getSettings();
     res.json({ success: true, data: settings, message: null });
@@ -188,6 +370,37 @@ export async function getMovie(req: AuthRequest, res: Response) {
             return;
         }
         res.json({ success: true, data: movie, message: null });
+    } catch (e: any) {
+        res.status(500).json({ success: false, data: null, message: e.message });
+    }
+}
+
+export async function linkTmdb(req: AuthRequest, res: Response) {
+    try {
+        const { type, id, tmdbId } = req.body;
+        if (!type || !id || !tmdbId) {
+            res.status(400).json({ success: false, data: null, message: 'type, id, et tmdbId requis' });
+            return;
+        }
+        if (type !== 'movies' && type !== 'series') {
+            res.status(400).json({ success: false, data: null, message: 'type doit être movies ou series' });
+            return;
+        }
+        if (typeof tmdbId !== 'number') {
+            res.status(400).json({ success: false, data: null, message: 'tmdbId doit être un nombre' });
+            return;
+        }
+
+        const updated = type === 'movies'
+            ? await Movie.findByIdAndUpdate(id, { $set: { tmdbId } }, { new: true }).lean()
+            : await Serie.findByIdAndUpdate(id, { $set: { tmdbId } }, { new: true }).lean();
+
+        if (!updated) {
+            res.status(404).json({ success: false, data: null, message: 'Document introuvable' });
+            return;
+        }
+
+        res.json({ success: true, data: { tmdbId }, message: 'TMDB lié avec succès' });
     } catch (e: any) {
         res.status(500).json({ success: false, data: null, message: e.message });
     }
@@ -351,10 +564,20 @@ export async function uqloadStatus(_req: AuthRequest, res: Response) {
     }
     try {
         const client = new UqloadClient(apiKey);
-        const [accountInfo, moviesPending, seriesPending] = await Promise.all([
+        const [accountInfo, moviesPending, seriesPending, moviesPendingBoth, episodesPendingBoth] = await Promise.all([
             client.getAccountInfo(),
             Movie.countDocuments({ $or: [{ uqloadCode: { $eq: null } }, { uqloadCode: { $exists: false } }] }),
             Serie.countDocuments({ 'episodes.uqloadCode': { $eq: null } }),
+            Movie.countDocuments({
+                uqloadCode: { $exists: false },
+                $or: [{ fileCode: { $exists: false } }, { fileCode: { $eq: null } }],
+            }),
+            Serie.countDocuments({
+                $or: [
+                    { 'episodes.uqloadCode': { $exists: false }, 'episodes.fileCode': { $exists: false } },
+                    { 'episodes.uqloadCode': null, 'episodes.fileCode': null },
+                ],
+            }),
         ]);
 
         res.json({
@@ -373,6 +596,10 @@ export async function uqloadStatus(_req: AuthRequest, res: Response) {
                     movies: moviesPending,
                     series: seriesPending,
                 },
+                pendingBoth: {
+                    movies: moviesPendingBoth,
+                    series: episodesPendingBoth,
+                },
             },
             message: null,
         });
@@ -385,7 +612,7 @@ export async function uqloadPending(_req: AuthRequest, res: Response) {
     try {
         const [movies, series] = await Promise.all([
             Movie.find({ $or: [{ uqloadCode: { $eq: null } }, { uqloadCode: { $exists: false } }] })
-                .select('titre lien uqloadCode createdAt')
+                .select('titre lien uqloadCode fileCode createdAt')
                 .sort({ createdAt: -1 })
                 .limit(200)
                 .lean(),
@@ -405,6 +632,7 @@ export async function uqloadPending(_req: AuthRequest, res: Response) {
                         episode: ep.episode,
                         lien: ep.lien,
                         uqloadCode: ep.uqloadCode || null,
+                        fileCode: ep.fileCode || null,
                     });
                 }
             }
@@ -413,7 +641,61 @@ export async function uqloadPending(_req: AuthRequest, res: Response) {
         res.json({
             success: true,
             data: {
-                movies: movies.map(m => ({ titre: m.titre, lien: m.lien, uqloadCode: m.uqloadCode || null, createdAt: m.createdAt })),
+                movies: movies.map((m: any) => ({ titre: m.titre, lien: m.lien, uqloadCode: m.uqloadCode || null, fileCode: m.fileCode || null, createdAt: m.createdAt })),
+                series: seriesEpisodes.slice(0, 200),
+                totalMovies: movies.length,
+                totalEpisodes: seriesEpisodes.length,
+            },
+            message: null,
+        });
+    } catch (e: any) {
+        res.status(500).json({ success: false, data: null, message: e.message });
+    }
+}
+
+export async function uqloadPendingBoth(_req: AuthRequest, res: Response) {
+    try {
+        const [movies, series] = await Promise.all([
+            Movie.find({
+                uqloadCode: { $exists: false },
+                $or: [{ fileCode: { $exists: false } }, { fileCode: null }],
+            })
+                .select('titre lien pageUrl tmdbId createdAt')
+                .sort({ createdAt: -1 })
+                .limit(200)
+                .lean(),
+            Serie.find({
+                $or: [
+                    { 'episodes.uqloadCode': { $exists: false }, 'episodes.fileCode': { $exists: false } },
+                    { 'episodes.uqloadCode': null, 'episodes.fileCode': null },
+                ],
+            })
+                .select('titre episodes')
+                .sort({ createdAt: -1 })
+                .limit(200)
+                .lean(),
+        ]);
+
+        const seriesEpisodes: any[] = [];
+        for (const serie of series) {
+            for (const ep of serie.episodes || []) {
+                if (!ep.uqloadCode && !ep.fileCode) {
+                    seriesEpisodes.push({
+                        serieId: serie._id,
+                        serieTitre: serie.titre,
+                        episode: ep.episode,
+                        season: ep.season,
+                        episodeNumber: ep.episodeNumber,
+                        lien: ep.lien,
+                    });
+                }
+            }
+        }
+
+        res.json({
+            success: true,
+            data: {
+                movies: movies.map(m => ({ _id: m._id, titre: m.titre, lien: m.lien, pageUrl: m.pageUrl, tmdbId: m.tmdbId, createdAt: m.createdAt })),
                 series: seriesEpisodes.slice(0, 200),
                 totalMovies: movies.length,
                 totalEpisodes: seriesEpisodes.length,
