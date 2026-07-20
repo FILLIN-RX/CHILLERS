@@ -10,7 +10,7 @@ import { OtakuProvider } from './providers/otaku.provider';
 
 const VALIDATION_TIMEOUT = 5000;
 const PROVIDER_TIMEOUT = 10000;
-const OTAKU_TIMEOUT = 60000;
+const OTAKU_TIMEOUT = 25000;
 const CIRCUIT_BREAKER_THRESHOLD = 3;
 const CIRCUIT_BREAKER_COOLDOWN = 60_000;
 

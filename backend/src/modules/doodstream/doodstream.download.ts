@@ -6,9 +6,7 @@ import { listFiles, getFileDownloadUrl } from './doodstream.service';
 import tmdbClient from '../../config/tmdb';
 import Movie from '../../models/Movie';
 import Serie from '../../models/Serie';
-
-const UPLOADED_PATH = path.join(__dirname, '../../../uploaded.json');
-const SERIES_OUTPUT_PATH = path.join(__dirname, '../../../series-output.json');
+import { UPLOADED_PATH, SERIES_OUTPUT_PATH } from '../../config/data-paths';
 
 const SE_PATTERN = /[Ss](\d+)[Ee](\d+)/;
 
