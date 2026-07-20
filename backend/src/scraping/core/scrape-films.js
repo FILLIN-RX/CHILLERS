@@ -4,7 +4,7 @@ const Movie = require('../../models/Movie').default;
 const ScraperState = require('../../models/ScraperState').default;
 const { connectDB } = require('../../config/db');
 const { browserConfig } = require('../../config/browser');
-const { UqloadClient } = require('../../modules/uqload/uqload.client').UqloadClient;
+const { UqloadClient } = require('../../modules/uqload/uqload.client');
 
 async function uploadToUqload(client, titre, lien, movieId) {
   if (!client) return;
