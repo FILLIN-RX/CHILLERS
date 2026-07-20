@@ -211,26 +211,27 @@ export const getDownloadByTitle = async (req: Request, res: Response, next: Next
 
     let match: { fileCode: string; info: any } | null = null;
 
-    if (tmdb_id) {
+    // Priority 1: MongoDB (la plus récente / fiable)
+    match = await findByMongoDB(title, tmdb_id ? Number(tmdb_id) : undefined, seasonNum, episodeNum);
+
+    // Priority 2: JSON cache by tmdb_id
+    if (!match && tmdb_id) {
       match = findByTmdbId(Number(tmdb_id), seasonNum, episodeNum);
     }
 
-    if (!match && file_code) {
-      match = { fileCode: file_code, info: {} };
-    }
-
+    // Priority 3: JSON cache by title
     if (!match && title) {
       match = findByTitle(title, seasonNum, episodeNum);
     }
 
-    // Fallback: if season+episode requested but not found in json, try DoodStream folder listing
+    // Priority 4: DoodStream folder listing API
     if (!match && tmdb_id && seasonNum !== undefined && episodeNum !== undefined) {
       match = await findByFolderFallback(Number(tmdb_id), seasonNum, episodeNum);
     }
 
-    // MongoDB fallback
-    if (!match) {
-      match = await findByMongoDB(title, tmdb_id ? Number(tmdb_id) : undefined, seasonNum, episodeNum);
+    // Priority 5: direct file_code
+    if (!match && file_code) {
+      match = { fileCode: file_code, info: {} };
     }
 
     if (!match) {
