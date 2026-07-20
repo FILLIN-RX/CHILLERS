@@ -110,7 +110,7 @@ export async function deadLinks(_req: AuthRequest, res: Response) {
 
 export async function appealDeadLink(req: AuthRequest, res: Response) {
     try {
-        const result = await adminService.appealDeadLink(req.params.id);
+        const result = await adminService.appealDeadLink(req.params.id as string);
         if (!result.found) {
             res.status(404).json({ success: false, data: null, message: 'Lien introuvable' });
             return;

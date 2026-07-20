@@ -530,16 +530,6 @@ export async function startDownload(
       }
     }
 
-    const res = await fetchWithTimeout(`${API_BASE_URL}/download`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mediaId: id, mediaType: type, season, episode, title }),
-    });
-    const json = await res.json();
-    if (json.success && json.m3u8_url) {
-      return { downloadUrl: json.m3u8_url, fileCode: '' };
-    }
-    console.error('Download extraction failed:', json.error);
   } catch (error) {
     console.error('Error starting download:', error);
   }
