@@ -102,7 +102,7 @@ export default function Header({ onSearchClick }: HeaderProps) {
             })}
             <Link
               href="/categories"
-              className={`relative flex items-center gap-1.5 py-1 text-sm font-medium transition-colors focus:outline-none ${
+              className={`relative flex items-center gap-1.5 py-1 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-brand-primary rounded ${
                 activeTab === "categories"
                   ? "text-white"
                   : "text-zinc-400 hover:text-white"
