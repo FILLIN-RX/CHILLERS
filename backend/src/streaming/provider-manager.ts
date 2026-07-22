@@ -236,23 +236,35 @@ export class ProviderManager {
 
   private async contentExistsInMongoDB(query: StreamQuery): Promise<boolean> {
     try {
-      if (query.season !== undefined && query.episode !== undefined) {
-        const serie = await Serie.findOne({
-          $or: [
-            ...(query.tmdbId ? [{ tmdbId: query.tmdbId }] : []),
-            ...(query.title ? [{ titre: { $regex: new RegExp(query.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } }] : []),
-          ],
-        }).exec();
-        return !!serie;
+      const isSerie = query.season !== undefined && query.episode !== undefined;
+      const model = isSerie ? Serie : Movie;
+
+      const orClause: any[] = [];
+      if (query.tmdbId) {
+        orClause.push({ tmdbId: query.tmdbId });
+        orClause.push({ tmdbId: String(query.tmdbId) });
       }
-      const movie = await Movie.findOne({
-        $or: [
-          ...(query.tmdbId ? [{ tmdbId: query.tmdbId }] : []),
-          ...(query.title ? [{ titre: { $regex: new RegExp(query.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } }] : []),
-        ],
-      }).exec();
-      return !!movie;
-    } catch {
+      if (query.title) {
+        const safe = query.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        orClause.push({ titre: { $regex: new RegExp(safe, 'i') } });
+        // Match sans espaces/ponctuation pour tolérer les différences de format
+        const stripped = query.title.replace(/[^a-z0-9]/gi, '');
+        if (stripped.length >= 3 && stripped !== safe) {
+          const fuzzy = [...stripped].join('[^a-z0-9]*');
+          orClause.push({ titre: { $regex: new RegExp(fuzzy, 'i') } });
+        }
+      }
+      if (orClause.length === 0) return false;
+
+      const doc = await model.findOne({ $or: orClause }).exec();
+      if (doc) {
+        console.log(`[ProviderManager] ${isSerie ? 'Série' : 'Film'} trouvé en BD (tmdbId=${query.tmdbId}, titre="${query.title}")`);
+      } else {
+        console.log(`[ProviderManager] ${isSerie ? 'Série' : 'Film'} NON trouvé en BD (tmdbId=${query.tmdbId}, titre="${query.title}") → VidLink/VidAPI gardés`);
+      }
+      return !!doc;
+    } catch (err) {
+      console.error('[ProviderManager] Erreur contentExistsInMongoDB:', err);
       return false;
     }
   }
