@@ -85,13 +85,14 @@ export default function Header({ onSearchClick }: HeaderProps) {
                 <Link
                   key={tab.id}
                   href={tab.href}
+                  aria-current={activeTab === tab.id ? "page" : undefined}
                   className={`relative flex items-center gap-1.5 py-1 text-sm font-medium transition-colors focus:outline-none ${
                     activeTab === tab.id
                       ? "text-white"
                       : "text-zinc-400 hover:text-white"
                   }`}
                 >
-                  <Icon className="h-4 w-4" />
+                  <Icon className="h-4 w-4" aria-hidden="true" focusable="false" />
                   {tab.label}
                   {activeTab === tab.id && (
                     <span className="absolute bottom-0 left-0 h-[2px] w-full bg-brand-primary rounded-full" />
@@ -101,13 +102,13 @@ export default function Header({ onSearchClick }: HeaderProps) {
             })}
             <Link
               href="/categories"
-              className={`relative flex items-center gap-1.5 py-1 text-sm font-medium transition-colors focus:outline-none ${
+              className={`relative flex items-center gap-1.5 py-1 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-brand-primary rounded ${
                 activeTab === "categories"
                   ? "text-white"
                   : "text-zinc-400 hover:text-white"
               }`}
             >
-              <Squares2X2Icon className="h-4 w-4" />
+              <Squares2X2Icon className="h-4 w-4" aria-hidden="true" focusable="false" />
               {_("nav.categories")}
               {activeTab === "categories" && (
                 <span className="absolute bottom-0 left-0 h-[2px] w-full bg-brand-primary rounded-full" />
