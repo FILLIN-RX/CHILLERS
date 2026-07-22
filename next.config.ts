@@ -13,7 +13,7 @@ const nextConfig: NextConfig = {
     const isProd = process.env.NODE_ENV === "production";
     const rawApiUrl =
       process.env.NEXT_PUBLIC_API_URL ||
-      (isProd ? "https://chillers.onrender.com/api" : "http://localhost:5000/chiller/api");
+      (isProd ? "https://api-v2.docmaster.net/chillers/api" : "http://localhost:5000/chiller/api");
     const backendUrl = rawApiUrl.replace(/\/api\/?$/, "");
     return [
       {
