@@ -8,6 +8,7 @@ import { VidAPIProvider } from './providers/vidapi.provider';
 import { AnimeKaiProvider } from './providers/animekai.provider';
 import { OtakuProvider } from './providers/otaku.provider';
 import { VidLinkProvider } from './providers/vidlink.provider';
+import { CachedStream, streamCache, getCacheKey } from '../utils/stream-cache';
 import Movie from '../models/Movie';
 import Serie from '../models/Serie';
 
@@ -237,7 +238,7 @@ export class ProviderManager {
   private async contentExistsInMongoDB(query: StreamQuery): Promise<boolean> {
     try {
       const isSerie = query.season !== undefined && query.episode !== undefined;
-      const model = isSerie ? Serie : Movie;
+      const Model: any = isSerie ? Serie : Movie;
 
       const orClause: any[] = [];
       if (query.tmdbId) {
@@ -256,7 +257,7 @@ export class ProviderManager {
       }
       if (orClause.length === 0) return false;
 
-      const doc = await model.findOne({ $or: orClause }).exec();
+      const doc = await Model.findOne({ $or: orClause }).exec();
       if (doc) {
         console.log(`[ProviderManager] ${isSerie ? 'Série' : 'Film'} trouvé en BD (tmdbId=${query.tmdbId}, titre="${query.title}")`);
       } else {
