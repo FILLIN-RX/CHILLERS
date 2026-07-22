@@ -108,7 +108,7 @@ export default function Header({ onSearchClick }: HeaderProps) {
                   : "text-zinc-400 hover:text-white"
               }`}
             >
-              <Squares2X2Icon className="h-4 w-4" />
+              <Squares2X2Icon className="h-4 w-4" aria-hidden="true" focusable="false" />
               {_("nav.categories")}
               {activeTab === "categories" && (
                 <span className="absolute bottom-0 left-0 h-[2px] w-full bg-brand-primary rounded-full" />
