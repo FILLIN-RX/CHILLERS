@@ -49,7 +49,6 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
   const [showSettings, setShowSettings] = useState(false);
   const [notification, setNotification] = useState<{ title: string; message: string } | null>(null);
   const [isVideoLoading, setIsVideoLoading] = useState(true);
-  const [iframeActivated, setIframeActivated] = useState(false);
   const [isPortrait, setIsPortrait] = useState(false);
   const [dismissPortraitPrompt, setDismissPortraitPrompt] = useState(false);
 
@@ -314,18 +313,8 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
             referrerPolicy="origin"
             title={item.title}
             scrolling="no"
-            loading="lazy"
-            sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+            sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-orientation-lock allow-presentation allow-top-navigation-by-user-activation"
           />
-          {!iframeActivated && (
-            <div
-              className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/60 cursor-pointer sm:hidden"
-              onClick={() => setIframeActivated(true)}
-            >
-              <PlayIcon className="h-12 w-12 text-white/80" />
-              <p className="text-sm font-bold text-white/70">Toucher pour lire</p>
-            </div>
-          )}
         </>
       ) : videoUrl ? (
         <video

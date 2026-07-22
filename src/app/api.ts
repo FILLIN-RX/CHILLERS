@@ -571,8 +571,13 @@ export async function clearTmdbCache(): Promise<void> {
 export function triggerDownload(downloadUrl: string, filename: string = 'video.mp4') {
   if (typeof window === "undefined") return;
 
-  // Vidzy/DoodStream direct links — open in new tab
-  window.open(downloadUrl, '_blank');
+  const proxyUrl = `${API_BASE_URL}/doodstream/download/proxy?url=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(filename)}`;
+  const a = document.createElement('a');
+  a.href = proxyUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }
 
 export interface Genre {
