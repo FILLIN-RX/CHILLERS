@@ -910,6 +910,10 @@ export async function adminStopTask(name: string) {
   return adminFetch(`/tasks/stop/${encodeURIComponent(name)}`, { method: 'POST' });
 }
 
+export async function adminStopAllTasks() {
+  return adminFetch('/tasks/stop-all', { method: 'POST' });
+}
+
 export async function adminRunTask(taskId: string) {
   return adminFetch(`/cron/run/${encodeURIComponent(taskId)}`, { method: 'POST' });
 }

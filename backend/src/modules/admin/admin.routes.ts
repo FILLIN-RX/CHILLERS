@@ -24,6 +24,7 @@ router.get('/cron/processes', adminMiddleware, adminController.listProcesses);
 router.post('/cron/kill/:pid', adminMiddleware, adminController.killProcess);
 router.get('/cron/system', adminMiddleware, adminController.systemCron);
 router.get('/tasks/running', adminMiddleware, adminController.runningTasks);
+router.post('/tasks/stop-all', adminMiddleware, adminController.stopAllTasksHandler);
 router.post('/tasks/stop/:name', adminMiddleware, adminController.stopTaskHandler);
 router.post('/clear-cache', adminMiddleware, adminController.clearTmdbCache);
 router.get('/logs/stream', adminMiddleware, adminController.logStream);

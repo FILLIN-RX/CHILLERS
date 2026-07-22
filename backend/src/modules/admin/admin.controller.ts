@@ -11,7 +11,7 @@ import Admin from '../../models/Admin';
 import Movie from '../../models/Movie';
 import Serie from '../../models/Serie';
 import DeadLink from '../../models/DeadLink';
-import { startCron, stopCron, getCronStatus, runScrapingTasks, runMaintenanceTasks, runner, stopTask, getRunningTasks, runTaskById, runTaskByLabel, listOsProcesses, stopByPid, getSystemCronStatus, ALL_TASKS } from '../../cron-manager';
+import { startCron, stopCron, getCronStatus, runScrapingTasks, runMaintenanceTasks, runner, stopTask, stopAllTasks, getRunningTasks, runTaskById, runTaskByLabel, listOsProcesses, stopByPid, getSystemCronStatus, ALL_TASKS } from '../../cron-manager';
 import { UqloadClient } from '../uqload/uqload.client';
 import { uploadMoviesBatch, uploadSeriesBatch, uploadSingleMovie, uploadSingleEpisode, stopUpload, isUploadRunning } from '../uqload/uqload.uploader';
 
@@ -28,7 +28,7 @@ async function scraperProxy(req: AuthRequest, res: Response, endpoint: string, m
       : req.query.token;
     const response = await axios({
       method,
-      url: `${SCRAPER_API_URL}/api${endpoint}`,
+      url: `${SCRAPER_API_URL}/api/admin${endpoint}`,
       data: method === 'post' ? req.body : undefined,
       params: method === 'get' ? { ...req.query, token } : { token },
       headers: { 'Content-Type': 'application/json' },
@@ -37,7 +37,7 @@ async function scraperProxy(req: AuthRequest, res: Response, endpoint: string, m
     res.json(response.data);
     return true;
   } catch (e: any) {
-    console.error(`[ScraperProxy] Erreur vers ${SCRAPER_API_URL}${endpoint}:`, e.message);
+    console.error(`[ScraperProxy] Erreur vers ${SCRAPER_API_URL}/api/admin${endpoint}:`, e.message);
     res.status(502).json({ success: false, data: null, message: `Scraper injoignable: ${e.message}` });
     return true;
   }
@@ -508,6 +508,7 @@ export async function tmdbStats(_req: AuthRequest, res: Response) {
 }
 
 export async function triggerTmdbLink(req: AuthRequest, res: Response) {
+    if (await scraperProxy(req, res, '/tmdb/link')) return;
     const type = req.body.type as string || 'series';
     const scriptName = type === 'movies' ? 'link-movies-tmdb.ts' : 'link-series-tmdb.ts';
     const label = type === 'movies' ? 'Linking TMDB Films' : 'Linking TMDB Séries';
@@ -515,27 +516,32 @@ export async function triggerTmdbLink(req: AuthRequest, res: Response) {
     res.json({ success: true, data: { status: 'launched', message: `${label} lancé` }, message: null });
 }
 
-export async function fixSeriesSeasons(_req: AuthRequest, res: Response) {
+export async function fixSeriesSeasons(req: AuthRequest, res: Response) {
+    if (await scraperProxy(req, res, '/series/fix-seasons')) return;
     const label = 'Fix Seasons Séries';
     runner(label, 'scraping/maintenance/fix-series-seasons.ts');
     res.json({ success: true, data: { status: 'launched', message: `${label} lancé` }, message: null });
 }
 
-export async function cronStart(_req: AuthRequest, res: Response) {
+export async function cronStart(req: AuthRequest, res: Response) {
+    if (await scraperProxy(req, res, '/cron/start')) return;
     startCron();
     res.json({ success: true, data: getCronStatus(), message: null });
 }
 
-export async function cronStop(_req: AuthRequest, res: Response) {
+export async function cronStop(req: AuthRequest, res: Response) {
+    if (await scraperProxy(req, res, '/cron/stop')) return;
     await stopCron();
     res.json({ success: true, data: getCronStatus(), message: null });
 }
 
-export async function cronStatus(_req: AuthRequest, res: Response) {
+export async function cronStatus(req: AuthRequest, res: Response) {
+    if (await scraperProxy(req, res, '/cron/status', 'get')) return;
     res.json({ success: true, data: getCronStatus(), message: null });
 }
 
-export async function runningTasks(_req: AuthRequest, res: Response) {
+export async function runningTasks(req: AuthRequest, res: Response) {
+    if (await scraperProxy(req, res, '/tasks/running', 'get')) return;
     res.json({ success: true, data: getRunningTasks(), message: null });
 }
 
@@ -574,27 +580,20 @@ export async function systemCron(_req: AuthRequest, res: Response) {
 
 export async function stopTaskHandler(req: AuthRequest, res: Response) {
     const name = Array.isArray(req.params.name) ? req.params.name[0] : req.params.name;
-    if (SCRAPER_API_URL) {
-        try {
-            const token = req.headers.authorization?.startsWith('Bearer ')
-                ? req.headers.authorization.split(' ')[1]
-                : req.query.token;
-            const response = await axios({
-                method: 'post',
-                url: `${SCRAPER_API_URL}/api/admin/tasks/stop/${encodeURIComponent(name)}`,
-                params: { token },
-                headers: { 'Content-Type': 'application/json' },
-                timeout: 5000,
-            });
-            res.json(response.data);
-        } catch (e: any) {
-            console.error(`[ScraperProxy] Erreur arrêt distant ${SCRAPER_API_URL}:`, e.message);
-            res.status(502).json({ success: false, data: null, message: `Scraper injoignable: ${e.message}` });
-        }
-        return;
-    }
+    if (await scraperProxy(req, res, `/tasks/stop/${encodeURIComponent(name)}`)) return;
     const killed = await stopTask(name);
     res.json({ success: true, data: { killed, name }, message: killed ? null : `Aucune tâche en cours: ${name}` });
+}
+
+export async function stopAllTasksHandler(req: AuthRequest, res: Response) {
+    if (await scraperProxy(req, res, '/tasks/stop-all')) return;
+    const stopped = await stopAllTasks();
+    await stopCron();
+    res.json({
+        success: true,
+        data: { stopped, running: getCronStatus().running },
+        message: `${stopped.length} tâche(s) arrêtée(s)`,
+    });
 }
 
 export async function runMaintenance(req: AuthRequest, res: Response) {

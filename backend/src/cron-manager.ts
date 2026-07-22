@@ -296,6 +296,19 @@ export async function stopTask(name: string): Promise<boolean> {
 }
 
 /**
+ * Arrête TOUTES les tâches en cours (trackées + orphelines détectées via l'OS).
+ * Retourne la liste des labels effectivement arrêtés.
+ */
+export async function stopAllTasks(): Promise<string[]> {
+    const names = getRunningTasks();
+    const stopped: string[] = [];
+    await Promise.all(names.map(async (name) => {
+        if (await stopTask(name)) stopped.push(name);
+    }));
+    return stopped;
+}
+
+/**
  * Tente un arrêt par PID (pour les fantômes non trackés).
  */
 export async function stopByPid(pid: number): Promise<boolean> {
