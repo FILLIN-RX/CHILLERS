@@ -85,6 +85,7 @@ export default function Header({ onSearchClick }: HeaderProps) {
                 <Link
                   key={tab.id}
                   href={tab.href}
+                  aria-current={activeTab === tab.id ? "page" : undefined}
                   className={`relative flex items-center gap-1.5 py-1 text-sm font-medium transition-colors focus:outline-none ${
                     activeTab === tab.id
                       ? "text-white"
