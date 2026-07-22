@@ -829,6 +829,10 @@ export async function adminStopTask(name: string) {
   return adminFetch(`/tasks/stop/${encodeURIComponent(name)}`, { method: 'POST' });
 }
 
+export async function adminStopAllTasks() {
+  return adminFetch('/tasks/stop-all', { method: 'POST' });
+}
+
 export function adminGetLogsStreamUrl(): string {
   const token = getAdminToken();
   return `${API_BASE_URL}/admin/logs/stream?token=${token}`;

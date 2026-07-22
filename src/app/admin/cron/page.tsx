@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { adminCronStart, adminCronStop, adminCronStatus, adminTriggerScrape, adminRunMaintenance, adminTriggerTmdbLink, adminGetRunningTasks, adminStopTask } from '@/app/api';
+import { adminCronStart, adminCronStop, adminCronStatus, adminTriggerScrape, adminRunMaintenance, adminTriggerTmdbLink, adminGetRunningTasks, adminStopTask, adminStopAllTasks } from '@/app/api';
 
 const ALL_TASK_NAMES = [
   'Scraping Films', 'Scraping Séries',
@@ -98,6 +98,23 @@ export default function AdminCron() {
     }
   };
 
+  const stopAll = async () => {
+    setLastTask('Arrêt de toutes les tâches...');
+    try {
+      const res = await adminStopAllTasks();
+      const stopped: string[] = res?.data?.stopped ?? [];
+      setLastTask(
+        stopped.length > 0
+          ? `⏹ ${stopped.length} tâche(s) arrêtée(s) : ${stopped.join(', ')}`
+          : '⏹ Cron arrêté — aucune tâche en cours',
+      );
+    } catch {
+      setLastTask('Arrêt de toutes les tâches ✗ Erreur');
+    } finally {
+      fetchStatus();
+    }
+  };
+
   return (
     <div>
       <h1 style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.25rem' }}>
@@ -129,16 +146,27 @@ export default function AdminCron() {
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button onClick={async () => { await run('Démarrage cron', adminCronStart); fetchStatus(); }} style={{ padding: '0.5rem 1rem', borderRadius: 8, border: 'none', background: '#22c55e', color: '#fff', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 600 }}>Démarrer</button>
             <button onClick={async () => { await run('Arrêt cron', adminCronStop); fetchStatus(); }} style={{ padding: '0.5rem 1rem', borderRadius: 8, border: 'none', background: '#ef4444', color: '#fff', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 600 }}>Arrêter</button>
+            <button onClick={stopAll} style={{ padding: '0.5rem 1rem', borderRadius: 8, border: 'none', background: '#b91c1c', color: '#fff', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 700 }} title="Arrête la planification et tue toutes les tâches en cours">⏹ Tout arrêter</button>
             <button onClick={fetchStatus} style={{ padding: '0.5rem 1rem', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 600 }}>Statut</button>
           </div>
         </div>
 
         {/* Running tasks indicator */}
         {runningTasks.length > 0 && (
-          <div style={{ background: '#1a1a2e', border: '1px solid #f59e0b', borderRadius: 12, padding: '0.75rem 1rem' }}>
-            <span style={{ color: '#f59e0b', fontSize: '0.8125rem', fontWeight: 600 }}>
+          <div style={{ background: '#1a1a2e', border: '1px solid #f59e0b', borderRadius: 12, padding: '0.75rem 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <span style={{ color: '#f59e0b', fontSize: '0.8125rem', fontWeight: 600, flex: 1 }}>
               ⚡ Tâches en cours : {runningTasks.join(', ')}
             </span>
+            <button
+              onClick={stopAll}
+              style={{
+                padding: '0.4rem 0.9rem', borderRadius: 8, border: 'none',
+                background: '#b91c1c', color: '#fff', cursor: 'pointer',
+                fontSize: '0.8125rem', fontWeight: 700, whiteSpace: 'nowrap',
+              }}
+            >
+              ⏹ Tout arrêter
+            </button>
           </div>
         )}
 

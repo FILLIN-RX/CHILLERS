@@ -58,9 +58,20 @@ export function stopTask(name: string): boolean {
     const child = runningProcesses.get(name);
     if (!child) return false;
     appendLog(`[Admin] Arrêt demandé : ${name}`);
-    try { process.kill(-child.pid, 'SIGKILL'); } catch {}
+    try { if (child.pid) process.kill(-child.pid, 'SIGKILL'); } catch {}
     runningProcesses.delete(name);
     return true;
+}
+
+export function stopAllTasks(): string[] {
+    const stopped: string[] = [];
+    for (const [name, child] of runningProcesses) {
+        appendLog(`[Admin] Arrêt demandé : ${name}`);
+        try { if (child.pid) process.kill(-child.pid, 'SIGKILL'); } catch {}
+        runningProcesses.delete(name);
+        stopped.push(name);
+    }
+    return stopped;
 }
 
 export function getRunningTasks(): string[] {
@@ -118,7 +129,7 @@ export function stopCron() {
     cronTasks = [];
     isRunning = false;
     for (const [name, child] of runningProcesses) {
-        try { process.kill(-child.pid, 'SIGKILL'); } catch {}
+        try { if (child.pid) process.kill(-child.pid, 'SIGKILL'); } catch {}
         runningProcesses.delete(name);
     }
     appendLog('[Cron] Tâches planifiées arrêtées');
