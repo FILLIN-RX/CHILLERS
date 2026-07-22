@@ -597,10 +597,18 @@ export async function startDownload(
   episode?: number
 ): Promise<{ downloadUrl: string; fileCode: string } | null> {
   try {
-    if (title) {
-      let doodUrl = `${API_BASE_URL}/doodstream/download?title=${encodeURIComponent(title)}`;
-      if (season !== undefined) doodUrl += `&season=${season}`;
-      if (episode !== undefined) doodUrl += `&episode=${episode}`;
+    const params = new URLSearchParams();
+    // Le tmdb_id est la clé de résolution la plus fiable (identique au streaming).
+    // On ne l'envoie que s'il s'agit bien d'un identifiant numérique TMDB
+    // (les pages admin peuvent passer un _id MongoDB à la place).
+    if (id && /^\d+$/.test(id)) params.set('tmdb_id', id);
+    if (title) params.set('title', title);
+    if (type) params.set('type', type);
+    if (season !== undefined) params.set('season', String(season));
+    if (episode !== undefined) params.set('episode', String(episode));
+
+    if (params.has('tmdb_id') || params.has('title')) {
+      const doodUrl = `${API_BASE_URL}/doodstream/download?${params.toString()}`;
       const res = await fetchWithTimeout(doodUrl);
       const json = await res.json();
       if (json.success && json.data?.downloadUrl) {
