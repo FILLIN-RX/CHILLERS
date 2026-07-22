@@ -148,18 +148,6 @@ function WatchContent() {
           }
         }
 
-        if (isTV) {
-          const list = await getPopularTV(1, signal);
-          if (!cancelled) setSimilar(list.filter((m) => m.id !== id).slice(0, 10));
-        } else {
-          const recs = await getMovieRecommendations(id, signal);
-          if (!cancelled && recs.length > 0) {
-            setSimilar(recs.slice(0, 10));
-          } else {
-            const popular = await getPopularMovies(1, signal);
-            if (!cancelled) setSimilar(popular.filter((m) => m.id !== id).slice(0, 10));
-          }
-        }
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") return;
         console.error("Watch page load error:", err);
@@ -175,6 +163,37 @@ function WatchContent() {
       cancelled = true;
       controller.abort();
     };
+  }, [id, isTV]);
+
+  useEffect(() => {
+    if (!id) return;
+    const controller = new AbortController();
+    const signal = controller.signal;
+
+    const loadSimilar = async () => {
+      try {
+        if (isTV) {
+          const list = await getPopularTV(1, signal);
+          setSimilar(list.filter((m) => m.id !== id).slice(0, 10));
+          return;
+        }
+
+        const recs = await getMovieRecommendations(id, signal);
+        if (recs.length > 0) {
+          setSimilar(recs.slice(0, 10));
+          return;
+        }
+
+        const popular = await getPopularMovies(1, signal);
+        setSimilar(popular.filter((m) => m.id !== id).slice(0, 10));
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        console.error("Watch similar content load error:", err);
+      }
+    };
+
+    loadSimilar();
+    return () => controller.abort();
   }, [id, isTV]);
 
   const playEpisode = useCallback(

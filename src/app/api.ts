@@ -2,6 +2,10 @@ import { MovieOrShow } from "./mockData";
 
 const API_BASE_URL = "/api";
 const FETCH_TIMEOUT = 45000;
+const DEFAULT_CACHE_TTL = 60_000;
+
+const responseCache = new Map<string, { expiresAt: number; data: any }>();
+const inFlightRequests = new Map<string, Promise<any>>();
 
 function getLang(): string {
   if (typeof window === 'undefined') return 'fr';
@@ -33,6 +37,50 @@ async function fetchWithTimeout(url: string, options?: RequestInit & { signal?: 
   } finally {
     clearTimeout(timeout);
     externalSignal?.removeEventListener("abort", onExternalAbort);
+  }
+}
+
+function getCacheKey(url: string): string {
+  return url;
+}
+
+async function fetchJsonCached<T>(
+  url: string,
+  options?: RequestInit & { signal?: AbortSignal | null },
+  cacheTtlMs: number = DEFAULT_CACHE_TTL,
+): Promise<T> {
+  const key = getCacheKey(url);
+  const now = Date.now();
+  const cached = responseCache.get(key);
+
+  if (cached && cached.expiresAt > now) {
+    return cached.data as T;
+  }
+
+  // Don't share in-flight requests when the caller provided its own abort signal,
+  // otherwise one consumer abort can cancel all consumers.
+  const canDedupInFlight = !options?.signal;
+  if (canDedupInFlight) {
+    const inFlight = inFlightRequests.get(key);
+    if (inFlight) {
+      return inFlight as Promise<T>;
+    }
+  }
+
+  const requestPromise = fetchWithTimeout(url, options).then((res) => res.json() as Promise<T>);
+
+  if (canDedupInFlight) {
+    inFlightRequests.set(key, requestPromise);
+  }
+
+  try {
+    const data = await requestPromise;
+    responseCache.set(key, { expiresAt: now + cacheTtlMs, data });
+    return data;
+  } finally {
+    if (canDedupInFlight) {
+      inFlightRequests.delete(key);
+    }
   }
 }
 
@@ -164,8 +212,11 @@ export function mapTMDBToMovieOrShow(
 
 export async function getTrendingMovies(signal?: AbortSignal): Promise<MovieOrShow[]> {
   try {
-    const res = await fetchWithTimeout(`${API_BASE_URL}/movies/trending?language=${getLang()}`, { signal });
-    const json = await res.json();
+    const json = await fetchJsonCached<any>(
+      `${API_BASE_URL}/movies/trending?language=${getLang()}`,
+      { signal },
+      90_000,
+    );
     if (json.success && json.data.results) {
       return json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "movie"));
     }
@@ -178,8 +229,11 @@ export async function getTrendingMovies(signal?: AbortSignal): Promise<MovieOrSh
 
 export async function getTrendingTV(signal?: AbortSignal): Promise<MovieOrShow[]> {
   try {
-    const res = await fetchWithTimeout(`${API_BASE_URL}/tv/trending?language=${getLang()}`, { signal });
-    const json = await res.json();
+    const json = await fetchJsonCached<any>(
+      `${API_BASE_URL}/tv/trending?language=${getLang()}`,
+      { signal },
+      90_000,
+    );
     if (json.success && json.data.results) {
       return json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "series"));
     }
@@ -192,8 +246,11 @@ export async function getTrendingTV(signal?: AbortSignal): Promise<MovieOrShow[]
 
 export async function getPopularMovies(page = 1, signal?: AbortSignal): Promise<MovieOrShow[]> {
   try {
-    const res = await fetchWithTimeout(`${API_BASE_URL}/movies/popular?page=${page}&language=${getLang()}`, { signal });
-    const json = await res.json();
+    const json = await fetchJsonCached<any>(
+      `${API_BASE_URL}/movies/popular?page=${page}&language=${getLang()}`,
+      { signal },
+      90_000,
+    );
     if (json.success && json.data.results) {
       return json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "movie"));
     }
@@ -206,8 +263,11 @@ export async function getPopularMovies(page = 1, signal?: AbortSignal): Promise<
 
 export async function getPopularTV(page = 1, signal?: AbortSignal): Promise<MovieOrShow[]> {
   try {
-    const res = await fetchWithTimeout(`${API_BASE_URL}/tv/popular?page=${page}&language=${getLang()}`, { signal });
-    const json = await res.json();
+    const json = await fetchJsonCached<any>(
+      `${API_BASE_URL}/tv/popular?page=${page}&language=${getLang()}`,
+      { signal },
+      90_000,
+    );
     if (json.success && json.data.results) {
       return json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "series"));
     }
@@ -233,8 +293,11 @@ export async function getTopRatedTV(page = 1): Promise<MovieOrShow[]> {
 
 export async function getAnimeSeries(page = 1, signal?: AbortSignal): Promise<MovieOrShow[]> {
   try {
-    const res = await fetchWithTimeout(`${API_BASE_URL}/tv/anime?page=${page}&language=${getLang()}`, { signal });
-    const json = await res.json();
+    const json = await fetchJsonCached<any>(
+      `${API_BASE_URL}/tv/anime?page=${page}&language=${getLang()}`,
+      { signal },
+      90_000,
+    );
     if (json.success && json.data.results) {
       return json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "anime"));
     }
@@ -322,8 +385,11 @@ export async function getTopRatedMovies(page = 1): Promise<MovieOrShow[]> {
 export async function getMediaDetails(id: string, isTV: boolean = false, signal?: AbortSignal): Promise<MovieOrShow | null> {
   try {
     const endpoint = isTV ? `tv/${id}` : `movies/${id}`;
-    const res = await fetchWithTimeout(`${API_BASE_URL}/${endpoint}?language=${getLang()}`, { signal });
-    const json = await res.json();
+    const json = await fetchJsonCached<any>(
+      `${API_BASE_URL}/${endpoint}?language=${getLang()}`,
+      { signal },
+      120_000,
+    );
     if (json.success && json.data) {
       return mapTMDBToMovieOrShow(json.data, isTV ? "series" : "movie");
     }
@@ -336,8 +402,11 @@ export async function getMediaDetails(id: string, isTV: boolean = false, signal?
 
 export async function getSeasonDetails(id: string, seasonNumber: string, signal?: AbortSignal): Promise<any | null> {
   try {
-    const res = await fetchWithTimeout(`${API_BASE_URL}/tv/${id}/season/${seasonNumber}?language=${getLang()}`, { signal });
-    const json = await res.json();
+    const json = await fetchJsonCached<any>(
+      `${API_BASE_URL}/tv/${id}/season/${seasonNumber}?language=${getLang()}`,
+      { signal },
+      120_000,
+    );
     if (json.success && json.data) {
       return json.data;
     }
@@ -350,8 +419,11 @@ export async function getSeasonDetails(id: string, seasonNumber: string, signal?
 
 export async function getMovieRecommendations(id: string, signal?: AbortSignal): Promise<MovieOrShow[]> {
   try {
-    const res = await fetchWithTimeout(`${API_BASE_URL}/movies/${id}/recommendations?language=${getLang()}`, { signal });
-    const json = await res.json();
+    const json = await fetchJsonCached<any>(
+      `${API_BASE_URL}/movies/${id}/recommendations?language=${getLang()}`,
+      { signal },
+      120_000,
+    );
     if (json.success && json.data.results) {
       return json.data.results
         .filter((item: any) => item.media_type === "movie" || item.media_type === "tv")
@@ -390,11 +462,11 @@ export async function getRecommendedForYou(): Promise<MovieOrShow[]> {
 
 export async function searchMedia(query: string, page = 1, signal?: AbortSignal): Promise<MovieOrShow[]> {
   try {
-    const res = await fetchWithTimeout(
+    const json = await fetchJsonCached<any>(
       `${API_BASE_URL}/search?q=${encodeURIComponent(query)}&page=${page}&language=${getLang()}`,
       { signal },
+      15_000,
     );
-    const json = await res.json();
     if (!json.success) return [];
 
     const results: MovieOrShow[] = [];
@@ -587,8 +659,11 @@ export interface Genre {
 
 export async function getMovieGenres(signal?: AbortSignal): Promise<Genre[]> {
   try {
-    const res = await fetchWithTimeout(`${API_BASE_URL}/genres/movie?language=${getLang()}`, { signal });
-    const json = await res.json();
+    const json = await fetchJsonCached<any>(
+      `${API_BASE_URL}/genres/movie?language=${getLang()}`,
+      { signal },
+      10 * 60_000,
+    );
     if (json.success && Array.isArray(json.data)) return json.data;
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") throw error;
@@ -653,8 +728,11 @@ export async function getTVByGenrePage(genreId: string, page = 1): Promise<{ res
 
 export async function getTVGenres(signal?: AbortSignal): Promise<Genre[]> {
   try {
-    const res = await fetchWithTimeout(`${API_BASE_URL}/genres/tv?language=${getLang()}`, { signal });
-    const json = await res.json();
+    const json = await fetchJsonCached<any>(
+      `${API_BASE_URL}/genres/tv?language=${getLang()}`,
+      { signal },
+      10 * 60_000,
+    );
     if (json.success && Array.isArray(json.data)) return json.data;
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") throw error;
@@ -665,8 +743,11 @@ export async function getTVGenres(signal?: AbortSignal): Promise<Genre[]> {
 
 export async function getMoviesByGenre(genreId: string, page = 1, signal?: AbortSignal): Promise<MovieOrShow[]> {
   try {
-    const res = await fetchWithTimeout(`${API_BASE_URL}/movies/genre/${genreId}?page=${page}&language=${getLang()}`, { signal });
-    const json = await res.json();
+    const json = await fetchJsonCached<any>(
+      `${API_BASE_URL}/movies/genre/${genreId}?page=${page}&language=${getLang()}`,
+      { signal },
+      120_000,
+    );
     if (json.success && json.data.results) {
       return json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "movie"));
     }
