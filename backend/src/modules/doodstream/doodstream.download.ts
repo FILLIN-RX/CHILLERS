@@ -191,8 +191,14 @@ async function findByMongoDB(title?: string, tmdbId?: number, season?: number, e
           ...(title ? [{ titre: { $regex: new RegExp(title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } }] : []),
         ],
       }).exec();
-      if (movie?.lien) {
-        return { fileCode: '', info: { lien: movie.lien, titre: movie.titre } };
+      if (movie) {
+        const lien = movie.uqloadLink || movie.lien;
+        if (lien) {
+          return {
+            fileCode: movie.fileCode || '',
+            info: { lien, titre: movie.titre, uqloadLink: movie.uqloadLink, lienFallback: movie.lien !== lien ? movie.lien : undefined },
+          };
+        }
       }
     }
 
@@ -209,8 +215,14 @@ async function findByMongoDB(title?: string, tmdbId?: number, season?: number, e
         const found = series.episodes.find(
           (ep: any) => ep.episode?.toUpperCase() === epLabel
         );
-        if (found?.lien) {
-          return { fileCode: '', info: { lien: found.lien, titre: `${series.titre} ${epLabel}` } };
+        if (found) {
+          const lien = found.uqloadLink || found.lien;
+          if (lien) {
+            return {
+              fileCode: found.fileCode || '',
+              info: { lien, titre: `${series.titre} ${epLabel}`, uqloadLink: found.uqloadLink, lienFallback: found.lien !== lien ? found.lien : undefined },
+            };
+          }
         }
       }
     }
@@ -269,29 +281,29 @@ export const getDownloadByTitle = async (req: Request, res: Response, next: Next
 
     // Decide which URL to actually hand back to the client.
     //
-    // 1) The stored "lien" is a direct .mp4 / vidzy.cc URL → best
-    //    option, downloads cleanly.
-    // 2) Otherwise, ask the Doodstream API for a fresh protected
-    //    download URL via the file_code.
-    //
-    // We must reject Doodstream *embed* pages (doodstream.com/e/...)
-    // because the proxy fetches them as if they were video files and
-    // they return a tiny HTML "downloader" page — that's the broken
-    // KB-sized downloads the user was seeing for series.
+    // 1) uqloadLink (prioritaire), puis lien BD (lienFallback)
+    // 2) Si les deux sont morts, DoodStream API via fileCode
+    // 3) En dernier recours, page DoodStream /d/ (interface web)
     let downloadUrl: string | null = null;
-    const storedLien: string | undefined = match.info.lien;
-    const isDirectMediaUrl =
-      !!storedLien &&
-      !/doodstream\.com\/e\//i.test(storedLien) &&
-      !/doodstream\.com\/d\//i.test(storedLien);
 
-    if (isDirectMediaUrl) {
-      const alive = await isLinkAlive(storedLien);
-      if (alive) {
-        downloadUrl = storedLien;
+    // Tente uqloadLink (déjà dans match.info.lien si dispo) ou le lien BD
+    const linksToTry = [
+      match.info.lien,
+      match.info.uqloadLink !== match.info.lien ? match.info.uqloadLink : undefined,
+      match.info.lienFallback,
+    ].filter(Boolean) as string[];
+
+    for (const url of [...new Set(linksToTry)]) {
+      if (!/doodstream\.com\/(e|d)\//i.test(url)) {
+        const alive = await isLinkAlive(url);
+        if (alive) {
+          downloadUrl = url;
+          break;
+        }
       }
     }
 
+    // Fallback DoodStream API via fileCode
     if (!downloadUrl && match.fileCode) {
       try {
         const apiUrl = await getFileDownloadUrl(match.fileCode);
@@ -303,9 +315,9 @@ export const getDownloadByTitle = async (req: Request, res: Response, next: Next
       }
     }
 
-    // Last resort fallback
-    if (!downloadUrl && isDirectMediaUrl) {
-      downloadUrl = storedLien;
+    // Dernier recours: page DoodStream /d/ (interface web)
+    if (!downloadUrl && match.fileCode) {
+      downloadUrl = `https://doodstream.com/d/${match.fileCode}`;
     }
 
     if (!downloadUrl) {
@@ -532,9 +544,9 @@ export const getSeriesDownloadCheck = async (req: Request, res: Response, next: 
           }
         }
 
-        // Last resort fallback
-        if (!downloadUrl && isDirectUrl) {
-          downloadUrl = storedLien;
+        // Fallback to DoodStream web interface page (/d/)
+        if (!downloadUrl && match.fileCode) {
+          downloadUrl = `https://doodstream.com/d/${match.fileCode}`;
         }
 
         found.push({

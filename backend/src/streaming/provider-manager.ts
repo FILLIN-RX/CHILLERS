@@ -8,7 +8,8 @@ import { VidAPIProvider } from './providers/vidapi.provider';
 import { AnimeKaiProvider } from './providers/animekai.provider';
 import { OtakuProvider } from './providers/otaku.provider';
 import { VidLinkProvider } from './providers/vidlink.provider';
-import { streamCache, getCacheKey, CachedStream } from '../utils/stream-cache';
+import Movie from '../models/Movie';
+import Serie from '../models/Serie';
 
 const VALIDATION_TIMEOUT = 5000;
 const PROVIDER_TIMEOUT = 10000;
@@ -35,8 +36,11 @@ export class ProviderManager {
   private pendingScrapes = new Set<string>();
 
   constructor() {
-    // Ordre de priorité: MongoDB (lien + uqload), Doodstream, scraping (Otaku), puis les autres
-    this.providers = [
+    this.providers = this.buildProviders();
+  }
+
+  private buildProviders(): StreamingProvider[] {
+    return [
       new MongoDBProvider(),
       new DoodStreamProvider(),
       new OtakuProvider(),
@@ -56,9 +60,9 @@ export class ProviderManager {
     }
 
     const attempts: ProviderAttempt[] = [];
-    const ordered = this.sortProviders(query);
+    const activeProviders = await this.filterProviders(query);
 
-    for (const provider of ordered) {
+    for (const provider of activeProviders) {
       const attempt = await this.tryProvider(provider, 'movie', query);
       attempts.push(attempt);
       if (attempt.status === 'success') {
@@ -88,9 +92,9 @@ export class ProviderManager {
     }
 
     const attempts: ProviderAttempt[] = [];
-    const ordered = this.sortProviders(query);
+    const activeProviders = await this.filterProviders(query);
 
-    for (const provider of ordered) {
+    for (const provider of activeProviders) {
       const attempt = await this.tryProvider(provider, 'episode', query);
       attempts.push(attempt);
       if (attempt.status === 'success') {
@@ -228,6 +232,36 @@ export class ProviderManager {
     }
 
     return [...supports, ...fallback];
+  }
+
+  private async contentExistsInMongoDB(query: StreamQuery): Promise<boolean> {
+    try {
+      if (query.season !== undefined && query.episode !== undefined) {
+        const serie = await Serie.findOne({
+          $or: [
+            ...(query.tmdbId ? [{ tmdbId: query.tmdbId }] : []),
+            ...(query.title ? [{ titre: { $regex: new RegExp(query.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } }] : []),
+          ],
+        }).exec();
+        return !!serie;
+      }
+      const movie = await Movie.findOne({
+        $or: [
+          ...(query.tmdbId ? [{ tmdbId: query.tmdbId }] : []),
+          ...(query.title ? [{ titre: { $regex: new RegExp(query.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } }] : []),
+        ],
+      }).exec();
+      return !!movie;
+    } catch {
+      return false;
+    }
+  }
+
+  private async filterProviders(query: StreamQuery): Promise<StreamingProvider[]> {
+    const skipVid = await this.contentExistsInMongoDB(query);
+    const ordered = this.sortProviders(query);
+    if (!skipVid) return ordered;
+    return ordered.filter(p => p.name !== 'vidlink' && p.name !== 'vidapi');
   }
 
   /**
