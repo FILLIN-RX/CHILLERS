@@ -4,7 +4,14 @@ import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
+import {
+  MagnifyingGlassIcon,
+  HomeIcon,
+  FilmIcon,
+  TvIcon,
+  SparklesIcon,
+  Squares2X2Icon,
+} from "@heroicons/react/24/outline";
 import { useLanguage } from "@/i18n/LanguageContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { getActiveNavTab } from "@/lib/navActive";
@@ -18,10 +25,10 @@ export default function Header({ onSearchClick }: HeaderProps) {
   const { translate: _ } = useLanguage();
 
   const tabs = [
-    { id: "home", label: _("nav.home"), href: "/" },
-    { id: "movies", label: _("nav.movies"), href: "/media/movies" },
-    { id: "series", label: _("nav.series"), href: "/media/series" },
-    { id: "anime", label: _("nav.anime"), href: "/media/anime" },
+    { id: "home", label: _("nav.home"), href: "/", icon: HomeIcon },
+    { id: "movies", label: _("nav.movies"), href: "/media/movies", icon: FilmIcon },
+    { id: "series", label: _("nav.series"), href: "/media/series", icon: TvIcon },
+    { id: "anime", label: _("nav.anime"), href: "/media/anime", icon: SparklesIcon },
   ];
 
   // Single source of truth shared with <BottomNav> so the two indicators
@@ -72,30 +79,36 @@ export default function Header({ onSearchClick }: HeaderProps) {
           </Link>
 
           <nav className="hidden md:flex items-center gap-6">
-            {tabs.map((tab) => (
-              <Link
-                key={tab.id}
-                href={tab.href}
-                className={`relative py-1 text-sm font-medium transition-colors focus:outline-none ${
-                  activeTab === tab.id
-                    ? "text-white"
-                    : "text-zinc-400 hover:text-white"
-                }`}
-              >
-                {tab.label}
-                {activeTab === tab.id && (
-                  <span className="absolute bottom-0 left-0 h-[2px] w-full bg-brand-primary rounded-full" />
-                )}
-              </Link>
-            ))}
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <Link
+                  key={tab.id}
+                  href={tab.href}
+                  aria-current={activeTab === tab.id ? "page" : undefined}
+                  className={`relative flex items-center gap-1.5 py-1 text-sm font-medium transition-colors focus:outline-none ${
+                    activeTab === tab.id
+                      ? "text-white"
+                      : "text-zinc-400 hover:text-white"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" aria-hidden="true" focusable="false" />
+                  {tab.label}
+                  {activeTab === tab.id && (
+                    <span className="absolute bottom-0 left-0 h-[2px] w-full bg-brand-primary rounded-full" />
+                  )}
+                </Link>
+              );
+            })}
             <Link
               href="/categories"
-              className={`relative py-1 text-sm font-medium transition-colors focus:outline-none ${
+              className={`relative flex items-center gap-1.5 py-1 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-brand-primary rounded ${
                 activeTab === "categories"
                   ? "text-white"
                   : "text-zinc-400 hover:text-white"
               }`}
             >
+              <Squares2X2Icon className="h-4 w-4" aria-hidden="true" focusable="false" />
               {_("nav.categories")}
               {activeTab === "categories" && (
                 <span className="absolute bottom-0 left-0 h-[2px] w-full bg-brand-primary rounded-full" />
