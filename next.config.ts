@@ -50,7 +50,7 @@ const nextConfig: NextConfig = {
           // Allow fullscreen API on mobile
           {
             key: 'Permissions-Policy',
-            value: 'autoplay=*, fullscreen=*, picture-in-picture=*, gyroscope=*, accelerometer=*',
+            value: 'autoplay=*, fullscreen=*, picture-in-picture=*, encrypted-media=*, gyroscope=*, accelerometer=*',
           },
         ],
       },

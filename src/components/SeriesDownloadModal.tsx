@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import Image from "next/image";
 import { Episode } from "@/app/mockData";
-import { checkSeriesDownloads, triggerDownload } from "@/app/api";
+import { checkSeriesDownloads, startDownload, triggerDownload } from "@/app/api";
 import {
   XMarkIcon,
   ArrowDownTrayIcon,
@@ -38,15 +38,6 @@ export default function SeriesDownloadModal({
   const [loadingLinks, setLoadingLinks] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (isOpen) {
-      setSelected(new Set());
-      setLinks({});
-      setLinksLoaded(false);
-      setLoadError(null);
-    }
-  }, [isOpen]);
-
   const epKey = (ep: Episode) => `S${ep.season ?? 1}E${ep.number}`;
 
   const toggleEpisode = (ep: Episode) => {
@@ -60,10 +51,11 @@ export default function SeriesDownloadModal({
   };
 
   const toggleAll = () => {
-    if (selected.size === episodes.length) {
+    const availableKeys = episodes.map(epKey).filter((key) => links[key]?.url);
+    if (selected.size === availableKeys.length) {
       setSelected(new Set());
     } else {
-      setSelected(new Set(episodes.map(epKey)));
+      setSelected(new Set(availableKeys));
     }
   };
 
@@ -78,39 +70,58 @@ export default function SeriesDownloadModal({
 
     try {
       const result = await checkSeriesDownloads(tmdbId);
-      if (!result.success || !result.data?.episodes) {
-        setLoadError(result.message || "Impossible de charger les liens.");
-        setLinks((prev) => {
-          const next = { ...prev };
-          for (const k of Object.keys(next)) next[k] = { url: null, loading: false, error: true };
-          return next;
-        });
-        return;
-      }
-      const apiEpisodes = result.data.episodes;
-      setLinks((prev) => {
-        const next = { ...prev };
-        for (const ep of episodes) {
-          const key = epKey(ep);
-          const apiEp = apiEpisodes.find(
-            (a) => Number(a.season) === Number(ep.season ?? 1) && Number(a.episode) === Number(ep.number)
-          );
-          next[key] = { url: apiEp?.downloadUrl ?? null, loading: false, error: !apiEp };
+      const apiEpisodes = result?.data?.episodes || [];
+      const updatedState: Record<string, EpisodeDownloadState> = {};
+      const autoSelected = new Set<string>();
+
+      for (const ep of episodes) {
+        const key = epKey(ep);
+        const apiEp = apiEpisodes.find(
+          (a) => Number(a.season) === Number(ep.season ?? 1) && Number(a.episode) === Number(ep.number)
+        );
+
+        let dlUrl = apiEp?.downloadUrl ?? null;
+
+        // Fallback: if checkSeriesDownloads didn't return a link for this ep, try startDownload directly
+        if (!dlUrl) {
+          try {
+            const fallbackRes = await startDownload(tmdbId, 'series', seriesTitle, ep.season ?? 1, ep.number);
+            if (fallbackRes?.downloadUrl) {
+              dlUrl = fallbackRes.downloadUrl;
+            }
+          } catch {
+            // silent fallback failure
+          }
         }
-        return next;
-      });
+
+        if (dlUrl) {
+          updatedState[key] = { url: dlUrl, loading: false, error: false };
+          autoSelected.add(key);
+        } else {
+          updatedState[key] = { url: null, loading: false, error: true };
+        }
+      }
+
+      setLinks(updatedState);
+      setSelected(autoSelected);
       setLinksLoaded(true);
-    } catch {
-      setLoadError("Erreur réseau. Veuillez réessayer.");
-      setLinks((prev) => {
-        const next = { ...prev };
-        for (const k of Object.keys(next)) next[k] = { url: null, loading: false, error: true };
-        return next;
-      });
+    } catch (err) {
+      console.error("Error loading episode download links:", err);
+      setLoadError("Erreur lors de la récupération de certains liens.");
     } finally {
       setLoadingLinks(false);
     }
-  }, [tmdbId, episodes]);
+  }, [tmdbId, seriesTitle, episodes]);
+
+  useEffect(() => {
+    if (isOpen) {
+      setSelected(new Set());
+      setLinks({});
+      setLinksLoaded(false);
+      setLoadError(null);
+      loadLinks();
+    }
+  }, [isOpen, loadLinks]);
 
   const downloadSelected = async () => {
     const toDownload = episodes.filter((ep) => {
