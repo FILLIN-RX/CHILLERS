@@ -315,6 +315,7 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
             title={item.title}
             scrolling="no"
             loading="lazy"
+            sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
           />
           {!iframeActivated && (
             <div

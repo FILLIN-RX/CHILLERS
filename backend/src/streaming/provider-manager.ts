@@ -47,7 +47,6 @@ export class ProviderManager {
       new OtakuProvider(),
       new VidLinkProvider(),
       new VidAPIProvider(),
-      new AnimeKaiProvider(),
     ];
   }
 
