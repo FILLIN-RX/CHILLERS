@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { getSeasonDetails, getMediaDetails, getStreamUrl, startDownload, triggerDownload } from "@/app/api";
 import { Episode } from "@/app/mockData";
 import VideoPlayer from "@/components/VideoPlayer";
+import SeriesDownloadModal from "@/components/SeriesDownloadModal";
 import { useLanguage } from "@/i18n/LanguageContext";
 import {
   ArrowLeftIcon,
@@ -13,6 +14,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   FilmIcon,
+  ArrowDownTrayIcon,
 } from "@heroicons/react/24/solid";
 
 export default function SeasonPage() {
@@ -29,6 +31,7 @@ export default function SeasonPage() {
   const [streamLoading, setStreamLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
   const playerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -273,6 +276,13 @@ export default function SeasonPage() {
                 )}
                 Télécharger
               </button>
+              <button
+                onClick={() => setShowDownloadModal(true)}
+                className="flex items-center gap-2 px-6 py-3 rounded-full bg-emerald-600/90 text-white font-bold text-sm hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-900/30"
+              >
+                <ArrowDownTrayIcon className="h-4 w-4" />
+                Télécharger plusieurs épisodes
+              </button>
             </div>
 
             {downloadError && (
@@ -283,9 +293,18 @@ export default function SeasonPage() {
           </div>
 
           <div className="w-full lg:w-80 xl:w-96 flex-none space-y-3">
-            <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest">
-              Épisodes · {episodes.length}
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest">
+                Épisodes · {episodes.length}
+              </h3>
+              <button
+                onClick={() => setShowDownloadModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs font-bold hover:bg-emerald-500/30 transition-all"
+              >
+                <ArrowDownTrayIcon className="h-3.5 w-3.5" />
+                Télécharger plusieurs
+              </button>
+            </div>
             <div className="space-y-2 max-h-[70vh] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-zinc-800">
               {episodes.map((ep, idx) => (
                 <div
@@ -327,6 +346,14 @@ export default function SeasonPage() {
           </div>
         </div>
       </div>
+
+      <SeriesDownloadModal
+        isOpen={showDownloadModal}
+        onClose={() => setShowDownloadModal(false)}
+        seriesTitle={showTitle || `Saison ${seasonNumber}`}
+        tmdbId={id as string}
+        episodes={episodes}
+      />
     </div>
   );
 }

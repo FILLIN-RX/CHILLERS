@@ -244,21 +244,28 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
     return `${h > 0 ? h + ":" : ""}${m < 10 && h > 0 ? "0" : ""}${m}:${s < 10 ? "0" : ""}${s}`;
   };
 
-  // Helper to convert DoodStream download links to embed links
+  // Helper to convert DoodStream download links to embed links across all domains/mirrors
   const toEmbedUrl = (url?: string) => {
     if (!url) return url;
-    const m = url.match(/doodstream\.com\/(?:d|e)\/([a-zA-Z0-9]+)/);
+    const m = url.match(/(?:doodstream\.com|playmogo\.com|d000d\.com|d0000d\.com|dood\.(?:to|sh|so|cx|la|wf|pm))\/(?:d|e)\/([a-zA-Z0-9]+)/i);
     return m ? `https://doodstream.com/e/${m[1]}` : url;
   };
 
   const videoUrl = toEmbedUrl(item.videoUrl);
 
-  // Helper to determine if the video is an iframe (VidLink, YouTube, etc.)
-  const isIframe = (videoUrl?.includes("vidlink.pro") || 
-                    videoUrl?.includes("youtube.com") || 
-                    videoUrl?.includes("doodstream.com")) && 
-                   !videoUrl?.includes("vidzy.cc") &&
-                   !videoUrl?.includes("playmogo.com");
+  // Helper to determine if the video is an iframe (VidLink, YouTube, DoodStream, Playmogo, Uqload, etc.)
+  const isIframe = (
+    videoUrl?.includes("vidlink.pro") ||
+    videoUrl?.includes("youtube.com") ||
+    videoUrl?.includes("doodstream.com") ||
+    videoUrl?.includes("playmogo.com") ||
+    videoUrl?.includes("d000d.com") ||
+    videoUrl?.includes("d0000d.com") ||
+    videoUrl?.includes("uqload") ||
+    /dood\.(to|sh|so|cx|la|wf|pm)/i.test(videoUrl || "") ||
+    videoUrl?.includes("/e/") ||
+    videoUrl?.includes("embed")
+  ) && !videoUrl?.includes("vidzy.cc");
   
   const [downloading, setDownloading] = useState(false);
 

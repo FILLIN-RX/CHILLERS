@@ -118,7 +118,7 @@ export function mapTMDBToMovieOrShow(
   }
 
   // YouTube trailer detection
-  let videoUrl = "";
+  let trailerUrl = "";
   if (item.videos && item.videos.results) {
     const results = item.videos.results || [];
     const trailer =
@@ -127,7 +127,7 @@ export function mapTMDBToMovieOrShow(
       results[0];
 
     if (trailer && trailer.key) {
-      videoUrl = `https://www.youtube.com/embed/${trailer.key}`;
+      trailerUrl = `https://www.youtube.com/embed/${trailer.key}`;
     }
   }
 
@@ -156,10 +156,8 @@ export function mapTMDBToMovieOrShow(
         : "2h 05m",
     genres,
     cast: cast.length > 0 ? cast : ["Cast Info Unavailable"],
-    // No trailer found — leave videoUrl empty so the VideoPlayer
-    // shows its "Flux indisponible" placeholder instead of trying to
-    // load a hard-coded asset that is blocked by the CSP.
-    videoUrl: videoUrl || "",
+    trailerUrl: trailerUrl || "",
+    videoUrl: "",
     seasons: seasons && seasons.length > 0 ? seasons : undefined,
   };
 }

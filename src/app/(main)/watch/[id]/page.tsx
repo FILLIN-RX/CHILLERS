@@ -105,7 +105,7 @@ function WatchContent() {
             setCurrentEpisodeIndex(startIdx);
 
             const firstEpNumber = eps[startIdx]?.number || eps[0].number;
-            const stream = await getStreamUrl(
+            let stream = await getStreamUrl(
               id,
               "series",
               parseInt(targetSeason),
@@ -113,6 +113,16 @@ function WatchContent() {
               detail?.title || id,
               signal
             );
+            if (!stream && parseInt(targetSeason) !== 1) {
+              stream = await getStreamUrl(
+                id,
+                "series",
+                1,
+                1,
+                detail?.title || id,
+                signal
+              );
+            }
             if (!cancelled && stream) {
               setStreamUrl(stream.embedUrl);
             } else if (!cancelled) {

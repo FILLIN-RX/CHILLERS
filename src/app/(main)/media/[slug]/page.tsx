@@ -75,11 +75,15 @@ function MediaDetailPage() {
         isTV ? getPopularTV() : getPopularMovies(),
       ]);
       if (detail) {
-        if (detail.videoUrl?.includes("youtube.com") || detail.videoUrl?.includes("embed")) {
+        if (detail.trailerUrl) {
+          setTrailerUrl(detail.trailerUrl);
+        } else if (detail.videoUrl?.includes("youtube.com") || detail.videoUrl?.includes("embed")) {
           setTrailerUrl(detail.videoUrl);
         }
         setItem(detail);
-        getStreamUrl(detail.id, isTV ? 'series' : 'movie', undefined, undefined, detail.title).then(stream => {
+        const season = isTV ? 1 : undefined;
+        const episode = isTV ? 1 : undefined;
+        getStreamUrl(detail.id, isTV ? 'series' : 'movie', season, episode, detail.title).then(stream => {
           if (stream) setItem(prev => prev ? { ...prev, videoUrl: stream.embedUrl } : prev);
         });
       }

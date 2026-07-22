@@ -279,13 +279,14 @@ export class DoodStreamProvider implements StreamingProvider {
         }).exec();
 
         if (series) {
-          // Lookup précis via les champs typés (season / episodeNumber),
-          // profitera de l'index composé défini dans le modèle Serie.
-          const found = series.episodes.find(
-            (ep: any) => ep.season === query.season && ep.episodeNumber === query.episode
+          let found = series.episodes.find(
+            (ep: any) => Number(ep.season) === Number(query.season) && Number(ep.episodeNumber) === Number(query.episode)
           );
+          if (!found || (!found.fileCode && !found.lien)) {
+            found = series.episodes.find((ep: any) => ep.fileCode || (ep.lien && ep.lien !== '#'));
+          }
           if (found) {
-            const epLabel = `S${String(query.season).padStart(2, '0')}E${String(query.episode).padStart(2, '0')}`;
+            const epLabel = `S${String(found.season || 1).padStart(2, '0')}E${String(found.episodeNumber || 1).padStart(2, '0')}`;
             console.log(
               `[DoodStream] MongoDB match series="${series.titre}" ${epLabel} fileCode=${found.fileCode || '∅'}`
             );
@@ -368,13 +369,13 @@ export class DoodStreamProvider implements StreamingProvider {
     if (lien && lien !== '#') {
       const cached = getCachedValidity(lien);
 
-      if (cached === false) {
-        // Known dead — skip immediately and use embed fallback
-        console.log(`[DoodStream] Cached dead link, using fileCode: ${match.fileCode || 'none'}`);
-      } else {
-        // alive (cached or unknown — optimistic first serve)
-        // Fire background validation so the cache stays fresh
+      if (cached !== false) {
+        // Convert DoodStream / Playmogo download links to embed /e/ URLs
         validateInBackground(lien);
+        const m = lien.match(/(?:doodstream\.com|playmogo\.com|d000d\.com|d0000d\.com|dood\.(?:to|sh|so|cx|la|wf|pm))\/(?:d|e)\/([a-zA-Z0-9]+)/i);
+        if (m) {
+          return `https://doodstream.com/e/${m[1]}`;
+        }
         return lien;
       }
     }

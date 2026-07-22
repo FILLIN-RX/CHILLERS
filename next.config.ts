@@ -34,7 +34,7 @@ const nextConfig: NextConfig = {
             value: [
               "default-src 'self'",
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.youtube.com https://s.ytimg.com https://vercel.live",
-              "frame-src 'self' https://vidlink.pro https://vidapi.xyz https://doodstream.com https://d0000d.com https://www.youtube.com https://animekai.to https://*.vidzy.cc https://vidsrc.xyz https://embed.su https://playmogo.com https://uqload.is https://*.uqload.is https://vercel.live",
+              "frame-src 'self' https://vidlink.pro https://vidapi.xyz https://doodstream.com https://*.doodstream.com https://d000d.com https://*.d000d.com https://d0000d.com https://playmogo.com https://*.playmogo.com https://*.dood.to https://www.youtube.com https://animekai.to https://*.vidzy.cc https://vidsrc.xyz https://embed.su https://uqload.is https://*.uqload.is https://vercel.live",
               "media-src 'self' blob: data: https://*.vidzy.cc https://vidlink.pro https://vidapi.xyz https://*.uqload.is",
               "img-src 'self' data: blob: https://image.tmdb.org https://images.unsplash.com https://*.tmdb.org https://*.vidzy.cc",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",

@@ -261,23 +261,26 @@ export class ProviderManager {
     console.log(`[Self-Healing] Re-scrape lancé pour "${title}" (${typeArg}) pid=${child.pid}`);
   }
 
-  private isDoodstreamEmbed(url: string): boolean {
+  private isIframeEmbedUrl(url: string): boolean {
     return (
-      url.includes('doodstream.com/e/') ||
-      url.includes('playmogo.com/e/') ||
-      url.includes('dood.to/e/') ||
-      url.includes('dood.sh/e/') ||
-      url.includes('dood.so/e/') ||
-      url.includes('dood.cx/e/') ||
-      url.includes('dood.la/e/') ||
-      url.includes('dood.wf/e/') ||
-      url.includes('dood.pm/e/')
+      url.includes('vidlink.pro') ||
+      url.includes('vidapi') ||
+      url.includes('animekai') ||
+      url.includes('uqload') ||
+      url.includes('youtube.com') ||
+      url.includes('doodstream.com') ||
+      url.includes('playmogo.com') ||
+      url.includes('d000d.com') ||
+      url.includes('d0000d.com') ||
+      /dood\.(to|sh|so|cx|la|wf|pm)/i.test(url) ||
+      url.includes('/e/') ||
+      url.includes('embed')
     );
   }
 
   private async validateUrl(url: string): Promise<boolean> {
-    // Skip validation for Doodstream/Playmogo embeds since they are protected by Cloudflare/DDOS-GUARD
-    if (this.isDoodstreamEmbed(url)) {
+    // Skip validation for iframe embeds since they are protected by Cloudflare/DDOS-GUARD
+    if (this.isIframeEmbedUrl(url)) {
       return true;
     }
 

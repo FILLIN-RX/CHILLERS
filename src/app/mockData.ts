@@ -33,5 +33,6 @@ export interface MovieOrShow {
   isTrending?: boolean;
   isPopular?: boolean;
   videoUrl?: string;
+  trailerUrl?: string;
   seasons?: Season[];
 }
