@@ -68,8 +68,12 @@ export default function AdminCron() {
       {isRunning(label) && (
         <button
           onClick={async () => {
-            await adminStopTask(label);
-            setLastTask(`${label} ⏹ Arrêt demandé`);
+            const res = await adminStopTask(label);
+            if (res?.data?.killed) {
+              setLastTask(`${label} ⏹ Arrêt demandé`);
+            } else {
+              setLastTask(`${label} ⚠ Aucune tâche en cours à arrêter`);
+            }
           }}
           style={{
             padding: '0.25rem 0.6rem', borderRadius: 6, border: 'none',
