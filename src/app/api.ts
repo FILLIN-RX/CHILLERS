@@ -829,6 +829,22 @@ export async function adminStopTask(name: string) {
   return adminFetch(`/tasks/stop/${encodeURIComponent(name)}`, { method: 'POST' });
 }
 
+export async function adminRunTask(taskId: string) {
+  return adminFetch(`/cron/run/${encodeURIComponent(taskId)}`, { method: 'POST' });
+}
+
+export async function adminListProcesses() {
+  return adminFetch('/cron/processes');
+}
+
+export async function adminKillProcess(pid: number) {
+  return adminFetch(`/cron/kill/${pid}`, { method: 'POST' });
+}
+
+export async function adminGetSystemCron() {
+  return adminFetch('/cron/system');
+}
+
 export function adminGetLogsStreamUrl(): string {
   const token = getAdminToken();
   return `${API_BASE_URL}/admin/logs/stream?token=${token}`;

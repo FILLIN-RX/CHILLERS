@@ -7,51 +7,76 @@ exports.ProviderManager = void 0;
 const axios_1 = __importDefault(require("axios"));
 const child_process_1 = require("child_process");
 const path_1 = __importDefault(require("path"));
+const mongodb_provider_1 = require("./providers/mongodb.provider");
 const doodstream_provider_1 = require("./providers/doodstream.provider");
-const vidlink_provider_1 = require("./providers/vidlink.provider");
 const vidapi_provider_1 = require("./providers/vidapi.provider");
-const animekai_provider_1 = require("./providers/animekai.provider");
 const otaku_provider_1 = require("./providers/otaku.provider");
+const vidlink_provider_1 = require("./providers/vidlink.provider");
+const stream_cache_1 = require("../utils/stream-cache");
+const Movie_1 = __importDefault(require("../models/Movie"));
+const Serie_1 = __importDefault(require("../models/Serie"));
 const VALIDATION_TIMEOUT = 5000;
 const PROVIDER_TIMEOUT = 10000;
-const OTAKU_TIMEOUT = 60000;
+const OTAKU_TIMEOUT = 25000;
 const CIRCUIT_BREAKER_THRESHOLD = 3;
 const CIRCUIT_BREAKER_COOLDOWN = 60000;
 class ProviderManager {
     constructor() {
         this.health = new Map();
-        // Ordre de priorité: Doodstream, Otaku, Autres...
-        this.providers = [
+        /** Debounce : évite de re-scraper le même contenu plusieurs fois en // */
+        this.pendingScrapes = new Set();
+        this.providers = this.buildProviders();
+    }
+    buildProviders() {
+        return [
+            new mongodb_provider_1.MongoDBProvider(),
             new doodstream_provider_1.DoodStreamProvider(),
             new otaku_provider_1.OtakuProvider(),
-            new animekai_provider_1.AnimeKaiProvider(),
             new vidlink_provider_1.VidLinkProvider(),
             new vidapi_provider_1.VidAPIProvider(),
         ];
     }
     async getMovieStream(query) {
+        // ── Cache LRU ───────────────────────────────────────────────────────────
+        const cacheKey = (0, stream_cache_1.getCacheKey)('movie', query.tmdbId);
+        const cached = stream_cache_1.streamCache.get(cacheKey);
+        if (cached) {
+            console.log(`[Stream] Cache hit for movie ${query.tmdbId}`);
+            return cached;
+        }
         const attempts = [];
-        const ordered = this.sortProviders(query);
-        for (const provider of ordered) {
+        const activeProviders = await this.filterProviders(query);
+        for (const provider of activeProviders) {
             const attempt = await this.tryProvider(provider, 'movie', query);
             attempts.push(attempt);
             if (attempt.status === 'success') {
                 console.log(`[Stream] Movie stream found via "${provider.name}" after ${attempts.length} attempt(s)`);
-                return { provider: attempt.provider, embedUrl: attempt.reason };
+                const result = { provider: attempt.provider, embedUrl: attempt.reason };
+                stream_cache_1.streamCache.set(cacheKey, result);
+                return result;
             }
         }
         console.error(`[Stream] All providers failed for movie query "${query.title || query.tmdbId}":`, attempts.map(a => `${a.provider}=${a.status}${a.reason ? ` (${a.reason})` : ''}`).join(', '));
         return null;
     }
     async getEpisodeStream(query) {
+        // ── Cache LRU ───────────────────────────────────────────────────────────
+        const cacheKey = (0, stream_cache_1.getCacheKey)('episode', query.tmdbId, query.season, query.episode);
+        const cached = stream_cache_1.streamCache.get(cacheKey);
+        if (cached) {
+            console.log(`[Stream] Cache hit for episode ${query.tmdbId} S${query.season}E${query.episode}`);
+            return cached;
+        }
         const attempts = [];
-        const ordered = this.sortProviders(query);
-        for (const provider of ordered) {
+        const activeProviders = await this.filterProviders(query);
+        for (const provider of activeProviders) {
             const attempt = await this.tryProvider(provider, 'episode', query);
             attempts.push(attempt);
             if (attempt.status === 'success') {
                 console.log(`[Stream] Episode stream found via "${provider.name}" after ${attempts.length} attempt(s)`);
-                return { provider: attempt.provider, embedUrl: attempt.reason };
+                const result = { provider: attempt.provider, embedUrl: attempt.reason };
+                stream_cache_1.streamCache.set(cacheKey, result);
+                return result;
             }
         }
         console.error(`[Stream] All providers failed for episode query "${query.title || query.tmdbId}" S${query.season}E${query.episode}:`, attempts.map(a => `${a.provider}=${a.status}${a.reason ? ` (${a.reason})` : ''}`).join(', '));
@@ -116,8 +141,9 @@ class ProviderManager {
                     reason: 'no result returned',
                 };
             }
-            // Self-healing trigger: validate URL
-            const valid = await this.validateUrl(result.embedUrl);
+            // Skip validation for MongoDB — URLs already stored in our DB,
+            // the provider itself checks signed-link expiry internally.
+            const valid = provider.name === 'mongodb' || await this.validateUrl(result.embedUrl);
             if (valid) {
                 this.recordSuccess(provider.name);
                 return {
@@ -128,11 +154,7 @@ class ProviderManager {
             }
             else {
                 this.recordFailure(provider.name);
-                // TRIGGER BACKGROUND RE-SCRAPE
-                console.log(`[Self-Healing] Triggering background re-scrape for: ${provider.name} - ${query.title}`);
-                const scriptPath = path_1.default.join(__dirname, '../scraping/core/on-demand-fetch.ts');
-                const typeArg = type === 'movie' ? 'movie' : 'series';
-                (0, child_process_1.exec)(`npx tsx ${scriptPath} "${query.title}" "${typeArg}" "${query.episode || ''}"`);
+                this.triggerReScrape(query.title || String(query.tmdbId), type, query.episode);
                 return {
                     provider: provider.name,
                     status: 'fail',
@@ -168,74 +190,205 @@ class ProviderManager {
         }
         return [...supports, ...fallback];
     }
-    async validateUrl(url) {
+    async contentExistsInMongoDB(query) {
         try {
+            const isSerie = query.season !== undefined && query.episode !== undefined;
+            const Model = isSerie ? Serie_1.default : Movie_1.default;
+            const orClause = [];
+            if (query.tmdbId) {
+                orClause.push({ tmdbId: query.tmdbId });
+                orClause.push({ tmdbId: String(query.tmdbId) });
+            }
+            if (query.title) {
+                const safe = query.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                orClause.push({ titre: { $regex: new RegExp(safe, 'i') } });
+                // Match sans espaces/ponctuation pour tolérer les différences de format
+                const stripped = query.title.replace(/[^a-z0-9]/gi, '');
+                if (stripped.length >= 3 && stripped !== safe) {
+                    const fuzzy = [...stripped].join('[^a-z0-9]*');
+                    orClause.push({ titre: { $regex: new RegExp(fuzzy, 'i') } });
+                }
+            }
+            if (orClause.length === 0)
+                return false;
+            const doc = await Model.findOne({ $or: orClause }).exec();
+            if (doc) {
+                console.log(`[ProviderManager] ${isSerie ? 'Série' : 'Film'} trouvé en BD (tmdbId=${query.tmdbId}, titre="${query.title}")`);
+            }
+            else {
+                console.log(`[ProviderManager] ${isSerie ? 'Série' : 'Film'} NON trouvé en BD (tmdbId=${query.tmdbId}, titre="${query.title}") → VidLink/VidAPI gardés`);
+            }
+            return !!doc;
+        }
+        catch (err) {
+            console.error('[ProviderManager] Erreur contentExistsInMongoDB:', err);
+            return false;
+        }
+    }
+    async filterProviders(query) {
+        const skipVid = await this.contentExistsInMongoDB(query);
+        const ordered = this.sortProviders(query);
+        if (!skipVid)
+            return ordered;
+        return ordered.filter(p => p.name !== 'vidlink' && p.name !== 'vidapi');
+    }
+    /**
+     * Déclenche un re-scrape en arrière-plan de façon sécurisée.
+     * - Utilise spawn() au lieu de exec() → pas d'injection shell possible
+     * - Debounce via pendingScrapes → évite les appels en boucle
+     */
+    triggerReScrape(title, type, episode) {
+        const typeArg = type === 'movie' ? 'movie' : 'series';
+        const debounceKey = `${typeArg}:${title}`;
+        if (this.pendingScrapes.has(debounceKey)) {
+            console.log(`[Self-Healing] Re-scrape déjà en cours pour "${title}", ignoré`);
+            return;
+        }
+        this.pendingScrapes.add(debounceKey);
+        // Nettoyer le debounce après 5 minutes
+        setTimeout(() => this.pendingScrapes.delete(debounceKey), 5 * 60 * 1000);
+        const scriptPath = path_1.default.join(__dirname, '../scraping/core/on-demand-fetch.ts');
+        // spawn() — arguments passés séparément, JAMAIS interpolés dans un shell
+        const child = (0, child_process_1.spawn)('npx', ['tsx', scriptPath, title, typeArg, String(episode ?? '')], { detached: true, stdio: 'ignore', env: process.env });
+        child.unref();
+        console.log(`[Self-Healing] Re-scrape lancé pour "${title}" (${typeArg}) pid=${child.pid}`);
+    }
+    isIframeEmbedUrl(url) {
+        return (url.includes('vidlink.pro') ||
+            url.includes('vidapi') ||
+            url.includes('animekai') ||
+            url.includes('uqload') ||
+            url.includes('youtube.com') ||
+            url.includes('doodstream.com') ||
+            url.includes('playmogo.com') ||
+            url.includes('d000d.com') ||
+            url.includes('d0000d.com') ||
+            /dood\.(to|sh|so|cx|la|wf|pm)/i.test(url) ||
+            url.includes('/e/') ||
+            url.includes('embed'));
+    }
+    async validateUrl(url) {
+        // Skip validation for iframe embeds since they are protected by Cloudflare/DDOS-GUARD
+        if (this.isIframeEmbedUrl(url)) {
+            return true;
+        }
+        try {
+            // 1. Try a HEAD request first to verify video URLs quickly without downloading body
+            try {
+                const headResponse = await axios_1.default.head(url, {
+                    timeout: VALIDATION_TIMEOUT,
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                    },
+                    maxRedirects: 5,
+                });
+                if (headResponse.status >= 200 && headResponse.status < 400) {
+                    const contentType = String(headResponse.headers['content-type'] || '');
+                    if (contentType.includes('video/') ||
+                        contentType.includes('application/x-mpegurl') ||
+                        contentType.includes('application/vnd.apple.mpegurl')) {
+                        return true;
+                    }
+                }
+            }
+            catch (headErr) {
+                // HEAD failed, fall back to GET stream
+            }
+            // 2. Perform GET request with stream response to inspect headers / small body chunk
             const response = await axios_1.default.get(url, {
                 timeout: VALIDATION_TIMEOUT,
+                responseType: 'stream',
                 headers: {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
                 },
                 maxRedirects: 5,
             });
-            if (response.status >= 400)
+            if (response.status >= 400) {
+                response.data.destroy();
                 return false;
-            const body = typeof response.data === 'string' ? response.data.toLowerCase() : '';
-            const contentLength = body.length;
-            // Too short = error/redirect/minimal fallback page
-            if (contentLength < 200)
-                return false;
-            const notFoundIndicators = [
-                'not found',
-                'unavailable',
-                'error loading',
-                'no stream',
-                'content not available',
-                '404',
-                'introuvable',
-                'indisponible',
-                'erreur',
-                'non disponible',
-                'aucun contenu',
-                'n\'existe pas',
-                'this video is not available',
-                'video not found',
-                'no video',
-                'content unavailable',
-                'stream not found',
-                'sorry',
-                'page not found',
-                'file not found',
-                'nothing found',
-                'aucun résultat',
-                'ne correspond',
-                'page introuvable',
-                'fichier introuvable',
-                'contenu non trouvé',
-                'film introuvable',
-                'série introuvable',
-                'nothing here',
-                'no content',
-                'empty',
-                'error 404',
-                'error 500',
-            ];
-            for (const indicator of notFoundIndicators) {
-                if (body.includes(indicator)) {
-                    return false;
-                }
             }
-            // VidLink fallback pages are typically very minimal HTML without a real player
-            // Check that the response has meaningful content (player scripts, video elements, etc.)
-            if (url.includes('vidlink.pro')) {
-                if (!body.includes('vidlink') && !body.includes('player') && !body.includes('video') && !body.includes('iframe')) {
-                    return false;
-                }
+            const contentType = String(response.headers['content-type'] || '').toLowerCase();
+            if (contentType.includes('video/') ||
+                contentType.includes('application/x-mpegurl') ||
+                contentType.includes('application/vnd.apple.mpegurl')) {
+                response.data.destroy();
+                return true;
             }
-            return true;
+            // If it is HTML, read the first 50KB to check for error indicators
+            return new Promise((resolve) => {
+                let body = '';
+                const stream = response.data;
+                stream.on('data', (chunk) => {
+                    body += chunk.toString('utf8');
+                    if (body.length > 50000) {
+                        stream.destroy();
+                    }
+                });
+                stream.on('end', () => {
+                    resolve(this.checkBodyForErrors(body, url));
+                });
+                stream.on('error', () => {
+                    resolve(false);
+                });
+            });
         }
         catch {
             return false;
         }
+    }
+    checkBodyForErrors(body, url) {
+        const text = body.toLowerCase();
+        if (text.length < 200)
+            return false;
+        const notFoundIndicators = [
+            'not found',
+            'unavailable',
+            'error loading',
+            'no stream',
+            'content not available',
+            '404',
+            'introuvable',
+            'indisponible',
+            'erreur',
+            'non disponible',
+            'aucun contenu',
+            'n\'existe pas',
+            'this video is not available',
+            'video not found',
+            'no video',
+            'content unavailable',
+            'stream not found',
+            'sorry',
+            'page not found',
+            'file not found',
+            'nothing found',
+            'aucun résultat',
+            'ne correspond',
+            'page introuvable',
+            'fichier introuvable',
+            'contenu non trouvé',
+            'film introuvable',
+            'série introuvable',
+            'nothing here',
+            'no content',
+            'empty',
+            'error 404',
+            'error 500',
+        ];
+        for (const indicator of notFoundIndicators) {
+            if (text.includes(indicator)) {
+                return false;
+            }
+        }
+        if (url.includes('vidlink.pro')) {
+            if (!text.includes('vidlink') &&
+                !text.includes('player') &&
+                !text.includes('video') &&
+                !text.includes('iframe')) {
+                return false;
+            }
+        }
+        return true;
     }
 }
 exports.ProviderManager = ProviderManager;
