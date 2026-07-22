@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import HeroCarousel from "@/components/HeroCarousel";
 import MovieCard from "@/components/MovieCard";
 import ContinueWatchingCard from "@/components/ContinueWatchingCard";
 import ScrollRow from "@/components/ScrollRow";
-import MovieModal from "@/components/MovieModal";
 import { useLanguage } from "@/i18n/LanguageContext";
 import {
   MovieOrShow,
@@ -18,10 +18,8 @@ import {
   getPopularMovies,
   getPopularTV,
   getMediaDetails,
-  getMovieGenres,
   getMoviesByGenre,
   getAnimeSeries,
-  Genre,
 } from "../api";
 
 const HOME_GENRES = [
@@ -31,6 +29,10 @@ const HOME_GENRES = [
 ];
 
 type TabFetcher = (signal: AbortSignal) => Promise<MovieOrShow[]>;
+
+const MovieModal = dynamic(() => import("@/components/MovieModal"), {
+  ssr: false,
+});
 
 const TAB_FETCHERS: Record<string, TabFetcher> = {
   movies: (signal) => getPopularMovies(1, signal),
@@ -75,9 +77,10 @@ function Home() {
   const [moviesData, setMoviesData] = useState<MovieOrShow[]>([]);
   const [seriesData, setSeriesData] = useState<MovieOrShow[]>([]);
   const [animeData, setAnimeData] = useState<MovieOrShow[]>([]);
-  const [genres, setGenres] = useState<Genre[]>([]);
   const [genreRows, setGenreRows] = useState<{ title: string; items: MovieOrShow[] }[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
+  const [isLoadingGenreRows, setIsLoadingGenreRows] = useState(false);
+  const [hasTriedGenreRows, setHasTriedGenreRows] = useState(false);
 
   // Continue-watching is read from localStorage. Declared BEFORE the useEffect
   // that calls it so the effect's first run can't hit a TDZ (P0-#8).
@@ -149,13 +152,12 @@ function Home() {
         }
       };
 
-      const [trending, trendingTV, popular, popularTV, anime, genreList] = await Promise.all([
+      const [trending, trendingTV, popular, popularTV, anime] = await Promise.all([
         fetchWithCatch(getTrendingMovies(signal), []),
         fetchWithCatch(getTrendingTV(signal), []),
         fetchWithCatch(getPopularMovies(1, signal), []),
         fetchWithCatch(getPopularTV(1, signal), []),
         fetchWithCatch(getAnimeSeries(1, signal), []),
-        fetchWithCatch(getMovieGenres(signal), []),
       ]);
 
       const allTrending = [...trending, ...trendingTV];
@@ -166,15 +168,7 @@ function Home() {
       }
       if (popularTV.length > 0) setSeriesData(popularTV);
       if (anime.length > 0) setAnimeData(anime);
-      if (genreList.length > 0) setGenres(genreList);
 
-      const genreResults = await Promise.all(
-        HOME_GENRES.map((g) => fetchWithCatch(getMoviesByGenre(g.id, 1, signal), [])),
-      );
-      const rows = HOME_GENRES.map((g, i) => ({ title: g.title, items: genreResults[i] || [] })).filter(
-        (r) => r.items.length > 0,
-      );
-      if (rows.length > 0) setGenreRows(rows);
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") throw err;
       console.error("Failed to load home data", err);
@@ -182,6 +176,26 @@ function Home() {
       setIsLoadingData(false);
     }
   }, []);
+
+  const loadGenreRows = useCallback(async (signal?: AbortSignal) => {
+    if (genreRows.length > 0) return;
+    setIsLoadingGenreRows(true);
+    try {
+      const rowsData = await Promise.all(
+        HOME_GENRES.map(async (g) => ({
+          title: g.title,
+          items: await getMoviesByGenre(g.id, 1, signal),
+        })),
+      );
+      const validRows = rowsData.filter((row) => row.items.length > 0);
+      if (validRows.length > 0) setGenreRows(validRows);
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      console.error("Failed to load home genre rows", err);
+    } finally {
+      setIsLoadingGenreRows(false);
+    }
+  }, [genreRows.length]);
 
   // Home tab: load all rows once. Aborted on unmount or tab change.
   useEffect(() => {
@@ -191,6 +205,21 @@ function Home() {
     loadHomeData(controller.signal).catch(() => {});
     return () => controller.abort();
   }, [activeTab, trendingAll.length, loadHomeData]);
+
+  useEffect(() => {
+    if (activeTab !== "home") return;
+    if (isLoadingData) return;
+    if (genreRows.length > 0 || isLoadingGenreRows || hasTriedGenreRows) return;
+    const controller = new AbortController();
+    const idleTimer = setTimeout(() => {
+      setHasTriedGenreRows(true);
+      loadGenreRows(controller.signal).catch(() => {});
+    }, 350);
+    return () => {
+      clearTimeout(idleTimer);
+      controller.abort();
+    };
+  }, [activeTab, isLoadingData, genreRows.length, isLoadingGenreRows, hasTriedGenreRows, loadGenreRows]);
 
   // P1-#22: one effect dispatches on `activeTab` instead of three near-identical
   // effects. Each tab fetcher is in TAB_FETCHERS; the matching setter is in
@@ -205,10 +234,13 @@ function Home() {
     const fetcher = TAB_FETCHERS[activeTab];
     const setter = TAB_SETTERS[activeTab];
     if (!fetcher || !setter) return;
+    if (activeTab === "movies" && moviesData.length > 0) return;
+    if (activeTab === "series" && seriesData.length > 0) return;
+    if (activeTab === "anime" && animeData.length > 0) return;
     const controller = new AbortController();
     fetcher(controller.signal).then(setter).catch(() => {});
     return () => controller.abort();
-  }, [activeTab]);
+  }, [activeTab, moviesData.length, seriesData.length, animeData.length]);
 
   const handleOpenDetails = async (item: MovieOrShow) => {
     setSelectedMovie(item);

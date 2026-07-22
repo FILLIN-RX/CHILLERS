@@ -69,11 +69,9 @@ function MediaDetailPage() {
   const fetchData = useCallback(async () => {
     if (!id) return;
     setLoading(true);
+    setSimilar([]);
     try {
-      const [detail, similarList] = await Promise.all([
-        getMediaDetails(id, isTV),
-        isTV ? getPopularTV() : getPopularMovies(),
-      ]);
+      const detail = await getMediaDetails(id, isTV);
       if (detail) {
         if (detail.trailerUrl) {
           setTrailerUrl(detail.trailerUrl);
@@ -87,7 +85,6 @@ function MediaDetailPage() {
           if (stream) setItem(prev => prev ? { ...prev, videoUrl: stream.embedUrl } : prev);
         });
       }
-      setSimilar(similarList.filter((m) => m.id !== id).slice(0, 8));
     } catch (err) {
       console.error("Error loading detail page:", err);
     } finally {
@@ -98,6 +95,27 @@ function MediaDetailPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData, id]);
+
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+
+    const loadSimilar = async () => {
+      try {
+        const similarList = isTV ? await getPopularTV() : await getPopularMovies();
+        if (!cancelled) {
+          setSimilar(similarList.filter((m) => m.id !== id).slice(0, 8));
+        }
+      } catch (err) {
+        if (!cancelled) console.error("Error loading similar media:", err);
+      }
+    };
+
+    loadSimilar();
+    return () => {
+      cancelled = true;
+    };
+  }, [id, isTV]);
 
   const handleWatch = async () => {
     if (isTV && item) {

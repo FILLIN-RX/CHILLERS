@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { MovieOrShow } from "@/app/mockData";
@@ -17,13 +17,12 @@ interface MovieCardProps {
 const isUnavailable = (item: MovieOrShow) =>
   !item.videoUrl || item.videoUrl.includes("youtube");
 
-export default function MovieCard({
+function MovieCard({
   item,
   onPlay,
   onOpenDetails,
   variant = "scroll",
 }: MovieCardProps) {
-  const [isHovered, setIsHovered] = useState(false);
   const router = useRouter();
   const { translate: _ } = useLanguage();
   const unavailable = isUnavailable(item);
@@ -36,27 +35,22 @@ export default function MovieCard({
   return (
     <div
       onClick={() => goToDetail()}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      className={`relative aspect-[2/3] overflow-hidden bg-zinc-900 border border-zinc-800/40 cursor-pointer transition-all duration-300 ${
+      className={`group relative aspect-[2/3] overflow-hidden bg-zinc-900 border border-zinc-800/40 cursor-pointer transition-all duration-300 ${
         variant === "grid"
           ? "w-full rounded-lg sm:rounded-xl"
           : "flex-none w-[140px] sm:w-[180px] md:w-[220px] rounded-xl sm:rounded-2xl"
-      }`}
-      style={{
-        transform: isHovered ? 'scale(1.05)' : 'scale(1)',
-        boxShadow: isHovered ? '0 0 30px rgba(215, 4, 102, 0.35)' : 'none',
-        opacity: unavailable ? 0.75 : 1,
-        filter: unavailable ? 'grayscale(0.3)' : 'none',
-      }}
+      } ${unavailable ? "opacity-75 grayscale-[0.3]" : ""} hover:scale-105 hover:shadow-[0_0_30px_rgba(215,4,102,0.35)]`}
     >
       <Image
         src={item.posterUrl}
         alt={item.title}
         fill
-        className="object-cover transition-transform duration-500"
-        style={{ transform: isHovered ? 'scale(1.05)' : 'scale(1)' }}
-        sizes="(max-width: 640px) 140px, (max-width: 768px) 180px, 220px"
+        className="object-cover transition-transform duration-500 group-hover:scale-105"
+        sizes={
+          variant === "grid"
+            ? "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+            : "(max-width: 640px) 140px, (max-width: 768px) 180px, 220px"
+        }
       />
 
       <div className="absolute top-3 right-3 z-20">
@@ -81,9 +75,7 @@ export default function MovieCard({
       </div>
 
       <div
-        className={`absolute inset-0 z-10 flex flex-col justify-end p-4 bg-gradient-to-t from-black via-black/80 to-transparent transition-opacity duration-300 ${
-          isHovered ? "opacity-100" : "opacity-0"
-        }`}
+        className="absolute inset-0 z-10 flex flex-col justify-end p-4 bg-gradient-to-t from-black via-black/80 to-transparent transition-opacity duration-300 opacity-0 group-hover:opacity-100"
       >
         <div className="space-y-2 translate-y-0 transition-transform duration-300">
           <div className="flex items-center gap-2">
@@ -106,7 +98,7 @@ export default function MovieCard({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                goToDetail();
+                onOpenDetails(item);
               }}
               className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
               aria-label={_("media.details")}
@@ -135,3 +127,5 @@ export default function MovieCard({
     </div>
   );
 }
+
+export default React.memo(MovieCard);
