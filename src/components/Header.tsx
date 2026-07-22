@@ -92,7 +92,7 @@ export default function Header({ onSearchClick }: HeaderProps) {
                       : "text-zinc-400 hover:text-white"
                   }`}
                 >
-                  <Icon className="h-4 w-4" />
+                  <Icon className="h-4 w-4" aria-hidden="true" focusable="false" />
                   {tab.label}
                   {activeTab === tab.id && (
                     <span className="absolute bottom-0 left-0 h-[2px] w-full bg-brand-primary rounded-full" />
