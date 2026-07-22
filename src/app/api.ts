@@ -643,6 +643,13 @@ export async function clearTmdbCache(): Promise<void> {
 export function triggerDownload(downloadUrl: string, filename: string = 'video.mp4') {
   if (typeof window === "undefined") return;
 
+  // Si le lien est une page DoodStream /d/, ouvrir directement
+  // dans un nouvel onglet (le proxy ne peut pas forwarder du HTML)
+  if (/doodstream\.com\/d\//i.test(downloadUrl)) {
+    window.open(downloadUrl, '_blank');
+    return;
+  }
+
   const proxyUrl = `${API_BASE_URL}/doodstream/download/proxy?url=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(filename)}`;
   const a = document.createElement('a');
   a.href = proxyUrl;
