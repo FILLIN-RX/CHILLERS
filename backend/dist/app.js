@@ -4,9 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
-const cors_1 = __importDefault(require("cors"));
 const helmet_1 = __importDefault(require("helmet"));
-const morgan_1 = __importDefault(require("morgan"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const error_middleware_1 = require("./middleware/error.middleware");
 const tmdb_1 = require("./config/tmdb");
@@ -34,22 +32,6 @@ app.use((0, helmet_1.default)({
         },
     },
 }));
-const allowedOrigins = (process.env.CORS_ORIGIN || 'https://chillers-pi.vercel.app').split(',').map(s => s.trim());
-app.use((0, cors_1.default)({
-    origin: (origin, callback) => {
-        if (!origin || allowedOrigins.includes('*')) {
-            callback(null, true);
-            return;
-        }
-        if (allowedOrigins.some(o => origin.startsWith(o))) {
-            callback(null, true);
-            return;
-        }
-        callback(null, true);
-    },
-    credentials: true,
-}));
-app.use((0, morgan_1.default)('dev'));
 app.use(express_1.default.json());
 app.get('/api/health', (_req, res) => {
     res.json({ success: true, data: { status: 'ok' }, message: null });
