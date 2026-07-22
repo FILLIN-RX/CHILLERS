@@ -2,10 +2,14 @@
 
 import React, { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
+import dynamic from "next/dynamic";
 import Header from "@/components/Header";
-import SearchOverlay from "@/components/SearchOverlay";
 import Footer from "@/components/Footer";
 import BottomNav from "@/components/BottomNav";
+
+const SearchOverlay = dynamic(() => import("@/components/SearchOverlay"), {
+  ssr: false,
+});
 
 interface AppShellProps {
   children: React.ReactNode;

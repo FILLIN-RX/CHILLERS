@@ -11,7 +11,7 @@ import Admin from '../../models/Admin';
 import Movie from '../../models/Movie';
 import Serie from '../../models/Serie';
 import DeadLink from '../../models/DeadLink';
-import { startCron, stopCron, getCronStatus, runScrapingTasks, runMaintenanceTasks, runner, stopTask, stopAllTasks, getRunningTasks } from '../../cron-manager';
+import { startCron, stopCron, getCronStatus, runScrapingTasks, runMaintenanceTasks, runner, stopTask, stopAllTasks, getRunningTasks, runTaskById, runTaskByLabel, listOsProcesses, stopByPid, getSystemCronStatus, ALL_TASKS } from '../../cron-manager';
 import { UqloadClient } from '../uqload/uqload.client';
 import { uploadMoviesBatch, uploadSeriesBatch, uploadSingleMovie, uploadSingleEpisode, stopUpload, isUploadRunning } from '../uqload/uqload.uploader';
 
@@ -531,7 +531,7 @@ export async function cronStart(req: AuthRequest, res: Response) {
 
 export async function cronStop(req: AuthRequest, res: Response) {
     if (await scraperProxy(req, res, '/cron/stop')) return;
-    stopCron();
+    await stopCron();
     res.json({ success: true, data: getCronStatus(), message: null });
 }
 
@@ -545,17 +545,50 @@ export async function runningTasks(req: AuthRequest, res: Response) {
     res.json({ success: true, data: getRunningTasks(), message: null });
 }
 
+export async function runTask(req: AuthRequest, res: Response) {
+    const taskId = Array.isArray(req.params.taskId) ? req.params.taskId[0] : req.params.taskId;
+    if (!ALL_TASKS[taskId]) {
+        res.status(400).json({ success: false, data: null, message: `Tâche inconnue: ${taskId}` });
+        return;
+    }
+    const started = runTaskById(taskId);
+    if (!started) {
+        res.status(409).json({ success: false, data: null, message: `Tâche déjà en cours ou impossible à lancer: ${ALL_TASKS[taskId].label}` });
+        return;
+    }
+    res.json({ success: true, data: { taskId, label: ALL_TASKS[taskId].label }, message: `${ALL_TASKS[taskId].label} lancé` });
+}
+
+export async function listProcesses(_req: AuthRequest, res: Response) {
+    res.json({ success: true, data: listOsProcesses(), message: null });
+}
+
+export async function killProcess(req: AuthRequest, res: Response) {
+    const pidStr = Array.isArray(req.params.pid) ? req.params.pid[0] : req.params.pid;
+    const pid = parseInt(pidStr, 10);
+    if (!Number.isFinite(pid) || pid <= 0) {
+        res.status(400).json({ success: false, data: null, message: 'PID invalide' });
+        return;
+    }
+    const killed = await stopByPid(pid);
+    res.json({ success: true, data: { killed, pid }, message: killed ? `PID ${pid} tué` : `PID ${pid} introuvable ou impossible à tuer` });
+}
+
+export async function systemCron(_req: AuthRequest, res: Response) {
+    res.json({ success: true, data: getSystemCronStatus(), message: null });
+}
+
 export async function stopTaskHandler(req: AuthRequest, res: Response) {
     const name = Array.isArray(req.params.name) ? req.params.name[0] : req.params.name;
     if (await scraperProxy(req, res, `/tasks/stop/${encodeURIComponent(name)}`)) return;
-    const killed = stopTask(name);
+    const killed = await stopTask(name);
     res.json({ success: true, data: { killed, name }, message: killed ? null : `Aucune tâche en cours: ${name}` });
 }
 
 export async function stopAllTasksHandler(req: AuthRequest, res: Response) {
     if (await scraperProxy(req, res, '/tasks/stop-all')) return;
-    const stopped = stopAllTasks();
-    stopCron();
+    const stopped = await stopAllTasks();
+    await stopCron();
     res.json({
         success: true,
         data: { stopped, running: getCronStatus().running },
