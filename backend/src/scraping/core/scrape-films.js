@@ -1,5 +1,6 @@
 const { chromium } = require('playwright');
 const mongoose = require('mongoose');
+const axios = require('axios');
 const Movie = require('../../models/Movie').default;
 const ScraperState = require('../../models/ScraperState').default;
 const { connectDB } = require('../../config/db');
@@ -26,6 +27,32 @@ async function uploadToUqload(client, titre, lien, movieId) {
     console.log(`  -> ✅ Uqload: ${titre} → ${fileCode}`);
   } catch (e) {
     console.log(`  -> ⏭ Uqload ignoré pour ${titre}: ${e.message}`);
+  }
+}
+
+const DOOD_API_KEY = process.env.DOODSTREAM_API_KEY;
+const DOOD_BASE = 'https://doodapi.co/api';
+
+async function uploadToDoodStream(titre, lien, movieId) {
+  if (!DOOD_API_KEY || !lien || lien === '#') return;
+  try {
+    console.log(`  -> Upload DoodStream: ${titre}`);
+    const { data } = await axios.get(`${DOOD_BASE}/upload/url`, {
+      params: { key: DOOD_API_KEY, url: lien, new_title: titre },
+      timeout: 30000,
+    });
+    if (data.status === 200 && data.result?.filecode) {
+      const doodUrl = `https://doodstream.com/e/${data.result.filecode}`;
+      const movie = await Movie.findById(movieId);
+      const update = { lien: doodUrl, fileCode: data.result.filecode, uploadedAt: new Date() };
+      if (movie && !movie.lienOriginal) update.lienOriginal = movie.lien;
+      await Movie.updateOne({ _id: movieId }, { $set: update });
+      console.log(`  -> ✅ DoodStream: ${titre} → ${doodUrl}`);
+    } else {
+      console.log(`  -> ⏭ DoodStream ignoré pour ${titre}: ${data.msg || 'réponse inattendue'}`);
+    }
+  } catch (e) {
+    console.log(`  -> ⏭ DoodStream ignoré pour ${titre}: ${e.message}`);
   }
 }
 
@@ -112,6 +139,7 @@ async function scrapeFilms() {
                     console.log(`Film sauvegardé dans MongoDB : ${titre}`);
                     if (saved) {
                         await uploadToUqload(uqload, titre, link, saved._id.toString());
+                        await uploadToDoodStream(titre, link, saved._id.toString());
                     }
                 }
 

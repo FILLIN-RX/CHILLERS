@@ -142,10 +142,12 @@ export async function rescrapeDeadLink(req: AuthRequest, res: Response) {
             try {
                 const browser = await chromium.launch({
                     headless,
-                    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+                    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu',
+                           '--start-maximized'],
                 });
-                const page = await browser.newPage();
-                page.on('console', msg => appendLog(`[Browser] ${msg.text()}`));
+                const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
+                page.on('console', msg => appendLog(`[Rescrape] [Browser] ${msg.text()}`));
+                page.on('pageerror', err => appendLog(`[Rescrape] [PageError] ${err.message}`));
 
                 // Try to navigate directly to pageUrl if available
                 let pageUrl: string | null = null;
@@ -159,33 +161,39 @@ export async function rescrapeDeadLink(req: AuthRequest, res: Response) {
 
                 if (pageUrl) {
                     appendLog(`[Rescrape] Navigation directe vers ${pageUrl}`);
-                    await page.goto(pageUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
-                    await page.waitForTimeout(2000);
+                    await page.goto(pageUrl, { waitUntil: 'networkidle', timeout: 45000 });
+                    await page.waitForTimeout(3000);
                 } else {
+                    appendLog(`[Rescrape] Pas de pageUrl — recherche par titre`);
                     const searchUrl = type === 'series' ? 'https://www.open-otaku.me/?cat=series' : 'https://www.open-otaku.me/';
-                    appendLog(`[Rescrape] Recherche sur ${searchUrl}`);
-                    await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
-                    await page.waitForTimeout(2000);
+                    await page.goto(searchUrl, { waitUntil: 'networkidle', timeout: 45000 });
+                    await page.waitForTimeout(3000);
 
+                    appendLog(`[Rescrape] Clic sur l'icône recherche`);
                     const searchBtn = page.locator('#fs-search-icon-btn');
                     if (await searchBtn.count() > 0) {
                         await searchBtn.click();
-                        await page.waitForTimeout(1000);
+                        await page.waitForTimeout(1500);
                     }
 
+                    appendLog(`[Rescrape] Saisie du titre: "${titre}"`);
                     const searchInput = page.locator('input[type="search"], input[type="text"], #fs-search-input, .fs-search-input');
                     if (await searchInput.count() > 0) {
+                        await searchInput.first().click();
                         await searchInput.first().fill(titre);
                         await page.keyboard.press('Enter');
-                        await page.waitForTimeout(3000);
+                        await page.waitForTimeout(4000);
                     } else {
-                        await page.goto(`https://www.open-otaku.me/?s=${encodeURIComponent(titre)}`, { waitUntil: 'domcontentloaded', timeout: 30000 });
-                        await page.waitForTimeout(3000);
+                        appendLog(`[Rescrape] Champ recherche introuvable — fallback URL`);
+                        await page.goto(`https://www.open-otaku.me/?s=${encodeURIComponent(titre)}`, { waitUntil: 'networkidle', timeout: 45000 });
+                        await page.waitForTimeout(4000);
                     }
 
+                    appendLog(`[Rescrape] Recherche des cartes résultats`);
                     const cards = await page.locator('.fs-card').all();
                     if (cards.length === 0) {
                         appendLog(`[Rescrape] ❌ Aucun résultat pour "${titre}"`);
+                        appendLog(`[Rescrape] ❌ FINI`);
                         await browser.close();
                         return;
                     }
@@ -199,18 +207,28 @@ export async function rescrapeDeadLink(req: AuthRequest, res: Response) {
                         if (cardNorm === searchNorm) { targetCard = card; break; }
                     }
 
-                    await targetCard.click();
-                    await page.waitForLoadState('domcontentloaded');
-                    await page.waitForTimeout(2000);
+                    appendLog(`[Rescrape] Clic sur la carte`);
+                    await targetCard.scrollIntoViewIfNeeded();
+                    await targetCard.click({ force: true });
+                    await page.waitForLoadState('networkidle');
+                    await page.waitForTimeout(3000);
                 }
 
-                appendLog(`[Rescrape] Page détail ouverte`);
+                appendLog(`[Rescrape] ✅ Page détail ouverte`);
 
                 let newLink: string | null = null;
 
                 if (type === 'series' && episode) {
                     const epNum = episode.replace(/.*?(\d+)/, '$1');
-                    appendLog(`[Rescrape] Recherche épisode ${episode}`);
+                    appendLog(`[Rescrape] Sélection épisode ${episode} (#${epNum})`);
+
+                    const found = await page.waitForSelector('#fs-episode-select', { state: 'visible', timeout: 10000 }).then(() => true).catch(() => false);
+                    if (!found) {
+                        appendLog(`[Rescrape] ❌ Dropdown #fs-episode-select introuvable`);
+                        appendLog(`[Rescrape] ❌ FINI`);
+                        await browser.close();
+                        return;
+                    }
 
                     const selected = await page.evaluate((epNum) => {
                         const select = document.querySelector('#fs-episode-select') as HTMLSelectElement | null;
@@ -218,7 +236,7 @@ export async function rescrapeDeadLink(req: AuthRequest, res: Response) {
                         const option = Array.from(select.options).find(o => o.text.trim().includes(epNum));
                         if (option) {
                             select.value = option.value;
-                            select.dispatchEvent(new Event('change'));
+                            select.dispatchEvent(new Event('change', { bubbles: true }));
                             return true;
                         }
                         return false;
@@ -226,29 +244,51 @@ export async function rescrapeDeadLink(req: AuthRequest, res: Response) {
 
                     if (!selected) {
                         appendLog(`[Rescrape] ❌ Épisode ${episode} non trouvé dans le dropdown`);
+                        appendLog(`[Rescrape] ❌ FINI`);
                         await browser.close();
                         return;
                     }
-                    await page.waitForTimeout(4000);
+                    await page.waitForTimeout(5000);
                 }
 
-                const dlBtn = page.locator('button#fs-quick-download, .fs-download-btn, button:has-text("Download")');
-                if (await dlBtn.count() > 0) {
-                    await dlBtn.first().click({ force: true });
-                    appendLog(`[Rescrape] Téléchargement cliqué, attente du lien...`);
-                    await page.waitForTimeout(10000);
+                appendLog(`[Rescrape] Clic sur le bouton de téléchargement`);
+                const dlBtn = page.locator('button#fs-quick-download');
+                const dlBtnFallback = page.locator('button:has-text("Download"), .fs-download-btn');
 
+                let btnClicked = false;
+                if (await dlBtn.count() > 0) {
+                    await dlBtn.first().scrollIntoViewIfNeeded();
+                    await dlBtn.first().click({ force: true, timeout: 5000 });
+                    btnClicked = true;
+                    appendLog(`[Rescrape] ✅ Bouton #fs-quick-download cliqué`);
+                } else if (await dlBtnFallback.count() > 0) {
+                    await dlBtnFallback.first().scrollIntoViewIfNeeded();
+                    await dlBtnFallback.first().click({ force: true, timeout: 5000 });
+                    btnClicked = true;
+                    appendLog(`[Rescrape] ✅ Bouton fallback cliqué`);
+                }
+
+                if (!btnClicked) {
+                    appendLog(`[Rescrape] ⚠ Aucun bouton de téléchargement trouvé`);
+                } else {
+                    appendLog(`[Rescrape] Attente du lien (12s)...`);
+                    await page.waitForTimeout(12000);
+
+                    appendLog(`[Rescrape] Extraction du lien`);
                     const dlLink = page.locator('a#fs-dl-link');
                     if (await dlLink.count() > 0) {
                         newLink = await dlLink.first().getAttribute('href');
+                        appendLog(`[Rescrape] Lien #fs-dl-link: ${newLink?.substring(0, 60)}`);
                     }
 
                     if (!newLink || newLink === '#') {
+                        appendLog(`[Rescrape] Recherche de lien dans tous les <a>`);
                         const allLinks = await page.locator('a[href]').all();
                         for (const link of allLinks) {
                             const href = await link.getAttribute('href');
                             if (href && (href.includes('.mp4') || href.includes('vidzy') || href.includes('doodstream'))) {
                                 newLink = href;
+                                appendLog(`[Rescrape] ✅ Lien trouvé dans un <a>: ${href.substring(0, 60)}`);
                                 break;
                             }
                         }
@@ -259,6 +299,7 @@ export async function rescrapeDeadLink(req: AuthRequest, res: Response) {
 
                 if (!newLink || newLink === '#') {
                     appendLog(`[Rescrape] ❌ Aucun lien trouvé pour "${titre}"`);
+                    appendLog(`[Rescrape] ❌ FINI`);
                     return;
                 }
 
@@ -293,11 +334,62 @@ export async function rescrapeDeadLink(req: AuthRequest, res: Response) {
 
                 await DeadLink.findByIdAndDelete(req.params.id);
                 appendLog(`[Rescrape] ✅ Entrée lien mort supprimée`);
+                appendLog(`[Rescrape] ✅ FINI`);
 
             } catch (e: any) {
                 appendLog(`[Rescrape] ❌ Erreur: ${e.message}`);
+                appendLog(`[Rescrape] ❌ FINI`);
             }
         }, 100);
+    } catch (e: any) {
+        res.status(500).json({ success: false, data: null, message: e.message });
+    }
+}
+
+export async function updateDeadLink(req: AuthRequest, res: Response) {
+    try {
+        const { lien } = req.body;
+        if (!lien || typeof lien !== 'string') {
+            res.status(400).json({ success: false, data: null, message: 'lien requis' });
+            return;
+        }
+
+        const deadLink = await DeadLink.findById(req.params.id).lean();
+        if (!deadLink) {
+            res.status(404).json({ success: false, data: null, message: 'Lien introuvable' });
+            return;
+        }
+
+        const { titre, episode, type } = deadLink;
+
+        if (type === 'series') {
+            const serie = await Serie.findOne({ titre });
+            if (!serie) {
+                res.status(404).json({ success: false, data: null, message: 'Série introuvable' });
+                return;
+            }
+            const ep = serie.episodes.find(e => e.episode === episode);
+            if (!ep) {
+                res.status(404).json({ success: false, data: null, message: 'Épisode introuvable' });
+                return;
+            }
+            ep.lien = lien;
+            await serie.save();
+        } else {
+            const updated = await Movie.findOneAndUpdate(
+                { titre },
+                { $set: { lien } },
+                { new: true }
+            );
+            if (!updated) {
+                res.status(404).json({ success: false, data: null, message: 'Film introuvable' });
+                return;
+            }
+        }
+
+        await DeadLink.findByIdAndDelete(req.params.id);
+
+        res.json({ success: true, data: { titre, episode, lien }, message: 'Lien mis à jour' });
     } catch (e: any) {
         res.status(500).json({ success: false, data: null, message: e.message });
     }
@@ -423,6 +515,12 @@ export async function triggerTmdbLink(req: AuthRequest, res: Response) {
     res.json({ success: true, data: { status: 'launched', message: `${label} lancé` }, message: null });
 }
 
+export async function fixSeriesSeasons(_req: AuthRequest, res: Response) {
+    const label = 'Fix Seasons Séries';
+    runner(label, 'scraping/maintenance/fix-series-seasons.ts');
+    res.json({ success: true, data: { status: 'launched', message: `${label} lancé` }, message: null });
+}
+
 export async function cronStart(_req: AuthRequest, res: Response) {
     startCron();
     res.json({ success: true, data: getCronStatus(), message: null });
@@ -453,11 +551,14 @@ export async function runMaintenance(req: AuthRequest, res: Response) {
 
     const scripts: Record<string, { label: string, path: string }> = {
         'dead-links': { label: 'Maintenance Liens', path: 'scraping/maintenance/maintainer.js' },
+        'repair-movies': { label: 'Réparation Films', path: 'scraping/maintenance/maintainer-movies.js' },
         'check-all-links': { label: 'Vérification Liens Morts', path: 'scraping/maintenance/check-all-links.js' },
         'tmdb-movies': { label: 'Linking TMDB Films', path: 'scraping/maintenance/link-movies-tmdb.js' },
         'tmdb-series': { label: 'Linking TMDB Séries', path: 'scraping/maintenance/link-series-tmdb.js' },
         'organize': { label: 'Organize Séries Doodstream', path: 'scraping/maintenance/organize-series.js' },
         'sync': { label: 'Sync Séries → MongoDB', path: 'scraping/maintenance/sync-series-to-mongo.js' },
+        'upload-movies': { label: 'Upload Films DoodStream', path: 'scraping/maintenance/upload-doodstream.js' },
+        'upload-series': { label: 'Upload Séries DoodStream', path: 'scraping/maintenance/upload-series-doodstream.js' },
     };
 
     if (type === 'all') {
@@ -484,6 +585,28 @@ export async function collection(req: AuthRequest, res: Response) {
         const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
         const data = await adminService.searchCollection(type, q, page, limit);
         res.json({ success: true, data, message: null });
+    } catch (e: any) {
+        res.status(500).json({ success: false, data: null, message: e.message });
+    }
+}
+
+export async function getConvertedLinks(req: AuthRequest, res: Response) {
+    try {
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
+        const q = (req.query.q as string || '').trim();
+        const filter: any = { lienOriginal: { $exists: true } };
+        if (q) filter.titre = { $regex: q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
+        const [items, total] = await Promise.all([
+            Movie.find(filter)
+                .sort({ createdAt: -1 })
+                .skip((page - 1) * limit)
+                .limit(limit)
+                .select('titre lien lienOriginal fileCode createdAt')
+                .lean(),
+            Movie.countDocuments(filter),
+        ]);
+        res.json({ success: true, data: { items, total, page, limit, totalPages: Math.ceil(total / limit) } });
     } catch (e: any) {
         res.status(500).json({ success: false, data: null, message: e.message });
     }

@@ -1,7 +1,8 @@
 import { StreamingProvider, StreamResult, StreamQuery } from './provider.interface';
 import Movie from '../../models/Movie';
 import Serie from '../../models/Serie';
-import DeadLink from '../../models/DeadLink';
+import { isSignedLinkExpired } from '../../utils/link-ttl';
+import axios from 'axios';
 
 function toEmbedUrl(lien: string): string {
   const match = lien.match(/doodstream\.com\/(?:d|e)\/([a-zA-Z0-9]+)/);
@@ -9,11 +10,37 @@ function toEmbedUrl(lien: string): string {
   return lien;
 }
 
-async function isDead(lien: string): Promise<boolean> {
+/** Retourne l'URL si elle est valide et non expirée, sinon null. */
+function resolveUrl(url: string | undefined | null): string | null {
+  if (!url || url === '#') return null;
+  if (isSignedLinkExpired(url)) return null;
+  return url;
+}
+
+/** HEAD check rapide pour savoir si l'URL est joignable (pas morte). */
+async function isUrlAlive(url: string): Promise<boolean> {
   try {
-    return !!(await DeadLink.findOne({ lien }).select('_id').lean());
+    const res = await axios.head(url, {
+      timeout: 3000,
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+      maxRedirects: 3,
+      validateStatus: (s) => s < 400,
+    });
+    return true;
   } catch {
-    return false;
+    try {
+      const res = await axios.get(url, {
+        timeout: 3000,
+        responseType: 'stream',
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        maxRedirects: 3,
+        validateStatus: (s) => s < 400,
+      });
+      res.data.destroy();
+      return true;
+    } catch {
+      return false;
+    }
   }
 }
 
@@ -35,24 +62,21 @@ export class MongoDBProvider implements StreamingProvider {
 
       if (!movie) return null;
 
-      let embedUrl = '';
-      if (movie.uqloadLink && movie.uqloadLink !== '#') {
-        const dead = await isDead(movie.uqloadLink);
-        if (!dead) {
-          embedUrl = toEmbedUrl(movie.uqloadLink);
-        }
+      // uqloadLink a la priorité (règle métier), fallback vers lien
+      // resolveUrl() vérifie que le lien n'est pas expiré (timestamp e=)
+      // isUrlAlive() vérifie que le serveur répond (HEAD)
+      let url = resolveUrl(movie.uqloadLink);
+      if (url && await isUrlAlive(url)) {
+        return { provider: this.name, embedUrl: toEmbedUrl(url), type: 'movie' };
       }
 
-      if (!embedUrl && movie.lien && movie.lien !== '#') {
-        const dead = await isDead(movie.lien);
-        if (!dead) {
-          embedUrl = toEmbedUrl(movie.lien);
-        }
+      url = resolveUrl(movie.lien);
+      if (url && await isUrlAlive(url)) {
+        return { provider: this.name, embedUrl: toEmbedUrl(url), type: 'movie' };
       }
 
-      if (!embedUrl) return null;
-
-      return { provider: this.name, embedUrl, type: 'movie' };
+      console.log(`[MongoDB] Aucun lien valide pour "${movie.titre}" (uqload + lien morts ou expirés) → fallback`);
+      return null;
     } catch (err) {
       console.error('[MongoDB] getMovieStream error:', err);
     }
@@ -78,27 +102,24 @@ export class MongoDBProvider implements StreamingProvider {
 
       if (!ep) return null;
 
-      let embedUrl = '';
-      if (ep.uqloadLink && ep.uqloadLink !== '#') {
-        const dead = await isDead(ep.uqloadLink);
-        if (!dead) {
-          embedUrl = toEmbedUrl(ep.uqloadLink);
-        }
+      // uqloadLink a la priorité, fallback vers lien
+      // resolveUrl() vérifie l'expiration, isUrlAlive() vérifie la disponibilité HTTP
+      let url = resolveUrl(ep.uqloadLink);
+      if (url && await isUrlAlive(url)) {
+        return { provider: this.name, embedUrl: toEmbedUrl(url), type: 'episode' };
       }
 
-      if (!embedUrl && ep.lien && ep.lien !== '#') {
-        const dead = await isDead(ep.lien);
-        if (!dead) {
-          embedUrl = toEmbedUrl(ep.lien);
-        }
+      url = resolveUrl(ep.lien);
+      if (url && await isUrlAlive(url)) {
+        return { provider: this.name, embedUrl: toEmbedUrl(url), type: 'episode' };
       }
 
-      if (!embedUrl) return null;
-
-      return { provider: this.name, embedUrl, type: 'episode' };
+      console.log(`[MongoDB] Aucun lien valide pour S${query.season}E${query.episode} de "${serie.titre}" → fallback`);
+      return null;
     } catch (err) {
       console.error('[MongoDB] getEpisodeStream error:', err);
     }
     return null;
   }
 }
+

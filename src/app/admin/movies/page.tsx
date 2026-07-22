@@ -25,6 +25,7 @@ export default function AdminMovies() {
   const [loading, setLoading] = useState(true);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [linkModal, setLinkModal] = useState<{ docId: string; tmdbId?: number } | null>(null);
+  const [playerUrl, setPlayerUrl] = useState<string | null>(null);
   const limit = 50;
 
   const fetch = useCallback(async (search: string, p: number) => {
@@ -84,8 +85,8 @@ export default function AdminMovies() {
         <p style={{ color: '#888' }}>Aucun film trouvé</p>
       ) : (
         <>
-          <div style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '12px', overflow: 'hidden' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8125rem' }}>
+          <div style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '12px', overflowX: 'auto' }}>
+            <table style={{ width: '100%', minWidth: 750, borderCollapse: 'collapse', fontSize: '0.8125rem' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid #2a2a2a', color: '#888', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em' }}>
                   <th style={{ padding: '0.75rem 1rem', textAlign: 'left' }}>Titre</th>
@@ -100,7 +101,14 @@ export default function AdminMovies() {
               <tbody>
                 {items.map(m => (
                   <tr key={m._id} style={{ borderBottom: '1px solid #2a2a2a' }}>
-                    <td style={{ padding: '0.75rem 1rem', color: '#fff' }}>{m.titre}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#fff', whiteSpace: 'nowrap' }}>
+                      {m.titre}
+                      {!m.uqloadCode && !m.fileCode && (!m.lien || m.lien === '#') && (
+                        <span style={{ marginLeft: '0.5rem', fontSize: '0.65rem', color: '#fbbf24', background: '#2a2a1a', padding: '0.125rem 0.375rem', borderRadius: 4, whiteSpace: 'nowrap' }}>
+                          Bientôt disponible
+                        </span>
+                      )}
+                    </td>
                     <td style={{ padding: '0.75rem 1rem' }}>
                       <button onClick={() => setLinkModal({ docId: m._id, tmdbId: m.tmdbId })} style={{
                         background: 'none', border: 'none', cursor: 'pointer', padding: 0,
@@ -130,22 +138,19 @@ export default function AdminMovies() {
                     </td>
                     <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
                       <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'center' }}>
-                        <a
-                          href={m.lien && m.lien !== '#' ? m.lien : `/watch/${m.tmdbId || m._id}?type=movie`}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button
+                          onClick={() => setPlayerUrl(`/watch/${m.tmdbId || m._id}?type=movie`)}
                           title="Lire"
                           style={{
                             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                             width: 32, height: 32, borderRadius: 8, border: 'none',
                             background: '#1a1a2e', color: '#6366f1', cursor: 'pointer', fontSize: '0.875rem',
-                            textDecoration: 'none',
                           }}
                         >
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                             <polygon points="5 3 19 12 5 21 5 3" />
                           </svg>
-                        </a>
+                        </button>
                         <button
                           onClick={async () => {
                             setDownloadingId(m._id);
@@ -214,6 +219,31 @@ export default function AdminMovies() {
             setLinkModal(null);
           }}
         />
+      )}
+
+      {playerUrl && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(4px)',
+        }} onClick={() => setPlayerUrl(null)}>
+          <div style={{
+            width: '80vw', height: '80vh', maxWidth: 1200, borderRadius: 12, overflow: 'hidden',
+            border: '1px solid #333', position: 'relative',
+          }} onClick={e => e.stopPropagation()}>
+            <button onClick={() => setPlayerUrl(null)} style={{
+              position: 'absolute', top: 12, right: 12, zIndex: 10,
+              background: '#000', border: 'none', color: '#fff', cursor: 'pointer',
+              width: 32, height: 32, borderRadius: '50%', fontSize: '1.125rem',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.8,
+            }}>✕</button>
+            <iframe
+              src={playerUrl}
+              style={{ width: '100%', height: '100%', border: 'none' }}
+              allowFullScreen
+            />
+          </div>
+        </div>
       )}
     </div>
   );

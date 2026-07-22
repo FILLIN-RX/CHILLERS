@@ -56,6 +56,7 @@
     "loadingStream": "Loading stream…",
     "loadingEpisodes": "Loading episodes…",
     "comingSoon": "Coming Soon",
+    "nowAvailable": "Now Available",
     "comingSoonDesc": "This content is not yet available on our platform. Our team is working to add it very soon.",
     "streamUnavailable": "Stream Unavailable",
     "streamUnavailableDesc": "No stream found for this content."

@@ -6,32 +6,73 @@ import Serie from '../../models/Serie';
 import Movie from '../../models/Movie';
 import { UPLOADED_PATH, SERIES_OUTPUT_PATH } from '../../config/data-paths';
 
-async function isLinkAlive(url: string): Promise<boolean> {
-  if (!url || url === '#') return false;
-  try {
-    const res = await axios.head(url, {
-      timeout: 3000,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      },
-    });
-    return res.status >= 200 && res.status < 400;
-  } catch {
-    try {
-      const res = await axios.get(url, {
-        timeout: 3000,
-        responseType: 'stream',
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        },
-      });
-      res.data.destroy();
-      return res.status >= 200 && res.status < 400;
-    } catch {
-      return false;
-    }
-  }
+// ─── Background link-validity cache (stale-while-revalidate) ────────────────
+// Principle: on the FIRST request we serve the stored URL immediately (fast)
+// and fire a background check. If the check fails, the link is marked dead in
+// the cache and the NEXT request automatically falls back to the fileCode embed.
+// This gives us both speed (zero added latency on stream start) AND reliability
+// (dead links are detected and bypassed within one cache cycle).
+
+interface LinkCacheEntry {
+  alive: boolean;
+  checkedAt: number;   // ms timestamp
+  pending: boolean;    // background check in-flight
 }
+
+const LINK_CACHE_TTL_ALIVE = 5 * 60 * 1000;   // 5 minutes — re-check alive links
+const LINK_CACHE_TTL_DEAD  = 2 * 60 * 1000;   // 2 minutes — retry dead links sooner
+const linkCache = new Map<string, LinkCacheEntry>();
+
+/** Returns the cached validity state, or null if unknown/expired. */
+function getCachedValidity(url: string): boolean | null {
+  const entry = linkCache.get(url);
+  if (!entry) return null;
+  const ttl = entry.alive ? LINK_CACHE_TTL_ALIVE : LINK_CACHE_TTL_DEAD;
+  if (Date.now() - entry.checkedAt > ttl) {
+    linkCache.delete(url);
+    return null;
+  }
+  return entry.alive;
+}
+
+/** Fires an async HEAD/GET check and updates the cache. Never throws. */
+function validateInBackground(url: string): void {
+  const existing = linkCache.get(url);
+  if (existing?.pending) return; // already in-flight
+
+  linkCache.set(url, { alive: existing?.alive ?? true, checkedAt: existing?.checkedAt ?? Date.now(), pending: true });
+
+  (async () => {
+    let alive = false;
+    try {
+      const res = await axios.head(url, {
+        timeout: 4000,
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+        maxRedirects: 5,
+      });
+      alive = res.status >= 200 && res.status < 400;
+    } catch {
+      try {
+        const res = await axios.get(url, {
+          timeout: 4000,
+          responseType: 'stream',
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+          maxRedirects: 5,
+        });
+        res.data.destroy();
+        alive = res.status >= 200 && res.status < 400;
+      } catch {
+        alive = false;
+      }
+    }
+
+    linkCache.set(url, { alive, checkedAt: Date.now(), pending: false });
+    if (!alive) {
+      console.warn(`[DoodStream] Background check: link is dead → ${url.slice(0, 80)}`);
+    }
+  })();
+}
+
 
 let cachedUploadedFiles: Record<string, any> | null = null;
 let lastCacheTime = 0;
@@ -158,7 +199,7 @@ export class DoodStreamProvider implements StreamingProvider {
         const file = uploaded[key];
         const fileTitle = normalize(file.titre || '');
         if (fileTitle === search || fileTitle.includes(search) || search.includes(fileTitle) ||
-            fileTitle.includes(search10) || search10.includes(fileTitle.slice(0, 10))) {
+          fileTitle.includes(search10) || search10.includes(fileTitle.slice(0, 10))) {
           return { fileCode: file.fileCode, info: file };
         }
       }
@@ -213,8 +254,16 @@ export class DoodStreamProvider implements StreamingProvider {
           ],
         }).exec();
         if (movie?.lien) {
-          console.log(`[DoodStream] MongoDB match movie="${movie.titre}" → ${movie.lien.slice(0, 60)}`);
-          return { fileCode: '', info: { lien: movie.lien, titre: movie.titre } };
+          // Ne retourner QUE si le lien est hébergé sur Doodstream
+          const isDoodstreamLien =
+            /doodstream\.com|dood\.to|dood\.sh|dood\.so|dood\.cx|dood\.la|dood\.wf|dood\.pm|playmogo\.com/i
+              .test(movie.lien);
+          if (isDoodstreamLien) {
+            console.log(`[DoodStream] MongoDB match movie="${movie.titre}" → ${movie.lien.slice(0, 60)}`);
+            return { fileCode: '', info: { lien: movie.lien, titre: movie.titre } };
+          }
+          // Video non hébergée sur Doodstream → ignorer, le maillon suivant
+          // (VidLink/VidAPI) pourra fournir une source alternative
         }
       }
 
@@ -314,16 +363,23 @@ export class DoodStreamProvider implements StreamingProvider {
     const match = await this.findFile(query);
     if (!match) return null;
 
-    // Prefer the direct .mp4 / vidzy.cc link when it's available — it
-    // plays in a native <video> element with no ads, no anti-embed
-    // scripts, and no risk of the embed provider breaking out of the
-    // iframe (window.top.history.back).
-    if (match.info.lien) {
-      const alive = await isLinkAlive(match.info.lien);
-      if (alive) return match.info.lien;
-      console.log(`[DoodStream] Direct link is dead, falling back to fileCode: ${match.fileCode || 'none'}`);
+    const lien = match.info.lien;
+
+    if (lien && lien !== '#') {
+      const cached = getCachedValidity(lien);
+
+      if (cached === false) {
+        // Known dead — skip immediately and use embed fallback
+        console.log(`[DoodStream] Cached dead link, using fileCode: ${match.fileCode || 'none'}`);
+      } else {
+        // alive (cached or unknown — optimistic first serve)
+        // Fire background validation so the cache stays fresh
+        validateInBackground(lien);
+        return lien;
+      }
     }
 
+    // Fallback: Doodstream/Playmogo embed via fileCode
     if (match.fileCode) return `https://doodstream.com/e/${match.fileCode}`;
 
     return null;
@@ -346,22 +402,18 @@ export class DoodStreamProvider implements StreamingProvider {
     const match = await this.findFile(query);
     if (!match) return null;
 
+    // For downloads we can afford a bit more latency: try the API first for
+    // a fresh protected URL, then fall back to the stored direct link.
     if (match.fileCode) {
       try {
         const dlUrl = await getFileDownloadUrl(match.fileCode);
-        if (dlUrl) {
-          const alive = await isLinkAlive(dlUrl);
-          if (alive) return dlUrl;
-        }
+        if (dlUrl) return dlUrl;
       } catch {
         // API indisponible, fallback au lien stocké
       }
     }
 
-    if (match.info.lien) {
-      const alive = await isLinkAlive(match.info.lien);
-      if (alive) return match.info.lien;
-    }
+    if (match.info.lien && match.info.lien !== '#') return match.info.lien;
 
     return null;
   }

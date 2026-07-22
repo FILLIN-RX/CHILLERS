@@ -35,6 +35,7 @@ export default function AdminSerieDetail() {
   const [loading, setLoading] = useState(true);
   const [downloadingEp, setDownloadingEp] = useState<string | null>(null);
   const [linkModal, setLinkModal] = useState<{ docId: string; tmdbId?: number } | null>(null);
+  const [playerUrl, setPlayerUrl] = useState<string | null>(null);
 
   useEffect(() => {
     adminGetSerie(id).then(res => {
@@ -117,8 +118,8 @@ export default function AdminSerieDetail() {
                 ({eps.length} épisodes)
               </span>
             </h2>
-            <div style={{ background: '#181825', border: '1px solid #252535', borderRadius: 12, overflow: 'hidden' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8125rem' }}>
+            <div style={{ background: '#181825', border: '1px solid #252535', borderRadius: 12, overflowX: 'auto' }}>
+              <table style={{ width: '100%', minWidth: 700, borderCollapse: 'collapse', fontSize: '0.8125rem' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #252535', color: '#6b6b80', textTransform: 'uppercase', fontSize: '0.6875rem', letterSpacing: '0.05em' }}>
                     <th style={{ padding: '0.625rem 1rem', textAlign: 'left' }}>Épisode</th>
@@ -136,7 +137,14 @@ export default function AdminSerieDetail() {
                       const isDead = !ep.lien || ep.lien === '#';
                       return (
                         <tr key={i} style={{ borderBottom: '1px solid #1e1e2e' }}>
-                          <td style={{ padding: '0.625rem 1rem', color: '#fff', fontWeight: 500 }}>{ep.episode}</td>
+                          <td style={{ padding: '0.625rem 1rem', color: '#fff', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                            {ep.episode}
+                            {!ep.fileCode && !ep.uqloadCode && (!ep.lien || ep.lien === '#') && (
+                              <span style={{ marginLeft: '0.375rem', fontSize: '0.6rem', color: '#fbbf24', background: '#2a2a1a', padding: '0.125rem 0.325rem', borderRadius: 4, whiteSpace: 'nowrap' }}>
+                                Bientôt disponible
+                              </span>
+                            )}
+                          </td>
                           <td style={{ padding: '0.625rem 1rem' }}>
                             {isDead ? (
                               <span style={{ color: '#ef4444', fontSize: '0.75rem' }}>✗ Mort</span>
@@ -163,24 +171,25 @@ export default function AdminSerieDetail() {
                           </td>
                           <td style={{ padding: '0.625rem 1rem', textAlign: 'center' }}>
                             <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'center' }}>
-                              <a
-                                href={isDead ? (ep.tmdbId || serie.tmdbId ? `/watch/${ep.tmdbId || serie.tmdbId}?type=tv` : '#') : ep.lien}
-                                target="_blank"
-                                rel="noopener noreferrer"
+                              <button
+                                onClick={() => {
+                                  const tmdbId = ep.tmdbId || serie.tmdbId;
+                                  if (tmdbId) setPlayerUrl(`/watch/${tmdbId}?type=tv&season=${ep.season}&episode=${ep.episodeNumber}`);
+                                }}
+                                disabled={isDead || (!ep.tmdbId && !serie.tmdbId)}
                                 title="Lire"
                                 style={{
                                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                                   width: 30, height: 30, borderRadius: 6, border: 'none',
-                                  background: '#1a1a2e', color: isDead ? '#444' : '#6366f1',
-                                  cursor: isDead ? 'default' : 'pointer', fontSize: '0.8125rem',
-                                  opacity: isDead ? 0.3 : 1, textDecoration: 'none',
-                                  pointerEvents: isDead ? 'none' : 'auto',
+                                  background: '#1a1a2e', color: isDead || (!ep.tmdbId && !serie.tmdbId) ? '#444' : '#6366f1',
+                                  cursor: isDead || (!ep.tmdbId && !serie.tmdbId) ? 'default' : 'pointer',
+                                  fontSize: '0.8125rem', opacity: isDead || (!ep.tmdbId && !serie.tmdbId) ? 0.3 : 1,
                                 }}
                               >
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                                   <polygon points="5 3 19 12 5 21 5 3" />
                                 </svg>
-                              </a>
+                              </button>
                               <button
                                 onClick={async () => {
                                   setDownloadingEp(ep.episode);
@@ -243,6 +252,31 @@ export default function AdminSerieDetail() {
             setLinkModal(null);
           }}
         />
+      )}
+
+      {playerUrl && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(4px)',
+        }} onClick={() => setPlayerUrl(null)}>
+          <div style={{
+            width: '80vw', height: '80vh', maxWidth: 1200, borderRadius: 12, overflow: 'hidden',
+            border: '1px solid #333', position: 'relative',
+          }} onClick={e => e.stopPropagation()}>
+            <button onClick={() => setPlayerUrl(null)} style={{
+              position: 'absolute', top: 12, right: 12, zIndex: 10,
+              background: '#000', border: 'none', color: '#fff', cursor: 'pointer',
+              width: 32, height: 32, borderRadius: '50%', fontSize: '1.125rem',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.8,
+            }}>✕</button>
+            <iframe
+              src={playerUrl}
+              style={{ width: '100%', height: '100%', border: 'none' }}
+              allowFullScreen
+            />
+          </div>
+        </div>
       )}
     </div>
   );

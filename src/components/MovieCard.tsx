@@ -14,6 +14,9 @@ interface MovieCardProps {
   variant?: "scroll" | "grid";
 }
 
+const isUnavailable = (item: MovieOrShow) =>
+  !item.videoUrl || item.videoUrl.includes("youtube");
+
 export default function MovieCard({
   item,
   onPlay,
@@ -23,6 +26,7 @@ export default function MovieCard({
   const [isHovered, setIsHovered] = useState(false);
   const router = useRouter();
   const { translate: _ } = useLanguage();
+  const unavailable = isUnavailable(item);
 
   const goToDetail = () => {
     const typeParam = item.type === "series" || item.type === "anime" ? "tv" : item.type;
@@ -42,6 +46,8 @@ export default function MovieCard({
       style={{
         transform: isHovered ? 'scale(1.05)' : 'scale(1)',
         boxShadow: isHovered ? '0 0 30px rgba(215, 4, 102, 0.35)' : 'none',
+        opacity: unavailable ? 0.75 : 1,
+        filter: unavailable ? 'grayscale(0.3)' : 'none',
       }}
     >
       <Image
@@ -64,6 +70,16 @@ export default function MovieCard({
         <span className="text-amber-400">{item.rating}</span>
       </div>
 
+      <div className="absolute inset-x-0 bottom-0 z-20 px-3 pb-3">
+        <span className={`inline-block rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider backdrop-blur-sm ${
+          unavailable
+            ? "bg-amber-500/85 text-black"
+            : "bg-emerald-500/85 text-white"
+        }`}>
+          {unavailable ? _("comingSoon") : _("nowAvailable")}
+        </span>
+      </div>
+
       <div
         className={`absolute inset-0 z-10 flex flex-col justify-end p-4 bg-gradient-to-t from-black via-black/80 to-transparent transition-opacity duration-300 ${
           isHovered ? "opacity-100" : "opacity-0"
@@ -74,9 +90,14 @@ export default function MovieCard({
             <button
               onClick={(e) => {
                 e.stopPropagation();
+                if (unavailable) return;
                 onPlay(item);
               }}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-primary text-white hover:bg-brand-primary/90 transition-colors shadow-lg cursor-pointer"
+              className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors shadow-lg ${
+                unavailable
+                  ? "bg-zinc-800 text-zinc-600 cursor-not-allowed"
+                  : "bg-brand-primary text-white hover:bg-brand-primary/90 cursor-pointer"
+              }`}
               aria-label={_("media.watch")}
             >
               <PlayIcon className="h-5 w-5 translate-x-0.5" />

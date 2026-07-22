@@ -776,6 +776,10 @@ export async function adminGetCollection(type: string, q = '', page = 1, limit =
   return adminFetch(`/collection?type=${type}&q=${encodeURIComponent(q)}&page=${page}&limit=${limit}`);
 }
 
+export async function adminGetConvertedLinks(q = '', page = 1, limit = 50) {
+  return adminFetch(`/collection/links?q=${encodeURIComponent(q)}&page=${page}&limit=${limit}`);
+}
+
 export async function adminGetScraperState() {
   return adminFetch('/scraper-state');
 }
@@ -857,6 +861,13 @@ export async function adminUqloadStop() {
 
 export async function adminUqloadPendingBoth() {
   return adminFetch('/uqload/pending-both');
+}
+
+export async function adminUpdateDeadLink(id: string, lien: string) {
+  return adminFetch(`/dead-links/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ lien }),
+  });
 }
 
 export async function adminRescrapeDeadLink(id: string, headless: boolean = true) {

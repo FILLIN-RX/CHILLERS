@@ -107,7 +107,11 @@ async function main() {
     }
     const group = groups.get(groupKey)!;
     group.entries.push(serie);
-    const maxEp = Math.max(...serie.episodes.map(e => e.episodeNumber), 0);
+    const epNums = serie.episodes.map(e => e.episodeNumber);
+    const hasRealNumbers = epNums.some(n => typeof n === 'number' && n > 0);
+    const maxEp = hasRealNumbers
+      ? Math.max(...epNums.filter((n): n is number => typeof n === 'number'), 0)
+      : serie.episodes.length;
     if (maxEp > group.maxEpisode) group.maxEpisode = maxEp;
   }
 

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { exec } from 'child_process';
+import { spawn } from 'child_process';
 import path from 'path';
 import { StreamingProvider, StreamQuery } from './providers/provider.interface';
 import { MongoDBProvider } from './providers/mongodb.provider';
@@ -8,6 +8,7 @@ import { VidAPIProvider } from './providers/vidapi.provider';
 import { AnimeKaiProvider } from './providers/animekai.provider';
 import { OtakuProvider } from './providers/otaku.provider';
 import { VidLinkProvider } from './providers/vidlink.provider';
+import { streamCache, getCacheKey, CachedStream } from '../utils/stream-cache';
 
 const VALIDATION_TIMEOUT = 5000;
 const PROVIDER_TIMEOUT = 10000;
@@ -30,23 +31,30 @@ interface ProviderHealth {
 export class ProviderManager {
   private providers: StreamingProvider[];
   private health: Map<string, ProviderHealth> = new Map();
+  /** Debounce : évite de re-scraper le même contenu plusieurs fois en // */
+  private pendingScrapes = new Set<string>();
 
   constructor() {
-    // Ordre de priorité: MongoDB (liens stockés), Doodstream, Otaku, Autres...
+    // Ordre de priorité: MongoDB (lien + uqload), Doodstream, scraping (Otaku), puis les autres
     this.providers = [
       new MongoDBProvider(),
       new DoodStreamProvider(),
       new OtakuProvider(),
-      new AnimeKaiProvider(),
       new VidLinkProvider(),
       new VidAPIProvider(),
+      new AnimeKaiProvider(),
     ];
   }
 
-  async getMovieStream(query: StreamQuery): Promise<{
-    provider: string;
-    embedUrl: string;
-  } | null> {
+  async getMovieStream(query: StreamQuery): Promise<CachedStream | null> {
+    // ── Cache LRU ───────────────────────────────────────────────────────────
+    const cacheKey = getCacheKey('movie', query.tmdbId);
+    const cached = streamCache.get(cacheKey);
+    if (cached) {
+      console.log(`[Stream] Cache hit for movie ${query.tmdbId}`);
+      return cached;
+    }
+
     const attempts: ProviderAttempt[] = [];
     const ordered = this.sortProviders(query);
 
@@ -57,7 +65,9 @@ export class ProviderManager {
         console.log(
           `[Stream] Movie stream found via "${provider.name}" after ${attempts.length} attempt(s)`
         );
-        return { provider: attempt.provider, embedUrl: attempt.reason! };
+        const result: CachedStream = { provider: attempt.provider, embedUrl: attempt.reason! };
+        streamCache.set(cacheKey, result);
+        return result;
       }
     }
 
@@ -68,10 +78,15 @@ export class ProviderManager {
     return null;
   }
 
-  async getEpisodeStream(query: StreamQuery): Promise<{
-    provider: string;
-    embedUrl: string;
-  } | null> {
+  async getEpisodeStream(query: StreamQuery): Promise<CachedStream | null> {
+    // ── Cache LRU ───────────────────────────────────────────────────────────
+    const cacheKey = getCacheKey('episode', query.tmdbId, query.season, query.episode);
+    const cached = streamCache.get(cacheKey);
+    if (cached) {
+      console.log(`[Stream] Cache hit for episode ${query.tmdbId} S${query.season}E${query.episode}`);
+      return cached;
+    }
+
     const attempts: ProviderAttempt[] = [];
     const ordered = this.sortProviders(query);
 
@@ -82,7 +97,9 @@ export class ProviderManager {
         console.log(
           `[Stream] Episode stream found via "${provider.name}" after ${attempts.length} attempt(s)`
         );
-        return { provider: attempt.provider, embedUrl: attempt.reason! };
+        const result: CachedStream = { provider: attempt.provider, embedUrl: attempt.reason! };
+        streamCache.set(cacheKey, result);
+        return result;
       }
     }
 
@@ -163,7 +180,8 @@ export class ProviderManager {
         };
       }
 
-      // Skip validation for MongoDB — URLs already stored in our DB
+      // Skip validation for MongoDB — URLs already stored in our DB,
+      // the provider itself checks signed-link expiry internally.
       const valid = provider.name === 'mongodb' || await this.validateUrl(result.embedUrl);
       
       if (valid) {
@@ -175,13 +193,7 @@ export class ProviderManager {
         };
       } else {
         this.recordFailure(provider.name);
-        
-        // TRIGGER BACKGROUND RE-SCRAPE
-        console.log(`[Self-Healing] Triggering background re-scrape for: ${provider.name} - ${query.title}`);
-        const scriptPath = path.join(__dirname, '../scraping/core/on-demand-fetch.ts');
-        const typeArg = type === 'movie' ? 'movie' : 'series';
-        exec(`npx tsx ${scriptPath} "${query.title}" "${typeArg}" "${query.episode || ''}"`);
-
+        this.triggerReScrape(query.title || String(query.tmdbId), type, query.episode);
         return {
           provider: provider.name,
           status: 'fail',
@@ -218,9 +230,39 @@ export class ProviderManager {
     return [...supports, ...fallback];
   }
 
-  private async validateUrl(url: string): Promise<boolean> {
-    // Skip validation for Doodstream/Playmogo embeds since they are protected by Cloudflare/DDOS-GUARD
-    if (
+  /**
+   * Déclenche un re-scrape en arrière-plan de façon sécurisée.
+   * - Utilise spawn() au lieu de exec() → pas d'injection shell possible
+   * - Debounce via pendingScrapes → évite les appels en boucle
+   */
+  private triggerReScrape(title: string, type: 'movie' | 'episode', episode?: number): void {
+    const typeArg = type === 'movie' ? 'movie' : 'series';
+    const debounceKey = `${typeArg}:${title}`;
+
+    if (this.pendingScrapes.has(debounceKey)) {
+      console.log(`[Self-Healing] Re-scrape déjà en cours pour "${title}", ignoré`);
+      return;
+    }
+
+    this.pendingScrapes.add(debounceKey);
+    // Nettoyer le debounce après 5 minutes
+    setTimeout(() => this.pendingScrapes.delete(debounceKey), 5 * 60 * 1000);
+
+    const scriptPath = path.join(__dirname, '../scraping/core/on-demand-fetch.ts');
+
+    // spawn() — arguments passés séparément, JAMAIS interpolés dans un shell
+    const child = spawn(
+      'npx',
+      ['tsx', scriptPath, title, typeArg, String(episode ?? '')],
+      { detached: true, stdio: 'ignore', env: process.env }
+    );
+    child.unref();
+
+    console.log(`[Self-Healing] Re-scrape lancé pour "${title}" (${typeArg}) pid=${child.pid}`);
+  }
+
+  private isDoodstreamEmbed(url: string): boolean {
+    return (
       url.includes('doodstream.com/e/') ||
       url.includes('playmogo.com/e/') ||
       url.includes('dood.to/e/') ||
@@ -230,7 +272,12 @@ export class ProviderManager {
       url.includes('dood.la/e/') ||
       url.includes('dood.wf/e/') ||
       url.includes('dood.pm/e/')
-    ) {
+    );
+  }
+
+  private async validateUrl(url: string): Promise<boolean> {
+    // Skip validation for Doodstream/Playmogo embeds since they are protected by Cloudflare/DDOS-GUARD
+    if (this.isDoodstreamEmbed(url)) {
       return true;
     }
 
@@ -246,7 +293,7 @@ export class ProviderManager {
         });
 
         if (headResponse.status >= 200 && headResponse.status < 400) {
-          const contentType = headResponse.headers['content-type'] || '';
+          const contentType = String(headResponse.headers['content-type'] || '');
           if (
             contentType.includes('video/') ||
             contentType.includes('application/x-mpegurl') ||
@@ -255,6 +302,7 @@ export class ProviderManager {
             return true;
           }
         }
+
       } catch (headErr) {
         // HEAD failed, fall back to GET stream
       }
@@ -274,7 +322,7 @@ export class ProviderManager {
         return false;
       }
 
-      const contentType = (response.headers['content-type'] || '').toLowerCase();
+      const contentType = String(response.headers['content-type'] || '').toLowerCase();
       if (
         contentType.includes('video/') ||
         contentType.includes('application/x-mpegurl') ||

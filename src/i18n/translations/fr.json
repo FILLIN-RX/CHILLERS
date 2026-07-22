@@ -56,6 +56,7 @@
     "loadingStream": "Chargement du flux…",
     "loadingEpisodes": "Chargement des épisodes…",
     "comingSoon": "Bientôt disponible",
+    "nowAvailable": "Déjà disponible",
     "comingSoonDesc": "Ce contenu n'est pas encore disponible sur notre plateforme. Notre équipe travaille pour l'ajouter très prochainement.",
     "streamUnavailable": "Flux indisponible",
     "streamUnavailableDesc": "Aucun flux trouvé pour ce contenu."

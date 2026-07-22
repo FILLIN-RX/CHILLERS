@@ -12,11 +12,11 @@ import {
   getPopularTV,
   startDownload,
   triggerDownload,
-  checkSeriesDownloads,
 } from "@/app/api";
 import { MovieOrShow, Episode } from "@/app/mockData";
 import VideoPlayer from "@/components/VideoPlayer";
 import NotificationModal from "@/components/NotificationModal";
+import SeriesDownloadModal from "@/components/SeriesDownloadModal";
 import MovieCard from "@/components/MovieCard";
 import { useLanguage } from "@/i18n/LanguageContext";
 import {
@@ -58,7 +58,7 @@ function WatchContent() {
   const [similar, setSimilar] = useState<MovieOrShow[]>([]);
 
   const [downloading, setDownloading] = useState(false);
-  const [seriesDownloading, setSeriesDownloading] = useState(false);
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [notification, setNotification] = useState<{ title: string; message: string } | null>(null);
 
   const playerRef = useRef<HTMLDivElement>(null);
@@ -227,54 +227,9 @@ function WatchContent() {
     }
   };
 
-  const handleSeriesDownload = async () => {
+  const handleSeriesDownload = () => {
     if (!item) return;
-    setSeriesDownloading(true);
-    try {
-      const result = await checkSeriesDownloads(item.id);
-      if (!result.success) {
-        const missing = result.data?.missing;
-        let msg = _("download.downloadLaunchedDesc", { count: 0 });
-        if (missing && missing.length > 0) {
-          const missingStr = missing.map((m: any) => `S${m.season}E${m.episode}`).join(', ');
-          msg = _("watch.seriesIncompleteDesc", { missing: missingStr });
-        }
-        setNotification({
-          title: _("download.impossible"),
-          message: result.message || msg,
-        });
-        return;
-      }
-
-      const episodes = result.data?.episodes || [];
-      if (episodes.length === 0) {
-        setNotification({
-          title: _("watch.noEpisodes"),
-          message: _("watch.noEpisodesDesc"),
-        });
-        return;
-      }
-
-      for (let i = 0; i < episodes.length; i++) {
-        const ep = episodes[i];
-        if (ep.downloadUrl) {
-          const filename = `${item.title}-S${String(ep.season).padStart(2, '0')}E${String(ep.episode).padStart(2, '0')}.mp4`;
-          triggerDownload(ep.downloadUrl, filename);
-        }
-        if (i < episodes.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 800));
-        }
-      }
-
-      setNotification({
-        title: _("download.downloadLaunched"),
-        message: _("download.downloadLaunchedDesc", { count: episodes.length }),
-      });
-    } catch (err) {
-      console.error('Series download failed:', err);
-    } finally {
-      setSeriesDownloading(false);
-    }
+    setShowDownloadModal(true);
   };
 
   const handleShare = async () => {
@@ -504,21 +459,9 @@ function WatchContent() {
             {isTV && (
               <button
                 onClick={handleSeriesDownload}
-                disabled={seriesDownloading}
-                className={`flex-none flex items-center gap-1.5 px-3 py-2 rounded-full font-bold text-xs border transition-all whitespace-nowrap ${
-                  seriesDownloading
-                    ? "bg-zinc-800 border-zinc-700 text-zinc-400 cursor-not-allowed"
-                    : "bg-white/10 border-white/20 text-white hover:bg-white/20"
-                }`}
+                className="flex-none flex items-center gap-1.5 px-3 py-2 rounded-full font-bold text-xs border transition-all whitespace-nowrap bg-white/10 border-white/20 text-white hover:bg-white/20"
               >
-                {seriesDownloading ? (
-                  <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                ) : (
-                  <ArrowDownTrayIcon className="h-3.5 w-3.5" />
-                )}
+                <ArrowDownTrayIcon className="h-3.5 w-3.5" />
                 <span className="sm:hidden">Série</span>
                 <span className="hidden sm:inline">{_("download.all")}</span>
               </button>
@@ -635,6 +578,16 @@ function WatchContent() {
           onClose={() => setNotification(null)}
           title={notification.title}
           message={notification.message}
+        />
+      )}
+
+      {isTV && item && (
+        <SeriesDownloadModal
+          isOpen={showDownloadModal}
+          onClose={() => setShowDownloadModal(false)}
+          seriesTitle={item.title}
+          tmdbId={item.id}
+          episodes={episodes}
         />
       )}
     </div>

@@ -5,6 +5,7 @@ import ScraperState from '../../models/ScraperState';
 import { browserConfig } from '../../config/browser';
 import { connectDB } from '../../config/db';
 import { UqloadClient } from '../../modules/uqload/uqload.client';
+import { reuploadEpisode } from '../../modules/reupload/reupload';
 
 async function uploadEpisodeToUqload(client: UqloadClient | null, label: string, lien: string, serieId: string, episodeIndex: number) {
   if (!client) return;
@@ -20,6 +21,29 @@ async function uploadEpisodeToUqload(client: UqloadClient | null, label: string,
   } catch (e: any) {
     console.log(`    -> ⏭ Uqload ignoré: ${e.message}`);
   }
+}
+
+/**
+ * Parse the episode label returned by Otaku's #fs-episode-select into a
+ * structured (season, episodeNumber, canonicalLabel) tuple. Otaku uses
+ * "S01E05" or just "Ép 5" depending on the source page. The schema
+ * requires a numeric `season` + `episodeNumber` so the maintainer can
+ * match by positional operator.
+ */
+function parseEpisodeLabel(label: string, defaultSeason = 1): { season: number; episodeNumber: number; canonical: string } {
+    const trimmed = label.trim();
+    const sxxExx = trimmed.match(/S(\d+)\s*E\s*(\d+)/i);
+    if (sxxExx) {
+        const season = parseInt(sxxExx[1], 10);
+        const num = parseInt(sxxExx[2], 10);
+        return { season, episodeNumber: num, canonical: `S${String(season).padStart(2, "0")}E${String(num).padStart(2, "0")}` };
+    }
+    const epWord = trimmed.match(/(?:Ép|Ep|Episode)\s*\.?\s*(\d+)/i);
+    if (epWord) {
+        const num = parseInt(epWord[1], 10);
+        return { season: defaultSeason, episodeNumber: num, canonical: `S${String(defaultSeason).padStart(2, "0")}E${String(num).padStart(2, "0")}` };
+    }
+    return { season: defaultSeason, episodeNumber: 0, canonical: trimmed };
 }
 
 async function loadState(): Promise<{ lastPage: number }> {
@@ -95,7 +119,7 @@ async function scrapeSeriesDetails() {
                 if (serieData.episodes.length === 0) {
                     console.log(`  -> Récupération des épisodes pour : ${titre}`);
                     while (true) {
-                        await page.waitForSelector('#fs-episode-select', { state: 'visible', timeout: 10000 });
+                        await page.waitForSelector('#fs-episode-select', { state: 'attached', timeout: 10000 });
                         let epTitre = await page.$eval('#fs-episode-select option:checked', (el: any) => el.innerText.trim());
                         await page.click('button#fs-quick-download', { force: true });
                         await page.waitForTimeout(10000);
@@ -103,8 +127,25 @@ async function scrapeSeriesDetails() {
                         let link = dlLink ? await dlLink.getAttribute('href') : "#";
 
                         if (link && link !== "#") {
-                            serieData.episodes.push({ episode: epTitre, lien: link });
+                            // Parse the label so the schema gets the structured
+                            // season + episodeNumber fields it needs for
+                            // positional updates. Without this the
+                            // maintainer and the reupload module can't
+                            // reliably match episodes back.
+                            const seasonMatch = titre.match(/Saison (\d+)/i);
+                            const defaultSeason = seasonMatch ? parseInt(seasonMatch[1], 10) : 1;
+                            const { season, episodeNumber, canonical } = parseEpisodeLabel(epTitre, defaultSeason);
+                            serieData.episodes.push({
+                                episode: canonical,
+                                season,
+                                episodeNumber,
+                                lien: link,
+                            });
                         }
+                        // Supprimer la popup don qui bloque le clic
+                        await page.evaluate(() => {
+                            document.querySelector('#fs-donate-overlay')?.remove();
+                        });
                         await page.click('button#fs-modal-close');
                         await page.waitForTimeout(2000);
                         let nextBtn = await page.$('button#fs-next-ep');
@@ -121,11 +162,24 @@ async function scrapeSeriesDetails() {
                 );
                 console.log(`Série enregistrée dans MongoDB : ${titre}`);
 
-                if (saved && uqload) {
+                if (saved) {
+                    // Upload to BOTH Doodstream and Uqload. The reupload
+                    // module handles "already uploaded" via the fileCode
+                    // existence check, so re-running the scraper on the
+                    // same episodes is safe and idempotent.
                     for (let epIdx = 0; epIdx < (saved.episodes || []).length; epIdx++) {
                         const ep = saved.episodes[epIdx];
-                        if (ep.lien && ep.lien !== '#' && !ep.uqloadCode) {
-                            await uploadEpisodeToUqload(uqload, `${titre} - ${ep.episode}`, ep.lien, saved._id.toString(), epIdx);
+                        if (!ep.lien || ep.lien === "#") continue;
+                        const label = `${titre} - ${ep.episode}`;
+                        await reuploadEpisode(saved._id.toString(), ep, epIdx);
+                        // Keep the legacy Uqload path too — the new module
+                        // shares the same Uqload API so this is a no-op
+                        // when uqloadCode is already set, but the legacy
+                        // helper also writes `uqloadLink` which the new
+                        // module attempts but the upstream may not
+                        // surface. Both writes are idempotent.
+                        if (uqload && !ep.uqloadCode) {
+                            await uploadEpisodeToUqload(uqload, label, ep.lien, saved._id.toString(), epIdx);
                         }
                     }
                 }

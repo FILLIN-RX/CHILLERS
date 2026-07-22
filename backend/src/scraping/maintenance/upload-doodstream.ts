@@ -65,14 +65,14 @@ async function main() {
 
       if (result.status === 200) {
         const fileCode = result.result.filecode;
-        
+        const doodUrl = `https://doodstream.com/e/${fileCode}`;
+
         // Mise à jour MongoDB
-        await Movie.updateOne(
-            { _id: film._id },
-            { $set: { fileCode: fileCode, uploadedAt: new Date() } }
-        );
-        
-        console.log(`[OK] ${film.titre} → fileCode: ${fileCode}`);
+        const update: any = { lien: doodUrl, fileCode, uploadedAt: new Date() };
+        if (!film.lienOriginal) update.lienOriginal = film.lien;
+        await Movie.updateOne({ _id: film._id }, { $set: update });
+
+        console.log(`[OK] ${film.titre} → ${doodUrl}`);
         success++;
       } else {
         console.error(`[FAIL] ${film.titre} — status ${result.status}: ${result.msg}`);

@@ -8,6 +8,7 @@ import AdminSidebar from '@/components/AdminSidebar';
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [authed, setAuthed] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -31,6 +32,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     });
   }, [pathname, router]);
 
+  useEffect(() => { setSidebarOpen(false); }, [pathname]);
+
   if (pathname === '/admin/login') return <>{children}</>;
 
   if (loading) {
@@ -45,8 +48,30 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#0f0f0f' }}>
-      <AdminSidebar />
-      <main style={{ flex: 1, marginLeft: 240, padding: '2rem', overflowY: 'auto', minHeight: '100vh' }}>
+      <AdminSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      {sidebarOpen && (
+        <div onClick={() => setSidebarOpen(false)} style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 40,
+        }} />
+      )}
+      <main className="admin-main" style={{ flex: 1, padding: '1rem', overflowY: 'auto', minHeight: '100vh' }}>
+        <button
+          onClick={() => setSidebarOpen(true)}
+          style={{
+            display: 'none', background: 'none', border: 'none', color: '#fff', cursor: 'pointer',
+            fontSize: '1.5rem', padding: '0.25rem', marginBottom: '0.75rem',
+          }}
+          className="admin-menu-btn"
+        >
+          ☰
+        </button>
+        <style>{`
+          .admin-main { margin-left: 240px; }
+          @media (max-width: 768px) {
+            .admin-main { margin-left: 0; }
+            .admin-menu-btn { display: inline-flex !important; }
+          }
+        `}</style>
         {children}
       </main>
     </div>
