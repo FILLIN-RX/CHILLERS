@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 import { LanguageProvider } from "@/i18n/LanguageContext";
@@ -30,6 +30,15 @@ export const metadata: Metadata = {
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
   manifest: "/site.webmanifest",
+};
+
+// viewport-fit=cover: nécessaire pour que les safe-area-inset (encoche iPhone,
+// barre gestuelle) utilisés par `.pb-safe` s'appliquent réellement.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#18181B",
 };
 
 // P2-#30: resolve the language from the cookie on the server so the first
