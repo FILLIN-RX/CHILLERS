@@ -313,7 +313,7 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
             referrerPolicy="origin"
             title={item.title}
             scrolling="no"
-            sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-orientation-lock allow-presentation allow-top-navigation-by-user-activation"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-orientation-lock allow-presentation"
           />
         </>
       ) : videoUrl ? (
