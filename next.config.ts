@@ -37,7 +37,7 @@ const nextConfig: NextConfig = {
               "img-src 'self' data: blob: https://image.tmdb.org https://images.unsplash.com https://*.tmdb.org https://*.vidzy.cc https://vercel.live https://vercel.com",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "connect-src 'self' http://localhost:4000 https://chillers.onrender.com https://api.themoviedb.org https://*.uqload.is",
-              "font-src 'self' data:",
+              "font-src 'self' data: https://vercel.live",
             ].join('; '),
           },
           // Don't block the page from being used normally
