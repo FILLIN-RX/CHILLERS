@@ -1,7 +1,7 @@
 import './config/env';
 import app from './app';
 import { connectDB } from './config/db';
-import { startCron } from './cron-manager';
+import { startCron, runDeployTasksOnce } from './cron-manager';
 import bcrypt from 'bcryptjs';
 import Admin from './models/Admin';
 
@@ -48,5 +48,7 @@ connectDB().then(async () => {
       startCron();
       console.log(`[Chiller System] Cron manager attached and running.`);
     }
+    // Migration DoodStream → Uqload une fois par déploiement (non bloquant).
+    runDeployTasksOnce().catch((err) => console.error('[Deploy] Migration Uqload échouée:', err));
   });
 });
