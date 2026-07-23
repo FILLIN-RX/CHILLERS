@@ -10,6 +10,11 @@ function toEmbedUrl(lien: string): string {
   return lien;
 }
 
+/** URL du lecteur iframe Uqload à partir d'un file code. */
+function uqloadEmbedUrl(code: string): string {
+  return `https://uqload.is/embed-${code}.html`;
+}
+
 /** Retourne l'URL si elle est valide et non expirée, sinon null. */
 function resolveUrl(url: string | undefined | null): string | null {
   if (!url || url === '#') return null;
@@ -67,15 +72,19 @@ export class MongoDBProvider implements StreamingProvider {
 
       if (!movie) return null;
 
-      // uqloadLink a la priorité (règle métier), fallback vers lien
-      // resolveUrl() vérifie que le lien n'est pas expiré (timestamp e=)
-      // isUrlAlive() vérifie que le serveur répond (HEAD)
-      let url = resolveUrl(movie.uqloadLink);
-      if (url && await isUrlAlive(url)) {
-        return { provider: this.name, embedUrl: toEmbedUrl(url), type: 'movie' };
+      // Priorité au streaming Uqload via son lecteur iframe (embed-<code>.html)
+      // dès qu'un fichier Uqload est prêt (uqloadCode + uqloadLink confirmé).
+      // On n'utilise PAS le lien direct .mp4 pour le streaming : il est signé,
+      // éphémère et servi depuis un CDN non whitelisté (CSP media-src) → il ne
+      // sert qu'au téléchargement. L'iframe Uqload ne périme pas.
+      if (movie.uqloadCode && movie.uqloadLink) {
+        return { provider: this.name, embedUrl: uqloadEmbedUrl(movie.uqloadCode), type: 'movie' };
       }
 
-      url = resolveUrl(movie.lien);
+      // Fallback: lien stocké (embed DoodStream), converti en /e/.
+      // resolveUrl() vérifie que le lien n'est pas expiré (timestamp e=)
+      // isUrlAlive() vérifie que le serveur répond (HEAD)
+      const url = resolveUrl(movie.lien);
       if (url && await isUrlAlive(url)) {
         return { provider: this.name, embedUrl: toEmbedUrl(url), type: 'movie' };
       }
@@ -116,14 +125,13 @@ export class MongoDBProvider implements StreamingProvider {
 
       if (!ep) return null;
 
-      // uqloadLink a la priorité, fallback vers lien
-      // resolveUrl() vérifie l'expiration, isUrlAlive() vérifie la disponibilité HTTP
-      let url = resolveUrl(ep.uqloadLink);
-      if (url && await isUrlAlive(url)) {
-        return { provider: this.name, embedUrl: toEmbedUrl(url), type: 'episode' };
+      // Priorité au lecteur iframe Uqload quand le fichier est prêt.
+      if (ep.uqloadCode && ep.uqloadLink) {
+        return { provider: this.name, embedUrl: uqloadEmbedUrl(ep.uqloadCode), type: 'episode' };
       }
 
-      url = resolveUrl(ep.lien);
+      // Fallback: lien stocké (embed DoodStream).
+      const url = resolveUrl(ep.lien);
       if (url && await isUrlAlive(url)) {
         return { provider: this.name, embedUrl: toEmbedUrl(url), type: 'episode' };
       }
