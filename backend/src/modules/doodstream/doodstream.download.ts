@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import fs from 'fs';
 import path from 'path';
 import axios from 'axios';
-import { listFiles, getFileDownloadUrl } from './doodstream.service';
+import { listFiles } from './doodstream.service';
 import tmdbClient from '../../config/tmdb';
 import Movie from '../../models/Movie';
 import Serie from '../../models/Serie';
@@ -338,21 +338,20 @@ export const getDownloadByTitle = async (req: Request, res: Response, next: Next
       }
     }
 
-    // Fallback DoodStream API via fileCode
-    if (!downloadUrl && match.fileCode) {
-      try {
-        const apiUrl = await getFileDownloadUrl(match.fileCode);
-        if (apiUrl && !/doodstream\.com\/e\//i.test(apiUrl)) {
-          downloadUrl = apiUrl;
-        }
-      } catch {
-        // API indisponible
+    // DoodStream ne fournit plus de lien direct fiable : on renvoie
+    // directement vers sa page web /d/ (l'utilisateur y déclenche le
+    // téléchargement). Uqload et autres liens directs sont déjà gérés
+    // au-dessus. On tente d'abord d'extraire le fileCode d'un lien embed
+    // stocké si aucun fileCode explicite n'est disponible.
+    if (!downloadUrl) {
+      const doodCode =
+        match.fileCode ||
+        extractDoodFileCode(match.info.lien) ||
+        extractDoodFileCode(match.info.uqloadLink) ||
+        extractDoodFileCode(match.info.lienFallback);
+      if (doodCode) {
+        downloadUrl = `https://doodstream.com/d/${doodCode}`;
       }
-    }
-
-    // Dernier recours: page DoodStream /d/ (interface web)
-    if (!downloadUrl && match.fileCode) {
-      downloadUrl = `https://doodstream.com/d/${match.fileCode}`;
     }
 
     if (!downloadUrl) {
@@ -573,20 +572,13 @@ export const getSeriesDownloadCheck = async (req: Request, res: Response, next: 
           }
         }
 
-        if (!downloadUrl && match.fileCode) {
-          try {
-            const apiUrl = await getFileDownloadUrl(match.fileCode);
-            if (apiUrl && !/doodstream\.com\/e\//i.test(apiUrl)) {
-              downloadUrl = apiUrl;
-            }
-          } catch {
-            // API unavailable
+        // DoodStream ne fournit plus de lien direct fiable : on renvoie
+        // vers sa page web /d/ (téléchargement déclenché côté utilisateur).
+        if (!downloadUrl) {
+          const doodCode = match.fileCode || extractDoodFileCode(storedLien);
+          if (doodCode) {
+            downloadUrl = `https://doodstream.com/d/${doodCode}`;
           }
-        }
-
-        // Fallback to DoodStream web interface page (/d/)
-        if (!downloadUrl && match.fileCode) {
-          downloadUrl = `https://doodstream.com/d/${match.fileCode}`;
         }
 
         found.push({
