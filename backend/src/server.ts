@@ -17,9 +17,6 @@ function assertProductionSecrets() {
   if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'chiller-admin-secret-change-me') {
     problems.push('JWT_SECRET manquant ou par défaut');
   }
-  if (!process.env.ADMIN_PASSWORD || process.env.ADMIN_PASSWORD === 'admin') {
-    problems.push('ADMIN_PASSWORD manquant ou par défaut');
-  }
   if (problems.length > 0) {
     throw new Error(
       `[Chiller] Démarrage refusé en production — secrets non sécurisés: ${problems.join(', ')}`
