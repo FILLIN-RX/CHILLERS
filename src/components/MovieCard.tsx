@@ -1,10 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { MovieOrShow } from "@/app/mockData";
-import { PlayIcon, StarIcon, InformationCircleIcon } from "@heroicons/react/24/solid";
+import { PlayIcon, StarIcon, InformationCircleIcon, FilmIcon } from "@heroicons/react/24/solid";
 import { useLanguage } from "@/i18n/LanguageContext";
 
 interface MovieCardProps {
@@ -22,6 +22,8 @@ function MovieCard({
 }: MovieCardProps) {
   const router = useRouter();
   const { translate: _ } = useLanguage();
+  const [imgError, setImgError] = useState(false);
+  const hasPoster = !!item.posterUrl && !imgError;
 
   const goToDetail = () => {
     const typeParam = item.type === "series" || item.type === "anime" ? "tv" : item.type;
@@ -37,17 +39,25 @@ function MovieCard({
           : "flex-none w-[140px] sm:w-[180px] md:w-[220px] rounded-xl sm:rounded-2xl"
       } hover:scale-105 hover:shadow-[0_0_30px_rgba(215,4,102,0.35)]`}
     >
-      <Image
-        src={item.posterUrl}
-        alt={item.title}
-        fill
-        className="object-cover transition-transform duration-500 group-hover:scale-105"
-        sizes={
-          variant === "grid"
-            ? "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
-            : "(max-width: 640px) 140px, (max-width: 768px) 180px, 220px"
-        }
-      />
+      {hasPoster ? (
+        <Image
+          src={item.posterUrl}
+          alt={item.title}
+          fill
+          className="object-cover transition-transform duration-500 group-hover:scale-105"
+          onError={() => setImgError(true)}
+          sizes={
+            variant === "grid"
+              ? "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+              : "(max-width: 640px) 140px, (max-width: 768px) 180px, 220px"
+          }
+        />
+      ) : (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-zinc-800 to-zinc-900 p-3 text-center">
+          <FilmIcon className="h-8 w-8 text-zinc-600" />
+          <span className="line-clamp-3 text-xs font-semibold text-zinc-400">{item.title}</span>
+        </div>
+      )}
 
       <div className="absolute top-3 right-3 z-20">
         <span className="rounded bg-black/75 px-2 py-0.5 text-[10px] font-bold border border-white/10 uppercase tracking-widest text-zinc-300 backdrop-blur-sm">

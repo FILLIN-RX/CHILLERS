@@ -18,9 +18,29 @@ const geistMono = Geist_Mono({
   display: "swap",
 });
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chillers.vercel.app";
+
 export const metadata: Metadata = {
-  title: "CHILLERS",
-  description: "CHILLERS",
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: "CHILLERS",
+    template: "%s · CHILLERS",
+  },
+  description: "Streaming de films et séries en VF/VOSTFR.",
+  applicationName: "CHILLERS",
+  openGraph: {
+    type: "website",
+    siteName: "CHILLERS",
+    title: "CHILLERS",
+    description: "Streaming de films et séries en VF/VOSTFR.",
+    images: [{ url: "/android-chrome-512x512.png", width: 512, height: 512, alt: "CHILLERS" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "CHILLERS",
+    description: "Streaming de films et séries en VF/VOSTFR.",
+    images: ["/android-chrome-512x512.png"],
+  },
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },

@@ -121,7 +121,7 @@ export default function Header({ onSearchClick }: HeaderProps) {
           <button
             onClick={onSearchClick}
             aria-label={_("nav.search")}
-            className="p-2 rounded-full hover:bg-zinc-800 hover:text-white transition-colors focus:outline-none"
+            className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-zinc-800 hover:text-white transition-colors focus:outline-none"
           >
             <MagnifyingGlassIcon className="h-5 w-5" />
           </button>

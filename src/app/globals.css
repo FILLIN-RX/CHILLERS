@@ -164,3 +164,31 @@ body {
 * {
   -webkit-tap-highlight-color: transparent;
 }
+
+/* ── Accessibilité ──────────────────────────────────────────────────────── */
+/* Focus visible clavier cohérent sur tous les éléments interactifs.         */
+/* (les composants utilisent parfois focus:outline-none ; focus-visible ne   */
+/* s'affiche qu'à la navigation clavier, pas au clic/tap.)                    */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Respecte la préférence système « animations réduites ». */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
