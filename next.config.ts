@@ -11,7 +11,7 @@ const nextConfig: NextConfig = {
     const isProd = process.env.NODE_ENV === "production";
     const rawApiUrl =
       process.env.NEXT_PUBLIC_API_URL ||
-      (isProd ? "https://api-v2.docmaster.net/chillers/api" : "http://localhost:5000/chiller/api");
+      (isProd ? "https://chillers.onrender.com/api" : "http://localhost:5000/chiller/api");
     const backendUrl = rawApiUrl.replace(/\/api\/?$/, "");
     return [
       {
@@ -34,7 +34,7 @@ const nextConfig: NextConfig = {
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.youtube.com https://s.ytimg.com https://vercel.live",
               "frame-src 'self' https://vidlink.pro https://vidapi.xyz https://doodstream.com https://*.doodstream.com https://d000d.com https://*.d000d.com https://d0000d.com https://playmogo.com https://*.playmogo.com https://*.dood.to https://www.youtube.com https://animekai.to https://*.vidzy.cc https://vidsrc.xyz https://embed.su https://uqload.is https://*.uqload.is https://vercel.live",
               "media-src 'self' blob: data: https://*.vidzy.cc https://vidlink.pro https://vidapi.xyz https://*.uqload.is",
-              "img-src 'self' data: blob: https://image.tmdb.org https://images.unsplash.com https://*.tmdb.org https://*.vidzy.cc",
+              "img-src 'self' data: blob: https://image.tmdb.org https://images.unsplash.com https://*.tmdb.org https://*.vidzy.cc https://vercel.live https://vercel.com",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "connect-src 'self' http://localhost:4000 https://chillers.onrender.com https://api.themoviedb.org https://*.uqload.is",
               "font-src 'self' data:",
