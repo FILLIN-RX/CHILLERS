@@ -47,14 +47,18 @@ export default function AdminSidebar({ open, onClose }: Props) {
     <>
       <style>{`
         .admin-sidebar {
-          width: 240px; height: 100vh; background: #111118;
+          width: 260px; height: 100vh; background: #111118;
           border-right: 1px solid #1e1e2a; display: flex; flex-direction: column;
           flex-shrink: 0; position: fixed; top: 0; left: 0; z-index: 50;
           transition: transform 0.25s ease;
         }
-        @media (max-width: 768px) {
-          .admin-sidebar { transform: translateX(-100%); }
+        .admin-sidebar nav { overflow-y: auto !important; }
+        .admin-sidebar nav::-webkit-scrollbar { width: 4px; }
+        .admin-sidebar nav::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+        @media (max-width: 1024px) {
+          .admin-sidebar { transform: translateX(-100%); width: 280px; }
           .admin-sidebar.open { transform: translateX(0); }
+          .admin-sidebar-close { display: block !important; }
         }
       `}</style>
       <aside className={`admin-sidebar ${open ? 'open' : ''}`}>
@@ -67,11 +71,10 @@ export default function AdminSidebar({ open, onClose }: Props) {
               Administration
             </p>
           </div>
-          <button onClick={onClose} style={{
+          <button onClick={onClose} className="admin-sidebar-close" style={{
             display: 'none', background: 'none', border: 'none', color: '#6b6b80',
-            cursor: 'pointer', fontSize: '1.25rem', padding: '0.25rem',
-          }} className="admin-sidebar-close">✕</button>
-          <style>{`@media (max-width: 768px) { .admin-sidebar-close { display: block !important; } }`}</style>
+            cursor: 'pointer', fontSize: '1.5rem', padding: '0.25rem', lineHeight: 1,
+          }}>✕</button>
         </div>
 
         <nav style={{ flex: 1, padding: '0.75rem', overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>

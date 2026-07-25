@@ -50,26 +50,33 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div style={{ display: 'flex', minHeight: '100vh', background: '#0f0f0f' }}>
       <AdminSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       {sidebarOpen && (
-        <div onClick={() => setSidebarOpen(false)} style={{
+        <div onClick={() => setSidebarOpen(false)} className="admin-overlay" style={{
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 40,
         }} />
       )}
       <main className="admin-main" style={{ flex: 1, padding: '1rem', overflowY: 'auto', minHeight: '100vh' }}>
         <button
           onClick={() => setSidebarOpen(true)}
-          style={{
-            display: 'none', background: 'none', border: 'none', color: '#fff', cursor: 'pointer',
-            fontSize: '1.5rem', padding: '0.25rem', marginBottom: '0.75rem',
-          }}
           className="admin-menu-btn"
+          style={{
+            display: 'none', background: '#1a1a2a', border: '1px solid #2a2a3a', color: '#fff', cursor: 'pointer',
+            fontSize: '1.25rem', padding: '0.5rem 0.75rem', borderRadius: 8, marginBottom: '0.75rem',
+            lineHeight: 1,
+          }}
+          aria-label="Menu"
         >
           ☰
         </button>
         <style>{`
           .admin-main { margin-left: 240px; }
-          @media (max-width: 768px) {
-            .admin-main { margin-left: 0; }
-            .admin-menu-btn { display: inline-flex !important; }
+          .admin-overlay { display: none; }
+          @media (max-width: 1024px) {
+            .admin-main { margin-left: 0; padding: 0.75rem !important; }
+            .admin-menu-btn { display: inline-flex !important; align-items: center; justify-content: center; }
+            .admin-overlay { display: block !important; }
+          }
+          @media (max-width: 480px) {
+            .admin-main { padding: 0.5rem !important; }
           }
         `}</style>
         {children}
