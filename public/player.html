@@ -147,7 +147,7 @@ function play(url) {
   if (oldPlayer) oldPlayer.remove();
   placeholder.style.display = 'flex';
 
-  const isDirectVideo = /\.(mp4|webm|ogg|mov|avi|mkv)(\?|$)/i.test(url);
+  const isDirectVideo = /\.(mp4|webm|ogg|mov|avi|mkv)(\?|$)/i.test(url) || url.includes('/api/doodstream/stream');
 
   const isEmbed =
     !isDirectVideo && (

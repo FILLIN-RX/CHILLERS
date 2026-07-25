@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import Hls from "hls.js";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { MovieOrShow, Episode } from "@/app/mockData";
 import {
@@ -256,16 +257,37 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
   const isIframe = (
     videoUrl?.includes("vidlink.pro") ||
     videoUrl?.includes("youtube.com") ||
-    videoUrl?.includes("doodstream.com") ||
+    videoUrl?.includes("doodstream.com/e/") ||
     videoUrl?.includes("playmogo.com") ||
     videoUrl?.includes("d000d.com") ||
     videoUrl?.includes("d0000d.com") ||
-    videoUrl?.includes("uqload") ||
-    /dood\.(to|sh|so|cx|la|wf|pm)/i.test(videoUrl || "") ||
-    videoUrl?.includes("/e/") ||
-    videoUrl?.includes("embed")
-  ) && !videoUrl?.includes("vidzy.cc");
+    videoUrl?.includes("uqload.is/embed") ||
+    /dood\.(to|sh|so|cx|la|wf|pm)\/e\//i.test(videoUrl || "") ||
+    videoUrl?.includes("vidapi")
+  ) && !videoUrl?.includes("vidzy.cc") && !videoUrl?.includes("/api/doodstream/stream");
   
+  // ─── HLS.js ──────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el || !videoUrl) return;
+
+    const isHls = videoUrl.includes('.m3u8');
+    if (!isHls) return;
+
+    if (Hls.isSupported()) {
+      const hls = new Hls();
+      hls.loadSource(videoUrl);
+      hls.attachMedia(el);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        setIsVideoLoading(false);
+        el.play().catch(() => {});
+      });
+      return () => { hls.destroy(); };
+    } else if (el.canPlayType('application/vnd.apple.mpegurl')) {
+      el.src = videoUrl;
+    }
+  }, [videoUrl]);
+
   const [downloading, setDownloading] = useState(false);
 
   const handleDownload = async () => {

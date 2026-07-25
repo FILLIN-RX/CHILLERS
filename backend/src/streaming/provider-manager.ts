@@ -4,6 +4,7 @@ import path from 'path';
 import { StreamingProvider, StreamQuery } from './providers/provider.interface';
 import { MongoDBProvider } from './providers/mongodb.provider';
 import { DoodStreamProvider } from './providers/doodstream.provider';
+import { DirectProvider } from './providers/direct.provider';
 import { OtakuProvider } from './providers/otaku.provider';
 import { CachedStream, streamCache, getCacheKey } from '../utils/stream-cache';
 
@@ -37,6 +38,7 @@ export class ProviderManager {
 
   private buildProviders(): StreamingProvider[] {
     return [
+      new DirectProvider(),
       new MongoDBProvider(),
       new DoodStreamProvider(),
       new OtakuProvider(),
@@ -276,6 +278,7 @@ export class ProviderManager {
       url.includes('playmogo.com') ||
       url.includes('d000d.com') ||
       url.includes('d0000d.com') ||
+      url.includes('/api/doodstream/stream') ||
       /dood\.(to|sh|so|cx|la|wf|pm)/i.test(url) ||
       url.includes('/e/') ||
       url.includes('embed')

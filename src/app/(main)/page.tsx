@@ -20,12 +20,19 @@ import {
   getMediaDetails,
   getMoviesByGenre,
   getAnimeSeries,
+  getUpcomingMovies,
 } from "../api";
 
 const HOME_GENRES = [
   { id: '16', title: 'Animation' },
   { id: '28', title: 'Action' },
   { id: '10749', title: 'Romance' },
+];
+
+const ANIME_GENRES = [
+  { id: '10759', title: 'Action & Adventure Anime' },
+  { id: '16', title: 'Animation Anime' },
+  { id: '10765', title: 'Sci-Fi & Fantasy Anime' },
 ];
 
 type TabFetcher = (signal: AbortSignal) => Promise<MovieOrShow[]>;
@@ -77,10 +84,14 @@ function Home() {
   const [moviesData, setMoviesData] = useState<MovieOrShow[]>([]);
   const [seriesData, setSeriesData] = useState<MovieOrShow[]>([]);
   const [animeData, setAnimeData] = useState<MovieOrShow[]>([]);
+  const [newReleases, setNewReleases] = useState<MovieOrShow[]>([]);
   const [genreRows, setGenreRows] = useState<{ title: string; items: MovieOrShow[] }[]>([]);
+  const [animeGenreRows, setAnimeGenreRows] = useState<{ title: string; items: MovieOrShow[] }[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isLoadingGenreRows, setIsLoadingGenreRows] = useState(false);
+  const [isLoadingAnimeGenreRows, setIsLoadingAnimeGenreRows] = useState(false);
   const [hasTriedGenreRows, setHasTriedGenreRows] = useState(false);
+  const [hasTriedAnimeGenreRows, setHasTriedAnimeGenreRows] = useState(false);
 
   // Continue-watching is read from localStorage. Declared BEFORE the useEffect
   // that calls it so the effect's first run can't hit a TDZ (P0-#8).
@@ -139,6 +150,16 @@ function Home() {
     loadContinueWatchingHistory();
   }, [loadContinueWatchingHistory]);
 
+  const loadNewReleases = useCallback(async () => {
+    if (newReleases.length > 0) return;
+    try {
+      const releases = await getUpcomingMovies(1);
+      if (releases.length > 0) setNewReleases(releases);
+    } catch (err) {
+      console.error("Failed to load new releases", err);
+    }
+  }, [newReleases.length]);
+
   const loadHomeData = useCallback(async (signal?: AbortSignal) => {
     setIsLoadingData(true);
     try {
@@ -169,13 +190,15 @@ function Home() {
       if (popularTV.length > 0) setSeriesData(popularTV);
       if (anime.length > 0) setAnimeData(anime);
 
+      await loadNewReleases();
+
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") throw err;
       console.error("Failed to load home data", err);
     } finally {
       setIsLoadingData(false);
     }
-  }, []);
+  }, [loadNewReleases]);
 
   const loadGenreRows = useCallback(async (signal?: AbortSignal) => {
     if (genreRows.length > 0) return;
@@ -196,6 +219,26 @@ function Home() {
       setIsLoadingGenreRows(false);
     }
   }, [genreRows.length]);
+
+  const loadAnimeGenreRows = useCallback(async (signal?: AbortSignal) => {
+    if (animeGenreRows.length > 0) return;
+    setIsLoadingAnimeGenreRows(true);
+    try {
+      const rowsData = await Promise.all(
+        ANIME_GENRES.map(async (g) => ({
+          title: g.title,
+          items: await getMoviesByGenre(g.id, 1, signal),
+        })),
+      );
+      const validRows = rowsData.filter((row) => row.items.length > 0);
+      if (validRows.length > 0) setAnimeGenreRows(validRows);
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      console.error("Failed to load anime genre rows", err);
+    } finally {
+      setIsLoadingAnimeGenreRows(false);
+    }
+  }, [animeGenreRows.length]);
 
   // Home tab: load all rows once. Aborted on unmount or tab change.
   useEffect(() => {
@@ -220,6 +263,21 @@ function Home() {
       controller.abort();
     };
   }, [activeTab, isLoadingData, genreRows.length, isLoadingGenreRows, hasTriedGenreRows, loadGenreRows]);
+
+  useEffect(() => {
+    if (activeTab !== "home") return;
+    if (isLoadingData) return;
+    if (animeGenreRows.length > 0 || isLoadingAnimeGenreRows || hasTriedAnimeGenreRows) return;
+    const controller = new AbortController();
+    const idleTimer = setTimeout(() => {
+      setHasTriedAnimeGenreRows(true);
+      loadAnimeGenreRows(controller.signal).catch(() => {});
+    }, 700); // Slight delay to stagger
+    return () => {
+      clearTimeout(idleTimer);
+      controller.abort();
+    };
+  }, [activeTab, isLoadingData, animeGenreRows.length, isLoadingAnimeGenreRows, hasTriedAnimeGenreRows, loadAnimeGenreRows]);
 
   // P1-#22: one effect dispatches on `activeTab` instead of three near-identical
   // effects. Each tab fetcher is in TAB_FETCHERS; the matching setter is in
@@ -335,6 +393,17 @@ function Home() {
                         ))}
                       </ScrollRow>
 
+                      {ANIME_GENRES.map((g) => (
+                        <ScrollRow key={`anime-genre-sk-${g.title}`} title={g.title} accentColor="secondary">
+                          {Array.from({ length: 6 }).map((_, i) => (
+                            <div
+                              key={`anime-genre-item-sk-${g.id}-${i}`}
+                              className="flex-none w-[140px] sm:w-[180px] md:w-[220px] aspect-[2/3] rounded-xl sm:rounded-2xl bg-zinc-900/60 skeleton-loading border border-zinc-800/40"
+                            />
+                          ))}
+                        </ScrollRow>
+                      ))}
+
                       {HOME_GENRES.map((g) => (
                         <ScrollRow key={`genre-sk-${g.title}`} title={g.title} accentColor="secondary">
                           {Array.from({ length: 6 }).map((_, i) => (
@@ -351,6 +420,19 @@ function Home() {
                       {trendingAll.length > 0 && (
                         <ScrollRow title={_("home.trending")} accentColor="primary">
                           {trendingAll.map((item) => (
+                            <MovieCard
+                              key={item.id}
+                              item={item}
+                              onPlay={handleWatchNow}
+                              onOpenDetails={handleOpenDetails}
+                            />
+                          ))}
+                        </ScrollRow>
+                      )}
+
+                      {newReleases.length > 0 && (
+                        <ScrollRow title="Nouveautés" accentColor="primary">
+                          {newReleases.map((item) => (
                             <MovieCard
                               key={item.id}
                               item={item}
@@ -386,6 +468,19 @@ function Home() {
                           ))}
                         </ScrollRow>
                       )}
+
+                      {animeGenreRows.map((row) => (
+                        <ScrollRow key={row.title} title={row.title} accentColor="secondary">
+                          {row.items.map((item) => (
+                            <MovieCard
+                              key={item.id}
+                              item={item}
+                              onPlay={handleWatchNow}
+                              onOpenDetails={handleOpenDetails}
+                            />
+                          ))}
+                        </ScrollRow>
+                      ))}
 
                       {genreRows.map((row) => (
                         <ScrollRow key={row.title} title={row.title} accentColor="secondary">

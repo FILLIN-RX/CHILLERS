@@ -447,19 +447,26 @@ export const proxyDownload = async (req: Request, res: Response, next: NextFunct
 
 export const proxyStream = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { url } = req.query as Record<string, string>;
+    const { url, referer } = req.query as Record<string, string>;
 
     if (!url) {
       return res.status(400).json({ success: false, message: 'Missing ?url= param' });
     }
 
+    const headers: Record<string, string> = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      'Referer': referer || 'https://vidzy.cc/',
+    };
+
+    if (req.headers.range) {
+      headers['Range'] = req.headers.range as string;
+    }
+
     const response = await axios.get(url, {
       responseType: 'stream',
       timeout: 600000,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Referer': 'https://vidzy.cc/',
-      },
+      maxRedirects: 5,
+      headers,
     });
 
     const contentLength = response.headers['content-length'] as string | undefined;
@@ -467,9 +474,22 @@ export const proxyStream = async (req: Request, res: Response, next: NextFunctio
       res.setHeader('Content-Length', contentLength);
     }
 
-    res.setHeader('Content-Type', response.headers['content-type'] as string || 'video/mp4');
-    res.setHeader('Accept-Ranges', 'bytes');
+    const contentRange = response.headers['content-range'] as string | undefined;
+    if (contentRange) {
+      res.setHeader('Content-Range', contentRange);
+    }
 
+    const acceptRanges = response.headers['accept-ranges'] as string | undefined;
+    if (acceptRanges) {
+      res.setHeader('Accept-Ranges', acceptRanges);
+    }
+
+    res.setHeader('Content-Type', response.headers['content-type'] as string || 'video/mp4');
+    if (req.headers.range) {
+      res.setHeader('Accept-Ranges', 'bytes');
+    }
+
+    res.status(response.status);
     response.data.pipe(res);
   } catch (error: any) {
     console.error('[STREAM] Proxy error:', error.message);
