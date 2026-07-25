@@ -77,8 +77,8 @@ async function scrapeSeriesDetails() {
         process.exit(0);
     });
 
-    const state = await loadState();
-    let currentPage = state.lastPage;
+    while (true) {
+    let currentPage = (await loadState()).lastPage;
     let hasMorePages = true;
 
     while (hasMorePages && !shuttingDown) {
@@ -90,9 +90,25 @@ async function scrapeSeriesDetails() {
         try {
             await page.waitForSelector('.fs-card', { timeout: 30000 });
         } catch (e) {
-            console.log("Fin de la liste.");
-            hasMorePages = false;
-            break;
+            let retries = 0;
+            let pageLoaded = false;
+            while (retries < 5) {
+                retries++;
+                console.log(`Page ${currentPage} vide (tentative ${retries}/5) — attend 15s puis réessaie...`);
+                await new Promise(r => setTimeout(r, 15000));
+                try {
+                    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+                    await page.waitForSelector('.fs-card', { timeout: 30000 });
+                    pageLoaded = true;
+                    break;
+                } catch {}
+            }
+            if (!pageLoaded) {
+                console.log(`Page ${currentPage} toujours vide après 5 tentatives — vraie fin, retour page 1`);
+                hasMorePages = false;
+                await saveState(1);
+                break;
+            }
         }
 
         let cards = await page.$$('.fs-card');
@@ -189,13 +205,23 @@ async function scrapeSeriesDetails() {
         currentPage++;
         await saveState(currentPage);
     }
-    await browser.close();
-    await mongoose.disconnect();
-    console.log("Scraping terminé.");
+    console.log("[ScrapeSeries] Cycle terminé, redémarrage immédiat...");
+  }
 }
 
-scrapeSeriesDetails().catch((err) => {
-    console.log('[FATAL] scrapeSeriesDetails() crashed:', err?.message || err);
-    console.error(err);
-    process.exit(1);
-});
+export { scrapeSeriesDetails as scrapeSeries };
+
+// Exécution directe
+const isDirectExecution = process.argv[1] && (process.argv[1].includes('scrape-series') || process.argv[1].endsWith('scrape-series.ts') || process.argv[1].endsWith('scrape-series.js'));
+if (isDirectExecution) {
+  (async () => {
+    while (true) {
+      try {
+        await scrapeSeriesDetails();
+      } catch (err: any) {
+        console.log(`[ScrapeSeries] Crash: ${err?.message || err} — redémarrage dans 10s...`);
+        await new Promise(r => setTimeout(r, 10000));
+      }
+    }
+  })();
+}

@@ -998,3 +998,59 @@ export async function adminLinkTmdb(type: 'movies' | 'series', id: string, tmdbI
     body: JSON.stringify({ type, id, tmdbId }),
   });
 }
+
+// ─── Scrapper distant ──────────────────────────────────────────────────────
+export async function adminScrapperHealth() {
+  return adminFetch('/scrapper/health');
+}
+
+export async function adminScrapperSettings() {
+  return adminFetch('/scrapper/settings');
+}
+
+export async function adminScrapperLogs(lines = 200) {
+  return adminFetch(`/scrapper/logs?lines=${lines}`);
+}
+
+export async function adminScrapperRunningTasks() {
+  return adminFetch('/scrapper/tasks/running');
+}
+
+export async function adminScrapperCronStatus() {
+  return adminFetch('/scrapper/cron/status');
+}
+
+export async function adminScrapperState() {
+  return adminFetch('/scrapper/scraper-state');
+}
+
+export function adminScrapperLogsStreamUrl(): string {
+  const token = getAdminToken();
+  return `${API_BASE_URL}/admin/scrapper/logs/stream?token=${token}`;
+}
+
+export async function adminScrapperTriggerScrape(type: string) {
+  return adminFetch('/scrapper/scrape/trigger', {
+    method: 'POST',
+    body: JSON.stringify({ type }),
+  });
+}
+
+export async function adminScrapperRunMaintenance(type: string) {
+  return adminFetch('/scrapper/maintenance/run', {
+    method: 'POST',
+    body: JSON.stringify({ type }),
+  });
+}
+
+export async function adminScrapperStopTask(name: string) {
+  return adminFetch(`/scrapper/tasks/stop/${encodeURIComponent(name)}`, { method: 'POST' });
+}
+
+export async function adminScrapperCronStart() {
+  return adminFetch('/scrapper/cron/start', { method: 'POST' });
+}
+
+export async function adminScrapperCronStop() {
+  return adminFetch('/scrapper/cron/stop', { method: 'POST' });
+}

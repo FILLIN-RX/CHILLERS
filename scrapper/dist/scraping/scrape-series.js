@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.scrapeSeries = scrapeSeriesDetails;
 const playwright_1 = require("playwright");
 const mongoose_1 = __importDefault(require("mongoose"));
 const Serie_1 = __importDefault(require("../models/Serie"));
@@ -71,112 +72,138 @@ async function scrapeSeriesDetails() {
         await mongoose_1.default.disconnect().catch(() => { });
         process.exit(0);
     });
-    const state = await loadState();
-    let currentPage = state.lastPage;
-    let hasMorePages = true;
-    while (hasMorePages && !shuttingDown) {
-        const url = `https://www.open-otaku.me/?cat=series&page=${currentPage}`;
-        console.log(`\n--- Navigation vers ${url} ---`);
-        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
-        try {
-            await page.waitForSelector('.fs-card', { timeout: 30000 });
-        }
-        catch (e) {
-            console.log("Fin de la liste.");
-            hasMorePages = false;
-            break;
-        }
-        let cards = await page.$$('.fs-card');
-        console.log(`Séries trouvées sur la page : ${cards.length}`);
-        for (let i = 0; i < cards.length; i++) {
+    while (true) {
+        let currentPage = (await loadState()).lastPage;
+        let hasMorePages = true;
+        while (hasMorePages && !shuttingDown) {
+            const url = `https://www.open-otaku.me/?cat=series&page=${currentPage}`;
+            console.log(`\n--- Navigation vers ${url} ---`);
+            await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
             try {
-                let currentCards = await page.$$('.fs-card');
-                let card = currentCards[i];
-                let titre = await card.$eval('.fs-card-title', (el) => el.innerText.trim());
-                const existingSeries = await Serie_1.default.findOne({ titre: titre });
-                if (existingSeries && existingSeries.pageUrl && existingSeries.episodes && existingSeries.episodes.length > 0) {
-                    console.log(`Série déjà traitée et complète : ${titre}`);
-                    continue;
-                }
-                console.log(`Traitement de la série : ${titre}`);
-                await card.click();
-                await page.waitForLoadState('domcontentloaded');
-                await page.waitForTimeout(1000);
-                const pageUrl = page.url();
-                let serieData = {
-                    titre: titre,
-                    pageUrl: pageUrl,
-                    episodes: existingSeries ? existingSeries.episodes : []
-                };
-                if (serieData.episodes.length === 0) {
-                    console.log(`  -> Récupération des épisodes pour : ${titre}`);
-                    while (true) {
-                        await page.waitForSelector('#fs-episode-select', { state: 'attached', timeout: 10000 });
-                        let epTitre = await page.$eval('#fs-episode-select option:checked', (el) => el.innerText.trim());
-                        await page.click('button#fs-quick-download', { force: true });
-                        await page.waitForTimeout(10000);
-                        let dlLink = await page.$('a#fs-dl-link');
-                        let link = dlLink ? await dlLink.getAttribute('href') : "#";
-                        if (link && link !== "#") {
-                            const seasonMatch = titre.match(/Saison (\d+)/i);
-                            const defaultSeason = seasonMatch ? parseInt(seasonMatch[1], 10) : 1;
-                            const { season, episodeNumber, canonical } = parseEpisodeLabel(epTitre, defaultSeason);
-                            serieData.episodes.push({
-                                episode: canonical,
-                                season,
-                                episodeNumber,
-                                lien: link,
-                            });
-                        }
-                        await page.evaluate(() => {
-                            document.querySelector('#fs-donate-overlay')?.remove();
-                        });
-                        await page.click('button#fs-modal-close');
-                        await page.waitForTimeout(2000);
-                        let nextBtn = await page.$('button#fs-next-ep');
-                        if (!nextBtn || !(await nextBtn.isEnabled()))
-                            break;
-                        await nextBtn.click();
-                        await page.waitForTimeout(5000);
-                    }
-                }
-                const saved = await Serie_1.default.findOneAndUpdate({ titre: titre }, { $set: serieData }, { upsert: true, returnDocument: 'after' });
-                console.log(`Série enregistrée dans MongoDB : ${titre}`);
-                if (saved) {
-                    for (let epIdx = 0; epIdx < (saved.episodes || []).length; epIdx++) {
-                        const ep = saved.episodes[epIdx];
-                        if (!ep.lien || ep.lien === "#")
-                            continue;
-                        const label = `${titre} - ${ep.episode}`;
-                        await (0, reupload_1.reuploadEpisode)(saved._id.toString(), ep, epIdx);
-                        if (uqload && !ep.uqloadCode) {
-                            await uploadEpisodeToUqload(uqload, label, ep.lien, saved._id.toString(), epIdx);
-                        }
-                    }
-                }
-                await page.goto(url, { waitUntil: 'domcontentloaded' });
-                await page.waitForSelector('.fs-card');
+                await page.waitForSelector('.fs-card', { timeout: 30000 });
             }
             catch (e) {
-                console.error(`Erreur sur la série :`, e);
+                let retries = 0;
+                let pageLoaded = false;
+                while (retries < 5) {
+                    retries++;
+                    console.log(`Page ${currentPage} vide (tentative ${retries}/5) — attend 15s puis réessaie...`);
+                    await new Promise(r => setTimeout(r, 15000));
+                    try {
+                        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+                        await page.waitForSelector('.fs-card', { timeout: 30000 });
+                        pageLoaded = true;
+                        break;
+                    }
+                    catch { }
+                }
+                if (!pageLoaded) {
+                    console.log(`Page ${currentPage} toujours vide après 5 tentatives — vraie fin, retour page 1`);
+                    hasMorePages = false;
+                    await saveState(1);
+                    break;
+                }
+            }
+            let cards = await page.$$('.fs-card');
+            console.log(`Séries trouvées sur la page : ${cards.length}`);
+            for (let i = 0; i < cards.length; i++) {
                 try {
+                    let currentCards = await page.$$('.fs-card');
+                    let card = currentCards[i];
+                    let titre = await card.$eval('.fs-card-title', (el) => el.innerText.trim());
+                    const existingSeries = await Serie_1.default.findOne({ titre: titre });
+                    if (existingSeries && existingSeries.pageUrl && existingSeries.episodes && existingSeries.episodes.length > 0) {
+                        console.log(`Série déjà traitée et complète : ${titre}`);
+                        continue;
+                    }
+                    console.log(`Traitement de la série : ${titre}`);
+                    await card.click();
+                    await page.waitForLoadState('domcontentloaded');
+                    await page.waitForTimeout(1000);
+                    const pageUrl = page.url();
+                    let serieData = {
+                        titre: titre,
+                        pageUrl: pageUrl,
+                        episodes: existingSeries ? existingSeries.episodes : []
+                    };
+                    if (serieData.episodes.length === 0) {
+                        console.log(`  -> Récupération des épisodes pour : ${titre}`);
+                        while (true) {
+                            await page.waitForSelector('#fs-episode-select', { state: 'attached', timeout: 10000 });
+                            let epTitre = await page.$eval('#fs-episode-select option:checked', (el) => el.innerText.trim());
+                            await page.click('button#fs-quick-download', { force: true });
+                            await page.waitForTimeout(10000);
+                            let dlLink = await page.$('a#fs-dl-link');
+                            let link = dlLink ? await dlLink.getAttribute('href') : "#";
+                            if (link && link !== "#") {
+                                const seasonMatch = titre.match(/Saison (\d+)/i);
+                                const defaultSeason = seasonMatch ? parseInt(seasonMatch[1], 10) : 1;
+                                const { season, episodeNumber, canonical } = parseEpisodeLabel(epTitre, defaultSeason);
+                                serieData.episodes.push({
+                                    episode: canonical,
+                                    season,
+                                    episodeNumber,
+                                    lien: link,
+                                });
+                            }
+                            await page.evaluate(() => {
+                                document.querySelector('#fs-donate-overlay')?.remove();
+                            });
+                            await page.click('button#fs-modal-close');
+                            await page.waitForTimeout(2000);
+                            let nextBtn = await page.$('button#fs-next-ep');
+                            if (!nextBtn || !(await nextBtn.isEnabled()))
+                                break;
+                            await nextBtn.click();
+                            await page.waitForTimeout(5000);
+                        }
+                    }
+                    const saved = await Serie_1.default.findOneAndUpdate({ titre: titre }, { $set: serieData }, { upsert: true, returnDocument: 'after' });
+                    console.log(`Série enregistrée dans MongoDB : ${titre}`);
+                    if (saved) {
+                        for (let epIdx = 0; epIdx < (saved.episodes || []).length; epIdx++) {
+                            const ep = saved.episodes[epIdx];
+                            if (!ep.lien || ep.lien === "#")
+                                continue;
+                            const label = `${titre} - ${ep.episode}`;
+                            await (0, reupload_1.reuploadEpisode)(saved._id.toString(), ep, epIdx);
+                            if (uqload && !ep.uqloadCode) {
+                                await uploadEpisodeToUqload(uqload, label, ep.lien, saved._id.toString(), epIdx);
+                            }
+                        }
+                    }
                     await page.goto(url, { waitUntil: 'domcontentloaded' });
                     await page.waitForSelector('.fs-card');
                 }
-                catch (recoveryErr) {
-                    console.error(`Récupération échouée :`, recoveryErr);
+                catch (e) {
+                    console.error(`Erreur sur la série :`, e);
+                    try {
+                        await page.goto(url, { waitUntil: 'domcontentloaded' });
+                        await page.waitForSelector('.fs-card');
+                    }
+                    catch (recoveryErr) {
+                        console.error(`Récupération échouée :`, recoveryErr);
+                    }
                 }
             }
+            currentPage++;
+            await saveState(currentPage);
         }
-        currentPage++;
-        await saveState(currentPage);
+        console.log("[ScrapeSeries] Cycle terminé, redémarrage immédiat...");
     }
-    await browser.close();
-    await mongoose_1.default.disconnect();
-    console.log("Scraping terminé.");
 }
-scrapeSeriesDetails().catch((err) => {
-    console.log('[FATAL] scrapeSeriesDetails() crashed:', err?.message || err);
-    console.error(err);
-    process.exit(1);
-});
+// Exécution directe
+const isDirectExecution = process.argv[1] && (process.argv[1].includes('scrape-series') || process.argv[1].endsWith('scrape-series.ts') || process.argv[1].endsWith('scrape-series.js'));
+if (isDirectExecution) {
+    (async () => {
+        while (true) {
+            try {
+                await scrapeSeriesDetails();
+            }
+            catch (err) {
+                console.log(`[ScrapeSeries] Crash: ${err?.message || err} — redémarrage dans 10s...`);
+                await new Promise(r => setTimeout(r, 10000));
+            }
+        }
+    })();
+}

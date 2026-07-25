@@ -7,23 +7,40 @@ dotenv.config({ path: path.join(__dirname, '../.env') });
 
 import { connectDB } from './config/db';
 import { appendLog } from './config/log-buffer';
-import { startCron } from './managers/cron-manager';
+import { startCron, runner } from './managers/cron-manager';
 import apiRouter from './api/router';
+
+// Patcher console.log/error/warn pour que TOUT soit capté dans les logs SSE
+const origLog = console.log;
+const origError = console.error;
+const origWarn = console.warn;
+console.log = (...args: any[]) => {
+  const line = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+  origLog(...args);
+  try { appendLog(line); } catch {}
+};
+console.error = (...args: any[]) => {
+  const line = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+  origError(...args);
+  try { appendLog(`[ERROR] ${line}`); } catch {}
+};
+console.warn = (...args: any[]) => {
+  const line = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+  origWarn(...args);
+  try { appendLog(`[WARN] ${line}`); } catch {}
+};
 
 const PORT = process.env.PORT || 4001;
 
 async function main() {
   console.log(`[Scrapper] Démarrage du service de scraping (port ${PORT})...`);
-  appendLog('[Scrapper] Service démarré');
 
   // Connexion MongoDB
   try {
     await connectDB();
     console.log('[Scrapper] MongoDB connecté');
-    appendLog('[Scrapper] MongoDB connecté');
   } catch (err) {
     console.error('[Scrapper] Échec connexion MongoDB:', err);
-    appendLog('[Scrapper] ERREUR: Échec connexion MongoDB');
     process.exit(1);
   }
 
@@ -49,11 +66,16 @@ async function main() {
 
   app.listen(PORT, () => {
     console.log(`[Scrapper] API en écoute sur http://0.0.0.0:${PORT}`);
-    appendLog(`[Scrapper] API en écoute sur le port ${PORT}`);
 
     // Démarrer le cron automatiquement
     startCron();
-    appendLog('[Scrapper] Cron manager démarré automatiquement');
+    console.log('[Scrapper] Cron manager démarré automatiquement');
+
+    // Lancer le scraping en continu (boucle infinie)
+    console.log('[Scrapper] Lancement du scraping films continu...');
+    runner('Scraping Films', 'src/scraping/scrape-films.ts');
+    console.log('[Scrapper] Lancement du scraping séries continu...');
+    runner('Scraping Séries', 'src/scraping/scrape-series.ts');
   });
 }
 

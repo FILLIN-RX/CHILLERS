@@ -12,19 +12,44 @@ const db_1 = require("./config/db");
 const log_buffer_1 = require("./config/log-buffer");
 const cron_manager_1 = require("./managers/cron-manager");
 const router_1 = __importDefault(require("./api/router"));
+// Patcher console.log/error/warn pour que TOUT soit capté dans les logs SSE
+const origLog = console.log;
+const origError = console.error;
+const origWarn = console.warn;
+console.log = (...args) => {
+    const line = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+    origLog(...args);
+    try {
+        (0, log_buffer_1.appendLog)(line);
+    }
+    catch { }
+};
+console.error = (...args) => {
+    const line = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+    origError(...args);
+    try {
+        (0, log_buffer_1.appendLog)(`[ERROR] ${line}`);
+    }
+    catch { }
+};
+console.warn = (...args) => {
+    const line = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+    origWarn(...args);
+    try {
+        (0, log_buffer_1.appendLog)(`[WARN] ${line}`);
+    }
+    catch { }
+};
 const PORT = process.env.PORT || 4001;
 async function main() {
     console.log(`[Scrapper] Démarrage du service de scraping (port ${PORT})...`);
-    (0, log_buffer_1.appendLog)('[Scrapper] Service démarré');
     // Connexion MongoDB
     try {
         await (0, db_1.connectDB)();
         console.log('[Scrapper] MongoDB connecté');
-        (0, log_buffer_1.appendLog)('[Scrapper] MongoDB connecté');
     }
     catch (err) {
         console.error('[Scrapper] Échec connexion MongoDB:', err);
-        (0, log_buffer_1.appendLog)('[Scrapper] ERREUR: Échec connexion MongoDB');
         process.exit(1);
     }
     const app = (0, express_1.default)();
@@ -44,10 +69,14 @@ async function main() {
     });
     app.listen(PORT, () => {
         console.log(`[Scrapper] API en écoute sur http://0.0.0.0:${PORT}`);
-        (0, log_buffer_1.appendLog)(`[Scrapper] API en écoute sur le port ${PORT}`);
         // Démarrer le cron automatiquement
         (0, cron_manager_1.startCron)();
-        (0, log_buffer_1.appendLog)('[Scrapper] Cron manager démarré automatiquement');
+        console.log('[Scrapper] Cron manager démarré automatiquement');
+        // Lancer le scraping en continu (boucle infinie)
+        console.log('[Scrapper] Lancement du scraping films continu...');
+        (0, cron_manager_1.runner)('Scraping Films', 'src/scraping/scrape-films.ts');
+        console.log('[Scrapper] Lancement du scraping séries continu...');
+        (0, cron_manager_1.runner)('Scraping Séries', 'src/scraping/scrape-series.ts');
     });
 }
 main().catch((err) => {

@@ -1,8 +1,9 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { adminLogout } from '@/app/api';
+import { adminLogout, adminScrapperHealth } from '@/app/api';
 import { IconDashboard, IconMovie, IconTv, IconLogs, IconLink, IconSettings, IconLogout, IconBack, IconCron, IconTmdb, IconUqload } from '@/components/Icons';
 
 const NAV_ITEMS = [
@@ -10,6 +11,7 @@ const NAV_ITEMS = [
   { href: '/admin/movies', label: 'Films', icon: IconMovie },
   { href: '/admin/series', label: 'Séries', icon: IconTv },
   { href: '/admin/tmdb', label: 'TMDB', icon: IconTmdb },
+  { href: '/admin/scrapper', label: 'Scrapper', icon: IconCron },
   { href: '/admin/logs', label: 'Logs', icon: IconLogs },
   { href: '/admin/dead-links', label: 'Liens morts', icon: IconLink },
   { href: '/admin/liens', label: 'Liens', icon: IconLink },
@@ -27,6 +29,19 @@ interface Props {
 export default function AdminSidebar({ open, onClose }: Props) {
   const pathname = usePathname();
   const router = useRouter();
+  const [scrapperOnline, setScrapperOnline] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const poll = async () => {
+      try {
+        const res = await adminScrapperHealth();
+        setScrapperOnline(res.success === true);
+      } catch { setScrapperOnline(false); }
+    };
+    poll();
+    const id = setInterval(poll, 10000);
+    return () => clearInterval(id);
+  }, []);
 
   return (
     <>
@@ -87,6 +102,13 @@ export default function AdminSidebar({ open, onClose }: Props) {
                   <item.icon />
                 </span>
                 {item.label}
+                {item.label === 'Scrapper' && scrapperOnline !== null && (
+                  <span style={{
+                    width: 8, height: 8, borderRadius: '50%', marginLeft: 'auto',
+                    background: scrapperOnline ? '#22c55e' : '#ef4444',
+                    flexShrink: 0,
+                  }} />
+                )}
               </Link>
             );
           })}

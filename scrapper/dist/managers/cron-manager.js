@@ -14,47 +14,41 @@ exports.getCronStatus = getCronStatus;
 const node_cron_1 = __importDefault(require("node-cron"));
 const child_process_1 = require("child_process");
 const path_1 = __importDefault(require("path"));
-const log_buffer_1 = require("../config/log-buffer");
 const isDev = process.env.NODE_ENV !== 'production';
 let cronTasks = [];
 let isRunning = false;
 const runningProcesses = new Map();
 function runProcess(name, command, args) {
     const startTime = new Date().toISOString();
-    const header = `[Cron] Lancement : ${name}`;
-    console.log(`[${startTime}] ${header}`);
-    (0, log_buffer_1.appendLog)(header);
+    console.log(`[${startTime}] [Cron] Lancement : ${name}`);
     const child = (0, child_process_1.spawn)(command, args, { stdio: ['ignore', 'pipe', 'pipe'] });
     runningProcesses.set(name, child);
     child.stdout.on('data', (data) => {
         for (const line of data.toString().split('\n').filter((l) => l)) {
-            const msg = `[${name}] ${line}`;
-            console.log(msg);
-            (0, log_buffer_1.appendLog)(msg);
+            console.log(`[${name}] ${line}`);
         }
     });
     child.stderr.on('data', (data) => {
         for (const line of data.toString().split('\n').filter((l) => l)) {
-            const msg = `[${name}] ${line}`;
-            console.error(msg);
-            (0, log_buffer_1.appendLog)(msg);
+            console.error(`[${name}] ${line}`);
         }
     });
     child.on('close', (code) => {
         runningProcesses.delete(name);
         const endTime = new Date().toISOString();
-        const msg = code === 0
-            ? `[Cron] Terminé avec succès : ${name}`
-            : `[Cron] ERREUR : ${name} (code: ${code})`;
-        console.log(`[${endTime}] ${msg}`);
-        (0, log_buffer_1.appendLog)(msg);
+        if (code === 0) {
+            console.log(`[${endTime}] [Cron] Terminé avec succès : ${name}`);
+        }
+        else {
+            console.error(`[${endTime}] [Cron] ERREUR : ${name} (code: ${code})`);
+        }
     });
 }
 function stopTask(name) {
     const child = runningProcesses.get(name);
     if (!child)
         return false;
-    (0, log_buffer_1.appendLog)(`[Admin] Arrêt demandé : ${name}`);
+    console.log(`[Admin] Arrêt demandé : ${name}`);
     child.kill('SIGTERM');
     return true;
 }
@@ -62,31 +56,22 @@ function getRunningTasks() {
     return Array.from(runningProcesses.keys());
 }
 function runScrapingTasks() {
-    console.log(`[${new Date().toISOString()}] [Cron] Lancement des tâches de scraping...`);
-    (0, log_buffer_1.appendLog)('[Cron] Lancement scraping films...');
-    (0, exports.runner)('Scraping Films', 'src/scraping/scrape-films.ts');
-    (0, log_buffer_1.appendLog)('[Cron] Lancement scraping séries...');
-    (0, exports.runner)('Scraping Séries', 'src/scraping/scrape-series.ts');
+    console.log(`[${new Date().toISOString()}] [Cron] Scraping continu déjà lancé — rien à faire`);
 }
 function runMaintenanceTasks() {
     console.log(`[${new Date().toISOString()}] [Cron] Lancement des tâches de maintenance...`);
-    (0, log_buffer_1.appendLog)('[Cron] Lancement maintenance liens...');
     (0, exports.runner)('Maintenance Liens', 'src/maintenance/maintainer.ts');
-    (0, log_buffer_1.appendLog)('[Cron] Lancement linking TMDB films...');
     (0, exports.runner)('Linking TMDB Films', 'src/maintenance/link-movies-tmdb.ts');
-    (0, log_buffer_1.appendLog)('[Cron] Lancement linking TMDB séries...');
     (0, exports.runner)('Linking TMDB Séries', 'src/maintenance/link-series-tmdb.ts');
 }
 function startCron() {
     if (isRunning)
         return;
     cronTasks = [
-        node_cron_1.default.schedule('0 * * * *', runMaintenanceTasks),
-        node_cron_1.default.schedule('0 3 * * *', runScrapingTasks),
+        node_cron_1.default.schedule('0 10 * * *', runMaintenanceTasks),
     ];
     isRunning = true;
-    (0, log_buffer_1.appendLog)('[Cron] Tâches planifiées démarrées (toutes les heures + scraping 03:00)');
-    console.log('[Cron] Tâches planifiées démarrées.');
+    console.log('[Cron] Maintenance planifiée à 11h00 (heure Cameroun, UTC+1)');
 }
 function stopCron() {
     if (!isRunning)
@@ -94,8 +79,7 @@ function stopCron() {
     cronTasks.forEach(t => t.stop());
     cronTasks = [];
     isRunning = false;
-    (0, log_buffer_1.appendLog)('[Cron] Tâches planifiées arrêtées');
-    console.log('[Cron] Tâches planifiées arrêtées.');
+    console.log('[Cron] Tâches planifiées arrêtées');
 }
 function getCronStatus() {
     return { running: isRunning, tasks: cronTasks.length };
