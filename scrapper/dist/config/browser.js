@@ -16,3 +16,4 @@ const getBrowser = async () => {
     return await playwright_1.chromium.launch(exports.browserConfig);
 };
 exports.getBrowser = getBrowser;
+module.exports = { browserConfig: exports.browserConfig, getBrowser: exports.getBrowser };

@@ -49,17 +49,14 @@ async function uploadMoviesBatch(client) {
             const movie = pending[i];
             try {
                 (0, log_buffer_1.appendLog)(`[Uqload] (${i + 1}/${total}) ${movie.titre}`);
-                const fileCode = await client.uploadByUrl(movie.lien, movie.titre);
-                await new Promise(r => setTimeout(r, 2000));
-                const dlResult = await client.getDirectLink(fileCode);
-                const bestQuality = dlResult.result.versions.find(v => v.name === 'n')
-                    || dlResult.result.versions[0];
+                const { fileCode, directLink } = await client.uploadByUrlAndGetLink(movie.lien, movie.titre);
+                const bestQuality = directLink?.versions?.find((v) => v.name === 'n') || directLink?.versions?.[0];
                 await Movie_1.default.updateOne({ _id: movie._id }, {
                     $set: {
                         uqloadCode: fileCode,
                         uqloadLink: bestQuality?.url || null,
-                        uqloadQualities: dlResult.result.versions,
-                        uqloadHls: dlResult.result.hls_direct || null,
+                        uqloadQualities: directLink?.versions || [],
+                        uqloadHls: directLink?.hls_direct || null,
                     }
                 });
                 success++;
@@ -122,11 +119,8 @@ async function uploadSeriesBatch(client) {
             const label = `${serieTitre} - ${episode.episode}`;
             try {
                 (0, log_buffer_1.appendLog)(`[Uqload] (${i + 1}/${Math.min(totalEpisodes, BATCH_SIZE)}) ${label}`);
-                const fileCode = await client.uploadByUrl(episode.lien, label);
-                await new Promise(r => setTimeout(r, 2000));
-                const dlResult = await client.getDirectLink(fileCode);
-                const bestQuality = dlResult.result.versions.find(v => v.name === 'n')
-                    || dlResult.result.versions[0];
+                const { fileCode, directLink } = await client.uploadByUrlAndGetLink(episode.lien, label);
+                const bestQuality = directLink?.versions?.find((v) => v.name === 'n') || directLink?.versions?.[0];
                 await Serie_1.default.updateOne({ _id: serieId }, { $set: { [`episodes.${episodeIndex}.uqloadCode`]: fileCode, [`episodes.${episodeIndex}.uqloadLink`]: bestQuality?.url || null } });
                 success++;
                 (0, log_buffer_1.appendLog)(`[Uqload] ✅ ${label} → ${fileCode}`);
@@ -156,16 +150,14 @@ async function uploadSingleMovie(client, movieId) {
     if (!movie)
         throw new Error('Film introuvable');
     (0, log_buffer_1.appendLog)(`[Uqload] Upload film: ${movie.titre}`);
-    const fileCode = await client.uploadByUrl(movie.lien, movie.titre);
-    await new Promise(r => setTimeout(r, 2000));
-    const dlResult = await client.getDirectLink(fileCode);
-    const bestQuality = dlResult.result.versions.find(v => v.name === 'n') || dlResult.result.versions[0];
+    const { fileCode, directLink } = await client.uploadByUrlAndGetLink(movie.lien, movie.titre);
+    const bestQuality = directLink?.versions?.find((v) => v.name === 'n') || directLink?.versions?.[0];
     await Movie_1.default.updateOne({ _id: movie._id }, {
         $set: {
             uqloadCode: fileCode,
             uqloadLink: bestQuality?.url || null,
-            uqloadQualities: dlResult.result.versions,
-            uqloadHls: dlResult.result.hls_direct || null,
+            uqloadQualities: directLink?.versions || [],
+            uqloadHls: directLink?.hls_direct || null,
         }
     });
     (0, log_buffer_1.appendLog)(`[Uqload] ✅ ${movie.titre} → ${fileCode}`);
@@ -180,10 +172,8 @@ async function uploadSingleEpisode(client, serieId, episodeIndex) {
         throw new Error('Épisode introuvable');
     const label = `${serie.titre} - ${ep.episode}`;
     (0, log_buffer_1.appendLog)(`[Uqload] Upload épisode: ${label}`);
-    const fileCode = await client.uploadByUrl(ep.lien, label);
-    await new Promise(r => setTimeout(r, 2000));
-    const dlResult = await client.getDirectLink(fileCode);
-    const bestQuality = dlResult.result.versions.find(v => v.name === 'n') || dlResult.result.versions[0];
+    const { fileCode, directLink } = await client.uploadByUrlAndGetLink(ep.lien, label);
+    const bestQuality = directLink?.versions?.find((v) => v.name === 'n') || directLink?.versions?.[0];
     await Serie_1.default.updateOne({ _id: serieId }, { $set: { [`episodes.${episodeIndex}.uqloadCode`]: fileCode, [`episodes.${episodeIndex}.uqloadLink`]: bestQuality?.url || null } });
     (0, log_buffer_1.appendLog)(`[Uqload] ✅ ${label} → ${fileCode}`);
 }

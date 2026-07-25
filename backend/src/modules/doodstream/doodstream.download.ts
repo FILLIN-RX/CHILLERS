@@ -316,33 +316,85 @@ export const getDownloadByTitle = async (req: Request, res: Response, next: Next
 
     // Decide which URL to actually hand back to the client.
     //
-    // 1) uqloadLink (prioritaire), puis lien BD (lienFallback)
-    // 2) Si les deux sont morts, DoodStream API via fileCode
-    // 3) En dernier recours, page DoodStream /d/ (interface web)
+    // Priority:
+    // 1) Fresh Uqload direct URL (scraped from embed page via uqloadCode)
+    // 2) Stored uqloadLink if still alive
+    // 3) lien BD (lienFallback)
+    // 4) DoodStream /d/ page as last resort
     let downloadUrl: string | null = null;
 
-    // Tente uqloadLink (déjà dans match.info.lien si dispo) ou le lien BD
-    const linksToTry = [
-      match.info.lien,
-      match.info.uqloadLink !== match.info.lien ? match.info.uqloadLink : undefined,
-      match.info.lienFallback,
-    ].filter(Boolean) as string[];
+    // 1) Try scraping fresh Uqload direct URL
+    const uqloadCode = match.info.uqloadCode ||
+      (await (async () => {
+        try {
+          if (!tmdb_id) return null;
+          const Movie = (await import('../../models/Movie')).default;
+          const Serie = (await import('../../models/Serie')).default;
+          if (seasonNum !== undefined && episodeNum !== undefined) {
+            const s = await Serie.findOne({ tmdbId: Number(tmdb_id) }).exec();
+            if (!s) return null;
+            const ep = s.episodes.find((e: any) => Number(e.season) === Number(seasonNum) && Number(e.episodeNumber) === Number(episodeNum));
+            return ep?.uqloadCode || null;
+          }
+          const m = await Movie.findOne({ tmdbId: Number(tmdb_id) }).exec();
+          return m?.uqloadCode || null;
+        } catch { return null; }
+      })());
 
-    for (const url of [...new Set(linksToTry)]) {
-      if (!/doodstream\.com\/(e|d)\//i.test(url)) {
-        const alive = await isLinkAlive(url);
-        if (alive) {
-          downloadUrl = url;
-          break;
+    if (uqloadCode) {
+      try {
+        const { scrapeDirectStream } = await import('../../streaming/providers/direct-scraper');
+        const uqloadEmbedUrl = `https://uqload.is/embed-${uqloadCode}.html`;
+        const scraped = await scrapeDirectStream(uqloadEmbedUrl);
+        if (scraped) {
+          downloadUrl = scraped.directUrl;
+          console.log(`[Download] Uqload fresh URL scraped for code=${uqloadCode}: ${downloadUrl.slice(0, 100)}`);
+
+          // Update MongoDB with fresh link so next request is instant
+          try {
+            if (seasonNum !== undefined && episodeNum !== undefined) {
+              const SerieModel = (await import('../../models/Serie')).default;
+              await SerieModel.updateOne(
+                { tmdbId: Number(tmdb_id), 'episodes.uqloadCode': uqloadCode },
+                { $set: { 'episodes.$.uqloadLink': scraped.directUrl } }
+              );
+            } else {
+              const MovieModel = (await import('../../models/Movie')).default;
+              await MovieModel.updateOne(
+                { tmdbId: Number(tmdb_id) },
+                { $set: { uqloadLink: scraped.directUrl } }
+              );
+            }
+            console.log(`[Download] MongoDB updated with fresh Uqload link for tmdb=${tmdb_id}`);
+          } catch (dbErr: any) {
+            console.log(`[Download] MongoDB update failed: ${dbErr.message}`);
+          }
+        }
+      } catch (err: any) {
+        console.log(`[Download] Uqload scrape failed for code=${uqloadCode}: ${err.message}`);
+      }
+    }
+
+    // 2) Try stored uqloadLink if still alive
+    if (!downloadUrl) {
+      const linksToTry = [
+        match.info.uqloadLink !== match.info.lien ? match.info.uqloadLink : undefined,
+        match.info.lien,
+        match.info.lienFallback,
+      ].filter(Boolean) as string[];
+
+      for (const url of [...new Set(linksToTry)]) {
+        if (!/doodstream\.com\/(e|d)\//i.test(url)) {
+          const alive = await isLinkAlive(url);
+          if (alive) {
+            downloadUrl = url;
+            break;
+          }
         }
       }
     }
 
-    // DoodStream ne fournit plus de lien direct fiable : on renvoie
-    // directement vers sa page web /d/ (l'utilisateur y déclenche le
-    // téléchargement). Uqload et autres liens directs sont déjà gérés
-    // au-dessus. On tente d'abord d'extraire le fileCode d'un lien embed
-    // stocké si aucun fileCode explicite n'est disponible.
+    // 3) DoodStream /d/ page as last resort
     if (!downloadUrl) {
       const doodCode =
         match.fileCode ||
@@ -468,6 +520,49 @@ export const proxyStream = async (req: Request, res: Response, next: NextFunctio
       maxRedirects: 5,
       headers,
     });
+
+    const contentType = (response.headers['content-type'] as string || '').toLowerCase();
+    const isHls = contentType.includes('mpegurl') || url.endsWith('.m3u8');
+
+    if (isHls) {
+      const contentLength = response.headers['content-length'] as string | undefined;
+      if (contentLength) {
+        res.setHeader('Content-Length', contentLength);
+      }
+      res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+
+      const body = await axios.get(url, {
+        timeout: 30000,
+        headers,
+        responseType: 'text',
+      });
+
+      const baseUrl = new URL(url);
+      const origin = baseUrl.origin;
+      const baseDir = url.substring(0, url.lastIndexOf('/') + 1);
+
+      const rewritten = (body.data as string).split('\n').map((line: string) => {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) return line;
+
+        let absoluteUrl = trimmed;
+        if (trimmed.startsWith('//')) {
+          absoluteUrl = 'https:' + trimmed;
+        } else if (trimmed.startsWith('/')) {
+          absoluteUrl = origin + trimmed;
+        } else if (!trimmed.startsWith('http')) {
+          absoluteUrl = baseDir + trimmed;
+        }
+
+        const encodedUrl = encodeURIComponent(absoluteUrl);
+        return `/api/doodstream/stream?url=${encodedUrl}&referer=${encodeURIComponent(referer || 'https://uqload.is/')}`;
+      }).join('\n');
+
+      res.send(rewritten);
+      return;
+    }
 
     const contentLength = response.headers['content-length'] as string | undefined;
     if (contentLength) {

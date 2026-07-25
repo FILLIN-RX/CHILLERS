@@ -47,6 +47,8 @@ const EpisodeSchema = new mongoose_1.Schema({
     uploadedAt: { type: Date },
     uqloadCode: { type: String },
     uqloadLink: { type: String },
+    streamtapeCode: { type: String },
+    streamtapeLink: { type: String },
 }, { _id: false });
 const SerieSchema = new mongoose_1.Schema({
     titre: { type: String, required: true, unique: true },

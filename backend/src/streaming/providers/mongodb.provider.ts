@@ -7,6 +7,8 @@ import axios from 'axios';
 function toEmbedUrl(lien: string): string {
   const match = lien.match(/(?:doodstream\.com|playmogo\.com|d000d\.com|d0000d\.com|dood\.(?:to|sh|so|cx|la|wf|pm))\/(?:d|e)\/([a-zA-Z0-9]+)/i);
   if (match) return `https://doodstream.com/e/${match[1]}`;
+  const stMatch = lien.match(/streamtape\.com\/(?:e|v|f)\/([a-zA-Z0-9]+)/i);
+  if (stMatch) return `https://streamtape.com/e/${stMatch[1]}`;
   return lien;
 }
 
@@ -23,7 +25,7 @@ function resolveUrl(url: string | undefined | null): string | null {
 }
 
 function isEmbedOrProtectedUrl(url: string): boolean {
-  return /doodstream|playmogo|d000d|d0000d|dood\.|vidlink|vidapi|uqload|youtube|embed|\/e\//i.test(url);
+  return /doodstream|playmogo|d000d|d0000d|dood\.|vidlink|vidapi|uqload|streamtape|youtube|embed|\/e\//i.test(url);
 }
 
 /** HEAD check rapide pour savoir si l'URL est joignable (pas morte). */

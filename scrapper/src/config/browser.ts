@@ -14,3 +14,5 @@ export const browserConfig: LaunchOptions = {
 export const getBrowser = async () => {
   return await chromium.launch(browserConfig);
 };
+
+module.exports = { browserConfig, getBrowser };

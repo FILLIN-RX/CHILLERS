@@ -1,8 +1,11 @@
-import { connectDB } from '../config/db';
-import tmdbClient from '../config/tmdb';
-import Movie from '../models/Movie';
-import fs from 'fs';
+import dotenv from 'dotenv';
 import path from 'path';
+dotenv.config({ path: path.join(__dirname, '../../.env') });
+
+import fs from 'fs';
+import tmdbClient from '../config/tmdb';
+import { connectDB } from '../config/db';
+import Movie from '../models/Movie';
 
 const ERROR_LOG_PATH = path.join(__dirname, '../../tmdb-movie-link-errors.log');
 
@@ -38,15 +41,19 @@ async function searchTmdbMovie(query: string, year?: number | null): Promise<any
   }
 }
 
-export async function linkMoviesTmdb() {
+async function main() {
   await connectDB();
 
-  const toLink = await Movie.find({ tmdbId: { $eq: null } }).lean();
+  const toLink = await Movie.find({ tmdbId: { $exists: false } })
+    .select('titre lien tmdbId createdAt year')
+    .lean();
 
   if (toLink.length === 0) {
-    console.log('Aucun film à lier.');
+    console.log('Aucun film à lier (tous ont déjà un tmdbId).');
     return;
   }
+
+  console.log(`${toLink.length} films sans TMDB à traiter\n`);
 
   let linked = 0;
   let failed = 0;
@@ -57,9 +64,9 @@ export async function linkMoviesTmdb() {
     const movie = toLink[idx];
     const title = movie.titre;
 
-    console.log(`\n[${idx + 1}/${total}] "${title}"`);
+    console.log(`[${idx + 1}/${total}] "${title}"${movie.year ? ` (${movie.year})` : ''}`);
 
-    const results = await searchTmdbMovie(title);
+    const results = await searchTmdbMovie(title, movie.year);
     if (results.length === 0) {
       errors.push(`[SEARCH] No TMDB results for "${title}"`);
       failed++;
@@ -74,14 +81,19 @@ export async function linkMoviesTmdb() {
         ? new Date(candidate.release_date).getFullYear()
         : null;
 
-      console.log(`  Candidat ${i + 1}: "${candidateTitle}" (id: ${candidate.id})`);
+      console.log(`  Candidat ${i + 1}: "${candidateTitle}" (id: ${candidate.id})${candidateYear ? ` (${candidateYear})` : ''}`);
 
       const sim = nameSimilarity(title, candidateTitle);
       if (sim < 0.3) {
-        console.log(`    ❌ Similarité trop faible: ${sim.toFixed(2)} — ignoré`);
+        console.log(`    ❌ Similarité: ${sim.toFixed(2)} — ignoré`);
         continue;
       }
       console.log(`    ✅ Similarité: ${sim.toFixed(2)}`);
+
+      if (movie.year && candidateYear && Math.abs(movie.year - candidateYear) > 1) {
+        console.log(`    ❌ Année écart: ${movie.year} vs ${candidateYear} — ignoré`);
+        continue;
+      }
 
       if (sim >= 0.5 || (sim >= 0.3 && i === 0)) {
         console.log(`    ✅ LIEN RÉUSSI → tmdbId=${candidate.id}`);
@@ -90,8 +102,6 @@ export async function linkMoviesTmdb() {
         matched = true;
         break;
       }
-
-      console.log(`    ❌ Similarité insuffisante (${sim.toFixed(2)}) pour lier sans certitude`);
     }
 
     if (!matched) {
@@ -103,6 +113,7 @@ export async function linkMoviesTmdb() {
   console.log(`\n=== RÉSULTAT ===`);
   console.log(`✅ Liés: ${linked}`);
   console.log(`❌ Échecs: ${failed}`);
+  console.log(`📊 Total traités: ${total}`);
 
   if (errors.length > 0) {
     const logContent = errors.join('\n') + '\n';
@@ -111,6 +122,4 @@ export async function linkMoviesTmdb() {
   }
 }
 
-if (require.main === module) {
-  linkMoviesTmdb().catch(err => console.error('[FATAL]', err));
-}
+main().catch(err => console.error('[FATAL]', err));

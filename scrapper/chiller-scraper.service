@@ -1,12 +1,12 @@
 [Unit]
 Description=Chiller Scraper Service
-After=network.target mongod.service
+After=network.target
 
 [Service]
 Type=simple
-User=chiller
-WorkingDirectory=/opt/chiller-scrapper
-ExecStart=/usr/bin/node /opt/chiller-scrapper/dist/index.js
+User=%i
+WorkingDirectory=%h/chiller-scrapper
+ExecStart=/usr/bin/node %h/chiller-scrapper/dist/index.js
 Restart=always
 RestartSec=5
 Environment=NODE_ENV=production

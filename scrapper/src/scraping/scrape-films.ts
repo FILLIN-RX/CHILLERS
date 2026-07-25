@@ -4,30 +4,7 @@ import Movie from '../models/Movie';
 import ScraperState from '../models/ScraperState';
 import { browserConfig } from '../config/browser';
 import { connectDB } from '../config/db';
-import { UqloadClient } from '../modules/uqload/uqload.client';
-
-async function uploadToUqload(client: UqloadClient | null, titre: string, lien: string, movieId: string) {
-  if (!client) return;
-  try {
-    console.log(`  -> Upload Uqload: ${titre}`);
-    const { fileCode, directLink } = await client.uploadByUrlAndGetLink(lien, titre);
-    const bestQuality = directLink?.versions?.find((v: any) => v.name === 'n') || directLink?.versions?.[0];
-    await Movie.updateOne(
-      { _id: movieId },
-      {
-        $set: {
-          uqloadCode: fileCode,
-          uqloadLink: bestQuality?.url || null,
-          uqloadQualities: directLink?.versions || [],
-          uqloadHls: directLink?.hls_direct || null,
-        }
-      }
-    );
-    console.log(`  -> ✅ Uqload: ${titre} → ${fileCode}`);
-  } catch (e: any) {
-    console.log(`  -> ⏭ Uqload ignoré pour ${titre}: ${e.message}`);
-  }
-}
+import { reuploadMovie } from '../modules/reupload/reupload';
 
 async function getLastPage(): Promise<number> {
   try {
@@ -51,8 +28,6 @@ export async function scrapeFilms() {
 
   const browser = await chromium.launch(browserConfig);
   const page = await browser.newPage();
-  const apiKey = process.env.UQLOAD_API_KEY;
-  const uqload = apiKey ? new UqloadClient(apiKey) : null;
 
   let currentPage = await getLastPage();
   let hasMorePages = true;
@@ -97,6 +72,13 @@ export async function scrapeFilms() {
 
         const pageUrl = page.url();
 
+        let year: number | undefined;
+        try {
+          const yearText = await page.$eval('.fs-meta-tag.accent', (el: any) => el.innerText.trim());
+          const parsed = parseInt(yearText, 10);
+          if (parsed > 1900 && parsed < 2100) year = parsed;
+        } catch {}
+
         await page.click('button#fs-quick-download', { force: true });
         await page.waitForTimeout(10000);
 
@@ -104,15 +86,16 @@ export async function scrapeFilms() {
         let link = dlLink ? await dlLink.getAttribute('href') : "#";
 
         if (link && link !== "#") {
-          await Movie.findOneAndUpdate(
+          const updateData: any = { titre, pageUrl, lien: link };
+          if (year) updateData.year = year;
+          const saved = await Movie.findOneAndUpdate(
             { titre },
-            { $set: { titre, pageUrl, lien: link } },
-            { upsert: true }
+            { $set: updateData },
+            { upsert: true, returnDocument: 'after' }
           );
           console.log(`Film sauvegardé dans MongoDB : ${titre}`);
-          const movie = await Movie.findOne({ titre }).lean();
-          if (movie) {
-            await uploadToUqload(uqload, titre, link, movie._id.toString());
+          if (saved) {
+            await reuploadMovie(saved._id.toString(), link, titre);
           }
         }
 

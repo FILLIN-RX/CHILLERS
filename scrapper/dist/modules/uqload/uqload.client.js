@@ -63,6 +63,29 @@ class UqloadClient {
             params.tags = tags;
         return this.get('/file/edit', params);
     }
+    async waitForFileReady(fileCode, maxRetries = 30, interval = 3000) {
+        for (let i = 0; i < maxRetries; i++) {
+            try {
+                const info = await this.getFileInfo(fileCode);
+                if (info.result && info.result.length > 0 && info.result[0].status === 200) {
+                    return true;
+                }
+            }
+            catch { }
+            await new Promise(r => setTimeout(r, interval));
+        }
+        return false;
+    }
+    async uploadByUrlAndGetLink(videoUrl, title) {
+        const fileCode = await this.uploadByUrl(videoUrl, title);
+        const ready = await this.waitForFileReady(fileCode);
+        if (!ready) {
+            console.log(`[Uqload] Fichier pas prêt après 90s: ${fileCode}`);
+            return { fileCode, directLink: null };
+        }
+        const dlResult = await this.getDirectLink(fileCode);
+        return { fileCode, directLink: dlResult.result };
+    }
     async deleteFile(fileCode) {
         return this.get('/file/delete', { file_code: fileCode });
     }

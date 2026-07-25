@@ -80,6 +80,9 @@ export class DirectProvider implements StreamingProvider {
     // 4. Construit l'URL proxy (backend pipe le flux avec les bons headers)
     const proxyUrl = `/api/doodstream/stream?url=${encodeURIComponent(scraped.directUrl)}&referer=${encodeURIComponent(scraped.referer)}`;
 
+    // 5. Update MongoDB with fresh URL so next request is instant
+    this.updateMongoDbFreshUrl(query, scraped.directUrl).catch(() => {});
+
     console.log(`${TAG} ${label} → SCRAPE RÉUSSI en ${elapsed}ms`);
     console.log(`${TAG}   type: ${scraped.type}`);
     console.log(`${TAG}   directUrl: ${scraped.directUrl.slice(0, 150)}`);
@@ -118,6 +121,8 @@ export class DirectProvider implements StreamingProvider {
     if (m) return `https://doodstream.com/e/${m[1]}`;
     const uqload = lien.match(/uqload\.(?:is|com)\/(?:embed-?([a-zA-Z0-9]+)|([a-zA-Z0-9]+))/i);
     if (uqload) return `https://uqload.is/embed-${uqload[1] || uqload[2]}.html`;
+    const st = lien.match(/streamtape\.com\/(?:e|v|f)\/([a-zA-Z0-9]+)/i);
+    if (st) return `https://streamtape.com/e/${st[1]}`;
     return lien;
   }
 
@@ -262,5 +267,45 @@ export class DirectProvider implements StreamingProvider {
       }
     }
     return null;
+  }
+
+  private async updateMongoDbFreshUrl(query: StreamQuery, freshUrl: string): Promise<void> {
+    try {
+      if (query.season !== undefined && query.episode !== undefined) {
+        const serie = await Serie.findOne({
+          $or: [
+            ...(query.tmdbId ? [{ tmdbId: query.tmdbId }] : []),
+            ...(query.title ? [{ titre: { $regex: new RegExp(query.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } }] : []),
+          ],
+        }).exec();
+        if (!serie) return;
+        const ep = serie.episodes.find(
+          (e: any) => Number(e.season) === Number(query.season) && Number(e.episodeNumber) === Number(query.episode)
+        );
+        if (ep?.uqloadCode) {
+          await Serie.updateOne(
+            { _id: serie._id, 'episodes.uqloadCode': ep.uqloadCode },
+            { $set: { 'episodes.$.uqloadLink': freshUrl } }
+          );
+          console.log(`${TAG} MongoDB updated uqloadLink for episode "${query.title}" S${query.season}E${query.episode}`);
+        }
+      } else {
+        const movie = await Movie.findOne({
+          $or: [
+            ...(query.tmdbId ? [{ tmdbId: query.tmdbId }] : []),
+            ...(query.title ? [{ titre: { $regex: new RegExp(query.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } }] : []),
+          ],
+        }).exec();
+        if (movie?.uqloadCode) {
+          await Movie.updateOne(
+            { _id: movie._id },
+            { $set: { uqloadLink: freshUrl } }
+          );
+          console.log(`${TAG} MongoDB updated uqloadLink for "${query.title}"`);
+        }
+      }
+    } catch (err: any) {
+      console.error(`${TAG} MongoDB update error:`, err.message);
+    }
   }
 }

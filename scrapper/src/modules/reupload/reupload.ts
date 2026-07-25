@@ -1,25 +1,20 @@
 import axios from 'axios';
 import { UqloadClient } from '../uqload/uqload.client';
+import { uploadToStreamtape, isUqloadFull } from '../streamtape/streamtape.uploader';
 import Serie, { type IEpisode } from '../../models/Serie';
+import Movie from '../../models/Movie';
 
 const DOOD_BASE_URL = 'https://doodapi.co/api';
-
-export interface ReuploadTarget {
-    _serieId?: string;
-    episodeIndex?: number;
-    title: string;
-    lien: string;
-    fileCode?: string;
-    uqloadCode?: string;
-    uqloadLink?: string;
-}
 
 export interface ReuploadResult {
     fileCode?: string;
     uqloadCode?: string;
     uqloadLink?: string;
+    streamtapeCode?: string;
+    streamtapeLink?: string;
     uploadedDoodstream: boolean;
     uploadedUqload: boolean;
+    uploadedStreamtape: boolean;
     errors: string[];
 }
 
@@ -59,6 +54,7 @@ export async function reuploadEpisode(
     const result: ReuploadResult = {
         uploadedDoodstream: false,
         uploadedUqload: false,
+        uploadedStreamtape: false,
         errors: [],
     };
 
@@ -77,7 +73,24 @@ export async function reuploadEpisode(
     }
 
     const uqload = getUqloadClient();
-    if (!episode.uqloadCode && uqload) {
+    const uqloadFull = uqload ? await isUqloadFull() : false;
+
+    if (uqloadFull) {
+        console.log('[Reupload] Uqload full (>=3000GB) — fallback Streamtape');
+        if (!episode.streamtapeCode) {
+            const st = await uploadToStreamtape(episode.lien, uploadTitle);
+            if (st) {
+                result.streamtapeCode = st.linkId;
+                result.streamtapeLink = st.embedUrl;
+                result.uploadedStreamtape = true;
+            } else {
+                result.errors.push('Streamtape upload failed (Uqload fallback)');
+            }
+        } else {
+            result.streamtapeCode = episode.streamtapeCode;
+            result.streamtapeLink = episode.streamtapeLink;
+        }
+    } else if (!episode.uqloadCode && uqload) {
         try {
             const { fileCode: uqCode, directLink } = await uqload.uploadByUrlAndGetLink(
                 episode.lien,
@@ -113,6 +126,10 @@ export async function reuploadEpisode(
         if (result.uqloadCode) $set["episodes.$.uqloadCode"] = result.uqloadCode;
         if (result.uqloadLink) $set["episodes.$.uqloadLink"] = result.uqloadLink;
     }
+    if (result.uploadedStreamtape) {
+        if (result.streamtapeCode) $set["episodes.$.streamtapeCode"] = result.streamtapeCode;
+        if (result.streamtapeLink) $set["episodes.$.streamtapeLink"] = result.streamtapeLink;
+    }
     if (Object.keys($set).length > 0) {
         try {
             const upd = await Serie.updateOne(
@@ -127,6 +144,61 @@ export async function reuploadEpisode(
             }
         } catch (e: any) {
             result.errors.push(`Mongo persist failed: ${e.message}`);
+        }
+    }
+
+    return result;
+}
+
+export async function reuploadMovie(
+    movieId: string,
+    lien: string,
+    titre: string,
+): Promise<ReuploadResult> {
+    const result: ReuploadResult = {
+        uploadedDoodstream: false,
+        uploadedUqload: false,
+        uploadedStreamtape: false,
+        errors: [],
+    };
+
+    const uploadTitle = `${titre} - ${lien.slice(-40)}`;
+
+    const uqload = getUqloadClient();
+    const uqloadFull = uqload ? await isUqloadFull() : false;
+
+    if (uqloadFull) {
+        console.log(`[Reupload] Uqload full — Streamtape pour film "${titre}"`);
+        const st = await uploadToStreamtape(lien, uploadTitle);
+        if (st) {
+            result.streamtapeCode = st.linkId;
+            result.streamtapeLink = st.embedUrl;
+            result.uploadedStreamtape = true;
+            await Movie.updateOne(
+                { _id: movieId },
+                { $set: { streamtapeCode: st.linkId, streamtapeLink: st.embedUrl } }
+            );
+        } else {
+            result.errors.push('Streamtape upload failed');
+        }
+    } else if (uqload) {
+        try {
+            const { fileCode: uqCode, directLink } = await uqload.uploadByUrlAndGetLink(lien, uploadTitle);
+            result.uqloadCode = uqCode;
+            result.uploadedUqload = true;
+            const versions = (directLink as any)?.versions as Array<{ url: string; name: string }> | undefined;
+            const best = versions?.find((v) => v.name === "n") ?? versions?.[0];
+            if (best?.url) {
+                result.uqloadLink = best.url;
+            } else if ((directLink as any)?.hls_direct) {
+                result.uqloadLink = (directLink as any).hls_direct;
+            }
+            await Movie.updateOne(
+                { _id: movieId },
+                { $set: { uqloadCode: uqCode, uqloadLink: result.uqloadLink } }
+            );
+        } catch (e: any) {
+            result.errors.push(`Uqload upload failed: ${e.message}`);
         }
     }
 

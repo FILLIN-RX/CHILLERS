@@ -1,8 +1,11 @@
-import { connectDB } from '../config/db';
-import tmdbClient from '../config/tmdb';
-import Serie from '../models/Serie';
-import fs from 'fs';
+import dotenv from 'dotenv';
 import path from 'path';
+dotenv.config({ path: path.join(__dirname, '../../.env') });
+
+import fs from 'fs';
+import tmdbClient from '../config/tmdb';
+import { connectDB } from '../config/db';
+import Serie from '../models/Serie';
 
 const ERROR_LOG_PATH = path.join(__dirname, '../../tmdb-link-errors.log');
 
@@ -30,6 +33,25 @@ function nameSimilarity(a: string, b: string): number {
   for (const w of wordsA) if (wordsB.has(w)) intersect++;
   const union = new Set([...wordsA, ...wordsB]).size;
   return intersect / union;
+}
+
+function extractEpisodeTitleFromFilename(filename: string): string | null {
+  const cleaned = filename
+    .replace(/\.(?:mkv|mp4|avi|mov)$/i, '')
+    .replace(/\.[A-Za-z0-9]+(?:-[A-Za-z0-9]+)?$/g, '')
+    .replace(/\.(?:1080p|720p|480p|2160p|WEB|BLURAY|BRRiP|WEBRiP|HDTV|x264|x265|H264|H265|MULTi|VFF|VOSTFR|FRENCH|TRUEFRENCH|SUPPLY|TyHD|GL0P|d4kid|AMZN|NF|iT|iTA|iNTERNAL|PROPER|REPACK)\..*/gi, '')
+    .replace(/[._]/g, ' ')
+    .trim();
+
+  const seMatch = cleaned.match(/[sS]\d+[eE]\d+\s+(.+)/);
+  if (seMatch) {
+    const title = seMatch[1].trim();
+    if (title && !/^(?:episode|épisode|ep)\s*\d+$/i.test(title) && title.length > 2) {
+      return title;
+    }
+  }
+
+  return null;
 }
 
 async function searchTmdb(query: string): Promise<any[]> {
@@ -62,23 +84,42 @@ async function getSeasonDetails(tmdbId: number, seasonNumber: number): Promise<a
   }
 }
 
-export async function linkSeriesTmdb() {
+async function main() {
   await connectDB();
 
-  const allSeries = await Serie.find({ tmdbId: { $eq: null } }).lean();
+  const allSeries = await Serie.find({ tmdbId: { $exists: false } })
+    .select('titre episodes tmdbId')
+    .lean();
 
   if (allSeries.length === 0) {
-    console.log('Aucune série à lier.');
+    console.log('Aucune série à lier (toutes ont déjà un tmdbId).');
     return;
   }
 
+  const groups = new Map<string, { entries: typeof allSeries; season: number; maxEpisode: number }>();
+  for (const serie of allSeries) {
+    const groupKey = serie.titre;
+    if (!groups.has(groupKey)) {
+      const epNumbers = serie.episodes.map(e => e.episodeNumber);
+      const season = Math.min(...epNumbers);
+      groups.set(groupKey, { entries: [], season, maxEpisode: 0 });
+    }
+    const group = groups.get(groupKey)!;
+    group.entries.push(serie);
+    const epNums = serie.episodes.map(e => e.episodeNumber);
+    const hasRealNumbers = epNums.some(n => typeof n === 'number' && n > 0);
+    const maxEp = hasRealNumbers
+      ? Math.max(...epNums.filter((n): n is number => typeof n === 'number'), 0)
+      : serie.episodes.length;
+    if (maxEp > group.maxEpisode) group.maxEpisode = maxEp;
+  }
+
   let linked = 0;
+  let skipped = 0;
   let failed = 0;
   const errors: string[] = [];
 
-  for (const serie of allSeries) {
-    const titre = serie.titre;
-
+  for (const [titre, group] of groups) {
     const parsed = parseTitre(titre);
     if (!parsed) {
       errors.push(`[PARSE] Cannot parse titre: "${titre}"`);
@@ -87,7 +128,8 @@ export async function linkSeriesTmdb() {
     }
 
     const { seriesName, season } = parsed;
-    console.log(`\n--- ${seriesName} S${season} ---`);
+    const uploadedCount = group.maxEpisode;
+    console.log(`\n--- ${seriesName} S${season} (${uploadedCount} épisodes) ---`);
 
     const results = await searchTmdb(seriesName);
     if (results.length === 0) {
@@ -103,7 +145,7 @@ export async function linkSeriesTmdb() {
 
       const sim = nameSimilarity(seriesName, candidate.name);
       if (sim < 0.3) {
-        console.log(`    ❌ Similarité trop faible: ${sim.toFixed(2)} — ignoré`);
+        console.log(`    ❌ Similarité: ${sim.toFixed(2)} — ignoré`);
         continue;
       }
       console.log(`    ✅ Similarité: ${sim.toFixed(2)}`);
@@ -117,54 +159,83 @@ export async function linkSeriesTmdb() {
       const seasons = details.seasons || [];
       const seasonExists = seasons.some((s: any) => s.season_number === season);
       if (!seasonExists) {
-        console.log(`    → Saison ${season} introuvable sur TMDB`);
+        console.log(`    → Saison ${season} introuvable`);
         continue;
       }
-      console.log(`    ✅ Saison ${season} existe sur TMDB`);
+      console.log(`    ✅ Saison ${season} existe`);
 
       const seasonDetail = await getSeasonDetails(candidate.id, season);
       if (!seasonDetail) {
-        console.log(`    → Impossible de récupérer les épisodes`);
+        console.log(`    → Impossible de récupérer les épisodes S${season}`);
         continue;
       }
 
       const tmdbEpisodes = seasonDetail.episodes || [];
       const tmdbCount = tmdbEpisodes.length;
-      const uploadedCount = serie.episodes?.length || 0;
+
+      const uploadedEpTitles: { ep: number; title: string | null }[] = [];
+      for (const serie of group.entries) {
+        for (const ep of serie.episodes) {
+          const filename = (ep.lien || '').split('/').pop()?.split('?')[0] || '';
+          uploadedEpTitles.push({ ep: ep.episodeNumber, title: extractEpisodeTitleFromFilename(filename) });
+        }
+      }
+      const titleMatches = uploadedEpTitles.filter(u => {
+        if (!u.title) return false;
+        const tmdbEp = tmdbEpisodes.find((te: any) => te.episode_number === u.ep);
+        if (!tmdbEp || !tmdbEp.name) return false;
+        return nameSimilarity(u.title, tmdbEp.name) > 0.4;
+      });
+
+      if (titleMatches.length > 0) {
+        console.log(`    ✅ Match par titres d'épisodes (ex: "${titleMatches[0].title}")`);
+        const firstMatch = tmdbEpisodes.find((te: any) => te.episode_number === titleMatches[0].ep);
+        console.log(`    ✅ LIEN RÉUSSI → tmdbId=${candidate.id}`);
+        await Serie.updateMany({ titre }, { $set: { tmdbId: candidate.id } });
+        linked++;
+        matched = true;
+        break;
+      }
 
       if (tmdbCount === uploadedCount) {
+        console.log(`    ⚠ Nombre exact d'épisodes: ${tmdbCount}`);
         console.log(`    ✅ LIEN RÉUSSI → tmdbId=${candidate.id}`);
-        await Serie.updateOne({ _id: serie._id }, { $set: { tmdbId: candidate.id } });
+        await Serie.updateMany({ titre }, { $set: { tmdbId: candidate.id } });
         linked++;
         matched = true;
         break;
       }
 
       if (uploadedCount <= tmdbCount) {
-        const uploadedEpNumbers = new Set((serie.episodes || []).map((e: any) => e.episodeNumber || 0));
+        const uploadedEpNumbers = new Set<number>();
+        for (const serie of group.entries) {
+          for (const ep of serie.episodes) uploadedEpNumbers.add(ep.episodeNumber);
+        }
         const tmdbEpNumbers = new Set(tmdbEpisodes.map((e: any) => e.episode_number));
-        const anyNumMatch = [...uploadedEpNumbers].some(n => n > 0 && tmdbEpNumbers.has(n));
+        const anyNumMatch = [...uploadedEpNumbers].some(n => tmdbEpNumbers.has(n));
 
         if (anyNumMatch) {
-          console.log(`    ✅ LIEN RÉUSSI (relâché) → tmdbId=${candidate.id}`);
-          await Serie.updateOne({ _id: serie._id }, { $set: { tmdbId: candidate.id } });
+          console.log(`    ⚠ Match relâché: TMDB=${tmdbCount}, uploadés=${uploadedCount}`);
+          console.log(`    ✅ LIEN RÉUSSI → tmdbId=${candidate.id}`);
+          await Serie.updateMany({ titre }, { $set: { tmdbId: candidate.id } });
           linked++;
           matched = true;
           break;
         }
       }
 
-      console.log(`    ❌ Nombre TMDB: ${tmdbCount}, uploadés: ${uploadedCount} — pas de match`);
+      console.log(`    ❌ TMDB: ${tmdbCount} épisodes, uploadés: ${uploadedCount}`);
     }
 
     if (!matched) {
-      errors.push(`[NO MATCH] ${seriesName} S${season} — aucun candidat TMDB valide`);
+      errors.push(`[NO MATCH] ${seriesName} S${season} — ${uploadedCount} épisodes`);
       failed++;
     }
   }
 
   console.log(`\n=== RÉSULTAT ===`);
   console.log(`✅ Liés: ${linked}`);
+  console.log(`⏭️  Déjà liés (ignorés): ${skipped}`);
   console.log(`❌ Échecs: ${failed}`);
 
   if (errors.length > 0) {
@@ -172,8 +243,8 @@ export async function linkSeriesTmdb() {
     fs.appendFileSync(ERROR_LOG_PATH, logContent + '\n', 'utf-8');
     console.log(`\nErreurs logguées dans tmdb-link-errors.log`);
   }
+
+  process.exit(0);
 }
 
-if (require.main === module) {
-  linkSeriesTmdb().catch(err => console.error('[FATAL]', err));
-}
+main().catch(err => { console.error('[FATAL]', err); process.exit(1); });

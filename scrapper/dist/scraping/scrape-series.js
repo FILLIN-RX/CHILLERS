@@ -3,7 +3,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.scrapeSeriesDetails = scrapeSeriesDetails;
 const playwright_1 = require("playwright");
 const mongoose_1 = __importDefault(require("mongoose"));
 const Serie_1 = __importDefault(require("../models/Serie"));
@@ -11,21 +10,35 @@ const ScraperState_1 = __importDefault(require("../models/ScraperState"));
 const browser_1 = require("../config/browser");
 const db_1 = require("../config/db");
 const uqload_client_1 = require("../modules/uqload/uqload.client");
+const reupload_1 = require("../modules/reupload/reupload");
 async function uploadEpisodeToUqload(client, label, lien, serieId, episodeIndex) {
     if (!client)
         return;
     try {
         console.log(`    -> Upload Uqload: ${label}`);
-        const fileCode = await client.uploadByUrl(lien, label);
-        await new Promise(r => setTimeout(r, 2000));
-        const dlResult = await client.getDirectLink(fileCode);
-        const bestQuality = dlResult.result.versions.find((v) => v.name === 'n') || dlResult.result.versions[0];
+        const { fileCode, directLink } = await client.uploadByUrlAndGetLink(lien, label);
+        const bestQuality = directLink?.versions?.find((v) => v.name === 'n') || directLink?.versions?.[0];
         await Serie_1.default.updateOne({ _id: serieId }, { $set: { [`episodes.${episodeIndex}.uqloadCode`]: fileCode, [`episodes.${episodeIndex}.uqloadLink`]: bestQuality?.url || null } });
         console.log(`    -> ✅ Uqload: ${label} → ${fileCode}`);
     }
     catch (e) {
         console.log(`    -> ⏭ Uqload ignoré: ${e.message}`);
     }
+}
+function parseEpisodeLabel(label, defaultSeason = 1) {
+    const trimmed = label.trim();
+    const sxxExx = trimmed.match(/S(\d+)\s*E\s*(\d+)/i);
+    if (sxxExx) {
+        const season = parseInt(sxxExx[1], 10);
+        const num = parseInt(sxxExx[2], 10);
+        return { season, episodeNumber: num, canonical: `S${String(season).padStart(2, "0")}E${String(num).padStart(2, "0")}` };
+    }
+    const epWord = trimmed.match(/(?:Ép|Ep|Episode)\s*\.?\s*(\d+)/i);
+    if (epWord) {
+        const num = parseInt(epWord[1], 10);
+        return { season: defaultSeason, episodeNumber: num, canonical: `S${String(defaultSeason).padStart(2, "0")}E${String(num).padStart(2, "0")}` };
+    }
+    return { season: defaultSeason, episodeNumber: 0, canonical: trimmed };
 }
 async function loadState() {
     try {
@@ -40,22 +53,35 @@ async function saveState(lastPage) {
     await ScraperState_1.default.findOneAndUpdate({ name: 'series' }, { $set: { lastPage, updatedAt: new Date() } }, { upsert: true });
 }
 async function scrapeSeriesDetails() {
+    console.log('[START] scrapeSeriesDetails() called — connecting to MongoDB...');
     await (0, db_1.connectDB)();
+    console.log('[OK] MongoDB connected, launching Playwright...');
     const browser = await playwright_1.chromium.launch(browser_1.browserConfig);
+    console.log('[OK] Playwright browser launched');
     const page = await browser.newPage();
     const apiKey = process.env.UQLOAD_API_KEY;
     const uqload = apiKey ? new uqload_client_1.UqloadClient(apiKey) : null;
+    let shuttingDown = false;
+    process.on('SIGTERM', async () => {
+        if (shuttingDown)
+            return;
+        shuttingDown = true;
+        console.log('\n[SIGTERM] Arrêt demandé, fermeture du navigateur...');
+        await browser.close().catch(() => { });
+        await mongoose_1.default.disconnect().catch(() => { });
+        process.exit(0);
+    });
     const state = await loadState();
     let currentPage = state.lastPage;
     let hasMorePages = true;
-    while (hasMorePages) {
+    while (hasMorePages && !shuttingDown) {
         const url = `https://www.open-otaku.me/?cat=series&page=${currentPage}`;
         console.log(`\n--- Navigation vers ${url} ---`);
         await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
         try {
             await page.waitForSelector('.fs-card', { timeout: 30000 });
         }
-        catch {
+        catch (e) {
             console.log("Fin de la liste.");
             hasMorePages = false;
             break;
@@ -67,7 +93,7 @@ async function scrapeSeriesDetails() {
                 let currentCards = await page.$$('.fs-card');
                 let card = currentCards[i];
                 let titre = await card.$eval('.fs-card-title', (el) => el.innerText.trim());
-                const existingSeries = await Serie_1.default.findOne({ titre });
+                const existingSeries = await Serie_1.default.findOne({ titre: titre });
                 if (existingSeries && existingSeries.pageUrl && existingSeries.episodes && existingSeries.episodes.length > 0) {
                     console.log(`Série déjà traitée et complète : ${titre}`);
                     continue;
@@ -78,22 +104,33 @@ async function scrapeSeriesDetails() {
                 await page.waitForTimeout(1000);
                 const pageUrl = page.url();
                 let serieData = {
-                    titre,
-                    pageUrl,
+                    titre: titre,
+                    pageUrl: pageUrl,
                     episodes: existingSeries ? existingSeries.episodes : []
                 };
                 if (serieData.episodes.length === 0) {
                     console.log(`  -> Récupération des épisodes pour : ${titre}`);
                     while (true) {
-                        await page.waitForSelector('#fs-episode-select', { state: 'visible', timeout: 10000 });
+                        await page.waitForSelector('#fs-episode-select', { state: 'attached', timeout: 10000 });
                         let epTitre = await page.$eval('#fs-episode-select option:checked', (el) => el.innerText.trim());
                         await page.click('button#fs-quick-download', { force: true });
                         await page.waitForTimeout(10000);
                         let dlLink = await page.$('a#fs-dl-link');
                         let link = dlLink ? await dlLink.getAttribute('href') : "#";
                         if (link && link !== "#") {
-                            serieData.episodes.push({ episode: epTitre, lien: link });
+                            const seasonMatch = titre.match(/Saison (\d+)/i);
+                            const defaultSeason = seasonMatch ? parseInt(seasonMatch[1], 10) : 1;
+                            const { season, episodeNumber, canonical } = parseEpisodeLabel(epTitre, defaultSeason);
+                            serieData.episodes.push({
+                                episode: canonical,
+                                season,
+                                episodeNumber,
+                                lien: link,
+                            });
                         }
+                        await page.evaluate(() => {
+                            document.querySelector('#fs-donate-overlay')?.remove();
+                        });
                         await page.click('button#fs-modal-close');
                         await page.waitForTimeout(2000);
                         let nextBtn = await page.$('button#fs-next-ep');
@@ -103,13 +140,17 @@ async function scrapeSeriesDetails() {
                         await page.waitForTimeout(5000);
                     }
                 }
-                const saved = await Serie_1.default.findOneAndUpdate({ titre }, { $set: serieData }, { upsert: true, new: true });
+                const saved = await Serie_1.default.findOneAndUpdate({ titre: titre }, { $set: serieData }, { upsert: true, returnDocument: 'after' });
                 console.log(`Série enregistrée dans MongoDB : ${titre}`);
-                if (saved && uqload) {
+                if (saved) {
                     for (let epIdx = 0; epIdx < (saved.episodes || []).length; epIdx++) {
                         const ep = saved.episodes[epIdx];
-                        if (ep.lien && ep.lien !== '#' && !ep.uqloadCode) {
-                            await uploadEpisodeToUqload(uqload, `${titre} - ${ep.episode}`, ep.lien, saved._id.toString(), epIdx);
+                        if (!ep.lien || ep.lien === "#")
+                            continue;
+                        const label = `${titre} - ${ep.episode}`;
+                        await (0, reupload_1.reuploadEpisode)(saved._id.toString(), ep, epIdx);
+                        if (uqload && !ep.uqloadCode) {
+                            await uploadEpisodeToUqload(uqload, label, ep.lien, saved._id.toString(), epIdx);
                         }
                     }
                 }
@@ -132,8 +173,10 @@ async function scrapeSeriesDetails() {
     }
     await browser.close();
     await mongoose_1.default.disconnect();
-    console.log("Scraping séries terminé.");
+    console.log("Scraping terminé.");
 }
-if (require.main === module) {
-    scrapeSeriesDetails().catch(console.error);
-}
+scrapeSeriesDetails().catch((err) => {
+    console.log('[FATAL] scrapeSeriesDetails() crashed:', err?.message || err);
+    console.error(err);
+    process.exit(1);
+});

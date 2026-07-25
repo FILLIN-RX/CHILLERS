@@ -16,6 +16,10 @@ export function getLogs(limit = 200): string[] {
   return buffer.slice(-limit);
 }
 
+export function getAllLogs(): string[] {
+  return [...buffer];
+}
+
 export function addSSEClient(res: Response) {
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',

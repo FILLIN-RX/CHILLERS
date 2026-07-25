@@ -275,6 +275,7 @@ export class ProviderManager {
       url.includes('uqload') ||
       url.includes('youtube.com') ||
       url.includes('doodstream.com') ||
+      url.includes('streamtape.com') ||
       url.includes('playmogo.com') ||
       url.includes('d000d.com') ||
       url.includes('d0000d.com') ||

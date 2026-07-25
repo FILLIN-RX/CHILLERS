@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.appendLog = appendLog;
 exports.getLogs = getLogs;
+exports.getAllLogs = getAllLogs;
 exports.addSSEClient = addSSEClient;
 const MAX_LINES = 2000;
 const buffer = [];
@@ -16,6 +17,9 @@ function appendLog(line) {
 }
 function getLogs(limit = 200) {
     return buffer.slice(-limit);
+}
+function getAllLogs() {
+    return [...buffer];
 }
 function addSSEClient(res) {
     res.writeHead(200, {
