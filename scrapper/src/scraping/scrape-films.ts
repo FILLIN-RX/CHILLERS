@@ -4,6 +4,7 @@ import ScraperState from '../models/ScraperState';
 import { browserConfig } from '../config/browser';
 import { connectDB } from '../config/db';
 import { reuploadMovie } from '../modules/reupload/reupload';
+import { waitForScrapingHours } from '../utils/scraping-hours';
 
 const MAX_EMPTY_RETRIES = 5;
 
@@ -35,6 +36,7 @@ export async function scrapeFilms() {
   const page = await browser.newPage();
 
   while (true) {
+    await waitForScrapingHours();
     let currentPage = await getLastPage();
     let hasMorePages = true;
     console.log(`[ScrapeFilms] Démarrage boucle depuis la page ${currentPage}`);

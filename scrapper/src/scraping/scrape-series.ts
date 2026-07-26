@@ -6,6 +6,7 @@ import { browserConfig } from '../config/browser';
 import { connectDB } from '../config/db';
 import { UqloadClient } from '../modules/uqload/uqload.client';
 import { reuploadEpisode } from '../modules/reupload/reupload';
+import { waitForScrapingHours } from '../utils/scraping-hours';
 
 async function uploadEpisodeToUqload(client: UqloadClient | null, label: string, lien: string, serieId: string, episodeIndex: number) {
   if (!client) return;
@@ -78,6 +79,7 @@ async function scrapeSeriesDetails() {
     });
 
     while (true) {
+    await waitForScrapingHours();
     let currentPage = (await loadState()).lastPage;
     let hasMorePages = true;
 
