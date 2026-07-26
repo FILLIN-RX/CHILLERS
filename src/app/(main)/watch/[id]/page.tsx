@@ -19,6 +19,7 @@ import NotificationModal from "@/components/NotificationModal";
 import SeriesDownloadModal from "@/components/SeriesDownloadModal";
 import MovieCard from "@/components/MovieCard";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { PopupFirewall } from "@/lib/PopupFirewall";
 import {
   ArrowLeftIcon,
   PlayIcon,
@@ -195,6 +196,24 @@ function WatchContent() {
     loadSimilar();
     return () => controller.abort();
   }, [id, isTV]);
+
+  // ── Anti-popup firewall + redirect protection ────────────────────────
+  useEffect(() => {
+    PopupFirewall.activate();
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (streamUrl && !streamUnavailable) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      PopupFirewall.deactivate();
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [streamUrl, streamUnavailable]);
 
   const playEpisode = useCallback(
     async (idx: number) => {
