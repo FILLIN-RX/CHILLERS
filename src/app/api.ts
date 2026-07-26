@@ -651,9 +651,15 @@ export async function clearTmdbCache(): Promise<void> {
 export function triggerDownload(downloadUrl: string, filename: string = 'video.mp4') {
   if (typeof window === "undefined") return;
 
-  // Si le lien est une page DoodStream /d/, ouvrir directement
-  // dans un nouvel onglet (le proxy ne peut pas forwarder du HTML)
-  if (/doodstream\.com\/d\//i.test(downloadUrl)) {
+  // URLs directes : ouvrir dans un nouvel onglet (le proxy backend
+  // a l'IP blacklistée par le CDN Uqload, le navigateur utilisateur non)
+  // DoodStream /d/ → page HTML download
+  // Uqload .mp4 → fichier direct
+  if (
+    /doodstream\.com\/d\//i.test(downloadUrl) ||
+    /\.mp4(\?|$)/i.test(downloadUrl) ||
+    /uqload\.(is|com)/i.test(downloadUrl)
+  ) {
     window.open(downloadUrl, '_blank');
     return;
   }
