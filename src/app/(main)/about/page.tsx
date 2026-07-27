@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { ArrowLeftIcon, PlayIcon, MagnifyingGlassIcon, HeartIcon, ShieldCheckIcon } from "@heroicons/react/24/solid";
+import { IconArrowLeft, IconPlayerPlay, IconSearch, IconHeart, IconShieldCheck } from '@tabler/icons-react';
 
 export default function AboutPage() {
   return (
@@ -13,21 +13,21 @@ export default function AboutPage() {
           aria-label="Retour"
           className="flex items-center justify-center w-10 h-10 rounded-full bg-black/70 backdrop-blur-sm border border-white/10 text-white hover:bg-white/10 transition-all"
         >
-          <ArrowLeftIcon className="h-5 w-5" />
+          <IconArrowLeft className="h-5 w-5" />
         </button>
       </div>
 
-      <div className="max-w-4xl mx-auto px-6 py-24 space-y-16">
+      <div className="mx-auto px-6 sm:px-8 md:px-12 lg:px-[4%] py-24 space-y-16">
 
         {/* Hero */}
         <section className="text-center space-y-6">
           <div className="w-20 h-20 mx-auto rounded-full bg-[#D70466]/20 flex items-center justify-center">
-            <PlayIcon className="h-10 w-10 text-[#D70466]" />
+            <IconPlayerPlay className="h-10 w-10 text-[#D70466]" />
           </div>
           <h1 className="text-3xl sm:text-5xl font-black leading-tight">
             Bienvenue sur <span className="text-[#D70466]">Chillers</span>
           </h1>
-          <p className="text-zinc-400 text-lg max-w-2xl mx-auto">
+          <p className="text-zinc-400 text-lg">
             L&apos;innovation au service du divertissement
           </p>
         </section>
@@ -81,21 +81,21 @@ export default function AboutPage() {
           </h2>
           <div className="grid sm:grid-cols-3 gap-4">
             <div className="p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-3">
-              <MagnifyingGlassIcon className="h-8 w-8 text-[#D70466]" />
+              <IconSearch className="h-8 w-8 text-[#D70466]" />
               <h3 className="font-bold text-sm">Explorez</h3>
               <p className="text-zinc-500 text-xs leading-relaxed">
                 Parcourez notre catalogue de films, séries et anime. Utilisez les filtres par genre pour trouver exactement ce que vous cherchez.
               </p>
             </div>
             <div className="p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-3">
-              <PlayIcon className="h-8 w-8 text-[#7C3AED]" />
+              <IconPlayerPlay className="h-8 w-8 text-[#7C3AED]" />
               <h3 className="font-bold text-sm">Regardez</h3>
               <p className="text-zinc-500 text-xs leading-relaxed">
                 Cliquez sur un titre et lancez la lecture. Notre player intégré vous offre une expérience de visionnage fluide sur tous vos appareils.
               </p>
             </div>
             <div className="p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-3">
-              <HeartIcon className="h-8 w-8 text-amber-400" />
+              <IconHeart className="h-8 w-8 text-amber-400" />
               <h3 className="font-bold text-sm">Continuez</h3>
               <p className="text-zinc-500 text-xs leading-relaxed">
                 Votre progression est sauvegardée automatiquement. Reprenez là où vous vous étiez arrêté, sur n&apos;importe quel appareil.
@@ -107,7 +107,7 @@ export default function AboutPage() {
         {/* Avis de non-responsabilité */}
         <section className="space-y-4 p-6 rounded-2xl bg-zinc-900/80 border border-zinc-800">
           <h2 className="text-xl font-black flex items-center gap-3">
-            <ShieldCheckIcon className="h-5 w-5 text-amber-400" />
+            <IconShieldCheck className="h-5 w-5 text-amber-400" />
             Avis de non-responsabilité
           </h2>
           <div className="space-y-3 text-zinc-400 text-sm leading-relaxed">

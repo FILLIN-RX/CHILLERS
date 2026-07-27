@@ -2,9 +2,8 @@
 
 import React, { useState } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
 import { MovieOrShow } from "@/app/mockData";
-import { PlayIcon, StarIcon, InformationCircleIcon, FilmIcon } from "@heroicons/react/24/solid";
+import { IconPlayerPlay, IconStar, IconInfoCircle, IconMovie } from '@tabler/icons-react';
 import { useLanguage } from "@/i18n/LanguageContext";
 
 interface MovieCardProps {
@@ -20,70 +19,115 @@ function MovieCard({
   onOpenDetails,
   variant = "scroll",
 }: MovieCardProps) {
-  const router = useRouter();
   const { translate: _ } = useLanguage();
   const [imgError, setImgError] = useState(false);
-  const hasPoster = !!item.posterUrl && !imgError;
+  const [backdropFailed, setBackdropFailed] = useState(false);
 
-  const goToDetail = () => {
-    const typeParam = item.type === "series" || item.type === "anime" ? "tv" : item.type;
-    router.push(`/media/${item.id}?type=${typeParam}`);
-  };
+  const primarySrc = !backdropFailed && item.backdropUrl ? item.backdropUrl : item.posterUrl;
+  const hasImage = !!primarySrc && !imgError;
+
+  // Size tokens match Netflix-style row cards (~300px on lg+).
+  const sizeClass =
+    variant === "grid"
+      ? "w-full"
+      : "flex-none w-[250px] sm:w-[300px] md:w-[360px] lg:w-[420px]";
+
+  // Genres are limited to the first 3 to keep the panel compact.
+  const visibleGenres = (item.genres ?? []).slice(0, 3);
+
+  const gradients = [
+    "from-red-900/50 via-zinc-900 to-zinc-900",
+    "from-purple-900/50 via-zinc-900 to-zinc-900",
+    "from-emerald-900/50 via-zinc-900 to-zinc-900",
+    "from-amber-900/50 via-zinc-900 to-zinc-900",
+    "from-blue-900/50 via-zinc-900 to-zinc-900",
+    "from-pink-900/50 via-zinc-900 to-zinc-900",
+    "from-cyan-900/50 via-zinc-900 to-zinc-900",
+    "from-orange-900/50 via-zinc-900 to-zinc-900",
+    "from-teal-900/50 via-zinc-900 to-zinc-900",
+    "from-violet-900/50 via-zinc-900 to-zinc-900",
+    "from-rose-900/50 via-zinc-900 to-zinc-900",
+    "from-lime-900/50 via-zinc-900 to-zinc-900",
+  ];
+  const gradientIndex = item.id.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0) % gradients.length;
 
   return (
     <div
-      onClick={() => goToDetail()}
-      className={`group relative aspect-[2/3] overflow-hidden bg-zinc-900 border border-zinc-800/40 cursor-pointer transition-all duration-300 ${
-        variant === "grid"
-          ? "w-full rounded-lg sm:rounded-xl"
-          : "flex-none w-[140px] sm:w-[180px] md:w-[220px] rounded-xl sm:rounded-2xl"
-      } hover:scale-105 hover:shadow-[0_0_30px_rgba(215,4,102,0.35)]`}
+      data-testid="movie-card"
+      onClick={() => onOpenDetails(item)}
+      className={`group relative ${sizeClass} cursor-pointer transition-all duration-300 ease-out
+        hover:scale-[1.05] hover:-translate-y-1 hover:z-20 hover:shadow-[0_6px_22px_rgba(0,0,0,0.55)]
+        [&:hover_.movie-card-img]:scale-[1.07]`}
     >
-      {hasPoster ? (
-        <Image
-          src={item.posterUrl}
-          alt={item.title}
-          fill
-          className="object-cover transition-transform duration-500 group-hover:scale-105"
-          onError={() => setImgError(true)}
-          sizes={
-            variant === "grid"
-              ? "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
-              : "(max-width: 640px) 140px, (max-width: 768px) 180px, 220px"
-          }
-        />
-      ) : (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-zinc-800 to-zinc-900 p-3 text-center">
-          <FilmIcon className="h-8 w-8 text-zinc-600" />
-          <span className="line-clamp-3 text-xs font-semibold text-zinc-400">{item.title}</span>
+      {/* Poster / backdrop — 16:9 landscape, no border, rounded-md */}
+      <div className="relative aspect-video w-full overflow-hidden rounded-md bg-zinc-900">
+        {hasImage ? (
+          <Image
+            src={primarySrc}
+            alt={item.title}
+            fill
+            className="movie-card-img object-cover transition-transform duration-500 ease-out"
+            onError={() => {
+              // If the backdrop 404s, try the poster; if that fails too, fall back to the placeholder.
+              if (!backdropFailed && item.posterUrl) {
+                setBackdropFailed(true);
+              } else {
+                setImgError(true);
+              }
+            }}
+            sizes={
+              variant === "grid"
+                ? "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+                : "(max-width: 640px) 250px, (max-width: 768px) 300px, (max-width: 1024px) 360px, 420px"
+            }
+          />
+        ) : (
+          <div className={`absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-br ${gradients[gradientIndex]} p-3 text-center`}>
+            <IconMovie className="h-8 w-8 text-white/20" />
+            <span className="line-clamp-3 text-xs font-semibold text-white/30">{item.title}</span>
+          </div>
+        )}
+
+        {/* Top-left rating badge */}
+        <div className="absolute top-2 left-2 z-20 flex items-center gap-1 rounded bg-black/75 px-1.5 py-0.5 text-[10px] font-bold border border-white/10 backdrop-blur-sm">
+          <IconStar className="h-3 w-3 text-amber-400" />
+          <span className="text-amber-400">{item.rating}</span>
         </div>
-      )}
 
-      <div className="absolute top-3 right-3 z-20">
-        <span className="rounded bg-black/75 px-2 py-0.5 text-[10px] font-bold border border-white/10 uppercase tracking-widest text-zinc-300 backdrop-blur-sm">
-          {item.type}
-        </span>
+        {/* Top-right type badge */}
+        <div className="absolute top-2 right-2 z-20">
+          <span className="rounded bg-black/75 px-1.5 py-0.5 text-[9px] font-bold border border-white/10 uppercase tracking-widest text-zinc-300 backdrop-blur-sm">
+            {item.type}
+          </span>
+        </div>
+
+        {/* Title overlay — always visible at bottom, identifies the movie on mobile */}
+        <div className="absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/90 via-black/50 to-transparent pt-8 pb-2 px-2.5">
+          <h3 className="text-xs sm:text-sm font-bold text-white leading-tight line-clamp-1 drop-shadow-md">
+            {item.title}
+          </h3>
+        </div>
       </div>
 
-      <div className="absolute top-3 left-3 z-20 flex items-center gap-1 rounded bg-black/75 px-2 py-0.5 text-[10px] font-bold border border-white/10 backdrop-blur-sm">
-        <StarIcon className="h-3 w-3 text-amber-400" />
-        <span className="text-amber-400">{item.rating}</span>
-      </div>
-
+      {/* Info overlay — appears on top of the card image on hover (desktop only, like Netflix) */}
       <div
-        className="absolute inset-0 z-10 flex flex-col justify-end p-4 bg-gradient-to-t from-black via-black/80 to-transparent transition-opacity duration-300 opacity-0 group-hover:opacity-100"
+        className="movie-card-panel pointer-events-none absolute bottom-0 left-0 right-0 z-30
+          opacity-0 invisible translate-y-2 transition-all duration-300 ease-out
+          group-hover:opacity-100 group-hover:visible group-hover:translate-y-0
+          max-md:hidden"
       >
-        <div className="space-y-2 translate-y-0 transition-transform duration-300">
+        <div className="bg-gradient-to-t from-black/95 via-black/75 to-transparent pt-8 pb-2.5 px-2.5 space-y-1.5">
+          {/* Action buttons row */}
           <div className="flex items-center gap-2">
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 onPlay(item);
               }}
-              className="flex h-9 w-9 items-center justify-center rounded-full transition-colors shadow-lg bg-brand-primary text-white hover:bg-brand-primary/90 cursor-pointer"
+              className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full bg-white text-black hover:bg-white/80 transition-colors shadow-lg cursor-pointer"
               aria-label={_("media.watch")}
             >
-              <PlayIcon className="h-5 w-5 translate-x-0.5" />
+              <IconPlayerPlay className="h-4 w-4 translate-x-[1px]" />
             </button>
 
             <button
@@ -91,28 +135,49 @@ function MovieCard({
                 e.stopPropagation();
                 onOpenDetails(item);
               }}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
+              className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full border border-white/40 bg-black/40 text-white hover:border-white hover:bg-black/60 transition-colors cursor-pointer"
               aria-label={_("media.details")}
             >
-              <InformationCircleIcon className="h-5 w-5" />
+              <IconInfoCircle className="h-4 w-4" />
             </button>
           </div>
 
+          {/* Title */}
           <h3
-            className="text-sm font-bold text-white leading-tight truncate cursor-pointer"
-            onClick={() => goToDetail()}
+            className="text-sm font-bold text-white leading-tight line-clamp-1 drop-shadow-md"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenDetails(item);
+            }}
           >
             {item.title}
           </h3>
 
-          <div className="flex items-center gap-2 text-[10px] sm:text-xs text-zinc-400 font-medium">
+          {/* Meta line: year • rating • duration/seasons */}
+          <div className="flex items-center gap-2 text-[11px] text-zinc-300 font-medium drop-shadow-md">
             <span>{item.year}</span>
-            <span>•</span>
-            <div className="flex items-center gap-0.5 text-amber-400">
-              <StarIcon className="h-3.5 w-3.5" />
-              <span>{item.rating}</span>
-            </div>
+            <span className="border border-zinc-500 px-1 rounded text-[9px] font-semibold text-zinc-200">
+              {item.rating}
+            </span>
+            {item.duration && (
+              <>
+                <span>•</span>
+                <span>{item.duration}</span>
+              </>
+            )}
           </div>
+
+          {/* Genres as small chips */}
+          {visibleGenres.length > 0 && (
+            <div className="flex items-center gap-1.5 flex-wrap text-[10px] text-zinc-300 drop-shadow-md">
+              {visibleGenres.map((g, i) => (
+                <React.Fragment key={g}>
+                  {i > 0 && <span className="text-zinc-500">•</span>}
+                  <span>{g}</span>
+                </React.Fragment>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

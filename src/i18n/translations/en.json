@@ -33,6 +33,10 @@
     "globalAnimeSubtitle": "Action-packed cybernetic ninjas, mechs, and spirits.",
     "trendingThisWeek": "Trending This Week",
     "trendingSubtitle": "The most watched films and series on Chiller right now.",
+    "mostWatched": "Most Watched",
+    "mostWatchedSubtitle": "The films and series everyone's talking about.",
+    "trendingNow": "Trending Now",
+    "trendingNowSubtitle": "What everyone is watching right now.",
     "loading": "Loading…"
   },
   "media": {

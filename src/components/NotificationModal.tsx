@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef } from "react";
-import { XMarkIcon } from "@heroicons/react/24/solid";
+import { IconX } from '@tabler/icons-react';
 import { acquireModalScrollLock, releaseModalScrollLock } from "@/lib/modalScrollLock";
 
 interface NotificationModalProps {
@@ -56,7 +56,7 @@ export default function NotificationModal({
           aria-label="Fermer"
           className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 text-white/60 hover:text-white transition-all"
         >
-          <XMarkIcon className="h-5 w-5" />
+          <IconX className="h-5 w-5" />
         </button>
 
         <div className="w-16 h-16 mx-auto mb-5 rounded-full bg-[#D70466]/20 flex items-center justify-center">

@@ -12,6 +12,7 @@
     "upload-uqload": "npx tsx src/scripts/upload-uqload.ts",
     "upload-uqload:verify": "npx tsx src/scripts/upload-uqload.ts --verify",
     "migrate-dood-to-uqload": "npx tsx src/scripts/migrate-dood-to-uqload.ts",
+    "check-sources": "npx tsx src/scripts/check-sources.ts",
     "upload-series": "npx tsx src/scripts/upload-series-doodstream.ts",
     "organize-series": "npx tsx src/scripts/organize-series.ts",
     "check-status": "npx tsx src/scripts/check-upload-status.ts"

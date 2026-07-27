@@ -33,6 +33,10 @@
     "globalAnimeSubtitle": "Ninjas cybernétiques, mechs et esprits pleins d'action.",
     "trendingThisWeek": "Tendances de la semaine",
     "trendingSubtitle": "Les films et séries les plus regardés sur Chiller en ce moment.",
+    "mostWatched": "Les plus vus",
+    "mostWatchedSubtitle": "Les films et séries qui cartonnent sur Chiller.",
+    "trendingNow": "Tendances du moment",
+    "trendingNowSubtitle": "Ce que tout le monde regarde en ce moment.",
     "loading": "Chargement…"
   },
   "media": {

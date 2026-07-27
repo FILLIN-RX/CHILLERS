@@ -25,7 +25,7 @@ async function goToWatchPage(page: Page): Promise<string> {
   await page.waitForSelector('[class*="cursor-pointer"]', { timeout: 25000 });
   await page.waitForTimeout(2000);
 
-  const card = page.locator('[class*="group relative aspect-[2/3]"]').first();
+  const card = page.locator('[data-testid="movie-card"]').first();
   await expect(card).toBeVisible({ timeout: 25000 });
   console.log('↦ Carte film trouvée, survol...');
 

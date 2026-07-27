@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { ArrowLeftIcon, ShieldCheckIcon } from "@heroicons/react/24/solid";
+import { IconArrowLeft, IconShieldCheck } from '@tabler/icons-react';
 
 export default function PrivacyPage() {
   return (
@@ -13,15 +13,15 @@ export default function PrivacyPage() {
           aria-label="Retour"
           className="flex items-center justify-center w-10 h-10 rounded-full bg-black/70 backdrop-blur-sm border border-white/10 text-white hover:bg-white/10 transition-all"
         >
-          <ArrowLeftIcon className="h-5 w-5" />
+          <IconArrowLeft className="h-5 w-5" />
         </button>
       </div>
 
-      <div className="max-w-3xl mx-auto px-6 py-24 space-y-12">
+      <div className="mx-auto px-6 sm:px-8 md:px-12 lg:px-[4%] py-24 space-y-12">
 
         <section className="text-center space-y-4">
           <div className="w-16 h-16 mx-auto rounded-full bg-[#D70466]/20 flex items-center justify-center">
-            <ShieldCheckIcon className="h-8 w-8 text-[#D70466]" />
+            <IconShieldCheck className="h-8 w-8 text-[#D70466]" />
           </div>
           <h1 className="text-3xl sm:text-4xl font-black">Politique de Confidentialité</h1>
           <p className="text-zinc-400 text-sm">Dernière mise à jour : Juillet 2025</p>

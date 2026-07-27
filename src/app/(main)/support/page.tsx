@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { ArrowLeftIcon, HeartIcon } from "@heroicons/react/24/solid";
+import { IconArrowLeft, IconHeart } from '@tabler/icons-react';
 
 export default function SupportPage() {
   return (
@@ -13,7 +13,7 @@ export default function SupportPage() {
           aria-label="Retour"
           className="flex items-center justify-center w-10 h-10 rounded-full bg-black/70 backdrop-blur-sm border border-white/10 text-white hover:bg-white/10 transition-all"
         >
-          <ArrowLeftIcon className="h-5 w-5" />
+          <IconArrowLeft className="h-5 w-5" />
         </button>
       </div>
 
@@ -21,7 +21,7 @@ export default function SupportPage() {
         <div className="w-full max-w-md space-y-8 text-center">
           <div className="space-y-3">
             <div className="w-16 h-16 mx-auto rounded-full bg-brand-primary/20 flex items-center justify-center">
-              <HeartIcon className="h-8 w-8 text-brand-primary" />
+              <IconHeart className="h-8 w-8 text-brand-primary" />
             </div>
             <h1 className="text-2xl font-black">Nous soutenir</h1>
             <p className="text-zinc-400 text-sm leading-relaxed">

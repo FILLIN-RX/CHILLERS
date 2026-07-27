@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import Image from "next/image";
 import { MovieOrShow, Season, Episode } from "@/app/mockData";
 import { getSeasonDetails } from "@/app/api";
-import { XMarkIcon, PlayIcon, StarIcon } from "@heroicons/react/24/solid";
+import { IconX, IconPlayerPlay, IconStar } from '@tabler/icons-react';
 import { useLanguage } from "@/i18n/LanguageContext";
 import { acquireModalScrollLock, releaseModalScrollLock } from "@/lib/modalScrollLock";
 
@@ -103,14 +103,15 @@ export default function MovieModal({
   return (
     <div
       onClick={handleOverlayClick}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 overflow-y-auto animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fade-in"
     >
       <div
         ref={modalRef}
-        className="relative w-full max-w-4xl bg-brand-card rounded-3xl border border-brand-border overflow-hidden shadow-2xl my-8 glass-modal"
+        className="relative w-full max-w-4xl max-h-[85vh] bg-brand-card rounded-2xl border border-brand-border overflow-hidden shadow-2xl glass-modal flex flex-col"
       >
 
-        <div className="relative aspect-[16/9] w-full bg-zinc-900">
+        {/* Hero image */}
+        <div className="relative w-full flex-none bg-zinc-900 h-[30vh] min-h-[180px] max-h-[280px]">
           <Image
             src={item.backdropUrl}
             alt={item.title}
@@ -124,142 +125,125 @@ export default function MovieModal({
           <button
             onClick={onClose}
             aria-label={_("common.close")}
-            className="absolute top-4 right-4 z-20 p-2 rounded-full bg-black/60 text-zinc-400 hover:text-white border border-white/10 hover:bg-black/85 transition-colors focus:outline-none"
+            className="absolute top-3 right-3 z-20 p-2 rounded-full bg-black/60 text-zinc-400 hover:text-white border border-white/10 hover:bg-black/85 transition-colors"
           >
-            <XMarkIcon className="h-6 w-6" />
+            <IconX className="h-5 w-5" />
           </button>
 
-          <div className="absolute inset-x-0 bottom-0 p-6 md:p-8 space-y-3">
-            <span className="rounded bg-brand-primary text-white text-[10px] font-bold px-2.5 py-1 uppercase tracking-wider border border-brand-primary/20">
-              {item.type}
-            </span>
-            <h2 className="text-2xl sm:text-4xl md:text-5xl font-extrabold text-white tracking-tight drop-shadow-md">
+          <div className="absolute inset-x-0 bottom-0 p-4 md:p-6 space-y-2">
+            <h2 className="text-xl sm:text-3xl md:text-4xl font-extrabold text-white tracking-tight drop-shadow-md">
               {item.title}
             </h2>
-            <div className="flex items-center gap-3 text-xs sm:text-sm text-white/80 font-semibold">
+            <div className="flex items-center gap-2 text-xs text-white/80 font-semibold">
               <span>{item.year}</span>
               <span>•</span>
               <span>{item.duration}</span>
               <span>•</span>
               <div className="flex items-center gap-0.5 text-amber-400">
-                <StarIcon className="h-4 w-4 fill-amber-400" />
+                <IconStar className="h-3.5 w-3.5 fill-amber-400" />
                 <span>{item.rating}</span>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="p-6 md:p-8 grid grid-cols-1 md:grid-cols-3 gap-8">
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-5">
 
-          <div className="md:col-span-2 space-y-6">
-            <div className="flex flex-wrap items-center gap-4">
-              <button
-                onClick={() => onWatch(item)}
-                className="flex items-center gap-2 rounded-full bg-brand-primary hover:bg-brand-primary/90 text-white px-6 py-2.5 font-bold text-sm transition-all duration-200 shadow-xl shadow-brand-primary/20 cursor-pointer"
-              >
-                <PlayIcon className="h-5 w-5" />
-                {_("media.watch")}
-              </button>
-            </div>
+          {/* Buttons + synopsis */}
+          <div className="space-y-4">
+            <button
+              onClick={() => onWatch(item)}
+              className="flex items-center gap-2 rounded-full bg-brand-primary hover:bg-brand-primary/90 text-white px-5 py-2 font-bold text-sm transition-all shadow-lg shadow-brand-primary/20"
+            >
+              <IconPlayerPlay className="h-4 w-4" />
+              {_("media.watch")}
+            </button>
 
-            <div className="space-y-2">
-              <h3 className="text-sm font-extrabold uppercase tracking-widest text-brand-text-muted">
-                {_("media.synopsis")}
-              </h3>
-              <p className="text-foreground/80 text-sm sm:text-base font-light leading-relaxed">
-                {item.synopsis}
-              </p>
-            </div>
+            <p className="text-foreground/80 text-sm leading-relaxed line-clamp-4">
+              {item.synopsis}
+            </p>
 
-            {item.seasons && item.seasons.length > 0 && (
-                <div className="space-y-4 pt-6">
-                    <h3 className="text-sm font-extrabold uppercase tracking-widest text-brand-text-muted">
-                        {_("watch.episodes")}
-                    </h3>
-
-                    <div className="flex items-center gap-2 bg-brand-card p-1 rounded-lg border border-brand-border">
-                        {item.seasons.map((season) => (
-                            <button
-                                key={season.id}
-                                onClick={() => handleSeasonChange(season)}
-                                className={`px-4 py-2 rounded-md text-sm font-semibold transition-colors ${
-                                    activeSeason?.id === season.id
-                                        ? "bg-brand-primary text-white"
-                                        : "text-foreground hover:bg-white/5"
-                                }`}
-                            >
-                                {season.name}
-                            </button>
-                        ))}
-                    </div>
-
-                    <div className="space-y-2">
-                        {seasonLoading ? (
-                            Array.from({ length: 4 }).map((_, i) => (
-                                <div
-                                    key={`ep-sk-${i}`}
-                                    className="flex items-center gap-4 p-3 bg-brand-card rounded-lg border border-brand-border skeleton-loading h-[68px]"
-                                />
-                            ))
-                        ) : episodes.length === 0 ? (
-                            <p className="text-sm text-brand-text-muted py-4 text-center">
-                                {_("watch.noEpisodesDesc")}
-                            </p>
-                        ) : (
-                            episodes.map((ep) => (
-                                <div
-                                    key={ep.id}
-                                    onClick={() => onWatch(item, ep)}
-                                    className="flex items-center gap-4 p-3 bg-brand-card rounded-lg border border-brand-border cursor-pointer hover:bg-white/5 transition-colors"
-                                >
-                                    <span className="text-brand-text-muted font-bold text-lg">{ep.number}</span>
-                                    <div className="flex-grow">
-                                        <h4 className="text-sm font-bold text-foreground">{ep.title}</h4>
-                                        <p className="text-xs text-brand-text-muted">{ep.duration}</p>
-                                    </div>
-                                    <PlayIcon className="h-6 w-6 text-brand-primary" />
-                                </div>
-                            ))
-                        )}
-                    </div>
-                </div>
-            )}
-          </div>
-
-          <div className="space-y-5 bg-brand-card p-5 rounded-2xl border border-brand-border">
-            <div className="space-y-1">
-              <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-text-muted">
-                {_("media.cast")}
-              </span>
-              <p className="text-xs text-foreground font-medium">
-                {item.cast.join(", ")}
-              </p>
-            </div>
-
-            <div className="space-y-1">
-              <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-text-muted">
-                {_("media.genres")}
-              </span>
-              <div className="flex flex-wrap gap-1.5 pt-0.5">
-                {item.genres.map((g) => (
-                  <span
-                    key={g}
-                    className="rounded bg-brand-card border border-brand-border text-brand-text-muted px-2 py-0.5 text-[10px] font-semibold"
-                  >
-                    {g}
-                  </span>
+            {/* Meta inline */}
+            <div className="flex flex-wrap items-center gap-3 text-xs text-brand-text-muted">
+              <span className="font-bold uppercase tracking-wider text-[10px]">{item.type}</span>
+              {item.cast.length > 0 && (
+                <span className="truncate max-w-xs">{item.cast.slice(0, 3).join(", ")}</span>
+              )}
+              <div className="flex flex-wrap gap-1">
+                {item.genres.slice(0, 3).map((g) => (
+                  <span key={g} className="rounded bg-white/5 border border-white/10 px-1.5 py-0.5 text-[10px]">{g}</span>
                 ))}
               </div>
             </div>
-
-            <div className="space-y-1">
-              <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-text-muted">
-                {_("media.duration")}
-              </span>
-              <p className="text-xs text-foreground font-semibold">{item.duration}</p>
-            </div>
           </div>
 
+          {/* Episodes for series */}
+          {item.seasons && item.seasons.filter(s => s.seasonNumber > 0).length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-xs font-extrabold uppercase tracking-widest text-brand-text-muted">
+                {_("watch.episodes")}
+              </h3>
+
+              <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+                {item.seasons.filter(s => s.seasonNumber > 0).map((season) => {
+                  const now = new Date();
+                  const hasEpisodes = (season.episodeCount ?? 0) > 0;
+                  const hasAired = season.airDate ? new Date(season.airDate) <= now : hasEpisodes;
+                  const isAvailable = hasEpisodes && hasAired;
+
+                  return (
+                    <button
+                      key={season.id}
+                      onClick={() => isAvailable && handleSeasonChange(season)}
+                      className={`flex-none flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
+                        !isAvailable
+                          ? "text-zinc-500 border border-zinc-700 cursor-default"
+                          : activeSeason?.id === season.id
+                            ? "bg-brand-primary text-white"
+                            : "text-foreground/70 hover:bg-white/5 border border-white/10"
+                      }`}
+                    >
+                      <span>{season.name}</span>
+                      {!isAvailable && (
+                        <span className="text-[9px] px-1 py-0.5 rounded bg-zinc-800 text-amber-400/80 whitespace-nowrap">
+                          Bientôt
+                        </span>
+                      )}
+                      {isAvailable && (
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 flex-none" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="max-h-[180px] overflow-y-auto space-y-1 pr-1">
+                {seasonLoading ? (
+                  Array.from({ length: 3 }).map((_, i) => (
+                    <div key={`ep-sk-${i}`} className="h-14 rounded-lg bg-white/5 skeleton-loading" />
+                  ))
+                ) : episodes.length === 0 ? (
+                  <p className="text-xs text-brand-text-muted py-4 text-center">{_("watch.noEpisodesDesc")}</p>
+                ) : (
+                  episodes.map((ep) => (
+                    <div
+                      key={ep.id}
+                      onClick={() => onWatch(item, ep)}
+                      className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-white/5 cursor-pointer transition-colors"
+                    >
+                      <span className="text-brand-text-muted font-bold text-sm w-6 text-center">{ep.number}</span>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-sm font-bold text-foreground truncate">{ep.title}</h4>
+                        <p className="text-[11px] text-brand-text-muted">{ep.duration}</p>
+                      </div>
+                      <IconPlayerPlay className="h-4 w-4 text-brand-primary flex-none" />
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
       </div>

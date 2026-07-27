@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, Suspense } from "react";
+import React, { useState, useEffect, useCallback, useMemo, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import HeroCarousel from "@/components/HeroCarousel";
@@ -92,6 +92,27 @@ function Home() {
   const [isLoadingAnimeGenreRows, setIsLoadingAnimeGenreRows] = useState(false);
   const [hasTriedGenreRows, setHasTriedGenreRows] = useState(false);
   const [hasTriedAnimeGenreRows, setHasTriedAnimeGenreRows] = useState(false);
+
+  // Two animated rows derived from `trendingAll`:
+  // - `mostWatched`: top items by rating (people-rated popularity proxy)
+  // - `trendingNow`: most recent items (this-week freshness proxy)
+  // Both are capped at 10 because the rows are infinite-scroll carousels.
+  const mostWatched = useMemo(
+    () =>
+      [...trendingAll]
+        .filter((m) => m.rating > 0)
+        .sort((a, b) => b.rating - a.rating)
+        .slice(0, 10),
+    [trendingAll],
+  );
+  const trendingNow = useMemo(
+    () =>
+      [...trendingAll]
+        .filter((m) => m.year > 0)
+        .sort((a, b) => b.year - a.year)
+        .slice(0, 10),
+    [trendingAll],
+  );
 
   // Continue-watching is read from localStorage. Declared BEFORE the useEffect
   // that calls it so the effect's first run can't hit a TDZ (P0-#8).
@@ -301,6 +322,12 @@ function Home() {
   }, [activeTab, moviesData.length, seriesData.length, animeData.length]);
 
   const handleOpenDetails = async (item: MovieOrShow) => {
+    // Mobile: navigate directly instead of opening modal
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      const typeParam = item.type === "series" || item.type === "anime" ? "tv" : item.type;
+      router.push(`/media/${item.id}?type=${typeParam}`);
+      return;
+    }
     setSelectedMovie(item);
     setIsModalOpen(true);
     try {
@@ -343,7 +370,7 @@ function Home() {
             {activeTab !== "home" && <div className="pt-[72px]" />}
 
             {continueWatching.length > 0 && activeTab === "home" && (
-              <div className="max-w-[1600px] mx-auto px-4 sm:px-8 md:px-12 lg:px-[4%]">
+              <div className="max-w-full mx-auto px-2 lg:px-3">
                 <ScrollRow title={_("home.continueWatching")} accentColor="secondary">
                   {continueWatching.map(({ item, progress, remaining, episodeName }) => (
                     <ContinueWatchingCard
@@ -360,7 +387,7 @@ function Home() {
               </div>
             )}
 
-            <div className="max-w-[1600px] mx-auto px-2 sm:px-6 md:px-12 lg:px-[4%] space-y-10">
+            <div className="max-w-full mx-auto px-2 lg:px-3 space-y-8">
 
               {activeTab === "home" && (
                 <>
@@ -370,7 +397,7 @@ function Home() {
                         {Array.from({ length: 6 }).map((_, i) => (
                           <div
                             key={`trending-sk-${i}`}
-                            className="flex-none w-[140px] sm:w-[180px] md:w-[220px] aspect-[2/3] rounded-xl sm:rounded-2xl bg-zinc-900/60 skeleton-loading border border-zinc-800/40"
+                            className="flex-none w-[250px] sm:w-[300px] md:w-[360px] lg:w-[420px] aspect-video rounded-md bg-zinc-900/60 skeleton-loading"
                           />
                         ))}
                       </ScrollRow>
@@ -379,7 +406,7 @@ function Home() {
                         {Array.from({ length: 6 }).map((_, i) => (
                           <div
                             key={`series-sk-${i}`}
-                            className="flex-none w-[140px] sm:w-[180px] md:w-[220px] aspect-[2/3] rounded-xl sm:rounded-2xl bg-zinc-900/60 skeleton-loading border border-zinc-800/40"
+                            className="flex-none w-[250px] sm:w-[300px] md:w-[360px] lg:w-[420px] aspect-video rounded-md bg-zinc-900/60 skeleton-loading"
                           />
                         ))}
                       </ScrollRow>
@@ -388,7 +415,7 @@ function Home() {
                         {Array.from({ length: 6 }).map((_, i) => (
                           <div
                             key={`anime-sk-${i}`}
-                            className="flex-none w-[140px] sm:w-[180px] md:w-[220px] aspect-[2/3] rounded-xl sm:rounded-2xl bg-zinc-900/60 skeleton-loading border border-zinc-800/40"
+                            className="flex-none w-[250px] sm:w-[300px] md:w-[360px] lg:w-[420px] aspect-video rounded-md bg-zinc-900/60 skeleton-loading"
                           />
                         ))}
                       </ScrollRow>
@@ -398,7 +425,7 @@ function Home() {
                           {Array.from({ length: 6 }).map((_, i) => (
                             <div
                               key={`anime-genre-item-sk-${g.id}-${i}`}
-                              className="flex-none w-[140px] sm:w-[180px] md:w-[220px] aspect-[2/3] rounded-xl sm:rounded-2xl bg-zinc-900/60 skeleton-loading border border-zinc-800/40"
+                              className="flex-none w-[250px] sm:w-[300px] md:w-[360px] lg:w-[420px] aspect-video rounded-md bg-zinc-900/60 skeleton-loading"
                             />
                           ))}
                         </ScrollRow>
@@ -409,7 +436,7 @@ function Home() {
                           {Array.from({ length: 6 }).map((_, i) => (
                             <div
                               key={`genre-item-sk-${g.id}-${i}`}
-                              className="flex-none w-[140px] sm:w-[180px] md:w-[220px] aspect-[2/3] rounded-xl sm:rounded-2xl bg-zinc-900/60 skeleton-loading border border-zinc-800/40"
+                              className="flex-none w-[250px] sm:w-[300px] md:w-[360px] lg:w-[420px] aspect-video rounded-md bg-zinc-900/60 skeleton-loading"
                             />
                           ))}
                         </ScrollRow>
@@ -433,6 +460,42 @@ function Home() {
                       {newReleases.length > 0 && (
                         <ScrollRow title="Nouveautés" accentColor="primary">
                           {newReleases.map((item) => (
+                            <MovieCard
+                              key={item.id}
+                              item={item}
+                              onPlay={handleWatchNow}
+                              onOpenDetails={handleOpenDetails}
+                            />
+                          ))}
+                        </ScrollRow>
+                      )}
+
+                      {mostWatched.length > 0 && (
+                        <ScrollRow
+                          title={_("home.mostWatched")}
+                          accentColor="primary"
+                          autoScroll
+                          autoScrollSpeed={0.4}
+                        >
+                          {mostWatched.map((item) => (
+                            <MovieCard
+                              key={item.id}
+                              item={item}
+                              onPlay={handleWatchNow}
+                              onOpenDetails={handleOpenDetails}
+                            />
+                          ))}
+                        </ScrollRow>
+                      )}
+
+                      {trendingNow.length > 0 && (
+                        <ScrollRow
+                          title={_("home.trendingNow")}
+                          accentColor="secondary"
+                          autoScroll
+                          autoScrollSpeed={0.5}
+                        >
+                          {trendingNow.map((item) => (
                             <MovieCard
                               key={item.id}
                               item={item}
@@ -505,7 +568,7 @@ function Home() {
                     <h2 className="text-xl sm:text-3xl font-extrabold text-white">{_("home.blockbusterMovies")}</h2>
                     <p className="text-zinc-500 text-xs sm:text-sm mt-0.5">{_("home.blockbusterSubtitle")}</p>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
                     {getFilteredMedia("movie").map((item) => (
                       <MovieCard
                         key={item.id}
@@ -525,7 +588,7 @@ function Home() {
                     <h2 className="text-xl sm:text-3xl font-extrabold text-white">{_("home.featuredSeries")}</h2>
                     <p className="text-zinc-500 text-xs sm:text-sm mt-0.5">{_("home.featuredSeriesSubtitle")}</p>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
                     {getFilteredMedia("series").map((item) => (
                       <MovieCard
                         key={item.id}
@@ -545,7 +608,7 @@ function Home() {
                     <h2 className="text-xl sm:text-3xl font-extrabold text-white">{_("home.globalAnime")}</h2>
                     <p className="text-zinc-500 text-xs sm:text-sm mt-0.5">{_("home.globalAnimeSubtitle")}</p>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
                     {getFilteredMedia("anime").map((item) => (
                       <MovieCard
                         key={item.id}
@@ -565,7 +628,7 @@ function Home() {
                     <h2 className="text-xl sm:text-3xl font-extrabold text-white">{_("home.trendingThisWeek")}</h2>
                     <p className="text-zinc-500 text-xs sm:text-sm mt-0.5">{_("home.trendingSubtitle")}</p>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
                     {trendingAll.map((item) => (
                       <MovieCard
                         key={item.id}

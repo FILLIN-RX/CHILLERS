@@ -3,7 +3,7 @@
 import React from "react";
 import Image from "next/image";
 import { MovieOrShow } from "@/app/mockData";
-import { PlayIcon } from "@heroicons/react/24/solid";
+import { IconPlayerPlay } from '@tabler/icons-react';
 
 interface ContinueWatchingCardProps {
   item: MovieOrShow;
@@ -27,70 +27,66 @@ export default function ContinueWatchingCard({
   onResume,
   onOpenDetails,
 }: ContinueWatchingCardProps) {
+  // Prefer the landscape backdrop, fall back to poster, then the Unsplash placeholder.
+  const imgSrc = item.backdropUrl || item.posterUrl || PLACEHOLDER_POSTER;
+
   return (
-    <div className="group relative flex-none w-[160px] sm:w-[220px] md:w-[280px] bg-[#121214] rounded-xl sm:rounded-2xl overflow-hidden border border-[#1F1F23]/60 hover:border-brand-primary/40 hover-glow cursor-pointer transition-all duration-300">
-      
-      {/* Thumbnail backdrop image with play overlay */}
-      <div className="relative aspect-[2/3] w-full bg-zinc-950 overflow-hidden">
+    <div
+      data-testid="continue-watching-card"
+      onClick={() => onOpenDetails(item)}
+      className="group relative flex-none w-[250px] sm:w-[300px] md:w-[360px] lg:w-[420px] cursor-pointer transition-all duration-300 ease-out
+        hover:scale-[1.05] hover:-translate-y-1 hover:z-20 hover:shadow-[0_6px_22px_rgba(0,0,0,0.55)]
+        [&:hover_.continue-watch-img]:scale-[1.07]"
+    >
+      {/* 16:9 landscape thumbnail, no border, rounded-md to match MovieCard. */}
+      <div className="relative aspect-video w-full overflow-hidden rounded-md bg-zinc-900">
         <Image
-          src={item.posterUrl || item.backdropUrl || PLACEHOLDER_POSTER}
+          src={imgSrc}
           alt={item.title}
           fill
-          className="object-cover transition-transform duration-500 scale-100 group-hover:scale-105"
-          sizes="(max-width: 640px) 160px, (max-width: 768px) 220px, 280px"
+          className="continue-watch-img object-cover transition-transform duration-500 ease-out"
+          sizes="(max-width: 640px) 250px, (max-width: 768px) 300px, (max-width: 1024px) 360px, 420px"
         />
-        
-        {/* Dark overlay */}
-        <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors duration-300" />
 
-        {/* Hover play button */}
-        <div 
+        {/* Subtle dark overlay to ground the play button and title */}
+        <div className="absolute inset-0 bg-black/30 group-hover:bg-black/10 transition-colors duration-300" />
+
+        {/* Bottom title gradient */}
+        <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black via-black/70 to-transparent pointer-events-none" />
+
+        {/* Hover play button (centered) */}
+        <div
           onClick={(e) => {
             e.stopPropagation();
             onResume(item);
           }}
-          className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+          className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 cursor-pointer"
         >
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-primary text-white shadow-2xl hover:scale-110 transition-transform duration-200">
-            <PlayIcon className="h-6 w-6 translate-x-0.5" />
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-black shadow-2xl hover:scale-110 transition-transform duration-200">
+            <IconPlayerPlay className="h-6 w-6 translate-x-0.5" />
+          </div>
+        </div>
+
+        {/* Title + meta overlay (bottom of the card, above the progress bar) */}
+        <div className="absolute inset-x-0 bottom-2 px-3 space-y-0.5">
+          <h4 className="text-sm font-bold text-white leading-tight line-clamp-1">
+            {item.title}
+          </h4>
+          <div className="flex items-center gap-2 text-[10px] text-zinc-300 font-medium">
+            {episodeName && <span className="truncate">{episodeName}</span>}
+            {episodeName && <span>•</span>}
+            <span>{remainingTime}</span>
           </div>
         </div>
 
         {/* Bottom Progress Bar */}
-        <div className="absolute bottom-0 left-0 w-full h-1.5 bg-zinc-800">
+        <div className="absolute bottom-0 left-0 w-full h-1 bg-zinc-800">
           <div
             className="h-full bg-brand-primary transition-all duration-500"
             style={{ width: `${progress}%` }}
           />
         </div>
       </div>
-
-      {/* Info Details Row */}
-      <div className="p-4 space-y-1">
-        <div className="flex items-center justify-between text-[10px] font-extrabold uppercase tracking-wider text-brand-secondary">
-          <span>{item.type}</span>
-          <span className="text-zinc-500 font-medium normal-case">{remainingTime}</span>
-        </div>
-
-        {/* P3-G: <h4> with onClick isn't a real button. Wrap the heading text in
-            a <button> so keyboard/AT users can activate it. */}
-        <h4 className="text-sm font-bold text-white group-hover:text-brand-primary transition-colors truncate">
-          <button
-            type="button"
-            onClick={() => onOpenDetails(item)}
-            className="text-left w-full truncate hover:underline focus:outline-none focus-visible:ring-1 focus-visible:ring-brand-primary rounded"
-          >
-            {item.title}
-          </button>
-        </h4>
-
-        {episodeName && (
-          <p className="text-xs text-zinc-400 font-light truncate">
-            {episodeName}
-          </p>
-        )}
-      </div>
-
     </div>
   );
 }

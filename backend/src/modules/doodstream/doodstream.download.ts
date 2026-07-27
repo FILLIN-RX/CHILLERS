@@ -506,12 +506,10 @@ export const proxyDownload = async (req: Request, res: Response, next: NextFunct
       return res.status(502).json({ success: false, message: 'HLS direct_link failed' });
     }
 
-    // Proxy l'HLS → le pipe au client avec Content-Disposition download
-    const hlsProxyUrl = `/api/doodstream/stream?url=${encodeURIComponent(hlsUrl)}&referer=${encodeURIComponent('https://uqload.is/')}`;
-    console.log(`[PROXY] Fallback HLS download: ${hlsProxyUrl.slice(0, 100)}`);
-
-    // Rediriger vers le proxy stream (qui gère la réécriture des URLs HLS)
-    res.redirect(302, hlsProxyUrl);
+    // Proxy l'HLS → le rediriger vers le proxy FFmpeg (qui convertit en MP4)
+    const downloadUrl = `/api/download/stream?m3u8=${encodeURIComponent(hlsUrl)}&filename=${encodeURIComponent(downloadName)}`;
+    console.log(`[PROXY] Fallback HLS download: ${downloadUrl.slice(0, 100)}`);
+    res.redirect(302, downloadUrl);
   } catch (error: any) {
     console.error('[PROXY] Download error:', error.message);
     if (!res.headersSent) {

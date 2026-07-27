@@ -10,26 +10,16 @@ import {
   getMovieRecommendations,
   getPopularMovies,
   getPopularTV,
-  startDownload,
-  triggerDownload,
 } from "@/app/api";
 import { MovieOrShow, Episode } from "@/app/mockData";
 import VideoPlayer from "@/components/VideoPlayer";
 import NotificationModal from "@/components/NotificationModal";
 import SeriesDownloadModal from "@/components/SeriesDownloadModal";
+import DownloadModal from "@/components/DownloadModal";
 import MovieCard from "@/components/MovieCard";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { PopupFirewall } from "@/lib/PopupFirewall";
-import {
-  ArrowLeftIcon,
-  PlayIcon,
-  StarIcon,
-  ClockIcon,
-  CalendarDaysIcon,
-  FilmIcon,
-  ArrowDownTrayIcon,
-  ShareIcon,
-} from "@heroicons/react/24/solid";
+import { IconArrowLeft, IconPlayerPlay, IconStar, IconClock, IconCalendar, IconMovie, IconDownload, IconShare } from '@tabler/icons-react';
 
 function WatchContent() {
   const params = useParams();
@@ -58,7 +48,7 @@ function WatchContent() {
 
   const [similar, setSimilar] = useState<MovieOrShow[]>([]);
 
-  const [downloading, setDownloading] = useState(false);
+  const [showSingleDownload, setShowSingleDownload] = useState(false);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [notification, setNotification] = useState<{ title: string; message: string } | null>(null);
 
@@ -244,35 +234,8 @@ function WatchContent() {
     [episodes, id, item]
   );
 
-  const handleDownload = async () => {
-    setDownloading(true);
-    try {
-      const type = isTV && currentEpisode ? "series" : "movie";
-      const result = await startDownload(
-        id,
-        type,
-        item?.title,
-        currentEpisode?.season,
-        currentEpisode?.number
-      );
-      if (result?.downloadUrl) {
-        const filename = `${item?.title || "video"}${
-          currentEpisode
-            ? `-S${currentEpisode.season ?? 1}E${currentEpisode.number}`
-            : ""
-        }.mp4`;
-        triggerDownload(result.downloadUrl, filename);
-      } else {
-        setNotification({
-          title: _("download.impossible"),
-          message: _("download.noSource"),
-        });
-      }
-    } catch (err) {
-      console.error("Download failed:", err);
-    } finally {
-      setDownloading(false);
-    }
+  const handleDownload = () => {
+    setShowSingleDownload(true);
   };
 
   const handleSeriesDownload = () => {
@@ -317,8 +280,8 @@ function WatchContent() {
   if (showPageSkeleton) {
     return (
       <div className="min-h-screen bg-[#09090B] text-white">
-        <div className="pt-[88px] max-w-7xl mx-auto px-4 sm:px-6 space-y-6">
-          <div className="w-full min-h-[300px] sm:min-h-[400px] bg-zinc-900 rounded-3xl animate-pulse" />
+        <div className="pt-[88px] px-4 sm:px-6 md:px-12 lg:px-[4%] space-y-6">
+          <div className="w-full min-h-[300px] sm:min-h-[500px] lg:min-h-[600px] bg-zinc-900 rounded-3xl animate-pulse" />
           <div className="space-y-3">
             <div className="flex gap-2">
               <div className="h-6 w-16 bg-zinc-800 rounded-full animate-pulse" />
@@ -338,7 +301,7 @@ function WatchContent() {
     return (
       <div className="min-h-screen bg-[#09090B] text-white flex items-center justify-center px-4">
         <div className="text-center space-y-4 max-w-md">
-          <FilmIcon className="h-16 w-16 text-zinc-700 mx-auto" />
+          <IconMovie className="h-16 w-16 text-zinc-700 mx-auto" />
           <h1 className="text-xl font-bold text-white">{_("watch.contentNotFound")}</h1>
           <p className="text-zinc-400 text-sm">
             {_("watch.contentNotFoundDesc")}
@@ -364,21 +327,21 @@ function WatchContent() {
           aria-label={_("media.back")}
           className="flex items-center justify-center w-10 h-10 rounded-full bg-black/70 backdrop-blur-md border border-white/10 text-white hover:bg-white/10 hover:border-white/20 transition-all shadow-lg"
         >
-          <ArrowLeftIcon className="h-5 w-5" />
+          <IconArrowLeft className="h-5 w-5" />
         </button>
       </div>
 
       <div
-        className={`pt-[88px] pb-16 lg:pb-24 max-w-7xl mx-auto px-4 sm:px-6 ${
-          hasEpisodes ? "lg:pr-[22rem]" : ""
+        className={`pt-[88px] pb-16 lg:pb-24 px-4 sm:px-6 md:px-12 lg:px-[4%] ${
+          hasEpisodes ? "lg:pr-[28rem]" : ""
         }`}
       >
         <div ref={playerRef} className="scroll-mt-24">
-          <div className="w-full min-h-[300px] sm:min-h-[400px] rounded-2xl sm:rounded-3xl overflow-hidden border border-zinc-800 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)] bg-black relative">
+          <div className="w-full min-h-[300px] sm:min-h-[500px] lg:min-h-[600px] bg-black relative">
             {streamUnavailable ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-6">
                 <div className="w-20 h-20 rounded-full bg-zinc-800/80 flex items-center justify-center border border-zinc-700/50">
-                  <FilmIcon className="h-10 w-10 text-zinc-500" />
+                  <IconMovie className="h-10 w-10 text-zinc-500" />
                 </div>
                 <div className="text-center max-w-md space-y-2">
                   <h3 className="text-lg sm:text-xl font-bold text-white">
@@ -454,16 +417,16 @@ function WatchContent() {
 
           <div className="flex flex-wrap items-center gap-3 sm:gap-5 text-sm text-zinc-300 font-medium">
             <div className="flex items-center gap-1.5 text-amber-400">
-              <StarIcon className="h-4 w-4" />
+              <IconStar className="h-4 w-4" />
               <span className="font-bold text-white">{item.rating}</span>
               <span className="text-zinc-500">/10</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <CalendarDaysIcon className="h-4 w-4 text-zinc-500" />
+              <IconCalendar className="h-4 w-4 text-zinc-500" />
               <span>{item.year}</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <ClockIcon className="h-4 w-4 text-zinc-500" />
+              <IconClock className="h-4 w-4 text-zinc-500" />
               <span>{currentEpisode ? currentEpisode.duration : item.duration}</span>
             </div>
             <span className="px-2 py-0.5 rounded border border-zinc-700 text-zinc-400 text-xs uppercase tracking-wider">
@@ -480,27 +443,22 @@ function WatchContent() {
           <div className="flex items-center gap-2 pt-1 overflow-x-auto no-scrollbar">
             <button
               onClick={handleDownload}
-              disabled={downloading || streamUnavailable}
+              disabled={streamUnavailable}
               className={`flex-none flex items-center gap-1.5 px-3 py-2 rounded-full font-bold text-xs border transition-all whitespace-nowrap ${
-                downloading || streamUnavailable
+                streamUnavailable
                   ? "bg-zinc-800 border-zinc-700 text-zinc-400 cursor-not-allowed"
                   : "bg-white/10 border-white/20 text-white hover:bg-white/20"
               }`}
             >
-              {downloading ? (
-                <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-              ) : streamUnavailable ? (
+              {streamUnavailable ? (
                 <svg className="h-3.5 w-3.5 flex-none" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                 </svg>
               ) : (
-                <ArrowDownTrayIcon className="h-3.5 w-3.5" />
+                <IconDownload className="h-3.5 w-3.5" />
               )}
               <span>
-                {downloading ? _("download.preparing") : streamUnavailable ? "Bientôt dispo" : _("download.single")}
+                {streamUnavailable ? "Bientôt dispo" : _("download.single")}
               </span>
             </button>
 
@@ -509,7 +467,7 @@ function WatchContent() {
                 onClick={handleSeriesDownload}
                 className="flex-none flex items-center gap-1.5 px-3 py-2 rounded-full font-bold text-xs border transition-all whitespace-nowrap bg-white/10 border-white/20 text-white hover:bg-white/20"
               >
-                <ArrowDownTrayIcon className="h-3.5 w-3.5" />
+                <IconDownload className="h-3.5 w-3.5" />
                 <span className="sm:hidden">Série</span>
                 <span className="hidden sm:inline">{_("download.all")}</span>
               </button>
@@ -520,7 +478,7 @@ function WatchContent() {
               aria-label={_("media.share")}
               className="flex-none flex items-center gap-1.5 px-3 py-2 rounded-full font-bold text-xs bg-white/10 border border-white/20 text-white hover:bg-white/20 transition-all whitespace-nowrap"
             >
-              <ShareIcon className="h-3.5 w-3.5" />
+              <IconShare className="h-3.5 w-3.5" />
               <span className="sm:hidden">Partager</span>
               <span className="hidden sm:inline">{_("media.share")}</span>
             </button>
@@ -573,7 +531,7 @@ function WatchContent() {
               <span className="h-5 w-1 rounded-full bg-brand-primary" />
               {_("media.youMightAlsoLike")}
             </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
               {similar.map((sim) => (
                 <MovieCard
                   key={sim.id}
@@ -601,7 +559,7 @@ function WatchContent() {
       </div>
 
       {hasEpisodes && (
-        <aside className="hidden lg:block fixed top-[88px] right-4 w-[20rem] max-h-[calc(100vh-110px)] overflow-y-auto pr-1 z-30">
+        <aside className="hidden lg:block fixed top-[88px] right-4 w-[24rem] max-h-[calc(100vh-110px)] overflow-y-auto pr-1 z-30">
           <div className="sticky top-0 bg-[#09090B]/85 backdrop-blur-md py-3 z-10 -mx-1 px-1">
             <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest">
               {_("watch.episodes")} · {episodes.length}
@@ -638,6 +596,18 @@ function WatchContent() {
           episodes={episodes}
         />
       )}
+
+      {item && (
+        <DownloadModal
+          isOpen={showSingleDownload}
+          onClose={() => setShowSingleDownload(false)}
+          title={item.title}
+          id={id}
+          type={isTV ? 'series' : 'movie'}
+          season={currentEpisode?.season}
+          episode={currentEpisode?.number}
+        />
+      )}
     </div>
   );
 }
@@ -671,12 +641,12 @@ function EpisodeCard({
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <FilmIcon className="h-5 w-5 text-zinc-600" />
+            <IconMovie className="h-5 w-5 text-zinc-600" />
           </div>
         )}
         {active && (
           <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-            <PlayIcon className="h-6 w-6 text-white" />
+            <IconPlayerPlay className="h-6 w-6 text-white" />
           </div>
         )}
       </div>

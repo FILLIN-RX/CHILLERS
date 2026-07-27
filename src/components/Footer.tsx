@@ -2,12 +2,12 @@
 
 import React from "react";
 import Link from "next/link";
-import { HeartIcon, CameraIcon, InformationCircleIcon, EnvelopeIcon, ShieldCheckIcon, PlayIcon } from "@heroicons/react/24/solid";
+import { IconHeart, IconCamera, IconInfoCircle, IconMail, IconShieldCheck, IconPlayerPlay } from '@tabler/icons-react';
 
 export default function Footer() {
   return (
     <footer className="w-full bg-brand-dark border-t border-brand-border mt-auto transition-colors duration-300">
-      <div className="mx-auto max-w-[1600px] px-4 sm:px-8 md:px-12 lg:px-[4%] py-12 space-y-12">
+      <div className="mx-auto px-4 sm:px-8 md:px-12 lg:px-[4%] py-12 space-y-12">
         
         {/* Top Info Grid */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
@@ -30,25 +30,25 @@ export default function Footer() {
             <ul className="space-y-2 text-xs text-brand-text-muted font-medium">
               <li>
                 <Link href="/about" className="flex items-center gap-2 hover:text-brand-primary transition-colors">
-                  <InformationCircleIcon className="h-3.5 w-3.5" />
+                  <IconInfoCircle className="h-3.5 w-3.5" />
                   À Propos
                 </Link>
               </li>
               <li>
                 <Link href="/contact" className="flex items-center gap-2 hover:text-brand-primary transition-colors">
-                  <EnvelopeIcon className="h-3.5 w-3.5" />
+                  <IconMail className="h-3.5 w-3.5" />
                   Contact
                 </Link>
               </li>
               <li>
                 <Link href="/support" className="flex items-center gap-2 hover:text-brand-primary transition-colors">
-                  <HeartIcon className="h-3.5 w-3.5" />
+                  <IconHeart className="h-3.5 w-3.5" />
                   Soutenir
                 </Link>
               </li>
               <li>
                 <Link href="/privacy" className="flex items-center gap-2 hover:text-brand-primary transition-colors">
-                  <ShieldCheckIcon className="h-3.5 w-3.5" />
+                  <IconShieldCheck className="h-3.5 w-3.5" />
                   Politique de confidentialité
                 </Link>
               </li>
@@ -65,7 +65,7 @@ export default function Footer() {
                   href={{ pathname: "/categories", query: { genre: "Action & Adventure" } }}
                   className="flex items-center gap-2 hover:text-brand-primary transition-colors"
                 >
-                  <PlayIcon className="h-3.5 w-3.5" />
+                  <IconPlayerPlay className="h-3.5 w-3.5" />
                   Action &amp; Adventure
                 </Link>
               </li>
@@ -74,7 +74,7 @@ export default function Footer() {
                   href={{ pathname: "/categories", query: { genre: "Sci-Fi & Cyberpunk" } }}
                   className="flex items-center gap-2 hover:text-brand-primary transition-colors"
                 >
-                  <PlayIcon className="h-3.5 w-3.5" />
+                  <IconPlayerPlay className="h-3.5 w-3.5" />
                   Sci-Fi &amp; Cyberpunk
                 </Link>
               </li>
@@ -83,7 +83,7 @@ export default function Footer() {
                   href={{ pathname: "/categories", query: { genre: "Anime" } }}
                   className="flex items-center gap-2 hover:text-brand-primary transition-colors"
                 >
-                  <PlayIcon className="h-3.5 w-3.5" />
+                  <IconPlayerPlay className="h-3.5 w-3.5" />
                   Anime Blockbusters
                 </Link>
               </li>
@@ -92,7 +92,7 @@ export default function Footer() {
                   href={{ pathname: "/categories", query: { genre: "Documentary" } }}
                   className="flex items-center gap-2 hover:text-brand-primary transition-colors"
                 >
-                  <PlayIcon className="h-3.5 w-3.5" />
+                  <IconPlayerPlay className="h-3.5 w-3.5" />
                   Cultural Documentaries
                 </Link>
               </li>
@@ -109,7 +109,7 @@ export default function Footer() {
               href="/support"
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-brand-primary text-white text-xs font-bold hover:bg-brand-primary/90 transition-all shadow-lg shadow-brand-primary/30"
             >
-              <HeartIcon className="h-4 w-4" />
+              <IconHeart className="h-4 w-4" />
               Nous soutenir
             </Link>
           </div>
@@ -141,7 +141,7 @@ export default function Footer() {
                 aria-label="Instagram"
                 className="h-8 w-8 rounded-full bg-brand-card border border-brand-border hover:border-brand-primary flex items-center justify-center text-brand-text-muted hover:text-brand-primary transition-all"
               >
-                <CameraIcon className="h-4 w-4" />
+                <IconCamera className="h-4 w-4" />
               </button>
               <button
                 type="button"
@@ -160,17 +160,17 @@ export default function Footer() {
           <span>&copy; {new Date().getFullYear()} Chillers. No rights reserved.</span>
           <div className="flex items-center gap-4">
             <Link href="/about" className="flex items-center gap-1.5 hover:text-brand-primary transition-colors">
-              <InformationCircleIcon className="h-3 w-3" />
+              <IconInfoCircle className="h-3 w-3" />
               À Propos
             </Link>
             <span>•</span>
             <Link href="/contact" className="flex items-center gap-1.5 hover:text-brand-primary transition-colors">
-              <EnvelopeIcon className="h-3 w-3" />
+              <IconMail className="h-3 w-3" />
               Contact
             </Link>
             <span>•</span>
             <Link href="/privacy" className="flex items-center gap-1.5 hover:text-brand-primary transition-colors">
-              <ShieldCheckIcon className="h-3 w-3" />
+              <IconShieldCheck className="h-3 w-3" />
               Confidentialité
             </Link>
           </div>

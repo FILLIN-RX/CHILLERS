@@ -1,11 +1,14 @@
 "use client";
 
 import React, { useRef, useState, useEffect, useCallback } from "react";
-import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/solid";
+import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
+import gsap from "gsap";
 
 interface ScrollRowProps {
   title: string;
   accentColor?: "primary" | "secondary";
+  autoScroll?: boolean;
+  autoScrollSpeed?: number;
   children: React.ReactNode;
   className?: string;
 }
@@ -13,12 +16,17 @@ interface ScrollRowProps {
 export default function ScrollRow({
   title,
   accentColor = "primary",
+  autoScroll = false,
+  autoScrollSpeed = 0.5,
   children,
   className = "",
 }: ScrollRowProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
+  const [isHovered, setIsHovered] = useState(false);
+  const autoTween = useRef<gsap.core.Tween | null>(null);
+  const scrollTween = useRef<gsap.core.Tween | null>(null);
 
   const updateScrollState = useCallback(() => {
     const el = scrollRef.current;
@@ -43,24 +51,72 @@ export default function ScrollRow({
   const scroll = (direction: "left" | "right") => {
     const el = scrollRef.current;
     if (!el) return;
-    // scroll ~3 cards worth
+    if (scrollTween.current) scrollTween.current.kill();
+
     const amount = el.clientWidth * 0.75;
-    el.scrollBy({ left: direction === "right" ? amount : -amount, behavior: "smooth" });
+    const target = direction === "right" ? el.scrollLeft + amount : el.scrollLeft - amount;
+
+    scrollTween.current = gsap.to(el, {
+      scrollLeft: target,
+      duration: 0.6,
+      ease: "power3.out",
+      onUpdate: updateScrollState,
+    });
   };
+
+  useEffect(() => {
+    if (!autoScroll) return;
+    if (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const maxScroll = el.scrollWidth - el.clientWidth;
+    if (maxScroll <= 0) return;
+
+    const dur = maxScroll / autoScrollSpeed / 60;
+
+    const tween = gsap.to(el, {
+      scrollLeft: maxScroll,
+      duration: dur,
+      ease: "none",
+      paused: isHovered,
+      repeat: -1,
+      yoyo: false,
+      onRepeat: () => {
+        gsap.set(el, { scrollLeft: 0 });
+      },
+      repeatDelay: 0.8,
+      onUpdate: updateScrollState,
+    });
+
+    autoTween.current = tween;
+
+    return () => {
+      tween.kill();
+    };
+  }, [autoScroll, autoScrollSpeed, isHovered, updateScrollState]);
+
+  useEffect(() => {
+    const tween = autoTween.current;
+    if (!tween) return;
+    if (isHovered) {
+      tween.pause();
+    } else {
+      tween.resume();
+    }
+  }, [isHovered]);
 
   const accentClass =
     accentColor === "secondary" ? "bg-brand-secondary" : "bg-brand-primary";
 
   return (
     <div className={`space-y-3 ${className}`}>
-      {/* Row header */}
       <div className="flex items-center justify-between pr-1">
         <h2 className="text-base sm:text-lg font-bold text-white tracking-tight flex items-center gap-2">
           <span className={`h-3 w-1 ${accentClass} rounded-full`} />
           {title}
         </h2>
 
-        {/* Desktop navigation arrows */}
         <div className="hidden sm:flex items-center gap-1.5">
           <button
             onClick={() => scroll("left")}
@@ -72,7 +128,7 @@ export default function ScrollRow({
                 : "border-zinc-800 bg-zinc-950 text-zinc-700 cursor-not-allowed opacity-50"
             }`}
           >
-            <ChevronLeftIcon className="h-4 w-4" />
+            <IconChevronLeft className="h-4 w-4" />
           </button>
           <button
             onClick={() => scroll("right")}
@@ -84,30 +140,26 @@ export default function ScrollRow({
                 : "border-zinc-800 bg-zinc-950 text-zinc-700 cursor-not-allowed opacity-50"
             }`}
           >
-            <ChevronRightIcon className="h-4 w-4" />
+            <IconChevronRight className="h-4 w-4" />
           </button>
         </div>
       </div>
 
-      {/* Scrollable row with side fade masks */}
-      <div className="relative group/row">
-        {/* Left fade mask (desktop only) */}
-        {/* P3-A: fade masks are desktop-only (md+ = ≥768px). The mobile tap-target
-            arrows below use `sm:hidden` (<640px), so there's a 640-768px band
-            where neither renders — preferable to having both at the 640px
-            boundary where the fade and the tap target would visually fight. */}
+      <div
+        className="relative group/row"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
         <div
-          className={`pointer-events-none absolute left-0 top-0 h-full w-12 z-10 transition-opacity duration-300 hidden md:block
+          className={`pointer-events-none absolute left-0 top-0 h-full w-16 z-10 transition-opacity duration-300 hidden md:block
             bg-gradient-to-r from-brand-dark to-transparent ${canScrollLeft ? "opacity-100" : "opacity-0"}`}
         />
 
-        {/* Right fade mask (desktop only) */}
         <div
-          className={`pointer-events-none absolute right-0 top-0 h-full w-12 z-10 transition-opacity duration-300 hidden md:block
+          className={`pointer-events-none absolute right-0 top-0 h-full w-16 z-10 transition-opacity duration-300 hidden md:block
             bg-gradient-to-l from-brand-dark to-transparent ${canScrollRight ? "opacity-100" : "opacity-0"}`}
         />
 
-        {/* Left arrow overlay (mobile tap target) */}
         {canScrollLeft && (
           <button
             onClick={() => scroll("left")}
@@ -115,12 +167,11 @@ export default function ScrollRow({
             className="sm:hidden absolute left-0 top-0 h-full w-10 z-20 flex items-center justify-start pl-1 bg-gradient-to-r from-black/60 to-transparent cursor-pointer"
           >
             <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/70 border border-white/20 backdrop-blur-sm">
-              <ChevronLeftIcon className="h-5 w-5 text-white" />
+              <IconChevronLeft className="h-5 w-5 text-white" />
             </span>
           </button>
         )}
 
-        {/* Right arrow overlay (mobile tap target) */}
         {canScrollRight && (
           <button
             onClick={() => scroll("right")}
@@ -128,15 +179,14 @@ export default function ScrollRow({
             className="sm:hidden absolute right-0 top-0 h-full w-10 z-20 flex items-center justify-end pr-1 bg-gradient-to-l from-black/60 to-transparent cursor-pointer"
           >
             <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/70 border border-white/20 backdrop-blur-sm">
-              <ChevronRightIcon className="h-5 w-5 text-white" />
+              <IconChevronRight className="h-5 w-5 text-white" />
             </span>
           </button>
         )}
 
-        {/* The actual scroll container */}
         <div
           ref={scrollRef}
-          className="flex gap-3 sm:gap-4 overflow-x-auto pb-3 no-scrollbar scroll-smooth"
+          className="flex gap-2 sm:gap-3 overflow-x-auto pb-3 no-scrollbar"
         >
           {children}
         </div>

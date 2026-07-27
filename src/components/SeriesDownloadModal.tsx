@@ -4,12 +4,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import Image from "next/image";
 import { Episode } from "@/app/mockData";
 import { checkSeriesDownloads, startDownload, triggerDownload } from "@/app/api";
-import {
-  XMarkIcon,
-  ArrowDownTrayIcon,
-  FilmIcon,
-  CheckIcon,
-} from "@heroicons/react/24/solid";
+import { IconX, IconDownload, IconMovie, IconCheck } from '@tabler/icons-react';
 
 interface EpisodeDownloadState {
   url: string | null;
@@ -177,7 +172,7 @@ export default function SeriesDownloadModal({
               </p>
             </div>
             <button onClick={onClose} className="flex-none w-8 h-8 flex items-center justify-center rounded-full bg-white/8 hover:bg-white/15 transition-colors">
-              <XMarkIcon className="h-4 w-4 text-white" />
+              <IconX className="h-4 w-4 text-white" />
             </button>
           </div>
 
@@ -185,7 +180,7 @@ export default function SeriesDownloadModal({
           <div className="flex items-center gap-2 mt-3">
             <button onClick={toggleAll} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border border-white/15 text-zinc-300 hover:bg-white/8 transition-colors">
               <div className={`w-3.5 h-3.5 rounded-sm border-2 flex items-center justify-center transition-colors ${selected.size === episodes.length ? "bg-brand-primary border-brand-primary" : "border-zinc-500"}`}>
-                {selected.size === episodes.length && <CheckIcon className="h-2.5 w-2.5 text-white" />}
+                {selected.size === episodes.length && <IconCheck className="h-2.5 w-2.5 text-white" />}
               </div>
               {selected.size === episodes.length ? "Tout désélectionner" : "Tout sélectionner"}
             </button>
@@ -198,12 +193,12 @@ export default function SeriesDownloadModal({
                 {loadingLinks ? (
                   <><svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Chargement…</>
                 ) : (
-                  <><ArrowDownTrayIcon className="h-3 w-3" />Charger les liens</>
+                  <><IconDownload className="h-3 w-3" />Charger les liens</>
                 )}
               </button>
             ) : (
               <button onClick={downloadSelected} disabled={selectedWithLinks === 0} className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold bg-emerald-500 text-white hover:bg-emerald-400 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
-                <ArrowDownTrayIcon className="h-3 w-3" />Télécharger ({selectedWithLinks})
+                <IconDownload className="h-3 w-3" />Télécharger ({selectedWithLinks})
               </button>
             )}
           </div>
@@ -232,7 +227,7 @@ export default function SeriesDownloadModal({
                 >
                   {/* Checkbox */}
                   <div className={`flex-none w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${isSelected ? "bg-brand-primary border-brand-primary" : "border-zinc-600 group-hover:border-zinc-400"}`}>
-                    {isSelected && <CheckIcon className="h-3 w-3 text-white" />}
+                    {isSelected && <IconCheck className="h-3 w-3 text-white" />}
                   </div>
 
                   {/* Thumbnail */}
@@ -240,7 +235,7 @@ export default function SeriesDownloadModal({
                     {ep.thumbnail ? (
                       <Image src={ep.thumbnail} alt={ep.title} fill className="object-cover" sizes="80px" />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center"><FilmIcon className="h-4 w-4 text-zinc-600" /></div>
+                      <div className="w-full h-full flex items-center justify-center"><IconMovie className="h-4 w-4 text-zinc-600" /></div>
                     )}
                   </div>
 
@@ -268,7 +263,7 @@ export default function SeriesDownloadModal({
                       className="flex-none flex items-center justify-center w-8 h-8 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500 hover:text-white hover:border-emerald-500 transition-all"
                       title={`Télécharger ${key}`}
                     >
-                      <ArrowDownTrayIcon className="h-3.5 w-3.5" />
+                      <IconDownload className="h-3.5 w-3.5" />
                     </button>
                   )}
                 </div>
@@ -286,7 +281,7 @@ export default function SeriesDownloadModal({
           </p>
           {linksLoaded && selectedWithLinks > 0 && (
             <button onClick={downloadSelected} className="flex items-center gap-2 px-5 py-2 rounded-full font-bold text-sm bg-emerald-500 text-white hover:bg-emerald-400 transition-all shadow-lg shadow-emerald-900/30">
-              <ArrowDownTrayIcon className="h-4 w-4" />
+              <IconDownload className="h-4 w-4" />
               Télécharger {selectedWithLinks} épisode{selectedWithLinks > 1 ? "s" : ""}
             </button>
           )}

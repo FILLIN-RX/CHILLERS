@@ -14,6 +14,7 @@ export interface Season {
   seasonNumber: number;
   posterUrl: string;
   episodeCount?: number;   // from TMDB episode_count field
+  airDate?: string;        // from TMDB air_date field (YYYY-MM-DD or null)
   episodes: Episode[];
 }
 

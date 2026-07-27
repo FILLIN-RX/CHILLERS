@@ -3,19 +3,13 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
-import { getSeasonDetails, getMediaDetails, getStreamUrl, startDownload, triggerDownload } from "@/app/api";
+import { getSeasonDetails, getMediaDetails, getStreamUrl } from "@/app/api";
 import { Episode } from "@/app/mockData";
 import VideoPlayer from "@/components/VideoPlayer";
 import SeriesDownloadModal from "@/components/SeriesDownloadModal";
+import DownloadModal from "@/components/DownloadModal";
 import { useLanguage } from "@/i18n/LanguageContext";
-import {
-  ArrowLeftIcon,
-  PlayIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  FilmIcon,
-  ArrowDownTrayIcon,
-} from "@heroicons/react/24/solid";
+import { IconArrowLeft, IconPlayerPlay, IconChevronLeft, IconChevronRight, IconMovie, IconDownload } from '@tabler/icons-react';
 
 export default function SeasonPage() {
   const params = useParams();
@@ -29,8 +23,7 @@ export default function SeasonPage() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [streamUrl, setStreamUrl] = useState("");
   const [streamLoading, setStreamLoading] = useState(false);
-  const [downloading, setDownloading] = useState(false);
-  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [showSingleDownload, setShowSingleDownload] = useState(false);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const playerRef = useRef<HTMLDivElement>(null);
 
@@ -166,11 +159,11 @@ export default function SeasonPage() {
           aria-label="Retour"
           className="flex items-center justify-center w-10 h-10 rounded-full bg-black/70 backdrop-blur-sm border border-white/10 text-white hover:bg-white/10 transition-all"
         >
-          <ArrowLeftIcon className="h-5 w-5" />
+          <IconArrowLeft className="h-5 w-5" />
         </button>
       </div>
 
-      <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 pt-[72px] pb-12 flex-1">
+      <div className="w-full px-4 sm:px-6 md:px-12 lg:px-[4%] pt-[72px] pb-12 flex-1">
         <div className="flex flex-col lg:flex-row gap-6">
           <div className="flex-1 min-w-0 space-y-4" ref={playerRef}>
             <div className="flex items-center justify-between">
@@ -187,7 +180,7 @@ export default function SeasonPage() {
           aria-label={_("common.previous")}
           className="p-3 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-300 hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
         >
-          <ChevronLeftIcon className="h-5 w-5" />
+          <IconChevronLeft className="h-5 w-5" />
         </button>
         <button
           onClick={goNext}
@@ -195,14 +188,14 @@ export default function SeasonPage() {
           aria-label={_("common.next")}
           className="p-3 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-300 hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
         >
-          <ChevronRightIcon className="h-5 w-5" />
+          <IconChevronRight className="h-5 w-5" />
         </button>
               </div>
             </div>
 
             <div className="w-full rounded-3xl overflow-hidden border border-zinc-800 shadow-2xl bg-black relative">
               {streamLoading || !mockItem ? (
-                <div className="w-full min-h-[300px] sm:min-h-[400px] flex flex-col items-center justify-center gap-3 text-zinc-500">
+                <div className="w-full min-h-[300px] sm:min-h-[500px] lg:min-h-[600px] flex flex-col items-center justify-center gap-3 text-zinc-500">
                   <div className="animate-spin h-10 w-10 border-4 border-[#D70466] border-t-transparent rounded-full" />
                   <p className="text-xs uppercase tracking-widest font-bold">Chargement du flux…</p>
                 </div>
@@ -229,7 +222,7 @@ export default function SeasonPage() {
                 disabled={currentIndex === 0}
                 className="flex items-center gap-2 px-6 py-3 rounded-full bg-zinc-900 border border-zinc-800 text-white font-bold text-sm hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
               >
-                <ChevronLeftIcon className="h-4 w-4" />
+                <IconChevronLeft className="h-4 w-4" />
                 Précédent
               </button>
               <button
@@ -238,58 +231,32 @@ export default function SeasonPage() {
                 className="flex items-center gap-2 px-6 py-3 rounded-full bg-[#D70466] text-white font-bold text-sm hover:bg-[#b5034f] disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-lg shadow-[#D70466]/30"
               >
                 Suivant
-                <ChevronRightIcon className="h-4 w-4" />
+                <IconChevronRight className="h-4 w-4" />
               </button>
               <button
-                onClick={async () => {
+                onClick={() => {
                   if (!currentEpisode) return;
-                  setDownloading(true);
-                  setDownloadError(null);
-                  try {
-                    const result = await startDownload(
-                      id as string, 'series', showTitle || id as string, Number(seasonNumber), currentEpisode.number
-                    );
-                    if (result?.downloadUrl) {
-                      triggerDownload(result.downloadUrl, `${showTitle || 'video'}-S${seasonNumber}E${currentEpisode.number}.mp4`);
-                    } else {
-                      setDownloadError("Aucune source de téléchargement trouvée pour cet épisode. Le fichier est peut-être encore en cours d'upload sur DoodStream ou les sources alternatives sont indisponibles.");
-                    }
-                  } catch (err) {
-                    console.error('Download failed:', err);
-                    setDownloadError("Une erreur est survenue lors du téléchargement. Réessaie plus tard.");
-                  } finally {
-                    setDownloading(false);
-                  }
+                  setShowSingleDownload(true);
                 }}
-                disabled={downloading || !currentEpisode}
-                className="flex items-center gap-2 px-6 py-3 rounded-full bg-zinc-900 border border-zinc-800 text-white font-bold text-sm hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                disabled={!currentEpisode}
+                className={`flex items-center gap-2 px-6 py-3 rounded-full font-bold text-sm transition-all ${
+                  !currentEpisode
+                    ? "bg-zinc-800 text-zinc-500 cursor-not-allowed"
+                    : "bg-zinc-900 border border-zinc-800 text-white hover:bg-zinc-800"
+                }`}
               >
-                {downloading ? (
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                ) : (
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                  </svg>
-                )}
+                <IconDownload className="h-4 w-4" />
                 Télécharger
               </button>
               <button
                 onClick={() => setShowDownloadModal(true)}
                 className="flex items-center gap-2 px-6 py-3 rounded-full bg-emerald-600/90 text-white font-bold text-sm hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-900/30"
               >
-                <ArrowDownTrayIcon className="h-4 w-4" />
+                <IconDownload className="h-4 w-4" />
                 Télécharger plusieurs épisodes
               </button>
             </div>
 
-            {downloadError && (
-              <div className="mt-4 p-4 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-300 text-sm">
-                {downloadError}
-              </div>
-            )}
           </div>
 
           <div className="w-full lg:w-80 xl:w-96 flex-none space-y-3">
@@ -301,7 +268,7 @@ export default function SeasonPage() {
                 onClick={() => setShowDownloadModal(true)}
                 className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs font-bold hover:bg-emerald-500/30 transition-all"
               >
-                <ArrowDownTrayIcon className="h-3.5 w-3.5" />
+                <IconDownload className="h-3.5 w-3.5" />
                 Télécharger plusieurs
               </button>
             </div>
@@ -321,12 +288,12 @@ export default function SeasonPage() {
                       <Image src={ep.thumbnail} alt={ep.title} fill className="object-cover" sizes="96px" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <FilmIcon className="h-5 w-5 text-zinc-600" />
+                        <IconMovie className="h-5 w-5 text-zinc-600" />
                       </div>
                     )}
                     {idx === currentIndex && (
                       <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                        <PlayIcon className="h-6 w-6 text-white" />
+                        <IconPlayerPlay className="h-6 w-6 text-white" />
                       </div>
                     )}
                   </div>
@@ -354,6 +321,18 @@ export default function SeasonPage() {
         tmdbId={id as string}
         episodes={episodes}
       />
+
+      {currentEpisode && (
+        <DownloadModal
+          isOpen={showSingleDownload}
+          onClose={() => setShowSingleDownload(false)}
+          title={showTitle || `Saison ${seasonNumber}`}
+          id={id as string}
+          type="series"
+          season={Number(seasonNumber)}
+          episode={currentEpisode.number}
+        />
+      )}
     </div>
   );
 }

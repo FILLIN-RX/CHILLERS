@@ -155,6 +155,7 @@ export function mapTMDBToMovieOrShow(
       seasonNumber: s.season_number,
       posterUrl: s.poster_path ? `https://image.tmdb.org/t/p/w500${s.poster_path}` : "",
       episodeCount: s.episode_count ?? 0,
+      airDate: s.air_date || undefined,
       episodes: [],
     }));
   }

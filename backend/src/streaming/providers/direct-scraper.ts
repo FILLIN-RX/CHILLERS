@@ -364,8 +364,8 @@ async function getUqloadDirectLink(fileCode: string, preferHls = false): Promise
 
     // Fallback to highest quality .mp4 (ou seul .mp4 si download)
     const versions = result.versions || [];
-    const qualityOrder: Record<string, number> = { n: 4, h: 3, l: 2, o: 1 };
-    const sorted = [...versions].sort((a, b) => (qualityOrder[a.name] || 0) - (qualityOrder[b.name] || 0));
+    const qualityOrder: Record<string, number> = { o: 10, h: 8, n: 5, l: 2 };
+    const sorted = [...versions].sort((a, b) => (qualityOrder[b.name] || 0) - (qualityOrder[a.name] || 0));
     if (sorted.length > 0) {
       const best = sorted[0];
       console.log(`${TAG} Uqload API: ✅ MP4 direct (${best.name}) → ${best.url.slice(0, 120)}`);

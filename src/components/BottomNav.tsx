@@ -3,19 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  HomeIcon,
-  FilmIcon,
-  TvIcon,
-  MagnifyingGlassIcon,
-  Squares2X2Icon,
-} from "@heroicons/react/24/outline";
-import {
-  HomeIcon as HomeIconSolid,
-  FilmIcon as FilmIconSolid,
-  TvIcon as TvIconSolid,
-  Squares2X2Icon as Squares2X2IconSolid,
-} from "@heroicons/react/24/solid";
+import { IconHome, IconMovie, IconDeviceTv, IconSearch, IconLayoutGrid } from '@tabler/icons-react';
 import { useLanguage } from "@/i18n/LanguageContext";
 import { getActiveNavTab } from "@/lib/navActive";
 
@@ -29,11 +17,11 @@ export default function BottomNav({ onSearchClick }: BottomNavProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const items = [
-    { id: "home", label: _("bottomNav.home"), icon: HomeIcon, activeIcon: HomeIconSolid, href: "/" },
-    { id: "movies", label: _("bottomNav.movies"), icon: FilmIcon, activeIcon: FilmIconSolid, href: "/media/movies" },
-    { id: "series", label: _("bottomNav.series"), icon: TvIcon, activeIcon: TvIconSolid, href: "/media/series" },
-    { id: "categories", label: _("bottomNav.categories"), icon: Squares2X2Icon, activeIcon: Squares2X2IconSolid, href: "/categories" },
-    { id: "search", label: _("bottomNav.search"), icon: MagnifyingGlassIcon, activeIcon: MagnifyingGlassIcon },
+    { id: "home", label: _("bottomNav.home"), icon: IconHome, href: "/" },
+    { id: "movies", label: _("bottomNav.movies"), icon: IconMovie, href: "/media/movies" },
+    { id: "series", label: _("bottomNav.series"), icon: IconDeviceTv, href: "/media/series" },
+    { id: "categories", label: _("bottomNav.categories"), icon: IconLayoutGrid, href: "/categories" },
+    { id: "search", label: _("bottomNav.search"), icon: IconSearch, href: "#" },
   ] as const;
 
   useEffect(() => {
@@ -54,7 +42,7 @@ export default function BottomNav({ onSearchClick }: BottomNavProps) {
     <nav className="glass-nav fixed bottom-0 left-0 w-full z-50 md:hidden border-t border-zinc-800/60">
       <div className="flex items-center justify-around py-2 px-1 pb-[max(8px,env(safe-area-inset-bottom))]">
         {items.map((item) => {
-          const Icon = activeTab === item.id ? item.activeIcon : item.icon;
+          const Icon = item.icon;
           const isActive = activeTab === item.id;
 
           if (item.id === "search") {

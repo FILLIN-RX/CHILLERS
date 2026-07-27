@@ -3,23 +3,13 @@
 import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import Image from "next/image";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
-import { getMediaDetails, getPopularMovies, getPopularTV, getStreamUrl, startDownload, triggerDownload, getPopularMoviesPage, getPopularTVPage, getAnimeSeriesPage, getMoviesByGenrePage, getTVByGenrePage, getMovieGenres, getTVGenres, Genre } from "@/app/api";
+import { getMediaDetails, getPopularMovies, getPopularTV, getStreamUrl, getPopularMoviesPage, getPopularTVPage, getAnimeSeriesPage, getMoviesByGenrePage, getTVByGenrePage, getMovieGenres, getTVGenres, Genre } from "@/app/api";
 import GenreFilterBar from "@/components/GenreFilterBar";
 import NotificationModal from "@/components/NotificationModal";
+import DownloadModal from "@/components/DownloadModal";
 import { MovieOrShow } from "@/app/mockData";
 import { useLanguage } from "@/i18n/LanguageContext";
-import {
-  ArrowLeftIcon,
-  PlayIcon,
-  StarIcon,
-  ClockIcon,
-  CalendarDaysIcon,
-  FilmIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  ArrowDownTrayIcon,
-} from "@heroicons/react/24/solid";
-import { ShareIcon } from "@heroicons/react/24/outline";
+import { IconArrowLeft, IconPlayerPlay, IconStar, IconClock, IconCalendar, IconMovie, IconChevronLeft, IconChevronRight, IconDownload, IconShare } from '@tabler/icons-react';
 import VideoPlayer from "@/components/VideoPlayer";
 import MovieCard from "@/components/MovieCard";
 
@@ -136,26 +126,10 @@ function MediaDetailPage() {
     setTimeout(() => playerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
   };
 
-  const [downloading, setDownloading] = useState(false);
+  const [showSingleDownload, setShowSingleDownload] = useState(false);
 
-  const handleDownload = async () => {
-    setDownloading(true);
-    try {
-      const type = isTV ? 'series' : 'movie';
-      const result = await startDownload(id, type, item?.title || id);
-      if (result?.downloadUrl) {
-        triggerDownload(result.downloadUrl, `${item?.title || 'video'}.mp4`);
-      } else {
-        setNotification({
-          title: _("download.impossible"),
-          message: _("download.noSource"),
-        });
-      }
-    } catch (err) {
-      console.error('Download failed:', err);
-    } finally {
-      setDownloading(false);
-    }
+  const handleDownload = () => {
+    setShowSingleDownload(true);
   };
 
   if (loading) {
@@ -167,12 +141,12 @@ function MediaDetailPage() {
             aria-label={_("media.back")}
             className="flex items-center justify-center w-10 h-10 rounded-full bg-black/70 backdrop-blur-sm border border-white/10 text-white hover:bg-black/90 transition-all"
           >
-            <ArrowLeftIcon className="h-5 w-5" />
+            <IconArrowLeft className="h-5 w-5" />
           </button>
         </div>
 
         <div className="w-full h-[70vh] bg-zinc-900 animate-pulse" />
-        <div className="max-w-5xl mx-auto px-6 py-10 space-y-6 w-full">
+        <div className="mx-auto px-6 sm:px-8 md:px-12 lg:px-[4%] py-10 space-y-6 w-full">
           <div className="h-10 bg-zinc-800 rounded-xl w-2/3 animate-pulse" />
           <div className="h-4 bg-zinc-800 rounded w-1/3 animate-pulse" />
           <div className="h-4 bg-zinc-800 rounded w-full animate-pulse" />
@@ -186,7 +160,7 @@ function MediaDetailPage() {
     return (
       <div className="min-h-screen bg-[#09090B] flex items-center justify-center text-white">
         <div className="text-center space-y-4">
-          <FilmIcon className="h-16 w-16 text-zinc-700 mx-auto" />
+          <IconMovie className="h-16 w-16 text-zinc-700 mx-auto" />
           <p className="text-zinc-400 text-lg">{_("media.notFound")}</p>
           <button
             onClick={() => { window.scrollTo(0, 0); router.back(); }}
@@ -211,7 +185,7 @@ function MediaDetailPage() {
           aria-label={_("media.back")}
           className="flex items-center justify-center w-10 h-10 rounded-full bg-black/70 backdrop-blur-sm border border-white/10 text-white hover:bg-white/10 transition-all"
         >
-          <ArrowLeftIcon className="h-5 w-5" />
+          <IconArrowLeft className="h-5 w-5" />
         </button>
       </div>
 
@@ -230,7 +204,7 @@ function MediaDetailPage() {
         <div className="absolute inset-0 bg-gradient-to-t from-[#09090B] via-transparent to-transparent" />
 
         <div className="absolute inset-0 flex items-end pb-16 px-6 sm:px-12 lg:px-20">
-          <div className="flex flex-col sm:flex-row gap-8 items-start max-w-6xl w-full mx-auto">
+          <div className="flex flex-col sm:flex-row gap-8 items-start w-full">
 
             <div className="hidden sm:block relative flex-none w-44 lg:w-56 rounded-2xl overflow-hidden shadow-2xl border border-white/10 ring-1 ring-white/5">
               <Image
@@ -260,16 +234,16 @@ function MediaDetailPage() {
 
               <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-base text-zinc-300 font-medium">
                 <div className="flex items-center gap-1 sm:gap-1.5 text-amber-400">
-                  <StarIcon className="h-3.5 w-3.5 sm:h-5 sm:w-5" />
+                  <IconStar className="h-3.5 w-3.5 sm:h-5 sm:w-5" />
                   <span className="font-bold">{item.rating}</span>
                   <span className="text-zinc-500">/10</span>
                 </div>
                 <div className="flex items-center gap-1 sm:gap-1.5">
-                  <CalendarDaysIcon className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-zinc-500" />
+                  <IconCalendar className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-zinc-500" />
                   {item.year}
                 </div>
                 <div className="flex items-center gap-1 sm:gap-1.5">
-                  <ClockIcon className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-zinc-500" />
+                  <IconClock className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-zinc-500" />
                   {item.duration}
                 </div>
                 <span className="px-2 py-0.5 rounded border border-zinc-700 text-zinc-400 text-[10px] sm:text-xs uppercase tracking-wider">
@@ -296,7 +270,7 @@ function MediaDetailPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                     </svg>
                   ) : (
-                    <PlayIcon className="h-3.5 w-3.5 sm:h-5 sm:w-5" />
+                    <IconPlayerPlay className="h-3.5 w-3.5 sm:h-5 sm:w-5" />
                   )}
                   <span className="sm:hidden">{!loading && !isTV && !item.videoUrl ? 'Bientôt' : isTV ? 'Série' : 'Film'}</span>
                   <span className="hidden sm:inline">{!loading && !isTV && !item.videoUrl ? 'Bientôt disponible' : _("media.watch")}</span>
@@ -307,7 +281,7 @@ function MediaDetailPage() {
                     onClick={() => setTrailerOpen(true)}
                     className="flex-none flex items-center gap-1.5 px-3 sm:px-6 py-1.5 sm:py-3 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white font-bold text-[11px] sm:text-sm transition-all hover:scale-105"
                   >
-                    <FilmIcon className="h-3.5 w-3.5 sm:h-5 sm:w-5" />
+                    <IconMovie className="h-3.5 w-3.5 sm:h-5 sm:w-5" />
                     <span className="sm:hidden">Bande-annonce</span>
                     <span className="hidden sm:inline">{_("media.trailer")}</span>
                   </button>
@@ -315,23 +289,14 @@ function MediaDetailPage() {
 
                 <button 
                   className={`flex-none flex items-center gap-1.5 px-3 sm:px-6 py-1.5 sm:py-3 rounded-full font-bold text-[11px] sm:text-sm transition-all hover:scale-105 border whitespace-nowrap ${
-                    downloading || (!loading && !item.videoUrl)
+                    !loading && !item.videoUrl
                       ? "bg-zinc-800 border-zinc-700 text-zinc-400 cursor-not-allowed"
                       : "bg-white/10 border-white/20 text-white hover:bg-white/20"
                   }`}
                   onClick={handleDownload}
-                  disabled={downloading || (!loading && !item.videoUrl)}
+                  disabled={!loading && !item.videoUrl}
                 >
-                  {downloading ? (
-                    <>
-                      <svg className="animate-spin h-3 w-3 sm:h-4 sm:w-4" viewBox="0 0 24 24" fill="none">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                      </svg>
-                      <span className="sm:hidden">...</span>
-                      <span className="hidden sm:inline">{_("download.preparing")}</span>
-                    </>
-                  ) : !loading && !item.videoUrl ? (
+                  {!loading && !item.videoUrl ? (
                     <>
                       <svg className="h-3 w-3 sm:h-4 sm:w-4 flex-none" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
@@ -340,9 +305,9 @@ function MediaDetailPage() {
                       <span className="hidden sm:inline">Bientôt disponible</span>
                     </>
                   ) : (
-                    <ArrowDownTrayIcon className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1.5" />
+                    <IconDownload className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1.5" />
                   )}
-                  {!downloading && (loading || item.videoUrl) && <span className="hidden sm:inline">{_("download.single")}</span>}
+                  {!loading && item.videoUrl && <span className="hidden sm:inline">{_("download.single")}</span>}
                 </button>
 
                 <div className="relative" ref={shareRef}>
@@ -351,7 +316,7 @@ function MediaDetailPage() {
                     aria-label={_("media.share")}
                     className="flex-none flex items-center gap-1.5 px-2.5 sm:px-5 py-1.5 sm:py-3 rounded-full bg-white/10 border border-white/20 text-white hover:bg-white/20 transition-all hover:scale-105 font-bold text-[11px] sm:text-sm"
                   >
-                    <ShareIcon className="h-3.5 w-3.5 sm:h-5 sm:w-5" />
+                    <IconShare className="h-3.5 w-3.5 sm:h-5 sm:w-5" />
                   </button>
                   {shareOpen && (
                     <div className="absolute bottom-full right-0 mb-2 w-44 bg-zinc-900 border border-zinc-700 rounded-xl shadow-xl overflow-hidden z-50">
@@ -394,7 +359,7 @@ function MediaDetailPage() {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-12 lg:px-20 py-12 sm:py-16 space-y-12 sm:space-y-16">
+      <div className="mx-auto px-4 sm:px-8 md:px-12 lg:px-[4%] py-12 sm:py-16 space-y-12 sm:space-y-16">
         <section className="space-y-3 sm:space-y-4">
           <h2 className="text-lg sm:text-2xl font-black text-white flex items-center gap-3">
             <span className="h-4 w-1 sm:h-5 sm:w-1 rounded-full bg-[#D70466]" />
@@ -430,7 +395,7 @@ function MediaDetailPage() {
               <span className="h-4 w-1 sm:h-5 sm:w-1 rounded-full bg-[#D70466]" />
               {_("media.watch")}
             </h2>
-            <div className="w-full rounded-3xl overflow-hidden border border-zinc-800 shadow-2xl bg-black relative">
+            <div className="w-full bg-black relative">
               {item.videoUrl ? (
                 <VideoPlayer
                   item={item!}
@@ -438,7 +403,7 @@ function MediaDetailPage() {
                   onOpenDetails={(it) => router.push(`/media/${it.id}?type=${it.type}`)}
                 />
               ) : (
-                <div className="w-full min-h-[300px] sm:min-h-[400px] flex flex-col items-center justify-center gap-3 text-zinc-500">
+                <div className="w-full min-h-[300px] sm:min-h-[500px] lg:min-h-[600px] flex flex-col items-center justify-center gap-3 text-zinc-500">
                   <div className="animate-spin h-10 w-10 border-4 border-[#D70466] border-t-transparent rounded-full" />
                   <p className="text-xs uppercase tracking-widest font-bold">{_("media.loadingStream")}</p>
                 </div>
@@ -471,11 +436,11 @@ function MediaDetailPage() {
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <FilmIcon className="h-12 w-12 text-zinc-700" />
+                        <IconMovie className="h-12 w-12 text-zinc-700" />
                       </div>
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
-                      <PlayIcon className="h-8 w-8 text-white mx-auto mb-2 opacity-90" />
+                      <IconPlayerPlay className="h-8 w-8 text-white mx-auto mb-2 opacity-90" />
                     </div>
                   </div>
                   <div>
@@ -498,7 +463,7 @@ function MediaDetailPage() {
               <span className="h-4 w-1 sm:h-5 sm:w-1 rounded-full bg-[#7C3AED]" />
               {_("media.youMightAlsoLike")}
             </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-5">
               {similar.map((sim) => (
                 <div
                   key={sim.id}
@@ -514,7 +479,7 @@ function MediaDetailPage() {
                       sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
-                      <PlayIcon className="h-8 w-8 text-white mx-auto mb-2 opacity-90" />
+                      <IconPlayerPlay className="h-8 w-8 text-white mx-auto mb-2 opacity-90" />
                     </div>
                   </div>
                   <div>
@@ -525,7 +490,7 @@ function MediaDetailPage() {
                       <span>{sim.year}</span>
                       <span>•</span>
                       <div className="flex items-center gap-0.5 text-amber-400">
-                        <StarIcon className="h-3 w-3" />
+                        <IconStar className="h-3 w-3" />
                         <span>{sim.rating}</span>
                       </div>
                     </div>
@@ -564,6 +529,16 @@ function MediaDetailPage() {
           onClose={() => setNotification(null)}
           title={notification.title}
           message={notification.message}
+        />
+      )}
+
+      {item && (
+        <DownloadModal
+          isOpen={showSingleDownload}
+          onClose={() => setShowSingleDownload(false)}
+          title={item.title}
+          id={id}
+          type={isTV ? 'series' : 'movie'}
         />
       )}
     </div>
@@ -699,7 +674,7 @@ function MediaListingPage() {
       </div>
 
       {/* ── Page content ── */}
-      <div className="max-w-[1600px] mx-auto px-2 sm:px-6 md:px-12 lg:px-[4%] pt-4 space-y-4">
+      <div className="px-2 sm:px-6 md:px-12 lg:px-[4%] pt-4 space-y-4">
 
         {/* Header */}
         <div className="flex items-center justify-between px-1">
@@ -724,10 +699,10 @@ function MediaListingPage() {
         )}
 
         {/* Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3 md:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
           {isLoading
             ? Array.from({ length: 20 }).map((_, i) => (
-                <div key={i} className="aspect-[2/3] rounded-lg sm:rounded-xl bg-zinc-900 skeleton-loading" />
+                <div key={i} className="aspect-video rounded-md bg-zinc-900 skeleton-loading" />
               ))
             : items.map((item) => (
                 <MovieCard
@@ -749,7 +724,7 @@ function MediaListingPage() {
               disabled={page === 1}
               className="flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-semibold border transition-all focus:outline-none disabled:opacity-30 disabled:cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white cursor-pointer"
             >
-              <ChevronLeftIcon className="h-4 w-4" />
+              <IconChevronLeft className="h-4 w-4" />
               <span className="hidden sm:inline">{_("common.previous")}</span>
             </button>
 
@@ -777,7 +752,7 @@ function MediaListingPage() {
               className="flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-semibold border transition-all focus:outline-none disabled:opacity-30 disabled:cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white cursor-pointer"
             >
               <span className="hidden sm:inline">{_("common.next")}</span>
-              <ChevronRightIcon className="h-4 w-4" />
+              <IconChevronRight className="h-4 w-4" />
             </button>
           </div>
         )}
