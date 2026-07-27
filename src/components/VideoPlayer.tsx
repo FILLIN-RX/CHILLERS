@@ -114,11 +114,13 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
         posterUrl: item.posterUrl,
         backdropUrl: item.backdropUrl,
         episodeId: currentEpisode?.id,
+        season: currentEpisode?.season,
+        episode: currentEpisode?.number,
         time: currentTime,
         duration: duration,
         progress: progressPercent,
         remaining: `${Math.round((duration - currentTime) / 60)}m left`,
-        episodeName: currentEpisode ? `E${currentEpisode.number}` : undefined,
+        episodeName: currentEpisode ? `S${String(currentEpisode.season ?? 1).padStart(2, "0")}E${String(currentEpisode.number).padStart(2, "0")}` : undefined,
         updatedAt: Date.now(),
       }));
     }
@@ -356,17 +358,18 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
 
           {/* Top bar */}
           <div className={`absolute top-0 inset-x-0 z-20 flex items-center justify-between px-4 py-4 transition-opacity duration-300 ${showControls || !isPlaying ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
+            <span className="text-sm sm:text-base md:text-lg font-black tracking-widest uppercase bg-gradient-to-r from-[#D70466] to-[#7C3AED] bg-clip-text text-transparent">Chillers</span>
+            <div className="flex items-center gap-3 text-sm text-white/60">
+              {currentEpisode && (
+                <span className="font-medium">E{currentEpisode.number} · {currentEpisode.title}</span>
+              )}
+            </div>
             <button
               onClick={onBack}
               className="p-1 text-white/70 hover:text-white transition-colors"
             >
               <IconX className="h-6 w-6" />
             </button>
-            <div className="flex items-center gap-3 text-sm text-white/60">
-              {currentEpisode && (
-                <span className="font-medium">E{currentEpisode.number} · {currentEpisode.title}</span>
-              )}
-            </div>
           </div>
 
           {/* Timeline bar (Netflix-style: thin line that thickens on hover) */}

@@ -76,7 +76,7 @@ function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [continueWatching, setContinueWatching] = useState<
-    { item: MovieOrShow; progress: number; remaining: string; episodeName?: string }[]
+    { item: MovieOrShow; progress: number; remaining: string; episodeName?: string; season?: number; episode?: number }[]
   >([]);
 
   const [heroSlides, setHeroSlides] = useState<MovieOrShow[]>([]);
@@ -117,7 +117,7 @@ function Home() {
   // Continue-watching is read from localStorage. Declared BEFORE the useEffect
   // that calls it so the effect's first run can't hit a TDZ (P0-#8).
   const loadContinueWatchingHistory = useCallback(() => {
-    const history: { item: MovieOrShow; progress: number; remaining: string; episodeName?: string; updatedAt: number }[] = [];
+    const history: { item: MovieOrShow; progress: number; remaining: string; episodeName?: string; season?: number; episode?: number; updatedAt: number }[] = [];
 
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
@@ -146,6 +146,8 @@ function Home() {
                 progress: parsed.progress,
                 remaining: parsed.remaining,
                 episodeName: parsed.episodeName,
+                season: parsed.season,
+                episode: parsed.episode,
                 updatedAt: parsed.updatedAt || 0,
               });
             }
@@ -158,11 +160,13 @@ function Home() {
 
     history.sort((a, b) => b.updatedAt - a.updatedAt);
     setContinueWatching(
-      history.map(({ item, progress, remaining, episodeName }) => ({
+      history.map(({ item, progress, remaining, episodeName, season, episode }) => ({
         item,
         progress,
         remaining,
         episodeName,
+        season,
+        episode,
       })),
     );
   }, []);
@@ -338,11 +342,14 @@ function Home() {
     }
   };
 
-  const handleWatchNow = (item: MovieOrShow) => {
+  const handleWatchNow = (item: MovieOrShow, season?: number, episode?: number) => {
     setIsModalOpen(false);
     const typeParam =
       item.type === "series" || item.type === "anime" ? "tv" : "movie";
-    router.push(`/watch/${item.id}?type=${typeParam}`);
+    let url = `/watch/${item.id}?type=${typeParam}`;
+    if (season) url += `&season=${season}`;
+    if (episode) url += `&episode=${episode}`;
+    router.push(url);
   };
 
   const getFilteredMedia = (type: 'movie' | 'series' | 'anime') => {
@@ -372,14 +379,14 @@ function Home() {
             {continueWatching.length > 0 && activeTab === "home" && (
               <div className="max-w-full mx-auto px-2 lg:px-3">
                 <ScrollRow title={_("home.continueWatching")} accentColor="secondary">
-                  {continueWatching.map(({ item, progress, remaining, episodeName }) => (
+                  {continueWatching.map(({ item, progress, remaining, episodeName, season, episode }) => (
                     <ContinueWatchingCard
                       key={item.id}
                       item={item}
                       progress={progress}
                       remainingTime={remaining}
                       episodeName={episodeName}
-                      onResume={handleWatchNow}
+                      onResume={() => handleWatchNow(item, season, episode)}
                       onOpenDetails={handleOpenDetails}
                     />
                   ))}
