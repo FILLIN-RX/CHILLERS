@@ -10,6 +10,7 @@ import ScrollRow from "@/components/ScrollRow";
 import { useLanguage } from "@/i18n/LanguageContext";
 import {
   MovieOrShow,
+  Episode,
 } from "../mockData";
 
 import {
@@ -352,6 +353,10 @@ function Home() {
     router.push(url);
   };
 
+  const handleModalWatch = (item: MovieOrShow, episode?: Episode) => {
+    handleWatchNow(item, episode?.season, episode?.number);
+  };
+
   const getFilteredMedia = (type: 'movie' | 'series' | 'anime') => {
     if (type === 'movie') return moviesData;
     if (type === 'series') return seriesData;
@@ -658,7 +663,7 @@ function Home() {
         item={selectedMovie}
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onWatch={handleWatchNow}
+        onWatch={handleModalWatch}
         onOpenDetails={(movie) => {
           setSelectedMovie(movie);
         }}
