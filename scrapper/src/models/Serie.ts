@@ -22,6 +22,7 @@ export interface ISerie extends Document {
   pageUrl: string;
   episodes: IEpisode[];
   tmdbId?: number;
+  year?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -47,7 +48,8 @@ const SerieSchema: Schema = new Schema({
   titre: { type: String, required: true, unique: true },
   pageUrl: { type: String, required: true },
   episodes: [EpisodeSchema],
-  tmdbId: { type: Number, index: true }
+  tmdbId: { type: Number, index: true },
+  year: { type: Number }
 }, { timestamps: true });
 
 SerieSchema.index({ titre: 1, 'episodes.season': 1, 'episodes.episodeNumber': 1 });

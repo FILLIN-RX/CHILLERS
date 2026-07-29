@@ -419,6 +419,9 @@ export async function triggerScrape(req: AuthRequest, res: Response) {
     if (type === 'series' || type === 'all') {
         runner('Scraping Séries', 'scraping/core/scrape-series.js');
     }
+    if (type === 'animes' || type === 'all') {
+        runner('Scraping Animes', 'scraping/core/scrape-animes.js');
+    }
     res.json({ success: true, data: { status: 'launched', message: `Scraping ${type} lancé` }, message: null });
 }
 

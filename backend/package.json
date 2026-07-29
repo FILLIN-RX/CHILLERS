@@ -15,7 +15,8 @@
     "check-sources": "npx tsx src/scripts/check-sources.ts",
     "upload-series": "npx tsx src/scripts/upload-series-doodstream.ts",
     "organize-series": "npx tsx src/scripts/organize-series.ts",
-    "check-status": "npx tsx src/scripts/check-upload-status.ts"
+    "check-status": "npx tsx src/scripts/check-upload-status.ts",
+    "otaku-picker": "npx tsx src/scripts/openotaku-picker.ts"
   },
   "keywords": [
     "chiller",

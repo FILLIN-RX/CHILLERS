@@ -36,9 +36,16 @@ export async function fetchMissingMedia(title: string, type: 'movie' | 'series',
     const link = await dlLink.getAttribute('href');
     result = { titre: title, lien: link };
 
+    let year: number | undefined;
+    try {
+      const yearText = await page.$eval('.fs-meta-tag.accent', (el: any) => el.innerText.trim());
+      const parsed = parseInt(yearText, 10);
+      if (parsed > 1900 && parsed < 2100) year = parsed;
+    } catch {}
+
     await Movie.findOneAndUpdate(
       { titre: title },
-      { $set: { titre: title, pageUrl: page.url(), lien: link } },
+      { $set: { titre: title, pageUrl: page.url(), lien: link, ...(year ? { year } : {}) } },
       { upsert: true }
     );
   }

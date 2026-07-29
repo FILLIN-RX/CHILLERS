@@ -4,25 +4,8 @@ import Serie from '../models/Serie';
 import ScraperState from '../models/ScraperState';
 import { browserConfig } from '../config/browser';
 import { connectDB } from '../config/db';
-import { UqloadClient } from '../modules/uqload/uqload.client';
-import { reuploadEpisode } from '../modules/reupload/reupload';
+import { uploadToStreamtape } from '../modules/streamtape/streamtape.uploader';
 import { waitForScrapingHours } from '../utils/scraping-hours';
-
-async function uploadEpisodeToUqload(client: UqloadClient | null, label: string, lien: string, serieId: string, episodeIndex: number) {
-  if (!client) return;
-  try {
-    console.log(`    -> Upload Uqload: ${label}`);
-    const { fileCode, directLink } = await client.uploadByUrlAndGetLink(lien, label);
-    const bestQuality = directLink?.versions?.find((v: any) => v.name === 'n') || directLink?.versions?.[0];
-    await Serie.updateOne(
-      { _id: serieId },
-      { $set: { [`episodes.${episodeIndex}.uqloadCode`]: fileCode, [`episodes.${episodeIndex}.uqloadLink`]: bestQuality?.url || null } }
-    );
-    console.log(`    -> ✅ Uqload: ${label} → ${fileCode}`);
-  } catch (e: any) {
-    console.log(`    -> ⏭ Uqload ignoré: ${e.message}`);
-  }
-}
 
 function parseEpisodeLabel(label: string, defaultSeason = 1): { season: number; episodeNumber: number; canonical: string } {
     const trimmed = label.trim();
@@ -42,7 +25,7 @@ function parseEpisodeLabel(label: string, defaultSeason = 1): { season: number; 
 
 async function loadState(): Promise<{ lastPage: number }> {
     try {
-        const state = await ScraperState.findOne({ name: 'series' });
+        const state = await ScraperState.findOne({ name: 'animes' });
         return { lastPage: state?.lastPage || 1 };
     } catch {
         return { lastPage: 1 };
@@ -51,22 +34,20 @@ async function loadState(): Promise<{ lastPage: number }> {
 
 async function saveState(lastPage: number) {
     await ScraperState.findOneAndUpdate(
-        { name: 'series' },
+        { name: 'animes' },
         { $set: { lastPage, updatedAt: new Date() } },
         { upsert: true }
     );
 }
 
-async function scrapeSeriesDetails() {
-    console.log('[START] scrapeSeriesDetails() called — connecting to MongoDB...');
+async function scrapeAnimesDetails() {
+    console.log('[START] scrapeAnimesDetails() — connecting to MongoDB...');
     await connectDB();
     console.log('[OK] MongoDB connected, launching Playwright...');
 
     const browser = await chromium.launch(browserConfig);
     console.log('[OK] Playwright browser launched');
     const page = await browser.newPage();
-    const apiKey = process.env.UQLOAD_API_KEY;
-    const uqload = apiKey ? new UqloadClient(apiKey) : null;
 
     let shuttingDown = false;
     process.on('SIGTERM', async () => {
@@ -84,7 +65,7 @@ async function scrapeSeriesDetails() {
     let hasMorePages = true;
 
     while (hasMorePages && !shuttingDown) {
-        const url = `https://www.open-otaku.me/?cat=series&page=${currentPage}`;
+        const url = `https://www.open-otaku.me/?type=animes&page=${currentPage}`;
         console.log(`\n--- Navigation vers ${url} ---`);
 
         await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
@@ -114,7 +95,7 @@ async function scrapeSeriesDetails() {
         }
 
         let cards = await page.$$('.fs-card');
-        console.log(`Séries trouvées sur la page : ${cards.length}`);
+        console.log(`Animes trouvés sur la page : ${cards.length}`);
 
         for (let i = 0; i < cards.length; i++) {
             try {
@@ -122,13 +103,13 @@ async function scrapeSeriesDetails() {
                 let card = currentCards[i];
                 let titre = await card.$eval('.fs-card-title', (el: any) => el.innerText.trim());
 
-                const existingSeries = await Serie.findOne({ titre: titre });
-                if (existingSeries && existingSeries.pageUrl && existingSeries.episodes && existingSeries.episodes.length > 0) {
-                    console.log(`Série déjà traitée et complète : ${titre}`);
+                const existingAnime = await Serie.findOne({ titre: titre });
+                if (existingAnime && existingAnime.pageUrl && existingAnime.episodes && existingAnime.episodes.length > 0) {
+                    console.log(`Anime déjà traité : ${titre}`);
                     continue;
                 }
 
-                console.log(`Traitement de la série : ${titre}`);
+                console.log(`Traitement de l'anime : ${titre}`);
                 await card.click();
                 await page.waitForLoadState('domcontentloaded');
                 await page.waitForTimeout(1000);
@@ -145,14 +126,14 @@ async function scrapeSeriesDetails() {
                     if (y) { const p = parseInt(y[1], 10); if (p > 1900 && p < 2100) year = p; }
                 }
 
-                let serieData: any = { 
-                    titre: titre, 
-                    pageUrl: pageUrl, 
-                    episodes: existingSeries ? existingSeries.episodes : [] 
+                let animeData: any = { 
+                    titre, 
+                    pageUrl, 
+                    episodes: existingAnime ? existingAnime.episodes : [] 
                 };
-                if (year) serieData.year = year;
+                if (year) animeData.year = year;
 
-                if (serieData.episodes.length === 0) {
+                if (animeData.episodes.length === 0) {
                     console.log(`  -> Récupération des épisodes pour : ${titre}`);
                     while (true) {
                         await page.waitForSelector('#fs-episode-select', { state: 'attached', timeout: 10000 });
@@ -166,7 +147,7 @@ async function scrapeSeriesDetails() {
                             const seasonMatch = titre.match(/Saison (\d+)/i);
                             const defaultSeason = seasonMatch ? parseInt(seasonMatch[1], 10) : 1;
                             const { season, episodeNumber, canonical } = parseEpisodeLabel(epTitre, defaultSeason);
-                            serieData.episodes.push({
+                            animeData.episodes.push({
                                 episode: canonical,
                                 season,
                                 episodeNumber,
@@ -186,20 +167,31 @@ async function scrapeSeriesDetails() {
                 }
 
                 const saved = await Serie.findOneAndUpdate(
-                    { titre: titre },
-                    { $set: serieData },
+                    { titre },
+                    { $set: animeData },
                     { upsert: true, returnDocument: 'after' }
                 );
-                console.log(`Série enregistrée dans MongoDB : ${titre}`);
+                console.log(`Anime enregistré dans MongoDB : ${titre}`);
 
                 if (saved) {
                     for (let epIdx = 0; epIdx < (saved.episodes || []).length; epIdx++) {
                         const ep = saved.episodes[epIdx];
                         if (!ep.lien || ep.lien === "#") continue;
+                        if (ep.streamtapeCode) {
+                            console.log(`  -> ⏭ Déjà uploadé Streamtape : ${titre} - ${ep.episode}`);
+                            continue;
+                        }
                         const label = `${titre} - ${ep.episode}`;
-                        await reuploadEpisode(saved._id.toString(), ep, epIdx);
-                        if (uqload && !ep.uqloadCode) {
-                            await uploadEpisodeToUqload(uqload, label, ep.lien, saved._id.toString(), epIdx);
+                        console.log(`  -> Upload Streamtape: ${label}`);
+                        const st = await uploadToStreamtape(ep.lien, label);
+                        if (st) {
+                            await Serie.updateOne(
+                                { _id: saved._id },
+                                { $set: { [`episodes.${epIdx}.streamtapeCode`]: st.linkId, [`episodes.${epIdx}.streamtapeLink`]: st.embedUrl } }
+                            );
+                            console.log(`  -> ✅ Streamtape: ${label} → ${st.embedUrl}`);
+                        } else {
+                            console.log(`  -> ⏭ Streamtape échoué pour ${label}`);
                         }
                     }
                 }
@@ -207,7 +199,7 @@ async function scrapeSeriesDetails() {
                 await page.goto(url, { waitUntil: 'domcontentloaded' });
                 await page.waitForSelector('.fs-card');
             } catch (e) {
-                console.error(`Erreur sur la série :`, e);
+                console.error(`Erreur sur l'anime :`, e);
                 try {
                     await page.goto(url, { waitUntil: 'domcontentloaded' });
                     await page.waitForSelector('.fs-card');
@@ -219,21 +211,20 @@ async function scrapeSeriesDetails() {
         currentPage++;
         await saveState(currentPage);
     }
-    console.log("[ScrapeSeries] Cycle terminé, redémarrage immédiat...");
+    console.log("[ScrapeAnimes] Cycle terminé, redémarrage immédiat...");
   }
 }
 
-export { scrapeSeriesDetails as scrapeSeries };
+export { scrapeAnimesDetails as scrapeAnimes };
 
-// Exécution directe
-const isDirectExecution = process.argv[1] && (process.argv[1].includes('scrape-series') || process.argv[1].endsWith('scrape-series.ts') || process.argv[1].endsWith('scrape-series.js'));
+const isDirectExecution = process.argv[1] && (process.argv[1].includes('scrape-animes') || process.argv[1].endsWith('scrape-animes.ts') || process.argv[1].endsWith('scrape-animes.js'));
 if (isDirectExecution) {
   (async () => {
     while (true) {
       try {
-        await scrapeSeriesDetails();
+        await scrapeAnimesDetails();
       } catch (err: any) {
-        console.log(`[ScrapeSeries] Crash: ${err?.message || err} — redémarrage dans 10s...`);
+        console.log(`[ScrapeAnimes] Crash: ${err?.message || err} — redémarrage dans 10s...`);
         await new Promise(r => setTimeout(r, 10000));
       }
     }
