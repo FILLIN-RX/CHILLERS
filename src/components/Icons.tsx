@@ -12,6 +12,7 @@ import {
   IconClock,
   IconSearch,
   IconCloudUpload,
+  IconPlus,
 } from '@tabler/icons-react';
 
 export { IconLayoutDashboard as IconDashboard };
@@ -28,3 +29,4 @@ export { IconClock as IconTmdb };
 export { IconClock as IconCron };
 export { IconSearch as IconSearch };
 export { IconCloudUpload as IconUqload };
+export { IconPlus as IconPlus };

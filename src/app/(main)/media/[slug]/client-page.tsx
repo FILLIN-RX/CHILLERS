@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import Image from "next/image";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
-import { getMediaDetails, getPopularMovies, getPopularTV, getStreamUrl, getPopularMoviesPage, getPopularTVPage, getAnimeSeriesPage, getMoviesByGenrePage, getTVByGenrePage, getMovieGenres, getTVGenres, Genre } from "@/app/api";
+import { getMediaDetails, getPopularMovies, getPopularTV, getStreamUrl, getPopularMoviesPage, getPopularTVPage, getAnimeSeriesPage, getMoviesByGenrePage, getTVByGenrePage, getMovieGenres, getTVGenres, getDisponible, Genre } from "@/app/api";
 import GenreFilterBar from "@/components/GenreFilterBar";
 import NotificationModal from "@/components/NotificationModal";
 import DownloadModal from "@/components/DownloadModal";
@@ -33,6 +33,12 @@ function MediaDetailPage() {
   const playerRef = useRef<HTMLDivElement>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const shareRef = useRef<HTMLDivElement>(null);
+  const [disponible, setDisponible] = useState<{ disponible: boolean; streaming: boolean; download: boolean } | null>(null);
+
+  useEffect(() => {
+    if (!id) return;
+    getDisponible(id, isTV ? 'series' : 'movie').then(setDisponible).catch(() => {});
+  }, [id, isTV]);
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -247,6 +253,17 @@ function MediaDetailPage() {
 
             <div className="flex-1 space-y-4">
               <div className="flex flex-wrap gap-2">
+                {disponible && (
+                  <span
+                    className={`px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-widest border ${
+                      disponible.disponible
+                        ? "border-green-500/40 text-green-400 bg-green-500/10"
+                        : "border-red-500/40 text-red-400 bg-red-500/10"
+                    }`}
+                  >
+                    {disponible.disponible ? "● Disponible" : "● Non disponible"}
+                  </span>
+                )}
                 {item.genres.slice(0, 3).map((g) => (
                   <span
                     key={g}

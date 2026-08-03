@@ -4,25 +4,9 @@ import Serie from '../models/Serie';
 import ScraperState from '../models/ScraperState';
 import { browserConfig } from '../config/browser';
 import { connectDB } from '../config/db';
-import { UqloadClient } from '../modules/uqload/uqload.client';
 import { reuploadEpisode } from '../modules/reupload/reupload';
 import { waitForScrapingHours } from '../utils/scraping-hours';
-
-async function uploadEpisodeToUqload(client: UqloadClient | null, label: string, lien: string, serieId: string, episodeIndex: number) {
-  if (!client) return;
-  try {
-    console.log(`    -> Upload Uqload: ${label}`);
-    const { fileCode, directLink } = await client.uploadByUrlAndGetLink(lien, label);
-    const bestQuality = directLink?.versions?.find((v: any) => v.name === 'n') || directLink?.versions?.[0];
-    await Serie.updateOne(
-      { _id: serieId },
-      { $set: { [`episodes.${episodeIndex}.uqloadCode`]: fileCode, [`episodes.${episodeIndex}.uqloadLink`]: bestQuality?.url || null } }
-    );
-    console.log(`    -> ✅ Uqload: ${label} → ${fileCode}`);
-  } catch (e: any) {
-    console.log(`    -> ⏭ Uqload ignoré: ${e.message}`);
-  }
-}
+import { installDonateOverlayBlocker } from '../utils/donate-overlay';
 
 function parseEpisodeLabel(label: string, defaultSeason = 1): { season: number; episodeNumber: number; canonical: string } {
     const trimmed = label.trim();
@@ -64,9 +48,12 @@ async function scrapeSeriesDetails() {
 
     const browser = await chromium.launch(browserConfig);
     console.log('[OK] Playwright browser launched');
-    const page = await browser.newPage();
-    const apiKey = process.env.UQLOAD_API_KEY;
-    const uqload = apiKey ? new UqloadClient(apiKey) : null;
+    const context = await browser.newContext({
+      viewport: { width: 1920, height: 1080 },
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
+    });
+    const page = await context.newPage();
+    await installDonateOverlayBlocker(page);
 
     let shuttingDown = false;
     process.on('SIGTERM', async () => {
@@ -87,7 +74,7 @@ async function scrapeSeriesDetails() {
         const url = `https://www.open-otaku.me/?cat=series&page=${currentPage}`;
         console.log(`\n--- Navigation vers ${url} ---`);
 
-        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+        await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
 
         try {
             await page.waitForSelector('.fs-card', { timeout: 30000 });
@@ -99,7 +86,7 @@ async function scrapeSeriesDetails() {
                 console.log(`Page ${currentPage} vide (tentative ${retries}/5) — attend 15s puis réessaie...`);
                 await new Promise(r => setTimeout(r, 15000));
                 try {
-                    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+                    await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
                     await page.waitForSelector('.fs-card', { timeout: 30000 });
                     pageLoaded = true;
                     break;
@@ -196,20 +183,16 @@ async function scrapeSeriesDetails() {
                     for (let epIdx = 0; epIdx < (saved.episodes || []).length; epIdx++) {
                         const ep = saved.episodes[epIdx];
                         if (!ep.lien || ep.lien === "#") continue;
-                        const label = `${titre} - ${ep.episode}`;
                         await reuploadEpisode(saved._id.toString(), ep, epIdx);
-                        if (uqload && !ep.uqloadCode) {
-                            await uploadEpisodeToUqload(uqload, label, ep.lien, saved._id.toString(), epIdx);
-                        }
                     }
                 }
 
-                await page.goto(url, { waitUntil: 'domcontentloaded' });
+                await page.goto(url, { waitUntil: 'networkidle' });
                 await page.waitForSelector('.fs-card');
             } catch (e) {
                 console.error(`Erreur sur la série :`, e);
                 try {
-                    await page.goto(url, { waitUntil: 'domcontentloaded' });
+                    await page.goto(url, { waitUntil: 'networkidle' });
                     await page.waitForSelector('.fs-card');
                 } catch (recoveryErr) {
                     console.error(`Récupération échouée :`, recoveryErr);

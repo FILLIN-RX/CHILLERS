@@ -4,12 +4,14 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { adminLogout, adminScrapperHealth } from '@/app/api';
-import { IconDashboard, IconMovie, IconTv, IconLogs, IconLink, IconSettings, IconLogout, IconBack, IconCron, IconTmdb, IconUqload } from '@/components/Icons';
+import { IconDashboard, IconMovie, IconTv, IconLogs, IconLink, IconSettings, IconLogout, IconBack, IconCron, IconTmdb, IconUqload, IconPlus } from '@/components/Icons';
 
 const NAV_ITEMS = [
   { href: '/admin', label: 'Dashboard', icon: IconDashboard },
+  { href: '/admin/add-media', label: 'Ajouter', icon: IconPlus },
   { href: '/admin/movies', label: 'Films', icon: IconMovie },
   { href: '/admin/series', label: 'Séries', icon: IconTv },
+  { href: '/admin/affiches', label: 'Affiches', icon: IconMovie },
   { href: '/admin/tmdb', label: 'TMDB', icon: IconTmdb },
   { href: '/admin/scrapper', label: 'Scrapper', icon: IconCron },
   { href: '/admin/logs', label: 'Logs', icon: IconLogs },

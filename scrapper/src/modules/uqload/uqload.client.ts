@@ -37,6 +37,7 @@ export class UqloadClient {
     if (fldId) params.fld_id = fldId;
 
     const res = await this.get<{ filecode: string }>('/upload/url', params);
+    if (!res.result) throw new Error(`Uqload API error: ${res.msg || 'result is empty'}`);
     return res.result.filecode;
   }
 
@@ -48,7 +49,9 @@ export class UqloadClient {
     const params: Record<string, any> = { file_code: fileCode };
     if (quality) params.q = quality;
     if (hls) params.hls = 1;
-    return this.get<UqloadDirectLinkResult>('/file/direct_link', params);
+    const res = await this.get<UqloadDirectLinkResult>('/file/direct_link', params);
+    if (!res.result) throw new Error(`Uqload API error (direct_link): ${res.msg || 'result is empty'}`);
+    return res;
   }
 
   async getFileList(fldId?: number, page: number = 1, perPage: number = 50): Promise<UqloadApiResponse<{ files: UqloadFileListEntry[]; results_total: number; pages: number; results: number }>> {

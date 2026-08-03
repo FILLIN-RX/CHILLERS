@@ -6,6 +6,7 @@ import { browserConfig } from '../config/browser';
 import { connectDB } from '../config/db';
 import { uploadToStreamtape } from '../modules/streamtape/streamtape.uploader';
 import { waitForScrapingHours } from '../utils/scraping-hours';
+import { installDonateOverlayBlocker } from '../utils/donate-overlay';
 
 function parseEpisodeLabel(label: string, defaultSeason = 1): { season: number; episodeNumber: number; canonical: string } {
     const trimmed = label.trim();
@@ -47,7 +48,12 @@ async function scrapeAnimesDetails() {
 
     const browser = await chromium.launch(browserConfig);
     console.log('[OK] Playwright browser launched');
-    const page = await browser.newPage();
+    const context = await browser.newContext({
+      viewport: { width: 1920, height: 1080 },
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
+    });
+    const page = await context.newPage();
+    await installDonateOverlayBlocker(page);
 
     let shuttingDown = false;
     process.on('SIGTERM', async () => {
@@ -68,7 +74,7 @@ async function scrapeAnimesDetails() {
         const url = `https://www.open-otaku.me/?type=animes&page=${currentPage}`;
         console.log(`\n--- Navigation vers ${url} ---`);
 
-        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+        await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
 
         try {
             await page.waitForSelector('.fs-card', { timeout: 30000 });
@@ -80,7 +86,7 @@ async function scrapeAnimesDetails() {
                 console.log(`Page ${currentPage} vide (tentative ${retries}/5) — attend 15s puis réessaie...`);
                 await new Promise(r => setTimeout(r, 15000));
                 try {
-                    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+                    await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
                     await page.waitForSelector('.fs-card', { timeout: 30000 });
                     pageLoaded = true;
                     break;
@@ -196,12 +202,12 @@ async function scrapeAnimesDetails() {
                     }
                 }
 
-                await page.goto(url, { waitUntil: 'domcontentloaded' });
+                await page.goto(url, { waitUntil: 'networkidle' });
                 await page.waitForSelector('.fs-card');
             } catch (e) {
                 console.error(`Erreur sur l'anime :`, e);
                 try {
-                    await page.goto(url, { waitUntil: 'domcontentloaded' });
+                    await page.goto(url, { waitUntil: 'networkidle' });
                     await page.waitForSelector('.fs-card');
                 } catch (recoveryErr) {
                     console.error(`Récupération échouée :`, recoveryErr);

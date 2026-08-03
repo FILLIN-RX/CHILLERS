@@ -5,6 +5,7 @@ import { browserConfig } from '../config/browser';
 import { connectDB } from '../config/db';
 import { reuploadMovie } from '../modules/reupload/reupload';
 import { waitForScrapingHours } from '../utils/scraping-hours';
+import { installDonateOverlayBlocker } from '../utils/donate-overlay';
 
 const MAX_EMPTY_RETRIES = 5;
 
@@ -33,7 +34,12 @@ export async function scrapeFilms() {
   await connectDB();
 
   const browser = await chromium.launch(browserConfig);
-  const page = await browser.newPage();
+  const context = await browser.newContext({
+    viewport: { width: 1920, height: 1080 },
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
+  });
+  const page = await context.newPage();
+  await installDonateOverlayBlocker(page);
 
   while (true) {
     await waitForScrapingHours();
@@ -45,7 +51,7 @@ export async function scrapeFilms() {
       const url = `https://www.open-otaku.me/?cat=films&page=${currentPage}`;
       console.log(`\n--- Page ${currentPage} ---`);
 
-      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+      await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
 
       try {
         await page.waitForSelector('.fs-card', { timeout: 30000 });
@@ -57,7 +63,7 @@ export async function scrapeFilms() {
           console.log(`Page ${currentPage} vide (tentative ${retries}/${MAX_EMPTY_RETRIES}) — attend 15s puis réessaie...`);
           await sleep(15000);
           try {
-            await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+            await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
             await page.waitForSelector('.fs-card', { timeout: 30000 });
             pageLoaded = true;
             break;
@@ -123,12 +129,12 @@ export async function scrapeFilms() {
             }
           }
 
-          await page.goto(url, { waitUntil: 'domcontentloaded' });
+          await page.goto(url, { waitUntil: 'networkidle' });
           await page.waitForSelector('.fs-card');
         } catch (e: any) {
           console.error(`Erreur ${titre}: ${e.message}`);
           try {
-            await page.goto(url, { waitUntil: 'domcontentloaded' });
+            await page.goto(url, { waitUntil: 'networkidle' });
             await page.waitForSelector('.fs-card');
           } catch (recoveryErr: any) {
             console.error(`Récupération échouée: ${recoveryErr.message}`);

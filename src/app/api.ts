@@ -4,6 +4,24 @@ const API_BASE_URL = "/api";
 const FETCH_TIMEOUT = 45000;
 const DEFAULT_CACHE_TTL = 60_000;
 
+// Base URL du backend (sans /api) pour résoudre les images servies localement
+// (uploads like /uploads/ai-posters/...) qui ne passent pas par le rewrite Next.
+function getBackendBase(): string {
+  if (typeof window === "undefined") return "";
+  try {
+    return (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api").replace(/\/api\/?$/, "");
+  } catch {
+    return "";
+  }
+}
+
+export function resolveImageUrl(url?: string | null): string {
+  if (!url) return "";
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  if (url.startsWith("/uploads/") || url.startsWith("/api/")) return `${getBackendBase()}${url}`;
+  return url;
+}
+
 const responseCache = new Map<string, { expiresAt: number; data: any }>();
 const inFlightRequests = new Map<string, Promise<any>>();
 
@@ -480,12 +498,12 @@ export async function searchMedia(query: string, page = 1, signal?: AbortSignal)
           id: m.tmdbId ? String(m.tmdbId) : String(m._id),
           title: m.titre,
           type: 'movie',
-          description: '',
-          synopsis: '',
+          description: m.speech || m.synopsis || '',
+          synopsis: m.speech || m.synopsis || '',
           backdropUrl: 'https://images.unsplash.com/photo-1578894381163-e72c17f2d45f?q=80&w=1200',
-          posterUrl: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=400',
+          posterUrl: resolveImageUrl(m.posterUrl) || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=400',
           rating: 0,
-          year: 0,
+          year: m.year || 0,
           duration: '',
           genres: ['Movie'],
           cast: [],
@@ -496,12 +514,12 @@ export async function searchMedia(query: string, page = 1, signal?: AbortSignal)
           id: s.tmdbId ? String(s.tmdbId) : String(s._id),
           title: s.titre,
           type: 'series',
-          description: '',
-          synopsis: '',
+          description: s.speech || s.synopsis || '',
+          synopsis: s.speech || s.synopsis || '',
           backdropUrl: 'https://images.unsplash.com/photo-1578894381163-e72c17f2d45f?q=80&w=1200',
-          posterUrl: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=400',
+          posterUrl: resolveImageUrl(s.posterUrl) || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=400',
           rating: 0,
-          year: 0,
+          year: s.year || 0,
           duration: '',
           genres: ['Series'],
           cast: [],
@@ -1006,6 +1024,45 @@ export async function adminLinkTmdb(type: 'movies' | 'series', id: string, tmdbI
   });
 }
 
+export async function adminTmdbSearch(query: string, type: 'movie' | 'tv', year?: number) {
+  const params = new URLSearchParams({ query, type });
+  if (year) params.set('year', String(year));
+  return adminFetch(`/media/tmdb-search?${params.toString()}`);
+}
+
+export async function adminCreateManualMedia(payload: {
+  type: 'movie' | 'serie';
+  titre: string;
+  lien?: string;
+  tmdbId: number;
+  year?: number;
+  episodes?: { season: number; episodeNumber: number; lien: string; episode?: string }[];
+}) {
+  return adminFetch('/media/manual', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function adminCreateManualMediaUpload(formData: FormData) {
+  const token = getAdminToken();
+  const headers: Record<string, string> = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10 * 60 * 1000);
+  try {
+    const res = await fetch(`${API_BASE_URL}/admin/media/manual/upload`, {
+      method: 'POST',
+      body: formData,
+      headers,
+      signal: controller.signal,
+    });
+    return res.json();
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 // ─── Scrapper distant ──────────────────────────────────────────────────────
 export async function adminScrapperHealth() {
   return adminFetch('/scrapper/health');
@@ -1060,4 +1117,77 @@ export async function adminScrapperCronStart() {
 
 export async function adminScrapperCronStop() {
   return adminFetch('/scrapper/cron/stop', { method: 'POST' });
+}
+
+/* ─── Affiches & Disponibilité ──────────────────────────────────────────── */
+
+export interface AfficheItem {
+  _id: string;
+  titre: string;
+  year?: number;
+  tmdbId?: number;
+  posterUrl?: string;
+  posterSource?: string;
+  speech?: string | null;
+  disponible?: boolean | null;
+  disponibleCheckedAt?: string | null;
+  mediaType: 'movie' | 'series';
+  link: string | null;
+}
+
+export async function adminAffichesList(params: {
+  type?: 'all' | 'movie' | 'series';
+  disponible?: boolean;
+  source?: string;
+  q?: string;
+  page?: number;
+  limit?: number;
+}) {
+  const query = new URLSearchParams();
+  if (params.type && params.type !== 'all') query.set('type', params.type);
+  if (params.disponible !== undefined) query.set('disponible', String(params.disponible));
+  if (params.source) query.set('source', params.source);
+  if (params.q) query.set('q', params.q);
+  if (params.page) query.set('page', String(params.page));
+  if (params.limit) query.set('limit', String(params.limit));
+  return adminFetch(`/affiches?${query.toString()}`);
+}
+
+export async function adminAffichesGenerate(payload: { type?: string; id?: string }) {
+  return adminFetch('/affiches/generate', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export async function adminAffichesStatus() {
+  return adminFetch('/affiches/status');
+}
+
+export async function adminAvailabilityScan(type: 'all' | 'movie' | 'series') {
+  return adminFetch('/availability/scan', { method: 'POST', body: JSON.stringify({ type }) });
+}
+
+export async function adminAvailabilityStatus() {
+  return adminFetch('/availability/status');
+}
+
+export function adminAffichesPosterUrl(id: string, type: 'movie' | 'series'): string {
+  return `${API_BASE_URL}/affiches/${id}/poster?type=${type}`;
+}
+
+export function adminAffichesCardUrl(id: string, type: 'movie' | 'series'): string {
+  return `${API_BASE_URL}/affiches/${id}/card?type=${type}`;
+}
+
+export async function getDisponible(tmdbId: string, type: 'movie' | 'series'): Promise<{ disponible: boolean; streaming: boolean; download: boolean } | null> {
+  try {
+    const batchType = type === 'series' ? 'tv' : 'movie';
+    const res = await fetchWithTimeout(`${API_BASE_URL}/availability/batch?type=${batchType}&ids=${encodeURIComponent(tmdbId)}`);
+    const json = await res.json();
+    if (json.success && json.data) {
+      const entry = json.data[tmdbId];
+      return entry || null;
+    }
+  } catch (error) {
+    console.error("Error fetching availability:", error);
+  }
+  return null;
 }
