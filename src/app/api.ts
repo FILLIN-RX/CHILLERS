@@ -198,13 +198,15 @@ export function mapTMDBToMovieOrShow(
     }
   }
 
-  // Backdrop & Poster paths
+  // Backdrop & Poster paths.
+  // On retourne '' au lieu d'une image Unsplash pour les fallbacks : MovieCard
+  // et MovieModal affichent un placeholder gradient quand src est vide.
   const backdropUrl = item.backdrop_path
     ? `https://image.tmdb.org/t/p/w1280${item.backdrop_path}`
-    : "https://images.unsplash.com/photo-1578894381163-e72c17f2d45f?q=80&w=1200";
+    : '';
   const posterUrl = item.poster_path
     ? `https://image.tmdb.org/t/p/w500${item.poster_path}`
-    : "https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=400";
+    : '';
 
   return {
     id: String(item.id),

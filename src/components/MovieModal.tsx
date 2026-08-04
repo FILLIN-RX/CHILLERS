@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import Image from "next/image";
 import { MovieOrShow, Season, Episode } from "@/app/mockData";
-import { getSeasonDetails } from "@/app/api";
+import { getSeasonDetails, getMediaDetails } from "@/app/api";
 import { IconX, IconPlayerPlay, IconStar } from '@tabler/icons-react';
 import { useLanguage } from "@/i18n/LanguageContext";
 import { acquireModalScrollLock, releaseModalScrollLock } from "@/lib/modalScrollLock";
@@ -27,6 +27,10 @@ export default function MovieModal({
   const [activeSeason, setActiveSeason] = useState<Season | null>(null);
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [seasonLoading, setSeasonLoading] = useState(false);
+  // Détails TMDB complets chargés en arrière-plan. Tant qu'on n'a pas cette
+  // donnée, on affiche les champs partiels du card (item). Une fois reçu,
+  // `effective` combine les deux : immédiat + enrichi.
+  const [enhanced, setEnhanced] = useState<MovieOrShow | null>(null);
   const { translate: _ } = useLanguage();
 
   // Lock body scroll while open. Decoupled from data loading so closing the
@@ -43,8 +47,40 @@ export default function MovieModal({
       setActiveSeason(null);
       setEpisodes([]);
       setSeasonLoading(false);
+      setEnhanced(null);
     }
   }, [isOpen, item?.id]);
+
+  // Fetch des détails complets dès l'ouverture de la modale.
+  // La card ne contient que les champs "list" (TMDB trending/popular) — il
+  // manque typiquement cast, saisons, trailer, synopsis long. La modale doit
+  // afficher quelque chose immédiatement, puis s'enrichir silencieusement.
+  useEffect(() => {
+    if (!isOpen || !item) return;
+    const controller = new AbortController();
+    const isTV = item.type === "series" || item.type === "anime";
+    getMediaDetails(item.id, isTV, controller.signal)
+      .then(full => {
+        if (full && !controller.signal.aborted) setEnhanced(full);
+      })
+      .catch(() => { /* silencieux : le partial reste affiché */ });
+    return () => controller.abort();
+  }, [isOpen, item?.id, item?.type]);
+
+  // Combine les données immédiates (item) avec les détails enrichis (enhanced).
+  // enhanced.backdropUrl/posterUrl ne s'appliquent que si non vide (sinon on garde item).
+  const effective: MovieOrShow = enhanced
+    ? {
+        ...item,
+        ...enhanced,
+        backdropUrl: enhanced.backdropUrl || item.backdropUrl,
+        posterUrl: enhanced.posterUrl || item.posterUrl,
+        title: item.title || enhanced.title,
+        year: item.year || enhanced.year,
+        rating: item.rating || enhanced.rating,
+        type: item.type || enhanced.type,
+      }
+    : item;
 
   // Fetch the first season's episodes when the modal opens on a series.
   // Stable identity via useCallback so the effect doesn't re-fire on every render.
@@ -113,8 +149,8 @@ export default function MovieModal({
         {/* Hero image */}
         <div className="relative w-full flex-none bg-zinc-900 h-[30vh] min-h-[180px] max-h-[280px]">
           <Image
-            src={item.backdropUrl}
-            alt={item.title}
+            src={effective.backdropUrl}
+            alt={effective.title}
             fill
             className="object-cover"
             sizes="(max-width: 768px) 100vw, 900px"
@@ -132,16 +168,16 @@ export default function MovieModal({
 
           <div className="absolute inset-x-0 bottom-0 p-4 md:p-6 space-y-2">
             <h2 className="text-xl sm:text-3xl md:text-4xl font-extrabold text-white tracking-tight drop-shadow-md">
-              {item.title}
+              {effective.title}
             </h2>
             <div className="flex items-center gap-2 text-xs text-white/80 font-semibold">
-              <span>{item.year}</span>
+              <span>{effective.year}</span>
               <span>•</span>
-              <span>{item.duration}</span>
+              <span>{effective.duration}</span>
               <span>•</span>
               <div className="flex items-center gap-0.5 text-amber-400">
                 <IconStar className="h-3.5 w-3.5 fill-amber-400" />
-                <span>{item.rating}</span>
+                <span>{effective.rating}</span>
               </div>
             </div>
           </div>
@@ -160,18 +196,22 @@ export default function MovieModal({
               {_("media.watch")}
             </button>
 
-            <p className="text-foreground/80 text-sm leading-relaxed line-clamp-4">
-              {item.synopsis}
-            </p>
+            {effective.synopsis ? (
+              <p className="text-foreground/80 text-sm leading-relaxed line-clamp-4">
+                {effective.synopsis}
+              </p>
+            ) : (
+              <div className="h-12 rounded-md bg-white/5 skeleton-loading" />
+            )}
 
             {/* Meta inline */}
             <div className="flex flex-wrap items-center gap-3 text-xs text-brand-text-muted">
-              <span className="font-bold uppercase tracking-wider text-[10px]">{item.type}</span>
-              {item.cast.length > 0 && (
-                <span className="truncate max-w-xs">{item.cast.slice(0, 3).join(", ")}</span>
+              <span className="font-bold uppercase tracking-wider text-[10px]">{effective.type}</span>
+              {effective.cast.length > 0 && (
+                <span className="truncate max-w-xs">{effective.cast.slice(0, 3).join(", ")}</span>
               )}
               <div className="flex flex-wrap gap-1">
-                {item.genres.slice(0, 3).map((g) => (
+                {effective.genres.slice(0, 3).map((g) => (
                   <span key={g} className="rounded bg-white/5 border border-white/10 px-1.5 py-0.5 text-[10px]">{g}</span>
                 ))}
               </div>
@@ -179,14 +219,14 @@ export default function MovieModal({
           </div>
 
           {/* Episodes for series */}
-          {item.seasons && item.seasons.filter(s => s.seasonNumber > 0).length > 0 && (
+          {effective.seasons && effective.seasons.filter(s => s.seasonNumber > 0).length > 0 && (
             <div className="space-y-3">
               <h3 className="text-xs font-extrabold uppercase tracking-widest text-brand-text-muted">
                 {_("watch.episodes")}
               </h3>
 
               <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-                {item.seasons.filter(s => s.seasonNumber > 0).map((season) => {
+                {effective.seasons.filter(s => s.seasonNumber > 0).map((season) => {
                   const now = new Date();
                   const hasEpisodes = (season.episodeCount ?? 0) > 0;
                   const hasAired = season.airDate ? new Date(season.airDate) <= now : hasEpisodes;

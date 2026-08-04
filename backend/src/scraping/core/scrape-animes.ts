@@ -5,6 +5,7 @@ import ScraperState from '../../models/ScraperState';
 import { browserConfig } from '../../config/browser';
 import { connectDB } from '../../config/db';
 import { uploadToStreamtape } from '../../modules/streamtape/streamtape.uploader';
+import { autoLink } from '../maintenance/auto-link';
 
 function parseEpisodeLabel(label: string, defaultSeason = 1): { season: number; episodeNumber: number; canonical: string } {
     const trimmed = label.trim();
@@ -164,6 +165,8 @@ async function scrapeAnimesDetails() {
                             console.log(`  -> ⏭ Streamtape échoué pour ${label}`);
                         }
                     }
+                    // Liaison TMDB en arrière-plan (fire-and-forget) — anime utilise le modèle Serie
+                    autoLink('series', saved._id.toString());
                 }
 
                 await page.goto(url, { waitUntil: 'domcontentloaded' });

@@ -15,6 +15,7 @@ import DeadLink from '../../models/DeadLink';
 import { startCron, stopCron, getCronStatus, runScrapingTasks, runMaintenanceTasks, runner, stopTask, getRunningTasks, runTaskById, runTaskByLabel, listOsProcesses, stopByPid, getSystemCronStatus, ALL_TASKS } from '../../cron-manager';
 import { UqloadClient } from '../uqload/uqload.client';
 import { uploadMoviesBatch, uploadSeriesBatch, uploadSingleMovie, uploadSingleEpisode, stopUpload, isUploadRunning } from '../uqload/uqload.uploader';
+import { autoLink } from '../../scraping/maintenance/auto-link';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'chiller-admin-secret-change-me';
 const SCRAPER_API_URL = process.env.SCRAPER_API_URL;
@@ -1087,13 +1088,16 @@ async function createMovieRecord({ titre, lien, tmdbId, year }: { titre: string;
         err.status = 409;
         throw err;
     }
-    return Movie.create({
+    const created = await Movie.create({
         titre,
         pageUrl: lien,
         lien,
         tmdbId,
         ...(year && !isNaN(parseInt(year, 10)) ? { year: parseInt(year, 10) } : {}),
     });
+    // En arrière-plan : re-valide le TMDB et enrichit les métadonnées.
+    autoLink('movie', created._id.toString());
+    return created;
 }
 
 async function createSerieRecord({ titre, episodes, tmdbId, year }: { titre: string; episodes: any[]; tmdbId: number; year?: any }) {
@@ -1103,13 +1107,16 @@ async function createSerieRecord({ titre, episodes, tmdbId, year }: { titre: str
         err.status = 409;
         throw err;
     }
-    return Serie.create({
+    const created = await Serie.create({
         titre,
         pageUrl: episodes[0].lien,
         episodes,
         tmdbId,
         ...(year && !isNaN(parseInt(year, 10)) ? { year: parseInt(year, 10) } : {}),
     });
+    // En arrière-plan : re-valide le TMDB et enrichit les métadonnées.
+    autoLink('series', created._id.toString());
+    return created;
 }
 
 function parseEpisodes(episodes: any[], tmdbId: number): any[] | string {

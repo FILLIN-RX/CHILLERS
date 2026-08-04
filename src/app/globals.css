@@ -137,6 +137,24 @@ body {
   animation: shimmer 1.5s infinite;
 }
 
+/* Fade-in utilisé par les modales (MovieModal, DownloadModal, NotificationModal).
+   Avant : la classe était référencée mais non définie → no-op silencieux,
+   ce qui donnait une apparition « pop » instantanée et visuellement sèche. */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 200ms ease-out;
+}
+
 /* Banner gradient overlay — brighter version */
 .banner-overlay {
   background: linear-gradient(to top, var(--background) 0%, rgba(var(--overlay-base), 0.75) 15%, rgba(var(--overlay-base), 0.1) 40%, transparent 70%),

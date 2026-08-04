@@ -70,13 +70,32 @@ function WatchContent() {
         if (cancelled) return;
         if (detail) setItem(detail);
 
+        // Pour les séries, saison + stream sont indépendants → on les lance
+        // en parallèle. Pour les films, le stream attend implicitement `detail`
+        // (besoin du titre pour la requête backend), donc une seule branche.
         if (isTV) {
           setSeasonLoading(true);
           const targetSeason = seasonParam || "1";
-          const seasonData = await getSeasonDetails(id, targetSeason, signal);
+          const seasonDataPromise = getSeasonDetails(id, targetSeason, signal);
+
+          // On pré-calcule l'épisode cible sans attendre les épisodes (fallback Ep 1).
+          const targetEp = episodeParam ? parseInt(episodeParam) : 1;
+          const firstStreamPromise = getStreamUrl(
+            id,
+            "series",
+            parseInt(targetSeason),
+            targetEp,
+            detail?.title || id,
+            signal
+          );
+
+          const [seasonData, firstStream] = await Promise.all([
+            seasonDataPromise,
+            firstStreamPromise,
+          ]);
           if (cancelled) return;
+
           if (seasonData?.episodes?.length) {
-            const targetEp = episodeParam ? parseInt(episodeParam) : undefined;
             let startIdx = 0;
             const eps: Episode[] = seasonData.episodes.map((ep: any, idx: number) => {
               if (targetEp && ep.episode_number === targetEp) startIdx = idx;
@@ -94,33 +113,23 @@ function WatchContent() {
             });
             setEpisodes(eps);
             setCurrentEpisodeIndex(startIdx);
+          }
 
-            const firstEpNumber = eps[startIdx]?.number || eps[0].number;
-            let stream = await getStreamUrl(
+          // Stream : fallback saison 1 si la cible n'a rien donné.
+          let stream = firstStream;
+          if (!stream && parseInt(targetSeason) !== 1) {
+            stream = await getStreamUrl(
               id,
               "series",
-              parseInt(targetSeason),
-              firstEpNumber,
+              1,
+              1,
               detail?.title || id,
               signal
             );
-            if (!stream && parseInt(targetSeason) !== 1) {
-              stream = await getStreamUrl(
-                id,
-                "series",
-                1,
-                1,
-                detail?.title || id,
-                signal
-              );
-            }
-            if (!cancelled && stream) {
-              setStreamUrl(stream.embedUrl);
-            } else if (!cancelled) {
-              setStreamUnavailable(true);
-            }
-          } else if (!cancelled) {
-            setStreamUnavailable(true);
+          }
+          if (!cancelled) {
+            if (stream) setStreamUrl(stream.embedUrl);
+            else setStreamUnavailable(true);
           }
           setSeasonLoading(false);
         } else {

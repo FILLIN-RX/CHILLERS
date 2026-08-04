@@ -6,6 +6,7 @@ import { browserConfig } from '../../config/browser';
 import { connectDB } from '../../config/db';
 import { UqloadClient } from '../../modules/uqload/uqload.client';
 import { reuploadEpisode } from '../../modules/reupload/reupload';
+import { autoLink } from '../maintenance/auto-link';
 
 async function uploadEpisodeToUqload(client: UqloadClient | null, label: string, lien: string, serieId: string, episodeIndex: number) {
   if (!client) return;
@@ -195,6 +196,8 @@ async function scrapeSeriesDetails() {
                             await uploadEpisodeToUqload(uqload, label, ep.lien, saved._id.toString(), epIdx);
                         }
                     }
+                    // Liaison TMDB en arrière-plan (fire-and-forget)
+                    autoLink('series', saved._id.toString());
                 }
 
                 await page.goto(url, { waitUntil: 'domcontentloaded' });

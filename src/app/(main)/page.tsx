@@ -18,7 +18,6 @@ import {
   getTrendingTV,
   getPopularMovies,
   getPopularTV,
-  getMediaDetails,
   getMoviesByGenre,
   getAnimeSeries,
   getUpcomingMovies,
@@ -326,21 +325,18 @@ function Home() {
     return () => controller.abort();
   }, [activeTab, moviesData.length, seriesData.length, animeData.length]);
 
-  const handleOpenDetails = async (item: MovieOrShow) => {
+  const handleOpenDetails = (item: MovieOrShow) => {
     // Mobile: navigate directly instead of opening modal
     if (typeof window !== "undefined" && window.innerWidth < 768) {
       const typeParam = item.type === "series" || item.type === "anime" ? "tv" : item.type;
       router.push(`/media/${item.id}?type=${typeParam}`);
       return;
     }
+    // Desktop : ouvre la modale immédiatement avec les données partielles du card.
+    // Les détails complets (cast, saisons, trailer, synopsis long) sont récupérés
+    // par MovieModal dans son propre useEffect — plus d'attente synchrone.
     setSelectedMovie(item);
     setIsModalOpen(true);
-    try {
-      const isTV = item.type === "series" || item.type === "anime" || item.duration?.includes("Season");
-      const full = await getMediaDetails(item.id, isTV);
-      if (full) setSelectedMovie(full);
-    } catch (e) {
-    }
   };
 
   const handleWatchNow = (item: MovieOrShow, season?: number, episode?: number) => {
