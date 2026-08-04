@@ -24,7 +24,7 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      frameSrc: ["'self'", "https://animekai.to", "https://*.vidlink.pro", "https://vidapi.xyz", "https://www.youtube.com"],
+      frameSrc: ["'self'", "https://animekai.to", "https://*.vidlink.pro", "https://vidapi.xyz", "https://www.youtube.com", "https://doodstream.com", "https://*.doodstream.com", "https://d000d.com", "https://*.d000d.com", "https://d0000d.com", "https://playmogo.com", "https://*.playmogo.com", "https://*.dood.to", "https://*.vidzy.cc", "https://vidsrc.xyz", "https://embed.su", "https://uqload.is", "https://*.uqload.is", "https://www.google.com", "https://*.google.com"],
       scriptSrc: ["'self'", "'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'", "https:"],
       imgSrc: ["'self'", "data:", "https:"],

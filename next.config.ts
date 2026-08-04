@@ -33,9 +33,9 @@ const nextConfig: NextConfig = {
             value: [
               "default-src 'self'",
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.youtube.com https://s.ytimg.com https://vercel.live",
-              "frame-src 'self' https://vidlink.pro https://vidapi.xyz https://doodstream.com https://*.doodstream.com https://d000d.com https://*.d000d.com https://d0000d.com https://playmogo.com https://*.playmogo.com https://*.dood.to https://www.youtube.com https://animekai.to https://*.vidzy.cc https://vidsrc.xyz https://embed.su https://uqload.is https://*.uqload.is https://vercel.live",
-              "media-src 'self' blob: data: https://*.vidzy.cc https://vidlink.pro https://vidapi.xyz https://*.uqload.is",
-              "img-src 'self' data: blob: https://image.tmdb.org https://images.unsplash.com https://*.tmdb.org https://*.vidzy.cc https://vercel.live https://vercel.com",
+              "frame-src 'self' https://vidlink.pro https://vidapi.xyz https://doodstream.com https://*.doodstream.com https://d000d.com https://*.d000d.com https://d0000d.com https://playmogo.com https://*.playmogo.com https://*.dood.to https://www.youtube.com https://animekai.to https://*.vidzy.cc https://vidsrc.xyz https://embed.su https://uqload.is https://*.uqload.is https://www.google.com https://*.google.com https://vercel.live",
+              "media-src 'self' blob: data: https://*.vidzy.cc https://vidlink.pro https://vidapi.xyz https://*.uqload.is https://*.gstatic.com https://s0.2mdn.net",
+              "img-src 'self' data: blob: https://image.tmdb.org https://images.unsplash.com https://*.tmdb.org https://*.vidzy.cc https://*.gstatic.com https://s0.2mdn.net https://vercel.live https://vercel.com",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "connect-src 'self' http://localhost:4000 https://chillers.onrender.com https://api.themoviedb.org https://*.uqload.is",
               "font-src 'self' data: https://vercel.live",
