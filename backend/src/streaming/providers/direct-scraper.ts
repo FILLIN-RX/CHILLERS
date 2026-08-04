@@ -336,62 +336,72 @@ async function getUqloadDirectLink(fileCode: string, preferHls = false): Promise
     return null;
   }
 
-  // Pour le download : cloner d'abord pour obtenir un nouveau filecode (CDN bypass)
-  const targetCode = preferHls ? fileCode : await cloneFileCode(fileCode);
+  // Pour le download : on essaie le code original en premier (les clones ne
+  // renvoient parfois que du HLS), puis clone en secours si aucun MP4.
+  // HLS mode (streaming) : un seul appel sur le code original.
+  const codes = preferHls ? [fileCode] : [fileCode, await cloneFileCode(fileCode)];
 
-  try {
-    const apiUrl = `https://uqload.is/api/file/direct_link?key=${UQLOAD_API_KEY}&file_code=${targetCode}${preferHls ? '&hls=1' : ''}`;
-    console.log(`${TAG} Uqload API: GET ${apiUrl}${preferHls ? ' (HLS mode)' : ' (MP4 mode)'}`);
-    const { data } = await axios.get(apiUrl, { timeout: 10000 });
-    console.log(`${TAG} Uqload API: status=${data.status}, msg=${data.msg}`);
+  for (const targetCode of codes) {
+    try {
+      const apiUrl = `https://uqload.is/api/file/direct_link?key=${UQLOAD_API_KEY}&file_code=${targetCode}${preferHls ? '&hls=1' : ''}`;
+      console.log(`${TAG} Uqload API: GET ${apiUrl}${preferHls ? ' (HLS mode)' : ' (MP4 mode)'}`);
+      const { data } = await axios.get(apiUrl, { timeout: 10000 });
+      console.log(`${TAG} Uqload API: status=${data.status}, msg=${data.msg}`);
 
-    if (data.status !== 200 || !data.result) {
-      console.log(`${TAG} Uqload API: échec`);
-      return null;
+      if (data.status !== 200 || !data.result) {
+        console.log(`${TAG} Uqload API: échec`);
+        continue;
+      }
+
+      const result = data.result as UqloadDirectLinkResult;
+
+      // Préférer HLS pour le streaming, MP4 pour le download
+      if (preferHls && result.hls_direct) {
+        console.log(`${TAG} Uqload API: ✅ HLS direct → ${result.hls_direct.slice(0, 120)}`);
+        return {
+          directUrl: result.hls_direct,
+          type: 'hls',
+          referer: 'https://uqload.is/',
+        };
+      }
+
+      // Fallback to highest quality .mp4 (ou seul .mp4 si download)
+      const versions = result.versions || [];
+      const qualityOrder: Record<string, number> = { o: 10, h: 8, n: 5, l: 2 };
+      const sorted = [...versions].sort((a, b) => (qualityOrder[b.name] || 0) - (qualityOrder[a.name] || 0));
+      if (sorted.length > 0) {
+        const best = sorted[0];
+        console.log(`${TAG} Uqload API: ✅ MP4 direct (${best.name}) → ${best.url.slice(0, 120)}`);
+        return {
+          directUrl: best.url,
+          type: 'mp4',
+          referer: 'https://uqload.is/',
+        };
+      }
+
+      // HLS uniquement pour le streaming : un .m3u8 brut est inutilisable
+      // en téléchargement → on retente avec le code original.
+      if (!preferHls) {
+        console.log(`${TAG} Uqload API: pas de MP4 (code ${targetCode}), réessaie avec un autre code`);
+        continue;
+      }
+
+      if (result.hls_direct) {
+        console.log(`${TAG} Uqload API: ✅ HLS direct (fallback) → ${result.hls_direct.slice(0, 120)}`);
+        return {
+          directUrl: result.hls_direct,
+          type: 'hls',
+          referer: 'https://uqload.is/',
+        };
+      }
+
+      console.log(`${TAG} Uqload API: ❌ aucune version disponible`);
+    } catch (err: any) {
+      console.log(`${TAG} Uqload API: ERREUR ${err.message}`);
     }
-
-    const result = data.result as UqloadDirectLinkResult;
-
-    // Préférer HLS pour le streaming, MP4 pour le download
-    if (preferHls && result.hls_direct) {
-      console.log(`${TAG} Uqload API: ✅ HLS direct → ${result.hls_direct.slice(0, 120)}`);
-      return {
-        directUrl: result.hls_direct,
-        type: 'hls',
-        referer: 'https://uqload.is/',
-      };
-    }
-
-    // Fallback to highest quality .mp4 (ou seul .mp4 si download)
-    const versions = result.versions || [];
-    const qualityOrder: Record<string, number> = { o: 10, h: 8, n: 5, l: 2 };
-    const sorted = [...versions].sort((a, b) => (qualityOrder[b.name] || 0) - (qualityOrder[a.name] || 0));
-    if (sorted.length > 0) {
-      const best = sorted[0];
-      console.log(`${TAG} Uqload API: ✅ MP4 direct (${best.name}) → ${best.url.slice(0, 120)}`);
-      return {
-        directUrl: best.url,
-        type: 'mp4',
-        referer: 'https://uqload.is/',
-      };
-    }
-
-    // HLS uniquement si pas de MP4 mais HLS disponible (download path)
-    if (!preferHls && result.hls_direct) {
-      console.log(`${TAG} Uqload API: ✅ HLS direct (fallback, pas de MP4) → ${result.hls_direct.slice(0, 120)}`);
-      return {
-        directUrl: result.hls_direct,
-        type: 'hls',
-        referer: 'https://uqload.is/',
-      };
-    }
-
-    console.log(`${TAG} Uqload API: ❌ aucune version disponible`);
-    return null;
-  } catch (err: any) {
-    console.log(`${TAG} Uqload API: ERREUR ${err.message}`);
-    return null;
   }
+
+  return null;
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────

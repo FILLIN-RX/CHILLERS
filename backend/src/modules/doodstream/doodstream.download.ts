@@ -56,6 +56,17 @@ function extractDoodFileCode(url: string | undefined | null): string | null {
   return m ? m[1] : null;
 }
 
+/**
+ * Vrai si l'URL est un fichier vidéo direct (.mp4) servi par un CDN qui
+ * bloque l'IP du serveur (Uqload, vidzy…) mais pas celle du navigateur.
+ * Le serveur ne peut pas vérifier la vivacité de ces liens (403), on les
+ * renvoie donc tels quels : c'est le navigateur qui les ouvre directement.
+ */
+function isDirectMp4CdnUrl(url: string | undefined | null): boolean {
+  if (!url) return false;
+  return /\.mp4(\?|$)/i.test(url);
+}
+
 let cachedUploadedFiles: Record<string, any> | null = null;
 let lastCacheTime = 0;
 const CACHE_TTL = 30 * 1000; // 30 seconds
@@ -217,7 +228,7 @@ async function findByMongoDB(title?: string, tmdbId?: number, season?: number, e
         if (lien || fileCode) {
           return {
             fileCode,
-            info: { lien, titre: movie.titre, uqloadLink: movie.uqloadLink, lienFallback: movie.lien !== lien ? movie.lien : undefined },
+            info: { lien, titre: movie.titre, uqloadLink: movie.uqloadLink, uqloadCode: movie.uqloadCode, lienFallback: movie.lien !== lien ? movie.lien : undefined },
           };
         }
       }
@@ -255,7 +266,7 @@ async function findByMongoDB(title?: string, tmdbId?: number, season?: number, e
           if (lien || fileCode) {
             return {
               fileCode,
-              info: { lien, titre: `${series.titre} ${epLabel}`, uqloadLink: found.uqloadLink, lienFallback: found.lien !== lien ? found.lien : undefined },
+              info: { lien, titre: `${series.titre} ${epLabel}`, uqloadLink: found.uqloadLink, uqloadCode: found.uqloadCode, lienFallback: found.lien !== lien ? found.lien : undefined },
             };
           }
         }
@@ -385,6 +396,12 @@ export const getDownloadByTitle = async (req: Request, res: Response, next: Next
 
       for (const url of [...new Set(linksToTry)]) {
         if (!/doodstream\.com\/(e|d)\//i.test(url)) {
+          // Liens directs .mp4 (Uqload/vidzy) : le CDN bloque l'IP du serveur
+          // (403) mais pas celle du navigateur → renvoyés tels quels.
+          if (isDirectMp4CdnUrl(url)) {
+            downloadUrl = url;
+            break;
+          }
           const alive = await isLinkAlive(url);
           if (alive) {
             downloadUrl = url;
@@ -663,29 +680,59 @@ export const getSeriesDownloadCheck = async (req: Request, res: Response, next: 
       }
     }
 
-    // 3. Check each episode against the local JSON database
+    // 3. Check each episode: MongoDB d'abord (liens Uqload/vidzy en priorité),
+    //    cache d'upload disque ensuite (fichiers DoodStream), et DoodStream
+    //    /d/ en dernier recours uniquement.
     const uploaded = getUploadedFiles();
     const missing: { season: number; episode: number }[] = [];
     const found: { season: number; episode: number; fileCode: string; downloadUrl: string | null }[] = [];
 
+    const serie = await Serie.findOne({ tmdbId: tmdbIdNum }).exec();
+
     for (const ep of expectedEpisodes) {
       let match: { fileCode: string; info: any } | null = null;
 
-      for (const key of Object.keys(uploaded)) {
-        const file = uploaded[key];
-        if (
-          file.tmdbId &&
-          Number(file.tmdbId) === tmdbIdNum &&
-          file.season === ep.season &&
-          file.episode === ep.episode
-        ) {
-          match = { fileCode: file.fileCode, info: file };
-          break;
+      // Source 1: MongoDB (shape identique à findByMongoDB)
+      if (serie) {
+        const epLabel = `S${String(ep.season).padStart(2, '0')}E${String(ep.episode).padStart(2, '0')}`;
+        const foundEp = serie.episodes.find(
+          (e: any) =>
+            (Number(e.season) === Number(ep.season) && Number(e.episodeNumber) === Number(ep.episode)) ||
+            e.episode?.toUpperCase() === epLabel
+        );
+        if (foundEp && (foundEp.uqloadLink || foundEp.lien || foundEp.fileCode)) {
+          const lien = foundEp.uqloadLink || foundEp.lien;
+          match = {
+            fileCode: foundEp.fileCode || '',
+            info: {
+              lien,
+              titre: `${serie.titre} ${epLabel}`,
+              uqloadLink: foundEp.uqloadLink,
+              uqloadCode: foundEp.uqloadCode,
+              lienFallback: foundEp.lien !== lien ? foundEp.lien : undefined,
+            },
+          };
         }
       }
 
+      // Source 2: cache d'upload disque
       if (!match) {
-        // Fallback: try DoodStream folder listing via the existing helper
+        for (const key of Object.keys(uploaded)) {
+          const file = uploaded[key];
+          if (
+            file.tmdbId &&
+            Number(file.tmdbId) === tmdbIdNum &&
+            file.season === ep.season &&
+            file.episode === ep.episode
+          ) {
+            match = { fileCode: file.fileCode, info: file };
+            break;
+          }
+        }
+      }
+
+      // Source 3: DoodStream folder listing API
+      if (!match) {
         try {
           match = await findByFolderFallback(tmdbIdNum, ep.season, ep.episode);
         } catch {
@@ -695,23 +742,29 @@ export const getSeriesDownloadCheck = async (req: Request, res: Response, next: 
 
       if (match) {
         let downloadUrl: string | null = null;
-        const storedLien = match.info?.lien;
-        const isDirectUrl =
-          !!storedLien &&
-          !/doodstream\.com\/e\//i.test(storedLien) &&
-          !/doodstream\.com\/d\//i.test(storedLien);
 
-        if (isDirectUrl) {
-          const alive = await isLinkAlive(storedLien);
-          if (alive) {
-            downloadUrl = storedLien;
+        // 1) Lien direct .mp4 stocké (Uqload/vidzy) : utilisable tel quel par
+        //    le navigateur, même si le serveur reçoit un 403 du CDN.
+        const candidates = [
+          match.info?.uqloadLink,
+          match.info?.lien,
+          match.info?.lienFallback,
+        ].filter(Boolean) as string[];
+        for (const url of [...new Set(candidates)]) {
+          if (isDirectMp4CdnUrl(url)) {
+            downloadUrl = url;
+            break;
           }
         }
 
-        // DoodStream ne fournit plus de lien direct fiable : on renvoie
-        // vers sa page web /d/ (téléchargement déclenché côté utilisateur).
+        // 2) DoodStream ne fournit plus de lien direct fiable : on renvoie
+        //    vers sa page web /d/ (téléchargement déclenché côté utilisateur).
         if (!downloadUrl) {
-          const doodCode = match.fileCode || extractDoodFileCode(storedLien);
+          const doodCode =
+            match.fileCode ||
+            extractDoodFileCode(match.info?.lien) ||
+            extractDoodFileCode(match.info?.uqloadLink) ||
+            extractDoodFileCode(match.info?.lienFallback);
           if (doodCode) {
             downloadUrl = `https://doodstream.com/d/${doodCode}`;
           }
@@ -720,7 +773,7 @@ export const getSeriesDownloadCheck = async (req: Request, res: Response, next: 
         found.push({
           season: ep.season,
           episode: ep.episode,
-          fileCode: match.fileCode,
+          fileCode: match.fileCode || '',
           downloadUrl,
         });
       } else {
@@ -728,29 +781,19 @@ export const getSeriesDownloadCheck = async (req: Request, res: Response, next: 
       }
     }
 
-    // 4. If any episodes are missing, block the download
-    if (missing.length > 0) {
-      return res.json({
-        success: false,
-        data: {
-          missing,
-          found: found.length,
-          total: expectedEpisodes.length,
-          seriesTitle: seriesData.name || seriesData.title || null,
-        },
-        message: `Série incomplète : ${missing.length} épisode(s) manquant(s)`,
-      });
-    }
-
-    // 5. All episodes found — return their download URLs
+    // 4. Réponse : succès dès qu'au moins un épisode a un lien exploitable
     return res.json({
-      success: true,
+      success: found.length > 0,
       data: {
+        missing,
         episodes: found,
-        total: found.length,
+        found: found.length,
+        total: expectedEpisodes.length,
         seriesTitle: seriesData.name || seriesData.title || null,
       },
-      message: null,
+      message: found.length > 0
+        ? null
+        : `Série incomplète : ${missing.length} épisode(s) manquant(s)`,
     });
   } catch (error) {
     next(error);

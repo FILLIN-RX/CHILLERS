@@ -40,7 +40,32 @@ export class DirectProvider implements StreamingProvider {
       : `"${query.title}" (tmdb=${query.tmdbId})`;
     console.log(`${TAG} resolve ${label}`);
 
-    // 1. Cherche l'embed URL dans MongoDB ou le JSON
+    // 1. PRIORITÉ UQLOAD : dès qu'un file code Uqload existe, on valide le
+    //    fichier via l'API uqload.is/api (joignable depuis le serveur), puis
+    //    on renvoie l'iframe embed. Le CDN Uqload bloque l'IP du serveur :
+    //    impossible de proxyé le flux, c'est donc le navigateur qui lit
+    //    l'iframe (son IP n'est pas bloquée). Doodstream ne prend la main
+    //    que si l'API échoue ou qu'aucun code Uqload n'existe.
+    const uqloadCode = await this.findUqloadCode(query);
+    if (uqloadCode) {
+      const uqloadEmbedUrl = `https://uqload.is/embed-${uqloadCode}.html`;
+      console.log(`${TAG} ${label} → Uqload prioritaire (${uqloadEmbedUrl})`);
+      const t1 = Date.now();
+      const scrapedU = await scrapeDirectStream(uqloadEmbedUrl, true);
+      if (scrapedU) {
+        console.log(`${TAG} ${label} → UQLOAD VALIDÉ en ${Date.now() - t1}ms (${scrapedU.type})`);
+        console.log(`${TAG}   embedUrl: ${uqloadEmbedUrl}`);
+        this.updateMongoDbFreshUrl(query, scrapedU.directUrl, scrapedU.type).catch(() => {});
+        return {
+          provider: this.name,
+          embedUrl: uqloadEmbedUrl,
+          type: query.season !== undefined ? 'episode' : 'movie',
+        };
+      }
+      console.log(`${TAG} ${label} → API Uqload échouée, fallback embed Doodstream`);
+    }
+
+    // 2. Fallback : embed stocké (Doodstream/vidzy) scrapé en URL directe
     const embedUrl = await this.findEmbedUrl(query);
     if (!embedUrl) {
       console.log(`${TAG} ${label} → pas d'embed URL trouvée, skip`);
@@ -48,40 +73,25 @@ export class DirectProvider implements StreamingProvider {
     }
     console.log(`${TAG} ${label} → embed URL trouvée: ${embedUrl.slice(0, 100)}`);
 
-    // 2. Vérifie que c'est un embed scrapable (Doodstream ou Uqload)
+    // 3. Vérifie que c'est un embed scrapable (Doodstream ou Uqload)
     if (!isScrapableUrl(embedUrl)) {
       console.log(`${TAG} ${label} → URL non scrapable (ni Doodstream ni Uqload), skip`);
       return null;
     }
 
-    // 3. Scrape pour extraire l'URL directe
+    // 4. Scrape pour extraire l'URL directe
     console.log(`${TAG} ${label} → lancement du scrape de ${embedUrl.slice(0, 80)}...`);
     const t0 = Date.now();
-    let scraped = await scrapeDirectStream(embedUrl, true);
-    let elapsed = Date.now() - t0;
-
-    // 3b. Si le scrape Doodstream échoue (Cloudflare 403), tente l'embed Uqload
-    if (!scraped) {
-      const uqloadCode = await this.findUqloadCode(query);
-      if (uqloadCode) {
-        const uqloadEmbedUrl = `https://uqload.is/embed-${uqloadCode}.html`;
-        console.log(`${TAG} ${label} → Doodstream échoué, tentative Uqload (${uqloadEmbedUrl})...`);
-        const t1 = Date.now();
-        scraped = await scrapeDirectStream(uqloadEmbedUrl, true);
-        elapsed = Date.now() - t1;
-      }
-    }
+    const scraped = await scrapeDirectStream(embedUrl, true);
+    const elapsed = Date.now() - t0;
 
     if (!scraped) {
       console.log(`${TAG} ${label} → scrape échoué en ${elapsed}ms, fallback aux providers suivants`);
       return null;
     }
 
-    // 4. Construit l'URL proxy (backend pipe le flux avec les bons headers)
+    // 5. Construit l'URL proxy (backend pipe le flux avec les bons headers)
     const proxyUrl = `/api/doodstream/stream?url=${encodeURIComponent(scraped.directUrl)}&referer=${encodeURIComponent(scraped.referer)}`;
-
-    // 5. Update MongoDB with fresh URL so next request is instant
-    this.updateMongoDbFreshUrl(query, scraped.directUrl).catch(() => {});
 
     console.log(`${TAG} ${label} → SCRAPE RÉUSSI en ${elapsed}ms`);
     console.log(`${TAG}   type: ${scraped.type}`);
@@ -144,7 +154,7 @@ export class DirectProvider implements StreamingProvider {
         const ep = serie.episodes.find(
           (e: any) => Number(e.season) === Number(query.season) && Number(e.episodeNumber) === Number(query.episode)
         );
-        if (ep?.uqloadCode && ep.uqloadLink) return ep.uqloadCode;
+        if (ep?.uqloadCode) return ep.uqloadCode;
         return null;
       } else {
         const movie = await Movie.findOne({
@@ -154,7 +164,7 @@ export class DirectProvider implements StreamingProvider {
           ],
         }).exec();
         if (!movie) return null;
-        if (movie.uqloadCode && movie.uqloadLink) return movie.uqloadCode;
+        if (movie.uqloadCode) return movie.uqloadCode;
         return null;
       }
     } catch (err) {
@@ -269,8 +279,15 @@ export class DirectProvider implements StreamingProvider {
     return null;
   }
 
-  private async updateMongoDbFreshUrl(query: StreamQuery, freshUrl: string): Promise<void> {
+  private async updateMongoDbFreshUrl(query: StreamQuery, freshUrl: string, type?: string): Promise<void> {
     try {
+      // Seuls les liens MP4 directs sont stockés dans uqloadLink : un lien
+      // HLS (.m3u8) signé est éphémère et casserait le téléchargement qui
+      // attend un fichier .mp4.
+      if (type !== undefined && type !== 'mp4') {
+        console.log(`${TAG} type=${type}, pas de mise à jour de uqloadLink (mp4 uniquement)`);
+        return;
+      }
       if (query.season !== undefined && query.episode !== undefined) {
         const serie = await Serie.findOne({
           $or: [
