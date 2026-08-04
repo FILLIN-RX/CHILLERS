@@ -67,21 +67,6 @@ export default function MovieModal({
     return () => controller.abort();
   }, [isOpen, item?.id, item?.type]);
 
-  // Combine les données immédiates (item) avec les détails enrichis (enhanced).
-  // enhanced.backdropUrl/posterUrl ne s'appliquent que si non vide (sinon on garde item).
-  const effective: MovieOrShow = enhanced
-    ? {
-        ...item,
-        ...enhanced,
-        backdropUrl: enhanced.backdropUrl || item.backdropUrl,
-        posterUrl: enhanced.posterUrl || item.posterUrl,
-        title: item.title || enhanced.title,
-        year: item.year || enhanced.year,
-        rating: item.rating || enhanced.rating,
-        type: item.type || enhanced.type,
-      }
-    : item;
-
   // Fetch the first season's episodes when the modal opens on a series.
   // Stable identity via useCallback so the effect doesn't re-fire on every render.
   const handleSeasonChange = useCallback(
@@ -129,6 +114,21 @@ export default function MovieModal({
   }, [isOpen, item?.id, activeSeason, handleSeasonChange]);
 
   if (!isOpen || !item) return null;
+
+  // Combine les données immédiates (item) avec les détails enrichis (enhanced).
+  // enhanced.backdropUrl/posterUrl ne s'appliquent que si non vide (sinon on garde item).
+  const effective: MovieOrShow = enhanced
+    ? {
+        ...item,
+        ...enhanced,
+        backdropUrl: enhanced.backdropUrl || item.backdropUrl,
+        posterUrl: enhanced.posterUrl || item.posterUrl,
+        title: item.title || enhanced.title,
+        year: item.year || enhanced.year,
+        rating: item.rating || enhanced.rating,
+        type: item.type || enhanced.type,
+      }
+    : item;
 
   const handleOverlayClick = (e: React.MouseEvent) => {
     if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
