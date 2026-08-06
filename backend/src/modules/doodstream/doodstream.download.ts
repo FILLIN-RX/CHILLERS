@@ -687,7 +687,17 @@ export const getSeriesDownloadCheck = async (req: Request, res: Response, next: 
     const missing: { season: number; episode: number }[] = [];
     const found: { season: number; episode: number; fileCode: string; downloadUrl: string | null }[] = [];
 
-    const serie = await Serie.findOne({ tmdbId: tmdbIdNum }).exec();
+    // Beaucoup de documents en base n'ont pas de tmdbId (≈36 %) : on matche
+    // aussi par titre TMDB, exactement comme findByMongoDB le fait pour le
+    // téléchargement simple.
+    const serie = await Serie.findOne({
+      $or: [
+        { tmdbId: tmdbIdNum },
+        ...(seriesData.name
+          ? [{ titre: { $regex: new RegExp(seriesData.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } }]
+          : []),
+      ],
+    }).exec();
 
     for (const ep of expectedEpisodes) {
       let match: { fileCode: string; info: any } | null = null;
@@ -700,7 +710,9 @@ export const getSeriesDownloadCheck = async (req: Request, res: Response, next: 
             (Number(e.season) === Number(ep.season) && Number(e.episodeNumber) === Number(ep.episode)) ||
             e.episode?.toUpperCase() === epLabel
         );
-        if (foundEp && (foundEp.uqloadLink || foundEp.lien || foundEp.fileCode)) {
+        // uqloadCode suffit : le téléchargement simple le scrape pour produire
+        // une URL fraîche (getDownloadByTitle fait pareil).
+        if (foundEp && (foundEp.uqloadLink || foundEp.lien || foundEp.fileCode || foundEp.uqloadCode)) {
           const lien = foundEp.uqloadLink || foundEp.lien;
           match = {
             fileCode: foundEp.fileCode || '',
