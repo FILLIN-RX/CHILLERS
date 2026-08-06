@@ -27,19 +27,19 @@ export const metadata: Metadata = {
     default: "CHILLERS",
     template: "%s · CHILLERS",
   },
-  description: "Streaming de films et séries en VF/VOSTFR.",
+  description: "Découvrez des films et séries en streaming sur CHILLERS.",
   applicationName: "CHILLERS",
   openGraph: {
     type: "website",
     siteName: "CHILLERS",
     title: "CHILLERS",
-    description: "Streaming de films et séries en VF/VOSTFR.",
+    description: "Découvrez des films et séries en streaming sur CHILLERS.",
     images: [{ url: "/android-chrome-512x512.png", width: 512, height: 512, alt: "CHILLERS" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "CHILLERS",
-    description: "Streaming de films et séries en VF/VOSTFR.",
+    description: "Découvrez des films et séries en streaming sur CHILLERS.",
     images: ["/android-chrome-512x512.png"],
   },
   icons: {

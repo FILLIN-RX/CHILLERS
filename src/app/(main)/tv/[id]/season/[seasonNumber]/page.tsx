@@ -1,338 +1,71 @@
-"use client";
+import { Metadata } from "next";
+import { Suspense } from "react";
+import SeasonContent from "./season-content";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
-import Image from "next/image";
-import { useParams, useRouter } from "next/navigation";
-import { getSeasonDetails, getMediaDetails, getStreamUrl } from "@/app/api";
-import { Episode } from "@/app/mockData";
-import VideoPlayer from "@/components/VideoPlayer";
-import SeriesDownloadModal from "@/components/SeriesDownloadModal";
-import DownloadModal from "@/components/DownloadModal";
-import { useLanguage } from "@/i18n/LanguageContext";
-import { IconArrowLeft, IconPlayerPlay, IconChevronLeft, IconChevronRight, IconMovie, IconDownload } from '@tabler/icons-react';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
+
+type Props = {
+  params: Promise<{ id: string; seasonNumber: string }>;
+};
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id, seasonNumber } = await params;
+
+  try {
+    const res = await fetch(`${API_BASE}/tv/${id}?language=fr`, {
+      signal: AbortSignal.timeout(5000),
+    });
+    const json = await res.json();
+
+    if (json.success && json.data) {
+      const d = json.data;
+      const title = `${d.title || d.name || id} · Saison ${seasonNumber}`;
+      const overview = (d.overview || "").trim();
+      const description = overview
+        ? `Découvrez cette série sur CHILLERS — ${overview.slice(0, 155)}`
+        : "Découvrez cette série sur CHILLERS.";
+      const posterPath = d.poster_path
+        ? `https://image.tmdb.org/t/p/w500${d.poster_path}`
+        : undefined;
+      const backdropPath = d.backdrop_path
+        ? `https://image.tmdb.org/t/p/w1280${d.backdrop_path}`
+        : undefined;
+      const images = [
+        ...(posterPath ? [{ url: posterPath, width: 500, height: 750, alt: title }] : []),
+        ...(backdropPath ? [{ url: backdropPath, width: 1280, height: 720, alt: title }] : []),
+      ];
+
+      return {
+        title,
+        description,
+        openGraph: {
+          title: `${title} · CHILLERS`,
+          description,
+          images,
+          type: "video.tv_show",
+        },        twitter: {
+          card: "summary_large_image",
+          title: `${title} · CHILLERS`,
+          description,
+          images: backdropPath || posterPath ? [backdropPath || posterPath!] : [],
+        },
+      };
+    }
+  } catch {}
+
+  return {};
+}
 
 export default function SeasonPage() {
-  const params = useParams();
-  const router = useRouter();
-  const { id, seasonNumber } = params;
-  const { translate: _ } = useLanguage();
-
-  const [episodes, setEpisodes] = useState<Episode[]>([]);
-  const [showTitle, setShowTitle] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [streamUrl, setStreamUrl] = useState("");
-  const [streamLoading, setStreamLoading] = useState(false);
-  const [showSingleDownload, setShowSingleDownload] = useState(false);
-  const [showDownloadModal, setShowDownloadModal] = useState(false);
-  const playerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    async function fetchSeason() {
-      setIsLoading(true);
-      try {
-        // Fetch title AND season in parallel
-        const [data, detail] = await Promise.all([
-          getSeasonDetails(id as string, seasonNumber as string),
-          getMediaDetails(id as string, true),
-        ]);
-
-        const title = detail?.title || "";
-        if (title) setShowTitle(title);
-
-        if (data && data.episodes) {
-          const mapped = data.episodes.map((ep: any) => ({
-            id: String(ep.id),
-            title: ep.name,
-            duration: `${ep.runtime || 24}m`,
-            number: ep.episode_number,
-            season: Number(seasonNumber),
-            thumbnail: ep.still_path ? `https://image.tmdb.org/t/p/w500${ep.still_path}` : "",
-            synopsis: ep.overview,
-          }));
-          setEpisodes(mapped);
-
-          // Load stream for first episode with the resolved title immediately
-          if (mapped.length > 0) {
-            setStreamLoading(true);
-            try {
-              const stream = await getStreamUrl(
-                id as string,
-                'series',
-                Number(seasonNumber),
-                mapped[0].number,
-                title || id as string
-              );
-              setStreamUrl(stream?.embedUrl || "");
-            } catch (err) {
-              console.error("Stream error on initial load", err);
-            } finally {
-              setStreamLoading(false);
-            }
-          }
-        }
-      } catch (err) {
-        console.error("Failed to load season", err);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    fetchSeason();
-  }, [id, seasonNumber]);
-
-  const currentEpisode = episodes[currentIndex];
-
-  const loadStream = useCallback(async (ep: Episode, titleOverride?: string) => {
-    if (!ep) return;
-    const title = titleOverride ?? (showTitle || id as string);
-    setStreamLoading(true);
-    try {
-      const stream = await getStreamUrl(id as string, 'series', Number(seasonNumber), ep.number, title);
-      console.log("Stream URL loaded:", stream?.embedUrl);
-      setStreamUrl(stream?.embedUrl || "");
-    } catch (err) {
-      console.error("Stream error", err);
-    } finally {
-      setStreamLoading(false);
-    }
-  }, [id, seasonNumber, showTitle]);
-
-  // Load stream when current episode changes
-  useEffect(() => {
-    if (currentEpisode) {
-      loadStream(currentEpisode);
-    }
-  }, [currentIndex, loadStream, currentEpisode]);
-
-  const goNext = () => {
-    if (currentIndex < episodes.length - 1) {
-      setCurrentIndex(prev => prev + 1);
-      playerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  };
-
-  const goPrev = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex(prev => prev - 1);
-      playerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  };
-
-  const playEpisode = (index: number) => {
-    setCurrentIndex(index);
-    playerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-[#09090B] text-white flex items-center justify-center">
-        <div className="animate-pulse space-y-4">
-          <div className="w-96 h-8 bg-zinc-800 rounded-lg" />
-          <div className="w-80 h-4 bg-zinc-800 rounded" />
-        </div>
-      </div>
-    );
-  }
-
-  const mockItem = currentEpisode ? {
-    id: id as string,
-    title: `${showTitle || `S${seasonNumber}`} · E${currentEpisode.number}`,
-    type: 'series' as const,
-    description: currentEpisode.synopsis,
-    synopsis: currentEpisode.synopsis,
-    backdropUrl: currentEpisode.thumbnail,
-    posterUrl: "",
-    rating: 0,
-    year: 0,
-    duration: currentEpisode.duration,
-    genres: [],
-    cast: [],
-    videoUrl: streamUrl,
-  } : null;
-
   return (
-    <div className="flex-1 flex flex-col bg-[#09090B] text-white">
-      {/* Back button — positioned just below the navbar */}
-      <div className="fixed top-0 left-0 z-40 p-4">
-        <button
-          onClick={() => { window.scrollTo(0, 0); router.back(); }}
-          aria-label="Retour"
-          className="flex items-center justify-center w-10 h-10 rounded-full bg-black/70 backdrop-blur-sm border border-white/10 text-white hover:bg-white/10 transition-all"
-        >
-          <IconArrowLeft className="h-5 w-5" />
-        </button>
-      </div>
-
-      <div className="w-full px-4 sm:px-6 md:px-12 lg:px-[4%] pt-[72px] pb-12 flex-1">
-        <div className="flex flex-col lg:flex-row gap-6">
-          <div className="flex-1 min-w-0 space-y-4" ref={playerRef}>
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-black">{showTitle || `Saison ${seasonNumber}`}</h1>
-                <p className="text-zinc-400 text-sm">
-                  S{seasonNumber} · E{currentEpisode?.number} — {currentEpisode?.title}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-        <button
-          onClick={goPrev}
-          disabled={currentIndex === 0}
-          aria-label={_("common.previous")}
-          className="p-3 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-300 hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-        >
-          <IconChevronLeft className="h-5 w-5" />
-        </button>
-        <button
-          onClick={goNext}
-          disabled={currentIndex >= episodes.length - 1}
-          aria-label={_("common.next")}
-          className="p-3 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-300 hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-        >
-          <IconChevronRight className="h-5 w-5" />
-        </button>
-              </div>
-            </div>
-
-            <div className="w-full rounded-3xl overflow-hidden border border-zinc-800 shadow-2xl bg-black relative">
-              {streamLoading || !mockItem ? (
-                <div className="w-full min-h-[300px] sm:min-h-[500px] lg:min-h-[600px] flex flex-col items-center justify-center gap-3 text-zinc-500">
-                  <div className="animate-spin h-10 w-10 border-4 border-[#D70466] border-t-transparent rounded-full" />
-                  <p className="text-xs uppercase tracking-widest font-bold">Chargement du flux…</p>
-                </div>
-              ) : (
-                <VideoPlayer
-                  key={`${currentEpisode?.id ?? 'ep'}-${streamUrl}`}
-                  item={mockItem}
-                  onBack={() => {}}
-                  onOpenDetails={() => {}}
-                />
-              )}
-            </div>
-
-            <div className="space-y-3 p-1">
-              <h2 className="text-lg font-bold">Synopsis</h2>
-              <p className="text-zinc-400 text-sm leading-relaxed">
-                {currentEpisode?.synopsis || "Aucun synopsis disponible."}
-              </p>
-            </div>
-
-            <div className="flex gap-3 pt-2 flex-wrap">
-              <button
-                onClick={goPrev}
-                disabled={currentIndex === 0}
-                className="flex items-center gap-2 px-6 py-3 rounded-full bg-zinc-900 border border-zinc-800 text-white font-bold text-sm hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-              >
-                <IconChevronLeft className="h-4 w-4" />
-                Précédent
-              </button>
-              <button
-                onClick={goNext}
-                disabled={currentIndex >= episodes.length - 1}
-                className="flex items-center gap-2 px-6 py-3 rounded-full bg-[#D70466] text-white font-bold text-sm hover:bg-[#b5034f] disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-lg shadow-[#D70466]/30"
-              >
-                Suivant
-                <IconChevronRight className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => {
-                  if (!currentEpisode) return;
-                  setShowSingleDownload(true);
-                }}
-                disabled={!currentEpisode}
-                className={`flex items-center gap-2 px-6 py-3 rounded-full font-bold text-sm transition-all ${
-                  !currentEpisode
-                    ? "bg-zinc-800 text-zinc-500 cursor-not-allowed"
-                    : "bg-zinc-900 border border-zinc-800 text-white hover:bg-zinc-800"
-                }`}
-              >
-                <IconDownload className="h-4 w-4" />
-                Télécharger
-              </button>
-              <button
-                onClick={() => setShowDownloadModal(true)}
-                className="flex items-center gap-2 px-6 py-3 rounded-full bg-emerald-600/90 text-white font-bold text-sm hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-900/30"
-              >
-                <IconDownload className="h-4 w-4" />
-                Télécharger plusieurs épisodes
-              </button>
-            </div>
-
-          </div>
-
-          <div className="w-full lg:w-80 xl:w-96 flex-none space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest">
-                Épisodes · {episodes.length}
-              </h3>
-              <button
-                onClick={() => setShowDownloadModal(true)}
-                className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs font-bold hover:bg-emerald-500/30 transition-all"
-              >
-                <IconDownload className="h-3.5 w-3.5" />
-                Télécharger plusieurs
-              </button>
-            </div>
-            <div className="space-y-2 max-h-[70vh] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-zinc-800">
-              {episodes.map((ep, idx) => (
-                <div
-                  key={ep.id}
-                  onClick={() => playEpisode(idx)}
-                  className={`flex items-start gap-3 p-3 rounded-2xl cursor-pointer transition-all ${
-                    idx === currentIndex
-                      ? "bg-[#D70466]/10 border border-[#D70466]/30"
-                      : "bg-zinc-900/60 border border-zinc-800/40 hover:bg-zinc-800/60"
-                  }`}
-                >
-                  <div className="flex-none w-24 aspect-video rounded-lg overflow-hidden bg-zinc-800 relative">
-                    {ep.thumbnail ? (
-                      <Image src={ep.thumbnail} alt={ep.title} fill className="object-cover" sizes="96px" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <IconMovie className="h-5 w-5 text-zinc-600" />
-                      </div>
-                    )}
-                    {idx === currentIndex && (
-                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                        <IconPlayerPlay className="h-6 w-6 text-white" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs text-zinc-500 font-bold">{ep.number}.</span>
-                      <h4 className={`text-sm font-bold truncate ${idx === currentIndex ? "text-[#D70466]" : "text-white"}`}>
-                        {ep.title}
-                      </h4>
-                    </div>
-                    <p className="text-xs text-zinc-500 mt-0.5 line-clamp-2">{ep.synopsis}</p>
-                    <span className="text-[10px] text-zinc-600 mt-0.5 block">{ep.duration}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#09090B] flex items-center justify-center">
+          <div className="h-12 w-12 border-4 border-zinc-700 border-t-brand-primary rounded-full animate-spin" />
         </div>
-      </div>
-
-      <SeriesDownloadModal
-        isOpen={showDownloadModal}
-        onClose={() => setShowDownloadModal(false)}
-        seriesTitle={showTitle || `Saison ${seasonNumber}`}
-        tmdbId={id as string}
-        episodes={episodes}
-      />
-
-      {currentEpisode && (
-        <DownloadModal
-          isOpen={showSingleDownload}
-          onClose={() => setShowSingleDownload(false)}
-          title={showTitle || `Saison ${seasonNumber}`}
-          id={id as string}
-          type="series"
-          season={Number(seasonNumber)}
-          episode={currentEpisode.number}
-        />
-      )}
-    </div>
+      }
+    >
+      <SeasonContent />
+    </Suspense>
   );
 }

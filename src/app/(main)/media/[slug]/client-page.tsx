@@ -52,7 +52,7 @@ function MediaDetailPage() {
 
   const handleShare = async () => {
     const url = window.location.href;
-    const title = item?.title || 'Chillers';
+    const title = item ? `Regardez ${item.title} sur CHILLERS` : 'CHILLERS';
     if (navigator.share) {
       try {
         await navigator.share({ title, url });

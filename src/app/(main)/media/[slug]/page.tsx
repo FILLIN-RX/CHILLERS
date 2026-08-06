@@ -53,11 +53,22 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     if (json.success && json.data) {
       const d = json.data;
       const title = d.title || d.name || slug;
-      const description = d.overview?.slice(0, 160) || "";
+      const overview = (d.overview || "").trim();
+      const kind = isTV ? "cette série" : "ce film";
+      const description = overview
+        ? `Découvrez ${kind} sur CHILLERS — ${overview.slice(0, 155)}`
+        : `Découvrez ${kind} sur CHILLERS.`;
       const posterPath = d.poster_path
         ? `https://image.tmdb.org/t/p/w500${d.poster_path}`
         : undefined;
+      const backdropPath = d.backdrop_path
+        ? `https://image.tmdb.org/t/p/w1280${d.backdrop_path}`
+        : undefined;
       const ogType = isTV ? "video.tv_show" : "video.movie";
+      const images = [
+        ...(posterPath ? [{ url: posterPath, width: 500, height: 750, alt: title }] : []),
+        ...(backdropPath ? [{ url: backdropPath, width: 1280, height: 720, alt: title }] : []),
+      ];
 
       return {
         title,
@@ -65,16 +76,14 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
         openGraph: {
           title: `${title} · CHILLERS`,
           description,
-          images: posterPath
-            ? [{ url: posterPath, width: 500, height: 750, alt: title }]
-            : [],
+          images,
           type: ogType as any,
         },
         twitter: {
           card: "summary_large_image",
           title: `${title} · CHILLERS`,
           description,
-          images: posterPath ? [posterPath] : [],
+          images: backdropPath || posterPath ? [backdropPath || posterPath!] : [],
         },
       };
     }

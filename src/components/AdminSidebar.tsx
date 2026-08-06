@@ -1,26 +1,39 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { adminLogout, adminScrapperHealth } from '@/app/api';
-import { IconDashboard, IconMovie, IconTv, IconLogs, IconLink, IconSettings, IconLogout, IconBack, IconCron, IconTmdb, IconUqload, IconPlus } from '@/components/Icons';
+import { Layout, Menu, Button, Typography } from 'antd';
+import { 
+  DashboardOutlined, 
+  PlusOutlined, 
+  VideoCameraOutlined, 
+  UnorderedListOutlined, 
+  SettingOutlined, 
+  LogoutOutlined,
+  AppstoreOutlined,
+  BugOutlined
+} from '@ant-design/icons';
+import Link from 'next/link';
+
+const { Sider } = Layout;
+const { Title, Text } = Typography;
 
 const NAV_ITEMS = [
-  { href: '/admin', label: 'Dashboard', icon: IconDashboard },
-  { href: '/admin/add-media', label: 'Ajouter', icon: IconPlus },
-  { href: '/admin/movies', label: 'Films', icon: IconMovie },
-  { href: '/admin/series', label: 'Séries', icon: IconTv },
-  { href: '/admin/affiches', label: 'Affiches', icon: IconMovie },
-  { href: '/admin/tmdb', label: 'TMDB', icon: IconTmdb },
-  { href: '/admin/scrapper', label: 'Scrapper', icon: IconCron },
-  { href: '/admin/logs', label: 'Logs', icon: IconLogs },
-  { href: '/admin/dead-links', label: 'Liens morts', icon: IconLink },
-  { href: '/admin/liens', label: 'Liens', icon: IconLink },
-  { href: '/admin/maintenance-liens', label: 'Maint. Liens', icon: IconCron },
-  { href: '/admin/uqload', label: 'Uqload', icon: IconUqload },
-  { href: '/admin/cron', label: 'Tâches', icon: IconCron },
-  { href: '/admin/settings', label: 'Paramètres', icon: IconSettings },
+  { key: '/admin', label: 'Dashboard', icon: <DashboardOutlined /> },
+  { key: '/admin/add-media', label: 'Ajouter', icon: <PlusOutlined /> },
+  { key: '/admin/movies', label: 'Films', icon: <VideoCameraOutlined /> },
+  { key: '/admin/series', label: 'Séries', icon: <VideoCameraOutlined /> },
+  { key: '/admin/affiches', label: 'Affiches', icon: <AppstoreOutlined /> },
+  { key: '/admin/tmdb', label: 'TMDB', icon: <AppstoreOutlined /> },
+  { key: '/admin/scrapper', label: 'Scrapper', icon: <BugOutlined /> },
+  { key: '/admin/logs', label: 'Logs', icon: <UnorderedListOutlined /> },
+  { key: '/admin/dead-links', label: 'Liens morts', icon: <BugOutlined /> },
+  { key: '/admin/liens', label: 'Liens', icon: <UnorderedListOutlined /> },
+  { key: '/admin/maintenance-liens', label: 'Maint. Liens', icon: <BugOutlined /> },
+  { key: '/admin/uqload', label: 'Uqload', icon: <UnorderedListOutlined /> },
+  { key: '/admin/cron', label: 'Tâches', icon: <SettingOutlined /> },
+  { key: '/admin/settings', label: 'Paramètres', icon: <SettingOutlined /> },
 ];
 
 interface Props {
@@ -46,126 +59,48 @@ export default function AdminSidebar({ open, onClose }: Props) {
   }, []);
 
   return (
-    <>
-      <style>{`
-        .admin-sidebar {
-          width: 260px; height: 100vh; background: #111118;
-          border-right: 1px solid #1e1e2a; display: flex; flex-direction: column;
-          flex-shrink: 0; position: fixed; top: 0; left: 0; z-index: 50;
-          transition: transform 0.25s ease;
-        }
-        .admin-sidebar nav { overflow-y: auto !important; }
-        .admin-sidebar nav::-webkit-scrollbar { width: 4px; }
-        .admin-sidebar nav::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
-        @media (max-width: 1024px) {
-          .admin-sidebar { transform: translateX(-100%); width: 280px; }
-          .admin-sidebar.open { transform: translateX(0); }
-          .admin-sidebar-close { display: block !important; }
-        }
-      `}</style>
-      <aside className={`admin-sidebar ${open ? 'open' : ''}`}>
-        <div style={{ padding: '1.5rem 1.25rem', borderBottom: '1px solid #1e1e2a', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <h1 style={{ color: '#fff', fontSize: '1.125rem', fontWeight: 700, margin: 0, letterSpacing: '-0.02em' }}>
-              CHILLERS
-            </h1>
-            <p style={{ color: '#6366f1', fontSize: '0.6875rem', margin: '0.25rem 0 0 0', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>
-              Administration
-            </p>
-          </div>
-          <button onClick={onClose} className="admin-sidebar-close" style={{
-            display: 'none', background: 'none', border: 'none', color: '#6b6b80',
-            cursor: 'pointer', fontSize: '1.5rem', padding: '0.25rem', lineHeight: 1,
-          }}>✕</button>
-        </div>
-
-        <nav style={{ flex: 1, padding: '0.75rem', overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>
-          {NAV_ITEMS.map(item => {
-            const isActive = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href));
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={onClose}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.625rem',
-                  padding: '0.625rem 0.75rem',
-                  borderRadius: 10,
-                  color: isActive ? '#fff' : '#6b6b80',
-                  background: isActive ? 'rgba(99,102,241,0.12)' : 'transparent',
-                  textDecoration: 'none',
-                  fontSize: '0.875rem',
-                  fontWeight: isActive ? 600 : 400,
-                  transition: 'all 0.15s ease',
-                }}
-                onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = '#c0c0d0'; } }}
-                onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#6b6b80'; } }}
-              >
-                <span style={{ width: 20, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <item.icon />
-                </span>
-                {item.label}
-                {item.label === 'Scrapper' && scrapperOnline !== null && (
-                  <span style={{
-                    width: 8, height: 8, borderRadius: '50%', marginLeft: 'auto',
-                    background: scrapperOnline ? '#22c55e' : '#ef4444',
-                    flexShrink: 0,
-                  }} />
-                )}
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div style={{ padding: '0.75rem', borderTop: '1px solid #1e1e2a' }}>
-          <button
-            onClick={() => { adminLogout(); router.push('/admin/login'); }}
-            style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.625rem',
-              padding: '0.625rem 0.75rem',
-              borderRadius: 10,
-              border: 'none',
-              background: 'transparent',
-              color: '#6b6b80',
-              fontSize: '0.875rem',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.08)'; e.currentTarget.style.color = '#ef4444'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#6b6b80'; }}
-          >
-            <span style={{ width: 20, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <IconLogout />
-            </span>
-            Déconnexion
-          </button>
-          <Link href="/" style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.625rem',
-            padding: '0.625rem 0.75rem',
-            borderRadius: 10,
-            color: '#6b6b80',
-            textDecoration: 'none',
-            fontSize: '0.875rem',
-            marginTop: '0.125rem',
-            transition: 'all 0.15s ease',
-          }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = '#c0c0d0'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#6b6b80'; }}
-          >
-            <span style={{ width: 20, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <IconBack />
-            </span>
-            Retour au site
-          </Link>
-        </div>
-      </aside>
-    </>
+    <Sider 
+      trigger={null} 
+      collapsible 
+      collapsed={!open} 
+      width={260}
+      breakpoint="lg"
+      collapsedWidth="0"
+      onCollapse={(collapsed) => !collapsed ? undefined : onClose()}
+      style={{
+        overflow: 'auto',
+        height: '100vh',
+        position: 'fixed',
+        left: 0,
+        top: 0,
+        bottom: 0,
+      }}
+    >
+      <div style={{ padding: '1.5rem 1.25rem' }}>
+        <Title level={4} style={{ color: '#fff', margin: 0 }}>CHILLERS</Title>
+        <Text type="secondary" style={{ textTransform: 'uppercase', fontSize: '0.6875rem' }}>Administration</Text>
+      </div>
+      <Menu
+        theme="dark"
+        mode="inline"
+        selectedKeys={[pathname]}
+        items={NAV_ITEMS.map(item => ({
+          ...item,
+          onClick: () => { onClose(); },
+          label: <Link href={item.key}>{item.label}</Link>
+        }))}
+      />
+      <div style={{ position: 'absolute', bottom: 0, width: '100%', padding: '1rem' }}>
+        <Button 
+          type="text" 
+          danger 
+          icon={<LogoutOutlined />} 
+          onClick={() => { adminLogout(); router.push('/admin/login'); }}
+          block
+        >
+          Déconnexion
+        </Button>
+      </div>
+    </Sider>
   );
 }
