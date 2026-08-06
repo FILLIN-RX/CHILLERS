@@ -42,7 +42,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     });
   }, [pathname, router]);
 
-  useEffect(() => { setSidebarOpen(false); }, [pathname]);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 1024px)');
+    if (mq.matches) setSidebarOpen(false);
+  }, [pathname]);
 
   if (pathname === '/admin/login') return <>{children}</>;
 
