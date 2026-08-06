@@ -1,7 +1,5 @@
-import fs from 'fs';
 import { StreamingProvider, StreamResult, StreamQuery } from './provider.interface';
 import { scrapeDirectStream, isScrapableUrl } from './direct-scraper';
-import { UPLOADED_PATH, SERIES_OUTPUT_PATH } from '../../config/data-paths';
 import { isSignedLinkExpired } from '../../utils/link-ttl';
 import Movie from '../../models/Movie';
 import Serie from '../../models/Serie';
@@ -107,23 +105,15 @@ export class DirectProvider implements StreamingProvider {
   }
 
   private async findEmbedUrl(query: StreamQuery): Promise<string | null> {
-    // Try MongoDB first
+    // Source unique : MongoDB
     console.log(`${TAG} findEmbedUrl: recherche MongoDB...`);
     const mongoUrl = await this.findFromMongoDB(query);
     if (mongoUrl) {
       console.log(`${TAG} findEmbedUrl: trouvé dans MongoDB → ${mongoUrl.slice(0, 100)}`);
       return mongoUrl;
     }
-    console.log(`${TAG} findEmbedUrl: pas dans MongoDB, fallback disque...`);
-
-    // Fallback to disk JSON
-    const diskUrl = this.findFromDisk(query);
-    if (diskUrl) {
-      console.log(`${TAG} findEmbedUrl: trouvé sur disque → ${diskUrl.slice(0, 100)}`);
-    } else {
-      console.log(`${TAG} findEmbedUrl: pas trouvé (MongoDB + disque)`);
-    }
-    return diskUrl;
+    console.log(`${TAG} findEmbedUrl: pas d'embed trouvée en MongoDB`);
+    return null;
   }
 
   private toEmbedUrl(lien: string): string {
@@ -261,39 +251,6 @@ export class DirectProvider implements StreamingProvider {
       if (byTitle) {
         console.log(`${TAG} findMovie: matched by title "${byTitle.titre}" (tmdbId=${byTitle.tmdbId}) for query tmdbId=${query.tmdbId}`);
         return byTitle;
-      }
-    }
-    return null;
-  }
-
-  private findFromDisk(query: StreamQuery): string | null {
-    const all: Record<string, any> = {};
-    if (fs.existsSync(UPLOADED_PATH)) {
-      try { Object.assign(all, JSON.parse(fs.readFileSync(UPLOADED_PATH, 'utf-8'))); } catch { /* ignore */ }
-    }
-    if (fs.existsSync(SERIES_OUTPUT_PATH)) {
-      try { Object.assign(all, JSON.parse(fs.readFileSync(SERIES_OUTPUT_PATH, 'utf-8'))); } catch { /* ignore */ }
-    }
-
-    const normalize = (s: string) => s.toLowerCase().replace(/[-–—:]/g, ' ').replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim().slice(0, 40);
-
-    for (const key of Object.keys(all)) {
-      const file = all[key];
-      const matchId = query.tmdbId && file.tmdbId && Number(file.tmdbId) === query.tmdbId;
-      const matchTitle = query.title && normalize(file.titre || '').includes(normalize(query.title));
-
-      if (matchId || matchTitle) {
-        if (query.season !== undefined && query.episode !== undefined) {
-          if (file.season === query.season && file.episode === query.episode) {
-            if (file.lien && file.lien !== '#' && this.isDoodOrUqload(file.lien)) {
-              return this.toEmbedUrl(file.lien);
-            }
-          }
-        } else {
-          if (file.lien && file.lien !== '#' && this.isDoodOrUqload(file.lien)) {
-            return this.toEmbedUrl(file.lien);
-          }
-        }
       }
     }
     return null;

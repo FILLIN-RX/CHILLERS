@@ -672,23 +672,22 @@ export async function clearTmdbCache(): Promise<void> {
 export function triggerDownload(downloadUrl: string, filename: string = 'video.mp4') {
   if (typeof window === "undefined") return;
 
-  // URLs directes : ouvrir dans un nouvel onglet (le proxy backend
-  // a l'IP blacklistée par le CDN Uqload, le navigateur utilisateur non)
-  // DoodStream /d/ → page HTML download
-  // Uqload .mp4 → fichier direct
-  if (
-    /doodstream\.com\/d\//i.test(downloadUrl) ||
-    /\.mp4(\?|$)/i.test(downloadUrl) ||
-    /uqload\.(is|com)/i.test(downloadUrl)
-  ) {
-    window.open(downloadUrl, '_blank');
-    return;
-  }
-
+  // On passe TOUJOURS par le proxy backend /api/doodstream/download/proxy.
+  // Pourquoi pas de window.open direct vers l'URL Uqload/Doodstream :
+  //  - Uqload (CDN XstreamCDN) bloque les IPs de datacenter Playwright avec
+  //    403 nginx, même avec un User-Agent normal. Idem pour pas mal
+  //    d'utilisateurs derrière VPN ou CGNAT.
+  //  - DoodStream /d/ renvoie une page HTML, pas un fichier : l'utilisateur
+  //    doit cliquer un bouton et le serveur peut servir un 403.
+  // Le proxy backend a une cascade de fallback :
+  //  1. MP4 direct avec Referer uqload.is (sert les IP navigateur whitelistées)
+  //  2. Si 403 → fallback HLS via clone API Uqload + FFmpeg qui transcode
+  //     le HLS en MP4 à la volée et renvoie un vrai fichier.
   const proxyUrl = `${API_BASE_URL}/doodstream/download/proxy?url=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(filename)}`;
   const a = document.createElement('a');
   a.href = proxyUrl;
   a.download = filename;
+  a.rel = 'noopener noreferrer';
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

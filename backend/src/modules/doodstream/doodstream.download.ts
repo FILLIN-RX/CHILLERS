@@ -1,48 +1,18 @@
 import { Request, Response, NextFunction } from 'express';
-import fs from 'fs';
-import path from 'path';
 import axios from 'axios';
-import { listFiles } from './doodstream.service';
 import tmdbClient from '../../config/tmdb';
 import Movie from '../../models/Movie';
 import Serie from '../../models/Serie';
-import { UPLOADED_PATH, SERIES_OUTPUT_PATH } from '../../config/data-paths';
 
-async function isLinkAlive(url: string): Promise<boolean> {
-  if (!url || url === '#') return false;
-  try {
-    const res = await axios.head(url, {
-      timeout: 3000,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      },
-    });
-    return res.status >= 200 && res.status < 400;
-  } catch {
-    try {
-      const res = await axios.get(url, {
-        timeout: 3000,
-        responseType: 'stream',
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        },
-      });
-      res.data.destroy();
-      return res.status >= 200 && res.status < 400;
-    } catch {
-      return false;
-    }
-  }
-}
-
-const SE_PATTERN = /[Ss](\d+)[Ee](\d+)/;
-
-function parseSeasonEpisode(filename: string): { season: number; episode: number } | null {
-  const match = filename.match(SE_PATTERN);
-  if (match) {
-    return { season: parseInt(match[1], 10), episode: parseInt(match[2], 10) };
-  }
-  return null;
+/**
+ * Vrai si l'URL est un fichier vidéo direct (.mp4) servi par un CDN qui
+ * bloque l'IP du serveur (Uqload, vidzy…) mais pas celle du navigateur.
+ * Le serveur ne peut pas vérifier la vivacité de ces liens (403), on les
+ * renvoie donc tels quels : c'est le navigateur qui les ouvre directement.
+ */
+function isDirectMp4CdnUrl(url: string | undefined | null): boolean {
+  if (!url) return false;
+  return /\.mp4(\?|$)/i.test(url);
 }
 
 /**
@@ -57,195 +27,66 @@ function extractDoodFileCode(url: string | undefined | null): string | null {
 }
 
 /**
- * Vrai si l'URL est un fichier vidéo direct (.mp4) servi par un CDN qui
- * bloque l'IP du serveur (Uqload, vidzy…) mais pas celle du navigateur.
- * Le serveur ne peut pas vérifier la vivacité de ces liens (403), on les
- * renvoie donc tels quels : c'est le navigateur qui les ouvre directement.
+ * Résolution d'un fichier via MongoDB uniquement.
+ *
+ * Priorité stricte :
+ *  1. tmdbId (s'il y a plusieurs docs avec le même tmdbId, on prend celui
+ *     dont les épisodes couvrent la saison demandée)
+ *  2. titre exact (fallback si pas de tmdbId)
+ *
+ * Aucune lecture des fichiers JSON (uploaded.json / series-output.json) :
+ * ces fichiers sont obsolètes depuis la migration vers MongoDB.
  */
-function isDirectMp4CdnUrl(url: string | undefined | null): boolean {
-  if (!url) return false;
-  return /\.mp4(\?|$)/i.test(url);
-}
-
-let cachedUploadedFiles: Record<string, any> | null = null;
-let lastCacheTime = 0;
-const CACHE_TTL = 30 * 1000; // 30 seconds
-
-function getUploadedFiles(): Record<string, any> {
-  const now = Date.now();
-  if (cachedUploadedFiles && (now - lastCacheTime < CACHE_TTL)) {
-    return cachedUploadedFiles;
-  }
-  const all: Record<string, any> = {};
-  if (fs.existsSync(UPLOADED_PATH)) {
-    try {
-      Object.assign(all, JSON.parse(fs.readFileSync(UPLOADED_PATH, 'utf-8')));
-    } catch (e) {
-      console.error('Error reading UPLOADED_PATH:', e);
-    }
-  }
-  if (fs.existsSync(SERIES_OUTPUT_PATH)) {
-    try {
-      Object.assign(all, JSON.parse(fs.readFileSync(SERIES_OUTPUT_PATH, 'utf-8')));
-    } catch (e) {
-      console.error('Error reading SERIES_OUTPUT_PATH:', e);
-    }
-  }
-  cachedUploadedFiles = all;
-  lastCacheTime = now;
-  return all;
-}
-
-function normalize(str: string): string {
-  return str.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20);
-}
-
-function findByTmdbId(tmdbId: number, season?: number, episode?: number): { fileCode: string; info: any } | null {
-  const uploaded = getUploadedFiles();
-  let seriesFallback: { fileCode: string; info: any } | null = null;
-  for (const key of Object.keys(uploaded)) {
-    const file = uploaded[key];
-    if (file.tmdbId && Number(file.tmdbId) === tmdbId) {
-      if (season !== undefined && episode !== undefined) {
-        if (file.season === season && file.episode === episode) {
-          return { fileCode: file.fileCode, info: file };
-        }
-        continue;
-      }
-      if (!file.season && !file.episode) {
-        return { fileCode: file.fileCode, info: file };
-      }
-      if (!seriesFallback) {
-        seriesFallback = { fileCode: file.fileCode, info: file };
-      }
-    }
-  }
-  return seriesFallback;
-}
-
-function findByTitle(title: string, season?: number, episode?: number): { fileCode: string; info: any } | null {
-  const uploaded = getUploadedFiles();
-  const search = normalize(title);
-
-  for (const key of Object.keys(uploaded)) {
-    const file = uploaded[key];
-    const fileTitle = normalize(file.titre || '');
-    if (fileTitle === search || fileTitle.includes(search) || search.includes(fileTitle)) {
-      if (season !== undefined && episode !== undefined) {
-        if (file.season === season && file.episode === episode) return { fileCode: file.fileCode, info: file };
-        continue;
-      }
-      if (!file.season && !file.episode) return { fileCode: file.fileCode, info: file };
-    }
-  }
-
-  for (const key of Object.keys(uploaded)) {
-    const file = uploaded[key];
-    const fileTitle = normalize(file.titre || '');
-    if (fileTitle.includes(search.slice(0, 10)) || search.includes(fileTitle.slice(0, 10))) {
-      if (season !== undefined && episode !== undefined) {
-        if (file.season === season && file.episode === episode) return { fileCode: file.fileCode, info: file };
-        continue;
-      }
-      if (!file.season && !file.episode) return { fileCode: file.fileCode, info: file };
-    }
-  }
-
-  // Third pass: no S/E filter → accept any match (series entries too)
-  if (season === undefined && episode === undefined) {
-    const search10 = search.slice(0, 10);
-    for (const key of Object.keys(uploaded)) {
-      const file = uploaded[key];
-      const fileTitle = normalize(file.titre || '');
-      if (fileTitle === search || fileTitle.includes(search) || search.includes(fileTitle) ||
-          fileTitle.includes(search10) || search10.includes(fileTitle.slice(0, 10))) {
-        return { fileCode: file.fileCode, info: file };
-      }
-    }
-  }
-
-  return null;
-}
-
-async function findByFolderFallback(tmdbId: number, season: number, episode: number): Promise<{ fileCode: string; info: any } | null> {
-  const uploaded = getUploadedFiles();
-  let fldId: string | null = null;
-
-  for (const key of Object.keys(uploaded)) {
-    const file = uploaded[key];
-    if (file.tmdbId && Number(file.tmdbId) === tmdbId && file.fldId) {
-      fldId = file.fldId;
-      break;
-    }
-  }
-
-  if (!fldId) return null;
-
-  try {
-    const result = await listFiles({ fldId, perPage: 100 });
-    const files = result.files || result;
-    if (!Array.isArray(files)) return null;
-
-    for (const doodFile of files) {
-      const parsed = parseSeasonEpisode(doodFile.title || doodFile.name || '');
-      if (parsed && parsed.season === season && parsed.episode === episode) {
-        return {
-          fileCode: doodFile.filecode,
-          info: { lien: doodFile.download_url || doodFile.protected_embed || doodFile.filecode, titre: doodFile.title },
-        };
-      }
-    }
-  } catch {
-    // DoodStream API unavailable
-  }
-
-  return null;
-}
-
 async function findByMongoDB(title?: string, tmdbId?: number, season?: number, episode?: number): Promise<{ fileCode: string; info: any } | null> {
   try {
     if (!tmdbId && !title) return null;
 
+    // ── Films : pas de season/episode ───────────────────────────────────
     if (!season && !episode) {
-      const movie = await Movie.findOne({
-        $or: [
-          ...(tmdbId ? [{ tmdbId }] : []),
-          ...(title ? [{ titre: { $regex: new RegExp(title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } }] : []),
-        ],
-      }).exec();
+      let movie = tmdbId ? await Movie.findOne({ tmdbId }).exec() : null;
+      if (!movie && title) {
+        const escaped = title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        movie = await Movie.findOne({ titre: { $regex: new RegExp(`^${escaped}$`, 'i') } }).exec();
+      }
       if (movie) {
         const lien = movie.uqloadLink || movie.lien;
-        let fileCode = movie.fileCode || '';
-        if (!fileCode) {
-          const jsonMatch = title
-            ? findByTitle(title, season, episode)
-            : tmdbId
-              ? findByTmdbId(tmdbId, season, episode)
-              : null;
-          if (jsonMatch?.fileCode) fileCode = jsonMatch.fileCode;
-        }
-        if (!fileCode) fileCode = extractDoodFileCode(movie.lien) || extractDoodFileCode(movie.uqloadLink) || '';
+        const fileCode = movie.fileCode || extractDoodFileCode(movie.lien) || extractDoodFileCode(movie.uqloadLink) || '';
         if (lien || fileCode) {
           return {
             fileCode,
-            info: { lien, titre: movie.titre, uqloadLink: movie.uqloadLink, uqloadCode: movie.uqloadCode, lienFallback: movie.lien !== lien ? movie.lien : undefined },
+            info: {
+              lien,
+              titre: movie.titre,
+              tmdbId: movie.tmdbId,
+              uqloadLink: movie.uqloadLink,
+              uqloadCode: movie.uqloadCode,
+              lienFallback: movie.lien !== lien ? movie.lien : undefined,
+            },
           };
         }
       }
     }
 
+    // ── Séries : avec season/episode ────────────────────────────────────
     if (season !== undefined && episode !== undefined) {
-      const series = await Serie.findOne({
-        $or: [
-          ...(tmdbId ? [{ tmdbId }] : []),
-          ...(title ? [{ titre: { $regex: new RegExp(title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } }] : []),
-        ],
-      }).exec();
+      let series: any = null;
+      if (tmdbId) {
+        const byId = await Serie.find({ tmdbId }).exec();
+        if (byId.length) {
+          // Préférer la série dont les épisodes contiennent la saison
+          // demandée (cas des doublons tmdbId : séries homonymes).
+          series = byId.find((s: any) => s.episodes?.some(
+            (e: any) => Number(e.season) === Number(season)
+          )) || byId[0];
+        }
+      }
+      if (!series && title) {
+        const escaped = title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        series = await Serie.findOne({ titre: { $regex: new RegExp(`^${escaped}$`, 'i') } }).exec();
+      }
 
       if (series) {
         const epLabel = `S${String(season).padStart(2, '0')}E${String(episode).padStart(2, '0')}`;
-        // Matching aligné sur le streaming : d'abord les champs numériques
-        // season/episodeNumber, puis le label string `episode` en fallback.
         const found = series.episodes.find(
           (ep: any) =>
             (Number(ep.season) === Number(season) && Number(ep.episodeNumber) === Number(episode)) ||
@@ -253,20 +94,20 @@ async function findByMongoDB(title?: string, tmdbId?: number, season?: number, e
         );
         if (found) {
           const lien = found.uqloadLink || found.lien;
-          let fileCode = found.fileCode || '';
-          if (!fileCode) {
-            const jsonMatch = title
-              ? findByTitle(title, season, episode)
-              : tmdbId
-                ? findByTmdbId(tmdbId, season, episode)
-                : null;
-            if (jsonMatch?.fileCode) fileCode = jsonMatch.fileCode;
-          }
-          if (!fileCode) fileCode = extractDoodFileCode(found.lien) || extractDoodFileCode(found.uqloadLink) || '';
+          const fileCode = found.fileCode || extractDoodFileCode(found.lien) || extractDoodFileCode(found.uqloadLink) || '';
           if (lien || fileCode) {
             return {
               fileCode,
-              info: { lien, titre: `${series.titre} ${epLabel}`, uqloadLink: found.uqloadLink, uqloadCode: found.uqloadCode, lienFallback: found.lien !== lien ? found.lien : undefined },
+              info: {
+                lien,
+                titre: `${series.titre} ${epLabel}`,
+                tmdbId: series.tmdbId,
+                season: found.season,
+                episode: found.episodeNumber,
+                uqloadLink: found.uqloadLink,
+                uqloadCode: found.uqloadCode,
+                lienFallback: found.lien !== lien ? found.lien : undefined,
+              },
             };
           }
         }
@@ -278,13 +119,78 @@ async function findByMongoDB(title?: string, tmdbId?: number, season?: number, e
   return null;
 }
 
+/**
+ * Trouve un uqloadCode pour un film/épisode donné. Utilisé comme étape
+ * d'enrichissement : si la doc Mongo a un uqloadCode, on peut régénérer
+ * une URL fraîche via l'API Uqload avant de rendre la réponse.
+ */
+async function getUqloadCode(tmdbId: number | undefined, season?: number, episode?: number): Promise<string | null> {
+  if (!tmdbId) return null;
+  try {
+    if (season !== undefined && episode !== undefined) {
+      const byId = await Serie.find({ tmdbId }).exec();
+      const s = byId.find((doc: any) => doc.episodes?.some(
+        (e: any) => Number(e.season) === Number(season)
+      )) || byId[0];
+      if (!s) return null;
+      const ep = s.episodes.find((e: any) =>
+        Number(e.season) === Number(season) && Number(e.episodeNumber) === Number(episode)
+      );
+      return ep?.uqloadCode || null;
+    }
+    const m = await Movie.findOne({ tmdbId }).exec();
+    return m?.uqloadCode || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Scraping de l'embed Uqload pour obtenir un lien direct frais.
+ * Met à jour MongoDB en cache pour le prochain appel.
+ */
+async function refreshUqloadLink(uqloadCode: string, tmdbId?: number, season?: number, episode?: number): Promise<string | null> {
+  try {
+    const { getUqloadDirectLink } = await import('../../streaming/providers/direct-scraper');
+    const embedUrl = `https://uqload.is/embed-${uqloadCode}.html`;
+    const scraped = await getUqloadDirectLink(uqloadCode, false);
+    if (!scraped) return null;
+
+    const freshUrl = scraped.directUrl;
+    console.log(`[Download] Uqload fresh URL for code=${uqloadCode}: ${freshUrl.slice(0, 100)}`);
+
+    // Update MongoDB avec le lien frais (cache pour le prochain appel)
+    try {
+      if (season !== undefined && episode !== undefined) {
+        await Serie.updateOne(
+          { tmdbId, 'episodes.uqloadCode': uqloadCode },
+          { $set: { 'episodes.$.uqloadLink': freshUrl } }
+        );
+      } else if (tmdbId) {
+        await Movie.updateOne(
+          { tmdbId },
+          { $set: { uqloadLink: freshUrl } }
+        );
+      }
+    } catch (dbErr: any) {
+      console.log(`[Download] MongoDB update failed: ${dbErr.message}`);
+    }
+
+    return freshUrl;
+  } catch (err: any) {
+    console.log(`[Download] Uqload refresh failed for code=${uqloadCode}: ${err.message}`);
+    return null;
+  }
+}
+
 export const getDownloadByTitle = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { title, tmdb_id, file_code, season, episode } = req.query as Record<string, string>;
     const seasonNum = season ? parseInt(season, 10) : undefined;
     const episodeNum = episode ? parseInt(episode, 10) : undefined;
+    const tmdbIdNum = tmdb_id ? Number(tmdb_id) : undefined;
 
-    if (!title && !file_code && !tmdb_id) {
+    if (!title && !file_code && !tmdbIdNum) {
       return res.status(400).json({
         success: false,
         data: null,
@@ -292,135 +198,48 @@ export const getDownloadByTitle = async (req: Request, res: Response, next: Next
       });
     }
 
-    let match: { fileCode: string; info: any } | null = null;
-
-    // Priority 1: MongoDB (la plus récente / fiable)
-    match = await findByMongoDB(title, tmdb_id ? Number(tmdb_id) : undefined, seasonNum, episodeNum);
-
-    // Priority 2: JSON cache by tmdb_id
-    if (!match && tmdb_id) {
-      match = findByTmdbId(Number(tmdb_id), seasonNum, episodeNum);
+    // Cas particulier : file_code direct (pas de lookup Mongo)
+    if (!title && !tmdbIdNum && file_code) {
+      const downloadUrl = `https://doodstream.com/d/${file_code}`;
+      return res.json({
+        success: true,
+        data: { fileCode: file_code, directUrl: downloadUrl, downloadUrl, title: '', year: null, season: null, episode: null },
+        message: null,
+      });
     }
 
-    // Priority 3: JSON cache by title
-    if (!match && title) {
-      match = findByTitle(title, seasonNum, episodeNum);
-    }
-
-    // Priority 4: DoodStream folder listing API
-    if (!match && tmdb_id && seasonNum !== undefined && episodeNum !== undefined) {
-      match = await findByFolderFallback(Number(tmdb_id), seasonNum, episodeNum);
-    }
-
-    // Priority 5: direct file_code
-    if (!match && file_code) {
-      match = { fileCode: file_code, info: {} };
-    }
+    // Lookup MongoDB
+    const match = await findByMongoDB(title, tmdbIdNum, seasonNum, episodeNum);
 
     if (!match) {
       return res.json({
         success: false,
         data: null,
-        message: 'No DoodStream file found',
+        message: 'No downloadable file found in MongoDB',
       });
     }
 
-    // Decide which URL to actually hand back to the client.
-    //
-    // Priority:
-    // 1) Fresh Uqload direct URL (scraped from embed page via uqloadCode)
-    // 2) Stored uqloadLink if still alive
-    // 3) lien BD (lienFallback)
-    // 4) DoodStream /d/ page as last resort
+    const info = match.info;
     let downloadUrl: string | null = null;
 
-    // 1) Try scraping fresh Uqload direct URL
-    const uqloadCode = match.info.uqloadCode ||
-      (await (async () => {
-        try {
-          if (!tmdb_id) return null;
-          const Movie = (await import('../../models/Movie')).default;
-          const Serie = (await import('../../models/Serie')).default;
-          if (seasonNum !== undefined && episodeNum !== undefined) {
-            const s = await Serie.findOne({ tmdbId: Number(tmdb_id) }).exec();
-            if (!s) return null;
-            const ep = s.episodes.find((e: any) => Number(e.season) === Number(seasonNum) && Number(e.episodeNumber) === Number(episodeNum));
-            return ep?.uqloadCode || null;
-          }
-          const m = await Movie.findOne({ tmdbId: Number(tmdb_id) }).exec();
-          return m?.uqloadCode || null;
-        } catch { return null; }
-      })());
-
-    if (uqloadCode) {
-      try {
-        const { scrapeDirectStream } = await import('../../streaming/providers/direct-scraper');
-        const uqloadEmbedUrl = `https://uqload.is/embed-${uqloadCode}.html`;
-        const scraped = await scrapeDirectStream(uqloadEmbedUrl);
-        if (scraped) {
-          downloadUrl = scraped.directUrl;
-          console.log(`[Download] Uqload fresh URL scraped for code=${uqloadCode}: ${downloadUrl.slice(0, 100)}`);
-
-          // Update MongoDB with fresh link so next request is instant
-          try {
-            if (seasonNum !== undefined && episodeNum !== undefined) {
-              const SerieModel = (await import('../../models/Serie')).default;
-              await SerieModel.updateOne(
-                { tmdbId: Number(tmdb_id), 'episodes.uqloadCode': uqloadCode },
-                { $set: { 'episodes.$.uqloadLink': scraped.directUrl } }
-              );
-            } else {
-              const MovieModel = (await import('../../models/Movie')).default;
-              await MovieModel.updateOne(
-                { tmdbId: Number(tmdb_id) },
-                { $set: { uqloadLink: scraped.directUrl } }
-              );
-            }
-            console.log(`[Download] MongoDB updated with fresh Uqload link for tmdb=${tmdb_id}`);
-          } catch (dbErr: any) {
-            console.log(`[Download] MongoDB update failed: ${dbErr.message}`);
-          }
-        }
-      } catch (err: any) {
-        console.log(`[Download] Uqload scrape failed for code=${uqloadCode}: ${err.message}`);
-      }
+    // 1) Uqload : si on a un uqloadCode, on régénère un lien frais via l'API
+    if (info.uqloadCode && tmdbIdNum) {
+      downloadUrl = await refreshUqloadLink(info.uqloadCode, tmdbIdNum, seasonNum, episodeNum);
     }
 
-    // 2) Try stored uqloadLink if still alive
-    if (!downloadUrl) {
-      const linksToTry = [
-        match.info.uqloadLink !== match.info.lien ? match.info.uqloadLink : undefined,
-        match.info.lien,
-        match.info.lienFallback,
-      ].filter(Boolean) as string[];
-
-      for (const url of [...new Set(linksToTry)]) {
-        if (!/doodstream\.com\/(e|d)\//i.test(url)) {
-          // Liens directs .mp4 (Uqload/vidzy) : le CDN bloque l'IP du serveur
-          // (403) mais pas celle du navigateur → renvoyés tels quels.
-          if (isDirectMp4CdnUrl(url)) {
-            downloadUrl = url;
-            break;
-          }
-          const alive = await isLinkAlive(url);
-          if (alive) {
-            downloadUrl = url;
-            break;
-          }
-        }
-      }
+    // 2) Sinon, on prend le lien Uqload stocké s'il est utilisable directement
+    if (!downloadUrl && info.uqloadLink && isDirectMp4CdnUrl(info.uqloadLink)) {
+      downloadUrl = info.uqloadLink;
     }
 
-    // 3) DoodStream /d/ page as last resort
-    if (!downloadUrl) {
-      const doodCode =
-        match.fileCode ||
-        extractDoodFileCode(match.info.lien) ||
-        extractDoodFileCode(match.info.uqloadLink) ||
-        extractDoodFileCode(match.info.lienFallback);
-      if (doodCode) {
-        downloadUrl = `https://doodstream.com/d/${doodCode}`;
-      }
+    // 3) Sinon, le lien historique (vidzy / ancien uqload MP4)
+    if (!downloadUrl && info.lien && info.lien !== '#' && isDirectMp4CdnUrl(info.lien)) {
+      downloadUrl = info.lien;
+    }
+
+    // 4) Fallback DoodStream /d/ page si on a un fileCode
+    if (!downloadUrl && match.fileCode) {
+      downloadUrl = `https://doodstream.com/d/${match.fileCode}`;
     }
 
     if (!downloadUrl) {
@@ -435,12 +254,13 @@ export const getDownloadByTitle = async (req: Request, res: Response, next: Next
       success: true,
       data: {
         fileCode: match.fileCode,
+        uqloadCode: info.uqloadCode || null,
         directUrl: downloadUrl,
         downloadUrl,
-        title: match.info.titre || title || '',
-        year: match.info.year || null,
-        season: match.info.season || null,
-        episode: match.info.episode || null,
+        title: info.titre || title || '',
+        year: info.year || null,
+        season: info.season || null,
+        episode: info.episode || null,
       },
       message: null,
     });
@@ -449,6 +269,17 @@ export const getDownloadByTitle = async (req: Request, res: Response, next: Next
   }
 };
 
+/**
+ * Proxy de téléchargement : pipe le contenu au navigateur en passant par
+ * le backend quand le navigateur ne peut pas consommer l'URL directement
+ * (CDN bloquant par Referer, etc.).
+ *
+ * Flow :
+ *  1. DoodStream /d/ → redirect direct (c'est une page HTML, pas un MP4)
+ *  2. HLS .m3u8 → redirige vers /api/download/stream (FFmpeg convertit)
+ *  3. MP4 direct → tente de piper depuis le backend (avec Referer uqload.is)
+ *  4. Si 403/HTML → fallback HLS via clone + API Uqload
+ */
 export const proxyDownload = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { url, filename } = req.query as Record<string, string>;
@@ -457,14 +288,22 @@ export const proxyDownload = async (req: Request, res: Response, next: NextFunct
       return res.status(400).json({ success: false, message: 'Missing ?url= param' });
     }
 
-    // DoodStream /d/ page → redirect plutôt que proxy (c'est une page HTML)
+    // Page DoodStream /d/ → redirect plutôt que proxy (c'est une page HTML)
     if (/doodstream\.com\/d\//i.test(url)) {
       return res.redirect(302, url);
     }
 
+    // URL HLS Uqload (.m3u8) : on redirige vers le proxy FFmpeg qui convertit
+    // le HLS en MP4 à la volée.
+    if (/\.m3u8(\?|$)/i.test(url)) {
+      const downloadName = filename || 'video.mp4';
+      const hlsProxyUrl = `/api/download/stream?m3u8=${encodeURIComponent(url)}&filename=${encodeURIComponent(downloadName)}`;
+      return res.redirect(302, hlsProxyUrl);
+    }
+
     const downloadName = filename || 'video.mp4';
 
-    // ── Étape 1 : Tenter le MP4 direct ──────────────────────────────────
+    // ── Étape 1 : Tenter le MP4 direct depuis le backend ──────────────
     try {
       const response = await axios.get(url, {
         responseType: 'stream',
@@ -497,8 +336,8 @@ export const proxyDownload = async (req: Request, res: Response, next: NextFunct
       console.log(`[PROXY] MP4 direct 403/erreur, fallback HLS pour ${url}`);
     }
 
-    // ── Étape 2 : Fallback HLS ──────────────────────────────────────────
-    // Extraire le file_code, cloner, et récupérer le HLS
+    // ── Étape 2 : Fallback HLS via l'API Uqload ────────────────────────
+    // Extraire le file_code depuis l'URL, cloner, et récupérer le HLS
     const uqloadMatch = url.match(/uqload\.is\/v\/[^/]+\/[^/]+\/([a-z0-9]+)_/i);
     const fileCode = uqloadMatch?.[1] || url.match(/([a-z0-9]{12})/i)?.[1];
     if (!fileCode) {
@@ -523,10 +362,10 @@ export const proxyDownload = async (req: Request, res: Response, next: NextFunct
       return res.status(502).json({ success: false, message: 'HLS direct_link failed' });
     }
 
-    // Proxy l'HLS → le rediriger vers le proxy FFmpeg (qui convertit en MP4)
-    const downloadUrl = `/api/download/stream?m3u8=${encodeURIComponent(hlsUrl)}&filename=${encodeURIComponent(downloadName)}`;
-    console.log(`[PROXY] Fallback HLS download: ${downloadUrl.slice(0, 100)}`);
-    res.redirect(302, downloadUrl);
+    // Proxy l'HLS → FFmpeg convertit en MP4 et stream au navigateur
+    const ffmpegProxyUrl = `/api/download/stream?m3u8=${encodeURIComponent(hlsUrl)}&filename=${encodeURIComponent(downloadName)}`;
+    console.log(`[PROXY] Fallback HLS download: ${ffmpegProxyUrl.slice(0, 100)}`);
+    res.redirect(302, ffmpegProxyUrl);
   } catch (error: any) {
     console.error('[PROXY] Download error:', error.message);
     if (!res.headersSent) {
@@ -632,6 +471,10 @@ export const proxyStream = async (req: Request, res: Response, next: NextFunctio
   }
 };
 
+/**
+ * Vérifie la disponibilité de tous les épisodes d'une série sur la plateforme.
+ * Source unique : MongoDB. Aucun fallback JSON.
+ */
 export const getSeriesDownloadCheck = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { tmdb_id } = req.query as Record<string, string>;
@@ -653,7 +496,7 @@ export const getSeriesDownloadCheck = async (req: Request, res: Response, next: 
       });
     }
 
-    // 1. Fetch TV series details from TMDB to get all seasons and episode counts
+    // 1. Fetch TV series details from TMDB
     const language = req.query.language as string | undefined;
     const { toTMDBLanguage } = await import('../../config/language');
     const tmdbRes = await tmdbClient.get(`/tv/${tmdbIdNum}`, {
@@ -669,40 +512,45 @@ export const getSeriesDownloadCheck = async (req: Request, res: Response, next: 
       });
     }
 
-    // 2. Build the list of expected episodes (skip season 0 = specials)
+    // 2. Build expected episodes (skip season 0 = specials)
     const expectedEpisodes: { season: number; episode: number }[] = [];
     for (const season of seriesData.seasons) {
       const seasonNum = season.season_number;
       if (seasonNum === 0 || !season.episode_count) continue;
-
       for (let epNum = 1; epNum <= season.episode_count; epNum++) {
         expectedEpisodes.push({ season: seasonNum, episode: epNum });
       }
     }
 
-    // 3. Check each episode: MongoDB d'abord (liens Uqload/vidzy en priorité),
-    //    cache d'upload disque ensuite (fichiers DoodStream), et DoodStream
-    //    /d/ en dernier recours uniquement.
-    const uploaded = getUploadedFiles();
-    const missing: { season: number; episode: number }[] = [];
-    const found: { season: number; episode: number; fileCode: string; downloadUrl: string | null }[] = [];
+    // 3. Trouver le bon document MongoDB (par tmdbId d'abord, par titre en fallback)
+    const serie = await (async () => {
+      const byId = await Serie.find({ tmdbId: tmdbIdNum }).exec();
+      if (byId.length) {
+        // Préférer la série dont les épisodes couvrent le plus de saisons
+        // attendues (cas des doublons tmdbId : séries homonymes).
+        let best = byId[0];
+        let bestScore = -1;
+        for (const s of byId) {
+          const score = s.episodes?.filter(
+            (e: any) => expectedEpisodes.some(ep => Number(e.season) === ep.season)
+          ).length || 0;
+          if (score > bestScore) { bestScore = score; best = s; }
+        }
+        return best;
+      }
+      if (seriesData.name) {
+        const escaped = seriesData.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return Serie.findOne({ titre: { $regex: new RegExp(`^${escaped}$`, 'i') } }).exec();
+      }
+      return null;
+    })();
 
-    // Beaucoup de documents en base n'ont pas de tmdbId (≈36 %) : on matche
-    // aussi par titre TMDB, exactement comme findByMongoDB le fait pour le
-    // téléchargement simple.
-    const serie = await Serie.findOne({
-      $or: [
-        { tmdbId: tmdbIdNum },
-        ...(seriesData.name
-          ? [{ titre: { $regex: new RegExp(seriesData.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } }]
-          : []),
-      ],
-    }).exec();
+    const missing: { season: number; episode: number }[] = [];
+    const found: { season: number; episode: number; fileCode: string; uqloadCode?: string; downloadUrl: string | null }[] = [];
 
     for (const ep of expectedEpisodes) {
       let match: { fileCode: string; info: any } | null = null;
 
-      // Source 1: MongoDB (shape identique à findByMongoDB)
       if (serie) {
         const epLabel = `S${String(ep.season).padStart(2, '0')}E${String(ep.episode).padStart(2, '0')}`;
         const foundEp = serie.episodes.find(
@@ -727,73 +575,44 @@ export const getSeriesDownloadCheck = async (req: Request, res: Response, next: 
         }
       }
 
-      // Source 2: cache d'upload disque
       if (!match) {
-        for (const key of Object.keys(uploaded)) {
-          const file = uploaded[key];
-          if (
-            file.tmdbId &&
-            Number(file.tmdbId) === tmdbIdNum &&
-            file.season === ep.season &&
-            file.episode === ep.episode
-          ) {
-            match = { fileCode: file.fileCode, info: file };
-            break;
-          }
-        }
-      }
-
-      // Source 3: DoodStream folder listing API
-      if (!match) {
-        try {
-          match = await findByFolderFallback(tmdbIdNum, ep.season, ep.episode);
-        } catch {
-          // ignore
-        }
-      }
-
-      if (match) {
-        let downloadUrl: string | null = null;
-
-        // 1) Lien direct .mp4 stocké (Uqload/vidzy) : utilisable tel quel par
-        //    le navigateur, même si le serveur reçoit un 403 du CDN.
-        const candidates = [
-          match.info?.uqloadLink,
-          match.info?.lien,
-          match.info?.lienFallback,
-        ].filter(Boolean) as string[];
-        for (const url of [...new Set(candidates)]) {
-          if (isDirectMp4CdnUrl(url)) {
-            downloadUrl = url;
-            break;
-          }
-        }
-
-        // 2) DoodStream ne fournit plus de lien direct fiable : on renvoie
-        //    vers sa page web /d/ (téléchargement déclenché côté utilisateur).
-        if (!downloadUrl) {
-          const doodCode =
-            match.fileCode ||
-            extractDoodFileCode(match.info?.lien) ||
-            extractDoodFileCode(match.info?.uqloadLink) ||
-            extractDoodFileCode(match.info?.lienFallback);
-          if (doodCode) {
-            downloadUrl = `https://doodstream.com/d/${doodCode}`;
-          }
-        }
-
-        found.push({
-          season: ep.season,
-          episode: ep.episode,
-          fileCode: match.fileCode || '',
-          downloadUrl,
-        });
-      } else {
         missing.push({ season: ep.season, episode: ep.episode });
+        continue;
       }
+
+      // Calcul du downloadUrl
+      let downloadUrl: string | null = null;
+      const candidates = [
+        match.info?.uqloadLink,
+        match.info?.lien,
+        match.info?.lienFallback,
+      ].filter(Boolean) as string[];
+      for (const url of [...new Set(candidates)]) {
+        if (isDirectMp4CdnUrl(url)) {
+          downloadUrl = url;
+          break;
+        }
+      }
+      if (!downloadUrl) {
+        const doodCode =
+          match.fileCode ||
+          extractDoodFileCode(match.info?.lien) ||
+          extractDoodFileCode(match.info?.uqloadLink) ||
+          extractDoodFileCode(match.info?.lienFallback);
+        if (doodCode) {
+          downloadUrl = `https://doodstream.com/d/${doodCode}`;
+        }
+      }
+
+      found.push({
+        season: ep.season,
+        episode: ep.episode,
+        fileCode: match.fileCode || '',
+        uqloadCode: match.info?.uqloadCode || undefined,
+        downloadUrl,
+      });
     }
 
-    // 4. Réponse : succès dès qu'au moins un épisode a un lien exploitable
     return res.json({
       success: found.length > 0,
       data: {
