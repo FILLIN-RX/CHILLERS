@@ -1,7 +1,17 @@
 'use client';
 
-import { useId, useRef, useState } from 'react';
+import { useState } from 'react';
 import { adminCreateManualMedia, adminCreateManualMediaUpload, adminTmdbSearch } from '@/app/api';
+import {
+  Card, Input, InputNumber, Button, Space, Typography, Alert, Segmented, Upload, Spin, Tag, Divider,
+} from 'antd';
+import {
+  SearchOutlined, PlusOutlined, DeleteOutlined, CloseOutlined,
+  VideoCameraOutlined, PlaySquareOutlined,   UploadOutlined, FileOutlined,
+} from '@ant-design/icons';
+import type { UploadFile } from 'antd';
+
+const { Title, Text } = Typography;
 
 interface SeasonGroup {
   season: string;
@@ -15,60 +25,39 @@ interface TmdbCandidate {
   poster: string | null;
 }
 
-const card: React.CSSProperties = { background: '#181825', border: '1px solid #252535', borderRadius: 12, padding: '1.25rem' };
-const label: React.CSSProperties = { display: 'block', color: '#6b6b80', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.35rem' };
-const input: React.CSSProperties = { width: '100%', background: '#1f1f2e', border: '1px solid #252535', borderRadius: 8, padding: '0.6rem 0.75rem', color: '#fff', fontSize: '0.875rem', outline: 'none' };
-const btnBase: React.CSSProperties = { padding: '0.55rem 1.1rem', borderRadius: 8, border: 'none', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s ease', color: '#fff' };
-const sectionTitle: React.CSSProperties = { fontSize: '0.85rem', fontWeight: 700, margin: 0, color: '#e4e4f0', display: 'flex', alignItems: 'center', gap: '0.5rem' };
-const dot: React.CSSProperties = { width: 8, height: 8, borderRadius: '50%', background: '#6366f1', flexShrink: 0 };
-
 function newSeason(season = ''): SeasonGroup {
   return { season, episodes: [{ episodeNumber: '', lien: '', file: null }] };
 }
 
-function FilePicker({ file, onSelect, onClear, labelText = 'Choisir un fichier' }: {
+function FilePicker({ file, onSelect, labelText = 'Choisir un fichier' }: {
   file: File | null;
   onSelect: (f: File | null) => void;
-  onClear?: () => void;
-  labelText?: string;
+  labelText?: React.ReactNode;
 }) {
-  const id = useId();
-  const ref = useRef<HTMLInputElement>(null);
+  const fileList: UploadFile[] = file
+    ? [{ uid: '-1', name: file.name, status: 'done' }]
+    : [];
   return (
-    <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', minWidth: 0 }}>
-      <input
-        ref={ref}
-        id={id}
-        type="file"
-        accept="video/*"
-        style={{ display: 'none' }}
-        onChange={e => onSelect(e.target.files?.[0] || null)}
-      />
-      <label
-        htmlFor={id}
-        style={{
-          flex: 1, minWidth: 0, background: '#1f1f2e', border: '1px solid #252535', borderRadius: 8,
-          padding: '0.5rem 0.75rem', color: file ? '#4ade80' : '#9d9db5', fontSize: '0.8125rem',
-          cursor: 'pointer', textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-          transition: 'border-color 0.15s ease',
-        }}
-        title={file ? file.name : labelText}
-      >
-        {file ? `🎬 ${file.name}` : labelText}
-      </label>
-      {file && (
-        <button
-          type="button"
-          onClick={() => { onSelect(null); onClear?.(); if (ref.current) ref.current.value = ''; }}
-          style={{ ...btnBase, background: '#ef4444', padding: '0.45rem 0.6rem', fontSize: '0.8rem', flexShrink: 0 }}
-          title="Retirer le fichier"
-        >
-          ✕
-        </button>
-      )}
-    </div>
+    <Upload
+      accept="video/*"
+      maxCount={1}
+      fileList={fileList}
+      beforeUpload={(f) => { onSelect(f); return false; }}
+      onRemove={() => onSelect(null)}
+    >
+      <Button icon={<UploadOutlined />} block>
+        {labelText}
+      </Button>
+    </Upload>
   );
 }
+
+const SectionTitle = ({ children }: { children: React.ReactNode }) => (
+  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, marginBottom: '1rem', color: '#e6e9f0' }}>
+    <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#6c5ce7', flexShrink: 0 }} />
+    {children}
+  </div>
+);
 
 export default function AdminAddMedia() {
   const [type, setType] = useState<'movie' | 'serie'>('movie');
@@ -195,9 +184,9 @@ export default function AdminAddMedia() {
       const res = hasFiles
         ? await adminCreateManualMediaUpload(serieFormData(common, valid))
         : await adminCreateManualMedia({
-            ...common,
-            episodes: valid.map(ep => ({ season: parseInt(ep.season, 10), episodeNumber: parseInt(ep.episodeNumber, 10), lien: ep.lien.trim() })),
-          });
+          ...common,
+          episodes: valid.map(ep => ({ season: parseInt(ep.season, 10), episodeNumber: parseInt(ep.episodeNumber, 10), lien: ep.lien.trim() })),
+        });
       handleResult(res);
     } catch {
       setResult({ success: false, message: 'Erreur réseau lors de la création' });
@@ -244,189 +233,176 @@ export default function AdminAddMedia() {
   const episodeCount = seasons.reduce((acc, s) => acc + s.episodes.length, 0);
 
   return (
-    <div style={{ padding: '1.5rem 2rem', color: '#fff', maxWidth: 1000 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
+    <div style={{ maxWidth: 1000 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
         <div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>Ajouter un média</h1>
-          <p style={{ color: '#6b6b80', fontSize: '0.875rem', margin: '0.25rem 0 0 0' }}>
-            Film ou série — lien direct ou fichier vidéo, upload Uqload lancé automatiquement
-          </p>
+          <Title level={3} style={{ margin: 0 }}>Ajouter un média</Title>
+          <Text type="secondary">Film ou série — lien direct ou fichier vidéo, upload Uqload lancé automatiquement</Text>
         </div>
-        <div style={{ display: 'flex', gap: '0.35rem', background: '#1f1f2e', border: '1px solid #252535', borderRadius: 10, padding: '0.25rem' }}>
-          {(['movie', 'serie'] as const).map(t => (
-            <button
-              key={t}
-              onClick={() => switchType(t)}
-              style={{ ...btnBase, padding: '0.5rem 1.25rem', background: type === t ? '#6366f1' : 'transparent', borderRadius: 8 }}
-            >
-              {t === 'movie' ? '🎬 Film' : '📺 Série'}
-            </button>
-          ))}
-        </div>
+        <Segmented
+          value={type}
+          onChange={(v) => switchType(v as 'movie' | 'serie')}
+          options={[
+            { label: <Space size={4}><VideoCameraOutlined /> Film</Space>, value: 'movie' },
+            { label: <Space size={4}><PlaySquareOutlined /> Série</Space>, value: 'serie' },
+          ]}
+        />
       </div>
 
-      <div style={{ display: 'grid', gap: '1rem', marginBottom: '1.5rem' }}>
-        {/* ── Informations ── */}
-        <div style={card}>
-          <div style={{ ...sectionTitle, marginBottom: '1rem' }}>
-            <span style={dot} /> Informations
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0.75rem' }}>
-            <div>
-              <label style={label}>Titre</label>
-              <input style={input} value={titre} onChange={e => setTitre(e.target.value)} placeholder="Titre du film / de la série" />
-            </div>
-            <div>
-              <label style={label}>Année</label>
-              <input style={input} value={year} onChange={e => setYear(e.target.value)} placeholder="2024" inputMode="numeric" />
-            </div>
-            <div>
-              <label style={label}>TMDB ID</label>
-              <input style={input} value={tmdbId} onChange={e => setTmdbId(e.target.value)} placeholder="ex: 12345" inputMode="numeric" />
-            </div>
-          </div>
-          {selectedTmdb && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.75rem', background: '#1f1f2e', border: '1px solid #22c55e55', borderRadius: 8, padding: '0.5rem 0.75rem' }}>
-              {selectedTmdb.poster ? (
-                <img src={selectedTmdb.poster} alt="" style={{ width: 32, height: 48, objectFit: 'cover', borderRadius: 4 }} />
-              ) : (
-                <div style={{ width: 32, height: 48, background: '#252535', borderRadius: 4 }} />
-              )}
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#4ade80' }}>✓ {selectedTmdb.title}{selectedTmdb.year ? ` (${selectedTmdb.year})` : ''}</div>
-                <div style={{ fontSize: '0.75rem', color: '#6b6b80' }}>TMDB ID: {selectedTmdb.id}</div>
-              </div>
-              <button
-                onClick={() => { setSelectedTmdb(null); setTmdbId(''); }}
-                style={{ marginLeft: 'auto', ...btnBase, background: '#252535', padding: '0.35rem 0.7rem', fontSize: '0.75rem' }}
-              >
-                Retirer
-              </button>
-            </div>
-          )}
-          {type === 'movie' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginTop: '0.75rem', alignItems: 'end' }}>
+      <Space direction="vertical" size="large" style={{ width: '100%', marginBottom: '1.25rem' }}>
+        <Card size="small">
+          <SectionTitle>Informations</SectionTitle>
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0.75rem' }}>
               <div>
-                <label style={label}>Lien direct (vidéo)</label>
-                <input style={input} value={lien} onChange={e => setLien(e.target.value)} placeholder="https://... mp4 ou lien direct" />
+                <Text type="secondary" style={{ display: 'block', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.35rem' }}>Titre</Text>
+                <Input value={titre} onChange={e => setTitre(e.target.value)} placeholder="Titre du film / de la série" />
               </div>
               <div>
-                <label style={label}>Ou fichier vidéo (prioritaire)</label>
-                <FilePicker file={movieFile} onSelect={setMovieFile} labelText="Choisir un fichier vidéo..." />
+                <Text type="secondary" style={{ display: 'block', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.35rem' }}>Année</Text>
+                <Input value={year} onChange={e => setYear(e.target.value)} placeholder="2024" inputMode="numeric" />
+              </div>
+              <div>
+                <Text type="secondary" style={{ display: 'block', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.35rem' }}>TMDB ID</Text>
+                <Input value={tmdbId} onChange={e => setTmdbId(e.target.value)} placeholder="ex: 12345" inputMode="numeric" />
               </div>
             </div>
-          )}
-        </div>
+            {selectedTmdb && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '0.75rem',
+                background: '#0f1219', border: '1px solid rgba(52,211,153,0.35)', borderRadius: 8, padding: '0.5rem 0.75rem',
+              }}>
+                {selectedTmdb.poster ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={selectedTmdb.poster} alt="" style={{ width: 32, height: 48, objectFit: 'cover', borderRadius: 4 }} />
+                ) : (
+                  <div style={{ width: 32, height: 48, background: '#1a1f2b', borderRadius: 4 }} />
+                )}
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#34d399' }}>✓ {selectedTmdb.title}{selectedTmdb.year ? ` (${selectedTmdb.year})` : ''}</div>
+                  <Text type="secondary" style={{ fontSize: 12 }}>TMDB ID: {selectedTmdb.id}</Text>
+                </div>
+                <Button size="small" style={{ marginLeft: 'auto' }} icon={<CloseOutlined />} onClick={() => { setSelectedTmdb(null); setTmdbId(''); }}>
+                  Retirer
+                </Button>
+              </div>
+            )}
+            {type === 'movie' && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', alignItems: 'end' }}>
+                <div>
+                  <Text type="secondary" style={{ display: 'block', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.35rem' }}>Lien direct (vidéo)</Text>
+                  <Input value={lien} onChange={e => setLien(e.target.value)} placeholder="https://... mp4 ou lien direct" />
+                </div>
+                <div>
+                  <Text type="secondary" style={{ display: 'block', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.35rem' }}>Ou fichier vidéo (prioritaire)</Text>
+                  <FilePicker file={movieFile} onSelect={setMovieFile} labelText="Choisir un fichier vidéo..." />
+                </div>
+              </div>
+            )}
+          </Space>
+        </Card>
 
-        {/* ── Recherche TMDB ── */}
-        <div style={card}>
-          <div style={{ ...sectionTitle, marginBottom: '1rem' }}>
-            <span style={dot} /> Recherche TMDB
-          </div>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <input
-              style={input}
+        <Card size="small">
+          <SectionTitle>Recherche TMDB</SectionTitle>
+          <Space.Compact style={{ width: '100%', maxWidth: 600 }}>
+            <Input
               value={tmdbQuery}
               onChange={e => setTmdbQuery(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') searchTmdb(); }}
+              onPressEnter={searchTmdb}
               placeholder={`Chercher un ${type === 'movie' ? 'film' : 'série'} sur TMDB...`}
             />
-            <button onClick={searchTmdb} disabled={searching} style={{ ...btnBase, background: '#252535', whiteSpace: 'nowrap', minWidth: 110 }}>
-              {searching ? 'Recherche...' : '🔍 Rechercher'}
-            </button>
-          </div>
-          {searching && <p style={{ color: '#6b6b80', fontSize: '0.8125rem', margin: '0.6rem 0 0 0' }}>Recherche en cours...</p>}
-          {!searching && searched && searchMsg && <p style={{ color: '#fca5a5', fontSize: '0.8125rem', margin: '0.6rem 0 0 0' }}>{searchMsg}</p>}
+            <Button type="primary" icon={<SearchOutlined />} loading={searching} onClick={searchTmdb}>
+              Rechercher
+            </Button>
+          </Space.Compact>
+          {searching && <Text type="secondary" style={{ display: 'block', marginTop: '0.6rem', fontSize: 13 }}>Recherche en cours...</Text>}
+          {!searching && searched && searchMsg && <Text type="danger" style={{ display: 'block', marginTop: '0.6rem', fontSize: 13 }}>{searchMsg}</Text>}
           {tmdbResults.length > 0 && (
             <div style={{ marginTop: '0.75rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0.5rem' }}>
               {tmdbResults.map(c => (
-                <button
+                <Button
                   key={c.id}
+                  type="text"
                   onClick={() => pickTmdb(c)}
                   style={{
-                    display: 'flex', alignItems: 'center', gap: '0.75rem', background: '#1f1f2e',
-                    border: '1px solid #252535', borderRadius: 10, padding: '0.5rem 0.75rem', cursor: 'pointer', color: '#fff', textAlign: 'left',
-                    transition: 'border-color 0.15s ease, background 0.15s ease',
+                    display: 'flex', alignItems: 'center', gap: '0.75rem', height: 'auto',
+                    background: '#0f1219', border: '1px solid #242a38', borderRadius: 10,
+                    padding: '0.5rem 0.75rem', color: '#e6e9f0', textAlign: 'left',
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = '#6366f1'; e.currentTarget.style.background = '#23233a'; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = '#252535'; e.currentTarget.style.background = '#1f1f2e'; }}
                 >
                   {c.poster ? (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img src={c.poster} alt="" style={{ width: 44, height: 66, objectFit: 'cover', borderRadius: 6 }} />
                   ) : (
-                    <div style={{ width: 44, height: 66, background: '#252535', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4b4b63', fontSize: '1.2rem' }}>?</div>
+                    <div style={{ width: 44, height: 66, background: '#1a1f2b', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4b5466', fontSize: '1.2rem' }}>?</div>
                   )}
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: '0.875rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.title}</div>
-                    <div style={{ color: '#6b6b80', fontSize: '0.75rem', marginTop: '0.15rem' }}>ID: {c.id}{c.year ? ` — ${c.year}` : ''}</div>
-                  </div>
-                </button>
+                  <span style={{ minWidth: 0 }}>
+                    <span style={{ display: 'block', fontWeight: 600, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.title}</span>
+                    <Text type="secondary" style={{ fontSize: 12 }}>ID: {c.id}{c.year ? ` — ${c.year}` : ''}</Text>
+                  </span>
+                </Button>
               ))}
             </div>
           )}
-        </div>
+        </Card>
 
-        {/* ── Épisodes par saison ── */}
         {type === 'serie' && (
-          <div style={card}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <div style={{ ...sectionTitle }}>
-                <span style={dot} /> Épisodes par saison
-                <span style={{ background: '#252535', borderRadius: 999, padding: '0.15rem 0.6rem', fontSize: '0.72rem', color: '#9d9db5', fontWeight: 600 }}>
-                  {seasons.length} saison{seasons.length > 1 ? 's' : ''} · {episodeCount} épisode{episodeCount > 1 ? 's' : ''}
-                </span>
-              </div>
-              <button onClick={addSeason} style={{ ...btnBase, background: '#6366f1' }}>+ Ajouter une saison</button>
+          <Card size="small">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
+              <SectionTitle>
+                Épisodes par saison
+                <Tag style={{ marginInlineStart: 8 }}>{seasons.length} saison{seasons.length > 1 ? 's' : ''} · {episodeCount} épisode{episodeCount > 1 ? 's' : ''}</Tag>
+              </SectionTitle>
+              <Button type="primary" icon={<PlusOutlined />} onClick={addSeason}>Ajouter une saison</Button>
             </div>
 
-            <div style={{ display: 'grid', gap: '1rem' }}>
+            <Space direction="vertical" size="large" style={{ width: '100%' }}>
               {seasons.map((s, sIdx) => (
-                <div key={sIdx} style={{ background: '#1f1f2e', border: '1px solid #252535', borderRadius: 10, padding: '1rem' }}>
+                <div key={sIdx} style={{ background: '#0f1219', border: '1px solid #242a38', borderRadius: 10, padding: '1rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                      <span style={{ background: '#6366f1', color: '#fff', fontWeight: 700, fontSize: '0.78rem', borderRadius: 8, padding: '0.25rem 0.6rem' }}>
-                        S{s.season || '?'}
-                      </span>
-                      <input
-                        style={{ ...input, width: 60, padding: '0.4rem 0.6rem' }}
+                    <Space size="middle">
+                      <Tag color="primary" style={{ fontWeight: 700, fontSize: 13 }}>S{s.season || '?'}</Tag>
+                      <Input
+                        style={{ width: 60 }}
                         value={s.season}
                         onChange={e => updateSeason(sIdx, e.target.value)}
                         placeholder="N°"
                         inputMode="numeric"
                         title="Numéro de saison"
                       />
-                      <span style={{ color: '#6b6b80', fontSize: '0.8rem' }}>
+                      <Text type="secondary" style={{ fontSize: 13 }}>
                         {s.episodes.length} épisode{s.episodes.length > 1 ? 's' : ''}
                         {s.episodes.filter(ep => ep.file).length > 0 && ` · ${s.episodes.filter(ep => ep.file).length} fichier(s)`}
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button onClick={() => addEpisode(sIdx)} style={{ ...btnBase, background: '#22c55e', padding: '0.4rem 0.9rem' }}>+ Épisode</button>
+                      </Text>
+                    </Space>
+                    <Space>
+                      <Button size="small" icon={<PlusOutlined />} onClick={() => addEpisode(sIdx)}>Épisode</Button>
                       {seasons.length > 1 && (
-                        <button onClick={() => removeSeason(sIdx)} style={{ ...btnBase, background: '#ef4444', padding: '0.4rem 0.9rem' }}>Suppr. saison</button>
+                        <Button size="small" danger icon={<DeleteOutlined />} onClick={() => removeSeason(sIdx)}>Suppr. saison</Button>
                       )}
-                    </div>
+                    </Space>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '52px minmax(0, 1.1fr) minmax(0, 1fr) 36px', gap: '0.5rem', marginBottom: '0.4rem', padding: '0 0.25rem' }}>
-                    <span style={{ ...label, margin: 0 }}>N°</span>
-                    <span style={{ ...label, margin: 0 }}>Lien direct (optionnel)</span>
-                    <span style={{ ...label, margin: 0 }}>Fichier vidéo (optionnel)</span>
+                  <Divider style={{ margin: '0.25rem 0 0.75rem' }} />
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '52px minmax(0, 1.1fr) minmax(0, 1fr) 36px', gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem' }}>
+                    <Text type="secondary" style={{ fontSize: 11 }}>N°</Text>
+                    <Text type="secondary" style={{ fontSize: 11 }}>Lien direct (optionnel)</Text>
+                    <Text type="secondary" style={{ fontSize: 11 }}>Fichier vidéo (optionnel)</Text>
                     <span />
                   </div>
 
-                  <div style={{ display: 'grid', gap: '0.55rem' }}>
+                  <Space direction="vertical" size={8} style={{ width: '100%' }}>
                     {s.episodes.map((ep, eIdx) => (
                       <div key={eIdx} style={{ display: 'grid', gridTemplateColumns: '52px minmax(0, 1.1fr) minmax(0, 1fr) 36px', gap: '0.5rem', alignItems: 'center' }}>
-                        <input
-                          style={{ ...input, padding: '0.5rem 0.6rem', textAlign: 'center' }}
+                        <Input
+                          style={{ textAlign: 'center' }}
                           placeholder="1"
                           value={ep.episodeNumber}
                           onChange={e => updateEpisode(sIdx, eIdx, { episodeNumber: e.target.value })}
                           inputMode="numeric"
                         />
-                        <input
-                          style={{ ...input, padding: '0.5rem 0.6rem' }}
+                        <Input
                           placeholder="https://... lien direct"
                           value={ep.lien}
                           onChange={e => updateEpisode(sIdx, eIdx, { lien: e.target.value })}
@@ -434,42 +410,44 @@ export default function AdminAddMedia() {
                         <FilePicker
                           file={ep.file}
                           onSelect={f => updateEpisode(sIdx, eIdx, { file: f })}
-                          labelText="Choisir un fichier..."
+                          labelText={<Space size={4}><FileOutlined /> Choisir un fichier...</Space>}
                         />
-                        <button
-                          onClick={() => removeEpisode(sIdx, eIdx)}
+                        <Button
+                          danger
+                          type="text"
+                          icon={<CloseOutlined />}
                           disabled={s.episodes.length === 1}
-                          style={{ ...btnBase, background: '#ef4444', padding: '0.45rem 0', fontSize: '0.9rem', opacity: s.episodes.length === 1 ? 0.4 : 1 }}
+                          onClick={() => removeEpisode(sIdx, eIdx)}
                           title="Supprimer l'épisode"
-                        >
-                          ✕
-                        </button>
+                        />
                       </div>
                     ))}
-                  </div>
+                  </Space>
                 </div>
               ))}
-            </div>
+            </Space>
 
-            <p style={{ color: '#6b6b80', fontSize: '0.75rem', margin: '0.85rem 0 0 0' }}>
+            <Text type="secondary" style={{ display: 'block', fontSize: 12, marginTop: '0.85rem' }}>
               Chaque épisode : un lien direct ou un fichier vidéo (le fichier est prioritaire). Les lignes sans numéro, lien ou fichier sont ignorées.
-            </p>
-          </div>
+            </Text>
+          </Card>
         )}
-      </div>
+      </Space>
 
-      {/* ── Submit ── */}
-      <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-        <button onClick={submit} disabled={submitting} style={{ ...btnBase, background: '#6366f1', fontSize: '0.9rem', padding: '0.65rem 1.6rem' }}>
-          {submitting ? 'Création en cours...' : type === 'movie' ? '➕ Ajouter le film' : '➕ Ajouter la série'}
-        </button>
+      <Space align="start" size="middle" wrap>
+        <Button type="primary" size="large" icon={<PlusOutlined />} loading={submitting} onClick={submit}>
+          {submitting ? 'Création en cours...' : type === 'movie' ? 'Ajouter le film' : 'Ajouter la série'}
+        </Button>
         {result && (
-          <div style={{ ...card, padding: '0.75rem 1rem', flex: 1, borderColor: result.success ? '#22c55e55' : '#ef444455' }}>
-            <div style={{ color: result.success ? '#4ade80' : '#fca5a5', fontSize: '0.875rem', fontWeight: 600 }}>{result.message}</div>
-            {result.upload && <div style={{ color: '#6b6b80', fontSize: '0.8125rem', marginTop: '0.25rem' }}>{result.upload}</div>}
-          </div>
+          <Alert
+            type={result.success ? 'success' : 'error'}
+            showIcon
+            message={result.message}
+            description={result.upload}
+            style={{ flex: 1, minWidth: 300 }}
+          />
         )}
-      </div>
+      </Space>
     </div>
   );
 }

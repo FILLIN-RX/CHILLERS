@@ -3,6 +3,13 @@
 import { useEffect, useState, useCallback } from 'react';
 import { adminGetCollection, startDownload, triggerDownload } from '@/app/api';
 import TmdbLinkModal from '../components/TmdbLinkModal';
+import {
+  Typography, Table, Input, Button, Space, Tag, Spin, Empty, Modal, Tooltip,
+} from 'antd';
+import { SearchOutlined, PlayCircleOutlined, DownloadOutlined, CloseOutlined, LoadingOutlined } from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
+
+const { Title, Text } = Typography;
 
 interface Movie {
   _id: string;
@@ -45,168 +52,134 @@ export default function AdminMovies() {
 
   useEffect(() => { fetch(q, page); }, [fetch, q, page]);
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setPage(1);
-    fetch(q, 1);
-  };
-
-  const inputStyle: React.CSSProperties = {
-    padding: '0.625rem',
-    borderRadius: '8px',
-    border: '1px solid #333',
-    background: '#222',
-    color: '#fff',
-    fontSize: '0.875rem',
-    flex: 1,
-  };
+  const columns: ColumnsType<Movie> = [
+    {
+      title: 'Titre',
+      dataIndex: 'titre',
+      key: 'titre',
+      render: (t: string, m: Movie) => (
+        <Space size={4} wrap>
+          <span style={{ color: '#e6e9f0', fontWeight: 500, whiteSpace: 'nowrap' }}>{t}</span>
+          {!m.uqloadCode && !m.fileCode && (!m.lien || m.lien === '#') && (
+            <Tag color="warning" style={{ fontSize: 11 }}>Bientôt disponible</Tag>
+          )}
+        </Space>
+      ),
+    },
+    {
+      title: 'TMDB',
+      dataIndex: 'tmdbId',
+      key: 'tmdbId',
+      render: (id: number | undefined, m: Movie) => (
+        <Button
+          type="link"
+          size="small"
+          style={{ padding: 0, color: id ? '#34d399' : '#f87171', fontSize: 12 }}
+          onClick={() => setLinkModal({ docId: m._id, tmdbId: m.tmdbId })}
+        >
+          {id ? `✓ ${id}` : '✗ Lier'}
+        </Button>
+      ),
+    },
+    {
+      title: 'Uqload',
+      dataIndex: 'uqloadCode',
+      key: 'uqloadCode',
+      align: 'center' as const,
+      render: (c: string) => c ? <Tag color="success">✓</Tag> : <Text type="secondary">—</Text>,
+    },
+    {
+      title: 'DoodStream',
+      dataIndex: 'fileCode',
+      key: 'fileCode',
+      align: 'center' as const,
+      render: (c: string) => c ? <Tag color="success">✓</Tag> : <Text type="secondary">—</Text>,
+    },
+    {
+      title: 'Lien',
+      dataIndex: 'lien',
+      key: 'lien',
+      render: (l: string) => l ? (
+        <a href={l} target="_blank" rel="noopener noreferrer" style={{ color: '#a99bf0', fontSize: 12, wordBreak: 'break-all' }}>
+          {l.substring(0, 60)}...
+        </a>
+      ) : <Text type="secondary">—</Text>,
+    },
+    {
+      title: 'Ajouté',
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      render: (d: string) => <Text type="secondary" style={{ fontSize: 12 }}>{new Date(d).toLocaleDateString()}</Text>,
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      align: 'center' as const,
+      width: 110,
+      render: (_, m) => (
+        <Space size={4}>
+          <Tooltip title="Lire">
+            <Button
+              size="small"
+              type="text"
+              icon={<PlayCircleOutlined style={{ color: '#a99bf0' }} />}
+              onClick={() => setPlayerUrl(`/watch/${m.tmdbId || m._id}?type=movie`)}
+            />
+          </Tooltip>
+          <Tooltip title="Télécharger">
+            <Button
+              size="small"
+              type="text"
+              loading={downloadingId === m._id}
+              icon={<DownloadOutlined style={{ color: downloadingId === m._id ? undefined : '#34d399' }} />}
+              onClick={async () => {
+                setDownloadingId(m._id);
+                try {
+                  const result = await startDownload(m.tmdbId ? String(m.tmdbId) : m._id, 'movie', m.titre);
+                  if (result?.downloadUrl) {
+                    triggerDownload(result.downloadUrl, `${m.titre}.mp4`);
+                  }
+                } catch { } finally { setDownloadingId(null); }
+              }}
+            />
+          </Tooltip>
+        </Space>
+      ),
+    },
+  ];
 
   return (
     <div>
-      <h1 style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 700, marginBottom: '1.5rem' }}>
-        Films ({total})
-      </h1>
+      <Title level={3} style={{ marginTop: 0, marginBottom: '1.25rem' }}>
+        Films <Text type="secondary" style={{ fontWeight: 400, fontSize: '1rem' }}>({total})</Text>
+      </Title>
 
-      <form onSubmit={handleSearch} style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
-        <input
-          placeholder="Rechercher un film..."
-          value={q}
-          onChange={e => setQ(e.target.value)}
-          style={inputStyle}
-        />
-        <button type="submit" style={{ padding: '0.625rem 1.25rem', borderRadius: '8px', border: 'none', background: '#6366f1', color: '#fff', cursor: 'pointer', fontSize: '0.875rem' }}>
-          Rechercher
-        </button>
-      </form>
+      <Input
+        placeholder="Rechercher un film..."
+        value={q}
+        onChange={e => setQ(e.target.value)}
+        onPressEnter={() => { setPage(1); fetch(q, 1); }}
+        allowClear
+        prefix={<SearchOutlined style={{ color: '#6b7488' }} />}
+        style={{ maxWidth: 420, marginBottom: '1.25rem' }}
+      />
 
-      {loading ? (
-        <p style={{ color: '#888' }}>Chargement...</p>
-      ) : items.length === 0 ? (
-        <p style={{ color: '#888' }}>Aucun film trouvé</p>
-      ) : (
-        <>
-          <div style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '12px', overflowX: 'auto' }}>
-            <table style={{ width: '100%', minWidth: 750, borderCollapse: 'collapse', fontSize: '0.8125rem' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid #2a2a2a', color: '#888', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em' }}>
-                  <th style={{ padding: '0.75rem 1rem', textAlign: 'left' }}>Titre</th>
-                  <th style={{ padding: '0.75rem 1rem', textAlign: 'left' }}>TMDB</th>
-                  <th style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>Uqload</th>
-                  <th style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>DoodStream</th>
-                  <th style={{ padding: '0.75rem 1rem', textAlign: 'left' }}>Lien</th>
-                  <th style={{ padding: '0.75rem 1rem', textAlign: 'left' }}>Ajouté</th>
-                  <th style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map(m => (
-                  <tr key={m._id} style={{ borderBottom: '1px solid #2a2a2a' }}>
-                    <td style={{ padding: '0.75rem 1rem', color: '#fff', whiteSpace: 'nowrap' }}>
-                      {m.titre}
-                      {!m.uqloadCode && !m.fileCode && (!m.lien || m.lien === '#') && (
-                        <span style={{ marginLeft: '0.5rem', fontSize: '0.65rem', color: '#fbbf24', background: '#2a2a1a', padding: '0.125rem 0.375rem', borderRadius: 4, whiteSpace: 'nowrap' }}>
-                          Bientôt disponible
-                        </span>
-                      )}
-                    </td>
-                    <td style={{ padding: '0.75rem 1rem' }}>
-                      <button onClick={() => setLinkModal({ docId: m._id, tmdbId: m.tmdbId })} style={{
-                        background: 'none', border: 'none', cursor: 'pointer', padding: 0,
-                        color: m.tmdbId ? '#22c55e' : '#ef4444', fontSize: '0.75rem', textDecoration: 'underline',
-                        textDecorationColor: m.tmdbId ? '#22c55e' : '#ef4444',
-                      }}>
-                        {m.tmdbId ? `✓ ${m.tmdbId}` : '✗ Lier'}
-                      </button>
-                    </td>
-                    <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
-                      <span style={{ color: m.uqloadCode ? '#22c55e' : '#6b6b80', fontSize: '0.75rem' }}>
-                        {m.uqloadCode ? '✓' : '—'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
-                      <span style={{ color: m.fileCode ? '#22c55e' : '#6b6b80', fontSize: '0.75rem' }}>
-                        {m.fileCode ? '✓' : '—'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '0.75rem 1rem' }}>
-                      <a href={m.lien} target="_blank" rel="noopener noreferrer" style={{ color: '#6366f1', textDecoration: 'none', fontSize: '0.75rem', wordBreak: 'break-all' }}>
-                        {m.lien.substring(0, 60)}...
-                      </a>
-                    </td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#888', fontSize: '0.75rem' }}>
-                      {new Date(m.createdAt).toLocaleDateString()}
-                    </td>
-                    <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
-                      <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'center' }}>
-                        <button
-                          onClick={() => setPlayerUrl(`/watch/${m.tmdbId || m._id}?type=movie`)}
-                          title="Lire"
-                          style={{
-                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                            width: 32, height: 32, borderRadius: 8, border: 'none',
-                            background: '#1a1a2e', color: '#6366f1', cursor: 'pointer', fontSize: '0.875rem',
-                          }}
-                        >
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                            <polygon points="5 3 19 12 5 21 5 3" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={async () => {
-                            setDownloadingId(m._id);
-                            try {
-                              const result = await startDownload(m.tmdbId ? String(m.tmdbId) : m._id, 'movie', m.titre);
-                              if (result?.downloadUrl) {
-                                triggerDownload(result.downloadUrl, `${m.titre}.mp4`);
-                              }
-                            } catch { } finally { setDownloadingId(null); }
-                          }}
-                          disabled={downloadingId === m._id}
-                          title="Télécharger"
-                          style={{
-                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                            width: 32, height: 32, borderRadius: 8, border: 'none',
-                            background: '#1a1a2e', color: '#22c55e', cursor: downloadingId === m._id ? 'default' : 'pointer',
-                            fontSize: '0.875rem', opacity: downloadingId === m._id ? 0.5 : 1,
-                          }}
-                        >
-                          {downloadingId === m._id ? (
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <circle cx="12" cy="12" r="10" />
-                              <line x1="12" y1="8" x2="12" y2="12" />
-                              <line x1="12" y1="16" x2="12.01" y2="16" />
-                            </svg>
-                          ) : (
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                              <polyline points="7 10 12 15 17 10" />
-                              <line x1="12" y1="15" x2="12" y2="3" />
-                            </svg>
-                          )}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {totalPages > 1 && (
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', marginTop: '1.5rem' }}>
-              <button disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))} style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid #333', background: '#222', color: page <= 1 ? '#555' : '#fff', cursor: page <= 1 ? 'default' : 'pointer', fontSize: '0.8125rem' }}>
-                ←
-              </button>
-              <span style={{ color: '#888', padding: '0.5rem', fontSize: '0.8125rem' }}>
-                {page} / {totalPages}
-              </span>
-              <button disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))} style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid #333', background: '#222', color: page >= totalPages ? '#555' : '#fff', cursor: page >= totalPages ? 'default' : 'pointer', fontSize: '0.8125rem' }}>
-                →
-              </button>
-            </div>
-          )}
-        </>
-      )}
+      <Table<Movie>
+        rowKey="_id"
+        size="middle"
+        loading={loading}
+        dataSource={items}
+        columns={columns}
+        scroll={{ x: 900 }}
+        locale={{ emptyText: loading ? <Spin /> : <Empty description="Aucun film trouvé" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+        pagination={{
+          current: page,
+          pageSize: limit,
+          total,
+          showSizeChanger: false,
+          onChange: (p) => setPage(p),
+        }}
+      />
 
       {linkModal && (
         <TmdbLinkModal
@@ -221,30 +194,22 @@ export default function AdminMovies() {
         />
       )}
 
-      {playerUrl && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 9999,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(4px)',
-        }} onClick={() => setPlayerUrl(null)}>
-          <div style={{
-            width: '80vw', height: '80vh', maxWidth: 1200, borderRadius: 12, overflow: 'hidden',
-            border: '1px solid #333', position: 'relative',
-          }} onClick={e => e.stopPropagation()}>
-            <button onClick={() => setPlayerUrl(null)} style={{
-              position: 'absolute', top: 12, right: 12, zIndex: 10,
-              background: '#000', border: 'none', color: '#fff', cursor: 'pointer',
-              width: 32, height: 32, borderRadius: '50%', fontSize: '1.125rem',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.8,
-            }}>✕</button>
-            <iframe
-              src={playerUrl}
-              style={{ width: '100%', height: '100%', border: 'none' }}
-              allowFullScreen
-            />
-          </div>
-        </div>
-      )}
+      <Modal
+        open={!!playerUrl}
+        onCancel={() => setPlayerUrl(null)}
+        footer={null}
+        width="80vw"
+        styles={{ body: { padding: 0, height: '75vh' } }}
+        destroyOnClose
+      >
+        {playerUrl && (
+          <iframe
+            src={playerUrl}
+            style={{ width: '100%', height: '100%', border: 'none' }}
+            allowFullScreen
+          />
+        )}
+      </Modal>
     </div>
   );
 }

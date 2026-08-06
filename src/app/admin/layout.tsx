@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { adminVerify } from '@/app/api';
 import AdminSidebar from '@/components/AdminSidebar';
-import { ConfigProvider, theme } from 'antd';
+import { ConfigProvider, Spin } from 'antd';
+import { adminTheme } from './theme';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [authed, setAuthed] = useState(false);
@@ -39,8 +40,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f0f0f', color: '#888' }}>
-        Vérification...
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0c0e14', flexDirection: 'column', gap: '1rem' }}>
+        <Spin />
+        <span style={{ color: '#6b7488', fontSize: '0.875rem' }}>Vérification...</span>
       </div>
     );
   }
@@ -48,20 +50,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   if (!authed) return null;
 
   return (
-    <ConfigProvider theme={{ algorithm: theme.darkAlgorithm }}>
-      <div style={{ display: 'flex', minHeight: '100vh', background: '#0f0f0f' }}>
+    <ConfigProvider theme={adminTheme}>
+      <div style={{ display: 'flex', minHeight: '100vh', background: '#0c0e14' }}>
         <AdminSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         {sidebarOpen && (
           <div onClick={() => setSidebarOpen(false)} className="admin-overlay" style={{
             position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 40,
           }} />
         )}
-        <main className="admin-main" style={{ flex: 1, padding: '1rem', overflowY: 'auto', minHeight: '100vh' }}>
+        <main className="admin-main" style={{ flex: 1, padding: '1.5rem', overflowY: 'auto', minHeight: '100vh' }}>
           <button
             onClick={() => setSidebarOpen(true)}
             className="admin-menu-btn"
             style={{
-              display: 'none', background: '#1a1a2a', border: '1px solid #2a2a3a', color: '#fff', cursor: 'pointer',
+              display: 'none', background: '#141821', border: '1px solid #242a38', color: '#fff', cursor: 'pointer',
               fontSize: '1.25rem', padding: '0.5rem 0.75rem', borderRadius: 8, marginBottom: '0.75rem',
               lineHeight: 1,
             }}

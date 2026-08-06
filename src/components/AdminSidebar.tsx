@@ -4,12 +4,12 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { adminLogout, adminScrapperHealth } from '@/app/api';
 import { Layout, Menu, Button, Typography } from 'antd';
-import { 
-  DashboardOutlined, 
-  PlusOutlined, 
-  VideoCameraOutlined, 
-  UnorderedListOutlined, 
-  SettingOutlined, 
+import {
+  DashboardOutlined,
+  PlusOutlined,
+  VideoCameraOutlined,
+  UnorderedListOutlined,
+  SettingOutlined,
   LogoutOutlined,
   AppstoreOutlined,
   BugOutlined
@@ -17,7 +17,7 @@ import {
 import Link from 'next/link';
 
 const { Sider } = Layout;
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 const NAV_ITEMS = [
   { key: '/admin', label: 'Dashboard', icon: <DashboardOutlined /> },
@@ -59,10 +59,10 @@ export default function AdminSidebar({ open, onClose }: Props) {
   }, []);
 
   return (
-    <Sider 
-      trigger={null} 
-      collapsible 
-      collapsed={!open} 
+    <Sider
+      trigger={null}
+      collapsible
+      collapsed={!open}
       width={260}
       breakpoint="lg"
       collapsedWidth="0"
@@ -74,12 +74,37 @@ export default function AdminSidebar({ open, onClose }: Props) {
         left: 0,
         top: 0,
         bottom: 0,
+        borderRight: '1px solid #1c2230',
+        zIndex: 50,
       }}
     >
-      <div style={{ padding: '1.5rem 1.25rem' }}>
-        <Title level={4} style={{ color: '#fff', margin: 0 }}>CHILLERS</Title>
-        <Text type="secondary" style={{ textTransform: 'uppercase', fontSize: '0.6875rem' }}>Administration</Text>
+      <div style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <div style={{
+          width: 38, height: 38, borderRadius: 10, flexShrink: 0,
+          background: 'linear-gradient(135deg, #6c5ce7, #9b59f6)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: '#fff', fontWeight: 800, fontSize: '1.125rem',
+        }}>
+          C
+        </div>
+        <div style={{ lineHeight: 1.2 }}>
+          <div style={{ color: '#fff', fontWeight: 700, fontSize: '0.9375rem', letterSpacing: '0.02em' }}>CHILLERS</div>
+          <Text type="secondary" style={{ textTransform: 'uppercase', fontSize: '0.625rem', letterSpacing: '0.08em' }}>
+            Administration
+          </Text>
+        </div>
       </div>
+
+      <div style={{ margin: '0 1rem 0.75rem', padding: '0.5rem 0.75rem', borderRadius: 8, background: '#0f131b', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <span style={{
+          width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+          background: scrapperOnline === null ? '#6b7488' : scrapperOnline ? '#2ecc71' : '#ef4444',
+        }} />
+        <span style={{ fontSize: '0.75rem', color: '#8b93a7' }}>
+          Scrapper {scrapperOnline === null ? '...' : scrapperOnline ? 'en ligne' : 'hors ligne'}
+        </span>
+      </div>
+
       <Menu
         theme="dark"
         mode="inline"
@@ -90,11 +115,11 @@ export default function AdminSidebar({ open, onClose }: Props) {
           label: <Link href={item.key}>{item.label}</Link>
         }))}
       />
-      <div style={{ position: 'absolute', bottom: 0, width: '100%', padding: '1rem' }}>
-        <Button 
-          type="text" 
-          danger 
-          icon={<LogoutOutlined />} 
+      <div style={{ position: 'absolute', bottom: 0, width: '100%', padding: '1rem', background: '#0f1219' }}>
+        <Button
+          type="text"
+          danger
+          icon={<LogoutOutlined />}
           onClick={() => { adminLogout(); router.push('/admin/login'); }}
           block
         >

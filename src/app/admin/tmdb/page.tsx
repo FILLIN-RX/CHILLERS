@@ -2,7 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { adminGetTmdbStats, adminTriggerTmdbLink, adminGetLogs } from '@/app/api';
-import Spinner from '@/components/Spinner';
+import {
+  Card, Statistic, Row, Col, Button, Space, Typography, Spin, Segmented, Alert,
+} from 'antd';
+import { LinkOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
+
+const { Title, Text } = Typography;
 
 export default function AdminTmdb() {
   const [stats, setStats] = useState<any>(null);
@@ -23,98 +28,97 @@ export default function AdminTmdb() {
   }, []);
 
   if (loading) return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minHeight: '40vh', color: '#6b6b80' }}>
-      <Spinner /> Chargement...
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minHeight: '40vh', color: '#6b7488' }}>
+      <Spin /> Chargement...
     </div>
   );
-
-  const card: React.CSSProperties = {
-    background: '#181825', border: '1px solid #252535', borderRadius: 14, padding: '1.25rem', flex: 1, minWidth: 200,
-  };
 
   const linkRate = (linked: number, total: number) =>
     total > 0 ? `${Math.round((linked / total) * 100)}%` : '—';
 
+  const errors = logType === 'series' ? logs?.series : logs?.movies;
+
   return (
     <div>
-      <h1 style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 700, marginBottom: '1.5rem' }}>Liaison TMDB</h1>
+      <Title level={3} style={{ marginTop: 0, marginBottom: '1.25rem' }}>Liaison TMDB</Title>
 
       {msg && (
-        <p style={{
-          padding: '0.75rem 1rem', borderRadius: 10, marginBottom: '1rem', fontSize: '0.875rem',
-          background: msg.includes('Erreur') ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)',
-          color: msg.includes('Erreur') ? '#ef4444' : '#22c55e',
-        }}>
-          {msg}
-        </p>
+        <Alert
+          type={msg.includes('Erreur') ? 'error' : msg === 'Liaison films terminée' || msg === 'Liaison séries terminée' ? 'success' : 'info'}
+          showIcon
+          message={msg}
+          style={{ marginBottom: '1rem', maxWidth: 480 }}
+        />
       )}
 
-      {/* STATS */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '2rem' }}>
-        <div style={card}>
-          <p style={{ color: '#6b6b80', fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Films</p>
-          <p style={{ color: '#fff', fontSize: '1.75rem', fontWeight: 700, margin: '0.25rem 0' }}>{stats?.movies?.total || 0}</p>
-          <div style={{ display: 'flex', gap: '1rem', fontSize: '0.75rem', marginTop: '0.25rem' }}>
-            <span style={{ color: '#22c55e' }}>✓ {stats?.movies?.linked || 0} liés</span>
-            <span style={{ color: '#ef4444' }}>✗ {stats?.movies?.unlinked || 0} non liés</span>
-            <span style={{ color: '#6366f1' }}>{linkRate(stats?.movies?.linked, stats?.movies?.total)}</span>
-          </div>
-        </div>
-        <div style={card}>
-          <p style={{ color: '#6b6b80', fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Séries</p>
-          <p style={{ color: '#fff', fontSize: '1.75rem', fontWeight: 700, margin: '0.25rem 0' }}>{stats?.series?.total || 0}</p>
-          <div style={{ display: 'flex', gap: '1rem', fontSize: '0.75rem', marginTop: '0.25rem' }}>
-            <span style={{ color: '#22c55e' }}>✓ {stats?.series?.linked || 0} liées</span>
-            <span style={{ color: '#ef4444' }}>✗ {stats?.series?.unlinked || 0} non liées</span>
-            <span style={{ color: '#6366f1' }}>{linkRate(stats?.series?.linked, stats?.series?.total)}</span>
-          </div>
-        </div>
-      </div>
+      <Row gutter={[16, 16]} style={{ marginBottom: '1.75rem' }}>
+        <Col xs={24} md={12} lg={8}>
+          <Card size="small">
+            <Statistic title={<span style={{ textTransform: 'uppercase', letterSpacing: '0.06em' }}>Films</span>} value={stats?.movies?.total || 0} />
+            <Space split={<Text type="secondary">·</Text>} style={{ fontSize: 12, marginTop: 4 }}>
+              <Text style={{ color: '#34d399', fontSize: 12 }}>✓ {stats?.movies?.linked || 0} liés</Text>
+              <Text style={{ color: '#f87171', fontSize: 12 }}>✗ {stats?.movies?.unlinked || 0} non liés</Text>
+              <Text style={{ color: '#a99bf0', fontSize: 12 }}>{linkRate(stats?.movies?.linked, stats?.movies?.total)}</Text>
+            </Space>
+          </Card>
+        </Col>
+        <Col xs={24} md={12} lg={8}>
+          <Card size="small">
+            <Statistic title={<span style={{ textTransform: 'uppercase', letterSpacing: '0.06em' }}>Séries</span>} value={stats?.series?.total || 0} />
+            <Space split={<Text type="secondary">·</Text>} style={{ fontSize: 12, marginTop: 4 }}>
+              <Text style={{ color: '#34d399', fontSize: 12 }}>✓ {stats?.series?.linked || 0} liées</Text>
+              <Text style={{ color: '#f87171', fontSize: 12 }}>✗ {stats?.series?.unlinked || 0} non liées</Text>
+              <Text style={{ color: '#a99bf0', fontSize: 12 }}>{linkRate(stats?.series?.linked, stats?.series?.total)}</Text>
+            </Space>
+          </Card>
+        </Col>
+      </Row>
 
-      {/* ACTIONS */}
-      <h2 style={{ color: '#fff', fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem' }}>Liaison</h2>
-      <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '2rem' }}>
-        <button onClick={async () => {
-          setMsg('Liaison TMDB films en cours...');
-          const res = await adminTriggerTmdbLink('movies');
-          setMsg(res.data?.status === 'done' ? 'Liaison films terminée' : `Erreur: ${res.data?.message || 'Inconnue'}`);
-        }} style={{ padding: '0.625rem 1.25rem', borderRadius: 10, border: 'none', background: '#6366f1', color: '#fff', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600 }}>
+      <Title level={5} style={{ marginBottom: '0.75rem' }}>Liaison</Title>
+      <Space wrap style={{ marginBottom: '1.75rem' }}>
+        <Button
+          type="primary"
+          icon={<LinkOutlined />}
+          onClick={async () => {
+            setMsg('Liaison TMDB films en cours...');
+            const res = await adminTriggerTmdbLink('movies');
+            setMsg(res.data?.status === 'done' ? 'Liaison films terminée' : `Erreur: ${res.data?.message || 'Inconnue'}`);
+          }}
+        >
           Lier les films (TMDB)
-        </button>
-        <button onClick={async () => {
-          setMsg('Liaison TMDB séries en cours...');
-          const res = await adminTriggerTmdbLink('series');
-          setMsg(res.data?.status === 'done' ? 'Liaison séries terminée' : `Erreur: ${res.data?.message || 'Inconnue'}`);
-        }} style={{ padding: '0.625rem 1.25rem', borderRadius: 10, border: 'none', background: '#6366f1', color: '#fff', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600 }}>
+        </Button>
+        <Button
+          type="primary"
+          icon={<LinkOutlined />}
+          onClick={async () => {
+            setMsg('Liaison TMDB séries en cours...');
+            const res = await adminTriggerTmdbLink('series');
+            setMsg(res.data?.status === 'done' ? 'Liaison séries terminée' : `Erreur: ${res.data?.message || 'Inconnue'}`);
+          }}
+        >
           Lier les séries (TMDB)
-        </button>
-      </div>
+        </Button>
+      </Space>
 
-      {/* LOGS */}
-      <h2 style={{ color: '#fff', fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem' }}>Erreurs de liaison</h2>
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-        <button onClick={() => setLogType('series')} style={{
-          padding: '0.4rem 0.875rem', borderRadius: 8, border: 'none',
-          background: logType === 'series' ? '#6366f1' : '#252535',
-          color: '#fff', cursor: 'pointer', fontSize: '0.8125rem',
-        }}>Séries</button>
-        <button onClick={() => setLogType('movies')} style={{
-          padding: '0.4rem 0.875rem', borderRadius: 8, border: 'none',
-          background: logType === 'movies' ? '#6366f1' : '#252535',
-          color: '#fff', cursor: 'pointer', fontSize: '0.8125rem',
-        }}>Films</button>
-      </div>
-      <pre style={{
-        background: '#0a0a0a', border: '1px solid #252535', borderRadius: 12,
-        padding: '1rem', color: '#f87171', fontSize: '0.75rem',
-        maxHeight: 500, overflow: 'auto', whiteSpace: 'pre-wrap', lineHeight: 1.6,
-        fontFamily: 'monospace',
-      }}>
-        {logType === 'series'
-          ? (logs?.series?.length ? logs.series.join('\n') : 'Aucune erreur')
-          : (logs?.movies?.length ? logs.movies.join('\n') : 'Aucune erreur')
-        }
-      </pre>
+      <Title level={5} style={{ marginBottom: '0.75rem' }}>Erreurs de liaison</Title>
+      <Segmented
+        value={logType}
+        onChange={(v) => setLogType(v as string)}
+        options={[
+          { label: 'Séries', value: 'series' },
+          { label: 'Films', value: 'movies' },
+        ]}
+        style={{ marginBottom: '1rem' }}
+      />
+      <Card size="small" styles={{ body: { padding: 0 } }}>
+        <pre style={{
+          background: '#0f1219', border: 'none', borderRadius: 8, padding: '0.875rem',
+          color: '#f87171', fontSize: 12, maxHeight: 500, overflow: 'auto',
+          whiteSpace: 'pre-wrap', lineHeight: 1.6, margin: 0, fontFamily: 'monospace',
+        }}>
+          {errors?.length ? errors.join('\n') : 'Aucune erreur'}
+        </pre>
+      </Card>
     </div>
   );
 }

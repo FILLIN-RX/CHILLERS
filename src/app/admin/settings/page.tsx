@@ -2,6 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { adminGetSettings, adminUpdateSettings } from '@/app/api';
+import {
+  Card, Typography, Form, Input, Button, Descriptions, Spin, Alert, Space,
+} from 'antd';
+import { SaveOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
+
+const { Title } = Typography;
 
 export default function AdminSettings() {
   const [settings, setSettings] = useState<Record<string, string> | null>(null);
@@ -16,73 +22,85 @@ export default function AdminSettings() {
     }).catch(() => setLoading(false));
   }, []);
 
-  const handleSave = async () => {
+  const handleSave = async (values: { corsOrigin?: string; notificationEmail?: string }) => {
     setSaving(true);
     setMsg('');
     const res = await adminUpdateSettings({
-      corsOrigin: settings?.corsOrigin || '',
-      notificationEmail: settings?.notificationEmail || '',
+      corsOrigin: values.corsOrigin || '',
+      notificationEmail: values.notificationEmail || '',
     });
     setSaving(false);
-    if (res.success) setMsg('Paramètres mis à jour');
-    else setMsg('Erreur lors de la sauvegarde');
+    if (res.success) {
+      setMsg('ok');
+      adminGetSettings().then(r => { if (r.success) setSettings(r.data); });
+    } else {
+      setMsg('err');
+    }
   };
 
-  if (loading) return <p style={{ color: '#888' }}>Chargement...</p>;
-  if (!settings) return <p style={{ color: '#ef4444' }}>Erreur de chargement</p>;
+  if (loading) return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#6b7488', padding: '2rem' }}>
+      <Spin /> Chargement...
+    </div>
+  );
+  if (!settings) return <Alert type="error" showIcon message="Erreur de chargement" />;
 
-  const rowStyle: React.CSSProperties = {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '0.75rem 0',
-    borderBottom: '1px solid #2a2a2a',
+  const valueColor = (v: string) => {
+    if (String(v).startsWith('✓')) return '#34d399';
+    if (String(v).startsWith('✗')) return '#f87171';
+    return undefined;
   };
 
   return (
-    <div>
-      <h1 style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 700, marginBottom: '1.5rem' }}>Paramètres</h1>
+    <div style={{ maxWidth: 720 }}>
+      <Title level={3} style={{ marginTop: 0, marginBottom: '1.25rem' }}>Paramètres</Title>
 
-      <div style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '12px', padding: '1.5rem', marginBottom: '2rem' }}>
-        {Object.entries(settings).map(([key, value]) => (
-          <div key={key} style={rowStyle}>
-            <span style={{ color: '#ccc', fontSize: '0.875rem' }}>
-              {key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}
-            </span>
-            <span style={{
-              fontSize: '0.8125rem',
-              fontFamily: 'monospace',
-              color: String(value).startsWith('✓') ? '#22c55e' : String(value).startsWith('✗') ? '#ef4444' : '#888'
-            }}>
-              {value}
-            </span>
-          </div>
-        ))}
-      </div>
+      <Card title="Configuration actuelle" size="small" style={{ marginBottom: '1.5rem' }}>
+        <Descriptions column={1} size="small" labelStyle={{ color: '#8b93a7' }}>
+          {Object.entries(settings).map(([key, value]) => (
+            <Descriptions.Item key={key} label={key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}>
+              <span style={{
+                fontFamily: 'monospace',
+                fontSize: 13,
+                color: valueColor(value),
+                wordBreak: 'break-all',
+              }}>
+                {value}
+              </span>
+            </Descriptions.Item>
+          ))}
+        </Descriptions>
+      </Card>
 
-      <h2 style={{ color: '#fff', fontSize: '1.125rem', fontWeight: 600, marginBottom: '1rem' }}>Modifier</h2>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '400px' }}>
-        <div>
-          <label style={{ color: '#888', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>CORS Origin</label>
-          <input
-            value={settings.corsOrigin || ''}
-            onChange={e => setSettings({ ...settings, corsOrigin: e.target.value })}
-            style={{ width: '100%', padding: '0.625rem', borderRadius: '8px', border: '1px solid #333', background: '#222', color: '#fff', fontSize: '0.875rem', marginTop: '0.25rem' }}
-          />
-        </div>
-        <div>
-          <label style={{ color: '#888', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Email notification</label>
-          <input
-            value={settings.notificationEmail || ''}
-            onChange={e => setSettings({ ...settings, notificationEmail: e.target.value })}
-            style={{ width: '100%', padding: '0.625rem', borderRadius: '8px', border: '1px solid #333', background: '#222', color: '#fff', fontSize: '0.875rem', marginTop: '0.25rem' }}
-          />
-        </div>
-        <button onClick={handleSave} disabled={saving} style={{ padding: '0.75rem', borderRadius: '8px', border: 'none', background: '#6366f1', color: '#fff', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, opacity: saving ? 0.7 : 1 }}>
-          {saving ? 'Sauvegarde...' : 'Sauvegarder'}
-        </button>
-        {msg && <p style={{ color: msg.includes('Erreur') ? '#ef4444' : '#22c55e', fontSize: '0.875rem' }}>{msg}</p>}
-      </div>
+      <Card title="Modifier" size="small">
+        <Form
+          layout="vertical"
+          initialValues={{ corsOrigin: settings.corsOrigin || '', notificationEmail: settings.notificationEmail || '' }}
+          onFinish={handleSave}
+          requiredMark={false}
+          style={{ maxWidth: 420 }}
+        >
+          <Form.Item name="corsOrigin" label="CORS Origin">
+            <Input placeholder="https://example.com" />
+          </Form.Item>
+          <Form.Item name="notificationEmail" label="Email notification">
+            <Input placeholder="admin@example.com" />
+          </Form.Item>
+          <Space>
+            <Button type="primary" htmlType="submit" icon={<SaveOutlined />} loading={saving}>
+              {saving ? 'Sauvegarde...' : 'Sauvegarder'}
+            </Button>
+            {msg && (
+              <Alert
+                type={msg === 'ok' ? 'success' : 'error'}
+                showIcon
+                icon={msg === 'ok' ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
+                message={msg === 'ok' ? 'Paramètres mis à jour' : 'Erreur lors de la sauvegarde'}
+              />
+            )}
+          </Space>
+        </Form>
+      </Card>
     </div>
   );
 }

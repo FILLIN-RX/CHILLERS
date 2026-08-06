@@ -2,6 +2,11 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { searchMedia, adminLinkTmdb } from '@/app/api';
+import { Modal, Input, Spin, Empty, Tag, Typography, Button } from 'antd';
+import type { InputRef } from 'antd';
+import { SearchOutlined, LinkOutlined } from '@ant-design/icons';
+
+const { Text } = Typography;
 
 interface TmdbSearchResult {
   id: string;
@@ -25,7 +30,7 @@ export default function TmdbLinkModal({ type, docId, currentTmdbId, onClose, onL
   const [results, setResults] = useState<TmdbSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [linking, setLinking] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<InputRef>(null);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -59,77 +64,78 @@ export default function TmdbLinkModal({ type, docId, currentTmdbId, onClose, onL
   };
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 9999,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
-    }} onClick={onClose}>
-      <div style={{
-        background: '#1a1a2e', border: '1px solid #2a2a4e', borderRadius: 16,
-        padding: '1.5rem', width: 520, maxWidth: '90vw', maxHeight: '80vh',
-        display: 'flex', flexDirection: 'column',
-      }} onClick={e => e.stopPropagation()}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h2 style={{ color: '#fff', fontSize: '1.125rem', margin: 0 }}>
-            Lier à TMDB
-          </h2>
-          <button onClick={onClose} style={{
-            background: 'none', border: 'none', color: '#6b6b80', cursor: 'pointer',
-            fontSize: '1.25rem', padding: '0.25rem',
-          }}>✕</button>
+    <Modal
+      open
+      title="Lier à TMDB"
+      onCancel={onClose}
+      footer={null}
+      width={520}
+      destroyOnClose
+      styles={{ body: { maxHeight: '65vh', overflowY: 'auto' } }}
+    >
+      <Input
+        ref={inputRef}
+        placeholder="Rechercher sur TMDB..."
+        value={query}
+        onChange={e => setQuery(e.target.value)}
+        prefix={<SearchOutlined style={{ color: '#6b7488' }} />}
+        allowClear
+        style={{ marginBottom: '1rem' }}
+      />
+
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '2rem' }}>
+          <Spin />
         </div>
-
-        <input
-          ref={inputRef}
-          placeholder="Rechercher sur TMDB..."
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          style={{
-            padding: '0.75rem', borderRadius: 10, border: '1px solid #333', background: '#111',
-            color: '#fff', fontSize: '0.875rem', width: '100%', boxSizing: 'border-box',
-            outline: 'none', marginBottom: '1rem',
-          }}
+      ) : results.length === 0 ? (
+        <Empty
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          description={query ? 'Aucun résultat' : 'Tapez un titre pour chercher'}
         />
-
-        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-          {loading ? (
-            <p style={{ color: '#6b6b80', textAlign: 'center', padding: '2rem' }}>Recherche...</p>
-          ) : results.length === 0 ? (
-            <p style={{ color: '#6b6b80', textAlign: 'center', padding: '2rem' }}>
-              {query ? 'Aucun résultat' : 'Tapez un titre pour chercher'}
-            </p>
-          ) : (
-            results.map(r => (
-              <div key={r.id} style={{
-                display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.625rem',
-                borderRadius: 10, cursor: 'pointer', transition: 'background 0.15s',
-                background: Number(r.id) === currentTmdbId ? '#1a3a2e' : 'transparent',
-              }}
-                onMouseEnter={e => { if (Number(r.id) !== currentTmdbId) e.currentTarget.style.background = '#222'; }}
-                onMouseLeave={e => { if (Number(r.id) !== currentTmdbId) e.currentTarget.style.background = 'transparent'; }}
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {results.map(r => {
+            const isCurrent = Number(r.id) === currentTmdbId;
+            return (
+              <div
+                key={r.id}
                 onClick={() => handleLink(Number(r.id))}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.625rem',
+                  borderRadius: 10, cursor: 'pointer', transition: 'background 0.15s',
+                  background: isCurrent ? 'rgba(52,211,153,0.12)' : 'transparent',
+                }}
+                onMouseEnter={e => { if (!isCurrent) e.currentTarget.style.background = '#0f1219'; }}
+                onMouseLeave={e => { if (!isCurrent) e.currentTarget.style.background = 'transparent'; }}
               >
-                <img src={r.posterUrl} alt="" style={{ width: 40, height: 60, borderRadius: 6, objectFit: 'cover', background: '#222' }} />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={r.posterUrl} alt="" style={{ width: 40, height: 60, borderRadius: 6, objectFit: 'cover', background: '#1a1f2b' }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ color: '#fff', fontSize: '0.875rem', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <div style={{ color: '#e6e9f0', fontSize: 14, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {r.title}
                   </div>
-                  <div style={{ color: '#6b6b80', fontSize: '0.75rem' }}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
                     {r.year} · {r.genres.slice(0, 2).join(', ')}
-                  </div>
+                  </Text>
                 </div>
-                {Number(r.id) === currentTmdbId ? (
-                  <span style={{ color: '#22c55e', fontSize: '0.75rem', fontWeight: 600 }}>LIÉ</span>
+                {isCurrent ? (
+                  <Tag color="success">LIÉ</Tag>
                 ) : (
-                  <span style={{ color: '#6366f1', fontSize: '0.75rem', fontWeight: 600 }}>
-                    {linking ? '...' : 'Lier'}
-                  </span>
+                  <Button
+                    type="text"
+                    size="small"
+                    loading={linking}
+                    icon={<LinkOutlined />}
+                    onClick={(e) => { e.stopPropagation(); handleLink(Number(r.id)); }}
+                  >
+                    Lier
+                  </Button>
                 )}
               </div>
-            ))
-          )}
+            );
+          })}
         </div>
-      </div>
-    </div>
+      )}
+    </Modal>
   );
 }

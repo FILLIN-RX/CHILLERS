@@ -2,6 +2,32 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { adminGetLogs, adminGetLogsStreamUrl } from '@/app/api';
+import { Typography, Segmented, Space, Button, Card, Spin, Alert, Badge } from 'antd';
+import { ClearOutlined } from '@ant-design/icons';
+
+const { Title, Text } = Typography;
+
+const LINE_COLOR = (line: string) => {
+  if (line.includes('ERREUR')) return '#f87171';
+  if (line.includes('succès')) return '#34d399';
+  if (line.includes('[Cron]')) return '#a99bf0';
+  if (line.includes('[Scraping')) return '#fbbf24';
+  return '#e2e8f0';
+};
+
+function LogBlock({ title, lines, color }: { title: string; lines: string[]; color: string }) {
+  return (
+    <Card title={title} size="small">
+      <pre style={{
+        background: '#0f1219', border: '1px solid #1c2230', borderRadius: 8, padding: '0.875rem',
+        color, fontSize: 12, maxHeight: 400, overflow: 'auto', whiteSpace: 'pre-wrap', lineHeight: 1.5,
+        margin: 0, fontFamily: 'monospace',
+      }}>
+        {lines.length > 0 ? lines.join('\n') : 'Aucune entrée'}
+      </pre>
+    </Card>
+  );
+}
 
 export default function AdminLogs() {
   const [logs, setLogs] = useState<any>(null);
@@ -39,89 +65,61 @@ export default function AdminLogs() {
     }
   }, [streamLines]);
 
-  const tabStyle = (t: string): React.CSSProperties => ({
-    padding: '0.5rem 1rem',
-    borderRadius: '8px',
-    border: 'none',
-    background: type === t ? '#6366f1' : '#2a2a2a',
-    color: '#fff',
-    cursor: 'pointer',
-    fontSize: '0.8125rem',
-    fontWeight: type === t ? 600 : 400,
-  });
-
   return (
     <div>
-      <h1 style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 700, marginBottom: '1rem' }}>Logs</h1>
+      <Title level={3} style={{ marginTop: 0, marginBottom: '1rem' }}>Logs</Title>
 
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-        <button onClick={() => setType('all')} style={tabStyle('all')}>Tous</button>
-        <button onClick={() => setType('series')} style={tabStyle('series')}>Séries TMDB</button>
-        <button onClick={() => setType('movies')} style={tabStyle('movies')}>Films TMDB</button>
-        <button onClick={() => setType('cron')} style={tabStyle('cron')}>Cron</button>
-      </div>
+      <Space wrap style={{ marginBottom: '1.25rem' }}>
+        <Segmented
+          value={type}
+          onChange={(v) => setType(v as string)}
+          options={[
+            { label: 'Tous', value: 'all' },
+            { label: 'Séries TMDB', value: 'series' },
+            { label: 'Films TMDB', value: 'movies' },
+            { label: 'Cron', value: 'cron' },
+          ]}
+        />
+        <Space size="small">
+          <Badge color="#34d399" text={<Text type="secondary" style={{ fontSize: 12 }}>Temps réel</Text>} />
+          {streamLines.length > 0 && (
+            <Button size="small" icon={<ClearOutlined />} onClick={() => setStreamLines([])}>
+              Effacer
+            </Button>
+          )}
+        </Space>
+      </Space>
 
-      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
-        <span style={{ color: '#22c55e', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
-          Temps réel
-        </span>
-        <button
-          onClick={() => setStreamLines([])}
-          style={{ background: 'transparent', border: '1px solid #444', color: '#888', borderRadius: '6px', padding: '0.25rem 0.75rem', cursor: 'pointer', fontSize: '0.75rem' }}
+      <Card size="small" styles={{ body: { padding: 0 } }} style={{ marginBottom: '1.5rem' }}>
+        <pre
+          ref={preRef}
+          style={{
+            background: '#0f1219', border: 'none', borderRadius: 8, padding: '0.875rem',
+            color: '#e2e8f0', fontSize: 12, maxHeight: 500, overflow: 'auto',
+            whiteSpace: 'pre-wrap', lineHeight: 1.5, margin: 0, fontFamily: 'monospace',
+          }}
         >
-          Effacer
-        </button>
-      </div>
-
-      <pre
-        ref={preRef}
-        style={{ background: '#0a0a0a', border: '1px solid #2a2a2a', borderRadius: '8px', padding: '1rem', color: '#e2e8f0', fontSize: '0.75rem', maxHeight: '600px', overflow: 'auto', whiteSpace: 'pre-wrap', lineHeight: 1.5, fontFamily: 'monospace' }}
-      >
-        {streamLines.length === 0
-          ? <span style={{ color: '#666' }}>En attente de logs...</span>
-          : streamLines.map((line, i) => (
-              <div key={i} style={{
-                color: line.includes('ERREUR') ? '#ef4444' :
-                       line.includes('succès') ? '#22c55e' :
-                       line.includes('[Cron]') ? '#6366f1' :
-                       line.includes('[Scraping') ? '#f59e0b' : '#e2e8f0'
-              }}>{line}</div>
+          {streamLines.length === 0
+            ? <span style={{ color: '#6b7488' }}>En attente de logs...</span>
+            : streamLines.map((line, i) => (
+              <div key={i} style={{ color: LINE_COLOR(line) }}>{line}</div>
             ))
-        }
-      </pre>
+          }
+        </pre>
+      </Card>
 
       {loading ? (
-        <p style={{ color: '#888', marginTop: '1rem' }}>Chargement...</p>
-      ) : logs ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginTop: '2rem' }}>
-          {logs.series && (
-            <div>
-              <h2 style={{ color: '#fff', fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>Erreurs TMDB - Séries</h2>
-              <pre style={{ background: '#111', border: '1px solid #2a2a2a', borderRadius: '8px', padding: '1rem', color: '#f87171', fontSize: '0.75rem', maxHeight: '400px', overflow: 'auto', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
-                {logs.series.length > 0 ? logs.series.join('\n') : 'Aucune erreur'}
-              </pre>
-            </div>
-          )}
-          {logs.movies && (
-            <div>
-              <h2 style={{ color: '#fff', fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>Erreurs TMDB - Films</h2>
-              <pre style={{ background: '#111', border: '1px solid #2a2a2a', borderRadius: '8px', padding: '1rem', color: '#f87171', fontSize: '0.75rem', maxHeight: '400px', overflow: 'auto', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
-                {logs.movies.length > 0 ? logs.movies.join('\n') : 'Aucune erreur'}
-              </pre>
-            </div>
-          )}
-          {logs.cron && (
-            <div>
-              <h2 style={{ color: '#fff', fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>Logs Cron</h2>
-              <pre style={{ background: '#111', border: '1px solid #2a2a2a', borderRadius: '8px', padding: '1rem', color: '#22c55e', fontSize: '0.75rem', maxHeight: '400px', overflow: 'auto', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
-                {logs.cron.length > 0 ? logs.cron.join('\n') : 'Aucun log'}
-              </pre>
-            </div>
-          )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#6b7488' }}>
+          <Spin /> Chargement...
         </div>
+      ) : logs ? (
+        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+          {logs.series && <LogBlock title="Erreurs TMDB - Séries" lines={logs.series} color="#f87171" />}
+          {logs.movies && <LogBlock title="Erreurs TMDB - Films" lines={logs.movies} color="#f87171" />}
+          {logs.cron && <LogBlock title="Logs Cron" lines={logs.cron} color="#34d399" />}
+        </Space>
       ) : (
-        <p style={{ color: '#ef4444', marginTop: '1rem' }}>Erreur de chargement</p>
+        <Alert type="error" showIcon message="Erreur de chargement" />
       )}
     </div>
   );

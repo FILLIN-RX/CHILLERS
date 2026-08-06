@@ -2,7 +2,10 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { adminGetConvertedLinks } from '@/app/api';
-import { useRouter } from 'next/navigation';
+import { Typography, Table, Input, Button, Tag, Spin, Empty } from 'antd';
+import { ReloadOutlined, SearchOutlined, LinkOutlined } from '@ant-design/icons';
+
+const { Title, Text } = Typography;
 
 interface LinkItem {
   _id: string;
@@ -20,7 +23,6 @@ export default function AdminLiens() {
   const [totalPages, setTotalPages] = useState(1);
   const [q, setQ] = useState('');
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
   const limit = 50;
 
   const fetch = useCallback(async (search: string, p: number) => {
@@ -40,130 +42,98 @@ export default function AdminLiens() {
 
   useEffect(() => { fetch(q, page); }, [fetch, q, page]);
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setPage(1);
-    fetch(q, 1);
-  };
-
-  const inputStyle: React.CSSProperties = {
-    padding: '0.625rem',
-    borderRadius: '8px',
-    border: '1px solid #333',
-    background: '#222',
-    color: '#fff',
-    fontSize: '0.875rem',
-    flex: 1,
-    outline: 'none',
-  };
+  const columns = [
+    {
+      title: 'Titre',
+      dataIndex: 'titre',
+      key: 'titre',
+      render: (t: string) => <span style={{ color: '#e6e9f0', fontWeight: 500 }}>{t}</span>,
+    },
+    {
+      title: 'Ancien lien',
+      dataIndex: 'lienOriginal',
+      key: 'lienOriginal',
+      render: (l: string) => l ? (
+        <a
+          href={l}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: '#f87171', fontSize: 12, wordBreak: 'break-all' }}
+          title={l}
+        >
+          <LinkOutlined /> {l.substring(0, 50)}...
+        </a>
+      ) : <Text type="secondary">—</Text>,
+    },
+    {
+      title: 'Nouveau lien',
+      dataIndex: 'lien',
+      key: 'lien',
+      render: (l: string) => (
+        <a
+          href={l}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: '#34d399', fontSize: 12, wordBreak: 'break-all' }}
+          title={l}
+        >
+          <LinkOutlined /> {l.substring(0, 50)}...
+        </a>
+      ),
+    },
+    {
+      title: 'DoodStream',
+      dataIndex: 'fileCode',
+      key: 'fileCode',
+      align: 'center' as const,
+      render: (f: string) => f ? <Tag color="success">✓</Tag> : <Text type="secondary">—</Text>,
+    },
+    {
+      title: 'Ajouté',
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      render: (d: string) => <Text type="secondary" style={{ fontSize: 12 }}>{new Date(d).toLocaleDateString()}</Text>,
+    },
+  ];
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-        <h1 style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>
-          Liens convertis <span style={{ color: '#6b6b80', fontSize: '1rem', fontWeight: 400 }}>({total})</span>
-        </h1>
-        <button
-          onClick={() => fetch(q, page)}
-          style={{
-            padding: '0.5rem 1rem', borderRadius: 8, border: 'none',
-            background: '#6366f1', color: '#fff', cursor: 'pointer', fontSize: '0.8125rem',
-          }}
-        >
-          ↻ Actualiser
-        </button>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.25rem' }}>
+        <Title level={3} style={{ margin: 0 }}>
+          Liens convertis{' '}
+          <Text type="secondary" style={{ fontWeight: 400, fontSize: '1rem' }}>({total})</Text>
+        </Title>
+        <Button icon={<ReloadOutlined />} onClick={() => fetch(q, page)}>
+          Actualiser
+        </Button>
       </div>
 
-      <form onSubmit={handleSearch} style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
-        <input
-          placeholder="Rechercher par titre..."
-          value={q}
-          onChange={e => setQ(e.target.value)}
-          style={inputStyle}
-        />
-        <button type="submit" style={{ padding: '0.625rem 1.25rem', borderRadius: '8px', border: 'none', background: '#6366f1', color: '#fff', cursor: 'pointer', fontSize: '0.875rem' }}>
-          Rechercher
-        </button>
-      </form>
+      <Input
+        placeholder="Rechercher par titre..."
+        value={q}
+        onChange={e => setQ(e.target.value)}
+        onPressEnter={() => { setPage(1); fetch(q, 1); }}
+        allowClear
+        prefix={<SearchOutlined style={{ color: '#6b7488' }} />}
+        style={{ maxWidth: 420, marginBottom: '1.25rem' }}
+      />
 
-      {loading ? (
-        <p style={{ color: '#888' }}>Chargement...</p>
-      ) : items.length === 0 ? (
-        <p style={{ color: '#888' }}>Aucun lien converti trouvé</p>
-      ) : (
-        <>
-          <div style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '12px', overflowX: 'auto' }}>
-            <table style={{ width: '100%', minWidth: 900, borderCollapse: 'collapse', fontSize: '0.8125rem' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid #2a2a2a', color: '#888', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em' }}>
-                  <th style={{ padding: '0.75rem 1rem', textAlign: 'left' }}>Titre</th>
-                  <th style={{ padding: '0.75rem 1rem', textAlign: 'left' }}>Ancien lien</th>
-                  <th style={{ padding: '0.75rem 1rem', textAlign: 'left' }}>Nouveau lien</th>
-                  <th style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>DoodStream</th>
-                  <th style={{ padding: '0.75rem 1rem', textAlign: 'left' }}>Ajouté</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map(item => (
-                  <tr key={item._id} style={{ borderBottom: '1px solid #2a2a2a' }}>
-                    <td style={{ padding: '0.75rem 1rem', color: '#fff', fontWeight: 500, whiteSpace: 'nowrap' }}>
-                      {item.titre}
-                    </td>
-                    <td style={{ padding: '0.75rem 1rem' }}>
-                      {item.lienOriginal ? (
-                        <a
-                          href={item.lienOriginal}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ color: '#ef4444', textDecoration: 'none', fontSize: '0.75rem', wordBreak: 'break-all' }}
-                          title={item.lienOriginal}
-                        >
-                          {item.lienOriginal.substring(0, 50)}...
-                        </a>
-                      ) : (
-                        <span style={{ color: '#6b6b80' }}>—</span>
-                      )}
-                    </td>
-                    <td style={{ padding: '0.75rem 1rem' }}>
-                      <a
-                        href={item.lien}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ color: '#22c55e', textDecoration: 'none', fontSize: '0.75rem', wordBreak: 'break-all' }}
-                        title={item.lien}
-                      >
-                        {item.lien.substring(0, 50)}...
-                      </a>
-                    </td>
-                    <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
-                      <span style={{ color: item.fileCode ? '#22c55e' : '#6b6b80', fontSize: '0.75rem' }}>
-                        {item.fileCode ? '✓' : '—'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#888', fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
-                      {new Date(item.createdAt).toLocaleDateString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {totalPages > 1 && (
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', marginTop: '1.5rem' }}>
-              <button disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))} style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid #333', background: '#222', color: page <= 1 ? '#555' : '#fff', cursor: page <= 1 ? 'default' : 'pointer', fontSize: '0.8125rem' }}>
-                ←
-              </button>
-              <span style={{ color: '#888', padding: '0.5rem', fontSize: '0.8125rem' }}>
-                {page} / {totalPages}
-              </span>
-              <button disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))} style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid #333', background: '#222', color: page >= totalPages ? '#555' : '#fff', cursor: page >= totalPages ? 'default' : 'pointer', fontSize: '0.8125rem' }}>
-                →
-              </button>
-            </div>
-          )}
-        </>
-      )}
+      <Table<LinkItem>
+        rowKey="_id"
+        size="middle"
+        loading={loading}
+        dataSource={items}
+        columns={columns}
+        scroll={{ x: 900 }}
+        locale={{ emptyText: loading ? <Spin /> : <Empty description="Aucun lien converti trouvé" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+        pagination={{
+          current: page,
+          pageSize: limit,
+          total,
+          showSizeChanger: false,
+          onChange: (p) => setPage(p),
+        }}
+      />
     </div>
   );
 }

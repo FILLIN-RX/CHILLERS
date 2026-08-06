@@ -15,6 +15,16 @@ import {
   adminKillProcess,
   adminGetSystemCron,
 } from '@/app/api';
+import {
+  Card, Button, Badge, Tag, Alert, Table, Space, Typography,
+} from 'antd';
+import {
+  PlayCircleOutlined, StopOutlined, ReloadOutlined, ThunderboltOutlined,
+  BugOutlined, ArrowRightOutlined, CloseOutlined,
+} from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
+
+const { Title, Text } = Typography;
 
 interface OsProcess {
   label: string;
@@ -56,7 +66,6 @@ export default function AdminCron() {
       if (processesRes.success) setOsProcesses(processesRes.data || []);
       if (sysCronRes.success) setSystemCron(sysCronRes.data || { present: false, lines: [] });
     } catch {
-      // silencieux : le polling suivant retentera
     } finally {
       setLoading(false);
     }
@@ -80,55 +89,7 @@ export default function AdminCron() {
 
   const isRunning = (label: string) => runningTasks.includes(label);
 
-  // Process OS dont le label est dans ALL_TASK_NAMES mais qui ne sont PAS
-  // remontés par runningTasks (donc fantômes non trackés par le backend)
   const orphanProcesses = osProcesses.filter(p => !runningTasks.includes(p.label));
-
-  const btn = (label: string, action: () => Promise<any>, color = '#6366f1') => {
-    const busy = isRunning(label);
-    return (
-      <button
-        onClick={() => run(label, action)}
-        disabled={busy}
-        style={{
-          padding: '0.5rem 1rem', borderRadius: 8, border: 'none',
-          background: busy ? '#444' : color, color: busy ? '#888' : '#fff',
-          cursor: busy ? 'not-allowed' : 'pointer',
-          fontSize: '0.8125rem', fontWeight: 600, whiteSpace: 'nowrap',
-          opacity: busy ? 0.6 : 1,
-        }}
-      >
-        {busy ? '⏳ En cours...' : label}
-      </button>
-    );
-  };
-
-  const row = (label: string, action: () => Promise<any>, color: string) => (
-    <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-      {btn(label, action, color)}
-      {isRunning(label) && (
-        <button
-          onClick={async () => {
-            const res = await adminStopTask(label);
-            if (res?.data?.killed) {
-              setLastTask(`${label} ⏹ Arrêt demandé`);
-            } else {
-              setLastTask(`${label} ⚠ Aucune tâche en cours à arrêter`);
-            }
-            fetchStatus();
-          }}
-          style={{
-            padding: '0.25rem 0.6rem', borderRadius: 6, border: 'none',
-            background: '#ef4444', color: '#fff', cursor: 'pointer',
-            fontSize: '0.75rem', fontWeight: 600,
-          }}
-          title="Arrêter"
-        >
-          ⏹ Arrêter
-        </button>
-      )}
-    </div>
-  );
 
   const runAll = async (label: string, actions: (() => Promise<any>)[]) => {
     setLastTask(`${label}...`);
@@ -151,259 +112,214 @@ export default function AdminCron() {
     fetchStatus();
   };
 
-  return (
-    <div>
-      <h1 style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.25rem' }}>
-        Tâches planifiées
-      </h1>
-      <p style={{ color: '#6b6b80', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
-        Gère le scraping, la maintenance et les tâches cron
-      </p>
-
-      {/* Bandeau : crontab système détectée */}
-      {systemCron.present && (
-        <div style={{
-          background: '#3a1a1a', border: '2px solid #ef4444', borderRadius: 12,
-          padding: '1rem', marginBottom: '1rem',
-        }}>
-          <div style={{ color: '#fca5a5', fontWeight: 700, fontSize: '0.95rem', marginBottom: '0.5rem' }}>
-            🚨 Crontab système active — l'admin n'a pas le contrôle total
-          </div>
-          <div style={{ color: '#fca5a5', fontSize: '0.8rem', marginBottom: '0.5rem' }}>
-            Une crontab lance des scripts toutes les minutes sans passer par cette interface.
-            Supprimez-la pour garder le contrôle :
-          </div>
-          <pre style={{
-            background: '#0f0f17', color: '#fbbf24', padding: '0.5rem 0.75rem',
-            borderRadius: 6, fontSize: '0.75rem', margin: '0.5rem 0', overflow: 'auto',
-          }}>
-            {systemCron.lines.join('\n')}
-          </pre>
-          <div style={{ color: '#fca5a5', fontSize: '0.75rem' }}>
-            → Sur le serveur : <code style={{ background: '#0f0f17', padding: '0.1rem 0.3rem', borderRadius: 4 }}>
-              crontab -e
-            </code> puis supprimer les lignes, ou <code style={{ background: '#0f0f17', padding: '0.1rem 0.3rem', borderRadius: 4 }}>
-              crontab -r
-            </code> pour tout vider.
-          </div>
-        </div>
-      )}
-
-      {/* Bandeau : process orphelins (non trackés par le backend) */}
-      {orphanProcesses.length > 0 && (
-        <div style={{
-          background: '#1a1a2e', border: '2px solid #f59e0b', borderRadius: 12,
-          padding: '0.75rem 1rem', marginBottom: '1rem',
-        }}>
-          <div style={{ color: '#f59e0b', fontWeight: 700, fontSize: '0.9rem', marginBottom: '0.5rem' }}>
-            ⚠ {orphanProcesses.length} process non-géré(s) détecté(s) sur le serveur
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-            {orphanProcesses.map(p => (
-              <div key={p.pid} style={{
-                display: 'flex', alignItems: 'center', gap: '0.5rem',
-                background: '#0f0f17', padding: '0.4rem 0.6rem', borderRadius: 6,
-              }}>
-                <span style={{ color: '#fbbf24', fontSize: '0.8rem', fontWeight: 600, flex: 1 }}>
-                  {p.label} <span style={{ color: '#888' }}>(PID {p.pid})</span>
-                </span>
-                <code style={{ color: '#888', fontSize: '0.7rem', maxWidth: '40%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {p.cmd}
-                </code>
-                <button
-                  onClick={() => killOrphan(p.pid, p.label)}
-                  style={{
-                    padding: '0.25rem 0.6rem', borderRadius: 6, border: 'none',
-                    background: '#ef4444', color: '#fff', cursor: 'pointer',
-                    fontSize: '0.75rem', fontWeight: 600,
-                  }}
-                >
-                  💀 Tuer
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-
-        {/* Cron Status */}
-        <div style={{ background: '#181825', border: '1px solid #252535', borderRadius: 14, padding: '1.25rem' }}>
-          <h2 style={{ color: '#fff', fontSize: '1rem', fontWeight: 600, margin: '0 0 0.75rem 0' }}>
-            Cron (planification automatique)
-          </h2>
-          <p style={{ color: '#6b6b80', fontSize: '0.8125rem', marginBottom: '0.75rem' }}>
-            Le cron lance le scraping chaque jour à 03:00 et la maintenance chaque heure.
-          </p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-            <span style={{
-              display: 'inline-block', width: 10, height: 10, borderRadius: '50%',
-              background: loading ? '#555' : cronRunning ? '#22c55e' : '#ef4444',
-            }} />
-            <span style={{ color: '#aaa', fontSize: '0.875rem' }}>
-              {loading ? 'Chargement...' : cronRunning ? 'Cron actif' : 'Cron arrêté'}
-            </span>
-          </div>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button onClick={async () => { await run('Démarrage cron', adminCronStart); fetchStatus(); }} style={{ padding: '0.5rem 1rem', borderRadius: 8, border: 'none', background: '#22c55e', color: '#fff', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 600 }}>Démarrer</button>
-            <button onClick={async () => { await run('Arrêt cron', adminCronStop); fetchStatus(); }} style={{ padding: '0.5rem 1rem', borderRadius: 8, border: 'none', background: '#ef4444', color: '#fff', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 600 }}>Arrêter</button>
-            <button onClick={fetchStatus} style={{ padding: '0.5rem 1rem', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 600 }}>Rafraîchir</button>
-          </div>
-        </div>
-
-        {/* Running tasks indicator (backend) */}
-        {runningTasks.length > 0 && (
-          <div style={{ background: '#1a1a2e', border: '1px solid #22c55e', borderRadius: 12, padding: '0.75rem 1rem' }}>
-            <span style={{ color: '#22c55e', fontSize: '0.8125rem', fontWeight: 600 }}>
-              ⚡ Tâches en cours : {runningTasks.join(', ')}
-            </span>
-          </div>
-        )}
-
-        {/* Scraping */}
-        <div style={{ background: '#181825', border: '1px solid #252535', borderRadius: 14, padding: '1.25rem' }}>
-          <h2 style={{ color: '#fff', fontSize: '1rem', fontWeight: 600, margin: '0 0 0.75rem 0' }}>
-            Scraping
-          </h2>
-          <p style={{ color: '#6b6b80', fontSize: '0.8125rem', marginBottom: '0.75rem' }}>
-            Récupère les nouveaux films et séries depuis open-otaku.me.
-          </p>
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            {row('Scraping Films', () => adminTriggerScrape('films'), '#6366f1')}
-            {row('Scraping Séries', () => adminTriggerScrape('series'), '#6366f1')}
-            <button
-              onClick={() => runAll('Scraping Films+Séries', [() => adminTriggerScrape('films'), () => adminTriggerScrape('series')])}
-              disabled={isRunning('Scraping Films') || isRunning('Scraping Séries')}
-              style={{
-                padding: '0.5rem 1rem', borderRadius: 8, border: 'none',
-                background: '#6366f1', color: '#fff', cursor: 'pointer',
-                fontSize: '0.8125rem', fontWeight: 600, whiteSpace: 'nowrap',
-                opacity: isRunning('Scraping Films') || isRunning('Scraping Séries') ? 0.6 : 1,
-              }}
-            >
-              Les deux
-            </button>
-          </div>
-        </div>
-
-        {/* Maintenance */}
-        <div style={{ background: '#181825', border: '1px solid #252535', borderRadius: 14, padding: '1.25rem' }}>
-          <h2 style={{ color: '#fff', fontSize: '1rem', fontWeight: 600, margin: '0 0 0.75rem 0' }}>
-            Maintenance
-          </h2>
-          <p style={{ color: '#6b6b80', fontSize: '0.8125rem', marginBottom: '0.75rem' }}>
-            Vérification des liens, liaison TMDB, synchronisation.
-          </p>
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            {row('Maintenance Liens', () => adminRunMaintenance('dead-links'), '#22c55e')}
-            {row('Linking TMDB Films', () => adminRunMaintenance('tmdb-movies'), '#22c55e')}
-            {row('Linking TMDB Séries', () => adminRunMaintenance('tmdb-series'), '#22c55e')}
-            {row('Organize Séries Doodstream', () => adminRunMaintenance('organize'), '#22c55e')}
-            {row('Sync Séries → MongoDB', () => adminRunMaintenance('sync'), '#22c55e')}
-            <button
-              onClick={() => run('Toute la maintenance', () => adminRunMaintenance('all'))}
-              disabled={ALL_TASK_NAMES.some(n => runningTasks.includes(n))}
-              style={{
-                padding: '0.5rem 1rem', borderRadius: 8, border: 'none',
-                background: '#22c55e', color: '#fff', cursor: 'pointer',
-                fontSize: '0.8125rem', fontWeight: 600, whiteSpace: 'nowrap',
-                opacity: ALL_TASK_NAMES.some(n => runningTasks.includes(n)) ? 0.6 : 1,
-              }}
-            >
-              Toute la maintenance
-            </button>
-          </div>
-        </div>
-
-        {/* TMDB Linking */}
-        <div style={{ background: '#181825', border: '1px solid #252535', borderRadius: 14, padding: '1.25rem' }}>
-          <h2 style={{ color: '#fff', fontSize: '1rem', fontWeight: 600, margin: '0 0 0.75rem 0' }}>
-            Liaison TMDB
-          </h2>
-          <p style={{ color: '#6b6b80', fontSize: '0.8125rem', marginBottom: '0.75rem' }}>
-            Lie les films/séries scrapés à leur fiche TMDB.
-          </p>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            {row('Linking TMDB Films', () => adminTriggerTmdbLink('movies'), '#f59e0b')}
-            {row('Linking TMDB Séries', () => adminTriggerTmdbLink('series'), '#f59e0b')}
-          </div>
-        </div>
-
-        {/* Debug : état OS brut */}
-        <div style={{ background: '#0f0f17', border: '1px solid #252535', borderRadius: 14, padding: '1.25rem' }}>
-          <button
-            onClick={() => setShowOsPanel(s => !s)}
-            style={{
-              background: 'transparent', border: 'none', color: '#6b6b80',
-              cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, padding: 0,
+  const renderTaskButton = (label: string, action: () => Promise<any>, color?: string) => {
+    const busy = isRunning(label);
+    return (
+      <Space size={4}>
+        <Button
+          loading={busy}
+          disabled={busy}
+          onClick={() => run(label, action)}
+          style={color ? { background: `${color}22`, borderColor: color, color } : undefined}
+        >
+          {label}
+        </Button>
+        {busy && (
+          <Button
+            danger
+            size="small"
+            icon={<StopOutlined />}
+            onClick={async () => {
+              const res = await adminStopTask(label);
+              if (res?.data?.killed) {
+                setLastTask(`${label} ⏹ Arrêt demandé`);
+              } else {
+                setLastTask(`${label} ⚠ Aucune tâche en cours à arrêter`);
+              }
+              fetchStatus();
             }}
           >
-            {showOsPanel ? '▼' : '▶'} État OS brut ({osProcesses.length} process scraper actifs)
-          </button>
-          {showOsPanel && (
-            <div style={{ marginTop: '0.75rem' }}>
-              {osProcesses.length === 0 ? (
-                <div style={{ color: '#555', fontSize: '0.8rem' }}>Aucun process scraper en cours.</div>
-              ) : (
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
-                  <thead>
-                    <tr style={{ color: '#888', textAlign: 'left' }}>
-                      <th style={{ padding: '0.3rem' }}>Label</th>
-                      <th style={{ padding: '0.3rem' }}>PID</th>
-                      <th style={{ padding: '0.3rem' }}>Commande</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {osProcesses.map(p => (
-                      <tr key={p.pid} style={{ borderTop: '1px solid #252535' }}>
-                        <td style={{ padding: '0.3rem', color: '#fff' }}>{p.label}</td>
-                        <td style={{ padding: '0.3rem', color: '#fbbf24' }}>{p.pid}</td>
-                        <td style={{ padding: '0.3rem', color: '#888', fontFamily: 'monospace', fontSize: '0.7rem' }}>
-                          {p.cmd}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Last task message */}
-        {lastTask && (
-          <div style={{
-            background: '#1a1a2e', border: '1px solid #2a2a4e', borderRadius: 12,
-            padding: '1rem', display: 'flex', alignItems: 'center', gap: '1rem',
-            flexWrap: 'wrap',
-          }}>
-            <span style={{ color: '#fff', fontSize: '0.875rem', flex: 1 }}>
-              {lastTask}
-            </span>
-            <button
-              onClick={() => router.push('/admin/logs')}
-              style={{
-                padding: '0.5rem 1rem', borderRadius: 8, border: 'none',
-                background: '#6366f1', color: '#fff', cursor: 'pointer',
-                fontSize: '0.8125rem', fontWeight: 600, whiteSpace: 'nowrap',
-              }}
-            >
-              Voir les logs →
-            </button>
-            <button
-              onClick={() => setLastTask(null)}
-              style={{
-                padding: '0.25rem 0.5rem', borderRadius: 6, border: 'none',
-                background: 'transparent', color: '#6b6b80', cursor: 'pointer',
-                fontSize: '0.8125rem',
-              }}
-            >
-              ✕
-            </button>
-          </div>
+            Arrêter
+          </Button>
         )}
-      </div>
+      </Space>
+    );
+  };
+
+  const osColumns: ColumnsType<OsProcess> = [
+    { title: 'Label', dataIndex: 'label', key: 'label', render: (l: string) => <span style={{ fontWeight: 500 }}>{l}</span> },
+    { title: 'PID', dataIndex: 'pid', key: 'pid', render: (p: number) => <Text style={{ color: '#fbbf24' }}>{p}</Text> },
+    { title: 'Commande', dataIndex: 'cmd', key: 'cmd', render: (c: string) => <Text type="secondary" style={{ fontFamily: 'monospace', fontSize: 12 }}>{c}</Text> },
+  ];
+
+  return (
+    <div style={{ maxWidth: 960 }}>
+      <Title level={3} style={{ marginTop: 0, marginBottom: '0.25rem' }}>Tâches planifiées</Title>
+      <Text type="secondary" style={{ display: 'block', marginBottom: '1.25rem' }}>
+        Gère le scraping, la maintenance et les tâches cron
+      </Text>
+
+      {systemCron.present && (
+        <Alert
+          type="error"
+          showIcon
+          style={{ marginBottom: '1rem' }}
+          message={
+            <span style={{ fontWeight: 600 }}>Crontab système active — l&apos;admin n&apos;a pas le contrôle total</span>
+          }
+          description={
+            <Space direction="vertical" size={8} style={{ width: '100%' }}>
+              <Text>Une crontab lance des scripts toutes les minutes sans passer par cette interface. Supprimez-la pour garder le contrôle :</Text>
+              <pre style={{
+                background: '#0f1219', color: '#fbbf24', padding: '0.5rem 0.75rem',
+                borderRadius: 6, fontSize: 12, margin: 0, overflow: 'auto',
+              }}>
+                {systemCron.lines.join('\n')}
+              </pre>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                → Sur le serveur : <code style={{ background: '#0f1219', padding: '0.1rem 0.3rem', borderRadius: 4 }}>crontab -e</code> puis supprimer les lignes, ou <code style={{ background: '#0f1219', padding: '0.1rem 0.3rem', borderRadius: 4 }}>crontab -r</code> pour tout vider.
+              </Text>
+            </Space>
+          }
+        />
+      )}
+
+      {orphanProcesses.length > 0 && (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: '1rem' }}
+          message={<span style={{ fontWeight: 600 }}>{orphanProcesses.length} process non-géré(s) détecté(s) sur le serveur</span>}
+          description={
+            <Space direction="vertical" size={6} style={{ width: '100%' }}>
+              {orphanProcesses.map(p => (
+                <div key={p.pid} style={{
+                  display: 'flex', alignItems: 'center', gap: '0.5rem',
+                  background: '#0f1219', padding: '0.4rem 0.6rem', borderRadius: 6,
+                }}>
+                  <span style={{ color: '#fbbf24', fontSize: 13, fontWeight: 600, flex: 1 }}>
+                    {p.label} <Text type="secondary">(PID {p.pid})</Text>
+                  </span>
+                  <Text type="secondary" style={{ fontFamily: 'monospace', fontSize: 11, maxWidth: '40%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {p.cmd}
+                  </Text>
+                  <Button danger size="small" icon={<BugOutlined />} onClick={() => killOrphan(p.pid, p.label)}>
+                    Tuer
+                  </Button>
+                </div>
+              ))}
+            </Space>
+          }
+        />
+      )}
+
+      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        <Card
+          title="Cron (planification automatique)"
+          size="small"
+          extra={<Badge status={loading ? 'default' : cronRunning ? 'success' : 'error'} text={<Text>{loading ? 'Chargement...' : cronRunning ? 'Cron actif' : 'Cron arrêté'}</Text>} />}
+        >
+          <Text type="secondary" style={{ display: 'block', marginBottom: '1rem' }}>
+            Le cron lance le scraping chaque jour à 03:00 et la maintenance chaque heure.
+          </Text>
+          <Space>
+            <Button type="primary" icon={<PlayCircleOutlined />} onClick={async () => { await run('Démarrage cron', adminCronStart); fetchStatus(); }}>
+              Démarrer
+            </Button>
+            <Button danger icon={<StopOutlined />} onClick={async () => { await run('Arrêt cron', adminCronStop); fetchStatus(); }}>
+              Arrêter
+            </Button>
+            <Button icon={<ReloadOutlined />} onClick={fetchStatus}>Rafraîchir</Button>
+          </Space>
+        </Card>
+
+        {runningTasks.length > 0 && (
+          <Alert
+            type="success"
+            showIcon
+            icon={<ThunderboltOutlined />}
+            message={<span>Tâches en cours : {runningTasks.map(t => <Tag key={t} color="success">{t}</Tag>)}</span>}
+          />
+        )}
+
+        <Card title="Scraping" size="small">
+          <Text type="secondary" style={{ display: 'block', marginBottom: '1rem' }}>
+            Récupère les nouveaux films et séries depuis open-otaku.me.
+          </Text>
+          <Space wrap>
+            {renderTaskButton("Scraping Films", () => adminTriggerScrape('films'), "#818cf8")}
+            {renderTaskButton("Scraping Séries", () => adminTriggerScrape('series'), "#818cf8")}
+            <Button
+              icon={<ThunderboltOutlined />}
+              disabled={isRunning('Scraping Films') || isRunning('Scraping Séries')}
+              onClick={() => runAll('Scraping Films+Séries', [() => adminTriggerScrape('films'), () => adminTriggerScrape('series')])}
+            >
+              Les deux
+            </Button>
+          </Space>
+        </Card>
+
+        <Card title="Maintenance" size="small">
+          <Text type="secondary" style={{ display: 'block', marginBottom: '1rem' }}>
+            Vérification des liens, liaison TMDB, synchronisation.
+          </Text>
+          <Space wrap>
+            {renderTaskButton("Maintenance Liens", () => adminRunMaintenance('dead-links'), "#34d399")}
+            {renderTaskButton("Linking TMDB Films", () => adminRunMaintenance('tmdb-movies'), "#34d399")}
+            {renderTaskButton("Linking TMDB Séries", () => adminRunMaintenance('tmdb-series'), "#34d399")}
+            {renderTaskButton("Organize Séries Doodstream", () => adminRunMaintenance('organize'), "#34d399")}
+            {renderTaskButton("Sync Séries → MongoDB", () => adminRunMaintenance('sync'), "#34d399")}
+            <Button
+              type="primary"
+              disabled={ALL_TASK_NAMES.some(n => runningTasks.includes(n))}
+              onClick={() => run('Toute la maintenance', () => adminRunMaintenance('all'))}
+            >
+              Toute la maintenance
+            </Button>
+          </Space>
+        </Card>
+
+        <Card title="Liaison TMDB" size="small">
+          <Text type="secondary" style={{ display: 'block', marginBottom: '1rem' }}>
+            Lie les films/séries scrapés à leur fiche TMDB.
+          </Text>
+          <Space wrap>
+            {renderTaskButton("Linking TMDB Films", () => adminTriggerTmdbLink('movies'), "#fbbf24")}
+            {renderTaskButton("Linking TMDB Séries", () => adminTriggerTmdbLink('series'), "#fbbf24")}
+          </Space>
+        </Card>
+
+        <Card size="small" title={<Button type="text" size="small" icon={showOsPanel ? <CloseOutlined /> : <BugOutlined />} onClick={() => setShowOsPanel(s => !s)}>
+          État OS brut ({osProcesses.length} process scraper actifs)
+        </Button>}>
+          {!showOsPanel ? null : osProcesses.length === 0 ? (
+            <Text type="secondary">Aucun process scraper en cours.</Text>
+          ) : (
+            <Table<OsProcess>
+              rowKey="pid"
+              size="small"
+              dataSource={osProcesses}
+              columns={osColumns}
+              pagination={false}
+              scroll={{ x: 600 }}
+            />
+          )}
+        </Card>
+
+        {lastTask && (
+          <Alert
+            message={<Space><span>{lastTask}</span></Space>}
+            action={
+              <Space>
+                <Button size="small" type="primary" icon={<ArrowRightOutlined />} onClick={() => router.push('/admin/logs')}>
+                  Voir les logs
+                </Button>
+                <Button size="small" type="text" icon={<CloseOutlined />} onClick={() => setLastTask(null)} />
+              </Space>
+            }
+          />
+        )}
+      </Space>
     </div>
   );
 }

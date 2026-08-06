@@ -3,7 +3,10 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { adminGetCollection } from '@/app/api';
-import { IconFolder } from '@/components/Icons';
+import { Typography, Input, Button, Space, Card, Tag, Pagination, Spin, Empty } from 'antd';
+import { SearchOutlined, FolderOutlined } from '@ant-design/icons';
+
+const { Title, Text } = Typography;
 
 interface Serie {
   _id: string;
@@ -41,47 +44,30 @@ export default function AdminSeries() {
 
   useEffect(() => { fetch(q, page); }, [fetch, q, page]);
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setPage(1);
-    fetch(q, 1);
-  };
-
-  const inputStyle: React.CSSProperties = {
-    padding: '0.625rem 0.875rem',
-    borderRadius: 10,
-    border: '1px solid #2a2a3a',
-    background: '#181825',
-    color: '#fff',
-    fontSize: '0.875rem',
-    flex: 1,
-    outline: 'none',
-  };
-
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-        <h1 style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>
-          Séries <span style={{ color: '#6b6b80', fontSize: '1rem', fontWeight: 400 }}>({total})</span>
-        </h1>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+        <Title level={3} style={{ margin: 0 }}>
+          Séries <Text type="secondary" style={{ fontWeight: 400, fontSize: '1rem' }}>({total})</Text>
+        </Title>
       </div>
 
-      <form onSubmit={handleSearch} style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
-        <input
-          placeholder="Rechercher une série..."
-          value={q}
-          onChange={e => setQ(e.target.value)}
-          style={inputStyle}
-        />
-        <button type="submit" style={{ padding: '0.625rem 1.25rem', borderRadius: 10, border: 'none', background: '#6366f1', color: '#fff', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600 }}>
-          Rechercher
-        </button>
-      </form>
+      <Input
+        placeholder="Rechercher une série..."
+        value={q}
+        onChange={e => setQ(e.target.value)}
+        onPressEnter={() => { setPage(1); fetch(q, 1); }}
+        allowClear
+        prefix={<SearchOutlined style={{ color: '#6b7488' }} />}
+        style={{ maxWidth: 420, marginBottom: '1.25rem' }}
+      />
 
       {loading ? (
-        <p style={{ color: '#6b6b80' }}>Chargement...</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#6b7488' }}>
+          <Spin /> Chargement...
+        </div>
       ) : items.length === 0 ? (
-        <p style={{ color: '#6b6b80' }}>Aucune série trouvée</p>
+        <Empty description="Aucune série trouvée" />
       ) : (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.75rem' }}>
@@ -89,74 +75,53 @@ export default function AdminSeries() {
               const deadCount = s.episodes.filter(e => !e.lien || e.lien === '#').length;
               const tmdbOk = !!s.tmdbId;
               return (
-                <div
+                <Card
                   key={s._id}
+                  size="small"
+                  hoverable
                   onClick={() => router.push(`/admin/series/${s._id}`)}
-                  style={{
-                    background: '#181825',
-                    border: '1px solid #252535',
-                    borderRadius: 14,
-                    padding: '1.125rem',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = '#6366f1'; e.currentTarget.style.background = '#1c1c2e'; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = '#252535'; e.currentTarget.style.background = '#181825'; }}
+                  styles={{ body: { padding: '1.125rem' } }}
                 >
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                    <span style={{ flexShrink: 0, marginRight: '0.75rem', color: '#6366f1', display: 'flex' }}>
-                      <IconFolder />
-                    </span>
+                    <FolderOutlined style={{ color: '#a99bf0', fontSize: 20, marginRight: '0.75rem', marginTop: 2, flexShrink: 0 }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <h3 style={{ color: '#fff', fontSize: '0.9375rem', fontWeight: 600, margin: 0, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div style={{ color: '#e6e9f0', fontSize: '0.9375rem', fontWeight: 600, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {s.titre}
-                      </h3>
+                      </div>
                     </div>
-                    <span style={{
-                      fontSize: '0.6875rem',
-                      fontWeight: 600,
-                      padding: '0.2rem 0.5rem',
-                      borderRadius: 6,
-                      background: tmdbOk ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)',
-                      color: tmdbOk ? '#22c55e' : '#ef4444',
-                      flexShrink: 0,
-                    }}>
+                    <Tag color={tmdbOk ? 'success' : 'error'} style={{ flexShrink: 0, marginInlineEnd: 0 }}>
                       {tmdbOk ? 'TMDB' : '—'}
-                    </span>
+                    </Tag>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '1rem', fontSize: '0.75rem' }}>
+                  <Space size="large">
                     <div>
-                      <p style={{ color: '#6b6b80', margin: 0, fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Épisodes</p>
-                      <p style={{ color: '#fff', margin: '0.125rem 0 0 0', fontWeight: 600 }}>{s.episodes.length}</p>
+                      <Text type="secondary" style={{ display: 'block', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Épisodes</Text>
+                      <Text strong>{s.episodes.length}</Text>
                     </div>
                     <div>
-                      <p style={{ color: '#6b6b80', margin: 0, fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Liens morts</p>
-                      <p style={{ color: deadCount > 0 ? '#ef4444' : '#22c55e', margin: '0.125rem 0 0 0', fontWeight: 600 }}>
-                        {deadCount > 0 ? `${deadCount}` : '0'}
-                      </p>
+                      <Text type="secondary" style={{ display: 'block', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Liens morts</Text>
+                      <Text strong style={{ color: deadCount > 0 ? '#f87171' : '#34d399' }}>{deadCount}</Text>
                     </div>
                     <div>
-                      <p style={{ color: '#6b6b80', margin: 0, fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Ajouté</p>
-                      <p style={{ color: '#aaa', margin: '0.125rem 0 0 0' }}>{new Date(s.createdAt).toLocaleDateString()}</p>
+                      <Text type="secondary" style={{ display: 'block', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Ajouté</Text>
+                      <Text>{new Date(s.createdAt).toLocaleDateString()}</Text>
                     </div>
-                  </div>
-                </div>
+                  </Space>
+                </Card>
               );
             })}
           </div>
 
           {totalPages > 1 && (
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', marginTop: '2rem' }}>
-              <button disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))} style={{ padding: '0.5rem 1rem', borderRadius: 8, border: '1px solid #2a2a3a', background: '#181825', color: page <= 1 ? '#3a3a4a' : '#fff', cursor: page <= 1 ? 'default' : 'pointer', fontSize: '0.8125rem' }}>
-                ←
-              </button>
-              <span style={{ color: '#6b6b80', padding: '0.5rem', fontSize: '0.8125rem' }}>
-                {page} / {totalPages}
-              </span>
-              <button disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))} style={{ padding: '0.5rem 1rem', borderRadius: 8, border: '1px solid #2a2a3a', background: '#181825', color: page >= totalPages ? '#3a3a4a' : '#fff', cursor: page >= totalPages ? 'default' : 'pointer', fontSize: '0.8125rem' }}>
-                →
-              </button>
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1.5rem' }}>
+              <Pagination
+                current={page}
+                total={total}
+                pageSize={limit}
+                showSizeChanger={false}
+                onChange={setPage}
+              />
             </div>
           )}
         </>

@@ -3,8 +3,14 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { adminGetSerie, startDownload, triggerDownload } from '@/app/api';
-import { IconFolderOpen, IconBack } from '@/components/Icons';
+import { Typography, Button, Space, Tag, Table, Modal, Spin, Alert, Tooltip } from 'antd';
+import {
+  ArrowLeftOutlined, PlayCircleOutlined, DownloadOutlined, LinkOutlined, FolderOpenOutlined,
+} from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
 import TmdbLinkModal from '../../components/TmdbLinkModal';
+
+const { Title, Text } = Typography;
 
 interface Episode {
   episode: string;
@@ -44,8 +50,12 @@ export default function AdminSerieDetail() {
     }).catch(() => setLoading(false));
   }, [id]);
 
-  if (loading) return <p style={{ color: '#6b6b80' }}>Chargement...</p>;
-  if (!serie) return <p style={{ color: '#ef4444' }}>Série introuvable</p>;
+  if (loading) return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#6b7488' }}>
+      <Spin /> Chargement...
+    </div>
+  );
+  if (!serie) return <Alert type="error" showIcon message="Série introuvable" />;
 
   const grouped: Record<number, Episode[]> = {};
   for (const ep of serie.episodes) {
@@ -55,56 +65,131 @@ export default function AdminSerieDetail() {
 
   const deadCount = serie.episodes.filter(e => !e.lien || e.lien === '#').length;
 
+  const columns: ColumnsType<Episode> = [
+    {
+      title: 'Épisode',
+      dataIndex: 'episode',
+      key: 'episode',
+      render: (e: string, ep) => (
+        <Space size={4} wrap>
+          <span style={{ fontWeight: 500, whiteSpace: 'nowrap' }}>{e}</span>
+          {!ep.fileCode && !ep.uqloadCode && (!ep.lien || ep.lien === '#') && (
+            <Tag color="warning" style={{ fontSize: 11 }}>Bientôt disponible</Tag>
+          )}
+        </Space>
+      ),
+    },
+    {
+      title: 'Lien',
+      key: 'lien',
+      render: (_, ep) => {
+        const isDead = !ep.lien || ep.lien === '#';
+        return isDead
+          ? <Text style={{ color: '#f87171', fontSize: 12 }}>✗ Mort</Text>
+          : <a href={ep.lien} target="_blank" rel="noopener noreferrer" style={{ color: '#a99bf0', fontSize: 12, textDecoration: 'none' }}>Voir le lien</a>;
+      },
+    },
+    {
+      title: 'Uqload',
+      key: 'uqload',
+      align: 'center' as const,
+      render: (_, ep) => ep.uqloadCode ? (ep.uqloadLink ? <Tag color="success">✓</Tag> : <Tag>⏳</Tag>) : <Text type="secondary">—</Text>,
+    },
+    {
+      title: 'Doodstream',
+      key: 'doodstream',
+      align: 'center' as const,
+      render: (_, ep) => ep.fileCode ? <Tag color="success">✓</Tag> : <Text type="secondary">—</Text>,
+    },
+    {
+      title: 'TMDB',
+      key: 'tmdb',
+      render: (_, ep) => ep.tmdbId ? <Text style={{ color: '#34d399', fontSize: 12 }}>✓ Lié</Text> : <Text type="secondary">—</Text>,
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      align: 'center' as const,
+      width: 110,
+      render: (_, ep) => {
+        const isDead = !ep.lien || ep.lien === '#';
+        const canPlay = !isDead && (!!ep.tmdbId || !!serie.tmdbId);
+        return (
+          <Space size={4}>
+            <Tooltip title="Lire">
+              <Button
+                size="small"
+                type="text"
+                disabled={!canPlay}
+                icon={<PlayCircleOutlined style={{ color: canPlay ? '#a99bf0' : undefined }} />}
+                onClick={() => {
+                  const tmdbId = ep.tmdbId || serie.tmdbId;
+                  if (tmdbId) setPlayerUrl(`/watch/${tmdbId}?type=tv&season=${ep.season}&episode=${ep.episodeNumber}`);
+                }}
+              />
+            </Tooltip>
+            <Tooltip title="Télécharger">
+              <Button
+                size="small"
+                type="text"
+                disabled={isDead}
+                loading={downloadingEp === ep.episode}
+                icon={<DownloadOutlined style={{ color: isDead ? undefined : '#34d399' }} />}
+                onClick={async () => {
+                  setDownloadingEp(ep.episode);
+                  try {
+                    const result = await startDownload(
+                      ep.tmdbId ? String(ep.tmdbId) : serie._id,
+                      'series',
+                      serie.titre,
+                      ep.season,
+                      ep.episodeNumber,
+                    );
+                    if (result?.downloadUrl) {
+                      triggerDownload(result.downloadUrl, `${serie.titre}-${ep.episode}.mp4`);
+                    }
+                  } catch { } finally { setDownloadingEp(null); }
+                }}
+              />
+            </Tooltip>
+          </Space>
+        );
+      },
+    },
+  ];
+
   return (
     <div>
-      <button
+      <Button
+        icon={<ArrowLeftOutlined />}
         onClick={() => router.push('/admin/series')}
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '0.375rem',
-          padding: '0.375rem 0.75rem',
-          borderRadius: 8,
-          border: '1px solid #2a2a3a',
-          background: '#181825',
-          color: '#6b6b80',
-          fontSize: '0.8125rem',
-          cursor: 'pointer',
-          marginBottom: '1rem',
-        }}
-        onMouseEnter={e => { e.currentTarget.style.background = '#222235'; e.currentTarget.style.color = '#fff'; }}
-        onMouseLeave={e => { e.currentTarget.style.background = '#181825'; e.currentTarget.style.color = '#6b6b80'; }}
+        style={{ marginBottom: '1rem' }}
       >
-        <IconBack /> Retour aux séries
-      </button>
+        Retour aux séries
+      </Button>
 
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1.5rem', marginBottom: '2rem' }}>
-        <div style={{ flexShrink: 0, color: '#6366f1', display: 'flex' }}>
-          <IconFolderOpen />
-        </div>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem', marginBottom: '1.5rem' }}>
+        <FolderOpenOutlined style={{ fontSize: 28, color: '#a99bf0', marginTop: 4 }} />
         <div style={{ flex: 1 }}>
-          <h1 style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>{serie.titre}</h1>
-          <div style={{ display: 'flex', gap: '1.5rem', marginTop: '0.5rem', fontSize: '0.8125rem' }}>
-            <span style={{ color: '#6b6b80' }}>
-              <span style={{ color: '#aaa' }}>{serie.episodes.length}</span> épisodes
-            </span>
-            <span style={{ color: '#6b6b80' }}>
-              <span style={{ color: '#aaa' }}>{Object.keys(grouped).length}</span> saisons
-            </span>
-            <span style={{ color: deadCount > 0 ? '#ef4444' : '#22c55e' }}>
+          <Title level={3} style={{ margin: 0 }}>{serie.titre}</Title>
+          <Space size="large" wrap style={{ marginTop: '0.5rem', fontSize: 13 }}>
+            <Text type="secondary">{serie.episodes.length} épisodes</Text>
+            <Text type="secondary">{Object.keys(grouped).length} saisons</Text>
+            <Text style={{ color: deadCount > 0 ? '#f87171' : '#34d399' }}>
               {deadCount > 0 ? `${deadCount} lien(s) mort(s)` : '✓ tous OK'}
-            </span>
-            <button onClick={() => setLinkModal({ docId: serie._id, tmdbId: serie.tmdbId })} style={{
-              background: 'none', border: 'none', cursor: 'pointer', padding: 0,
-              color: serie.tmdbId ? '#22c55e' : '#ef4444', fontSize: '0.8125rem',
-              textDecoration: 'underline', textDecorationColor: serie.tmdbId ? '#22c55e' : '#ef4444',
-            }}>
+            </Text>
+            <Button
+              type="link"
+              size="small"
+              style={{ padding: 0, color: serie.tmdbId ? '#34d399' : '#f87171', fontSize: 13 }}
+              onClick={() => setLinkModal({ docId: serie._id, tmdbId: serie.tmdbId })}
+            >
               {serie.tmdbId ? `✓ Lié TMDB (#${serie.tmdbId})` : '✗ Lier TMDB'}
-            </button>
-          </div>
-          <a href={serie.pageUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#6366f1', fontSize: '0.8125rem', textDecoration: 'none', marginTop: '0.25rem', display: 'inline-block' }}>
-            Voir sur open-otaku.me →
-          </a>
+            </Button>
+            <a href={serie.pageUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#a99bf0', fontSize: 13, textDecoration: 'none' }}>
+              Voir sur open-otaku.me →
+            </a>
+          </Space>
         </div>
       </div>
 
@@ -112,132 +197,18 @@ export default function AdminSerieDetail() {
         .sort(([a], [b]) => Number(b) - Number(a))
         .map(([season, eps]) => (
           <div key={season} style={{ marginBottom: '1.5rem' }}>
-            <h2 style={{ color: '#fff', fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>
-              Saison {season}
-              <span style={{ color: '#6b6b80', fontWeight: 400, fontSize: '0.8125rem', marginLeft: '0.5rem' }}>
-                ({eps.length} épisodes)
-              </span>
-            </h2>
-            <div style={{ background: '#181825', border: '1px solid #252535', borderRadius: 12, overflowX: 'auto' }}>
-              <table style={{ width: '100%', minWidth: 700, borderCollapse: 'collapse', fontSize: '0.8125rem' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid #252535', color: '#6b6b80', textTransform: 'uppercase', fontSize: '0.6875rem', letterSpacing: '0.05em' }}>
-                    <th style={{ padding: '0.625rem 1rem', textAlign: 'left' }}>Épisode</th>
-                    <th style={{ padding: '0.625rem 1rem', textAlign: 'left' }}>Lien</th>
-                    <th style={{ padding: '0.625rem 1rem', textAlign: 'center' }}>Uqload</th>
-                    <th style={{ padding: '0.625rem 1rem', textAlign: 'center' }}>Doodstream</th>
-                    <th style={{ padding: '0.625rem 1rem', textAlign: 'left' }}>TMDB</th>
-                    <th style={{ padding: '0.625rem 1rem', textAlign: 'center' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {eps
-                    .sort((a, b) => a.episodeNumber - b.episodeNumber)
-                    .map((ep, i) => {
-                      const isDead = !ep.lien || ep.lien === '#';
-                      return (
-                        <tr key={i} style={{ borderBottom: '1px solid #1e1e2e' }}>
-                          <td style={{ padding: '0.625rem 1rem', color: '#fff', fontWeight: 500, whiteSpace: 'nowrap' }}>
-                            {ep.episode}
-                            {!ep.fileCode && !ep.uqloadCode && (!ep.lien || ep.lien === '#') && (
-                              <span style={{ marginLeft: '0.375rem', fontSize: '0.6rem', color: '#fbbf24', background: '#2a2a1a', padding: '0.125rem 0.325rem', borderRadius: 4, whiteSpace: 'nowrap' }}>
-                                Bientôt disponible
-                              </span>
-                            )}
-                          </td>
-                          <td style={{ padding: '0.625rem 1rem' }}>
-                            {isDead ? (
-                              <span style={{ color: '#ef4444', fontSize: '0.75rem' }}>✗ Mort</span>
-                            ) : (
-                              <a href={ep.lien} target="_blank" rel="noopener noreferrer" style={{ color: '#6366f1', textDecoration: 'none', fontSize: '0.75rem' }}>
-                                Voir le lien
-                              </a>
-                            )}
-                          </td>
-                          <td style={{ padding: '0.625rem 1rem', textAlign: 'center' }}>
-                            <span style={{ color: ep.uqloadCode ? '#22c55e' : '#6b6b80', fontSize: '0.75rem' }}>
-                              {ep.uqloadCode ? (ep.uqloadLink ? '✓' : '⏳') : '—'}
-                            </span>
-                          </td>
-                          <td style={{ padding: '0.625rem 1rem', textAlign: 'center' }}>
-                            <span style={{ color: ep.fileCode ? '#22c55e' : '#6b6b80', fontSize: '0.75rem' }}>
-                              {ep.fileCode ? '✓' : '—'}
-                            </span>
-                          </td>
-                          <td style={{ padding: '0.625rem 1rem' }}>
-                            <span style={{ color: ep.tmdbId ? '#22c55e' : '#6b6b80', fontSize: '0.75rem' }}>
-                              {ep.tmdbId ? '✓ Lié' : '—'}
-                            </span>
-                          </td>
-                          <td style={{ padding: '0.625rem 1rem', textAlign: 'center' }}>
-                            <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'center' }}>
-                              <button
-                                onClick={() => {
-                                  const tmdbId = ep.tmdbId || serie.tmdbId;
-                                  if (tmdbId) setPlayerUrl(`/watch/${tmdbId}?type=tv&season=${ep.season}&episode=${ep.episodeNumber}`);
-                                }}
-                                disabled={isDead || (!ep.tmdbId && !serie.tmdbId)}
-                                title="Lire"
-                                style={{
-                                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                                  width: 30, height: 30, borderRadius: 6, border: 'none',
-                                  background: '#1a1a2e', color: isDead || (!ep.tmdbId && !serie.tmdbId) ? '#444' : '#6366f1',
-                                  cursor: isDead || (!ep.tmdbId && !serie.tmdbId) ? 'default' : 'pointer',
-                                  fontSize: '0.8125rem', opacity: isDead || (!ep.tmdbId && !serie.tmdbId) ? 0.3 : 1,
-                                }}
-                              >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                                  <polygon points="5 3 19 12 5 21 5 3" />
-                                </svg>
-                              </button>
-                              <button
-                                onClick={async () => {
-                                  setDownloadingEp(ep.episode);
-                                  try {
-                                    const result = await startDownload(
-                                      ep.tmdbId ? String(ep.tmdbId) : serie._id,
-                                      'series',
-                                      serie.titre,
-                                      ep.season,
-                                      ep.episodeNumber,
-                                    );
-                                    if (result?.downloadUrl) {
-                                      triggerDownload(result.downloadUrl, `${serie.titre}-${ep.episode}.mp4`);
-                                    }
-                                  } catch { } finally { setDownloadingEp(null); }
-                                }}
-                                disabled={downloadingEp === ep.episode || isDead}
-                                title="Télécharger"
-                                style={{
-                                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                                  width: 30, height: 30, borderRadius: 6, border: 'none',
-                                  background: '#1a1a2e', color: isDead ? '#444' : '#22c55e',
-                                  cursor: (downloadingEp === ep.episode || isDead) ? 'default' : 'pointer',
-                                  fontSize: '0.8125rem', opacity: (downloadingEp === ep.episode || isDead) ? 0.3 : 1,
-                                }}
-                              >
-                                {downloadingEp === ep.episode ? (
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <circle cx="12" cy="12" r="10" />
-                                    <line x1="12" y1="8" x2="12" y2="12" />
-                                    <line x1="12" y1="16" x2="12.01" y2="16" />
-                                  </svg>
-                                ) : (
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                    <polyline points="7 10 12 15 17 10" />
-                                    <line x1="12" y1="15" x2="12" y2="3" />
-                                  </svg>
-                                )}
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                </tbody>
-              </table>
-            </div>
+            <Title level={5} style={{ marginBottom: '0.5rem' }}>
+              Saison {season}{' '}
+              <Text type="secondary" style={{ fontWeight: 400, fontSize: 13 }}>({eps.length} épisodes)</Text>
+            </Title>
+            <Table<Episode>
+              rowKey={(_, i) => `${season}-${i}`}
+              size="middle"
+              dataSource={[...eps].sort((a, b) => a.episodeNumber - b.episodeNumber)}
+              columns={columns}
+              pagination={false}
+              scroll={{ x: 750 }}
+            />
           </div>
         ))}
 
@@ -254,30 +225,22 @@ export default function AdminSerieDetail() {
         />
       )}
 
-      {playerUrl && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 9999,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(4px)',
-        }} onClick={() => setPlayerUrl(null)}>
-          <div style={{
-            width: '80vw', height: '80vh', maxWidth: 1200, borderRadius: 12, overflow: 'hidden',
-            border: '1px solid #333', position: 'relative',
-          }} onClick={e => e.stopPropagation()}>
-            <button onClick={() => setPlayerUrl(null)} style={{
-              position: 'absolute', top: 12, right: 12, zIndex: 10,
-              background: '#000', border: 'none', color: '#fff', cursor: 'pointer',
-              width: 32, height: 32, borderRadius: '50%', fontSize: '1.125rem',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.8,
-            }}>✕</button>
-            <iframe
-              src={playerUrl}
-              style={{ width: '100%', height: '100%', border: 'none' }}
-              allowFullScreen
-            />
-          </div>
-        </div>
-      )}
+      <Modal
+        open={!!playerUrl}
+        onCancel={() => setPlayerUrl(null)}
+        footer={null}
+        width="80vw"
+        styles={{ body: { padding: 0, height: '75vh' } }}
+        destroyOnClose
+      >
+        {playerUrl && (
+          <iframe
+            src={playerUrl}
+            style={{ width: '100%', height: '100%', border: 'none' }}
+            allowFullScreen
+          />
+        )}
+      </Modal>
     </div>
   );
 }

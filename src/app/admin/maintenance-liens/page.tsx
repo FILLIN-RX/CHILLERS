@@ -2,6 +2,12 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { adminGetLogsStreamUrl, adminRunMaintenance } from '@/app/api';
+import { Typography, Button, Space, Card, Badge } from 'antd';
+import {
+  SearchOutlined, ToolOutlined, VideoCameraOutlined, ClearOutlined,
+} from '@ant-design/icons';
+
+const { Title, Text } = Typography;
 
 interface LogEntry {
   line: string;
@@ -60,112 +66,92 @@ export default function AdminMaintenanceLiens() {
   };
 
   const lineColor = (line: string) => {
-    if (line.includes('✅') || line.includes('Succès') || line.includes('OK')) return '#22c55e';
-    if (line.includes('❌') || line.includes('Erreur') || line.includes('FAIL') || line.includes('FATAL')) return '#ef4444';
-    if (line.includes('🔍') || line.includes('Détecté') || line.includes('mort') || line.includes('Dead link')) return '#f59e0b';
-    return '#c0c0d0';
+    if (line.includes('✅') || line.includes('Succès') || line.includes('OK')) return '#34d399';
+    if (line.includes('❌') || line.includes('Erreur') || line.includes('FAIL') || line.includes('FATAL')) return '#f87171';
+    if (line.includes('🔍') || line.includes('Détecté') || line.includes('mort') || line.includes('Dead link')) return '#fbbf24';
+    return '#a5adc0';
   };
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-        <h1 style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>
-          Maintenance des liens
-        </h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span style={{
-            display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
-            background: connected ? '#22c55e' : '#ef4444',
-          }} />
-          <span style={{ color: '#6b6b80', fontSize: '0.75rem' }}>
-            {connected ? 'Connecté' : 'Déconnecté'}
-          </span>
-        </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '0.5rem' }}>
+        <Title level={3} style={{ margin: 0 }}>Maintenance des liens</Title>
+        <Space size="small">
+          <Badge status={connected ? 'success' : 'error'} text={<Text type="secondary" style={{ fontSize: 12 }}>{connected ? 'Connecté' : 'Déconnecté'}</Text>} />
+        </Space>
       </div>
-      <p style={{ color: '#6b6b80', fontSize: '0.8125rem', marginBottom: '1.5rem' }}>
+      <Text type="secondary" style={{ display: 'block', marginBottom: '1.25rem' }}>
         Vérifie tous les liens et répare ceux qui sont morts
-      </p>
+      </Text>
 
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-        <button
+      <Space wrap style={{ marginBottom: '1.25rem' }}>
+        <Button
+          type="primary"
+          icon={<SearchOutlined />}
+          loading={running === 'check-all-links'}
+          disabled={!!running}
           onClick={() => launch('check-all-links')}
-          disabled={!!running}
-          style={{
-            padding: '0.625rem 1.25rem', borderRadius: 10, border: 'none',
-            background: running ? '#444' : '#6366f1', color: '#fff',
-            cursor: running ? 'not-allowed' : 'pointer', fontSize: '0.875rem', fontWeight: 600,
-            display: 'flex', alignItems: 'center', gap: '0.5rem',
-          }}
         >
-          {running === 'check-all-links' ? '⏳' : '🔍'} Détecter les liens morts
-        </button>
-        <button
+          Détecter les liens morts
+        </Button>
+        <Button
+          icon={<ToolOutlined />}
+          loading={running === 'dead-links'}
+          disabled={!!running}
           onClick={() => launch('dead-links')}
-          disabled={!!running}
-          style={{
-            padding: '0.625rem 1.25rem', borderRadius: 10, border: 'none',
-            background: running ? '#444' : '#22c55e', color: '#fff',
-            cursor: running ? 'not-allowed' : 'pointer', fontSize: '0.875rem', fontWeight: 600,
-            display: 'flex', alignItems: 'center', gap: '0.5rem',
-          }}
+          style={{ background: '#0d2b1a', borderColor: '#14532d', color: '#34d399' }}
         >
-          {running === 'dead-links' ? '⏳' : '🔧'} Réparer les séries
-        </button>
-        <button
+          Réparer les séries
+        </Button>
+        <Button
+          icon={<VideoCameraOutlined />}
+          loading={running === 'repair-movies'}
+          disabled={!!running}
           onClick={() => launch('repair-movies')}
-          disabled={!!running}
-          style={{
-            padding: '0.625rem 1.25rem', borderRadius: 10, border: 'none',
-            background: running ? '#444' : '#f59e0b', color: '#fff',
-            cursor: running ? 'not-allowed' : 'pointer', fontSize: '0.875rem', fontWeight: 600,
-            display: 'flex', alignItems: 'center', gap: '0.5rem',
-          }}
+          style={{ background: '#2b1d0a', borderColor: '#53350d', color: '#fbbf24' }}
         >
-          {running === 'repair-movies' ? '⏳' : '🎬'} Réparer les films
-        </button>
+          Réparer les films
+        </Button>
         {logs.length > 0 && (
-          <button
-            onClick={() => { setLogs([]); stopSSE(); }}
-            style={{
-              padding: '0.5rem 1rem', borderRadius: 8, border: '1px solid #333',
-              background: 'transparent', color: '#6b6b80', cursor: 'pointer', fontSize: '0.8125rem',
-            }}
-          >
+          <Button icon={<ClearOutlined />} onClick={() => { setLogs([]); stopSSE(); }}>
             Effacer
-          </button>
+          </Button>
         )}
-      </div>
+      </Space>
 
-      <div style={{
-        background: '#0d0d14', border: '1px solid #1e1e2a', borderRadius: 12,
-        padding: '1rem', minHeight: 300, maxHeight: '70vh', overflowY: 'auto',
-        fontFamily: 'monospace', fontSize: '0.8125rem', lineHeight: 1.6,
-      }}>
-        {logs.length === 0 ? (
-          <p style={{ color: '#555', textAlign: 'center', marginTop: '4rem' }}>
-            Lance une détection ou une réparation pour voir les résultats en temps réel
-          </p>
-        ) : (
-          logs.map((entry, i) => {
-            const isTransition = entry.line.includes('→') || entry.line.includes('Réparé') || entry.line.includes('Succès');
-            return (
-              <div
-                key={i}
-                style={{
-                  color: lineColor(entry.line),
-                  background: isTransition ? 'rgba(34,197,94,0.06)' : 'transparent',
-                  padding: '0.125rem 0',
-                  borderLeft: isTransition ? '2px solid #22c55e' : '2px solid transparent',
-                  paddingLeft: '0.5rem',
-                }}
-              >
-                {entry.line}
-              </div>
-            );
-          })
-        )}
-        <div ref={logEndRef} />
-      </div>
+      <Card
+        size="small"
+        styles={{ body: { padding: '0.75rem' } }}
+      >
+        <div style={{
+          minHeight: 300, maxHeight: '70vh', overflowY: 'auto',
+          fontFamily: 'monospace', fontSize: 13, lineHeight: 1.6,
+        }}>
+          {logs.length === 0 ? (
+            <p style={{ color: '#6b7488', textAlign: 'center', marginTop: '5rem', fontSize: 13 }}>
+              Lance une détection ou une réparation pour voir les résultats en temps réel
+            </p>
+          ) : (
+            logs.map((entry, i) => {
+              const isTransition = entry.line.includes('→') || entry.line.includes('Réparé') || entry.line.includes('Succès');
+              return (
+                <div
+                  key={i}
+                  style={{
+                    color: lineColor(entry.line),
+                    background: isTransition ? 'rgba(52,211,153,0.06)' : 'transparent',
+                    padding: '0.125rem 0 0.125rem 0.5rem',
+                    borderLeft: isTransition ? '2px solid #34d399' : '2px solid transparent',
+                  }}
+                >
+                  {entry.line}
+                </div>
+              );
+            })
+          )}
+          <div ref={logEndRef} />
+        </div>
+      </Card>
     </div>
   );
 }

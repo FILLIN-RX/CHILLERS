@@ -11,6 +11,16 @@ import {
   resolveImageUrl,
   AfficheItem,
 } from '@/app/api';
+import {
+  Typography, Table, Button, Space, Select, Input, Tag, Progress, Alert, Spin, Empty, message,
+} from 'antd';
+import {
+  SearchOutlined, PlusOutlined, DownloadOutlined, CopyOutlined, CheckOutlined,
+  PictureOutlined, ThunderboltOutlined,
+} from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
+
+const { Title, Text } = Typography;
 
 interface JobProgress {
   running: boolean;
@@ -62,9 +72,6 @@ export default function AdminAffiches() {
     setLoading(false);
   }, [type, disponible, source, searchInput, page]);
 
-  // Charge la liste affiches + statut des jobs. Pattern identique à
-  // dead-links/page.tsx : fetch serveur puis mise à jour de l'état.
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load(); }, [load]);
 
   const pollStatus = useCallback(async () => {
@@ -110,203 +117,214 @@ export default function AdminAffiches() {
   };
 
   const totalPages = Math.max(1, Math.ceil(total / 50));
+  const progress = scanProgress?.running ? scanProgress : genProgress?.running ? genProgress : null;
+
+  const columns: ColumnsType<AfficheItem> = [
+    {
+      title: 'Affiche',
+      key: 'poster',
+      width: 70,
+      render: (_, item) => item.posterUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={resolveImageUrl(item.posterUrl)} alt={item.titre}
+          style={{ width: 44, height: 66, objectFit: 'cover', borderRadius: 6, border: '1px solid #242a38', display: 'block' }} />
+      ) : (
+        <div style={{ width: 44, height: 66, borderRadius: 6, background: '#1a1f2b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#6b7488' }}>
+          Aucune
+        </div>
+      ),
+    },
+    {
+      title: 'Titre',
+      key: 'titre',
+      render: (_, item) => (
+        <div>
+          <div style={{ color: '#e6e9f0', fontWeight: 600 }}>{item.titre}</div>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {item.mediaType === 'movie' ? 'Film' : 'Série'}{item.year ? ` · ${item.year}` : ''}
+          </Text>
+        </div>
+      ),
+    },
+    {
+      title: 'Source',
+      key: 'source',
+      width: 90,
+      render: (_, item) => {
+        const s = item.posterSource || 'none';
+        return (
+          <Tag
+            color={s === 'tmdb' ? 'processing' : s === 'web' ? 'success' : s === 'ai' ? 'purple' : 'default'}
+            style={{ textTransform: 'uppercase', fontSize: 11, fontWeight: 700 }}
+          >
+            {SOURCE_LABELS[s]}
+          </Tag>
+        );
+      },
+    },
+    {
+      title: 'Dispo',
+      key: 'dispo',
+      width: 110,
+      render: (_, item) => {
+        if (item.disponible === null || item.disponible === undefined) return <Text type="secondary">—</Text>;
+        return item.disponible
+          ? <span style={{ color: '#34d399', fontWeight: 700, fontSize: 12 }}>● Disponible</span>
+          : <span style={{ color: '#f87171', fontWeight: 700, fontSize: 12 }}>● Non dispo</span>;
+      },
+    },
+    {
+      title: 'Speech',
+      key: 'speech',
+      render: (_, item) => item.speech ? (
+        <Text type="secondary" style={{ fontSize: 12, display: 'block', maxWidth: 320, lineHeight: 1.5 }}>
+          <span style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{item.speech}</span>
+        </Text>
+      ) : (
+        <Text type="secondary" style={{ color: '#4b5466', fontSize: 12 }}>Aucun speech — générer</Text>
+      ),
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      width: 260,
+      render: (_, item) => (
+        <Space direction="vertical" size={4}>
+          <Space size={4}>
+            <Button size="small" icon={<ThunderboltOutlined />} loading={genProgress?.running} onClick={() => handleGenerateOne(item)}>
+              Générer
+            </Button>
+            <Button size="small" type="text" icon={<PictureOutlined />} href={adminAffichesCardUrl(item._id, item.mediaType)} target="_blank" download>
+              Carte
+            </Button>
+            <Button size="small" type="text" icon={<DownloadOutlined />} href={`/api/affiches/${item._id}/poster?type=${item.mediaType}`} target="_blank" download>
+              Affiche
+            </Button>
+          </Space>
+          {item.link && (
+            <Space size={4} style={{ maxWidth: 250 }}>
+              <a href={item.link} target="_blank" rel="noreferrer"
+                style={{ color: '#a5b4fc', fontSize: 12, textDecoration: 'underline', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {item.link}
+              </a>
+              <Button
+                size="small"
+                type={copiedId === item._id ? 'primary' : 'default'}
+                icon={copiedId === item._id ? <CheckOutlined /> : <CopyOutlined />}
+                onClick={() => handleCopyLink(item)}
+              >
+                {copiedId === item._id ? 'Copié' : 'Copier'}
+              </Button>
+            </Space>
+          )}
+        </Space>
+      ),
+    },
+  ];
 
   return (
     <div>
-      <style>{`
-        .affiches-table { width: 100%; border-collapse: collapse; }
-        .affiches-table th { text-align: left; color: #888; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; padding: 0.75rem 1rem; background: #2a2a2a; }
-        .affiches-table td { padding: 0.75rem 1rem; border-bottom: 1px solid #2a2a2a; color: #ccc; font-size: 0.8125rem; vertical-align: middle; }
-      `}</style>
-
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-        <h1 style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>
-          Affiches & Partage
-          <span style={{ color: '#6b6b80', fontSize: '0.875rem', fontWeight: 400, marginLeft: '0.5rem' }}>
-            {total} titres
-          </span>
-        </h1>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button onClick={handleScan} disabled={scanProgress?.running}
-            style={{ padding: '0.5rem 1rem', background: scanProgress?.running ? '#555' : '#6366f1', color: '#fff', border: 'none', borderRadius: 8, cursor: scanProgress?.running ? 'default' : 'pointer', fontSize: '0.8125rem', fontWeight: 600 }}>
-            {scanProgress?.running ? 'Scan en cours...' : '🔍 Scan disponibilité'}
-          </button>
-          <button onClick={handleGenerateAll} disabled={genProgress?.running}
-            style={{ padding: '0.5rem 1rem', background: genProgress?.running ? '#555' : '#22c55e', color: '#000', border: 'none', borderRadius: 8, cursor: genProgress?.running ? 'default' : 'pointer', fontSize: '0.8125rem', fontWeight: 600 }}>
-            {genProgress?.running ? 'Génération en cours...' : '✨ Générer tout (affiches + speech)'}
-          </button>
-        </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
+        <Title level={3} style={{ margin: 0 }}>
+          Affiches & Partage{' '}
+          <Text type="secondary" style={{ fontWeight: 400, fontSize: '0.875rem' }}>{total} titres</Text>
+        </Title>
+        <Space>
+          <Button type="primary" icon={<SearchOutlined />} loading={scanProgress?.running} onClick={handleScan}>
+            {scanProgress?.running ? 'Scan en cours...' : 'Scan disponibilité'}
+          </Button>
+          <Button
+            icon={<PlusOutlined />}
+            loading={genProgress?.running}
+            onClick={handleGenerateAll}
+            style={{ background: '#0d2b1a', borderColor: '#14532d', color: '#34d399' }}
+          >
+            {genProgress?.running ? 'Génération en cours...' : 'Générer tout (affiches + speech)'}
+          </Button>
+        </Space>
       </div>
 
-      {message && (
-        <div style={{ background: '#1a1a2e', border: '1px solid #2a2a4e', borderRadius: 8, padding: '0.75rem 1rem', color: '#a5b4fc', fontSize: '0.8125rem', marginBottom: '1rem' }}>
-          {message}
-        </div>
-      )}
+      {message && <Alert type="info" showIcon message={message} style={{ marginBottom: '1rem' }} />}
 
-      {(scanProgress?.running || genProgress?.running) && (
-        <div style={{ background: '#0d0d1a', border: '1px solid #2a2a4e', borderRadius: 12, padding: '1rem', marginBottom: '1rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#888', fontSize: '0.8125rem', marginBottom: '0.5rem' }}>
+      {progress && (
+        <div style={{ background: '#0f1219', border: '1px solid #242a38', borderRadius: 12, padding: '1rem', marginBottom: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#8b93a7', fontSize: 13, marginBottom: '0.5rem' }}>
             <span>{scanProgress?.running ? 'Scan' : 'Génération'} en cours...</span>
-            <span>{scanProgress?.processed ?? genProgress?.processed ?? 0} / {scanProgress?.total ?? genProgress?.total ?? 0}</span>
+            <span>{progress.processed} / {progress.total}</span>
           </div>
-          <div style={{ height: 6, background: '#1e1e2a', borderRadius: 3, overflow: 'hidden' }}>
-            <div style={{
-              height: '100%', width: `${((scanProgress?.processed || 0) / Math.max(1, scanProgress?.total || 1)) * 100}%`,
-              background: '#6366f1', transition: 'width 0.4s ease',
-            }} />
-          </div>
-          <div style={{ color: '#6b6b80', fontSize: '0.75rem', marginTop: '0.5rem' }}>
-            {scanProgress?.lastMessage || genProgress?.lastMessage}
-          </div>
+          <Progress
+            percent={Math.round((progress.processed / Math.max(1, progress.total)) * 100)}
+            showInfo={false}
+            strokeColor={{ from: '#6c5ce7', to: '#9b59f6' }}
+            trailColor="#1e2431"
+            size="small"
+          />
+          <Text type="secondary" style={{ display: 'block', fontSize: 12, marginTop: '0.5rem' }}>
+            {progress.lastMessage}
+          </Text>
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-        <select value={type} onChange={e => { setType(e.target.value as 'all' | 'movie' | 'series'); setPage(1); }}
-          style={{ padding: '0.5rem 0.75rem', borderRadius: 8, border: '1px solid #333', background: '#1a1a1a', color: '#fff', fontSize: '0.8125rem' }}>
-          <option value="all">Tous</option>
-          <option value="movie">Films</option>
-          <option value="series">Séries</option>
-        </select>
+      <Space wrap style={{ marginBottom: '1rem' }}>
+        <Select
+          value={type}
+          onChange={(v) => { setType(v as 'all' | 'movie' | 'series'); setPage(1); }}
+          style={{ width: 120 }}
+          options={[
+            { label: 'Tous', value: 'all' },
+            { label: 'Films', value: 'movie' },
+            { label: 'Séries', value: 'series' },
+          ]}
+        />
+        <Select
+          value={disponible}
+          onChange={(v) => { setDisponible(v); setPage(1); }}
+          style={{ width: 170 }}
+          options={[
+            { label: 'Disponibilité: tous', value: '' },
+            { label: 'Disponible', value: 'true' },
+            { label: 'Indisponible', value: 'false' },
+          ]}
+        />
+        <Select
+          value={source}
+          onChange={(v) => { setSource(v); setPage(1); }}
+          style={{ width: 150 }}
+          options={[
+            { label: 'Source: toutes', value: '' },
+            { label: 'TMDB', value: 'tmdb' },
+            { label: 'Web', value: 'web' },
+            { label: 'IA', value: 'ai' },
+            { label: 'Aucune', value: 'none' },
+          ]}
+        />
+        <Input.Search
+          placeholder="Rechercher un titre..."
+          allowClear
+          value={q}
+          onChange={e => setQ(e.target.value)}
+          onSearch={(v) => { setSearchInput(v); setPage(1); }}
+          style={{ width: 280 }}
+        />
+      </Space>
 
-        <select value={disponible} onChange={e => { setDisponible(e.target.value); setPage(1); }}
-          style={{ padding: '0.5rem 0.75rem', borderRadius: 8, border: '1px solid #333', background: '#1a1a1a', color: '#fff', fontSize: '0.8125rem' }}>
-          <option value="">Disponibilité: tous</option>
-          <option value="true">Disponible</option>
-          <option value="false">Indisponible</option>
-        </select>
-
-        <select value={source} onChange={e => { setSource(e.target.value); setPage(1); }}
-          style={{ padding: '0.5rem 0.75rem', borderRadius: 8, border: '1px solid #333', background: '#1a1a1a', color: '#fff', fontSize: '0.8125rem' }}>
-          <option value="">Source: toutes</option>
-          <option value="tmdb">TMDB</option>
-          <option value="web">Web</option>
-          <option value="ai">IA</option>
-          <option value="none">Aucune</option>
-        </select>
-
-        <form onSubmit={e => { e.preventDefault(); setSearchInput(q); setPage(1); }} style={{ display: 'flex', gap: '0.5rem', flex: 1, minWidth: 200 }}>
-          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Rechercher un titre..."
-            style={{ flex: 1, padding: '0.5rem 0.75rem', borderRadius: 8, border: '1px solid #333', background: '#1a1a1a', color: '#fff', fontSize: '0.8125rem', outline: 'none' }} />
-          <button type="submit" style={{ padding: '0.5rem 1rem', background: '#333', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: '0.8125rem' }}>
-            Chercher
-          </button>
-        </form>
-      </div>
-
-      {loading ? (
-        <p style={{ color: '#888' }}>Chargement...</p>
-      ) : items.length === 0 ? (
-        <p style={{ color: '#888' }}>Aucun titre trouvé</p>
-      ) : (
-        <div style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 12, overflow: 'auto' }}>
-          <table className="affiches-table">
-            <thead>
-              <tr>
-                <th style={{ width: 70 }}>Affiche</th>
-                <th>Titre</th>
-                <th style={{ width: 90 }}>Source</th>
-                <th style={{ width: 110 }}>Dispo</th>
-                <th>Speech</th>
-                <th style={{ width: 250 }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map(item => (
-                <tr key={`${item.mediaType}-${item._id}`}>
-                  <td>
-                    {item.posterUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={resolveImageUrl(item.posterUrl)} alt={item.titre}
-                        style={{ width: 44, height: 66, objectFit: 'cover', borderRadius: 6, border: '1px solid #333', display: 'block' }} />
-                    ) : (
-                      <div style={{ width: 44, height: 66, borderRadius: 6, background: '#2a2a2a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.625rem', color: '#666' }}>
-                        Aucune
-                      </div>
-                    )}
-                  </td>
-                  <td>
-                    <div style={{ color: '#fff', fontWeight: 600 }}>{item.titre}</div>
-                    <div style={{ color: '#6b6b80', fontSize: '0.75rem' }}>
-                      {item.mediaType === 'movie' ? 'Film' : 'Série'}{item.year ? ` · ${item.year}` : ''}
-                    </div>
-                  </td>
-                  <td>
-                    <span style={{
-                      padding: '0.25rem 0.5rem', borderRadius: 6, fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase',
-                      background: item.posterSource === 'tmdb' ? 'rgba(99,102,241,0.2)' : item.posterSource === 'web' ? 'rgba(34,197,94,0.2)' : item.posterSource === 'ai' ? 'rgba(168,85,247,0.2)' : 'rgba(100,100,120,0.2)',
-                      color: item.posterSource === 'tmdb' ? '#a5b4fc' : item.posterSource === 'web' ? '#22c55e' : item.posterSource === 'ai' ? '#c084fc' : '#888',
-                    }}>
-                      {SOURCE_LABELS[item.posterSource || 'none']}
-                    </span>
-                  </td>
-                  <td>
-                    {item.disponible === null || item.disponible === undefined ? (
-                      <span style={{ color: '#888' }}>—</span>
-                    ) : item.disponible ? (
-                      <span style={{ color: '#22c55e', fontWeight: 700 }}>● Disponible</span>
-                    ) : (
-                      <span style={{ color: '#ef4444', fontWeight: 700 }}>● Non dispo</span>
-                    )}
-                  </td>
-                  <td style={{ color: '#9a9ab0', fontSize: '0.75rem', lineHeight: 1.5, maxWidth: 320 }}>
-                    {item.speech ? (
-                      <span style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{item.speech}</span>
-                    ) : (
-                      <span style={{ color: '#555' }}>Aucun speech — générer</span>
-                    )}
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-                      <div style={{ display: 'flex', gap: '0.375rem' }}>
-                        <button onClick={() => handleGenerateOne(item)} disabled={genProgress?.running}
-                          style={{ padding: '0.3rem 0.5rem', background: genProgress?.running ? '#555' : '#8b5cf6', color: '#fff', border: 'none', borderRadius: 6, cursor: genProgress?.running ? 'default' : 'pointer', fontSize: '0.7rem', whiteSpace: 'nowrap' }}>
-                          ✨ Générer
-                        </button>
-                        <a href={adminAffichesCardUrl(item._id, item.mediaType)} download
-                          style={{ padding: '0.3rem 0.5rem', background: '#22c55e', color: '#000', border: 'none', borderRadius: 6, fontSize: '0.7rem', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}>
-                          🖼 Carte
-                        </a>
-                        <a href={`/api/affiches/${item._id}/poster?type=${item.mediaType}`} download target="_blank" rel="noreferrer"
-                          style={{ padding: '0.3rem 0.5rem', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 6, fontSize: '0.7rem', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}>
-                          ⬇ Affiche
-                        </a>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                        {item.link && (
-                          <a href={item.link} target="_blank" rel="noreferrer"
-                            style={{ color: '#a5b4fc', fontSize: '0.7rem', textDecoration: 'underline', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {item.link}
-                          </a>
-                        )}
-                        {item.link && (
-                          <button onClick={() => handleCopyLink(item)}
-                            style={{ padding: '0.25rem 0.5rem', background: copiedId === item._id ? '#22c55e' : '#333', color: copiedId === item._id ? '#000' : '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: '0.7rem', whiteSpace: 'nowrap' }}>
-                            {copiedId === item._id ? '✓ Copié' : 'Copier'}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem', marginTop: '1rem' }}>
-        <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}
-          style={{ padding: '0.4rem 0.9rem', background: page <= 1 ? '#2a2a2a' : '#333', color: '#fff', border: 'none', borderRadius: 8, cursor: page <= 1 ? 'default' : 'pointer', fontSize: '0.8125rem' }}>
-          ← Précédent
-        </button>
-        <span style={{ color: '#888', fontSize: '0.8125rem' }}>Page {page} / {totalPages}</span>
-        <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}
-          style={{ padding: '0.4rem 0.9rem', background: page >= totalPages ? '#2a2a2a' : '#333', color: '#fff', border: 'none', borderRadius: 8, cursor: page >= totalPages ? 'default' : 'pointer', fontSize: '0.8125rem' }}>
-          Suivant →
-        </button>
-      </div>
+      <Table<AfficheItem>
+        rowKey={(item) => `${item.mediaType}-${item._id}`}
+        size="middle"
+        loading={loading}
+        dataSource={items}
+        columns={columns}
+        scroll={{ x: 900 }}
+        locale={{ emptyText: loading ? <Spin /> : <Empty description="Aucun titre trouvé" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+        pagination={{
+          current: page,
+          pageSize: 50,
+          total,
+          showSizeChanger: false,
+          showTotal: () => `Page ${page} / ${totalPages}`,
+          onChange: (p) => setPage(p),
+        }}
+      />
     </div>
   );
 }
