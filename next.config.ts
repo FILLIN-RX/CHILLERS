@@ -37,7 +37,7 @@ const nextConfig: NextConfig = {
               "media-src 'self' blob: data: https://*.vidzy.cc https://vidlink.pro https://vidapi.xyz https://*.uqload.is https://*.gstatic.com https://s0.2mdn.net",
               "img-src 'self' data: blob: https://image.tmdb.org https://images.unsplash.com https://*.tmdb.org https://*.vidzy.cc https://*.gstatic.com https://s0.2mdn.net https://vercel.live https://vercel.com https://*.googlesyndication.com https://*.googleadservices.com https://*.doubleclick.net https://*.googleusercontent.com",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-              "connect-src 'self' http://localhost:4000 https://chillers.onrender.com https://api.themoviedb.org https://*.uqload.is https://pagead2.googlesyndication.com",
+              "connect-src 'self' http://localhost:4000 https://chillers.onrender.com https://api.themoviedb.org https://*.uqload.is https://pagead2.googlesyndication.com https://ep1.adtrafficquality.google https://*.adtrafficquality.google",
               "font-src 'self' data: https://vercel.live",
             ].join('; '),
           },

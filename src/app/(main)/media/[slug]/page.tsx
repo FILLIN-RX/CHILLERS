@@ -1,8 +1,8 @@
 import { Metadata } from "next";
 import { Suspense } from "react";
+import { API_BASE } from "@/lib/server-api";
 import MediaPageClient from "./client-page";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 const LISTING_TYPES = new Set(["movies", "series", "anime"]);
 
 type Props = {

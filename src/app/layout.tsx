@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
-import Script from "next/script";
 import { LanguageProvider } from "@/i18n/LanguageContext";
 import { type Language, defaultLanguage } from "@/i18n";
 import AdminShortcut from "@/components/AdminShortcut";
@@ -92,11 +91,10 @@ export default async function RootLayout({
           <AdminShortcut />
           {children}
         </LanguageProvider>
-        <Script
+        <script
           async
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8325042872748312"
           crossOrigin="anonymous"
-          strategy="afterInteractive"
         />
       </body>
     </html>

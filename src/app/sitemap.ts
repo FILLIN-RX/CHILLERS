@@ -1,6 +1,6 @@
 import { MetadataRoute } from "next";
+import { API_BASE } from "@/lib/server-api";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://chillers.vercel.app";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {

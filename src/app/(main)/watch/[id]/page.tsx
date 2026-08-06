@@ -1,8 +1,7 @@
 import { Metadata } from "next";
 import { Suspense } from "react";
+import { API_BASE } from "@/lib/server-api";
 import WatchContent from "./watch-content";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 
 type Props = {
   params: Promise<{ id: string }>;
