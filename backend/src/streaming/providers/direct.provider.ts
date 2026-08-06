@@ -144,12 +144,7 @@ export class DirectProvider implements StreamingProvider {
   private async findUqloadCode(query: StreamQuery): Promise<string | null> {
     try {
       if (query.season !== undefined && query.episode !== undefined) {
-        const serie = await Serie.findOne({
-          $or: [
-            ...(query.tmdbId ? [{ tmdbId: query.tmdbId }] : []),
-            ...(query.title ? [{ titre: { $regex: new RegExp(query.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } }] : []),
-          ],
-        }).exec();
+        const serie = await this.findSerie(query);
         if (!serie) return null;
         const ep = serie.episodes.find(
           (e: any) => Number(e.season) === Number(query.season) && Number(e.episodeNumber) === Number(query.episode)
@@ -157,12 +152,7 @@ export class DirectProvider implements StreamingProvider {
         if (ep?.uqloadCode) return ep.uqloadCode;
         return null;
       } else {
-        const movie = await Movie.findOne({
-          $or: [
-            ...(query.tmdbId ? [{ tmdbId: query.tmdbId }] : []),
-            ...(query.title ? [{ titre: { $regex: new RegExp(query.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } }] : []),
-          ],
-        }).exec();
+        const movie = await this.findMovie(query);
         if (!movie) return null;
         if (movie.uqloadCode) return movie.uqloadCode;
         return null;
@@ -176,17 +166,14 @@ export class DirectProvider implements StreamingProvider {
   private async findFromMongoDB(query: StreamQuery): Promise<string | null> {
     try {
       if (query.season !== undefined && query.episode !== undefined) {
-        const serie = await Serie.findOne({
-          $or: [
-            ...(query.tmdbId ? [{ tmdbId: query.tmdbId }] : []),
-            ...(query.title ? [{ titre: { $regex: new RegExp(query.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } }] : []),
-          ],
-        }).exec();
+        const serie = await this.findSerie(query);
 
         if (!serie) {
-          console.log(`${TAG} MongoDB: série introuvable pour tmdbId=${query.tmdbId}`);
+          console.log(`${TAG} MongoDB: série introuvable pour tmdbId=${query.tmdbId} title="${query.title}"`);
           return null;
         }
+
+        console.log(`${TAG} MongoDB: série trouvée "${serie.titre}" (tmdbId=${serie.tmdbId})`);
 
         const ep = serie.episodes.find(
           (e: any) => Number(e.season) === Number(query.season) && Number(e.episodeNumber) === Number(query.episode)
@@ -212,17 +199,14 @@ export class DirectProvider implements StreamingProvider {
 
         return this.toEmbedUrl(lien);
       } else {
-        const movie = await Movie.findOne({
-          $or: [
-            ...(query.tmdbId ? [{ tmdbId: query.tmdbId }] : []),
-            ...(query.title ? [{ titre: { $regex: new RegExp(query.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } }] : []),
-          ],
-        }).exec();
+        const movie = await this.findMovie(query);
 
         if (!movie) {
-          console.log(`${TAG} MongoDB: film introuvable pour tmdbId=${query.tmdbId}`);
+          console.log(`${TAG} MongoDB: film introuvable pour tmdbId=${query.tmdbId} title="${query.title}"`);
           return null;
         }
+
+        console.log(`${TAG} MongoDB: film trouvé "${movie.titre}" (tmdbId=${movie.tmdbId})`);
 
         const lien = movie.lien;
         if (!lien || lien === '#') {
@@ -242,6 +226,42 @@ export class DirectProvider implements StreamingProvider {
       }
     } catch (err) {
       console.error(`${TAG} MongoDB lookup error:`, err);
+    }
+    return null;
+  }
+
+  private async findSerie(query: StreamQuery): Promise<any> {
+    // Priority 1: exact tmdbId match
+    if (query.tmdbId) {
+      const byId = await Serie.findOne({ tmdbId: query.tmdbId }).exec();
+      if (byId) return byId;
+    }
+    // Priority 2: title regex fallback
+    if (query.title) {
+      const escaped = query.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const byTitle = await Serie.findOne({ titre: { $regex: new RegExp(escaped, 'i') } }).exec();
+      if (byTitle) {
+        console.log(`${TAG} findSerie: matched by title "${byTitle.titre}" (tmdbId=${byTitle.tmdbId}) for query tmdbId=${query.tmdbId}`);
+        return byTitle;
+      }
+    }
+    return null;
+  }
+
+  private async findMovie(query: StreamQuery): Promise<any> {
+    // Priority 1: exact tmdbId match
+    if (query.tmdbId) {
+      const byId = await Movie.findOne({ tmdbId: query.tmdbId }).exec();
+      if (byId) return byId;
+    }
+    // Priority 2: title regex fallback
+    if (query.title) {
+      const escaped = query.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const byTitle = await Movie.findOne({ titre: { $regex: new RegExp(escaped, 'i') } }).exec();
+      if (byTitle) {
+        console.log(`${TAG} findMovie: matched by title "${byTitle.titre}" (tmdbId=${byTitle.tmdbId}) for query tmdbId=${query.tmdbId}`);
+        return byTitle;
+      }
     }
     return null;
   }
@@ -289,30 +309,21 @@ export class DirectProvider implements StreamingProvider {
         return;
       }
       if (query.season !== undefined && query.episode !== undefined) {
-        const serie = await Serie.findOne({
-          $or: [
-            ...(query.tmdbId ? [{ tmdbId: query.tmdbId }] : []),
-            ...(query.title ? [{ titre: { $regex: new RegExp(query.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } }] : []),
-          ],
-        }).exec();
-        if (!serie) return;
-        const ep = serie.episodes.find(
-          (e: any) => Number(e.season) === Number(query.season) && Number(e.episodeNumber) === Number(query.episode)
-        );
-        if (ep?.uqloadCode) {
-          await Serie.updateOne(
-            { _id: serie._id, 'episodes.uqloadCode': ep.uqloadCode },
-            { $set: { 'episodes.$.uqloadLink': freshUrl } }
+        const serie = await this.findSerie(query);
+        if (serie) {
+          const ep = serie.episodes.find(
+            (e: any) => Number(e.season) === Number(query.season) && Number(e.episodeNumber) === Number(query.episode)
           );
-          console.log(`${TAG} MongoDB updated uqloadLink for episode "${query.title}" S${query.season}E${query.episode}`);
+          if (ep?.uqloadCode) {
+            await Serie.updateOne(
+              { _id: serie._id, 'episodes.uqloadCode': ep.uqloadCode },
+              { $set: { 'episodes.$.uqloadLink': freshUrl } }
+            );
+            console.log(`${TAG} MongoDB updated uqloadLink for episode "${query.title}" S${query.season}E${query.episode}`);
+          }
         }
       } else {
-        const movie = await Movie.findOne({
-          $or: [
-            ...(query.tmdbId ? [{ tmdbId: query.tmdbId }] : []),
-            ...(query.title ? [{ titre: { $regex: new RegExp(query.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } }] : []),
-          ],
-        }).exec();
+        const movie = await this.findMovie(query);
         if (movie?.uqloadCode) {
           await Movie.updateOne(
             { _id: movie._id },
