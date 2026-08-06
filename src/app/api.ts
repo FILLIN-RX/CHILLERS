@@ -672,17 +672,24 @@ export async function clearTmdbCache(): Promise<void> {
 export function triggerDownload(downloadUrl: string, filename: string = 'video.mp4') {
   if (typeof window === "undefined") return;
 
-  // On passe TOUJOURS par le proxy backend /api/doodstream/download/proxy.
-  // Pourquoi pas de window.open direct vers l'URL Uqload/Doodstream :
-  //  - Uqload (CDN XstreamCDN) bloque les IPs de datacenter Playwright avec
-  //    403 nginx, même avec un User-Agent normal. Idem pour pas mal
-  //    d'utilisateurs derrière VPN ou CGNAT.
-  //  - DoodStream /d/ renvoie une page HTML, pas un fichier : l'utilisateur
-  //    doit cliquer un bouton et le serveur peut servir un 403.
-  // Le proxy backend a une cascade de fallback :
-  //  1. MP4 direct avec Referer uqload.is (sert les IP navigateur whitelistées)
-  //  2. Si 403 → fallback HLS via clone API Uqload + FFmpeg qui transcode
-  //     le HLS en MP4 à la volée et renvoie un vrai fichier.
+  // Si on a une URL HLS (.m3u8), le navigateur peut la lire en <video> mais
+  // pas la télécharger directement. On tente quand même le proxy backend
+  // qui utilise FFmpeg pour la transcode en MP4 si elle est accessible.
+  // Pour les autres liens MP4/HLS Uqload, on ouvre directement dans un
+  // nouvel onglet : le CDN Uqload (XstreamCDN) délivre le fichier aux IPs
+  // navigateur de résidence (gros FAI) mais bloque systématiquement les
+  // IPs de datacenter (Playwright/Cloud Run). Ouvrir depuis l'embed
+  // Uqload permet d'initier la session serveur→client correctement.
+  if (
+    /doodstream\.com\/d\//i.test(downloadUrl) ||
+    /\.mp4(\?|$)/i.test(downloadUrl) ||
+    /uqload\.(is|com)/i.test(downloadUrl)
+  ) {
+    window.open(downloadUrl, '_blank');
+    return;
+  }
+
+  // Sinon, le proxy backend prend en charge (HLS .m3u8 → FFmpeg → MP4)
   const proxyUrl = `${API_BASE_URL}/doodstream/download/proxy?url=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(filename)}`;
   const a = document.createElement('a');
   a.href = proxyUrl;
