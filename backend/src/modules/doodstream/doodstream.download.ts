@@ -236,10 +236,23 @@ async function findByMongoDB(title?: string, tmdbId?: number, season?: number, e
 
     if (season !== undefined && episode !== undefined) {
       // Priority 1: tmdbId exact, Priority 2: title regex
-      let series = tmdbId ? await Serie.findOne({ tmdbId }).exec() : null;
+      let series: any = null;
+      if (tmdbId) {
+        const byId = await Serie.find({ tmdbId }).exec();
+        if (byId.length) {
+          series = byId.find((s: any) => s.episodes?.some(
+            (e: any) => Number(e.season) === Number(season)
+          )) || byId[0];
+        }
+      }
       if (!series && title) {
         const escaped = title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        series = await Serie.findOne({ titre: { $regex: new RegExp(escaped, 'i') } }).exec();
+        const byTitle = await Serie.find({ titre: { $regex: new RegExp(escaped, 'i') } }).exec();
+        if (byTitle.length) {
+          series = byTitle.find((s: any) => s.episodes?.some(
+            (e: any) => Number(e.season) === Number(season)
+          )) || byTitle[0];
+        }
       }
 
       if (series) {
@@ -340,8 +353,11 @@ export const getDownloadByTitle = async (req: Request, res: Response, next: Next
           const Movie = (await import('../../models/Movie')).default;
           const Serie = (await import('../../models/Serie')).default;
           if (seasonNum !== undefined && episodeNum !== undefined) {
-            const s = await Serie.findOne({ tmdbId: Number(tmdb_id) }).exec();
-            if (!s) return null;
+            const byId = await Serie.find({ tmdbId: Number(tmdb_id) }).exec();
+            if (!byId.length) return null;
+            const s = byId.find((doc: any) => doc.episodes?.some(
+              (e: any) => Number(e.season) === Number(seasonNum)
+            )) || byId[0];
             const ep = s.episodes.find((e: any) => Number(e.season) === Number(seasonNum) && Number(e.episodeNumber) === Number(episodeNum));
             return ep?.uqloadCode || null;
           }
@@ -689,8 +705,20 @@ export const getSeriesDownloadCheck = async (req: Request, res: Response, next: 
     // aussi par titre TMDB, exactement comme findByMongoDB le fait pour le
     // téléchargement simple.
     const serie = await (async () => {
-      const byId = await Serie.findOne({ tmdbId: tmdbIdNum }).exec();
-      if (byId) return byId;
+      const byId = await Serie.find({ tmdbId: tmdbIdNum }).exec();
+      if (byId.length) {
+        // Préférer la série dont les épisodes couvrent le plus de saisons
+        // attendues (les doublons tmdbId existent : séries homonymes).
+        let best = byId[0];
+        let bestScore = -1;
+        for (const s of byId) {
+          const score = s.episodes?.filter(
+            (e: any) => expectedEpisodes.some(ep => Number(e.season) === ep.season)
+          ).length || 0;
+          if (score > bestScore) { bestScore = score; best = s; }
+        }
+        return best;
+      }
       if (seriesData.name) {
         const escaped = seriesData.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         return Serie.findOne({ titre: { $regex: new RegExp(escaped, 'i') } }).exec();

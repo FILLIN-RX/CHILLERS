@@ -247,12 +247,12 @@ export class DoodStreamProvider implements StreamingProvider {
   private async findByMongoDB(query: StreamQuery): Promise<{ fileCode: string; info: any } | null> {
     try {
       if (query.type === 'movie' || (!query.season && !query.episode)) {
-        const movie = await Movie.findOne({
-          $or: [
-            ...(query.tmdbId ? [{ tmdbId: query.tmdbId }] : []),
-            ...(query.title ? [{ titre: { $regex: new RegExp(query.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } }] : []),
-          ],
-        }).exec();
+        // Priority 1: tmdbId exact, Priority 2: title regex
+        let movie = query.tmdbId ? await Movie.findOne({ tmdbId: query.tmdbId }).exec() : null;
+        if (!movie && query.title) {
+          const escaped = query.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          movie = await Movie.findOne({ titre: { $regex: new RegExp(escaped, 'i') } }).exec();
+        }
         if (movie?.lien) {
           // Ne retourner QUE si le lien est hébergé sur Doodstream
           const isDoodstreamLien =
@@ -271,20 +271,29 @@ export class DoodStreamProvider implements StreamingProvider {
         const safeTitle = query.title
           ? query.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
           : null;
-        const series = await Serie.findOne({
-          $or: [
-            ...(query.tmdbId ? [{ tmdbId: query.tmdbId }] : []),
-            ...(safeTitle ? [{ titre: { $regex: new RegExp(safeTitle, 'i') } }] : []),
-          ],
-        }).exec();
+        // Priority 1: tmdbId exact, Priority 2: title regex
+        let series: any = null;
+        if (query.tmdbId) {
+          const byId = await Serie.find({ tmdbId: query.tmdbId }).exec();
+          if (byId.length) {
+            series = byId.find((s: any) => s.episodes?.some(
+              (e: any) => Number(e.season) === Number(query.season)
+            )) || byId[0];
+          }
+        }
+        if (!series && safeTitle) {
+          const byTitle = await Serie.find({ titre: { $regex: new RegExp(safeTitle, 'i') } }).exec();
+          if (byTitle.length) {
+            series = byTitle.find((s: any) => s.episodes?.some(
+              (e: any) => Number(e.season) === Number(query.season)
+            )) || byTitle[0];
+          }
+        }
 
         if (series) {
-          let found = series.episodes.find(
+          const found = series.episodes.find(
             (ep: any) => Number(ep.season) === Number(query.season) && Number(ep.episodeNumber) === Number(query.episode)
           );
-          if (!found || (!found.fileCode && !found.lien)) {
-            found = series.episodes.find((ep: any) => ep.fileCode || (ep.lien && ep.lien !== '#'));
-          }
           if (found) {
             const epLabel = `S${String(found.season || 1).padStart(2, '0')}E${String(found.episodeNumber || 1).padStart(2, '0')}`;
             console.log(
