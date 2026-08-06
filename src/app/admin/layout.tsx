@@ -10,9 +10,17 @@ import { adminTheme } from './theme';
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [authed, setAuthed] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 1024px)');
+    setSidebarOpen(!mq.matches);
+    const handler = (e: MediaQueryListEvent) => setSidebarOpen(!e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
 
   useEffect(() => {
     if (pathname === '/admin/login') {
