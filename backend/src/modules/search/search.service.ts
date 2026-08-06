@@ -68,8 +68,8 @@ export const searchMulti = async (query: string, page: number = 1, language?: st
       .catch(() => ({ results: [] })),
   ]);
 
-  const movieTop = (moviesResp.results || []).slice(0, 8);
-  const tvTop = (tvResp.results || []).slice(0, 8);
+  const movieTop = ((moviesResp.results || []) as any[]).slice(0, 8);
+  const tvTop = ((tvResp.results || []) as any[]).slice(0, 8);
 
   const [movieDetails, tvDetails] = await Promise.all([
     Promise.all(movieTop.map(m => fetchDetails('movie', m.id, language))),
