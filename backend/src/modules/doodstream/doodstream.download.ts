@@ -67,6 +67,62 @@ function isDirectMp4CdnUrl(url: string | undefined | null): boolean {
   return /\.mp4(\?|$)/i.test(url);
 }
 
+/**
+ * HLS Uqload : les liens MP4 directs renvoyés par l'API (`direct_link`)
+ * renvoient un 403 côté CDN (anti-leech). Le player, lui, diffuse un flux
+ * HLS (master.m3u8) qui répond 200 → on le scrape (API `hls=1` puis
+ * extraction P.A.C.K.E.R. de la page embed en secours) et on le pipe via
+ * le proxy FFmpeg (/api/download/stream) pour produire un vrai MP4
+ * téléchargeable.
+ *
+ * Résultat mis en cache (le lien HLS signé reste valide ~12h).
+ */
+const hlsCache = new Map<string, { url: string; at: number }>();
+const HLS_CACHE_TTL = 15 * 60 * 1000;
+
+const mp4Cache = new Map<string, { url: string; at: number }>();
+const MP4_CACHE_TTL = 5 * 60 * 1000; // 5 min (tokens MP4 durent ~10 min)
+
+const UQLOAD_API_KEY_DL = process.env.UQLOAD_API_KEY || '';
+
+/**
+ * Scrape la page embed Uqload (PACKER) pour extraire le flux HLS valide.
+ * L'API direct_link d'Uqload renvoie une URL MP4 avec un paramètre `v=` vide,
+ * ce qui fait renvoyer une erreur 403 HTML (146 octets) par le CDN.
+ * En revanche, le P.A.C.K.E.R. de la page embed contient l'URL HLS signée avec
+ * le view ID `v` rempli, qui fonctionne à 100% via le proxy FFmpeg.
+ */
+async function getFreshUqloadHls(fileCode: string): Promise<{ url: string; type: 'hls' | 'mp4' } | null> {
+  const cached = hlsCache.get(fileCode);
+  if (cached && Date.now() - cached.at < HLS_CACHE_TTL) {
+    console.log(`[Download] Uqload HLS cache hit for code=${fileCode}`);
+    return { url: cached.url, type: 'hls' };
+  }
+  try {
+    const { scrapeUqloadEmbedDirect } = await import('../../streaming/providers/direct-scraper');
+    const scraped = await scrapeUqloadEmbedDirect(fileCode);
+    if (!scraped) {
+      console.log(`[Download] Uqload embed scrape returned null for code=${fileCode}`);
+      return null;
+    }
+    const isHls = scraped.type === 'hls' || /\.m3u8(\?|$)/i.test(scraped.directUrl);
+    if (isHls) {
+      hlsCache.set(fileCode, { url: scraped.directUrl, at: Date.now() });
+      console.log(`[Download] Uqload HLS scraped OK for code=${fileCode}: ${scraped.directUrl.slice(0, 100)}`);
+      return { url: scraped.directUrl, type: 'hls' };
+    }
+    console.log(`[Download] Uqload embed retourné MP4 brut pour code=${fileCode}, ignoré`);
+    return null;
+  } catch (err: any) {
+    console.log(`[Download] Uqload HLS scrape failed for code=${fileCode}: ${err.message}`);
+    return null;
+  }
+}
+
+function buildHlsDownloadUrl(m3u8: string, filename: string): string {
+  return `/api/download/stream?m3u8=${encodeURIComponent(m3u8)}&filename=${encodeURIComponent(filename)}`;
+}
+
 let cachedUploadedFiles: Record<string, any> | null = null;
 let lastCacheTime = 0;
 const CACHE_TTL = 30 * 1000; // 30 seconds
@@ -325,16 +381,19 @@ export const getDownloadByTitle = async (req: Request, res: Response, next: Next
       });
     }
 
-    // Decide which URL to actually hand back to the client.
+    // ── Résolution de l'URL de téléchargement ────────────────────────────
     //
-    // Priority:
-    // 1) Fresh Uqload direct URL (scraped from embed page via uqloadCode)
-    // 2) Stored uqloadLink if still alive
-    // 3) lien BD (lienFallback)
-    // 4) DoodStream /d/ page as last resort
+    // Priorité pour les fichiers Uqload :
+    //   1. API direct_link → URL MP4 fraîche → proxy backend (MÊME IP → 200)
+    //   2. Scraping PACKER → flux HLS → FFmpeg proxy (si API indisponible)
+    //   3. DoodStream /d/ en dernier recours
+    //
+    // ⚠ On ne renvoie JAMAIS une URL .mp4 directe au navigateur :
+    //   les tokens Uqload sont liés à l'IP serveur → le browser (IP
+    //   différente) reçoit un 403. Le proxy backend évite ce problème.
+    // ─────────────────────────────────────────────────────────────────────
     let downloadUrl: string | null = null;
 
-    // 1) Try scraping fresh Uqload direct URL
     const uqloadCode = match.info.uqloadCode ||
       (await (async () => {
         try {
@@ -352,41 +411,20 @@ export const getDownloadByTitle = async (req: Request, res: Response, next: Next
         } catch { return null; }
       })());
 
-    if (uqloadCode) {
-      try {
-        const { scrapeDirectStream } = await import('../../streaming/providers/direct-scraper');
-        const uqloadEmbedUrl = `https://uqload.is/embed-${uqloadCode}.html`;
-        const scraped = await scrapeDirectStream(uqloadEmbedUrl);
-        if (scraped) {
-          downloadUrl = scraped.directUrl;
-          console.log(`[Download] Uqload fresh URL scraped for code=${uqloadCode}: ${downloadUrl.slice(0, 100)}`);
+    const filename = `${match.info.titre || title || 'video'}.mp4`;
 
-          // Update MongoDB with fresh link so next request is instant
-          try {
-            if (seasonNum !== undefined && episodeNum !== undefined) {
-              const SerieModel = (await import('../../models/Serie')).default;
-              await SerieModel.updateOne(
-                { tmdbId: Number(tmdb_id), 'episodes.uqloadCode': uqloadCode },
-                { $set: { 'episodes.$.uqloadLink': scraped.directUrl } }
-              );
-            } else {
-              const MovieModel = (await import('../../models/Movie')).default;
-              await MovieModel.updateOne(
-                { tmdbId: Number(tmdb_id) },
-                { $set: { uqloadLink: scraped.directUrl } }
-              );
-            }
-            console.log(`[Download] MongoDB updated with fresh Uqload link for tmdb=${tmdb_id}`);
-          } catch (dbErr: any) {
-            console.log(`[Download] MongoDB update failed: ${dbErr.message}`);
-          }
-        }
-      } catch (err: any) {
-        console.log(`[Download] Uqload scrape failed for code=${uqloadCode}: ${err.message}`);
+    if (uqloadCode) {
+      // ── Priorité 1 : Scraping PACKER → HLS master playlist (avec view ID v) → FFmpeg proxy
+      // L'URL HLS extraite du PACKER contient le paramètre view ID (ex: v=1988399),
+      // ce qui permet à FFmpeg de télécharger et assembler la vidéo MP4 complète.
+      const fresh = await getFreshUqloadHls(uqloadCode);
+      if (fresh?.type === 'hls') {
+        downloadUrl = buildHlsDownloadUrl(fresh.url, filename);
+        console.log(`[Download] ✅ Uqload PACKER HLS → FFmpeg pour code=${uqloadCode}`);
       }
     }
 
-    // 2) Try stored uqloadLink if still alive
+    // ── Fallback : liens stockés en base non-DoodStream ────────────────
     if (!downloadUrl) {
       const linksToTry = [
         match.info.uqloadLink !== match.info.lien ? match.info.uqloadLink : undefined,
@@ -395,18 +433,11 @@ export const getDownloadByTitle = async (req: Request, res: Response, next: Next
       ].filter(Boolean) as string[];
 
       for (const url of [...new Set(linksToTry)]) {
-        if (!/doodstream\.com\/(e|d)\//i.test(url)) {
-          // Liens directs .mp4 (Uqload/vidzy) : le CDN bloque l'IP du serveur
-          // (403) mais pas celle du navigateur → renvoyés tels quels.
-          if (isDirectMp4CdnUrl(url)) {
-            downloadUrl = url;
-            break;
-          }
-          const alive = await isLinkAlive(url);
-          if (alive) {
-            downloadUrl = url;
-            break;
-          }
+        if (!url || /doodstream\.com\/(e|d)\//i.test(url)) continue;
+        const alive = await isLinkAlive(url);
+        if (alive) {
+          downloadUrl = url;
+          break;
         }
       }
     }
@@ -755,21 +786,36 @@ export const getSeriesDownloadCheck = async (req: Request, res: Response, next: 
       if (match) {
         let downloadUrl: string | null = null;
 
-        // 1) Lien direct .mp4 stocké (Uqload/vidzy) : utilisable tel quel par
-        //    le navigateur, même si le serveur reçoit un 403 du CDN.
-        const candidates = [
-          match.info?.uqloadLink,
-          match.info?.lien,
-          match.info?.lienFallback,
-        ].filter(Boolean) as string[];
-        for (const url of [...new Set(candidates)]) {
-          if (isDirectMp4CdnUrl(url)) {
-            downloadUrl = url;
-            break;
+        // 1) UqloadCode → HLS frais converti en MP4 par le proxy FFmpeg
+        //    (les MP4 directs de l'API renvoient un 403 côté CDN).
+        const epFilename = `${serie?.titre || 'episode'}-S${String(ep.season).padStart(2, '0')}E${String(ep.episode).padStart(2, '0')}.mp4`;
+
+        if (match.info?.uqloadCode) {
+          // Scraping PACKER → HLS master playlist (avec view ID v) → FFmpeg proxy
+          const fresh = await getFreshUqloadHls(match.info.uqloadCode);
+          if (fresh?.type === 'hls') {
+            downloadUrl = buildHlsDownloadUrl(fresh.url, epFilename);
           }
         }
 
-        // 2) DoodStream ne fournit plus de lien direct fiable : on renvoie
+        // 3) Liens stockés en base
+        if (!downloadUrl) {
+          const candidates = [
+            match.info?.uqloadLink,
+            match.info?.lien,
+            match.info?.lienFallback,
+          ].filter(Boolean) as string[];
+          for (const url of [...new Set(candidates)]) {
+            if (!url || /doodstream\.com\/(e|d)\//i.test(url)) continue;
+            const alive = await isLinkAlive(url);
+            if (alive) {
+              downloadUrl = url;
+              break;
+            }
+          }
+        }
+
+        // 3) DoodStream ne fournit plus de lien direct fiable : on renvoie
         //    vers sa page web /d/ (téléchargement déclenché côté utilisateur).
         if (!downloadUrl) {
           const doodCode =

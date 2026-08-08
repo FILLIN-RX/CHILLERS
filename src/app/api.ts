@@ -672,19 +672,27 @@ export async function clearTmdbCache(): Promise<void> {
 export function triggerDownload(downloadUrl: string, filename: string = 'video.mp4') {
   if (typeof window === "undefined") return;
 
-  // URLs directes : ouvrir dans un nouvel onglet (le proxy backend
-  // a l'IP blacklistée par le CDN Uqload, le navigateur utilisateur non)
-  // DoodStream /d/ → page HTML download
-  // Uqload .mp4 → fichier direct
-  if (
-    /doodstream\.com\/d\//i.test(downloadUrl) ||
-    /\.mp4(\?|$)/i.test(downloadUrl) ||
-    /uqload\.(is|com)/i.test(downloadUrl)
-  ) {
+  // URLs relatives → proxy de téléchargement backend (HLS→MP4 via FFmpeg).
+  // Le serveur renvoie Content-Disposition: attachment → pas besoin de
+  // fenêtre popup, le fichier se télécharge via le tag <a>.
+  if (downloadUrl.startsWith('/api/')) {
+    const a = document.createElement('a');
+    a.href = downloadUrl.startsWith(API_BASE_URL) ? downloadUrl : `${API_BASE_URL}${downloadUrl}`;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    return;
+  }
+
+  // DoodStream /d/ → page HTML de téléchargement
+  if (/doodstream\.com\/d\//i.test(downloadUrl)) {
     window.open(downloadUrl, '_blank');
     return;
   }
 
+  // Pour tous les autres liens vidéo direct (Uqload, .mp4), passer par le proxy backend
+  // pour conserver l'IP du serveur qui a généré le token direct_link et éviter le 403 CDN.
   const proxyUrl = `${API_BASE_URL}/doodstream/download/proxy?url=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(filename)}`;
   const a = document.createElement('a');
   a.href = proxyUrl;
