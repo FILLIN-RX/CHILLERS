@@ -223,16 +223,33 @@ export class DirectProvider implements StreamingProvider {
   private async findSerie(query: StreamQuery): Promise<any> {
     // Priority 1: exact tmdbId match
     if (query.tmdbId) {
-      const byId = await Serie.findOne({ tmdbId: query.tmdbId }).exec();
-      if (byId) return byId;
+      const byId = await Serie.find({ tmdbId: query.tmdbId }).exec();
+      if (byId.length) {
+        // Si plusieurs docs partagent le même tmdbId (saisons séparées ou
+        // séries homonymes), préférer celui dont les épisodes contiennent
+        // la saison demandée.
+        if (query.season !== undefined) {
+          const bySeason = byId.find(s => s.episodes?.some(
+            (e: any) => Number(e.season) === Number(query.season)
+          ));
+          if (bySeason) return bySeason;
+        }
+        return byId[0];
+      }
     }
     // Priority 2: title regex fallback
     if (query.title) {
       const escaped = query.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const byTitle = await Serie.findOne({ titre: { $regex: new RegExp(escaped, 'i') } }).exec();
-      if (byTitle) {
-        console.log(`${TAG} findSerie: matched by title "${byTitle.titre}" (tmdbId=${byTitle.tmdbId}) for query tmdbId=${query.tmdbId}`);
-        return byTitle;
+      const byTitle = await Serie.find({ titre: { $regex: new RegExp(escaped, 'i') } }).exec();
+      if (byTitle.length) {
+        if (query.season !== undefined) {
+          const bySeason = byTitle.find(s => s.episodes?.some(
+            (e: any) => Number(e.season) === Number(query.season)
+          ));
+          if (bySeason) return bySeason;
+        }
+        console.log(`${TAG} findSerie: matched by title "${byTitle[0].titre}" (tmdbId=${byTitle[0].tmdbId}) for query tmdbId=${query.tmdbId}`);
+        return byTitle[0];
       }
     }
     return null;
