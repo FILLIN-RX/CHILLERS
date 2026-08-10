@@ -1,4 +1,5 @@
 import { Readable } from 'stream';
+import axios from 'axios';
 import { getLiveChannelModel } from './live.db';
 import { LIVE_SEED } from './live.seed';
 import { fetchIptvPlaylist, fetchIptvLanguagePlaylist, findPlaylistMatch, IptvPlaylistEntry } from './live.iptv';
@@ -144,7 +145,7 @@ export async function syncSeed(opts: { updateStreams?: boolean } = {}): Promise<
 
       const match = findPlaylistMatch(playlist, seed);
       const fallbackStream = seed.streamUrl || '';
-      const fallbackLogo = '';
+      const fallbackLogo = seed.logo || '';
       const computedStream = match?.url || fallbackStream;
       const computedLogo = match?.logo || fallbackLogo;
 
@@ -242,16 +243,19 @@ export async function proxyStream(
   if (opts.referer) headers['Referer'] = opts.referer;
   if (opts.range) headers['Range'] = opts.range;
 
-  const res = await fetch(url, { headers, redirect: 'follow' });
-  if (!res.body) {
-    throw new Error(`Flux vide (HTTP ${res.status})`);
-  }
+  const res = await axios.get(url, {
+    headers,
+    responseType: 'stream',
+    validateStatus: () => true,
+    maxRedirects: 5,
+  });
+
   return {
     status: res.status,
-    contentType: res.headers.get('content-type') || 'application/octet-stream',
-    contentLength: res.headers.get('content-length'),
-    contentRange: res.headers.get('content-range'),
-    acceptRanges: res.headers.get('accept-ranges'),
-    body: Readable.fromWeb(res.body as any),
+    contentType: res.headers['content-type'] || 'application/octet-stream',
+    contentLength: res.headers['content-length'] || null,
+    contentRange: res.headers['content-range'] || null,
+    acceptRanges: res.headers['accept-ranges'] || null,
+    body: res.data,
   };
 }
