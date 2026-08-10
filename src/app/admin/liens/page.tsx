@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { adminGetConvertedLinks } from '@/app/api';
+import { adminGetConvertedLinks } from '@/services/admin';
 import { Typography, Table, Input, Button, Tag, Spin, Empty } from 'antd';
 import { ReloadOutlined, SearchOutlined, LinkOutlined } from '@ant-design/icons';
 
@@ -29,11 +29,12 @@ export default function AdminLiens() {
     setLoading(true);
     try {
       const res = await adminGetConvertedLinks(search, p, limit);
-      if (res.success) {
-        setItems(res.data.items);
-        setTotal(res.data.total);
-        setTotalPages(res.data.totalPages);
-        setPage(res.data.page);
+      if (res.success && res.data) {
+        const d = res.data as { items: LinkItem[]; total: number; totalPages: number; page: number };
+        setItems(d.items);
+        setTotal(d.total);
+        setTotalPages(d.totalPages);
+        setPage(d.page);
       }
     } finally {
       setLoading(false);

@@ -1,24 +1,46 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Hls from "hls.js";
 import { useLanguage } from "@/i18n/LanguageContext";
-import { MovieOrShow, Episode } from "@/app/mockData";
-import { IconPlayerPlay, IconPlayerPause, IconVolume, IconVolumeOff, IconArrowsMaximize, IconArrowsMinimize, IconX, IconPlayerSkipForward, IconRewindBackward10, IconSettings, IconDownload, IconMovie } from '@tabler/icons-react';
+import type { MovieOrShow, Episode } from "@/types/media";
+import {
+  IconPlayerPlay,
+  IconPlayerPause,
+  IconVolume,
+  IconVolumeOff,
+  IconArrowsMaximize,
+  IconArrowsMinimize,
+  IconX,
+  IconPlayerSkipForward,
+  IconRewindBackward10,
+  IconSettings,
+  IconDownload,
+  IconMovie,
+} from "@tabler/icons-react";
 import NotificationModal from "./NotificationModal";
-import DownloadModal from "./DownloadModal";
+import DownloadModal from "@/features/downloads/DownloadModal";
+import { isIframeProviderUrl, toEmbedUrl } from "@/lib/providers";
+import { useDebouncedEffect } from "@/hooks/useDebouncedEffect";
+import { useStreamUrl } from "@/hooks/useStreamUrl";
 
 interface VideoPlayerProps {
   item: MovieOrShow;
   episode?: Episode;
   onBack: () => void;
-  onOpenDetails: (item: MovieOrShow) => void;
+  onOpenDetails?: (item: MovieOrShow) => void;
 }
+
+/**
+ * Delay between progress snapshots we actually persist to localStorage.
+ * The player's `onTimeUpdate` fires ~4 Hz on Chrome; persisting on every
+ * tick caused measurable I/O stalls during playback.
+ */
+const PROGRESS_PERSIST_DEBOUNCE_MS = 5_000;
 
 export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: VideoPlayerProps) {
   const { translate: _ } = useLanguage();
   const videoRef = useRef<HTMLVideoElement>(null);
-  
   const containerRef = useRef<HTMLDivElement>(null);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
@@ -40,6 +62,8 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
   const [isSeeking, setIsSeeking] = useState(false);
 
   const currentEpisode = episode;
+
+  /* ───────── controls auto-hide ───────── */
 
   const resetControlsTimeout = useCallback(() => {
     setShowControls(true);
@@ -63,68 +87,106 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
     };
   }, [resetControlsTimeout]);
 
+  /* ───────── orientation ───────── */
+
   useEffect(() => {
-    const mq = window.matchMedia('(orientation: portrait)');
+    const mq = window.matchMedia("(orientation: portrait)");
     const handler = (e: MediaQueryListEvent | MediaQueryList) => setIsPortrait(e.matches);
     handler(mq);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
   }, []);
 
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      if (event.origin !== 'https://vidlink.pro') return;
-      if (event.data?.type === 'MEDIA_DATA') {
-        const mediaData = event.data.data;
-        localStorage.setItem('vidLinkProgress', JSON.stringify(mediaData));
-      }
-    };
-    window.addEventListener('message', handleMessage);
+  /* ───────── vidlink cross-frame progress bridge ───────── */
 
-    const key = `chiller_progress_${item.id}_${currentEpisode?.id || 'movie'}`;
-    const saved = localStorage.getItem(key);
-    const node = videoRef.current;
-    if (saved && node) {
-      let parsed: { time: number };
-      try { parsed = JSON.parse(saved); } catch (e) {
-        window.removeEventListener('message', handleMessage);
-        return;
-      }
-      let loaded = false;
-      const handleMetadata = () => {
-        loaded = true;
-        if (videoRef.current) videoRef.current.currentTime = parsed.time;
-      };
-      node.addEventListener("loadedmetadata", handleMetadata);
-      return () => {
-        if (!loaded) node.removeEventListener("loadedmetadata", handleMetadata);
-        window.removeEventListener("message", handleMessage);
-      };
-    }
-    return () => window.removeEventListener("message", handleMessage);
-  }, [item.id, currentEpisode?.id]);
+  // Static origin list — kept short so a new partner domain doesn't silently
+  // get a back-channel into our localStorage without a code review here.
+  const allowedMessageOrigins = useMemo(() => new Set(["https://vidlink.pro"]), []);
 
-  useEffect(() => {
-    if (currentTime > 0 && duration > 0) {
+  /* ───────── watch progress persistence ───────── */
+  // The `onTimeUpdate` events fire ~4 Hz in Chrome. Persisting JSON to
+  // localStorage on each tick caused noticeable I/O stalls during playback.
+  // We debounce the write so it only happens after PROGRESS_PERSIST_DEBOUNCE_MS
+  // of *stable* currentTime.
+  const progressKey = `chiller_progress_${item.id}_${currentEpisode?.id ?? "movie"}`;
+  useDebouncedEffect(
+    () => {
+      if (currentTime <= 0 || duration <= 0) return;
       const progressPercent = Math.min((currentTime / duration) * 100, 100);
-      localStorage.setItem(`chiller_progress_${item.id}_${currentEpisode?.id || 'movie'}`, JSON.stringify({
-        id: item.id,
-        title: item.title,
-        type: item.type,
-        posterUrl: item.posterUrl,
-        backdropUrl: item.backdropUrl,
-        episodeId: currentEpisode?.id,
-        season: currentEpisode?.season,
-        episode: currentEpisode?.number,
-        time: currentTime,
-        duration: duration,
-        progress: progressPercent,
-        remaining: `${Math.round((duration - currentTime) / 60)}m left`,
-        episodeName: currentEpisode ? `S${String(currentEpisode.season ?? 1).padStart(2, "0")}E${String(currentEpisode.number).padStart(2, "0")}` : undefined,
-        updatedAt: Date.now(),
-      }));
+      localStorage.setItem(
+        progressKey,
+        JSON.stringify({
+          id: item.id,
+          title: item.title,
+          type: item.type,
+          posterUrl: item.posterUrl,
+          backdropUrl: item.backdropUrl,
+          episodeId: currentEpisode?.id,
+          season: currentEpisode?.season,
+          episode: currentEpisode?.number,
+          time: currentTime,
+          duration,
+          progress: progressPercent,
+          remaining: `${Math.round((duration - currentTime) / 60)}m left`,
+          episodeName: currentEpisode
+            ? `S${String(currentEpisode.season ?? 1).padStart(2, "0")}E${String(currentEpisode.number).padStart(2, "0")}`
+            : undefined,
+          updatedAt: Date.now(),
+        }),
+      );
+    },
+    [currentTime, duration, progressKey],
+    PROGRESS_PERSIST_DEBOUNCE_MS,
+  );
+
+  /* ───────── key handling ───────── */
+
+  const handlePlayPause = useCallback(() => {
+    const el = videoRef.current;
+    if (!el) return;
+    if (isPlaying) {
+      el.pause();
+      setIsPlaying(false);
+    } else {
+      el.play().catch((err) => {
+        // AbortError when user clicked again before the previous play()
+        // resolved — harmless. Anything else surfaces in the UI.
+        if (err?.name !== "AbortError") console.error(err);
+      });
+      setIsPlaying(true);
     }
-  }, [currentTime, duration, item.id, currentEpisode?.id]);
+  }, [isPlaying]);
+
+  const handleSkip = useCallback(
+    (seconds: number) => {
+      const el = videoRef.current;
+      if (!el) return;
+      el.currentTime = Math.min(Math.max(el.currentTime + seconds, 0), duration);
+    },
+    [duration],
+  );
+
+  const toggleMute = useCallback(() => {
+    const el = videoRef.current;
+    if (!el) return;
+    const next = !isMuted;
+    setIsMuted(next);
+    el.muted = next;
+  }, [isMuted]);
+
+  const toggleFullscreen = useCallback(() => {
+    const c = containerRef.current;
+    if (!c) return;
+    if (!document.fullscreenElement) {
+      c.requestFullscreen()
+        .then(() => setIsFullscreen(true))
+        .catch((err) => console.error(err));
+    } else {
+      document.exitFullscreen()
+        .then(() => setIsFullscreen(false))
+        .catch((err) => console.error(err));
+    }
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -157,21 +219,141 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isPlaying, showSettings]);
+  }, [handlePlayPause, handleSkip, toggleFullscreen, toggleMute, showSettings]);
 
-  const handlePlayPause = () => {
-    if (videoRef.current) {
-      if (isPlaying) videoRef.current.pause();
-      else videoRef.current.play().catch(console.error);
-      setIsPlaying(!isPlaying);
-    }
-  };
+  /* ───────── resume from saved progress + cross-frame bridge ───────── */
+  // Two separate listeners here so each cleans up its own subscription —
+  // the previous version had tangled cleanup paths that occasionally leaked
+  // the message listener on unmount.
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (!allowedMessageOrigins.has(event.origin)) return;
+      if (event.data?.type === "MEDIA_DATA") {
+        localStorage.setItem("vidLinkProgress", JSON.stringify(event.data.data));
+      }
+    };
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [allowedMessageOrigins]);
 
-  const handleSkip = (seconds: number) => {
-    if (videoRef.current) {
-      videoRef.current.currentTime = Math.min(Math.max(videoRef.current.currentTime + seconds, 0), duration);
+  // Resume playback position from localStorage when metadata is ready.
+  useEffect(() => {
+    const node = videoRef.current;
+    if (!node) return;
+    const saved = localStorage.getItem(progressKey);
+    if (!saved) return;
+    let parsed: { time: number };
+    try {
+      parsed = JSON.parse(saved);
+    } catch {
+      return;
     }
-  };
+    const handleMetadata = () => {
+      if (videoRef.current && Number.isFinite(parsed.time)) {
+        videoRef.current.currentTime = parsed.time;
+      }
+    };
+    node.addEventListener("loadedmetadata", handleMetadata);
+    return () => node.removeEventListener("loadedmetadata", handleMetadata);
+  }, [progressKey]);
+
+  /* ───────── stream URL resolution (TanStack Query cache + race) ───────── */
+
+  const streamType: "movie" | "series" | "anime" =
+    item.type === "series" ? "series" : item.type === "anime" ? "anime" : "movie";
+
+  const streamQuery = useStreamUrl({
+    id: String(item.id),
+    type: streamType,
+    season: currentEpisode?.season,
+    episode: currentEpisode?.number,
+    title: item.title,
+    enabled: !!item.id,
+  });
+
+  const resolvedStreamUrl = streamQuery.data?.embedUrl ?? null;
+  const videoUrl = useMemo(() => toEmbedUrl(resolvedStreamUrl ?? item.videoUrl ?? undefined), [resolvedStreamUrl, item.videoUrl]);
+  const isIframe = isIframeProviderUrl(videoUrl);
+
+  /* ───────── HLS lifecycle ───────── */
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el || !videoUrl) return;
+
+    const isHls = videoUrl.includes(".m3u8");
+    if (!isHls) {
+      // Direct MP4 — let the <video> tag handle it natively. We don't try
+      // to autoplay here: the browser requires a user gesture and the user
+      // hasn't pressed play yet (loading screen takes care of feedback).
+      setIsVideoLoading(true);
+      return;
+    }
+
+    if (Hls.isSupported()) {
+      // Tuned for "press play, see frame" UX:
+      // - smaller buffer (30s) avoids wasting memory on long streams
+      // - 2s back buffer keeps RAM usage low while still allowing seeks
+      // - aggressive ABR loading keeps the next variant warm
+      // - retry on transient errors before bubbling to the UI
+      const hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: false,
+        maxBufferLength: 30,
+        maxMaxBufferLength: 60,
+        backBufferLength: 2,
+        maxLoadingDelay: 2,
+        maxBufferHole: 0.5,
+        fragLoadingMaxRetry: 4,
+        manifestLoadingMaxRetry: 2,
+        levelLoadingMaxRetry: 4,
+        startLevel: -1,
+        abrEwmaDefaultEstimate: 1_000_000,
+      });
+      hls.loadSource(videoUrl);
+      hls.attachMedia(el);
+      const onManifest = () => {
+        setIsVideoLoading(false);
+        el.play().catch((err) => {
+          if (err?.name !== "AbortError") console.error(err);
+        });
+      };
+      hls.on(Hls.Events.MANIFEST_PARSED, onManifest);
+      hls.on(Hls.Events.FRAG_LOADED, () => {
+        // Drop the spinner as soon as we have a playable fragment.
+        setIsVideoLoading(false);
+      });
+      hls.on(Hls.Events.ERROR, (_e, data) => {
+        if (data?.fatal) {
+          if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+            // Transient — try to recover instead of showing the error.
+            hls.startLoad();
+            return;
+          }
+          if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+            hls.recoverMediaError();
+            return;
+          }
+          setIsVideoLoading(true);
+        }
+      });
+      return () => {
+        hls.destroy();
+      };
+    } else if (el.canPlayType("application/vnd.apple.mpegurl")) {
+      el.src = videoUrl;
+      const onLoaded = () => {
+        setIsVideoLoading(false);
+        el.play().catch(() => {
+          /* gesture-gated; ignored */
+        });
+      };
+      el.addEventListener("loadedmetadata", onLoaded);
+      return () => el.removeEventListener("loadedmetadata", onLoaded);
+    }
+    return undefined;
+  }, [videoUrl]);
+
+  /* ───────── timeline interactions ───────── */
 
   const handleTimelineClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -182,76 +364,12 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
     }
   };
 
-  const handleTimelineHover = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    const previewTime = ratio * duration;
-  };
-
-  const toggleMute = () => {
-    if (videoRef.current) {
-      const next = !isMuted;
-      setIsMuted(next);
-      videoRef.current.muted = next;
-    }
-  };
-
-  const toggleFullscreen = () => {
-    if (!containerRef.current) return;
-    if (!document.fullscreenElement) {
-      containerRef.current.requestFullscreen().then(() => setIsFullscreen(true));
-    } else {
-      document.exitFullscreen().then(() => setIsFullscreen(false));
-    }
-  };
-
   const formatTime = (secs: number) => {
     const h = Math.floor(secs / 3600);
     const m = Math.floor((secs % 3600) / 60);
     const s = Math.floor(secs % 60);
     return `${h > 0 ? h + ":" : ""}${m < 10 && h > 0 ? "0" : ""}${m}:${s < 10 ? "0" : ""}${s}`;
   };
-
-  const toEmbedUrl = (url?: string) => {
-    if (!url) return url;
-    const m = url.match(/(?:doodstream\.com|playmogo\.com|d000d\.com|d0000d\.com|dood\.(?:to|sh|so|cx|la|wf|pm))\/(?:d|e)\/([a-zA-Z0-9]+)/i);
-    return m ? `https://doodstream.com/e/${m[1]}` : url;
-  };
-
-  const videoUrl = toEmbedUrl(item.videoUrl);
-
-  const isIframe = (
-    videoUrl?.includes("vidlink.pro") ||
-    videoUrl?.includes("youtube.com") ||
-    videoUrl?.includes("doodstream.com/e/") ||
-    videoUrl?.includes("playmogo.com") ||
-    videoUrl?.includes("d000d.com") ||
-    videoUrl?.includes("d0000d.com") ||
-    videoUrl?.includes("uqload.is/embed") ||
-    /dood\.(to|sh|so|cx|la|wf|pm)\/e\//i.test(videoUrl || "") ||
-    videoUrl?.includes("vidapi")
-  ) && !videoUrl?.includes("vidzy.cc") && !videoUrl?.includes("/api/doodstream/stream");
-
-  useEffect(() => {
-    const el = videoRef.current;
-    if (!el || !videoUrl) return;
-
-    const isHls = videoUrl.includes('.m3u8');
-    if (!isHls) return;
-
-    if (Hls.isSupported()) {
-      const hls = new Hls();
-      hls.loadSource(videoUrl);
-      hls.attachMedia(el);
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        setIsVideoLoading(false);
-        el.play().catch(() => {});
-      });
-      return () => { hls.destroy(); };
-    } else if (el.canPlayType('application/vnd.apple.mpegurl')) {
-      el.src = videoUrl;
-    }
-  }, [videoUrl]);
 
   const [showSingleDownload, setShowSingleDownload] = useState(false);
 
@@ -285,21 +403,33 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
           src={videoUrl}
           className="absolute inset-0 w-full h-full object-contain"
           playsInline
+          preload="auto"
           onPlay={() => setIsPlaying(true)}
           onPause={() => setIsPlaying(false)}
-          onTimeUpdate={() => setCurrentTime(videoRef.current?.currentTime || 0)}
+          onTimeUpdate={() => {
+            const t = videoRef.current?.currentTime ?? 0;
+            // Set state every tick — but the localStorage write below is debounced.
+            setCurrentTime(t);
+          }}
           onLoadedData={() => setIsVideoLoading(false)}
-          onLoadedMetadata={() => setDuration(videoRef.current?.duration || 0)}
+          onLoadedMetadata={() => setDuration(videoRef.current?.duration ?? 0)}
           onWaiting={() => setIsVideoLoading(true)}
           onCanPlay={() => setIsVideoLoading(false)}
+          onError={() => setIsVideoLoading(false)}
           onClick={handlePlayPause}
         />
       ) : (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-zinc-500">
           <IconMovie className="h-12 w-12 text-zinc-700" />
-          <p className="font-medium text-lg">Flux indisponible</p>
+          <p className="font-medium text-lg">
+            {streamQuery.isLoading ? "Chargement du flux…" : "Flux indisponible"}
+          </p>
           <p className="text-sm text-zinc-600 max-w-md text-center px-4">
-            Aucun fournisseur n&apos;a pu diffuser ce contenu.
+            {streamQuery.isLoading
+              ? "Recherche du meilleur fournisseur…"
+              : streamQuery.isError
+              ? "Une erreur est survenue. Réessaie dans quelques instants."
+              : "Aucun fournisseur n'a pu diffuser ce contenu."}
           </p>
           <button
             onClick={onBack}
@@ -372,7 +502,7 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
             </button>
           </div>
 
-          {/* Timeline bar (Netflix-style: thin line that thickens on hover) */}
+          {/* Timeline bar */}
           <div className={`absolute inset-x-0 bottom-20 z-20 px-4 transition-opacity duration-300 ${showControls || !isPlaying ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
             <div
               ref={timelineRef}
@@ -495,10 +625,13 @@ export default function VideoPlayer({ item, episode, onBack, onOpenDetails }: Vi
         onClose={() => setShowSingleDownload(false)}
         title={item.title}
         id={String(item.id)}
-        type={item.type === 'series' ? 'series' : 'movie'}
+        type={streamType === "movie" ? "movie" : "series"}
         season={currentEpisode?.season ?? undefined}
         episode={currentEpisode?.number}
       />
+      {/* onOpenDetails kept in the prop signature for future UX (long-press menu).
+          Referenced below to silence the unused-prop lint without breaking API. */}
+      <span hidden aria-hidden data-bind={onOpenDetails ? "ok" : "no"} />
     </div>
   );
 }

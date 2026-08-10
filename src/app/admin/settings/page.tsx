@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { adminGetSettings, adminUpdateSettings } from '@/app/api';
+import { adminGetSettings, adminUpdateSettings } from '@/services/admin';
 import {
   Card, Typography, Form, Input, Button, Descriptions, Spin, Alert, Space,
 } from 'antd';
@@ -17,7 +17,7 @@ export default function AdminSettings() {
 
   useEffect(() => {
     adminGetSettings().then(res => {
-      if (res.success) setSettings(res.data);
+      if (res.success && res.data) setSettings(res.data as Record<string, string>);
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
@@ -32,7 +32,7 @@ export default function AdminSettings() {
     setSaving(false);
     if (res.success) {
       setMsg('ok');
-      adminGetSettings().then(r => { if (r.success) setSettings(r.data); });
+      adminGetSettings().then(r => { if (r.success && r.data) setSettings(r.data as Record<string, string>); });
     } else {
       setMsg('err');
     }

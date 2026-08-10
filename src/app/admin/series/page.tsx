@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { adminGetCollection } from '@/app/api';
+import { adminGetCollection } from '@/services/admin';
 import { Typography, Input, Button, Space, Card, Tag, Pagination, Spin, Empty } from 'antd';
 import { SearchOutlined, FolderOutlined } from '@ant-design/icons';
 
@@ -31,11 +31,12 @@ export default function AdminSeries() {
     setLoading(true);
     try {
       const res = await adminGetCollection('series', search, p, limit);
-      if (res.success) {
-        setItems(res.data.items);
-        setTotal(res.data.total);
-        setTotalPages(res.data.totalPages);
-        setPage(res.data.page);
+      if (res.success && res.data) {
+        const d = res.data as { items: Serie[]; total: number; totalPages: number; page: number };
+        setItems(d.items);
+        setTotal(d.total);
+        setTotalPages(d.totalPages);
+        setPage(d.page);
       }
     } finally {
       setLoading(false);

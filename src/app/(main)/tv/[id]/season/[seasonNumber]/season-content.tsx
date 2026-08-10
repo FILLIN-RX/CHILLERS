@@ -3,11 +3,11 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
-import { getSeasonDetails, getMediaDetails, getStreamUrl } from "@/app/api";
-import { Episode } from "@/app/mockData";
+import { getSeasonDetails, getMediaDetails, getStreamUrl } from "@/services/media";
+import type { Episode } from "@/types/media";
 import VideoPlayer from "@/components/VideoPlayer";
-import SeriesDownloadModal from "@/components/SeriesDownloadModal";
-import DownloadModal from "@/components/DownloadModal";
+import SeriesDownloadModal from "@/features/downloads/SeriesDownloadModal";
+import DownloadModal from "@/features/downloads/DownloadModal";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { IconArrowLeft, IconPlayerPlay, IconChevronLeft, IconChevronRight, IconMovie, IconDownload } from '@tabler/icons-react';
 

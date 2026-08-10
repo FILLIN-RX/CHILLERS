@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { adminGetTmdbStats, adminTriggerTmdbLink, adminGetLogs } from '@/app/api';
+import { adminGetTmdbStats, adminTriggerTmdbLink, adminGetLogs } from '@/services/admin';
 import {
   Card, Statistic, Row, Col, Button, Space, Typography, Spin, Segmented, Alert,
 } from 'antd';

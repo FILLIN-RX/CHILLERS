@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { UqloadAccountInfo, UqloadFileInfo, UqloadDirectLinkResult } from './uqload.types';
+import { UqloadAccountInfo, UqloadFileInfo, UqloadDirectLinkResult, UqloadFileListResult } from './uqload.types';
 
 type UqloadApiResponse<T> = {
   msg: string;
@@ -47,6 +47,14 @@ export class UqloadClient {
 
   async getFileInfo(fileCode: string) {
     return this.get<UqloadFileInfo[]>('/file/info', { file_code: fileCode });
+  }
+
+  async listFiles(params: Record<string, any> = {}): Promise<UqloadFileListResult> {
+    const res = await this.get<UqloadFileListResult>('/file/list', params);
+    if (!res.result) {
+      throw new Error(`Uqload file/list failed: ${res.msg} (status=${res.status})`);
+    }
+    return res.result;
   }
 
   async editFile(fileCode: string, title?: string) {

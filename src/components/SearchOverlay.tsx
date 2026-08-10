@@ -4,8 +4,10 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Autocomplete } from "@mantine/core";
-import { MovieOrShow } from "@/app/mockData";
-import { searchMedia, getTrendingMovies, getMovieGenres, Genre } from "@/app/api";
+import type { MovieOrShow } from "@/types/media";
+import { useTrendingMovies } from "@/hooks/useTrendingMovies";
+import { useMovieGenres } from "@/hooks/useMovieGenres";
+import { useSearchSuggestions } from "@/hooks/useSearchSuggestions";
 import { IconX, IconSearch, IconArrowLeft } from '@tabler/icons-react';
 import { useLanguage } from "@/i18n/LanguageContext";
 import { acquireModalScrollLock, releaseModalScrollLock } from "@/lib/modalScrollLock";
@@ -19,40 +21,31 @@ interface SearchOverlayProps {
   onOpenDetails: (item: MovieOrShow) => void;
 }
 
-let trendingCache: MovieOrShow[] | null = null;
-let genresCache: Genre[] | null = null;
-
 export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<MovieOrShow[]>([]);
-  const [trendingMovies, setTrendingMovies] = useState<MovieOrShow[]>([]);
-  const [genres, setGenres] = useState<Genre[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [initialized, setInitialized] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const { translate: _ } = useLanguage();
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const [initialized, setInitialized] = useState(false);
+  const search = useSearchSuggestions("");
+  const trendingQuery = useTrendingMovies();
+  const genresQuery = useMovieGenres();
 
   // Restore query from sessionStorage on first open
   useEffect(() => {
     if (!isOpen || initialized) return;
     const saved = sessionStorage.getItem(SESSION_KEY);
-    if (saved) setQuery(saved);
+    if (saved) search.setQuery(saved);
     setInitialized(true);
-  }, [isOpen, initialized]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
-  // Save query to sessionStorage
+  // Persist query to sessionStorage
   useEffect(() => {
     if (!isOpen) return;
-    if (query.trim()) sessionStorage.setItem(SESSION_KEY, query);
+    if (search.query.trim()) sessionStorage.setItem(SESSION_KEY, search.query);
     else sessionStorage.removeItem(SESSION_KEY);
-  }, [query, isOpen]);
-
-  const goToDetail = (item: MovieOrShow) => {
-    onClose();
-    const typeParam = item.type === "series" || item.type === "anime" ? "tv" : item.type;
-    router.push(`/media/${item.id}?type=${typeParam}`, { scroll: false });
-  };
+  }, [search.query, isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -60,46 +53,20 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
     return () => releaseModalScrollLock();
   }, [isOpen]);
 
-  // Load trending + genres on mount
-  useEffect(() => {
-    if (!isOpen) return;
-    if (trendingCache) setTrendingMovies(trendingCache);
-    else getTrendingMovies().then((d) => {
-      const seen = new Set<string>();
-      const deduped = d.filter((m) => { if (seen.has(m.id)) return false; seen.add(m.id); return true; });
-      trendingCache = deduped;
-      setTrendingMovies(deduped);
-    }).catch(() => {});
-    if (genresCache) setGenres(genresCache);
-    else getMovieGenres().then((d) => { genresCache = d; setGenres(d); }).catch(() => {});
-  }, [isOpen]);
+  const goToDetail = (item: MovieOrShow) => {
+    onClose();
+    const typeParam = item.type === "series" || item.type === "anime" ? "tv" : item.type;
+    router.push(`/media/${item.id}?type=${typeParam}`, { scroll: false });
+  };
 
-  // Debounced search
-  useEffect(() => {
-    if (query.trim() === "") {
-      setResults([]);
-      return;
-    }
-    const controller = new AbortController();
-    setIsSearching(true);
-    const timer = setTimeout(async () => {
-      try {
-        const raw = await searchMedia(query, 1, controller.signal);
-        if (!controller.signal.aborted) {
-          const seen = new Set<string>();
-          setResults(raw.filter((m) => { if (seen.has(m.id)) return false; seen.add(m.id); return true; }));
-          setIsSearching(false);
-        }
-      } catch (e) {
-        if (e instanceof DOMException && e.name === "AbortError") return;
-        if (!controller.signal.aborted) {
-          setResults([]);
-          setIsSearching(false);
-        }
-      }
-    }, 300);
-    return () => { controller.abort(); clearTimeout(timer); };
-  }, [query]);
+  const dedup = (items: MovieOrShow[]) => {
+    const seen = new Set<string>();
+    return items.filter((m) => (seen.has(m.id) ? false : (seen.add(m.id), true)));
+  };
+
+  const trendingMovies = useMemo(() => dedup(trendingQuery.data ?? []), [trendingQuery.data]);
+  const genres = genresQuery.data ?? [];
+  const results = useMemo(() => dedup(search.results), [search.results]);
 
   const suggestions = useMemo(() => {
     const seen = new Set<string>();
@@ -120,8 +87,6 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
     if (match) goToDetail(match);
   };
 
-  const trendingPills = trendingMovies.slice(0, 8);
-
   if (!isOpen) return null;
 
   return (
@@ -138,14 +103,14 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
         <div className="flex-1 max-w-3xl">
           <Autocomplete
             ref={inputRef}
-            value={query}
-            onChange={setQuery}
+            value={search.query}
+            onChange={search.setQuery}
             onOptionSubmit={handleAutocompleteSubmit}
-            data={query.trim().length > 1 ? suggestionNames : []}
+            data={search.query.trim().length > 1 ? suggestionNames : []}
             placeholder={_("search.placeholder")}
             leftSection={<IconSearch className="h-5 w-5 text-zinc-500" />}
-            rightSection={query ? (
-              <button onClick={() => setQuery("")} className="text-zinc-500 hover:text-white">
+            rightSection={search.query ? (
+              <button onClick={() => search.setQuery("")} className="text-zinc-500 hover:text-white">
                 <IconX className="h-4 w-4" />
               </button>
             ) : undefined}
@@ -160,7 +125,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-4 sm:px-8 md:px-12 lg:px-[4%] py-6">
-        {query.trim() === "" ? (
+        {search.query.trim() === "" ? (
           <div className="max-w-7xl mx-auto space-y-12">
             {/* Trending — posters row */}
             {trendingMovies.length > 0 && (
@@ -187,7 +152,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                           />
                         ) : (
                           <div className="absolute inset-0 flex items-center justify-center text-zinc-700">
-                            <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 0 1-1.125-1.125M3.375 19.5h7.5c.621 0 1.125-.504 1.125-1.125m-9.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-7.5A1.125 1.125 0 0 1 12 18.375m9.75-12.75c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125m19.5 0v1.5c0 .621-.504 1.125-1.125 1.125M2.25 5.625v1.5c0 .621.504 1.125 1.125 1.125m0 0h17.25m-17.25 0h7.5c.621 0 1.125.504 1.125 1.125M3.375 8.25c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m17.25-3.75h-7.5c-.621 0-1.125.504-1.125 1.125m8.625-1.125c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125M12 10.875v-1.5m0 1.5c0 .621-.504 1.125-1.125 1.125M12 10.875c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125M10.875 12h2.25m-2.25 0a1.125 1.125 0 0 1-1.125-1.125M12 12h2.25m-2.25 0a1.125 1.125 0 0 0 1.125 1.125M12 13.125V12m0 0v-1.5" /></svg>
+                            <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 0 1-1.125-1.125M3.375 19.5h7.5c.621 0 1.125-.504 1.125-1.125m-9.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-7.5A1.125 1.125 0 0 1 12 18.375m9.75-12.75c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125m19.5 0v1.5c0 .621-.504 1.125-1.125 1.125M2.25 5.625v1.5c0 .621.504 1.125 1.125 1.125m0 0h17.25m-17.25 0h7.5c.621 0 1.125.504 1.125 1.125M3.375 8.25c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m17.25-3.75h-7.5c-.621 0-1.125.504-1.125 1.125m8.625-1.125c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125M12 10.875v-1.5m0 1.5c0 .621-.504 1.125-1.125 1.125M12 10.875c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125M10.875 12h2.25m-2.25 0a1.125 1.125 0 0 1-1.125-1.125M12 12h2.25m-2.25 0a1.125 0 0 0 1.125 1.125M12 13.125V12m0 0v-1.5" /></svg>
                           </div>
                         )}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
@@ -229,7 +194,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                     return (
                       <button
                         key={g.id}
-                        onClick={() => setQuery(g.name)}
+                        onClick={() => search.setQuery(g.name)}
                         className={`p-5 rounded-xl bg-gradient-to-br ${gradients[i % gradients.length]} border border-zinc-800 text-center font-bold text-sm text-zinc-300 hover:text-white hover:border-zinc-600 hover:scale-[1.03] transition-all`}
                       >
                         {g.name}
@@ -240,7 +205,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
               </div>
             )}
           </div>
-        ) : isSearching ? (
+        ) : search.isLoading ? (
           <div className="flex items-center justify-center py-20">
             <div className="h-8 w-8 border-4 border-zinc-700 border-t-brand-primary rounded-full animate-spin" />
           </div>

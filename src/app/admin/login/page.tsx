@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { adminLogin } from '@/app/api';
+import { adminLogin } from '@/services/admin';
 import { Card, Form, Input, Button, Alert, Typography, ConfigProvider } from 'antd';
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
 import { adminTheme } from '../theme';

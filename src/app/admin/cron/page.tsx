@@ -14,7 +14,7 @@ import {
   adminListProcesses,
   adminKillProcess,
   adminGetSystemCron,
-} from '@/app/api';
+} from '@/services/admin';
 import {
   Card, Button, Badge, Tag, Alert, Table, Space, Typography,
 } from 'antd';
@@ -61,10 +61,11 @@ export default function AdminCron() {
         adminListProcesses(),
         adminGetSystemCron(),
       ]);
-      if (cronRes.success) setCronRunning(cronRes.data.running);
-      if (tasksRes.success) setRunningTasks(tasksRes.data || []);
-      if (processesRes.success) setOsProcesses(processesRes.data || []);
-      if (sysCronRes.success) setSystemCron(sysCronRes.data || { present: false, lines: [] });
+      if (cronRes.success && cronRes.data) setCronRunning(Boolean((cronRes.data as { running?: boolean }).running));
+      if (tasksRes.success) setRunningTasks((tasksRes.data as string[]) || []);
+      if (processesRes.success && processesRes.data) setOsProcesses(processesRes.data as OsProcess[]);
+      if (sysCronRes.success && sysCronRes.data)
+        setSystemCron(sysCronRes.data as SystemCron);
     } catch {
     } finally {
       setLoading(false);
@@ -104,10 +105,11 @@ export default function AdminCron() {
   const killOrphan = async (pid: number, label: string) => {
     setLastTask(`Tuer PID ${pid} (${label})...`);
     const res = await adminKillProcess(pid);
-    if (res?.data?.killed) {
+    const killed = res && (res.data as { killed?: boolean } | undefined)?.killed;
+    if (killed) {
       setLastTask(`PID ${pid} tué ✓`);
     } else {
-      setLastTask(`PID ${pid} : ${res?.data?.killed === false ? 'déjà mort' : 'échec'}`);
+      setLastTask(`PID ${pid} : ${killed === false ? 'déjà mort' : 'échec'}`);
     }
     fetchStatus();
   };
@@ -131,7 +133,8 @@ export default function AdminCron() {
             icon={<StopOutlined />}
             onClick={async () => {
               const res = await adminStopTask(label);
-              if (res?.data?.killed) {
+              const killed = (res?.data as { killed?: boolean } | undefined)?.killed;
+              if (killed) {
                 setLastTask(`${label} ⏹ Arrêt demandé`);
               } else {
                 setLastTask(`${label} ⚠ Aucune tâche en cours à arrêter`);

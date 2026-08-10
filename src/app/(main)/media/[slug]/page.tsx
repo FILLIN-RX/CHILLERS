@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import { Suspense } from "react";
 import { API_BASE } from "@/lib/server-api";
+import { buildMediaMetadata, SITE_LOCALE } from "@/lib/seo";
 import MediaPageClient from "./client-page";
 
 const LISTING_TYPES = new Set(["movies", "series", "anime"]);
@@ -12,16 +13,19 @@ type Props = {
 
 const listingMeta: Record<string, { title: string; description: string }> = {
   movies: {
-    title: "Films",
-    description: "Découvrez notre sélection de films en streaming VF/VOSTFR.",
+    title: "Films en streaming gratuit",
+    description:
+      "Regardez les meilleurs films en streaming gratuit VF/VOSTFR sur CHILLERS : blockbusters, nouveautés et grands classiques.",
   },
   series: {
-    title: "Séries",
-    description: "Retrouvez vos séries préférées en streaming VF/VOSTFR.",
+    title: "Séries en streaming gratuit",
+    description:
+      "Retrouvez vos séries préférées en streaming gratuit VF/VOSTFR sur CHILLERS : toutes les saisons et tous les épisodes.",
   },
   anime: {
-    title: "Anime",
-    description: "Regardez les meilleurs animes en streaming VF/VOSTFR.",
+    title: "Anime en streaming gratuit",
+    description:
+      "Regardez les meilleurs animes en streaming gratuit VF/VOSTFR sur CHILLERS : action, aventure, fantastique et plus encore.",
   },
 };
 
@@ -33,7 +37,17 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     return {
       title: meta.title,
       description: meta.description,
+      alternates: { canonical: `/media/${slug}` },
       openGraph: {
+        type: "website",
+        siteName: "CHILLERS",
+        title: `${meta.title} · CHILLERS`,
+        description: meta.description,
+        url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://chillers.vercel.app"}/media/${slug}`,
+        locale: SITE_LOCALE,
+      },
+      twitter: {
+        card: "summary_large_image",
         title: `${meta.title} · CHILLERS`,
         description: meta.description,
       },
@@ -53,39 +67,26 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     if (json.success && json.data) {
       const d = json.data;
       const title = d.title || d.name || slug;
-      const overview = (d.overview || "").trim();
-      const kind = isTV ? "cette série" : "ce film";
-      const description = overview
-        ? `Découvrez ${kind} sur CHILLERS — ${overview.slice(0, 155)}`
-        : `Découvrez ${kind} sur CHILLERS.`;
-      const posterPath = d.poster_path
-        ? `https://image.tmdb.org/t/p/w500${d.poster_path}`
-        : undefined;
-      const backdropPath = d.backdrop_path
-        ? `https://image.tmdb.org/t/p/w1280${d.backdrop_path}`
-        : undefined;
-      const ogType = isTV ? "video.tv_show" : "video.movie";
-      const images = [
-        ...(posterPath ? [{ url: posterPath, width: 500, height: 750, alt: title }] : []),
-        ...(backdropPath ? [{ url: backdropPath, width: 1280, height: 720, alt: title }] : []),
-      ];
+      const year = d.release_date
+        ? new Date(d.release_date).getFullYear()
+        : d.first_air_date
+          ? new Date(d.first_air_date).getFullYear()
+          : undefined;
+      const rating = typeof d.vote_average === "number" ? Math.round(d.vote_average * 10) / 10 : undefined;
+      const genres = Array.isArray(d.genres) ? d.genres.map((g: any) => g.name) : [];
 
-      return {
+      return buildMediaMetadata({
+        id: slug,
         title,
-        description,
-        openGraph: {
-          title: `${title} · CHILLERS`,
-          description,
-          images,
-          type: ogType as any,
-        },
-        twitter: {
-          card: "summary_large_image",
-          title: `${title} · CHILLERS`,
-          description,
-          images: backdropPath || posterPath ? [backdropPath || posterPath!] : [],
-        },
-      };
+        type: isTV ? "tv" : "movie",
+        overview: d.overview,
+        posterPath: d.poster_path,
+        backdropPath: d.backdrop_path,
+        year,
+        rating,
+        genres,
+        path: `/media/${slug}?type=${isTV ? "tv" : "movie"}`,
+      });
     }
   } catch {}
 

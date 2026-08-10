@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { adminGetSerie, startDownload, triggerDownload } from '@/app/api';
+import { adminGetSerie } from '@/services/admin';
+import { resolveDownloadUrl } from '@/services/downloads';
+import { streamDownloadToDisk } from '@/services/streamSaver';
+import { buildEpisodeFilename } from '@/lib/format';
 import { Typography, Button, Space, Tag, Table, Modal, Spin, Alert, Tooltip } from 'antd';
 import {
   ArrowLeftOutlined, PlayCircleOutlined, DownloadOutlined, LinkOutlined, FolderOpenOutlined,
@@ -45,7 +48,7 @@ export default function AdminSerieDetail() {
 
   useEffect(() => {
     adminGetSerie(id).then(res => {
-      if (res.success) setSerie(res.data);
+      if (res.success && res.data) setSerie(res.data as SerieDetail);
       setLoading(false);
     }).catch(() => setLoading(false));
   }, [id]);
@@ -138,15 +141,29 @@ export default function AdminSerieDetail() {
                 onClick={async () => {
                   setDownloadingEp(ep.episode);
                   try {
-                    const result = await startDownload(
-                      ep.tmdbId ? String(ep.tmdbId) : serie._id,
+                    const tmdbId = ep.tmdbId ? String(ep.tmdbId) : null;
+                    const result = await resolveDownloadUrl(
+                      tmdbId ?? serie._id,
                       'series',
                       serie.titre,
                       ep.season,
                       ep.episodeNumber,
                     );
                     if (result?.downloadUrl) {
-                      triggerDownload(result.downloadUrl, `${serie.titre}-${ep.episode}.mp4`);
+                      const filename = buildEpisodeFilename({
+                        title: serie.titre,
+                        season: ep.season,
+                        episodeNumber: ep.episodeNumber,
+                        extension: 'mp4',
+                      });
+                      try {
+                        await streamDownloadToDisk(result.downloadUrl, {
+                          filename,
+                          signal: new AbortController().signal,
+                        });
+                      } catch {
+                        // fall through; user can retry from the UI
+                      }
                     }
                   } catch { } finally { setDownloadingEp(null); }
                 }}

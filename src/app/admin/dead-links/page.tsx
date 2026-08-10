@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { adminGetDeadLinks, adminAppealDeadLink, adminRescrapeDeadLink, adminGetLogsStreamUrl, adminRunMaintenance, adminUpdateDeadLink } from '@/app/api';
+import { adminGetDeadLinks, adminAppealDeadLink, adminRescrapeDeadLink, adminGetLogsStreamUrl, adminRunMaintenance, adminUpdateDeadLink } from '@/services/admin';
 import {
   Table, Button, Modal, Switch, Input, Space, Typography, Tag, Spin, Alert,
 } from 'antd';
@@ -59,7 +59,7 @@ export default function AdminDeadLinks() {
 
   useEffect(() => {
     adminGetDeadLinks().then(res => {
-      if (res.success) setLinks(res.data);
+      if (res.success && res.data) setLinks(res.data as DeadLink[]);
       setLoading(false);
     });
   }, []);
@@ -142,7 +142,7 @@ export default function AdminDeadLinks() {
     }
     evtSource.close();
     const res = await adminGetDeadLinks();
-    if (res.success) setLinks(res.data);
+    if (res.success && res.data) setLinks(res.data as DeadLink[]);
     setDetecting(false);
   }
 

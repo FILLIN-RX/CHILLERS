@@ -1,8 +1,10 @@
-import { startDownload } from './api';
+import { resolveDownloadUrl } from '@/services/downloads';
 
 // On mock le fetch global
 global.fetch = jest.fn(() =>
   Promise.resolve({
+    ok: true,
+    status: 200,
     json: () =>
       Promise.resolve({
         success: true,
@@ -11,13 +13,13 @@ global.fetch = jest.fn(() =>
   })
 ) as jest.Mock;
 
-describe('Download Functionality', () => {
+describe('resolveDownloadUrl (download service)', () => {
   beforeEach(() => {
     (global.fetch as jest.Mock).mockClear();
   });
 
   it('envoie tmdb_id + title au endpoint download et renvoie downloadUrl', async () => {
-    const result = await startDownload('123', 'movie', 'Test Movie');
+    const result = await resolveDownloadUrl('123', 'movie', 'Test Movie');
 
     expect(global.fetch).toHaveBeenCalledTimes(1);
     const calledUrl = (global.fetch as jest.Mock).mock.calls[0][0] as string;
@@ -29,7 +31,7 @@ describe('Download Functionality', () => {
   });
 
   it("n'envoie pas tmdb_id quand l'id n'est pas un identifiant TMDB numérique", async () => {
-    await startDownload('64f0a1b2c3d4e5f6a7b8c9d0', 'movie', 'Test Movie');
+    await resolveDownloadUrl('64f0a1b2c3d4e5f6a7b8c9d0', 'movie', 'Test Movie');
 
     const calledUrl = (global.fetch as jest.Mock).mock.calls[0][0] as string;
     expect(calledUrl).not.toContain('tmdb_id=');

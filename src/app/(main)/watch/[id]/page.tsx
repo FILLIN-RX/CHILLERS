@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import { Suspense } from "react";
 import { API_BASE } from "@/lib/server-api";
+import { buildMediaMetadata } from "@/lib/seo";
 import WatchContent from "./watch-content";
 
 type Props = {
@@ -23,39 +24,27 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     if (json.success && json.data) {
       const d = json.data;
       const title = d.title || d.name || id;
-      const overview = (d.overview || "").trim();
-      const kind = isTV ? "cette série" : "ce film";
-      const description = overview
-        ? `Découvrez ${kind} sur CHILLERS — ${overview.slice(0, 155)}`
-        : `Découvrez ${kind} sur CHILLERS.`;
-      const posterPath = d.poster_path
-        ? `https://image.tmdb.org/t/p/w500${d.poster_path}`
-        : undefined;
-      const backdropPath = d.backdrop_path
-        ? `https://image.tmdb.org/t/p/w1280${d.backdrop_path}`
-        : undefined;
-      const images = [
-        ...(posterPath ? [{ url: posterPath, width: 500, height: 750, alt: title }] : []),
-        ...(backdropPath ? [{ url: backdropPath, width: 1280, height: 720, alt: title }] : []),
-      ];
-      const ogType = isTV ? "video.tv_show" : "video.movie";
+      const year = d.release_date
+        ? new Date(d.release_date).getFullYear()
+        : d.first_air_date
+          ? new Date(d.first_air_date).getFullYear()
+          : undefined;
+      const rating = typeof d.vote_average === "number" ? Math.round(d.vote_average * 10) / 10 : undefined;
+      const genres = Array.isArray(d.genres) ? d.genres.map((g: any) => g.name) : [];
 
-      return {
+      return buildMediaMetadata({
+        id,
         title,
-        description,
-        openGraph: {
-          title: `${title} · CHILLERS`,
-          description,
-          images,
-          type: ogType,
-        },
-        twitter: {
-          card: "summary_large_image",
-          title: `${title} · CHILLERS`,
-          description,
-          images: backdropPath || posterPath ? [backdropPath || posterPath!] : [],
-        },
-      };
+        type: isTV ? "tv" : "movie",
+        overview: d.overview,
+        posterPath: d.poster_path,
+        backdropPath: d.backdrop_path,
+        year,
+        rating,
+        genres,
+        path: `/watch/${id}?type=${isTV ? "tv" : "movie"}`,
+        context: "watch",
+      });
     }
   } catch {}
 

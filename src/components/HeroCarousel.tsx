@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
-import { MovieOrShow } from "@/app/mockData";
+import type { MovieOrShow } from "@/types/media";
 import { IconPlayerPlay, IconPlayerPause, IconChevronLeft, IconChevronRight, IconStar } from '@tabler/icons-react';
 import { useLanguage } from "@/i18n/LanguageContext";
 

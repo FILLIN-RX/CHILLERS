@@ -1,7 +1,10 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { adminGetCollection, startDownload, triggerDownload } from '@/app/api';
+import { adminGetCollection } from '@/services/admin';
+import { resolveDownloadUrl } from '@/services/downloads';
+import { streamDownloadToDisk } from '@/services/streamSaver';
+import { buildEpisodeFilename } from '@/lib/format';
 import TmdbLinkModal from '../components/TmdbLinkModal';
 import {
   Typography, Table, Input, Button, Space, Tag, Spin, Empty, Modal, Tooltip,
@@ -39,11 +42,12 @@ export default function AdminMovies() {
     setLoading(true);
     try {
       const res = await adminGetCollection('movies', search, p, limit);
-      if (res.success) {
-        setItems(res.data.items);
-        setTotal(res.data.total);
-        setTotalPages(res.data.totalPages);
-        setPage(res.data.page);
+      if (res.success && res.data) {
+        const d = res.data as { items: Movie[]; total: number; totalPages: number; page: number };
+        setItems(d.items);
+        setTotal(d.total);
+        setTotalPages(d.totalPages);
+        setPage(d.page);
       }
     } finally {
       setLoading(false);
@@ -135,9 +139,21 @@ export default function AdminMovies() {
               onClick={async () => {
                 setDownloadingId(m._id);
                 try {
-                  const result = await startDownload(m.tmdbId ? String(m.tmdbId) : m._id, 'movie', m.titre);
+                  const tmdbId = m.tmdbId ? String(m.tmdbId) : null;
+                  const result = await resolveDownloadUrl(tmdbId ?? m._id, 'movie', m.titre);
                   if (result?.downloadUrl) {
-                    triggerDownload(result.downloadUrl, `${m.titre}.mp4`);
+                    const filename = buildEpisodeFilename({
+                      title: m.titre,
+                      extension: 'mp4',
+                    });
+                    try {
+                      await streamDownloadToDisk(result.downloadUrl, {
+                        filename,
+                        signal: new AbortController().signal,
+                      });
+                    } catch {
+                      /* user can retry */
+                    }
                   }
                 } catch { } finally { setDownloadingId(null); }
               }}

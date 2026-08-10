@@ -1,1203 +1,176 @@
-import { MovieOrShow } from "./mockData";
+// Legacy compatibility layer.
+//
+// This file used to be the entire backend client (1200+ lines). It is now a thin
+// re-export of the services split into src/services/*.ts. New code should import
+// directly from the services modules. This file will be deleted in Phase 7 of
+// the architecture refactor.
 
-const API_BASE_URL = "/api";
-const FETCH_TIMEOUT = 45000;
-const DEFAULT_CACHE_TTL = 60_000;
+/* Public API of the services (re-exported so existing imports keep working). */
 
-// Base URL du backend (sans /api) pour résoudre les images servies localement
-// (uploads like /uploads/ai-posters/...) qui ne passent pas par le rewrite Next.
-function getBackendBase(): string {
-  if (typeof window === "undefined") return "";
-  try {
-    return (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api").replace(/\/api\/?$/, "");
-  } catch {
-    return "";
-  }
-}
+export {
+  // http primitives
+  httpJson,
+  HttpError,
+  resolveImageUrl,
+  API_BASE_PATH,
+} from "@/services/http";
 
-export function resolveImageUrl(url?: string | null): string {
-  if (!url) return "";
-  if (url.startsWith("http://") || url.startsWith("https://")) return url;
-  if (url.startsWith("/uploads/") || url.startsWith("/api/")) return `${getBackendBase()}${url}`;
-  return url;
-}
+export {
+  // media
+  getTrendingMovies,
+  getTrendingTV,
+  getPopularMovies,
+  getPopularTV,
+  getTopRatedTV,
+  getAnimeSeries,
+  getUpcomingMovies,
+  getTopRatedMovies,
+  getMediaDetails,
+  getSeasonDetails,
+  getMovieRecommendations,
+  getRecommendedForYou,
+  searchMedia,
+  getStreamUrl,
+  getNexStreamUrl,
+  getMovieGenres,
+  getTVGenres,
+  getAllMovies,
+  getPopularMoviesPage,
+  getPopularTVPage,
+  getAnimeSeriesPage,
+  getMoviesByGenrePage,
+  getTVByGenrePage,
+  getMoviesByGenre,
+  getMoviesByGenreMultiPage,
+  getByGenreMultiple,
+  getDisponible,
+  clearTmdbCache,
+  mapTMDBToMovieOrShow,
+} from "@/services/media";
 
-const responseCache = new Map<string, { expiresAt: number; data: any }>();
-const inFlightRequests = new Map<string, Promise<any>>();
+export type { TmdbRawItem } from "@/services/media";
 
-function getLang(): string {
-  if (typeof window === 'undefined') return 'fr';
-  try {
-    return localStorage.getItem('chillers-lang') || 'fr';
-  } catch {
-    return 'fr';
-  }
-}
+export {
+  // downloads
+  resolveDownloadUrl,
+  checkSeriesDownloads,
+  verifyDownloadStarted,
+  proxyDownloadHref,
+  isHtmlPageDownload,
+  // legacy alias kept for v1 modals
+  resolveDownloadUrl as startDownload,
+} from "@/services/downloads";
 
-async function fetchWithTimeout(url: string, options?: RequestInit & { signal?: AbortSignal | null }): Promise<Response> {
-  const externalSignal = options?.signal ?? undefined;
-  if (externalSignal?.aborted) {
-    throw new DOMException("The operation was aborted.", "AbortError");
-  }
+export {
+  // progress (continue watching)
+  loadProgress,
+  saveProgress,
+  clearProgress,
+  listRecentProgress,
+  pushProgressToBackend,
+  progressKey,
+} from "@/services/progress";
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
+/* Admin endpoints: pass-through. Existing admin/* pages already use them. */
+export {
+  // auth
+  adminLogin,
+  adminVerify,
+  adminLogout,
+  // dashboard/logs/settings
+  adminGetDashboard,
+  adminGetLogs,
+  adminGetDeadLinks,
+  adminAppealDeadLink,
+  adminGetSettings,
+  adminUpdateSettings,
+  adminTriggerScrape,
+  adminClearCache,
+  adminGetCollection,
+  adminGetConvertedLinks,
+  adminGetScraperState,
+  adminGetSerie,
+  adminGetTmdbStats,
+  adminTriggerTmdbLink,
+  // cron
+  adminCronStart,
+  adminCronStop,
+  adminCronStatus,
+  adminRunMaintenance,
+  adminGetRunningTasks,
+  adminStopTask,
+  adminRunTask,
+  adminListProcesses,
+  adminKillProcess,
+  adminGetSystemCron,
+  adminGetLogsStreamUrl,
+  // uqload
+  adminUqloadStatus,
+  adminUqloadPending,
+  adminUqloadUploadMovies,
+  adminUqloadUploadSeries,
+  adminUqloadUploadMovie,
+  adminUqloadUploadEpisode,
+  adminUqloadStop,
+  adminUqloadPendingBoth,
+  // dead links / tmdb linking
+  adminUpdateDeadLink,
+  adminRescrapeDeadLink,
+  adminLinkTmdb,
+  adminTmdbSearch,
+  adminCreateManualMedia,
+  adminCreateManualMediaUpload,
+  // scrapper distant
+  adminScrapperHealth,
+  adminScrapperSettings,
+  adminScrapperLogs,
+  adminScrapperRunningTasks,
+  adminScrapperCronStatus,
+  adminScrapperState,
+  adminScrapperLogsStreamUrl,
+  adminScrapperTriggerScrape,
+  adminScrapperRunMaintenance,
+  adminScrapperStopTask,
+  adminScrapperCronStart,
+  adminScrapperCronStop,
+  // affiches / dispo
+  adminAffichesList,
+  adminAffichesGenerate,
+  adminAffichesStatus,
+  adminAvailabilityScan,
+  adminAvailabilityStatus,
+  adminAffichesPosterUrl,
+  adminAffichesCardUrl,
+} from "@/services/admin";
 
-  const onExternalAbort = () => controller.abort(externalSignal?.reason);
-  externalSignal?.addEventListener("abort", onExternalAbort, { once: true });
+export type { AfficheItem, AdminEnvelope } from "@/services/admin";
 
-  try {
-    const { signal: _, ...fetchOptions } = options || {};
-    const res = await fetch(url, { ...fetchOptions, signal: controller.signal });
-    return res;
-  } catch (error) {
-    throw error;
-  } finally {
-    clearTimeout(timeout);
-    externalSignal?.removeEventListener("abort", onExternalAbort);
-  }
-}
+/* Legacy helpers kept verbatim so we don't break existing call sites. */
 
-function getCacheKey(url: string): string {
-  return url;
-}
+import { proxyDownloadHref, isHtmlPageDownload } from "@/services/downloads";
 
-async function fetchJsonCached<T>(
-  url: string,
-  options?: RequestInit & { signal?: AbortSignal | null },
-  cacheTtlMs: number = DEFAULT_CACHE_TTL,
-): Promise<T> {
-  const key = getCacheKey(url);
-  const now = Date.now();
-  const cached = responseCache.get(key);
-
-  if (cached && cached.expiresAt > now) {
-    return cached.data as T;
-  }
-
-  // Don't share in-flight requests when the caller provided its own abort signal,
-  // otherwise one consumer abort can cancel all consumers.
-  const canDedupInFlight = !options?.signal;
-  if (canDedupInFlight) {
-    const inFlight = inFlightRequests.get(key);
-    if (inFlight) {
-      return inFlight as Promise<T>;
-    }
-  }
-
-  const requestPromise = fetchWithTimeout(url, options).then((res) => res.json() as Promise<T>);
-
-  if (canDedupInFlight) {
-    inFlightRequests.set(key, requestPromise);
-  }
-
-  try {
-    const data = await requestPromise;
-    responseCache.set(key, { expiresAt: now + cacheTtlMs, data });
-    return data;
-  } finally {
-    if (canDedupInFlight) {
-      inFlightRequests.delete(key);
-    }
-  }
-}
-
-const GENRE_MAP: { [key: number]: string } = {
-  28: "Action",
-  12: "Adventure",
-  16: "Animation",
-  35: "Comedy",
-  80: "Crime",
-  99: "Documentary",
-  18: "Drama",
-  10751: "Family",
-  14: "Fantasy",
-  36: "History",
-  27: "Horror",
-  10402: "Music",
-  9648: "Mystery",
-  10749: "Romance",
-  878: "Sci-Fi",
-  10770: "TV Movie",
-  53: "Thriller",
-  10752: "War",
-  37: "Western",
-  10759: "Action & Adventure",
-  10762: "Kids",
-  10763: "News",
-  10764: "Reality",
-  10765: "Sci-Fi & Fantasy",
-  10766: "Soap",
-  10767: "Talk",
-  10768: "War & Politics",
-};
-
-export function mapTMDBToMovieOrShow(
-  item: any,
-  typeOverride?: "movie" | "series" | "anime" | "documentary"
-): MovieOrShow {
-  const isTV = item.media_type === "tv" || item.first_air_date !== undefined || item.name !== undefined || item.first_season_episodes !== undefined;
-  
-  // Decide media type (If animation genre is present, categorize under anime, etc.)
-  let type: "movie" | "series" | "anime" | "documentary" = typeOverride || (isTV ? "series" : "movie");
-  
-  const genreIds = item.genre_ids || [];
-  if (genreIds.includes(16)) {
-    type = "anime";
-  } else if (genreIds.includes(99)) {
-    type = "documentary";
-  }
-
-  // Get year
-  const releaseDate = item.release_date || item.first_air_date || "";
-  const year = releaseDate ? new Date(releaseDate).getFullYear() : 2026;
-
-  // Map genres
-  let genres: string[] = [];
-  if (item.genre_ids && Array.isArray(item.genre_ids)) {
-    genres = item.genre_ids.map((id: number) => GENRE_MAP[id] || "").filter(Boolean);
-  } else if (item.genres && Array.isArray(item.genres)) {
-    genres = item.genres.map((g: any) => g.name || "");
-  }
-
-  if (genres.length === 0) {
-    genres = [type === "movie" ? "Movie" : type === "series" ? "Series" : type === "anime" ? "Anime" : "Documentary"];
-  }
-
-  // Map Seasons — use episode_count from TMDB directly (episodes list fetched separately per season)
-  let seasons: MovieOrShow['seasons'] = [];
-  if (item.seasons && Array.isArray(item.seasons)) {
-    seasons = item.seasons.map((s: any) => ({
-      id: String(s.id),
-      name: s.name,
-      seasonNumber: s.season_number,
-      posterUrl: s.poster_path ? `https://image.tmdb.org/t/p/w500${s.poster_path}` : "",
-      episodeCount: s.episode_count ?? 0,
-      airDate: s.air_date || undefined,
-      episodes: [],
-    }));
-  }
-
-  // Cast members
-  let cast: string[] = [];
-  if (item.credits && item.credits.cast) {
-    cast = item.credits.cast.slice(0, 5).map((actor: any) => actor.name);
-  }
-
-  // YouTube trailer detection
-  let trailerUrl = "";
-  if (item.videos && item.videos.results) {
-    const results = item.videos.results || [];
-    const trailer =
-      results.find((v: any) => v.site === "YouTube" && v.type === "Trailer" && v.official === true) ||
-      results.find((v: any) => v.site === "YouTube" && v.type === "Trailer") ||
-      results[0];
-
-    if (trailer && trailer.key) {
-      trailerUrl = `https://www.youtube.com/embed/${trailer.key}`;
-    }
-  }
-
-  // Backdrop & Poster paths.
-  // On retourne '' au lieu d'une image Unsplash pour les fallbacks : MovieCard
-  // et MovieModal affichent un placeholder gradient quand src est vide.
-  const backdropUrl = item.backdrop_path
-    ? `https://image.tmdb.org/t/p/w1280${item.backdrop_path}`
-    : '';
-  const posterUrl = item.poster_path
-    ? `https://image.tmdb.org/t/p/w500${item.poster_path}`
-    : '';
-
-  return {
-    id: String(item.id),
-    title: item.title || item.name || "Untitled",
-    type,
-    description: item.overview || "No description available.",
-    synopsis: item.overview || "No synopsis available.",
-    backdropUrl,
-    posterUrl,
-    rating: item.vote_average ? parseFloat(item.vote_average.toFixed(1)) : 7.0,
-    year,
-    duration: isTV
-      ? `${item.number_of_seasons || 1} Season${item.number_of_seasons > 1 ? 's' : ''}`
-      : item.runtime
-        ? `${Math.floor(item.runtime / 60)}h ${item.runtime % 60}m`
-        : "2h 05m",
-    genres,
-    cast: cast.length > 0 ? cast : ["Cast Info Unavailable"],
-    trailerUrl: trailerUrl || "",
-    videoUrl: "",
-    seasons: seasons && seasons.length > 0 ? seasons : undefined,
-  };
-}
-
-export async function getTrendingMovies(signal?: AbortSignal): Promise<MovieOrShow[]> {
-  try {
-    const json = await fetchJsonCached<any>(
-      `${API_BASE_URL}/movies/trending?language=${getLang()}`,
-      { signal },
-      90_000,
-    );
-    if (json.success && json.data.results) {
-      return json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "movie"));
-    }
-  } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") throw error;
-    console.error("Error fetching trending movies:", error);
-  }
-  return [];
-}
-
-export async function getTrendingTV(signal?: AbortSignal): Promise<MovieOrShow[]> {
-  try {
-    const json = await fetchJsonCached<any>(
-      `${API_BASE_URL}/tv/trending?language=${getLang()}`,
-      { signal },
-      90_000,
-    );
-    if (json.success && json.data.results) {
-      return json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "series"));
-    }
-  } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") throw error;
-    console.error("Error fetching trending series:", error);
-  }
-  return [];
-}
-
-export async function getPopularMovies(page = 1, signal?: AbortSignal): Promise<MovieOrShow[]> {
-  try {
-    const json = await fetchJsonCached<any>(
-      `${API_BASE_URL}/movies/popular?page=${page}&language=${getLang()}`,
-      { signal },
-      90_000,
-    );
-    if (json.success && json.data.results) {
-      return json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "movie"));
-    }
-  } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") throw error;
-    console.error("Error fetching popular movies:", error);
-  }
-  return [];
-}
-
-export async function getPopularTV(page = 1, signal?: AbortSignal): Promise<MovieOrShow[]> {
-  try {
-    const json = await fetchJsonCached<any>(
-      `${API_BASE_URL}/tv/popular?page=${page}&language=${getLang()}`,
-      { signal },
-      90_000,
-    );
-    if (json.success && json.data.results) {
-      return json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "series"));
-    }
-  } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") throw error;
-    console.error("Error fetching popular series:", error);
-  }
-  return [];
-}
-
-export async function getTopRatedTV(page = 1): Promise<MovieOrShow[]> {
-  try {
-    const res = await fetchWithTimeout(`${API_BASE_URL}/tv/top-rated?page=${page}&language=${getLang()}`);
-    const json = await res.json();
-    if (json.success && json.data.results) {
-      return json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "series"));
-    }
-  } catch (error) {
-    console.error("Error fetching top rated TV:", error);
-  }
-  return [];
-}
-
-export async function getAnimeSeries(page = 1, signal?: AbortSignal): Promise<MovieOrShow[]> {
-  try {
-    const json = await fetchJsonCached<any>(
-      `${API_BASE_URL}/tv/anime?page=${page}&language=${getLang()}`,
-      { signal },
-      90_000,
-    );
-    if (json.success && json.data.results) {
-      return json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "anime"));
-    }
-  } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") throw error;
-    console.error("Error fetching anime:", error);
-  }
-  return [];
-}
-
-export async function getPopularTVPage(page = 1): Promise<{ results: MovieOrShow[]; totalPages: number }> {
-  try {
-    const res = await fetchWithTimeout(`${API_BASE_URL}/tv/popular?page=${page}&language=${getLang()}`);
-    const json = await res.json();
-    if (json.success && json.data) {
-      return {
-        results: json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "series")),
-        totalPages: json.data.total_pages || 1,
-      };
-    }
-  } catch (error) {
-    console.error("Error fetching popular TV page:", error);
-  }
-  return { results: [], totalPages: 1 };
-}
-
-export async function getAnimeSeriesPage(page = 1): Promise<{ results: MovieOrShow[]; totalPages: number }> {
-  try {
-    const res = await fetchWithTimeout(`${API_BASE_URL}/tv/anime?page=${page}&language=${getLang()}`);
-    const json = await res.json();
-    if (json.success && json.data) {
-      return {
-        results: json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "anime")),
-        totalPages: json.data.total_pages || 1,
-      };
-    }
-  } catch (error) {
-    console.error("Error fetching anime page:", error);
-  }
-  return { results: [], totalPages: 1 };
-}
-
-export async function getPopularMoviesPage(page = 1): Promise<{ results: MovieOrShow[]; totalPages: number }> {
-  try {
-    const res = await fetchWithTimeout(`${API_BASE_URL}/movies/popular?page=${page}&language=${getLang()}`);
-    const json = await res.json();
-    if (json.success && json.data) {
-      return {
-        results: json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "movie")),
-        totalPages: json.data.total_pages || 1,
-      };
-    }
-  } catch (error) {
-    console.error("Error fetching popular movies page:", error);
-  }
-  return { results: [], totalPages: 1 };
-}
-
-export async function getUpcomingMovies(page = 1): Promise<MovieOrShow[]> {
-  try {
-    const res = await fetchWithTimeout(`${API_BASE_URL}/movies/upcoming?page=${page}&language=${getLang()}`);
-    const json = await res.json();
-    if (json.success && json.data.results) {
-      return json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "movie"));
-    }
-  } catch (error) {
-    console.error("Error fetching upcoming movies:", error);
-  }
-  return [];
-}
-
-export async function getTopRatedMovies(page = 1): Promise<MovieOrShow[]> {
-  try {
-    const res = await fetchWithTimeout(`${API_BASE_URL}/movies/top-rated?page=${page}&language=${getLang()}`);
-    const json = await res.json();
-    if (json.success && json.data.results) {
-      return json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "movie"));
-    }
-  } catch (error) {
-    console.error("Error fetching top rated movies:", error);
-  }
-  return [];
-}
-
-export async function getMediaDetails(id: string, isTV: boolean = false, signal?: AbortSignal): Promise<MovieOrShow | null> {
-  try {
-    const endpoint = isTV ? `tv/${id}` : `movies/${id}`;
-    const json = await fetchJsonCached<any>(
-      `${API_BASE_URL}/${endpoint}?language=${getLang()}`,
-      { signal },
-      120_000,
-    );
-    if (json.success && json.data) {
-      return mapTMDBToMovieOrShow(json.data, isTV ? "series" : "movie");
-    }
-  } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") throw error;
-    console.error("Error fetching media details:", error);
-  }
-  return null;
-}
-
-export async function getSeasonDetails(id: string, seasonNumber: string, signal?: AbortSignal): Promise<any | null> {
-  try {
-    const json = await fetchJsonCached<any>(
-      `${API_BASE_URL}/tv/${id}/season/${seasonNumber}?language=${getLang()}`,
-      { signal },
-      120_000,
-    );
-    if (json.success && json.data) {
-      return json.data;
-    }
-  } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") throw error;
-    console.error("Error fetching season details:", error);
-  }
-  return null;
-}
-
-export async function getMovieRecommendations(id: string, signal?: AbortSignal): Promise<MovieOrShow[]> {
-  try {
-    const json = await fetchJsonCached<any>(
-      `${API_BASE_URL}/movies/${id}/recommendations?language=${getLang()}`,
-      { signal },
-      120_000,
-    );
-    if (json.success && json.data.results) {
-      return json.data.results
-        .filter((item: any) => item.media_type === "movie" || item.media_type === "tv")
-        .slice(0, 20)
-        .map((item: any) => {
-          const type = item.media_type === "tv" ? "series" : "movie";
-          return mapTMDBToMovieOrShow(item, type as any);
-        });
-    }
-  } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") throw error;
-    console.error("Error fetching recommendations:", error);
-  }
-  return [];
-}
-
-export async function getRecommendedForYou(): Promise<MovieOrShow[]> {
-  try {
-    // Fetch top popular movies and use their recommendations
-    // P3-F: pass an undefined signal explicitly so the signature is consistent
-    // with every other call site (TS noImplicitAny would otherwise infer `any`).
-    const pop = await getPopularMovies(1, undefined);
-    const topIds = pop.slice(0, 5).map(m => m.id);
-    const allRecs = await Promise.all(topIds.map(id => getMovieRecommendations(id)));
-    const seen = new Set<string>();
-    return allRecs.flat().filter(item => {
-      if (seen.has(item.id)) return false;
-      if (topIds.includes(item.id)) return false;
-      seen.add(item.id);
-      return true;
-    }).slice(0, 20);
-  } catch {
-    return [];
-  }
-}
-
-export async function searchMedia(query: string, page = 1, signal?: AbortSignal): Promise<MovieOrShow[]> {
-  try {
-    const json = await fetchJsonCached<any>(
-      `${API_BASE_URL}/search?q=${encodeURIComponent(query)}&page=${page}&language=${getLang()}`,
-      { signal },
-      15_000,
-    );
-    if (!json.success) return [];
-
-    const results: MovieOrShow[] = [];
-
-    // 1. MongoDB local results
-    const local = json.data?.localResults;
-    if (local) {
-      for (const m of local.movies || []) {
-        results.push({
-          id: m.tmdbId ? String(m.tmdbId) : String(m._id),
-          title: m.titre,
-          type: 'movie',
-          description: m.speech || m.synopsis || '',
-          synopsis: m.speech || m.synopsis || '',
-          backdropUrl: 'https://images.unsplash.com/photo-1578894381163-e72c17f2d45f?q=80&w=1200',
-          posterUrl: resolveImageUrl(m.posterUrl) || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=400',
-          rating: 0,
-          year: m.year || 0,
-          duration: '',
-          genres: ['Movie'],
-          cast: [],
-        });
-      }
-      for (const s of local.series || []) {
-        results.push({
-          id: s.tmdbId ? String(s.tmdbId) : String(s._id),
-          title: s.titre,
-          type: 'series',
-          description: s.speech || s.synopsis || '',
-          synopsis: s.speech || s.synopsis || '',
-          backdropUrl: 'https://images.unsplash.com/photo-1578894381163-e72c17f2d45f?q=80&w=1200',
-          posterUrl: resolveImageUrl(s.posterUrl) || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=400',
-          rating: 0,
-          year: s.year || 0,
-          duration: '',
-          genres: ['Series'],
-          cast: [],
-        });
-      }
-    }
-
-    // 2. TMDB results
-    if (json.data?.tmdbResults?.results) {
-      const tmdb = json.data.tmdbResults.results
-        .filter((item: any) => item.media_type === "movie" || item.media_type === "tv")
-        .map((item: any) => {
-          const type = item.media_type === "tv" ? "series" : "movie";
-          return mapTMDBToMovieOrShow(item, type as any);
-        });
-      results.push(...tmdb);
-    }
-
-    return results;
-  } catch (error) {
-    // Re-throw AbortError so callers (e.g. SearchOverlay) know the request was
-    // cancelled and can avoid setting state on an unmounted/stale query.
-    if (error instanceof DOMException && error.name === "AbortError") throw error;
-    console.error("Error searching media:", error);
-  }
-  return [];
-}
-
-export async function getNexStreamUrl(
-  id: string,
-  type: 'movie' | 'series' | 'anime' = 'movie',
-  season?: number,
-  episode?: number
-): Promise<string | null> {
-  try {
-    const isTv = type === 'series' || type === 'anime';
-    let endpoint: string;
-    if (isTv) {
-      endpoint = `nexstream/tv/${id}/${season || 1}/${episode || 1}`;
-    } else {
-      endpoint = `nexstream/movie/${id}`;
-    }
-    const res = await fetchWithTimeout(`${API_BASE_URL}/${endpoint}?language=${getLang()}`);
-    const json = await res.json();
-    if (json.success && json.data?.embedUrl) {
-      return json.data.embedUrl;
-    }
-  } catch (error) {
-    console.error("Error fetching NexStream URL:", error);
-  }
-  return null;
-}
-
-export async function getStreamUrl(
-  id: string,
-  type: 'movie' | 'series' | 'anime' = 'movie',
-  season?: number,
-  episode?: number,
-  title?: string,
-  signal?: AbortSignal
-): Promise<{ embedUrl: string; provider: string } | null> {
-  try {
-    const isTv = type === 'series' || type === 'anime';
-    let endpoint: string;
-    if (isTv) {
-      endpoint = `stream/tv/${id}/${season || 1}/${episode || 1}`;
-    } else {
-      endpoint = `stream/movie/${id}`;
-    }
-    const params = new URLSearchParams();
-    params.set('type', type);
-    params.set('language', getLang());
-    if (title) params.set('title', title);
-    const res = await fetchWithTimeout(`${API_BASE_URL}/${endpoint}?${params.toString()}`, { signal });
-    const json = await res.json();
-    if (json.success && json.data?.embedUrl) {
-      return { embedUrl: json.data.embedUrl, provider: json.provider || 'unknown' };
-    }
-    if (!json.success) {
-      console.warn(`Stream unavailable for "${title || id}": ${json.message || 'unknown reason'}`);
-    }
-  } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") throw error;
-    console.error("Error fetching stream URL:", error);
-  }
-  return null;
-}
-
-export async function startDownload(
-  id: string,
-  type: 'movie' | 'series' | 'anime' = 'movie',
-  title?: string,
-  season?: number,
-  episode?: number
-): Promise<{ downloadUrl: string; fileCode: string } | null> {
-  try {
-    const params = new URLSearchParams();
-    // Le tmdb_id est la clé de résolution la plus fiable (identique au streaming).
-    // On ne l'envoie que s'il s'agit bien d'un identifiant numérique TMDB
-    // (les pages admin peuvent passer un _id MongoDB à la place).
-    if (id && /^\d+$/.test(id)) params.set('tmdb_id', id);
-    if (title) params.set('title', title);
-    if (type) params.set('type', type);
-    if (season !== undefined) params.set('season', String(season));
-    if (episode !== undefined) params.set('episode', String(episode));
-
-    if (params.has('tmdb_id') || params.has('title')) {
-      const doodUrl = `${API_BASE_URL}/doodstream/download?${params.toString()}`;
-      const res = await fetchWithTimeout(doodUrl);
-      const json = await res.json();
-      if (json.success && json.data?.downloadUrl) {
-        return { downloadUrl: json.data.downloadUrl, fileCode: json.data.fileCode };
-      }
-    }
-
-  } catch (error) {
-    console.error('Error starting download:', error);
-  }
-  return null;
-}
-
-export async function checkSeriesDownloads(tmdbId: string): Promise<{
-  success: boolean;
-  data?: { missing?: { season: number; episode: number }[]; episodes?: { season: number; episode: number; fileCode: string; downloadUrl: string | null }[]; total?: number; seriesTitle?: string | null };
-  message?: string | null;
-}> {
-  try {
-    const res = await fetchWithTimeout(`${API_BASE_URL}/doodstream/series/download-check?tmdb_id=${tmdbId}`);
-    const json = await res.json();
-    if (json.success && json.data) {
-      return { success: true, data: json.data, message: json.message };
-    }
-    return { success: false, data: json.data || undefined, message: json.message || 'Série incomplète ou indisponible' };
-  } catch (error) {
-    console.error('Error checking series downloads:', error);
-    return { success: false, message: 'Erreur lors de la vérification de la série' };
-  }
-}
-
-export async function clearTmdbCache(): Promise<void> {
-  try {
-    await fetch(`${API_BASE_URL}/clear-cache`, { method: 'POST' });
-  } catch {
-    // silent
-  }
-}
-
-export function triggerDownload(downloadUrl: string, filename: string = 'video.mp4') {
+/**
+ * Triggers a browser download by appending an anchor to the DOM and clicking it.
+ * This is the legacy fire-and-forget path used by the v1 modals. Phase 3
+ * introduces useDownload() / useDownloadsBatch() which replace this with
+ * a controlled StreamSaver + progress store flow.
+ */
+export function triggerDownload(downloadUrl: string, filename = "video.mp4"): void {
   if (typeof window === "undefined") return;
 
-  // URLs relatives → proxy de téléchargement backend (HLS→MP4 via FFmpeg).
-  // Le serveur renvoie Content-Disposition: attachment → pas besoin de
-  // fenêtre popup, le fichier se télécharge via le tag <a>.
-  if (downloadUrl.startsWith('/api/')) {
-    const a = document.createElement('a');
-    a.href = downloadUrl.startsWith(API_BASE_URL) ? downloadUrl : `${API_BASE_URL}${downloadUrl}`;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+  if (isHtmlPageDownload(downloadUrl)) {
+    window.open(downloadUrl, "_blank");
     return;
   }
 
-  // DoodStream /d/ → page HTML de téléchargement
-  if (/doodstream\.com\/d\//i.test(downloadUrl)) {
-    window.open(downloadUrl, '_blank');
-    return;
-  }
-
-  // Pour tous les autres liens vidéo direct (Uqload, .mp4), passer par le proxy backend
-  // pour conserver l'IP du serveur qui a généré le token direct_link et éviter le 403 CDN.
-  const proxyUrl = `${API_BASE_URL}/doodstream/download/proxy?url=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(filename)}`;
-  const a = document.createElement('a');
-  a.href = proxyUrl;
+  const href = proxyDownloadHref(downloadUrl, filename);
+  const a = document.createElement("a");
+  a.href = href;
   a.download = filename;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
 }
 
-export interface Genre {
-  id: number;
-  name: string;
-}
-
-export async function getMovieGenres(signal?: AbortSignal): Promise<Genre[]> {
-  try {
-    const json = await fetchJsonCached<any>(
-      `${API_BASE_URL}/genres/movie?language=${getLang()}`,
-      { signal },
-      10 * 60_000,
-    );
-    if (json.success && Array.isArray(json.data)) return json.data;
-  } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") throw error;
-    console.error("Error fetching movie genres:", error);
-  }
-  return [];
-}
-
-export async function getAllMovies(page = 1): Promise<MovieOrShow[]> {
-  try {
-    const [popular, topRated, trending] = await Promise.all([
-      getPopularMovies(page, undefined),
-      getTopRatedMovies(page),
-      fetch(`${API_BASE_URL}/movies/trending?language=${getLang()}`).then(r => r.json()).then(j =>
-        j.success ? j.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "movie")) : []
-      ),
-    ]);
-    const merged = [...trending, ...popular, ...topRated];
-    const seen = new Set<string>();
-    return merged.filter(item => {
-      if (seen.has(item.id)) return false;
-      seen.add(item.id);
-      return true;
-    });
-  } catch (error) {
-    console.error("Error fetching all movies:", error);
-  }
-  return [];
-}
-
-export async function getMoviesByGenrePage(genreId: string, page = 1): Promise<{ results: MovieOrShow[]; totalPages: number }> {
-  try {
-    const res = await fetchWithTimeout(`${API_BASE_URL}/movies/genre/${genreId}?page=${page}&language=${getLang()}`);
-    const json = await res.json();
-    if (json.success && json.data) {
-      return {
-        results: json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "movie")),
-        totalPages: json.data.total_pages || 1,
-      };
-    }
-  } catch (error) {
-    console.error(`Error fetching movies by genre ${genreId}:`, error);
-  }
-  return { results: [], totalPages: 1 };
-}
-
-export async function getTVByGenrePage(genreId: string, page = 1): Promise<{ results: MovieOrShow[]; totalPages: number }> {
-  try {
-    const res = await fetchWithTimeout(`${API_BASE_URL}/tv/genre/${genreId}?page=${page}&language=${getLang()}`);
-    const json = await res.json();
-    if (json.success && json.data) {
-      return {
-        results: json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "series")),
-        totalPages: json.data.total_pages || 1,
-      };
-    }
-  } catch (error) {
-    console.error(`Error fetching TV by genre ${genreId}:`, error);
-  }
-  return { results: [], totalPages: 1 };
-}
-
-export async function getTVGenres(signal?: AbortSignal): Promise<Genre[]> {
-  try {
-    const json = await fetchJsonCached<any>(
-      `${API_BASE_URL}/genres/tv?language=${getLang()}`,
-      { signal },
-      10 * 60_000,
-    );
-    if (json.success && Array.isArray(json.data)) return json.data;
-  } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") throw error;
-    console.error("Error fetching TV genres:", error);
-  }
-  return [];
-}
-
-export async function getMoviesByGenre(genreId: string, page = 1, signal?: AbortSignal): Promise<MovieOrShow[]> {
-  try {
-    const json = await fetchJsonCached<any>(
-      `${API_BASE_URL}/movies/genre/${genreId}?page=${page}&language=${getLang()}`,
-      { signal },
-      120_000,
-    );
-    if (json.success && json.data.results) {
-      return json.data.results.map((item: any) => mapTMDBToMovieOrShow(item, "movie"));
-    }
-  } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") throw error;
-    console.error(`Error fetching movies for genre ${genreId}:`, error);
-  }
-  return [];
-}
-
-export async function getMoviesByGenreMultiPage(genreId: string, pages = 2): Promise<MovieOrShow[]> {
-  const pagePromises = [];
-  for (let i = 1; i <= pages; i++) {
-    pagePromises.push(getMoviesByGenre(genreId, i));
-  }
-  const results = await Promise.all(pagePromises);
-  const seen = new Set<string>();
-  return results.flat().filter(item => {
-    if (seen.has(item.id)) return false;
-    seen.add(item.id);
-    return true;
-  });
-}
-
-export async function getByGenreMultiple(genres: { id: string; name: string }[], pages = 2): Promise<Record<string, MovieOrShow[]>> {
-  const entries = await Promise.all(
-    genres.map(async (g) => {
-      const movies = await getMoviesByGenreMultiPage(g.id, pages);
-      return [g.name, movies] as const;
-    })
-  );
-  return Object.fromEntries(entries);
-}
-
-/* ─── Admin API ─── */
-
-function getAdminToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('admin-token');
-}
-
-async function adminFetch(url: string, options?: RequestInit) {
-  const token = getAdminToken();
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-  const res = await fetchWithTimeout(`${API_BASE_URL}/admin${url}`, { ...options, headers });
-  return res.json();
-}
-
-export async function adminLogin(username: string, password: string) {
-  const res = await fetchWithTimeout(`${API_BASE_URL}/admin/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password }),
-  });
-  const data = await res.json();
-  if (data.success && data.data?.token) {
-    localStorage.setItem('admin-token', data.data.token);
-  }
-  return data;
-}
-
-export async function adminVerify() {
-  return adminFetch('/auth/verify');
-}
-
-export async function adminLogout() {
-  localStorage.removeItem('admin-token');
-}
-
-export async function adminGetDashboard() {
-  return adminFetch('/dashboard');
-}
-
-export async function adminGetLogs(type = 'all', lines = 100) {
-  return adminFetch(`/logs?type=${type}&lines=${lines}`);
-}
-
-export async function adminGetDeadLinks() {
-  return adminFetch('/dead-links');
-}
-
-export async function adminAppealDeadLink(id: string) {
-  return adminFetch(`/dead-links/appeal/${id}`, { method: 'POST' });
-}
-
-export async function adminGetSettings() {
-  return adminFetch('/settings');
-}
-
-export async function adminUpdateSettings(settings: Record<string, string>) {
-  return adminFetch('/settings', {
-    method: 'PUT',
-    body: JSON.stringify(settings),
-  });
-}
-
-export async function adminTriggerScrape(type: string) {
-  return adminFetch('/scrape/trigger', {
-    method: 'POST',
-    body: JSON.stringify({ type }),
-  });
-}
-
-export async function adminClearCache() {
-  return adminFetch('/clear-cache', { method: 'POST' });
-}
-
-export async function adminGetCollection(type: string, q = '', page = 1, limit = 50) {
-  return adminFetch(`/collection?type=${type}&q=${encodeURIComponent(q)}&page=${page}&limit=${limit}`);
-}
-
-export async function adminGetConvertedLinks(q = '', page = 1, limit = 50) {
-  return adminFetch(`/collection/links?q=${encodeURIComponent(q)}&page=${page}&limit=${limit}`);
-}
-
-export async function adminGetScraperState() {
-  return adminFetch('/scraper-state');
-}
-
-export async function adminGetSerie(id: string) {
-  return adminFetch(`/serie/${id}`);
-}
-
-export async function adminGetTmdbStats() {
-  return adminFetch('/tmdb/stats');
-}
-
-export async function adminTriggerTmdbLink(type: string) {
-  return adminFetch('/tmdb/link', {
-    method: 'POST',
-    body: JSON.stringify({ type }),
-  });
-}
-
-export async function adminCronStart() {
-  return adminFetch('/cron/start', { method: 'POST' });
-}
-
-export async function adminCronStop() {
-  return adminFetch('/cron/stop', { method: 'POST' });
-}
-
-export async function adminCronStatus() {
-  return adminFetch('/cron/status');
-}
-
-export async function adminRunMaintenance(type: string) {
-  return adminFetch('/maintenance/run', {
-    method: 'POST',
-    body: JSON.stringify({ type }),
-  });
-}
-
-export async function adminGetRunningTasks() {
-  return adminFetch('/tasks/running');
-}
-
-export async function adminStopTask(name: string) {
-  return adminFetch(`/tasks/stop/${encodeURIComponent(name)}`, { method: 'POST' });
-}
-
-export async function adminRunTask(taskId: string) {
-  return adminFetch(`/cron/run/${encodeURIComponent(taskId)}`, { method: 'POST' });
-}
-
-export async function adminListProcesses() {
-  return adminFetch('/cron/processes');
-}
-
-export async function adminKillProcess(pid: number) {
-  return adminFetch(`/cron/kill/${pid}`, { method: 'POST' });
-}
-
-export async function adminGetSystemCron() {
-  return adminFetch('/cron/system');
-}
-
-export function adminGetLogsStreamUrl(): string {
-  const token = getAdminToken();
-  return `${API_BASE_URL}/admin/logs/stream?token=${token}`;
-}
-
-export async function adminUqloadStatus() {
-  return adminFetch('/uqload/status');
-}
-
-export async function adminUqloadPending() {
-  return adminFetch('/uqload/pending');
-}
-
-export async function adminUqloadUploadMovies() {
-  return adminFetch('/uqload/upload/movies', { method: 'POST' });
-}
-
-export async function adminUqloadUploadSeries() {
-  return adminFetch('/uqload/upload/series', { method: 'POST' });
-}
-
-export async function adminUqloadUploadMovie(id: string) {
-  return adminFetch(`/uqload/upload/movie/${id}`, { method: 'POST' });
-}
-
-export async function adminUqloadUploadEpisode(serieId: string, episodeIndex: number) {
-  return adminFetch(`/uqload/upload/serie/${serieId}/episode/${episodeIndex}`, { method: 'POST' });
-}
-
-export async function adminUqloadStop() {
-  return adminFetch('/uqload/stop', { method: 'POST' });
-}
-
-export async function adminUqloadPendingBoth() {
-  return adminFetch('/uqload/pending-both');
-}
-
-export async function adminUpdateDeadLink(id: string, lien: string) {
-  return adminFetch(`/dead-links/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify({ lien }),
-  });
-}
-
-export async function adminRescrapeDeadLink(id: string, headless: boolean = true) {
-  return adminFetch(`/dead-links/rescrape/${id}`, {
-    method: 'POST',
-    body: JSON.stringify({ headless }),
-  });
-}
-
-export async function adminLinkTmdb(type: 'movies' | 'series', id: string, tmdbId: number) {
-  return adminFetch('/collection/link-tmdb', {
-    method: 'POST',
-    body: JSON.stringify({ type, id, tmdbId }),
-  });
-}
-
-export async function adminTmdbSearch(query: string, type: 'movie' | 'tv', year?: number) {
-  const params = new URLSearchParams({ query, type });
-  if (year) params.set('year', String(year));
-  return adminFetch(`/media/tmdb-search?${params.toString()}`);
-}
-
-export async function adminCreateManualMedia(payload: {
-  type: 'movie' | 'serie';
-  titre: string;
-  lien?: string;
-  tmdbId: number;
-  year?: number;
-  episodes?: { season: number; episodeNumber: number; lien: string; episode?: string }[];
-}) {
-  return adminFetch('/media/manual', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
-}
-
-export async function adminCreateManualMediaUpload(formData: FormData) {
-  const token = getAdminToken();
-  const headers: Record<string, string> = {};
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10 * 60 * 1000);
-  try {
-    const res = await fetch(`${API_BASE_URL}/admin/media/manual/upload`, {
-      method: 'POST',
-      body: formData,
-      headers,
-      signal: controller.signal,
-    });
-    return res.json();
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-// ─── Scrapper distant ──────────────────────────────────────────────────────
-export async function adminScrapperHealth() {
-  return adminFetch('/scrapper/health');
-}
-
-export async function adminScrapperSettings() {
-  return adminFetch('/scrapper/settings');
-}
-
-export async function adminScrapperLogs(lines = 200) {
-  return adminFetch(`/scrapper/logs?lines=${lines}`);
-}
-
-export async function adminScrapperRunningTasks() {
-  return adminFetch('/scrapper/tasks/running');
-}
-
-export async function adminScrapperCronStatus() {
-  return adminFetch('/scrapper/cron/status');
-}
-
-export async function adminScrapperState() {
-  return adminFetch('/scrapper/scraper-state');
-}
-
-export function adminScrapperLogsStreamUrl(): string {
-  const token = getAdminToken();
-  return `${API_BASE_URL}/admin/scrapper/logs/stream?token=${token}`;
-}
-
-export async function adminScrapperTriggerScrape(type: string) {
-  return adminFetch('/scrapper/scrape/trigger', {
-    method: 'POST',
-    body: JSON.stringify({ type }),
-  });
-}
-
-export async function adminScrapperRunMaintenance(type: string) {
-  return adminFetch('/scrapper/maintenance/run', {
-    method: 'POST',
-    body: JSON.stringify({ type }),
-  });
-}
-
-export async function adminScrapperStopTask(name: string) {
-  return adminFetch(`/scrapper/tasks/stop/${encodeURIComponent(name)}`, { method: 'POST' });
-}
-
-export async function adminScrapperCronStart() {
-  return adminFetch('/scrapper/cron/start', { method: 'POST' });
-}
-
-export async function adminScrapperCronStop() {
-  return adminFetch('/scrapper/cron/stop', { method: 'POST' });
-}
-
-/* ─── Affiches & Disponibilité ──────────────────────────────────────────── */
-
-export interface AfficheItem {
-  _id: string;
-  titre: string;
-  year?: number;
-  tmdbId?: number;
-  posterUrl?: string;
-  posterSource?: string;
-  speech?: string | null;
-  disponible?: boolean | null;
-  disponibleCheckedAt?: string | null;
-  mediaType: 'movie' | 'series';
-  link: string | null;
-}
-
-export async function adminAffichesList(params: {
-  type?: 'all' | 'movie' | 'series';
-  disponible?: boolean;
-  source?: string;
-  q?: string;
-  page?: number;
-  limit?: number;
-}) {
-  const query = new URLSearchParams();
-  if (params.type && params.type !== 'all') query.set('type', params.type);
-  if (params.disponible !== undefined) query.set('disponible', String(params.disponible));
-  if (params.source) query.set('source', params.source);
-  if (params.q) query.set('q', params.q);
-  if (params.page) query.set('page', String(params.page));
-  if (params.limit) query.set('limit', String(params.limit));
-  return adminFetch(`/affiches?${query.toString()}`);
-}
-
-export async function adminAffichesGenerate(payload: { type?: string; id?: string }) {
-  return adminFetch('/affiches/generate', { method: 'POST', body: JSON.stringify(payload) });
-}
-
-export async function adminAffichesStatus() {
-  return adminFetch('/affiches/status');
-}
-
-export async function adminAvailabilityScan(type: 'all' | 'movie' | 'series') {
-  return adminFetch('/availability/scan', { method: 'POST', body: JSON.stringify({ type }) });
-}
-
-export async function adminAvailabilityStatus() {
-  return adminFetch('/availability/status');
-}
-
-export function adminAffichesPosterUrl(id: string, type: 'movie' | 'series'): string {
-  return `${API_BASE_URL}/affiches/${id}/poster?type=${type}`;
-}
-
-export function adminAffichesCardUrl(id: string, type: 'movie' | 'series'): string {
-  return `${API_BASE_URL}/affiches/${id}/card?type=${type}`;
-}
-
-export async function getDisponible(tmdbId: string, type: 'movie' | 'series'): Promise<{ disponible: boolean; streaming: boolean; download: boolean } | null> {
-  try {
-    const batchType = type === 'series' ? 'tv' : 'movie';
-    const res = await fetchWithTimeout(`${API_BASE_URL}/availability/batch?type=${batchType}&ids=${encodeURIComponent(tmdbId)}`);
-    const json = await res.json();
-    if (json.success && json.data) {
-      const entry = json.data[tmdbId];
-      return entry || null;
-    }
-  } catch (error) {
-    console.error("Error fetching availability:", error);
-  }
-  return null;
-}
+/* Re-export the Genre type (was previously declared inline in api.ts). */
+export type { Genre } from "@/types/media";

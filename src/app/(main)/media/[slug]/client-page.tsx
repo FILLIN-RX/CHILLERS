@@ -4,11 +4,12 @@ import React, { useState, useEffect, useCallback, useRef, Suspense } from "react
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
-import { getMediaDetails, getPopularMovies, getPopularTV, getStreamUrl, getPopularMoviesPage, getPopularTVPage, getAnimeSeriesPage, getMoviesByGenrePage, getTVByGenrePage, getMovieGenres, getTVGenres, getDisponible, Genre } from "@/app/api";
+import { getMediaDetails, getPopularMovies, getPopularTV, getStreamUrl, getPopularMoviesPage, getPopularTVPage, getAnimeSeriesPage, getMoviesByGenrePage, getTVByGenrePage, getMovieGenres, getTVGenres, getDisponible } from "@/services/media";
+import type { Genre } from "@/types/media";
 import GenreFilterBar from "@/components/GenreFilterBar";
 import NotificationModal from "@/components/NotificationModal";
-import DownloadModal from "@/components/DownloadModal";
-import { MovieOrShow } from "@/app/mockData";
+import DownloadModal from "@/features/downloads/DownloadModal";
+import type { MovieOrShow } from "@/types/media";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { IconArrowLeft, IconPlayerPlay, IconStar, IconClock, IconCalendar, IconMovie, IconChevronLeft, IconChevronRight, IconDownload, IconShare } from '@tabler/icons-react';
 import VideoPlayer from "@/components/VideoPlayer";

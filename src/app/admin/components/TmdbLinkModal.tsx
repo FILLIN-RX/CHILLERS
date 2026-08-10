@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { searchMedia, adminLinkTmdb } from '@/app/api';
+import { searchMedia } from '@/services/media';
+import { adminLinkTmdb } from '@/services/admin';
 import { Modal, Input, Spin, Empty, Tag, Typography, Button } from 'antd';
 import type { InputRef } from 'antd';
 import { SearchOutlined, LinkOutlined } from '@ant-design/icons';

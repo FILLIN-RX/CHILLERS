@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { adminCreateManualMedia, adminCreateManualMediaUpload, adminTmdbSearch } from '@/app/api';
+import { adminCreateManualMedia, adminCreateManualMediaUpload, adminTmdbSearch } from '@/services/admin';
 import {
   Card, Input, InputNumber, Button, Space, Typography, Alert, Segmented, Upload, Spin, Tag, Divider,
 } from 'antd';
@@ -95,9 +95,17 @@ export default function AdminAddMedia() {
     try {
       const res = await adminTmdbSearch(tmdbQuery.trim(), type === 'serie' ? 'tv' : 'movie', year ? parseInt(year, 10) : undefined);
       setSearched(true);
-      if (res.success) {
-        setTmdbResults(res.data);
-        if (res.data.length === 0) setSearchMsg('Aucun résultat sur TMDB');
+      if (res.success && res.data) {
+        const candidates: TmdbCandidate[] = res.data.map((r) => ({
+          id: r.id,
+          title: r.title || r.name || '',
+          year: r.release_date || r.first_air_date
+            ? parseInt((r.release_date || r.first_air_date || '').slice(0, 4), 10)
+            : null,
+          poster: r.poster_path ? `https://image.tmdb.org/t/p/w200${r.poster_path}` : null,
+        }));
+        setTmdbResults(candidates);
+        if (candidates.length === 0) setSearchMsg('Aucun résultat sur TMDB');
       } else {
         setSearchMsg(res.message || 'Erreur recherche TMDB');
       }
@@ -220,9 +228,12 @@ export default function AdminAddMedia() {
     return fd;
   };
 
-  const handleResult = (res: { success: boolean; message?: string; data?: { upload?: { message?: string } } }) => {
+  const handleResult = (res: { success: boolean; message?: string; data?: unknown }) => {
     if (res.success) {
-      setResult({ success: true, message: res.message || 'Créé avec succès', upload: res.data?.upload?.message });
+      const uploadInfo = (res.data && typeof res.data === "object" && "upload" in res.data
+        ? (res.data as { upload?: { message?: string } }).upload?.message
+        : undefined) as string | undefined;
+      setResult({ success: true, message: res.message || 'Créé avec succès', upload: uploadInfo });
       setTitre(''); setLien(''); setTmdbId(''); setYear(''); setMovieFile(null); setSelectedTmdb(null);
       setSeasons([newSeason('1')]);
     } else {

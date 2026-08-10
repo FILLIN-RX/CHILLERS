@@ -11,7 +11,7 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import {
   MovieOrShow,
   Episode,
-} from "../mockData";
+} from "@/types/media";
 
 import {
   getTrendingMovies,

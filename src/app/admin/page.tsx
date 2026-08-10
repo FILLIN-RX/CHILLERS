@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { adminGetDashboard, adminClearCache, adminTriggerScrape, adminGetScraperState, adminUqloadStatus } from '@/app/api';
+import { adminGetDashboard, adminClearCache, adminTriggerScrape, adminGetScraperState, adminUqloadStatus } from '@/services/admin';
 import {
   Card, Statistic, Row, Col, Typography, Tag, Table, Button, Space, Empty, Spin, Alert,
 } from 'antd';

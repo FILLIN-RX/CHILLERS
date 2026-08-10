@@ -2,7 +2,7 @@
 
 import React from "react";
 import Image from "next/image";
-import { MovieOrShow } from "@/app/mockData";
+import type { MovieOrShow } from "@/types/media";
 import { IconPlayerPlay } from '@tabler/icons-react';
 
 interface ContinueWatchingCardProps {

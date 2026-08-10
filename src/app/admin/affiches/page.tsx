@@ -8,9 +8,9 @@ import {
   adminAvailabilityScan,
   adminAvailabilityStatus,
   adminAffichesCardUrl,
-  resolveImageUrl,
   AfficheItem,
-} from '@/app/api';
+} from '@/services/admin';
+import { resolveImageUrl } from '@/services/http';
 import {
   Typography, Table, Button, Space, Select, Input, Tag, Progress, Alert, Spin, Empty, message,
 } from 'antd';
@@ -65,7 +65,7 @@ export default function AdminAffiches() {
       page,
       limit: 50,
     });
-    if (res.success) {
+    if (res.success && res.data) {
       setItems(res.data.items || []);
       setTotal(res.data.total || 0);
     }
@@ -76,8 +76,8 @@ export default function AdminAffiches() {
 
   const pollStatus = useCallback(async () => {
     const [scan, gen] = await Promise.all([adminAvailabilityStatus(), adminAffichesStatus()]);
-    if (scan.success) setScanProgress(scan.data);
-    if (gen.success) setGenProgress(gen.data);
+    if (scan.success && scan.data) setScanProgress(scan.data as JobProgress);
+    if (gen.success && gen.data) setGenProgress(gen.data as JobProgress);
   }, []);
 
   useEffect(() => {

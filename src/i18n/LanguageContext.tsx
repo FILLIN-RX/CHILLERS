@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { type Language, defaultLanguage, t, translations } from "./index";
-import { clearTmdbCache } from "@/app/api";
+import { clearTmdbCache } from "@/services/media";
 
 interface LanguageContextType {
   lang: Language;

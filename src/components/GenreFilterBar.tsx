@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useEffect, useCallback } from "react";
-import { Genre } from "@/app/api";
+import type { Genre } from "@/types/media";
 
 interface GenreFilterBarProps {
   genres: Genre[];

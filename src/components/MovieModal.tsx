@@ -2,8 +2,8 @@
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import Image from "next/image";
-import { MovieOrShow, Season, Episode } from "@/app/mockData";
-import { getSeasonDetails, getMediaDetails } from "@/app/api";
+import type { MovieOrShow, Season, Episode } from "@/types/media";
+import { getSeasonDetails, getMediaDetails } from "@/services/media";
 import { IconX, IconPlayerPlay, IconStar } from '@tabler/icons-react';
 import { useLanguage } from "@/i18n/LanguageContext";
 import { acquireModalScrollLock, releaseModalScrollLock } from "@/lib/modalScrollLock";

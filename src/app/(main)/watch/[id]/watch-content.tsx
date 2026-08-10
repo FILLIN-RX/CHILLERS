@@ -5,17 +5,17 @@ import Image from "next/image";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import {
   getMediaDetails,
-  getStreamUrl,
   getSeasonDetails,
+  getStreamUrl,
   getMovieRecommendations,
   getPopularMovies,
   getPopularTV,
-} from "@/app/api";
-import { MovieOrShow, Episode } from "@/app/mockData";
+} from "@/services/media";
+import type { MovieOrShow, Episode } from "@/types/media";
 import VideoPlayer from "@/components/VideoPlayer";
 import NotificationModal from "@/components/NotificationModal";
-import SeriesDownloadModal from "@/components/SeriesDownloadModal";
-import DownloadModal from "@/components/DownloadModal";
+import SeriesDownloadModal from "@/features/downloads/SeriesDownloadModal";
+import DownloadModal from "@/features/downloads/DownloadModal";
 import MovieCard from "@/components/MovieCard";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { PopupFirewall } from "@/lib/PopupFirewall";

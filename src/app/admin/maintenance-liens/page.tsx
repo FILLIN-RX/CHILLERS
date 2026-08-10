@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { adminGetLogsStreamUrl, adminRunMaintenance } from '@/app/api';
+import { adminGetLogsStreamUrl, adminRunMaintenance } from '@/services/admin';
 import { Typography, Button, Space, Card, Badge } from 'antd';
 import {
   SearchOutlined, ToolOutlined, VideoCameraOutlined, ClearOutlined,

@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import CategoryCard from "@/components/CategoryCard";
-import { getMovieGenres, Genre } from "@/app/api";
+import { getMovieGenres } from "@/services/media";
+import type { Genre } from "@/types/media";
 import { useLanguage } from "@/i18n/LanguageContext";
 
 export default function CategoriesPage() {

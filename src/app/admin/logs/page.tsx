@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { adminGetLogs, adminGetLogsStreamUrl } from '@/app/api';
+import { adminGetLogs, adminGetLogsStreamUrl } from '@/services/admin';
 import { Typography, Segmented, Space, Button, Card, Spin, Alert, Badge } from 'antd';
 import { ClearOutlined } from '@ant-design/icons';
 

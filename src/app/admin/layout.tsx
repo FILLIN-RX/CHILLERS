@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { adminVerify, adminLogout, adminScrapperHealth } from '@/app/api';
+import { adminVerify, adminLogout, adminScrapperHealth } from '@/services/admin';
 import { ConfigProvider, Layout, Menu, Button, Drawer, Badge, Typography, type MenuProps } from 'antd';
 import {
   DashboardOutlined,

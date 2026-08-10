@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { adminUqloadStatus, adminUqloadPending, adminUqloadPendingBoth, adminUqloadUploadMovies, adminUqloadUploadSeries, adminUqloadStop } from '@/app/api';
+import { adminUqloadStatus, adminUqloadPending, adminUqloadPendingBoth, adminUqloadUploadMovies, adminUqloadUploadSeries, adminUqloadStop } from '@/services/admin';
 import {
   Card, Statistic, Row, Col, Button, Space, Typography, Alert, Spin, Empty, Tag, Segmented,
 } from 'antd';

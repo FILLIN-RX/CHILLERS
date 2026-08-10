@@ -1,0 +1,1 @@
+1.il me faut regardez la recherche dan mon app genre les vrai filme doivent aparaitre dabord on ne cherche plus en bd dabord et pas de fallback un splash(Regardez la ligne 484 de api.ts)

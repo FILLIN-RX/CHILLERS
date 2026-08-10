@@ -14,7 +14,7 @@ import {
   adminScrapperCronStart,
   adminScrapperCronStop,
   adminScrapperStopTask,
-} from '@/app/api';
+} from '@/services/admin';
 import {
   Card, Button, Badge, Tag, Alert, Space, Typography, Descriptions, Spin, Statistic,
 } from 'antd';
@@ -64,12 +64,12 @@ export default function AdminScrapper() {
         adminScrapperCronStatus(),
         adminScrapperState(),
       ]);
-      if (healthRes.success) { setHealth(healthRes.data); setConnected(true); }
+      if (healthRes.success && healthRes.data) { setHealth(healthRes.data); setConnected(true); }
       else setConnected(false);
-      if (settingsRes.success) setSettings(settingsRes.data);
-      if (tasksRes.success) setRunningTasks(tasksRes.data || []);
-      if (cronRes.success) setCronRunning(cronRes.data.running);
-      if (stateRes.success) setScraperState(stateRes.data);
+      if (settingsRes.success && settingsRes.data) setSettings(settingsRes.data);
+      if (tasksRes.success && tasksRes.data) setRunningTasks(tasksRes.data.tasks || []);
+      if (cronRes.success && cronRes.data) setCronRunning(Boolean(cronRes.data.running));
+      if (stateRes.success && stateRes.data) setScraperState(stateRes.data);
     } catch {
       setConnected(false);
     } finally {

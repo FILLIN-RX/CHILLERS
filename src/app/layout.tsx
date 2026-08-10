@@ -18,28 +18,51 @@ const geistMono = Geist_Mono({
   display: "swap",
 });
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chillers.vercel.app";
+const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://chillers.vercel.app").replace(/\/$/, "");
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "CHILLERS",
+    default: "CHILLERS — Films et séries en streaming gratuit",
     template: "%s · CHILLERS",
   },
-  description: "Découvrez des films et séries en streaming sur CHILLERS.",
+  description:
+    "Regardez vos films, séries et anime préférés en streaming gratuit et illimité sur CHILLERS, en VF et VOSTFR.",
   applicationName: "CHILLERS",
+  alternates: {
+    canonical: "/",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 },
+  },
+  keywords: [
+    "streaming",
+    "films gratuit",
+    "séries streaming",
+    "anime streaming",
+    "VF",
+    "VOSTFR",
+    "CHILLERS",
+  ],
+  category: "Entertainment",
   openGraph: {
     type: "website",
     siteName: "CHILLERS",
-    title: "CHILLERS",
-    description: "Découvrez des films et séries en streaming sur CHILLERS.",
-    images: [{ url: "/android-chrome-512x512.png", width: 512, height: 512, alt: "CHILLERS" }],
+    locale: "fr_FR",
+    url: siteUrl,
+    title: "CHILLERS — Films et séries en streaming gratuit",
+    description:
+      "Regardez vos films, séries et anime préférés en streaming gratuit et illimité sur CHILLERS, en VF et VOSTFR.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "CHILLERS",
-    description: "Découvrez des films et séries en streaming sur CHILLERS.",
-    images: ["/android-chrome-512x512.png"],
+    site: "@chillers",
+    creator: "@chillers",
+    title: "CHILLERS — Films et séries en streaming gratuit",
+    description:
+      "Regardez vos films, séries et anime préférés en streaming gratuit et illimité sur CHILLERS, en VF et VOSTFR.",
   },
   icons: {
     icon: [
