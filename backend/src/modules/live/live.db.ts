@@ -10,9 +10,9 @@ let liveConnPromise: Promise<mongoose.Connection> | null = null;
 export function getLiveDb(): Promise<mongoose.Connection> {
   if (!liveConnPromise) {
     liveConnPromise = (async () => {
-      const uri = process.env.LIVE_MONGO_URI || process.env.MONGO_URI;
+      const uri = process.env.MONGO_URI;
       if (!uri) {
-        throw new Error('LIVE_MONGO_URI (ou MONGO_URI) non défini dans le .env');
+        throw new Error('MONGO_URI non défini dans le .env');
       }
       const conn = mongoose.createConnection(uri, {
         serverSelectionTimeoutMS: 10_000,
