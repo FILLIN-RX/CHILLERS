@@ -14,7 +14,7 @@ function truncate(text: string, max: number): string {
   return trimmed.slice(0, max - 1).trimEnd() + "…";
 }
 
-const DESCRIPTION_MAX = 155; // <title>-à-vis Google (~150-160) et cartes sociales (~125-155)
+const DESCRIPTION_MAX = 120; // méta description et cartes sociales (~125 affichés)
 const TITLE_MAX = 49; // + " · CHILLERS" (11) => 60 caractères max
 
 function buildPageTitle(title: string, year?: number | string): string {
@@ -27,15 +27,6 @@ function buildPageTitle(title: string, year?: number | string): string {
   const cut = full.slice(0, TITLE_MAX);
   const i = cut.lastIndexOf(" ");
   return (i > 20 ? cut.slice(0, i) : cut).trimEnd() + "…";
-}
-
-function buildOgImageUrl(input: { title: string; year?: number | string; type: "movie" | "tv"; rating?: number }): string {
-  const q = new URLSearchParams();
-  q.set("title", input.title);
-  if (input.year) q.set("year", String(input.year));
-  q.set("type", input.type);
-  if (typeof input.rating === "number") q.set("rating", String(input.rating));
-  return `${SITE_URL}/og/media?${q.toString()}`;
 }
 
 interface MediaMetaInput {
@@ -64,6 +55,8 @@ export function buildMediaMetadata(input: MediaMetaInput): Metadata {
     title,
     type,
     overview,
+    posterPath,
+    backdropPath,
     year,
     rating,
     genres,
@@ -95,14 +88,15 @@ export function buildMediaMetadata(input: MediaMetaInput): Metadata {
   const ogTitle = `${pageTitle} · CHILLERS`;
   const canonical = `${SITE_URL}${path}`;
 
-  const ogImageUrl = buildOgImageUrl({ title, year, type, rating });
+  const poster = posterPath ? `${TMDB_IMAGE}/w500${posterPath}` : undefined;
+  const backdrop = backdropPath ? `${TMDB_IMAGE}/w1280${backdropPath}` : undefined;
   const images = [
-    {
-      url: ogImageUrl,
-      width: 1200,
-      height: 630,
-      alt: `${title}${yearLabel} — Regarder gratuitement en VF/VOSTFR sur CHILLERS`,
-    },
+    ...(backdrop
+      ? [{ url: backdrop, width: 1280, height: 720, alt: `${title}${yearLabel} — photo de couverture` }]
+      : []),
+    ...(poster
+      ? [{ url: poster, width: 500, height: 750, alt: `${title}${yearLabel} — affiche` }]
+      : []),
   ];
 
   return {

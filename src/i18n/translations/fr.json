@@ -5,7 +5,8 @@
     "series": "Séries",
     "anime": "Animé",
     "categories": "Catégories",
-    "search": "Recherche"
+    "search": "Recherche",
+    "live": "Direct"
   },
   "hero": {
     "featured": "À la une",
@@ -147,5 +148,24 @@
   },
   "notification": {
     "close": "Fermer"
+  },
+  "live": {
+    "liveLabel": "Direct",
+    "backToLive": "Retour aux chaînes",
+    "noStream": "Aucun flux configuré pour cette chaîne.",
+    "unsupported": "La lecture en direct n'est pas supportée par ce navigateur.",
+    "streamUnavailable": "Flux indisponible",
+    "streamUnavailableDesc": "Le flux de cette chaîne est temporairement indisponible. Réessaie dans quelques instants.",
+    "retry": "Réessayer",
+    "mutedHint": "Activer le son",
+    "title": "TV en direct",
+    "subtitle": "Chaînes gratuites et publiques, en direct sur CHILLERS.",
+    "all": "Toutes",
+    "searchPlaceholder": "Rechercher une chaîne…",
+    "noChannels": "Aucune chaîne disponible.",
+    "loadError": "Impossible de charger les chaînes.",
+    "channelNotFound": "Chaîne introuvable",
+    "channelNotFoundDesc": "Cette chaîne n'existe pas ou a été retirée.",
+    "otherChannels": "Autres chaînes"
   }
 }

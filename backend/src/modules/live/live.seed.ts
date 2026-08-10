@@ -1,0 +1,195 @@
+export interface LiveSeedChannel {
+  name: string;
+  slug: string;
+  categories: string[];
+  country?: string;
+  language?: string;
+  type?: 'hls' | 'youtube' | 'dailymotion';
+  streamUrl?: string;
+  ytVideoId?: string;
+  referer?: string;
+  userAgent?: string;
+  aliases?: string[];
+  order?: number;
+}
+
+// Catalogue curé de chaînes gratuites/publiques.
+// `streamUrl` n'est qu'un fallback : au lancement du seed (ou d'un refresh),
+// le script sync-live-channels enrichit chaque chaîne depuis les playlists
+// iptv-org (flux + logo à jour). L'admin peut ensuite tout modifier.
+export const LIVE_SEED: LiveSeedChannel[] = [
+  // ── France ──────────────────────────────────────────────────────────────
+  {
+    name: 'France 24 Français',
+    slug: 'france-24-francais',
+    categories: ['news'],
+    country: 'FR',
+    language: 'fra',
+    streamUrl: 'https://static.france24.com/live/F24_FR_LO_HLS/live_web.m3u8',
+    aliases: ['france 24 francais', 'france 24', 'france24'],
+    order: 1,
+  },
+  {
+    name: 'France 24 English',
+    slug: 'france-24-english',
+    categories: ['news'],
+    country: 'FR',
+    language: 'eng',
+    streamUrl: 'https://static.france24.com/live/F24_EN_LO_HLS/live_web.m3u8',
+    aliases: ['france 24 english', 'france24 english'],
+    order: 2,
+  },
+  {
+    name: 'France 24 العربية',
+    slug: 'france-24-arabe',
+    categories: ['news'],
+    country: 'FR',
+    language: 'ara',
+    streamUrl: 'https://static.france24.com/live/F24_AR_LO_HLS/live_web.m3u8',
+    aliases: ['france 24 arabe', 'france 24 arabic', 'france24 arabic'],
+    order: 3,
+  },
+  {
+    name: 'France 24 Español',
+    slug: 'france-24-espagnol',
+    categories: ['news'],
+    country: 'FR',
+    language: 'spa',
+    streamUrl: 'https://static.france24.com/live/F24_ES_LO_HLS/live_web.m3u8',
+    aliases: ['france 24 espanol', 'france 24 spanish', 'france24 espanol'],
+    order: 4,
+  },
+  {
+    name: 'LCP Assemblée nationale',
+    slug: 'lcp-assemblee-nationale',
+    categories: ['politics'],
+    country: 'FR',
+    language: 'fra',
+    streamUrl: 'https://stream.lcp.fr/lcp-direct/live/playlist.m3u8',
+    aliases: ['lcp assemblee nationale', 'lcp', 'lcp an'],
+    order: 5,
+  },
+  {
+    name: 'Public Sénat',
+    slug: 'public-senat',
+    categories: ['politics'],
+    country: 'FR',
+    language: 'fra',
+    streamUrl: 'https://fms-publicsenat.yacast.fr/senat-public/live.m3u8',
+    aliases: ['public senat', 'senat public'],
+    order: 6,
+  },
+  {
+    name: 'Euronews Français',
+    slug: 'euronews-francais',
+    categories: ['news'],
+    country: 'FR',
+    language: 'fra',
+    streamUrl: 'https://2f6c5bf4.wurl.com/master/f36d25e7e52f1ba8d7e56eb859c636563214f541/UmxheHhUVi1ldV9FdXJvbmV3c0ZyYW5jYWlzX0hMUw/playlist.m3u8',
+    aliases: ['euronews francais', 'euronews french'],
+    order: 8,
+  },
+  {
+    name: 'TV5MONDE Europe',
+    slug: 'tv5monde-europe',
+    categories: ['general'],
+    country: 'FR',
+    language: 'fra',
+    streamUrl: 'https://ott.tv5monde.com/Content/HLS/Live/channel(fbs)/variant.m3u8',
+    aliases: ['tv5monde europe', 'tv5monde'],
+    order: 9,
+  },
+
+  // ── International ───────────────────────────────────────────────────────
+  {
+    name: 'Al Jazeera English',
+    slug: 'al-jazeera-english',
+    categories: ['news'],
+    country: 'QA',
+    language: 'eng',
+    streamUrl: 'https://live-hls-web-aje.getaj.net/AJE.m3u8',
+    referer: 'https://www.aljazeera.net/',
+    aliases: ['al jazeera english', 'aljazeera english'],
+    order: 10,
+  },
+  {
+    name: 'DW English',
+    slug: 'dw-english',
+    categories: ['news'],
+    country: 'DE',
+    language: 'eng',
+    streamUrl: 'https://amg01644-amg01644c1-amgplt0343.playout.now3.amagi.tv/ts-eu-w1-n2/playlist/amg01644-amg01644c1-amgplt0343/playlist.m3u8',
+    aliases: ['dw english', 'deutsche welle english'],
+    order: 11,
+  },
+  {
+    name: 'TRT World',
+    slug: 'trt-world',
+    categories: ['news'],
+    country: 'TR',
+    language: 'eng',
+    streamUrl: 'https://tv-trtworld.medya.trt.com.tr/master.m3u8',
+    aliases: ['trt world'],
+    order: 12,
+  },
+  {
+    name: 'Bloomberg Originals',
+    slug: 'bloomberg-originals',
+    categories: ['business', 'documentary'],
+    country: 'US',
+    language: 'eng',
+    streamUrl: 'https://86fdc85a.wurl.com/master/f36d25e7e52f1ba8d7e56eb859c636563214f541/TEctZ2JfQmxvb21iZXJnT3JpZ2luYWxzX0hMUw/playlist.m3u8',
+    aliases: ['bloomberg originals'],
+    order: 13,
+  },
+  {
+    name: 'Sky News',
+    slug: 'sky-news',
+    categories: ['news'],
+    country: 'UK',
+    language: 'eng',
+    streamUrl: 'https://jmp2.uk/plu-55b285cd2665de274553d66f.m3u8',
+    aliases: ['sky news', 'skynews'],
+    order: 14,
+  },
+  {
+    name: 'CGTN English',
+    slug: 'cgtn-english',
+    categories: ['news'],
+    country: 'CN',
+    language: 'eng',
+    streamUrl: 'https://amg00405-rakutentv-cgtn-rakuten-i9tar.amagi.tv/master.m3u8',
+    aliases: ['cgtn english', 'cgtn'],
+    order: 15,
+  },
+  {
+    name: 'NHK World Japan',
+    slug: 'nhk-world-japan',
+    categories: ['news'],
+    country: 'JP',
+    language: 'eng',
+    streamUrl: 'https://masterpl.hls.nhkworld.jp/hls/w/live/smarttv.m3u8',
+    aliases: ['nhk world japan', 'nhk world', 'nhkworld'],
+    order: 16,
+  },
+  {
+    name: 'Arirang TV',
+    slug: 'arirang-tv',
+    categories: ['general'],
+    country: 'KR',
+    language: 'eng',
+    streamUrl: 'http://amdlive-ch01.ctnd.com.edgesuite.net/arirang_1ch/smil:arirang_1ch.smil/playlist.m3u8',
+    aliases: ['arirang tv', 'arirang'],
+    order: 17,
+  },
+  {
+    name: 'CNA',
+    slug: 'cna',
+    categories: ['news'],
+    country: 'SG',
+    language: 'eng',
+    streamUrl: 'https://d2e1asnsl7br7b.cloudfront.net/7782e205e72f43aeb4a48ec97f66ebbe/index.m3u8',
+    aliases: ['cna', 'channel news asia'],
+    order: 18,
+  },
+];

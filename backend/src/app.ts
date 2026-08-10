@@ -14,6 +14,7 @@ import otakuRoutes from './modules/otaku/otaku.routes';
 import adminRoutes from './modules/admin/admin.routes';
 import availabilityRoutes from './modules/availability/availability.routes';
 import affichesRoutes from './modules/affiches/affiches.routes';
+import liveRoutes from './modules/live/live.routes';
 
 import path from 'path';
 dotenv.config({ path: path.join(__dirname, '../.env') });
@@ -58,6 +59,7 @@ app.use('/api/otaku', otakuRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/availability', availabilityRoutes);
 app.use('/api/affiches', affichesRoutes);
+app.use('/api/live', liveRoutes);
 
 app.use((_req, res) => {
   res.status(404).json({

@@ -5,7 +5,8 @@
     "series": "Series",
     "anime": "Anime",
     "categories": "Categories",
-    "search": "Search"
+    "search": "Search",
+    "live": "Live"
   },
   "hero": {
     "featured": "Featured",
@@ -147,5 +148,24 @@
   },
   "notification": {
     "close": "Close"
+  },
+  "live": {
+    "liveLabel": "Live",
+    "backToLive": "Back to channels",
+    "noStream": "No stream configured for this channel.",
+    "unsupported": "Live playback is not supported by this browser.",
+    "streamUnavailable": "Stream Unavailable",
+    "streamUnavailableDesc": "This channel's stream is temporarily unavailable. Try again in a moment.",
+    "retry": "Retry",
+    "mutedHint": "Enable sound",
+    "title": "Live TV",
+    "subtitle": "Free and public channels, live on CHILLERS.",
+    "all": "All",
+    "searchPlaceholder": "Search channels…",
+    "noChannels": "No channels available.",
+    "loadError": "Unable to load channels.",
+    "channelNotFound": "Channel Not Found",
+    "channelNotFoundDesc": "This channel does not exist or has been removed.",
+    "otherChannels": "Other channels"
   }
 }

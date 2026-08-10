@@ -14,6 +14,7 @@
     "migrate-dood-to-uqload": "npx tsx src/scripts/migrate-dood-to-uqload.ts",
     "check-sources": "npx tsx src/scripts/check-sources.ts",
     "check-uqload-inactive": "npx tsx src/scripts/check-uqload-inactive.ts",
+    "sync-live-channels": "npx tsx src/scripts/sync-live-channels.ts",
     "upload-series": "npx tsx src/scripts/upload-series-doodstream.ts",
     "organize-series": "npx tsx src/scripts/organize-series.ts",
     "check-status": "npx tsx src/scripts/check-upload-status.ts",
@@ -29,7 +30,7 @@
   "license": "ISC",
   "dependencies": {
     "@types/node-cron": "^3.0.11",
-    "axios": "^1.18.1",
+    "axios": "^1.19.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { IconSearch, IconHome, IconMovie, IconDeviceTv, IconSparkles, IconLayoutGrid } from '@tabler/icons-react';
+import { IconSearch, IconHome, IconMovie, IconDeviceTv, IconSparkles, IconTower } from '@tabler/icons-react';
 import { useLanguage } from "@/i18n/LanguageContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { getActiveNavTab } from "@/lib/navActive";
@@ -22,6 +22,7 @@ export default function Header({ onSearchClick }: HeaderProps) {
     { id: "movies", label: _("nav.movies"), href: "/media/movies", icon: IconMovie },
     { id: "series", label: _("nav.series"), href: "/media/series", icon: IconDeviceTv },
     { id: "anime", label: _("nav.anime"), href: "/media/anime", icon: IconSparkles },
+    { id: "live", label: _("nav.live"), href: "/live", icon: IconTower },
   ];
 
   // Single source of truth shared with <BottomNav> so the two indicators
@@ -72,23 +73,20 @@ export default function Header({ onSearchClick }: HeaderProps) {
           </Link>
 
           <nav className="hidden md:flex items-center gap-1">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <Link
-                  key={tab.id}
-                  href={tab.href}
-                  aria-current={activeTab === tab.id ? "page" : undefined}
-                  className={`relative px-3 py-1.5 text-sm font-medium transition-colors focus:outline-none rounded ${
-                    activeTab === tab.id
-                      ? "text-white font-bold"
-                      : "text-zinc-300 hover:text-white"
-                  }`}
-                >
-                  {tab.label}
-                </Link>
-              );
-            })}
+            {tabs.map((tab) => (
+              <Link
+                key={tab.id}
+                href={tab.href}
+                aria-current={activeTab === tab.id ? "page" : undefined}
+                className={`relative px-3 py-1.5 text-sm font-medium transition-colors focus:outline-none rounded ${
+                  activeTab === tab.id
+                    ? "text-white font-bold"
+                    : "text-zinc-300 hover:text-white"
+                }`}
+              >
+                {tab.label}
+              </Link>
+            ))}
             <Link
               href="/categories"
               className={`relative px-3 py-1.5 text-sm font-medium transition-colors focus:outline-none rounded ${

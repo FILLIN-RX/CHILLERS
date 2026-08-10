@@ -2,6 +2,7 @@
 // routed through services/http.ts so timeouts/abort/errors are uniform.
 
 import { httpJson, API_BASE_PATH } from "./http";
+import type { LiveChannel, LiveChannelInput } from "@/types/live";
 
 function getAdminToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -312,3 +313,31 @@ export function adminAffichesPosterUrl(id: string, type: "movie" | "series"): st
 export function adminAffichesCardUrl(id: string, type: "movie" | "series"): string {
   return `${API_BASE_PATH}/affiches/${id}/card?type=${type}`;
 }
+
+/* Live TV (module isolé — routes sous /api/live, JWT admin) */
+
+async function liveAdminRequest<T>(
+  path: string,
+  options: { method?: "GET" | "POST" | "PUT" | "DELETE"; body?: unknown; timeoutMs?: number } = {},
+): Promise<T> {
+  const headers = { Accept: "application/json", ...authHeaders() };
+  return httpJson<T>(`/live${path}`, {
+    method: options.method ?? "GET",
+    body: options.body,
+    headers,
+    timeoutMs: options.timeoutMs ?? 120_000,
+  });
+}
+
+export const adminLiveList = () => liveAdminRequest<AdminEnvelope<LiveChannel[]>>("/admin/all");
+export const adminLiveSync = (updateStreams = false) =>
+  liveAdminRequest<AdminEnvelope<{ added: number; updated: number }>>("/sync", {
+    method: "POST",
+    body: { updateStreams },
+  });
+export const adminLiveCreate = (data: LiveChannelInput) =>
+  liveAdminRequest<AdminEnvelope<LiveChannel>>("/", { method: "POST", body: data });
+export const adminLiveUpdate = (id: string, data: LiveChannelInput) =>
+  liveAdminRequest<AdminEnvelope<LiveChannel>>(`/${id}`, { method: "PUT", body: data });
+export const adminLiveDelete = (id: string) =>
+  liveAdminRequest<AdminEnvelope<{ deleted: boolean }>>(`/${id}`, { method: "DELETE" });

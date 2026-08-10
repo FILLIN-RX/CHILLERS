@@ -34,6 +34,7 @@ const NAV_ITEMS: MenuProps['items'] = [
   { key: '/admin/liens', icon: <UnorderedListOutlined />, label: <Link href="/admin/liens">Liens</Link> },
   { key: '/admin/maintenance-liens', icon: <BugOutlined />, label: <Link href="/admin/maintenance-liens">Maint. Liens</Link> },
   { key: '/admin/uqload', icon: <UnorderedListOutlined />, label: <Link href="/admin/uqload">Uqload</Link> },
+  { key: '/admin/live', icon: <UnorderedListOutlined />, label: <Link href="/admin/live">Live TV</Link> },
   { key: '/admin/cron', icon: <SettingOutlined />, label: <Link href="/admin/cron">Tâches</Link> },
   { key: '/admin/settings', icon: <SettingOutlined />, label: <Link href="/admin/settings">Paramètres</Link> },
 ];
