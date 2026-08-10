@@ -14,6 +14,30 @@ function truncate(text: string, max: number): string {
   return trimmed.slice(0, max - 1).trimEnd() + "…";
 }
 
+const DESCRIPTION_MAX = 155; // <title>-à-vis Google (~150-160) et cartes sociales (~125-155)
+const TITLE_MAX = 49; // + " · CHILLERS" (11) => 60 caractères max
+
+function buildPageTitle(title: string, year?: number | string): string {
+  const t = title.trim().replace(/\s+/g, " ");
+  const yearLabel = year ? ` (${year})` : "";
+  // Évite le doublon quand le titre TMDB contient déjà l'année ("Supergirl (2026)")
+  const tWithYear = yearLabel && !t.endsWith(yearLabel) ? `${t}${yearLabel}` : t;
+  const full = `${tWithYear} en streaming VF/VOSTFR`;
+  if (full.length <= TITLE_MAX) return full;
+  const cut = full.slice(0, TITLE_MAX);
+  const i = cut.lastIndexOf(" ");
+  return (i > 20 ? cut.slice(0, i) : cut).trimEnd() + "…";
+}
+
+function buildOgImageUrl(input: { title: string; year?: number | string; type: "movie" | "tv"; rating?: number }): string {
+  const q = new URLSearchParams();
+  q.set("title", input.title);
+  if (input.year) q.set("year", String(input.year));
+  q.set("type", input.type);
+  if (typeof input.rating === "number") q.set("rating", String(input.rating));
+  return `${SITE_URL}/og/media?${q.toString()}`;
+}
+
 interface MediaMetaInput {
   id: string;
   title: string;
@@ -40,8 +64,6 @@ export function buildMediaMetadata(input: MediaMetaInput): Metadata {
     title,
     type,
     overview,
-    posterPath,
-    backdropPath,
     year,
     rating,
     genres,
@@ -66,25 +88,25 @@ export function buildMediaMetadata(input: MediaMetaInput): Metadata {
   const base = `${verb} ${kind} ${title}${yearLabel} en streaming VF/VOSTFR sur CHILLERS.`;
   const withMeta = `${base}${genresLabel}.${ratingLabel}`;
   const description = overview
-    ? truncate(`${withMeta} ${overview}`, 200)
+    ? truncate(`${withMeta} ${overview}`, DESCRIPTION_MAX)
     : withMeta;
 
-  const poster = posterPath ? `${TMDB_IMAGE}/w500${posterPath}` : undefined;
-  const backdrop = backdropPath ? `${TMDB_IMAGE}/w1280${backdropPath}` : undefined;
-  const ogTitle = `${title}${yearLabel} · CHILLERS`;
+  const pageTitle = buildPageTitle(title, year);
+  const ogTitle = `${pageTitle} · CHILLERS`;
   const canonical = `${SITE_URL}${path}`;
 
+  const ogImageUrl = buildOgImageUrl({ title, year, type, rating });
   const images = [
-    ...(backdrop
-      ? [{ url: backdrop, width: 1280, height: 720, alt: `${title} — backdrop` }]
-      : []),
-    ...(poster
-      ? [{ url: poster, width: 500, height: 750, alt: `${title} — affiche` }]
-      : []),
+    {
+      url: ogImageUrl,
+      width: 1200,
+      height: 630,
+      alt: `${title}${yearLabel} — Regarder gratuitement en VF/VOSTFR sur CHILLERS`,
+    },
   ];
 
   return {
-    title,
+    title: pageTitle,
     description,
     alternates: { canonical },
     keywords: [title, ...(genres ?? []), isTV ? "série" : "film", "streaming", "VF", "VOSTFR"].filter(Boolean),
@@ -102,7 +124,7 @@ export function buildMediaMetadata(input: MediaMetaInput): Metadata {
       title: ogTitle,
       description,
       site: "@chillers",
-      images: images.length > 0 ? images : undefined,
+      images,
     },
   };
 }
