@@ -1,12 +1,13 @@
 # Utiliser l'image officielle Playwright correspondant à la version 1.61.1
 FROM mcr.microsoft.com/playwright:v1.61.1-noble
 
-# Installer supervisor, ffmpeg et utilitaires nécessaires
+# Installer supervisor, ffmpeg, .NET Runtime pour Prowlarr et utilitaires nécessaires
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     supervisor \
     wget \
-    ca-certificates && \
+    ca-certificates \
+    aspnetcore-runtime-8.0 && \
     rm -rf /var/lib/apt/lists/*
 
 # TorrServer
