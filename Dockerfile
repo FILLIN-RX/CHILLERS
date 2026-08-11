@@ -1,5 +1,5 @@
-# Utiliser l'image officielle Playwright (inclut Node, browsers, et dépendances système)
-FROM mcr.microsoft.com/playwright:v1.50.0-noble
+# Utiliser l'image officielle Playwright correspondant à la version 1.61.1
+FROM mcr.microsoft.com/playwright:v1.61.1-noble
 
 # Installer supervisor, ffmpeg et utilitaires nécessaires
 RUN apt-get update && apt-get install -y --no-install-recommends \
