@@ -25,9 +25,13 @@ import { resolveTmdbYear } from '../torrents/tmdb-helper';
 export class TorrServerProvider implements StreamingProvider {
   readonly name = 'torrserver';
 
-  /** Toujours en fallback : le manager tente d'abord les providers supports()=true. */
-  supports(): boolean {
-    return false;
+  /**
+   * Supporte la recherche si le module torrent est configuré.
+   * On le positionne à true pour qu'il soit traité dans la liste 'supports'
+   * et donc respecte l'ordre défini dans provider-manager.ts.
+   */
+  supports(query: StreamQuery): boolean {
+    return !!query.title && isTorrentsConfigured();
   }
 
   async getMovieStream(query: StreamQuery): Promise<StreamResult | null> {
