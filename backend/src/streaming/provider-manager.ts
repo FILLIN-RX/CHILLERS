@@ -20,6 +20,7 @@ interface ProviderAttempt {
   provider: string;
   status: 'success' | 'skip' | 'fail' | 'error';
   reason?: string;
+  downloadUrl?: string;
 }
 
 interface ProviderHealth {
@@ -69,7 +70,7 @@ export class ProviderManager {
         console.log(
           `[Stream] Movie stream found via "${provider.name}" after ${attempts.length} attempt(s)`
         );
-        const result: CachedStream = { provider: attempt.provider, embedUrl: attempt.reason! };
+        const result: CachedStream = { provider: attempt.provider, embedUrl: attempt.reason!, downloadUrl: attempt.downloadUrl };
         streamCache.set(cacheKey, result);
         return result;
       }
@@ -101,7 +102,7 @@ export class ProviderManager {
         console.log(
           `[Stream] Episode stream found via "${provider.name}" after ${attempts.length} attempt(s)`
         );
-        const result: CachedStream = { provider: attempt.provider, embedUrl: attempt.reason! };
+        const result: CachedStream = { provider: attempt.provider, embedUrl: attempt.reason!, downloadUrl: attempt.downloadUrl };
         streamCache.set(cacheKey, result);
         return result;
       }
@@ -206,6 +207,7 @@ export class ProviderManager {
           provider: provider.name,
           status: 'success',
           reason: result.embedUrl,
+          downloadUrl: result.downloadUrl,
         };
       } else {
         this.recordFailure(provider.name);

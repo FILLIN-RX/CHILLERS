@@ -18,6 +18,7 @@ import {
   waitForFileInfo,
   warmUpTorrent,
   buildStreamUrl,
+  buildDownloadUrl,
 } from '../torrents/torrents.service';
 import { resolveTmdbYear } from '../torrents/tmdb-helper';
 
@@ -89,6 +90,7 @@ export class TorrServerProvider implements StreamingProvider {
     return {
       provider: this.name,
       embedUrl: buildStreamUrl(hash, fileInfo.index),
+      downloadUrl: buildDownloadUrl(hash, fileInfo.index, fileInfo.filename),
       type,
     };
   }

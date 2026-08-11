@@ -8,13 +8,11 @@ services:
     startCommand: npm run start
     envVars:
       - key: MONGO_URI
-        fromVariable: MONGO_URI
       - key: PROWLARR_URL
         value: http://prowlarr:9696
       - key: TORRSERVER_URL
         value: http://torrserver:8090
       - key: PROWLARR_API_KEY
-        fromVariable: PROWLARR_API_KEY
     healthCheckPath: /api/health
 
   - type: web

@@ -34,7 +34,7 @@ export const getMovieStream = async (req: Request, res: Response, next: NextFunc
     logTorrentFallback(result.provider, `movie ${id}`);
     res.json({
       success: true,
-      data: { embedUrl: result.embedUrl },
+      data: { embedUrl: result.embedUrl, downloadUrl: result.downloadUrl ?? null },
       provider: result.provider,
       message: null,
     });
@@ -73,7 +73,7 @@ export const getEpisodeStream = async (req: Request, res: Response, next: NextFu
     logTorrentFallback(result.provider, `tv ${id} S${season}E${episode}`);
     res.json({
       success: true,
-      data: { embedUrl: result.embedUrl },
+      data: { embedUrl: result.embedUrl, downloadUrl: result.downloadUrl ?? null },
       provider: result.provider,
       message: null,
     });

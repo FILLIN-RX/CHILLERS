@@ -413,6 +413,7 @@ export async function searchMedia(
 
 export interface StreamPayload {
   embedUrl: string;
+  downloadUrl?: string | null;
   provider?: string;
 }
 
@@ -422,7 +423,7 @@ async function getStreamOnce(
   title: string | undefined,
   signal?: AbortSignal,
   timeoutMs?: number,
-): Promise<string | null> {
+): Promise<StreamPayload | null> {
   try {
     const env = await httpJson<ApiEnvelope<StreamPayload>>(endpoint, {
       query: { type, language: clientLang(), title },
@@ -436,7 +437,7 @@ async function getStreamOnce(
           "color:#22d3ee;font-weight:bold",
         );
       }
-      return env.data.embedUrl;
+      return env.data;
     }
     if (!env.success) {
       console.warn(`Stream unavailable for "${title ?? endpoint}": ${env.message ?? "unknown reason"}`);
@@ -455,13 +456,15 @@ export async function getStreamUrl(
   episode?: number,
   title?: string,
   signal?: AbortSignal,
-): Promise<{ embedUrl: string; provider: string } | null> {
+): Promise<{ embedUrl: string; provider: string; downloadUrl?: string | null } | null> {
   const isTv = type === "series" || type === "anime";
   const endpoint = isTv
     ? `/stream/tv/${id}/${season ?? 1}/${episode ?? 1}`
     : `/stream/movie/${id}`;
-  const url = await getStreamOnce(endpoint, type, title, signal, 45_000);
-  if (url) return { embedUrl: url, provider: "primary" };
+  const payload = await getStreamOnce(endpoint, type, title, signal, 45_000);
+  if (payload) {
+    return { embedUrl: payload.embedUrl, provider: "primary", downloadUrl: payload.downloadUrl ?? null };
+  }
   return null;
 }
 
@@ -476,7 +479,8 @@ export async function getNexStreamUrl(
   const endpoint = isTv
     ? `/nexstream/tv/${id}/${season ?? 1}/${episode ?? 1}`
     : `/nexstream/movie/${id}`;
-  return getStreamOnce(endpoint, type, undefined, undefined, 12_000);
+  const payload = await getStreamOnce(endpoint, type, undefined, undefined, 12_000);
+  return payload?.embedUrl ?? null;
 }
 
 /* Genres. */

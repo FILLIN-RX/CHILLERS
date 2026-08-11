@@ -1,6 +1,8 @@
 export interface StreamResult {
   provider: string;
   embedUrl: string;
+  /** URL same-origin du téléchargement direct (proxy TorrServer), si le provider l'expose. */
+  downloadUrl?: string;
   type: 'movie' | 'episode';
 }
 

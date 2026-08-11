@@ -21,6 +21,8 @@ export interface UseStreamUrlArgs {
 export interface StreamResolution {
   embedUrl: string;
   provider: "primary" | "secondary";
+  /** URL same-origin du téléchargement direct (fournie par le fallback torrent). */
+  downloadUrl?: string | null;
 }
 
 const PRIMARY_TIMEOUT_MS = 8_000;
@@ -73,7 +75,9 @@ async function raceProviders(
 
   const primaryPromise = withTimeout(
     getStreamUrl(args.id, args.type, args.season, args.episode, args.title, signal)
-      .then<StreamResolution | null>((res) => (res ? { embedUrl: res.embedUrl, provider: "primary" as const } : null))
+      .then<StreamResolution | null>((res) =>
+        res ? { embedUrl: res.embedUrl, provider: "primary" as const, downloadUrl: res.downloadUrl } : null,
+      )
       .catch(() => null),
     PRIMARY_TIMEOUT_MS,
   ).then((r) => {

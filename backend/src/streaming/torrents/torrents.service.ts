@@ -115,3 +115,8 @@ export async function warmUpTorrent(hash: string, index: number): Promise<void> 
 export function buildStreamUrl(hash: string, index: number): string {
   return `/api/torrents/stream?hash=${encodeURIComponent(hash)}&index=${index}`;
 }
+
+/** URL same-origin du téléchargement direct (proxy du flux TorrServer, type chillers-test). */
+export function buildDownloadUrl(hash: string, index: number, filename: string): string {
+  return `/api/torrents/download?hash=${encodeURIComponent(hash)}&index=${index}&name=${encodeURIComponent(filename)}`;
+}

@@ -133,6 +133,9 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
   });
 
   const resolvedStreamUrl = streamQuery.data?.embedUrl ?? null;
+  // URL de téléchargement direct (fallback torrent) — type chillers-test :
+  // le backend proxy le flux TorrServer avec Content-Disposition: attachment.
+  const torrentDownloadUrl = streamQuery.data?.downloadUrl ?? null;
   const videoUrl = useMemo(
     () => toEmbedUrl(resolvedStreamUrl ?? item.videoUrl ?? undefined),
     [resolvedStreamUrl, item.videoUrl],
@@ -465,7 +468,14 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
                 )}
               </div>
               <div className="flex items-center gap-0.5">
-                <button type="button" onClick={() => setShowSingleDownload(true)}
+                <button type="button"
+                  onClick={() => {
+                    if (torrentDownloadUrl) {
+                      window.location.href = torrentDownloadUrl;
+                    } else {
+                      setShowSingleDownload(true);
+                    }
+                  }}
                   className="p-1.5 text-white/60 hover:text-white rounded-lg hover:bg-white/10 transition-colors" title="Télécharger">
                   <IconDownload className="h-4 w-4" />
                 </button>
