@@ -44,10 +44,9 @@ export class ProviderManager {
       new DirectProvider(),
       new MongoDBProvider(),
       new DoodStreamProvider(),
-      new OtakuProvider(),
-      // Fallback de dernier recours : P2P (lent à démarrer), uniquement
-      // utilisé quand tous les providers classiques ont échoué.
+      // TorrServer (via Prowlarr) avant Otaku pour éviter les timeout Otaku
       new TorrServerProvider(),
+      new OtakuProvider(),
     ];
   }
 
