@@ -250,12 +250,15 @@ export async function proxyStream(
     maxRedirects: 5,
   });
 
+  const toStrOrNull = (v: unknown): string | null =>
+    v == null || v === '' ? null : String(v);
+
   return {
     status: res.status,
-    contentType: res.headers['content-type'] || 'application/octet-stream',
-    contentLength: res.headers['content-length'] || null,
-    contentRange: res.headers['content-range'] || null,
-    acceptRanges: res.headers['accept-ranges'] || null,
+    contentType: toStrOrNull(res.headers['content-type']) || 'application/octet-stream',
+    contentLength: toStrOrNull(res.headers['content-length']),
+    contentRange: toStrOrNull(res.headers['content-range']),
+    acceptRanges: toStrOrNull(res.headers['accept-ranges']),
     body: res.data,
   };
 }

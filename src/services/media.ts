@@ -429,7 +429,15 @@ async function getStreamOnce(
       signal,
       timeoutMs,
     });
-    if (env.success && env.data?.embedUrl) return env.data.embedUrl;
+    if (env.success && env.data?.embedUrl) {
+      if (env.data.provider === "torrserver") {
+        console.log(
+          `%c🧲 [Torrent-Module] Flux P2P (fallback) servi pour "${title ?? endpoint}"`,
+          "color:#22d3ee;font-weight:bold",
+        );
+      }
+      return env.data.embedUrl;
+    }
     if (!env.success) {
       console.warn(`Stream unavailable for "${title ?? endpoint}": ${env.message ?? "unknown reason"}`);
     }

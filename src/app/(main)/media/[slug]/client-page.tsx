@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef, Suspense } from "react
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
-import { getMediaDetails, getPopularMovies, getPopularTV, getStreamUrl, getPopularMoviesPage, getPopularTVPage, getAnimeSeriesPage, getMoviesByGenrePage, getTVByGenrePage, getMovieGenres, getTVGenres, getDisponible } from "@/services/media";
+import { getMediaDetails, getPopularMovies, getPopularTV, getPopularMoviesPage, getPopularTVPage, getAnimeSeriesPage, getMoviesByGenrePage, getTVByGenrePage, getMovieGenres, getTVGenres, getDisponible } from "@/services/media";
 import type { Genre } from "@/types/media";
 import GenreFilterBar from "@/components/GenreFilterBar";
 import NotificationModal from "@/components/NotificationModal";
@@ -12,7 +12,6 @@ import DownloadModal from "@/features/downloads/DownloadModal";
 import type { MovieOrShow } from "@/types/media";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { IconArrowLeft, IconPlayerPlay, IconStar, IconClock, IconCalendar, IconMovie, IconChevronLeft, IconChevronRight, IconDownload, IconShare } from '@tabler/icons-react';
-import VideoPlayer from "@/components/VideoPlayer";
 import MovieCard from "@/components/MovieCard";
 
 const LISTING_TYPES = ["movies", "series", "anime"];
@@ -92,12 +91,9 @@ function MediaDetailPage() {
         } else if (detail.videoUrl?.includes("youtube.com") || detail.videoUrl?.includes("embed")) {
           setTrailerUrl(detail.videoUrl);
         }
+        // On garde `videoUrl` s'il pointe vers une URL embed (YouTube bande-annonce)
+        // mais on ne lance plus de fetch de stream ici — la page /watch s'en charge.
         setItem(detail);
-        const season = isTV ? 1 : undefined;
-        const episode = isTV ? 1 : undefined;
-        getStreamUrl(detail.id, isTV ? 'series' : 'movie', season, episode, detail.title).then(stream => {
-          if (stream) setItem(prev => prev ? { ...prev, videoUrl: stream.embedUrl } : prev);
-        });
       }
     } catch (err) {
       console.error("Error loading detail page:", err);
@@ -132,22 +128,10 @@ function MediaDetailPage() {
   }, [id, isTV]);
 
   const handleWatch = async () => {
-    if (isTV && item) {
-      router.push(`/watch/${item.id}?type=tv`, { scroll: false });
-      return;
-    }
-    if (item && !item.videoUrl) {
-      const stream = await getStreamUrl(item.id, 'movie', undefined, undefined, item.title);
-      if (stream) {
-        setItem({ ...item, videoUrl: stream.embedUrl });
-      } else {
-        setNotification({
-          title: _("media.streamUnavailable"),
-          message: _("media.streamUnavailableDesc"),
-        });
-      }
-    }
-    setTimeout(() => playerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+    if (!item) return;
+    // Tout le streaming passe par /watch — on ne lance plus rien en inline
+    // sur la page /media (le player a été retiré de cette vue).
+    router.push(`/watch/${item.id}?type=${isTV ? "tv" : "movie"}`, { scroll: false });
   };
 
   const [showSingleDownload, setShowSingleDownload] = useState(false);
@@ -191,7 +175,7 @@ function MediaDetailPage() {
           </button>
         </div>
 
-        <div className="w-full h-[70vh] bg-zinc-900 animate-pulse" />
+        <div className="w-full h-[60vh] sm:h-[65vh] bg-zinc-900 animate-pulse" />
         <div className="mx-auto px-6 sm:px-8 md:px-12 lg:px-[4%] py-10 space-y-6 w-full">
           <div className="h-10 bg-zinc-800 rounded-xl w-2/3 animate-pulse" />
           <div className="h-4 bg-zinc-800 rounded w-1/3 animate-pulse" />
@@ -242,7 +226,7 @@ function MediaDetailPage() {
         </button>
       </div>
 
-      <div className="relative w-full h-[85vh] overflow-hidden">
+      <div className="relative w-full h-[70vh] sm:h-[75vh] overflow-hidden">
         <Image
           src={item.backdropUrl}
           alt={item.title}
@@ -315,29 +299,30 @@ function MediaDetailPage() {
                 </span>
               </div>
 
-              <p className="text-zinc-300 text-sm sm:text-lg leading-relaxed max-w-2xl line-clamp-3">
+              <p className="text-zinc-300 text-sm sm:text-lg leading-relaxed max-w-2xl"
+                style={{
+                  display: "-webkit-box",
+                  WebkitLineClamp: 3,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                }}
+              >
                 {item.synopsis || item.description}
               </p>
 
               <div className="flex items-center gap-2 pt-2 overflow-x-auto no-scrollbar">
                 <button
-                  onClick={!loading && !isTV && !item.videoUrl ? undefined : handleWatch}
+                  onClick={handleWatch}
+                  disabled={!item || loading}
                   className={`flex-none flex items-center gap-1.5 px-3 sm:px-6 py-1.5 sm:py-3 rounded-full font-bold text-[11px] sm:text-sm transition-all hover:scale-105 shadow-lg whitespace-nowrap ${
-                    !loading && !isTV && !item.videoUrl
+                    !item || loading
                       ? "bg-zinc-800 border border-zinc-700 text-zinc-400 cursor-not-allowed shadow-none"
                       : "bg-[#D70466] hover:bg-[#b5034f] text-white shadow-lg shadow-[#D70466]/30"
                   }`}
-                  disabled={!loading && !isTV && !item.videoUrl}
                 >
-                  {!loading && !isTV && !item.videoUrl ? (
-                    <svg className="h-3.5 w-3.5 sm:h-5 sm:w-5 flex-none" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                    </svg>
-                  ) : (
-                    <IconPlayerPlay className="h-3.5 w-3.5 sm:h-5 sm:w-5" />
-                  )}
-                  <span className="sm:hidden">{!loading && !isTV && !item.videoUrl ? 'Bientôt' : isTV ? 'Série' : 'Film'}</span>
-                  <span className="hidden sm:inline">{!loading && !isTV && !item.videoUrl ? 'Bientôt disponible' : _("media.watch")}</span>
+                  <IconPlayerPlay className="h-3.5 w-3.5 sm:h-5 sm:w-5" />
+                  <span className="sm:hidden">{isTV ? 'Série' : 'Film'}</span>
+                  <span className="hidden sm:inline">{_("media.watch")}</span>
                 </button>
 
                 {isYouTube && (
@@ -351,27 +336,13 @@ function MediaDetailPage() {
                   </button>
                 )}
 
-                <button 
-                  className={`flex-none flex items-center gap-1.5 px-3 sm:px-6 py-1.5 sm:py-3 rounded-full font-bold text-[11px] sm:text-sm transition-all hover:scale-105 border whitespace-nowrap ${
-                    !loading && !item.videoUrl
-                      ? "bg-zinc-800 border-zinc-700 text-zinc-400 cursor-not-allowed"
-                      : "bg-white/10 border-white/20 text-white hover:bg-white/20"
-                  }`}
+                <button
+                  className="flex-none flex items-center gap-1.5 px-3 sm:px-6 py-1.5 sm:py-3 rounded-full bg-white/10 border border-white/20 text-white hover:bg-white/20 hover:scale-105 transition-all font-bold text-[11px] sm:text-sm whitespace-nowrap"
                   onClick={handleDownload}
-                  disabled={!loading && !item.videoUrl}
+                  disabled={!item || loading}
                 >
-                  {!loading && !item.videoUrl ? (
-                    <>
-                      <svg className="h-3 w-3 sm:h-4 sm:w-4 flex-none" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                      </svg>
-                      <span className="sm:hidden">Bientôt</span>
-                      <span className="hidden sm:inline">Bientôt disponible</span>
-                    </>
-                  ) : (
-                    <IconDownload className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1.5" />
-                  )}
-                  {!loading && item.videoUrl && <span className="hidden sm:inline">{_("download.single")}</span>}
+                  <IconDownload className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1.5" />
+                  <span className="hidden sm:inline">{_("download.single")}</span>
                 </button>
 
                 <div className="relative" ref={shareBtnRef}>
@@ -466,18 +437,38 @@ function MediaDetailPage() {
               {_("media.watch")}
             </h2>
             <div className="w-full bg-black relative">
-              {item.videoUrl ? (
-                <VideoPlayer
-                  item={item!}
-                  onBack={() => {}}
-                  onOpenDetails={(it) => router.push(`/media/${it.id}?type=${it.type}`)}
+              <button
+                type="button"
+                onClick={() => router.push(`/watch/${item.id}?type=movie`)}
+                className="group relative block w-full aspect-video overflow-hidden rounded-2xl border border-white/10"
+                aria-label={_("media.watch")}
+              >
+                <Image
+                  src={item.backdropUrl || item.posterUrl}
+                  alt={item.title}
+                  fill
+                  priority
+                  sizes="100vw"
+                  className="object-cover scale-105 transition-transform duration-700 ease-out group-hover:scale-100"
+                  style={{ filter: "brightness(0.55) saturate(1.1)" }}
                 />
-              ) : (
-                <div className="w-full min-h-[300px] sm:min-h-[500px] lg:min-h-[600px] flex flex-col items-center justify-center gap-3 text-zinc-500">
-                  <div className="animate-spin h-10 w-10 border-4 border-[#D70466] border-t-transparent rounded-full" />
-                  <p className="text-xs uppercase tracking-widest font-bold">{_("media.loadingStream")}</p>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/30" />
+                <span className="pointer-events-none absolute top-4 left-4 sm:top-6 sm:left-6 text-sm sm:text-base font-black tracking-widest uppercase bg-gradient-to-r from-[#D70466] to-[#7C3AED] bg-clip-text text-transparent drop-shadow-lg">
+                  Chillers
+                </span>
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 sm:gap-4 px-6 text-center">
+                  <div className="flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-[#D70466] to-[#7C3AED] shadow-[0_12px_48px_rgba(215,4,102,0.55)] transition-transform duration-200 ease-out group-hover:scale-110">
+                    <IconPlayerPlay className="h-7 w-7 sm:h-9 sm:w-9 text-white translate-x-0.5" fill="currentColor" />
+                  </div>
+                  <h3 className="text-xl sm:text-3xl font-black text-white drop-shadow-2xl">
+                    {item.title}
+                  </h3>
+                  <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 border border-white/20 backdrop-blur-sm text-[11px] sm:text-xs font-bold uppercase tracking-widest text-white/90">
+                    <IconPlayerPlay className="h-3 w-3 sm:h-4 sm:w-4" fill="currentColor" />
+                    {_("media.watch")}
+                  </span>
                 </div>
-              )}
+              </button>
             </div>
           </section>
         )}

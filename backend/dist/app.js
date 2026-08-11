@@ -13,12 +13,16 @@ const tv_routes_1 = __importDefault(require("./modules/tv/tv.routes"));
 const search_routes_1 = __importDefault(require("./modules/search/search.routes"));
 const genres_routes_1 = __importDefault(require("./modules/genres/genres.routes"));
 const streaming_routes_1 = __importDefault(require("./streaming/streaming.routes"));
+const nexstream_routes_1 = __importDefault(require("./streaming/nexstream.routes"));
 const download_routes_1 = __importDefault(require("./modules/download/download.routes"));
 const doodstream_routes_1 = __importDefault(require("./modules/doodstream/doodstream.routes"));
 const otaku_routes_1 = __importDefault(require("./modules/otaku/otaku.routes"));
 const admin_routes_1 = __importDefault(require("./modules/admin/admin.routes"));
 const availability_routes_1 = __importDefault(require("./modules/availability/availability.routes"));
 const affiches_routes_1 = __importDefault(require("./modules/affiches/affiches.routes"));
+const live_routes_1 = __importDefault(require("./modules/live/live.routes"));
+const subtitles_routes_1 = __importDefault(require("./modules/subtitles/subtitles.routes"));
+const torrents_routes_1 = __importDefault(require("./streaming/torrents/torrents.routes"));
 const path_1 = __importDefault(require("path"));
 dotenv_1.default.config({ path: path_1.default.join(__dirname, '../.env') });
 const app = (0, express_1.default)();
@@ -50,12 +54,16 @@ app.use('/api/tv', tv_routes_1.default);
 app.use('/api/search', search_routes_1.default);
 app.use('/api/genres', genres_routes_1.default);
 app.use('/api/stream', streaming_routes_1.default);
+app.use('/api/nexstream', nexstream_routes_1.default);
 app.use('/api/download', download_routes_1.default);
 app.use('/api/doodstream', doodstream_routes_1.default);
 app.use('/api/otaku', otaku_routes_1.default);
 app.use('/api/admin', admin_routes_1.default);
 app.use('/api/availability', availability_routes_1.default);
 app.use('/api/affiches', affiches_routes_1.default);
+app.use('/api/live', live_routes_1.default);
+app.use('/api/subtitles', subtitles_routes_1.default);
+app.use('/api/torrents', torrents_routes_1.default);
 app.use((_req, res) => {
     res.status(404).json({
         success: false,

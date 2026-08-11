@@ -1,0 +1,11 @@
+services:
+  chiller:
+    build: .
+    ports:
+      - "4000:4000" # API publique
+      - "9696:9696" # UI Prowlarr (config indexeurs — à verrouiller/retirer après setup)
+      - "8090:8090" # TorrServer
+    volumes:
+      - ./data:/data # persistance TorrServer + Prowlarr
+    env_file:
+      - ./backend/.env

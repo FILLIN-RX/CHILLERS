@@ -289,8 +289,8 @@ function WatchContent() {
   if (showPageSkeleton) {
     return (
       <div className="min-h-screen bg-[#09090B] text-white">
-        <div className="pt-[88px] px-4 sm:px-6 md:px-12 lg:px-[4%] space-y-6">
-          <div className="w-full min-h-[300px] sm:min-h-[500px] lg:min-h-[600px] bg-zinc-900 rounded-3xl animate-pulse" />
+        <div className="pt-[88px] pb-16 lg:pb-24 px-4 sm:px-6 md:px-12 lg:px-[4%] space-y-6">
+          <div className="w-full aspect-video bg-zinc-900 rounded-3xl animate-pulse" />
           <div className="space-y-3">
             <div className="flex gap-2">
               <div className="h-6 w-16 bg-zinc-800 rounded-full animate-pulse" />
@@ -341,12 +341,12 @@ function WatchContent() {
       </div>
 
       <div
-        className={`pt-[88px] pb-16 lg:pb-24 px-4 sm:px-6 md:px-12 lg:px-[4%] ${
+        className={`pt-[72px] pb-16 lg:pb-24 ${
           hasEpisodes ? "lg:pr-[28rem]" : ""
         }`}
       >
-        <div ref={playerRef} className="scroll-mt-24">
-          <div className="w-full min-h-[300px] sm:min-h-[500px] lg:min-h-[600px] bg-black relative">
+        <div ref={playerRef} className="scroll-mt-20 w-full">
+          <div className="w-full max-h-[70vh] aspect-video bg-black relative mx-auto shadow-2xl">
             {streamUnavailable ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-6">
                 <div className="w-20 h-20 rounded-full bg-zinc-800/80 flex items-center justify-center border border-zinc-700/50">
@@ -393,7 +393,7 @@ function WatchContent() {
           </div>
         </div>
 
-        <div className="mt-6 sm:mt-8 space-y-5">
+        <div className="mt-6 sm:mt-8 space-y-5 px-4 sm:px-6 md:px-12 lg:px-[4%]">
           {item.genres.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {item.genres.slice(0, 3).map((g) => (

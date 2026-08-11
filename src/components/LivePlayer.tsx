@@ -4,16 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import Hls from "hls.js";
 import { useLanguage } from "@/i18n/LanguageContext";
 import type { LiveChannel } from "@/types/live";
-import {
-  IconPlayerPlay,
-  IconPlayerPause,
-  IconVolume,
-  IconVolumeOff,
-  IconArrowsMaximize,
-  IconArrowsMinimize,
-  IconX,
-  IconRefresh,
-} from "@tabler/icons-react";
+import { IconX, IconRefresh } from "@tabler/icons-react";
 
 interface LivePlayerProps {
   channel: LiveChannel;
@@ -40,11 +31,7 @@ export default function LivePlayer({ channel, onBack }: LivePlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [isMuted, setIsMuted] = useState(true);
-  const [volume, setVolume] = useState(1);
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [proxyMode, setProxyMode] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
@@ -103,7 +90,7 @@ export default function LivePlayer({ channel, onBack }: LivePlayerProps) {
       setIsLoading(false);
       el.muted = true;
       el.play().catch(() => {
-        /* gesture-gated; ignored */
+        /* gesture-gated */
       });
     };
 
@@ -155,59 +142,28 @@ export default function LivePlayer({ channel, onBack }: LivePlayerProps) {
     };
   }, [isHls, channel.streamUrl, proxyMode, reloadKey]);
 
-  /* ───────── controls ───────── */
-
-  const handlePlayPause = useCallback(() => {
-    const el = videoRef.current;
-    if (!el) return;
-    if (el.paused) {
-      el.play().catch(() => {});
-      setIsPlaying(true);
-    } else {
-      el.pause();
-      setIsPlaying(false);
-    }
-  }, []);
-
-  const toggleMute = useCallback(() => {
-    const el = videoRef.current;
-    if (!el) return;
-    const next = !isMuted;
-    setIsMuted(next);
-    el.muted = next;
-  }, [isMuted]);
-
-  const toggleFullscreen = useCallback(() => {
-    const c = containerRef.current;
-    if (!c) return;
-    if (!document.fullscreenElement) {
-      c.requestFullscreen()
-        .then(() => setIsFullscreen(true))
-        .catch(() => {});
-    } else {
-      document.exitFullscreen()
-        .then(() => setIsFullscreen(false))
-        .catch(() => {});
-    }
-  }, []);
+  /* ───────── Keyboard shortcuts (live) ───────── */
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    if (iframeSrc) return;
+    const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLElement && e.target.tagName === "IFRAME") return;
+      const video = videoRef.current;
+      if (!video) return;
       if (e.code === "Space") {
         e.preventDefault();
-        handlePlayPause();
+        if (video.paused) video.play().catch(() => {});
+        else video.pause();
       } else if (e.code === "KeyM") {
-        toggleMute();
+        video.muted = !video.muted;
       } else if (e.code === "KeyF") {
-        toggleFullscreen();
+        if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+        else containerRef.current?.requestFullscreen().catch(() => {});
       }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handlePlayPause, toggleMute, toggleFullscreen]);
-
-  /* ───────── render ───────── */
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [iframeSrc]);
 
   const errorMessage =
     error === "no-stream"
@@ -219,8 +175,7 @@ export default function LivePlayer({ channel, onBack }: LivePlayerProps) {
   return (
     <div
       ref={containerRef}
-      className="relative w-full aspect-video bg-black overflow-hidden select-none"
-      onDoubleClick={toggleFullscreen}
+      className="relative w-full aspect-video bg-black overflow-hidden select-none shadow-2xl ring-1 ring-white/5"
     >
       {iframeSrc ? (
         <iframe
@@ -240,32 +195,39 @@ export default function LivePlayer({ channel, onBack }: LivePlayerProps) {
           playsInline
           preload="auto"
           muted
-          onPlay={() => setIsPlaying(true)}
-          onPause={() => setIsPlaying(false)}
+          controls
           onWaiting={() => setIsLoading(true)}
           onPlaying={() => setIsLoading(false)}
           onCanPlay={() => setIsLoading(false)}
-          onClick={handlePlayPause}
         />
       )}
 
-      {/* Loading */}
-      {isLoading && !error && isHls && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/70 z-20">
-          <div className="h-10 w-10 border-[3px] border-white/20 border-t-white rounded-full animate-spin" />
+      {/* Loading spinner */}
+      {isLoading && !error && !iframeSrc && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-20 pointer-events-none">
+          <div className="relative">
+            <div className="h-12 w-12 rounded-full border-[3px] border-white/10 border-t-[#D70466] border-r-[#7C3AED] animate-spin" />
+          </div>
         </div>
       )}
 
       {/* Error + retry */}
       {error && (
-        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-4 bg-black/80 px-6 text-center">
-          <p className="font-medium text-lg text-white/90">{errorMessage}</p>
+        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-4 bg-black/85 backdrop-blur-sm px-6 text-center">
+          <div className="h-16 w-16 rounded-full bg-red-500/10 flex items-center justify-center">
+            <svg className="h-8 w-8 text-red-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          </div>
+          <p className="font-semibold text-lg text-white">{errorMessage}</p>
           <p className="text-sm text-white/50 max-w-md">
             {error === "stream" ? _("live.streamUnavailableDesc") : ""}
           </p>
           <button
             onClick={retry}
-            className="flex items-center gap-2 px-5 py-2 rounded bg-white/10 text-white text-sm font-medium hover:bg-white/20 transition-colors"
+            className="mt-2 flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/10 text-white text-sm font-medium hover:bg-white/20 transition-colors backdrop-blur"
           >
             <IconRefresh className="h-4 w-4" />
             {_("live.retry")}
@@ -273,74 +235,31 @@ export default function LivePlayer({ channel, onBack }: LivePlayerProps) {
         </div>
       )}
 
-      {/* Top gradient + bar */}
-      <div className="absolute inset-x-0 top-0 z-20 bg-gradient-to-b from-black/80 to-transparent h-24 pointer-events-none" />
-      <div className="absolute top-0 inset-x-0 z-20 flex items-center justify-between px-4 py-4">
+      {/* Top bar */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 bg-gradient-to-b from-black/85 to-transparent h-28" />
+      <div className="absolute top-0 inset-x-0 z-20 flex items-center justify-between px-4 sm:px-6 py-4">
         <div className="flex items-center gap-3 min-w-0">
-          <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest bg-red-600 text-white px-2 py-0.5 rounded-full flex items-center gap-1.5 shrink-0">
+          <span className="text-sm sm:text-base font-black tracking-widest uppercase bg-gradient-to-r from-[#D70466] to-[#7C3AED] bg-clip-text text-transparent shrink-0">
+            Chillers
+          </span>
+          <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest bg-red-600 text-white px-2 py-1 rounded-md flex items-center gap-1.5 shrink-0 shadow-lg shadow-red-600/30">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
             </span>
             {_("live.liveLabel")}
           </span>
-          <span className="text-sm sm:text-base md:text-lg font-black tracking-widest uppercase text-white truncate">
+          <span className="text-sm sm:text-base md:text-lg font-black tracking-wide text-white truncate">
             {channel.name}
           </span>
         </div>
         <button
           onClick={onBack}
-          className="p-1.5 text-white/70 hover:text-white transition-colors shrink-0"
+          className="p-2 text-white/70 hover:text-white transition-colors rounded-lg hover:bg-white/10 shrink-0"
           aria-label={_("live.backToLive")}
+          title="Fermer"
         >
-          <IconX className="h-6 w-6" />
-        </button>
-      </div>
-
-      {/* Unmute hint */}
-      {!error && isPlaying && isMuted && isHls && (
-        <button
-          onClick={toggleMute}
-          className="absolute bottom-16 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/70 backdrop-blur text-white/80 text-xs font-medium hover:bg-black/90 transition-colors"
-        >
-          <IconVolumeOff className="h-4 w-4" />
-          {_("live.mutedHint")}
-        </button>
-      )}
-
-      {/* Bottom gradient + controls */}
-      <div className="absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/80 to-transparent h-24 pointer-events-none" />
-      <div className="absolute bottom-0 inset-x-0 z-20 flex items-center justify-between px-4 pb-3">
-        <div className="flex items-center gap-3">
-          <button onClick={handlePlayPause} className="text-white hover:text-white/80 transition-colors">
-            {isPlaying ? <IconPlayerPause className="h-7 w-7" /> : <IconPlayerPlay className="h-7 w-7" />}
-          </button>
-          <div className="flex items-center gap-2 group/vol">
-            <button onClick={toggleMute} className="text-white/60 hover:text-white transition-colors">
-              {isMuted ? <IconVolumeOff className="h-5 w-5" /> : <IconVolume className="h-5 w-5" />}
-            </button>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              value={isMuted ? 0 : volume}
-              onChange={(e) => {
-                const v = parseFloat(e.target.value);
-                setVolume(v);
-                const el = videoRef.current;
-                if (el) {
-                  el.volume = v;
-                  el.muted = v === 0;
-                  setIsMuted(v === 0);
-                }
-              }}
-              className="w-0 group-hover/vol:w-20 transition-all duration-300 h-1 bg-white/30 appearance-none rounded-full accent-white cursor-pointer"
-            />
-          </div>
-        </div>
-        <button onClick={toggleFullscreen} className="text-white/60 hover:text-white transition-colors">
-          {isFullscreen ? <IconArrowsMinimize className="h-5 w-5" /> : <IconArrowsMaximize className="h-5 w-5" />}
+          <IconX className="h-5 w-5" />
         </button>
       </div>
     </div>

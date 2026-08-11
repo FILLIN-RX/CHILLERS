@@ -1,0 +1,36 @@
+# Git
+.git
+.gitignore
+
+# Dépendances (le conteneur fait son propre npm install)
+node_modules
+**/node_modules
+
+# Builds locaux
+.next
+out
+build
+
+# Projets annexes/test non nécessaires dans l'image
+chillers-test
+test-downloader
+test_serveur
+test-results
+scrapper
+
+# Données locales / persistance
+data
+
+# Logs et fichiers de debug
+*.log
+*.png
+*.html
+debug-error.png
+
+# IDE
+.claude
+.vscode
+
+# Secrets locaux (les env passent par Render Dashboard)
+.env
+backend/.env

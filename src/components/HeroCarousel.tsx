@@ -201,7 +201,7 @@ export default function HeroCarousel({
                     {slide.title}
                   </h1>
 
-                  <p className="hidden sm:block text-sm sm:text-base md:text-lg text-zinc-200 max-w-2xl font-light leading-relaxed line-clamp-3 drop-shadow">
+                  <p className="hidden sm:block text-sm sm:text-base md:text-lg text-zinc-200 max-w-2xl font-light leading-relaxed line-clamp-3">
                     {slide.description}
                   </p>
 

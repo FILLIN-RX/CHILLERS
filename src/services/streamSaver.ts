@@ -5,17 +5,30 @@
 //
 // Why: keep StreamSaver concerns out of components and centralise the SW path.
 // On the server or in tests, the functions are no-ops so callers don't crash.
+//
+// SSR note: `streamsaver` references `document` at module-evaluation time, so we
+// must NOT import it eagerly — Next.js still evaluates client modules during SSR
+// to extract metadata. We load it lazily on first browser use.
 
-import streamSaver from "streamsaver";
-
+let streamSaverModule: typeof import("streamsaver") | null = null;
 let _mitmReady = false;
 
+async function getStreamSaver() {
+  if (streamSaverModule) return streamSaverModule;
+  // The dynamic import is what makes this safe under SSR — webpack will still
+  // bundle streamsaver into the client chunk, but the import only runs in the
+  // browser because all callers guard on `typeof window !== "undefined"`.
+  streamSaverModule = (await import("streamsaver")).default as unknown as typeof import("streamsaver");
+  return streamSaverModule;
+}
+
 /** Ensure the mitm.html proxy is wired up. Idempotent. */
-export function ensureStreamSaverReady() {
+export async function ensureStreamSaverReady() {
   if (typeof window === "undefined" || _mitmReady) return;
+  const ss = await getStreamSaver();
   // The mitm.html that ships with StreamSaver must live at the same origin
   // (copied to /public/mitm.html during Phase 0).
-  streamSaver.mitm = "/mitm.html";
+  (ss as any).mitm = "/mitm.html";
   _mitmReady = true;
 }
 
@@ -41,10 +54,14 @@ export async function streamDownloadToDisk(
   url: string,
   opts: StreamDownloadOptions,
 ): Promise<{ totalBytes: number | null }> {
-  ensureStreamSaverReady();
+  if (typeof window === "undefined") {
+    throw new Error("streamDownloadToDisk is browser-only");
+  }
+  await ensureStreamSaverReady();
+  const ss = await getStreamSaver();
 
   const { filename, signal, onProgress, throttleMs = 200 } = opts;
-  const writer = streamSaver.createWriteStream(filename);
+  const writer = (ss as any).createWriteStream(filename);
 
   // Combine the caller's signal with an internal timeout so a stuck server
   // doesn't hang the download forever.

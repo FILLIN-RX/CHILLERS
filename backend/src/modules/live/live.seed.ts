@@ -11,6 +11,7 @@ export interface LiveSeedChannel {
   userAgent?: string;
   aliases?: string[];
   order?: number;
+  logo?: string;
 }
 
 // Catalogue curé de chaînes gratuites/publiques.
@@ -66,6 +67,7 @@ export const LIVE_SEED: LiveSeedChannel[] = [
     country: 'FR',
     language: 'fra',
     streamUrl: 'https://stream.lcp.fr/lcp-direct/live/playlist.m3u8',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d6/LCP_logo.svg/500px-LCP_logo.svg.png',
     aliases: ['lcp assemblee nationale', 'lcp', 'lcp an'],
     order: 5,
   },
@@ -76,6 +78,7 @@ export const LIVE_SEED: LiveSeedChannel[] = [
     country: 'FR',
     language: 'fra',
     streamUrl: 'https://fms-publicsenat.yacast.fr/senat-public/live.m3u8',
+    logo: 'https://i.imgur.com/nHWWLBP.png',
     aliases: ['public senat', 'senat public'],
     order: 6,
   },
@@ -86,6 +89,7 @@ export const LIVE_SEED: LiveSeedChannel[] = [
     country: 'FR',
     language: 'fra',
     streamUrl: 'https://2f6c5bf4.wurl.com/master/f36d25e7e52f1ba8d7e56eb859c636563214f541/UmxheHhUVi1ldV9FdXJvbmV3c0ZyYW5jYWlzX0hMUw/playlist.m3u8',
+    logo: 'https://i.imgur.com/kP0k8oB.png',
     aliases: ['euronews francais', 'euronews french'],
     order: 8,
   },
@@ -96,6 +100,7 @@ export const LIVE_SEED: LiveSeedChannel[] = [
     country: 'FR',
     language: 'fra',
     streamUrl: 'https://ott.tv5monde.com/Content/HLS/Live/channel(fbs)/variant.m3u8',
+    logo: 'https://i.imgur.com/6X2QjRj.png',
     aliases: ['tv5monde europe', 'tv5monde'],
     order: 9,
   },
@@ -119,6 +124,7 @@ export const LIVE_SEED: LiveSeedChannel[] = [
     country: 'DE',
     language: 'eng',
     streamUrl: 'https://amg01644-amg01644c1-amgplt0343.playout.now3.amagi.tv/ts-eu-w1-n2/playlist/amg01644-amg01644c1-amgplt0343/playlist.m3u8',
+    logo: 'https://i.imgur.com/8MRNFb9.png',
     aliases: ['dw english', 'deutsche welle english'],
     order: 11,
   },
@@ -129,6 +135,7 @@ export const LIVE_SEED: LiveSeedChannel[] = [
     country: 'TR',
     language: 'eng',
     streamUrl: 'https://tv-trtworld.medya.trt.com.tr/master.m3u8',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/TRT_World.svg/960px-TRT_World.svg.png',
     aliases: ['trt world'],
     order: 12,
   },
@@ -139,6 +146,7 @@ export const LIVE_SEED: LiveSeedChannel[] = [
     country: 'US',
     language: 'eng',
     streamUrl: 'https://86fdc85a.wurl.com/master/f36d25e7e52f1ba8d7e56eb859c636563214f541/TEctZ2JfQmxvb21iZXJnT3JpZ2luYWxzX0hMUw/playlist.m3u8',
+    logo: 'https://jiotvimages.cdn.jio.com/dare_images/images/Bloomberg_Originals.png',
     aliases: ['bloomberg originals'],
     order: 13,
   },
@@ -149,6 +157,7 @@ export const LIVE_SEED: LiveSeedChannel[] = [
     country: 'UK',
     language: 'eng',
     streamUrl: 'https://jmp2.uk/plu-55b285cd2665de274553d66f.m3u8',
+    logo: 'https://d2n0069hmnqmmx.cloudfront.net/epgdata/1.0/newchanlogos/512/512/skychb1404.png',
     aliases: ['sky news', 'skynews'],
     order: 14,
   },
@@ -159,6 +168,7 @@ export const LIVE_SEED: LiveSeedChannel[] = [
     country: 'CN',
     language: 'eng',
     streamUrl: 'https://amg00405-rakutentv-cgtn-rakuten-i9tar.amagi.tv/master.m3u8',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/CGTN.svg/960px-CGTN.svg.png',
     aliases: ['cgtn english', 'cgtn'],
     order: 15,
   },
@@ -169,6 +179,7 @@ export const LIVE_SEED: LiveSeedChannel[] = [
     country: 'JP',
     language: 'eng',
     streamUrl: 'https://masterpl.hls.nhkworld.jp/hls/w/live/smarttv.m3u8',
+    logo: 'https://jiotvimages.cdn.jio.com/dare_images/images/NHK_World_Japan.png',
     aliases: ['nhk world japan', 'nhk world', 'nhkworld'],
     order: 16,
   },
@@ -179,6 +190,7 @@ export const LIVE_SEED: LiveSeedChannel[] = [
     country: 'KR',
     language: 'eng',
     streamUrl: 'http://amdlive-ch01.ctnd.com.edgesuite.net/arirang_1ch/smil:arirang_1ch.smil/playlist.m3u8',
+    logo: 'https://i.imgur.com/Asu5pE9.png',
     aliases: ['arirang tv', 'arirang'],
     order: 17,
   },
@@ -189,7 +201,20 @@ export const LIVE_SEED: LiveSeedChannel[] = [
     country: 'SG',
     language: 'eng',
     streamUrl: 'https://d2e1asnsl7br7b.cloudfront.net/7782e205e72f43aeb4a48ec97f66ebbe/index.m3u8',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/CNA_new_logo.svg/500px-CNA_new_logo.svg.png',
     aliases: ['cna', 'channel news asia'],
     order: 18,
+  },
+  // ── Sports ──────────────────────────────────────────────────────────────
+  {
+    name: 'beIN SPORTS XTRA',
+    slug: 'bein-sports-xtra',
+    categories: ['sports'],
+    country: 'US',
+    language: 'eng',
+    streamUrl: 'https://bein-xtra-bein.amagi.tv/playlist.m3u8',
+    logo: 'https://i.ibb.co/HT49GPmB/XTRA-2.png',
+    aliases: ['bein sports xtra', 'bein xtra'],
+    order: 19,
   },
 ];

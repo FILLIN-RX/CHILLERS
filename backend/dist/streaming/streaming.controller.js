@@ -36,6 +36,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getEpisodeStream = exports.getMovieStream = void 0;
 const streamingService = __importStar(require("./streaming.service"));
 const types_1 = require("../types");
+/** Log visible quand le flux est servi par le module torrents (fallback P2P). */
+function logTorrentFallback(provider, label) {
+    if (provider !== 'torrserver')
+        return;
+    console.log('╔══════════════════════════════════════════════════════════════╗');
+    console.log(`║ 🧲 [TORRENT-MODULE] Flux P2P (fallback) servi pour : ${label}`);
+    console.log('╚══════════════════════════════════════════════════════════════╝');
+}
 const getMovieStream = async (req, res, next) => {
     try {
         const id = parseInt(req.params.id, 10);
@@ -55,6 +63,7 @@ const getMovieStream = async (req, res, next) => {
             });
             return;
         }
+        logTorrentFallback(result.provider, `movie ${id}`);
         res.json({
             success: true,
             data: { embedUrl: result.embedUrl },
@@ -91,6 +100,7 @@ const getEpisodeStream = async (req, res, next) => {
             });
             return;
         }
+        logTorrentFallback(result.provider, `tv ${id} S${season}E${episode}`);
         res.json({
             success: true,
             data: { embedUrl: result.embedUrl },
