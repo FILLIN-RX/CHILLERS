@@ -21,8 +21,7 @@ services:
     name: prowlarr
     env: docker
     plan: free
-    docker:
-      image: linuxserver/prowlarr:latest
+    image: linuxserver/prowlarr:latest
     envVars:
       - key: PUID
         value: "1000"
@@ -38,9 +37,7 @@ services:
     name: torrserver
     env: docker
     plan: free
-    docker:
-      image: yourok/torrserver:latest
+    image: yourok/torrserver:latest
     disk:
       mountPath: /data
       sizeGB: 1
-    # TorrServer utilise 8090 par défaut, Render détecte le port via le Dockerfile ou via config
