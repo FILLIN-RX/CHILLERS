@@ -217,4 +217,15 @@ export const LIVE_SEED: LiveSeedChannel[] = [
     aliases: ['bein sports xtra', 'bein xtra'],
     order: 19,
   },
+  {
+    name: 'Red Bull TV',
+    slug: 'red-bull-tv',
+    categories: ['sports'],
+    country: 'AT',
+    language: 'eng',
+    streamUrl: 'https://rbmn-live.akamaized.net/hls/live/590964/BoRB-AT/master_1080p.m3u8',
+    logo: 'https://i.imgur.com/kP0k8oB.png',
+    aliases: ['red bull tv', 'redbull tv', 'redbull'],
+    order: 20,
+  },
 ];
