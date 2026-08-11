@@ -1,7 +1,7 @@
 services:
   - type: web
     name: chillers
-    runtime: node
+    env: node
     plan: free
     rootDir: backend
     buildCommand: npm install; npm run build
@@ -19,9 +19,10 @@ services:
 
   - type: web
     name: prowlarr
-    runtime: docker
+    env: docker
     plan: free
-    dockerImage: linuxserver/prowlarr:latest
+    docker:
+      image: linuxserver/prowlarr:latest
     envVars:
       - key: PUID
         value: "1000"
@@ -35,13 +36,11 @@ services:
 
   - type: web
     name: torrserver
-    runtime: docker
+    env: docker
     plan: free
-    dockerImage: yourok/torrserver:latest
+    docker:
+      image: yourok/torrserver:latest
     disk:
       mountPath: /data
       sizeGB: 1
-    ports:
-      - port: 8090
-        protocol: TCP
-        name: torrserver
+    # TorrServer utilise 8090 par défaut, Render détecte le port via le Dockerfile ou via config
