@@ -8,11 +8,13 @@ services:
     startCommand: npm run start
     envVars:
       - key: MONGO_URI
+        sync: false
       - key: PROWLARR_URL
         value: http://prowlarr:9696
       - key: TORRSERVER_URL
         value: http://torrserver:8090
       - key: PROWLARR_API_KEY
+        sync: false
     healthCheckPath: /api/health
 
   - type: web
@@ -34,4 +36,4 @@ services:
     env: docker
     plan: free
     image:
-      url: yourok/torrserver:latest 
+      url: yourok/torrserver:latest
