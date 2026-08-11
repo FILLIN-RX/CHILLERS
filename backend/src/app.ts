@@ -1,5 +1,6 @@
 import express from 'express';
 import helmet from 'helmet';
+import cors from 'cors';
 import dotenv from 'dotenv';
 import { errorMiddleware } from './middleware/error.middleware';
 import { clearCache } from './config/tmdb';
@@ -24,6 +25,7 @@ dotenv.config({ path: path.join(__dirname, '../.env') });
 
 const app = express();
 
+app.use(cors());
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
