@@ -1,0 +1,47 @@
+services:
+  - type: web
+    name: chillers
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install; npm run build
+    startCommand: npm run start
+    envVars:
+      - key: MONGO_URI
+        fromVariable: MONGO_URI
+      - key: PROWLARR_URL
+        value: http://prowlarr:9696
+      - key: TORRSERVER_URL
+        value: http://torrserver:8090
+      - key: PROWLARR_API_KEY
+        fromVariable: PROWLARR_API_KEY
+    healthCheckPath: /api/health
+
+  - type: web
+    name: prowlarr
+    runtime: docker
+    plan: free
+    dockerImage: linuxserver/prowlarr:latest
+    envVars:
+      - key: PUID
+        value: "1000"
+      - key: PGID
+        value: "1000"
+      - key: TZ
+        value: Etc/UTC
+    disk:
+      mountPath: /config
+      sizeGB: 1
+
+  - type: web
+    name: torrserver
+    runtime: docker
+    plan: free
+    dockerImage: yourok/torrserver:latest
+    disk:
+      mountPath: /data
+      sizeGB: 1
+    ports:
+      - port: 8090
+        protocol: TCP
+        name: torrserver
