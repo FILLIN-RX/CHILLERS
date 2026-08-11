@@ -21,7 +21,8 @@ services:
     name: prowlarr
     env: docker
     plan: free
-    image: linuxserver/prowlarr:latest
+    image:
+      url: linuxserver/prowlarr:latest
     envVars:
       - key: PUID
         value: "1000"
@@ -29,15 +30,10 @@ services:
         value: "1000"
       - key: TZ
         value: Etc/UTC
-    disk:
-      mountPath: /config
-      sizeGB: 1
 
   - type: web
     name: torrserver
     env: docker
     plan: free
-    image: yourok/torrserver:latest
-    disk:
-      mountPath: /data
-      sizeGB: 1
+    image:
+      url: yourok/torrserver:latest
