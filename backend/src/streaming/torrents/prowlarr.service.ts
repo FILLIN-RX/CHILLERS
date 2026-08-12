@@ -71,7 +71,10 @@ async function searchOnce(query: string): Promise<TorrentCandidate[]> {
   const raw = (response.data || []) as ProwlarrSearchItem[];
 
   return raw
-    .filter((item) => (item.magnetUrl || item.downloadUrl) && (item.seeders ?? 0) > 0)
+    // Certains indexeurs (YTS, etc.) ne renvoient pas de champ seeders via
+    // Prowlarr : on ne garde que l'exigence d'un lien résolvable, et on
+    // traite seeders inconnus comme 0 pour le scoring.
+    .filter((item) => !!(item.magnetUrl || item.downloadUrl))
     .map((item) => ({
       title: item.title,
       indexer: item.indexer || 'Inconnu',

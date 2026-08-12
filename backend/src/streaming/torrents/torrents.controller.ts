@@ -69,13 +69,34 @@ function parseRangeStart(range: string | undefined): number | null {
   return parseInt(m[1], 10);
 }
 
-function ffmpegArgs(inputUrl: string, seekSeconds?: number): string[] {
+/** Extensions vidéo lues nativement par le navigateur (proxy direct, sans FFmpeg). */
+const NATIVE_PLAYABLE = ['.mp4', '.m4v', '.webm', '.mov'];
+
+/**
+ * Récupère le nom du fichier indexé d'un torrent depuis TorrServer.
+ * Retourne null si indisponible (torrent pas encore prêt).
+ */
+async function fetchFileName(hash: string, index: number): Promise<string | null> {
+  try {
+    const res = await axios.post(
+      `${TORRSERVER_URL}/torrents`,
+      { action: 'get', hash },
+      { timeout: 10000 }
+    );
+    const stats: Array<{ id: number; path: string }> | undefined = res.data?.file_stats;
+    const file = stats?.find((f) => f.id === index);
+    return file?.path || null;
+  } catch {
+    return null;
+  }
+}
+
+function transcodeFfmpegArgs(inputUrl: string, seekSeconds?: number): string[] {
   const seek = seekSeconds && seekSeconds > 0 ? ['-ss', String(seekSeconds)] : [];
   return [
     '-hide_banner',
     '-loglevel', 'error',
     ...seek,
-    '-re',
     '-i', inputUrl,
     '-c:v', 'libx264',
     '-preset', 'ultrafast',
@@ -97,7 +118,7 @@ function ffmpegArgs(inputUrl: string, seekSeconds?: number): string[] {
 /** Transcode le flux TorrServer en MP4 fragmenté compatible <video>, avec seek. */
 export async function streamFile(req: Request, res: Response) {
   const hash = req.query.hash as string;
-  const index = req.query.index as string | undefined;
+  const index = Number(req.query.index) || 0;
   if (!hash) {
     res.status(400).send('Hash requis');
     return;
@@ -105,16 +126,28 @@ export async function streamFile(req: Request, res: Response) {
 
   const rangeStart = parseRangeStart(req.headers.range);
 
-  // Seek : le navigateur demande `bytes=START-`. On convertit l'offset en
-  // secondes via le débit cible et on relance FFmpeg à cette position.
-  // La durée totale d'un flux P2P étant inconnue, Content-Range reste ouvert.
+  // ── 1. Proxy direct (sans FFmpeg) : le navigateur lit nativement
+  // mp4/m4v/webm/mov → démarrage instantané, aucun transcodage,
+  // indispensable sur les instances à faible RAM (plan free Render).
+  const filename = await fetchFileName(hash, index);
+  if (filename) {
+    const ext = filename.toLowerCase().split('.').pop();
+    if (ext && NATIVE_PLAYABLE.includes(`.${ext}`)) {
+      console.log(`[Torrents] Proxy direct (natif) : "${filename}" (fichier ${index})`);
+      return proxyTorrServerStream(req, res, hash, index, rangeStart);
+    }
+  }
+
+  // ── 2. Fallback : transcodage FFmpeg pour les conteneurs non natifs
+  // (mkv/avi…). Sans `-re` : on lit le flux aussitôt que les pièces P2P
+  // arrivent au lieu d'imposer un débit temps réel (cause de blocage).
   const seekSeconds = rangeStart ? Math.floor(rangeStart / (TARGET_BITRATE_BPS / 8)) : undefined;
 
-  const inputUrl = `${TORRSERVER_URL}/stream?link=${hash}&index=${index || 0}&play` +
+  const inputUrl = `${TORRSERVER_URL}/stream?link=${hash}&index=${index}&play` +
     (seekSeconds !== undefined ? `&pos=${rangeStart}` : '');
 
   console.log(
-    `[Torrents][FFmpeg] Transcodage à la volée: ${hash} (fichier ${index || 0})` +
+    `[Torrents][FFmpeg] Transcodage à la volée: ${hash} (fichier ${index})` +
       (seekSeconds !== undefined ? ` — seek à ${seekSeconds}s (range ${rangeStart})` : ''),
   );
 
@@ -127,7 +160,7 @@ export async function streamFile(req: Request, res: Response) {
     res.setHeader('Content-Range', `bytes ${rangeStart}-*/*`);
   }
 
-  const ffmpeg = spawn(FFMPEG_PATH, ffmpegArgs(inputUrl, seekSeconds));
+  const ffmpeg = spawn(FFMPEG_PATH, transcodeFfmpegArgs(inputUrl, seekSeconds));
 
   ffmpeg.stdout.pipe(res);
 
@@ -144,6 +177,59 @@ export async function streamFile(req: Request, res: Response) {
   req.on('close', () => {
     ffmpeg.kill('SIGKILL');
   });
+}
+
+/**
+ * Proxifie directement le flux TorrServer vers le navigateur en relayant
+ * le header Range (seek natif) — aucun transcodage nécessaire pour les
+ * conteneurs supportés nativement par le <video>.
+ */
+async function proxyTorrServerStream(
+  req: Request,
+  res: Response,
+  hash: string,
+  index: number,
+  rangeStart: number | null
+): Promise<void> {
+  const inputUrl = `${TORRSERVER_URL}/stream?link=${hash}&index=${index}&play` +
+    (rangeStart !== null ? `&pos=${rangeStart}` : '');
+
+  try {
+    const upstream = await axios({
+      method: 'get',
+      url: inputUrl,
+      headers: req.headers.range ? { Range: req.headers.range } : {},
+      responseType: 'stream',
+      timeout: 0,
+      maxRedirects: 5,
+    });
+
+    const status = upstream.status === 206 ? 206 : 200;
+    res.status(status);
+    res.setHeader('Content-Type', String(upstream.headers['content-type'] || 'video/mp4'));
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Accept-Ranges', 'bytes');
+    if (status === 206 && upstream.headers['content-range']) {
+      res.setHeader('Content-Range', String(upstream.headers['content-range']));
+    }
+    if (upstream.headers['content-length']) {
+      res.setHeader('Content-Length', String(upstream.headers['content-length']));
+    }
+
+    upstream.data.on('error', () => {
+      if (!res.writableEnded) res.end();
+    });
+    upstream.data.pipe(res);
+
+    req.on('close', () => {
+      upstream.data.destroy();
+    });
+  } catch (err: unknown) {
+    console.error(`[Torrents][Proxy] Échec du stream direct: ${errMessage(err)}`);
+    if (!res.headersSent) {
+      res.status(502).send('TorrServer injoignable pour le stream direct');
+    }
+  }
 }
 
 /** Téléchargement direct du fichier (proxy du flux TorrServer). */
