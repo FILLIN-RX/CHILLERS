@@ -36,18 +36,41 @@ export async function searchTorrents(opts: SearchOptions): Promise<TorrentCandid
   if (!PROWLARR_API_KEY) return [];
 
   const queries = buildSearchQueries(opts);
+  // Dernier recours : résultats 0 seeders (YTS renvoie souvent 0 alors que
+  // les pairs existent). On préfère toujours un résultat seedé, sinon on
+  // garde le premier lot de résultats (même sans seeds) plutôt que rien.
+  let zeroSeedFallback: TorrentCandidate[] | null = null;
 
   for (const query of queries) {
     try {
       const items = await searchOnce(query);
-      if (items.length > 0) {
-        const sorted = sortTorrents(items);
-        console.log(`[Torrents] "${query}" → ${sorted.length} résultats, meilleur score ${scoreLabel(sorted[0])}`);
+      const seeded = items.filter((i) => i.seeders > 0);
+
+      if (seeded.length > 0) {
+        const sorted = sortTorrents(seeded);
+        console.log(`[Torrents] "${query}" → ${seeded.length} seedés, meilleur score ${scoreLabel(sorted[0])}`);
         return sorted.slice(0, opts.limit ?? 10);
+      }
+
+      if (items.length > 0 && !zeroSeedFallback) {
+        zeroSeedFallback = items;
+        console.log(
+          `[Torrents] "${query}" → ${items.length} résultats mais 0 seeders (fallback possible)`,
+        );
+      } else {
+        console.log(`[Torrents] "${query}" → 0 résultat`);
       }
     } catch (err: unknown) {
       console.warn(`[Torrents] Recherche "${query}" échouée: ${errMessage(err)}`);
     }
+  }
+
+  if (zeroSeedFallback) {
+    const sorted = sortTorrents(zeroSeedFallback);
+    console.log(
+      `[Torrents] Fallback 0-seeders pour "${opts.title}": ${sorted.length} résultat(s) — la disponibilité dépendra des pairs au moment du stream`,
+    );
+    return sorted.slice(0, opts.limit ?? 10);
   }
 
   console.log(`[Torrents] Aucun résultat pour "${opts.title}"`);
@@ -60,15 +83,32 @@ function scoreLabel(item: TorrentCandidate): string {
 }
 
 async function searchOnce(query: string): Promise<TorrentCandidate[]> {
-  const response = await axios.get(`${PROWLARR_URL}/api/v1/search`, {
-    // Tableau → sérialisé en "categories=2000&categories=5000" (format requis
-    // par l'API Prowlarr : une chaîne "2000,5000" renvoie un 400).
-    params: { query, categories: [2000, 5000], limit: 50 },
-    headers: { 'X-Api-Key': PROWLARR_API_KEY },
-    timeout: SEARCH_TIMEOUT,
-  });
+  const url = `${PROWLARR_URL}/api/v1/search`;
+  let response;
+  try {
+    response = await axios.get(url, {
+      // Tableau → sérialisé en "categories=2000&categories=5000" (format requis
+      // par l'API Prowlarr : une chaîne "2000,5000" renvoie un 400).
+      params: { query, categories: [2000, 5000], limit: 50 },
+      headers: { 'X-Api-Key': PROWLARR_API_KEY },
+      timeout: SEARCH_TIMEOUT,
+    });
+  } catch (err: unknown) {
+    if (axios.isAxiosError(err) && err.response?.status === 401) {
+      console.error(
+        `[Torrents][Prowlarr] 401 sur "${query}" — clé API incorrecte ou IP bannie par Prowlarr (ban ~10 min après plusieurs échecs d'auth). Vérifiez PROWLARR_API_KEY (Prowlarr → Settings → General → API Key).`,
+      );
+    } else if (axios.isAxiosError(err) && err.response) {
+      console.error(`[Torrents][Prowlarr] HTTP ${err.response.status} sur "${query}": ${errMessage(err)}`);
+    }
+    throw err;
+  }
 
   const raw = (response.data || []) as ProwlarrSearchItem[];
+
+  console.log(
+    `[Torrents][Prowlarr] "${query}" → ${raw.length} bruts, ${raw.filter((i) => i.magnetUrl || i.downloadUrl).length} avec lien, ${raw.filter((i) => (i.seeders ?? 0) > 0).length} seedés — Prowlarr joignable (HTTP ${response.status})`,
+  );
 
   return raw
     // Certains indexeurs (YTS, etc.) ne renvoient pas de champ seeders via

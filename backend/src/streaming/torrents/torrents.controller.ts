@@ -38,7 +38,12 @@ export async function healthCheck(_req: Request, res: Response) {
     });
     checks.prowlarr = true;
   } catch (err: unknown) {
-    console.warn(`[Torrents] Prowlarr injoignable: ${errMessage(err)}`);
+    const status = axios.isAxiosError(err) ? ` (HTTP ${err.response?.status ?? 'injoignable'})` : '';
+    const hint =
+      axios.isAxiosError(err) && err.response?.status === 401
+        ? ' — clé API incorrecte ou IP bannie (ban ~10 min)'
+        : '';
+    console.warn(`[Torrents] Prowlarr injoignable${status}${hint}: ${errMessage(err)}`);
   }
 
   try {
