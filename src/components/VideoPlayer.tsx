@@ -23,6 +23,7 @@ import DownloadModal from "@/features/downloads/DownloadModal";
 import { isIframeProviderUrl, toEmbedUrl } from "@/lib/providers";
 import { useDebouncedEffect } from "@/hooks/useDebouncedEffect";
 import { useStreamUrl } from "@/hooks/useStreamUrl";
+import { useTorrentPlayback } from "@/hooks/useTorrentPlayback";
 import Hls from "hls.js";
 
 interface VideoPlayerProps {
@@ -136,11 +137,51 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
   // URL de téléchargement direct (fallback torrent) — type chillers-test :
   // le backend proxy le flux TorrServer avec Content-Disposition: attachment.
   const torrentDownloadUrl = streamQuery.data?.downloadUrl ?? null;
-  const videoUrl = useMemo(
+  const serverVideoUrl = useMemo(
     () => toEmbedUrl(resolvedStreamUrl ?? item.videoUrl ?? undefined),
     [resolvedStreamUrl, item.videoUrl],
   );
-  const isIframe = isIframeProviderUrl(videoUrl);
+  const isIframe = isIframeProviderUrl(serverVideoUrl);
+
+  /* ───────── P2P client-side (WebTorrent) ─────────
+     Privilégié quand aucun provider classique n'a de flux, ou quand le flux
+     vient du fallback torrent (transcode FFmpeg) : si des pairs sont
+     joignables, la lecture se fait 100 % localement (décodage GPU, 0 octet
+     via le serveur). Le flux serveur reste le filet de sécurité. */
+  const canP2P =
+    !isIframe &&
+    !!item.title &&
+    (!resolvedStreamUrl || resolvedStreamUrl.startsWith("/api/torrents/"));
+
+  const p2p = useTorrentPlayback({
+    enabled: canP2P && hasStarted,
+    title: item.title,
+    year: item.year,
+    type: streamType,
+    season: currentEpisode?.season,
+    episode: currentEpisode?.number,
+    videoRef,
+  });
+  const [p2pHardFail, setP2pHardFail] = useState(false);
+  const p2pActive = p2p.status === "ready" && !p2pHardFail;
+  const p2pHasTorrent = !["idle", "fetching", "error"].includes(p2p.status);
+  // Pendant la lecture P2P, le lecteur appartient à renderTo (MediaSource) :
+  // on laisse la src du <video> dériver du flux serveur sinon.
+  const videoUrl = p2pActive ? undefined : serverVideoUrl;
+
+  const formatSpeed = (bytesPerSec: number) => {
+    if (bytesPerSec >= 1024 * 1024) return `${(bytesPerSec / 1024 / 1024).toFixed(1)} Mo/s`;
+    if (bytesPerSec >= 1024) return `${(bytesPerSec / 1024).toFixed(0)} Ko/s`;
+    return "0 B/s";
+  };
+
+  // Auto-guérison : P2P sans pair → relance la chaîne classique (qui peut
+  // déboucher sur un flux direct ou le transcode serveur).
+  useEffect(() => {
+    if ((p2p.status === "stalled" || p2p.status === "error") && !resolvedStreamUrl) {
+      void streamQuery.refetch();
+    }
+  }, [p2p.status, resolvedStreamUrl, streamQuery]);
   const isHls = !isIframe && !!videoUrl && (videoUrl.includes(".m3u8") || videoUrl.includes("m3u8"));
 
   /* ───────── HLS setup ───────── */
@@ -187,7 +228,7 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
 
   /* ───────── Sous-titres OpenSubtitles ───────── */
   useEffect(() => {
-    if (isIframe || !videoUrl) return;
+    if (isIframe) return;
     let cancelled = false;
     (async () => {
       try {
@@ -409,9 +450,9 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
             </div>
           </div>
         </>
-      ) : videoUrl ? (
+      ) : videoUrl || canP2P ? (
         <>
-          {/* ─── VIDEO NATIVE ─── */}
+          {/* ─── VIDEO NATIVE (dont lecture P2P via renderTo) ─── */}
           <video
             ref={videoRef}
             className="absolute inset-0 w-full h-full object-contain bg-black"
@@ -428,6 +469,16 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
             onVolumeChange={() => {
               const v = videoRef.current;
               if (v) { setIsMuted(v.muted); setVolume(v.volume); }
+            }}
+            onError={(e) => {
+              // Échec de décodage du flux P2P (ex: HEVC non supporté) →
+              // bascule immédiate vers le flux serveur si disponible.
+              const el = e.currentTarget;
+              if (p2pActive && serverVideoUrl && !p2pHardFail) {
+                setP2pHardFail(true);
+                el.src = serverVideoUrl;
+                el.play().catch(() => {});
+              }
             }}
           >
             {subtitles.map((sub) => (
@@ -467,14 +518,39 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
                   </span>
                 )}
               </div>
-              <div className="flex items-center gap-0.5">
+              <div className="flex items-center gap-1.5">
+                {/* ── Tuile de statut P2P ── */}
+                {canP2P && hasStarted && ["fetching", "scanning", "connecting"].includes(p2p.status) && (
+                  <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[#22d3ee] bg-[#22d3ee]/10 border border-[#22d3ee]/20 rounded-full px-2 py-1">
+                    <IconLoader2 className="h-3 w-3 animate-spin" />
+                    P2P…
+                  </span>
+                )}
+                {canP2P && p2pActive && (
+                  <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-400/10 border border-emerald-400/25 rounded-full px-2 py-1">
+                    P2P · {p2p.peers} pair{p2p.peers > 1 ? "s" : ""} · {formatSpeed(p2p.downloadSpeed)}
+                  </span>
+                )}
                 <button type="button"
                   onClick={() => {
+                    // 1) P2P actif → téléchargement 100 % client-side (0
+                    //    octet via le serveur). 2) Sinon proxy serveur torrent.
+                    //    3) Sinon modal DoodStream classique.
+                    if (p2pHasTorrent && !p2pActive) {
+                      // Le torrent est en cours de chargement : on attend la
+                      // disponibilité du fichier avant d'ouvrir le flux.
+                      void p2p.downloadToDisk().catch(() => setShowSingleDownload(true));
+                      return;
+                    }
+                    if (p2pActive) {
+                      void p2p.downloadToDisk().catch(() => setShowSingleDownload(true));
+                      return;
+                    }
                     if (torrentDownloadUrl) {
                       window.location.href = torrentDownloadUrl;
-                    } else {
-                      setShowSingleDownload(true);
+                      return;
                     }
+                    setShowSingleDownload(true);
                   }}
                   className="p-1.5 text-white/60 hover:text-white rounded-lg hover:bg-white/10 transition-colors" title="Télécharger">
                   <IconDownload className="h-4 w-4" />
@@ -651,7 +727,7 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
       ) : null}
 
       {/* ─── COVER OVERLAY (avant le démarrage) ─── */}
-      {videoUrl && !hasStarted && (
+      {(videoUrl || (canP2P && !streamQuery.isLoading)) && !hasStarted && (
         <div
           role="button"
           tabIndex={0}
@@ -726,6 +802,23 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-zinc-950">
           <div className="h-14 w-14 rounded-full border-[3px] border-white/10 border-t-[#D70466] border-r-[#7C3AED] animate-spin" />
           <p className="text-zinc-500 text-xs uppercase tracking-widest font-bold">Chargement du flux…</p>
+        </div>
+      )}
+
+      {/* ─── P2P sans pair joignable ─── */}
+      {p2p.status === "stalled" && !serverVideoUrl && (
+        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-4 bg-zinc-950/95">
+          <p className="text-zinc-400 text-sm text-center px-6 max-w-sm">
+            Aucun pair P2P joignable pour ce torrent.<br />
+            La lecture serveur a été tentée sans succès.
+          </p>
+          <button
+            type="button"
+            onClick={() => { setP2pHardFail(false); p2p.retry(); }}
+            className="px-5 py-2 text-xs font-bold text-white bg-[#D70466] hover:bg-[#b90356] rounded-full transition-colors"
+          >
+            Réessayer en P2P
+          </button>
         </div>
       )}
 

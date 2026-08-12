@@ -13,7 +13,7 @@
 let streamSaverModule: typeof import("streamsaver") | null = null;
 let _mitmReady = false;
 
-async function getStreamSaver() {
+export async function getStreamSaver() {
   if (streamSaverModule) return streamSaverModule;
   // The dynamic import is what makes this safe under SSR — webpack will still
   // bundle streamsaver into the client chunk, but the import only runs in the

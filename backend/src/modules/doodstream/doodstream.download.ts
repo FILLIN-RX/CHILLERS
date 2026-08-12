@@ -385,6 +385,43 @@ export const getDownloadByTitle = async (req: Request, res: Response, next: Next
     }
 
     if (!match) {
+      // ── Aucun lien DoodStream/Uqload → tenter le fallback torrent ──
+      try {
+        const { isTorrentsConfigured } = await import('../../streaming/torrents/config');
+        if (isTorrentsConfigured()) {
+          const { searchTorrents, resolveTorrentLink } = await import('../../streaming/torrents/prowlarr.service');
+          const { addTorrent, waitForFileInfo, buildDownloadUrl } = await import('../../streaming/torrents/torrents.service');
+          const { resolveTmdbYear } = await import('../../streaming/torrents/tmdb-helper');
+          const year = tmdb_id ? await resolveTmdbYear({ tmdbId: Number(tmdb_id), title }) : undefined;
+          const type = seasonNum !== undefined && episodeNum !== undefined ? 'series' : 'movie';
+          const candidates = await searchTorrents({ title, year, season: seasonNum, episode: episodeNum });
+          if (candidates.length > 0) {
+            const best = candidates[0];
+            const src = await resolveTorrentLink(best);
+            const hash = await addTorrent(src, best.title);
+            const fileInfo = await waitForFileInfo(hash, { season: seasonNum, episode: episodeNum });
+            if (fileInfo) {
+              const downloadUrl = buildDownloadUrl(hash, fileInfo.index, fileInfo.filename);
+              console.log(`[Download] Torrent fallback: "${fileInfo.filename}" via TorrServer`);
+              return res.json({
+                success: true,
+                data: {
+                  fileCode: '',
+                  directUrl: downloadUrl,
+                  downloadUrl,
+                  title: fileInfo.filename || title || '',
+                  year: year || null,
+                  season: seasonNum || null,
+                  episode: episodeNum || null,
+                },
+                message: null,
+              });
+            }
+          }
+        }
+      } catch (err: any) {
+        console.warn(`[Download] Torrent fallback failed: ${err.message}`);
+      }
       return res.json({
         success: false,
         data: null,
