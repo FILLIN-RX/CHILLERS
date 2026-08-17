@@ -151,4 +151,115 @@ router.get('/uqload/pending', adminMiddleware, async (_req: AuthRequest, res: Re
   }
 });
 
+/**
+ * GET /uqload/files
+ * Liste tous les fichiers uploadés sur Uqload avec leurs infos complètes.
+ * Query params :
+ *   - type   : "movies" | "series" | "all" (défaut: "all")
+ *   - page   : numéro de page (défaut: 1)
+ *   - limit  : résultats par page (défaut: 50, max: 200)
+ *   - search : recherche dans le titre
+ */
+router.get('/uqload/files', adminMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const type   = (req.query.type   as string) || 'all';
+    const page   = Math.max(1, parseInt((req.query.page  as string) || '1',  10));
+    const limit  = Math.min(200, Math.max(1, parseInt((req.query.limit as string) || '50', 10)));
+    const search = (req.query.search as string) || '';
+    const skip   = (page - 1) * limit;
+
+    const results: any = {};
+
+    if (type === 'movies' || type === 'all') {
+      const movieFilter: any = {
+        $or: [
+          { uqloadCode: { $exists: true, $ne: '' } },
+          { uqloadLink: { $exists: true, $ne: '' } },
+        ],
+      };
+      if (search) movieFilter.titre = { $regex: search, $options: 'i' };
+
+      const [movies, totalMovies] = await Promise.all([
+        Movie.find(movieFilter)
+          .select('titre tmdbId uqloadCode uqloadLink uqloadQualities uqloadHls streamtapeCode streamtapeLink uploadedAt year posterUrl')
+          .sort({ uploadedAt: -1, createdAt: -1 })
+          .skip(type === 'all' ? 0 : skip)
+          .limit(type === 'all' ? Math.floor(limit / 2) : limit)
+          .lean(),
+        Movie.countDocuments(movieFilter),
+      ]);
+
+      results.movies = {
+        total: totalMovies,
+        items: movies.map(m => ({
+          id: m._id,
+          titre: m.titre,
+          tmdbId: m.tmdbId,
+          year: m.year,
+          posterUrl: m.posterUrl,
+          uqload: {
+            code: m.uqloadCode || null,
+            link: m.uqloadLink || null,
+            hls:  m.uqloadHls  || null,
+            qualities: m.uqloadQualities || [],
+          },
+          streamtape: {
+            code: m.streamtapeCode || null,
+            link: m.streamtapeLink || null,
+          },
+          uploadedAt: m.uploadedAt || null,
+        })),
+      };
+    }
+
+    if (type === 'series' || type === 'all') {
+      const serieFilter: any = {
+        'episodes.uqloadCode': { $exists: true, $ne: '' },
+      };
+      if (search) serieFilter.titre = { $regex: search, $options: 'i' };
+
+      const [series, totalSeries] = await Promise.all([
+        Serie.find(serieFilter)
+          .select('titre tmdbId year posterUrl episodes')
+          .sort({ updatedAt: -1 })
+          .skip(type === 'all' ? 0 : skip)
+          .limit(type === 'all' ? Math.floor(limit / 2) : limit)
+          .lean(),
+        Serie.countDocuments(serieFilter),
+      ]);
+
+      results.series = {
+        total: totalSeries,
+        items: series.map(s => ({
+          id: s._id,
+          titre: s.titre,
+          tmdbId: s.tmdbId,
+          year: s.year,
+          posterUrl: s.posterUrl,
+          episodes: (s.episodes || [])
+            .filter((e: any) => e.uqloadCode || e.uqloadLink)
+            .map((e: any) => ({
+              label:         e.episode,
+              season:        e.season,
+              episodeNumber: e.episodeNumber,
+              uqload: {
+                code: e.uqloadCode  || null,
+                link: e.uqloadLink  || null,
+              },
+              streamtape: {
+                code: e.streamtapeCode || null,
+                link: e.streamtapeLink || null,
+              },
+              uploadedAt: e.uploadedAt || null,
+            })),
+        })),
+      };
+    }
+
+    res.json({ success: true, data: { page, limit, ...results }, message: null });
+  } catch (e: any) {
+    res.status(500).json({ success: false, data: null, message: e.message });
+  }
+});
+
 export default router;

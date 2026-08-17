@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chillers.vercel.app";
+// Fallback robuste : utilise NEXT_PUBLIC_SITE_URL si défini, sinon l'URL Vercel du projet.
+// IMPORTANT: si ton domaine change, mets à jour NEXT_PUBLIC_SITE_URL dans Vercel > Settings > Env Vars.
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://chillers-pi.vercel.app");
 
 export const SITE_URL = siteUrl.replace(/\/$/, "");
 export const SITE_NAME = "CHILLERS";

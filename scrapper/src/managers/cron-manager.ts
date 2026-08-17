@@ -61,13 +61,23 @@ export function runMaintenanceTasks() {
   runner('Linking TMDB Séries', 'src/maintenance/link-series-tmdb.ts');
 }
 
+export function runKeepAliveTasks() {
+  console.log(`[${new Date().toISOString()}] [Cron] Lancement du Keep-Alive Uqload...`);
+  runner('KeepAlive Uqload', 'src/maintenance/keepalive-uqload.ts');
+}
+
 export function startCron() {
   if (isRunning) return;
   cronTasks = [
+    // Maintenance quotidienne à 10h00 UTC
     cron.schedule('0 10 * * *', runMaintenanceTasks),
+    // Keep-Alive Uqload : le 1er de chaque mois à 03h00 UTC
+    // Uqload supprime les fichiers après 90j sans activité — on ping tout chaque mois
+    cron.schedule('0 3 1 * *', runKeepAliveTasks),
   ];
   isRunning = true;
-  console.log('[Cron] Maintenance planifiée à 11h00 (heure Cameroun, UTC+1)');
+  console.log('[Cron] Maintenance quotidienne planifiée à 10h00 UTC');
+  console.log('[Cron] Keep-Alive Uqload planifié le 1er de chaque mois à 03h00 UTC');
 }
 
 export function stopCron() {
