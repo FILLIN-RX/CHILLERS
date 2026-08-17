@@ -75,7 +75,7 @@ export default function MultiDownloadModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="relative w-full max-w-lg mx-4 bg-brand-card rounded-3xl border border-brand-border glass-modal shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-lg mx-4 bg-[#141414] rounded-md sm:rounded-lg shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex-none px-5 pt-5 pb-4 border-b border-white/8">
           <div className="flex items-start justify-between gap-3">
@@ -253,7 +253,7 @@ export default function MultiDownloadModal({
             <button
               onClick={() => setStarted(true)}
               disabled={totals.ready === 0}
-              className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-full font-bold text-sm bg-emerald-500 text-white hover:bg-emerald-400 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-emerald-900/30"
+              className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded font-bold text-sm bg-white text-black hover:bg-zinc-200 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg"
             >
               <IconDownload className="h-4 w-4" />
               {totals.ready > 0
@@ -265,14 +265,14 @@ export default function MultiDownloadModal({
               {totals.running > 0 && (
                 <button
                   onClick={batch.cancelAll}
-                  className="flex-1 px-4 py-3 rounded-full font-bold text-sm bg-white/10 text-white hover:bg-white/15 transition-all"
+                  className="flex-1 px-4 py-3 rounded font-bold text-sm bg-zinc-800 text-white hover:bg-zinc-700 transition-all"
                 >
                   Tout arrêter
                 </button>
               )}
               <button
                 onClick={onClose}
-                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-full font-bold text-sm bg-emerald-500 text-white hover:bg-emerald-400 transition-all shadow-lg shadow-emerald-900/30"
+                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded font-bold text-sm bg-white text-black hover:bg-zinc-200 transition-all shadow-lg"
               >
                 <IconDownload className="h-4 w-4" />
                 {totals.done === totals.total && totals.total > 0

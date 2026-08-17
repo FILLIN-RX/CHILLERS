@@ -283,16 +283,19 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
     (id: string) => {
       requestCancel(id);
       const entry = runtimeRef.current.get(id);
-      if (!entry) return;
-      if (entry.retryTimer) {
-        clearTimeout(entry.retryTimer);
-        entry.retryTimer = null;
+      if (entry) {
+        if (entry.retryTimer) {
+          clearTimeout(entry.retryTimer);
+          entry.retryTimer = null;
+        }
+        entry.ctrl.abort();
+        runtimeRef.current.delete(id);
+      } else {
+        // If it's not in runtime, we must forcefully cancel it (e.g. queued/ready)
+        setStatus(id, "canceled");
       }
-      entry.ctrl.abort();
-      // Clear the runtime entry so the pool doesn't try to re-pick it.
-      runtimeRef.current.delete(id);
     },
-    [requestCancel],
+    [requestCancel, setStatus],
   );
 
   const retryOne = useCallback(
@@ -315,7 +318,15 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
       requestCancel(id);
       ctrl.abort();
     }
-  }, [requestCancel]);
+    // Forcefully cancel any queued or ready tasks that weren't in runtime
+    tasks.forEach((t) => {
+      if (t.tmdbId === String(tmdbId)) {
+        if (t.status === "queued" || t.status === "ready") {
+          setStatus(t.id, "canceled");
+        }
+      }
+    });
+  }, [requestCancel, tasks, setStatus, tmdbId]);
 
   const resumeAll = useCallback(() => {
     tasks

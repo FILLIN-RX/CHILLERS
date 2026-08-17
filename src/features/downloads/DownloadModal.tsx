@@ -91,12 +91,12 @@ export default function DownloadModal({
     >
       <div
         ref={modalRef}
-        className="relative w-full max-w-md mx-4 bg-brand-card rounded-3xl border border-brand-border glass-modal p-8 text-center"
+        className="relative w-full max-w-md mx-4 bg-[#141414] rounded-md shadow-2xl p-8 text-center"
       >
         <button
           onClick={onClose}
           aria-label="Fermer"
-          className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 text-white/60 hover:text-white transition-all"
+          className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 text-zinc-400 hover:text-white transition-all"
         >
           <IconX className="h-5 w-5" />
         </button>
@@ -135,26 +135,26 @@ export default function DownloadModal({
         {showReady && (
           <button
             onClick={dl.start}
-            className="w-full px-8 py-3 rounded-full bg-brand-primary text-white font-bold text-sm hover:opacity-90 transition-all flex items-center justify-center gap-2"
+            className="w-full px-8 py-3 rounded bg-white text-black font-bold text-sm hover:bg-zinc-200 transition-all flex items-center justify-center gap-2"
           >
-            <IconDownload className="h-4 w-4" />
-            {_("download.start")}
+            <IconDownload className="h-5 w-5" />
+            Démarrer le téléchargement
           </button>
         )}
 
         {dl.status === "error" && (
           <button
             onClick={dl.retry}
-            className="w-full px-8 py-3 rounded-full bg-brand-primary text-white font-bold text-sm hover:opacity-90 transition-all"
+            className="w-full px-8 py-3 rounded bg-white text-black font-bold text-sm hover:bg-zinc-200 transition-all"
           >
-            {_("download.retry")}
+            Réessayer
           </button>
         )}
 
         {(showSuccess || showError) && (
           <button
             onClick={onClose}
-            className="w-full px-8 py-3 rounded-full bg-white/10 text-white font-bold text-sm hover:bg-white/20 transition-all"
+            className="w-full px-8 py-3 rounded bg-zinc-800 text-white font-bold text-sm hover:bg-zinc-700 transition-all"
           >
             Fermer
           </button>
@@ -163,7 +163,7 @@ export default function DownloadModal({
         {dl.status === "downloading" && (
           <button
             onClick={dl.cancel}
-            className="w-full px-8 py-3 rounded-full bg-white/10 text-white font-bold text-sm hover:bg-white/20 transition-all"
+            className="w-full px-8 py-3 rounded bg-zinc-800 text-white font-bold text-sm hover:bg-zinc-700 transition-all mt-3"
           >
             Annuler
           </button>

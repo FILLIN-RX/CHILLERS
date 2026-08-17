@@ -263,7 +263,16 @@ function WatchContent() {
       }
     }
     try {
-      await navigator.clipboard.writeText(url);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = url;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+      }
       setNotification({
         title: _("watch.linkCopied"),
         message: _("watch.linkCopiedDesc"),
@@ -416,18 +425,14 @@ function WatchContent() {
             )}
           </div>
 
-          {/* Metadata like Netflix: Recommandé | 2026 | 18+ | 7 Épisodes | HD | AD))) */}
+          {/* Metadata dynamic */}
           <div className="flex flex-wrap items-center gap-2 text-[13px] sm:text-sm text-zinc-400 font-medium">
-            <span className="text-green-500 font-bold">Recommandé à {Math.round((item.rating || 7) * 10)}%</span>
-            <span>{item.year}</span>
-            <span className="px-1.5 py-0.5 rounded bg-zinc-800 text-[10px] text-white font-bold leading-none flex items-center justify-center">18+</span>
-            {currentEpisode ? (
-              <span>{item.duration}</span>
-            ) : (
-              <span>{item.duration}</span>
+            {item.rating > 0 && (
+              <span className="text-green-500 font-bold">Recommandé à {Math.round(item.rating * 10)}%</span>
             )}
+            {item.year && <span>{item.year}</span>}
             <span className="px-1 py-0.5 rounded border border-zinc-600 text-[10px] uppercase font-bold leading-none">HD</span>
-            <span className="px-1 py-0.5 rounded border border-zinc-600 text-[10px] uppercase font-bold leading-none">AD)))</span>
+            <span>{currentEpisode ? currentEpisode.duration : item.duration}</span>
           </div>
 
           {/* Action Buttons (Lecture / Télécharger) */}
@@ -616,54 +621,54 @@ function EpisodeCard({
   return (
     <div
       onClick={onClick}
-      className={`flex items-start gap-3 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl cursor-pointer transition-all border ${
+      className={`flex flex-col gap-2 p-2 sm:p-3 rounded-md cursor-pointer transition-colors border border-transparent ${
         active
-          ? "bg-brand-primary/10 border-brand-primary/40"
-          : "bg-zinc-900/60 border-zinc-800/40 hover:bg-zinc-800/60 hover:border-zinc-700"
+          ? "bg-zinc-800/60"
+          : "hover:bg-zinc-900 border-b-zinc-800/50"
       }`}
     >
-      <div className="flex-none w-24 sm:w-28 aspect-video rounded-lg overflow-hidden bg-zinc-800 relative">
-        {ep.thumbnail ? (
-          <Image
-            src={ep.thumbnail}
-            alt={ep.title}
-            fill
-            className="object-cover"
-            sizes="(max-width: 640px) 96px, 112px"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <IconMovie className="h-5 w-5 text-zinc-600" />
-          </div>
-        )}
-        {active && (
-          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-            <IconPlayerPlay className="h-6 w-6 text-white" />
-          </div>
-        )}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] sm:text-xs text-zinc-500 font-bold">
-            {ep.number}.
-          </span>
+      <div className="flex items-center gap-3 sm:gap-4">
+        <div className="flex-none w-28 sm:w-36 aspect-video rounded overflow-hidden bg-zinc-800 relative">
+          {ep.thumbnail ? (
+            <Image
+              src={ep.thumbnail}
+              alt={ep.title}
+              fill
+              className="object-cover"
+              sizes="(max-width: 640px) 112px, 144px"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <IconMovie className="h-5 w-5 text-zinc-600" />
+            </div>
+          )}
+          {active && (
+            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+              <IconPlayerPlay className="h-6 w-6 text-white" />
+            </div>
+          )}
+        </div>
+        <div className="flex-1 min-w-0 flex flex-col justify-center">
           <h4
-            className={`text-xs sm:text-sm font-bold truncate ${
-              active ? "text-brand-primary" : "text-white"
+            className={`text-sm font-bold line-clamp-2 leading-tight ${
+              active ? "text-white" : "text-zinc-200"
             }`}
           >
-            {ep.title}
+            {ep.number}. {ep.title}
           </h4>
+          <span className="text-xs text-zinc-400 mt-1">
+            {ep.duration}
+          </span>
         </div>
-        {ep.synopsis && (
-          <p className="text-[11px] sm:text-xs text-zinc-500 mt-0.5 line-clamp-2">
-            {ep.synopsis}
-          </p>
-        )}
-        <span className="text-[10px] text-zinc-600 mt-0.5 block">
-          {ep.duration}
-        </span>
+        <div className="flex-none px-2 hidden sm:block">
+          <IconDownload className="h-6 w-6 text-zinc-500" />
+        </div>
       </div>
+      {ep.synopsis && (
+        <p className="text-xs text-zinc-400 line-clamp-3 leading-snug mt-1">
+          {ep.synopsis}
+        </p>
+      )}
     </div>
   );
 }

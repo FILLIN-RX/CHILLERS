@@ -104,7 +104,7 @@ export default function SeriesDownloadModal({
       }}
     >
       <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" />
-      <div className="relative z-10 w-full sm:max-w-2xl max-h-[92vh] sm:max-h-[85vh] flex flex-col bg-[#111113] border border-white/10 rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden">
+      <div className="relative z-10 w-full sm:max-w-2xl max-h-[92vh] sm:max-h-[85vh] flex flex-col bg-[#141414] rounded-t-md sm:rounded-lg shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex-none px-5 pt-5 pb-4 border-b border-white/8">
           <div className="flex items-start justify-between gap-3">
@@ -156,7 +156,7 @@ export default function SeriesDownloadModal({
             <button
               onClick={downloadSelected}
               disabled={selected.size === 0}
-              className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold bg-brand-primary text-white hover:bg-brand-primary/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 px-4 py-1.5 rounded text-xs font-bold bg-white text-black hover:bg-zinc-200 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <IconDownload className="h-3 w-3" />
               Télécharger ({selected.size})
@@ -253,7 +253,7 @@ export default function SeriesDownloadModal({
           <button
             onClick={downloadSelected}
             disabled={selected.size === 0}
-            className="flex items-center gap-2 px-5 py-2 rounded-full font-bold text-sm bg-emerald-500 text-white hover:bg-emerald-400 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-emerald-900/30"
+            className="flex items-center gap-2 px-5 py-2 rounded font-bold text-sm bg-white text-black hover:bg-zinc-200 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg"
           >
             <IconDownload className="h-4 w-4" />
             Télécharger {selected.size} épisode{selected.size > 1 ? "s" : ""}
