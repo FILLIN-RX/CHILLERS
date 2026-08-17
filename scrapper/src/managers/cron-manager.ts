@@ -92,7 +92,7 @@ function resolveScript(relativePath: string): string {
 
 export const runner = (name: string, scriptPath: string) => {
   if (isDev) {
-    runProcess(name, 'npx', ['tsx', resolveScript(scriptPath)]);
+    runProcess(name, 'node', ['--import', 'tsx', resolveScript(scriptPath)]);
   } else {
     runProcess(name, 'node', [resolveScript(scriptPath)]);
   }

@@ -393,103 +393,105 @@ function WatchContent() {
           </div>
         </div>
 
-        <div className="mt-6 sm:mt-8 space-y-5 px-4 sm:px-6 md:px-12 lg:px-[4%]">
-          {item.genres.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {item.genres.slice(0, 3).map((g) => (
-                <span
-                  key={g}
-                  className="px-3 py-1 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-widest border border-brand-primary/40 text-brand-primary bg-brand-primary/10"
-                >
-                  {g}
-                </span>
-              ))}
-            </div>
-          )}
+        <div className="mt-4 sm:mt-8 space-y-4 sm:space-y-5 px-4 sm:px-6 md:px-12 lg:px-[4%]">
+          {/* Brand Logo / Netflix style */}
+          <div className="flex items-center gap-1.5 mb-1">
+            <span className="text-red-600 font-black tracking-widest text-sm">CHILLERS</span>
+          </div>
 
           <div className="space-y-1">
             <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white leading-tight">
               {item.title}
             </h1>
             {currentEpisode && (
-              <p className="text-zinc-400 text-sm sm:text-base font-semibold flex items-center gap-2 flex-wrap">
-                <span className="text-brand-primary">{_("media.season")} 1</span>
+              <p className="text-zinc-400 text-sm font-semibold flex items-center gap-2 flex-wrap">
+                <span className="text-white">{_("media.season")} {currentEpisode.season || 1}</span>
                 <span className="text-zinc-600">•</span>
-                <span>{_("media.episode")} {currentEpisode.number}</span>
+                <span className="text-white">{_("media.episode")} {currentEpisode.number}</span>
                 <span className="text-zinc-600">•</span>
-                <span className="truncate max-w-xs sm:max-w-md">
+                <span className="truncate text-white max-w-xs sm:max-w-md">
                   {currentEpisode.title}
                 </span>
               </p>
             )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 sm:gap-5 text-sm text-zinc-300 font-medium">
-            <div className="flex items-center gap-1.5 text-amber-400">
-              <IconStar className="h-4 w-4" />
-              <span className="font-bold text-white">{item.rating}</span>
-              <span className="text-zinc-500">/10</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <IconCalendar className="h-4 w-4 text-zinc-500" />
-              <span>{item.year}</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <IconClock className="h-4 w-4 text-zinc-500" />
-              <span>{currentEpisode ? currentEpisode.duration : item.duration}</span>
-            </div>
-            <span className="px-2 py-0.5 rounded border border-zinc-700 text-zinc-400 text-xs uppercase tracking-wider">
-              {item.type}
-            </span>
+          {/* Metadata like Netflix: Recommandé | 2026 | 18+ | 7 Épisodes | HD | AD))) */}
+          <div className="flex flex-wrap items-center gap-2 text-[13px] sm:text-sm text-zinc-400 font-medium">
+            <span className="text-green-500 font-bold">Recommandé à {Math.round((item.rating || 7) * 10)}%</span>
+            <span>{item.year}</span>
+            <span className="px-1.5 py-0.5 rounded bg-zinc-800 text-[10px] text-white font-bold leading-none flex items-center justify-center">18+</span>
+            {currentEpisode ? (
+              <span>{item.duration}</span>
+            ) : (
+              <span>{item.duration}</span>
+            )}
+            <span className="px-1 py-0.5 rounded border border-zinc-600 text-[10px] uppercase font-bold leading-none">HD</span>
+            <span className="px-1 py-0.5 rounded border border-zinc-600 text-[10px] uppercase font-bold leading-none">AD)))</span>
           </div>
 
+          {/* Action Buttons (Lecture / Télécharger) */}
+          <div className="flex flex-col gap-3 py-2">
+            <button
+              onClick={() => {
+                 playerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded bg-white text-black font-bold text-sm hover:bg-zinc-200 transition-colors"
+            >
+              <IconPlayerPlay className="h-5 w-5 fill-black" />
+              Lecture
+            </button>
+            <button
+              onClick={isTV ? handleSeriesDownload : handleDownload}
+              disabled={streamUnavailable}
+              className={`w-full flex items-center justify-center gap-2 py-2.5 rounded font-bold text-sm transition-colors ${
+                streamUnavailable 
+                  ? "bg-zinc-800 text-zinc-500 cursor-not-allowed" 
+                  : "bg-zinc-800 text-white hover:bg-zinc-700"
+              }`}
+            >
+              <IconDownload className="h-5 w-5" />
+              {streamUnavailable ? "Bientôt dispo" : "Télécharger"}
+            </button>
+          </div>
+
+          {/* Synopsis */}
           {(currentEpisode?.synopsis || item.synopsis || item.description) && (
-            <p className="text-zinc-300 text-sm sm:text-base leading-relaxed max-w-3xl">
+            <p className="text-white text-[14px] sm:text-base leading-snug max-w-3xl">
               {currentEpisode?.synopsis || item.synopsis || item.description}
             </p>
           )}
 
-          <div className="flex items-center gap-2 pt-1 overflow-x-auto no-scrollbar">
-            <button
-              onClick={handleDownload}
-              disabled={streamUnavailable}
-              className={`flex-none flex items-center gap-1.5 px-3 py-2 rounded-full font-bold text-xs border transition-all whitespace-nowrap ${
-                streamUnavailable
-                  ? "bg-zinc-800 border-zinc-700 text-zinc-400 cursor-not-allowed"
-                  : "bg-white/10 border-white/20 text-white hover:bg-white/20"
-              }`}
-            >
-              {streamUnavailable ? (
-                <svg className="h-3.5 w-3.5 flex-none" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                </svg>
-              ) : (
-                <IconDownload className="h-3.5 w-3.5" />
-              )}
-              <span>
-                {streamUnavailable ? "Bientôt dispo" : _("download.single")}
-              </span>
+          {/* Cast info */}
+          {item.cast && item.cast.length > 0 && item.cast[0] !== "Cast Info Unavailable" && (
+            <div className="text-[13px] sm:text-sm text-zinc-400 leading-snug">
+              <span className="text-zinc-500">Distribution : </span>
+              {item.cast.join(", ")}
+              <span className="text-white cursor-pointer ml-1 font-semibold">... plus</span>
+            </div>
+          )}
+
+          {/* Action icons: Ma liste, Évaluer, Partager, Télécharger */}
+          <div className="flex items-center gap-6 sm:gap-8 pt-4 pb-2">
+            <button className="flex flex-col items-center gap-1.5 text-zinc-400 hover:text-white transition-colors">
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              <span className="text-[11px] font-medium">Ma liste</span>
             </button>
-
-            {isTV && (
-              <button
-                onClick={handleSeriesDownload}
-                className="flex-none flex items-center gap-1.5 px-3 py-2 rounded-full font-bold text-xs border transition-all whitespace-nowrap bg-white/10 border-white/20 text-white hover:bg-white/20"
-              >
-                <IconDownload className="h-3.5 w-3.5" />
-                <span className="sm:hidden">Série</span>
-                <span className="hidden sm:inline">{_("download.all")}</span>
-              </button>
-            )}
-
-            <button
-              onClick={handleShare}
-              aria-label={_("media.share")}
-              className="flex-none flex items-center gap-1.5 px-3 py-2 rounded-full font-bold text-xs bg-white/10 border border-white/20 text-white hover:bg-white/20 transition-all whitespace-nowrap"
-            >
-              <IconShare className="h-3.5 w-3.5" />
-              <span className="sm:hidden">Partager</span>
-              <span className="hidden sm:inline">{_("media.share")}</span>
+            <button className="flex flex-col items-center gap-1.5 text-zinc-400 hover:text-white transition-colors">
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6.633 10.5c.806 0 1.533-.446 2.031-1.08a9.041 9.041 0 012.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 00.322-1.672V3a.75.75 0 01.75-.75A2.25 2.25 0 0116.5 4.5c0 1.152-.26 2.243-.723 3.218-.266.558.107 1.282.725 1.282h3.126c1.026 0 1.945.694 2.054 1.715.045.422.068.85.068 1.285a11.95 11.95 0 01-2.649 7.521c-.388.482-.987.729-1.605.729H13.48c-.483 0-.964-.078-1.423-.23l-3.114-1.04a4.501 4.501 0 00-1.423-.23H5.904M14.25 9h2.25" />
+              </svg>
+              <span className="text-[11px] font-medium">Évaluer</span>
+            </button>
+            <button onClick={handleShare} className="flex flex-col items-center gap-1.5 text-zinc-400 hover:text-white transition-colors">
+              <IconShare className="h-6 w-6" />
+              <span className="text-[11px] font-medium">Partager</span>
+            </button>
+            <button onClick={handleDownload} disabled={streamUnavailable} className={`flex flex-col items-center gap-1.5 transition-colors ${streamUnavailable ? "text-zinc-600" : "text-zinc-400 hover:text-white"}`}>
+              <IconDownload className="h-6 w-6" />
+              <span className="text-[11px] font-medium">Télécharger</span>
             </button>
           </div>
         </div>
@@ -513,26 +515,7 @@ function WatchContent() {
           </section>
         )}
 
-        {item.cast &&
-          item.cast.length > 0 &&
-          item.cast[0] !== "Cast Info Unavailable" && (
-            <section className="mt-12 space-y-4">
-              <h2 className="text-lg sm:text-xl font-black text-white flex items-center gap-3">
-                <span className="h-5 w-1 rounded-full bg-brand-secondary" />
-                {_("media.cast")}
-              </h2>
-              <div className="flex flex-wrap gap-2">
-                {item.cast.map((actor) => (
-                  <span
-                    key={actor}
-                    className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-zinc-900 border border-zinc-800 text-xs sm:text-sm font-medium text-zinc-300 hover:border-zinc-600 transition-colors"
-                  >
-                    {actor}
-                  </span>
-                ))}
-              </div>
-            </section>
-          )}
+
 
         {similar.length > 0 && (
           <section className="mt-12 space-y-4">

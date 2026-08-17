@@ -17,7 +17,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   try {
     const endpoint = isTV ? "tv" : "movies";
     const res = await fetch(`${API_BASE}/${endpoint}/${id}?language=fr`, {
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(15000),
     });
     const json = await res.json();
 
