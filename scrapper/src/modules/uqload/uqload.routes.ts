@@ -13,6 +13,48 @@ function getClient(req: AuthRequest): UqloadClient | null {
   return new UqloadClient(apiKey);
 }
 
+/**
+ * GET /uqload/file-info/:code
+ * Retourne les infos temps réel d'un fichier Uqload depuis l'API officielle :
+ * vues totales, durée, date création, statut, miniature.
+ */
+router.get('/uqload/file-info/:code', adminMiddleware, async (req: AuthRequest, res: Response) => {
+  const client = getClient(req);
+  if (!client) {
+    res.status(400).json({ success: false, data: null, message: 'UQLOAD_API_KEY non configurée' });
+    return;
+  }
+  try {
+    const code = req.params.code as string;
+    const info = await client.getFileInfo(code);
+    if (!info.result || info.result.length === 0) {
+      res.status(404).json({ success: false, data: null, message: 'Fichier introuvable sur Uqload' });
+      return;
+    }
+    const f = info.result[0];
+    res.json({
+      success: true,
+      data: {
+        code:       f.file_code,
+        title:      f.file_title,
+        views:      parseInt(f.file_views, 10) || 0,
+        duration:   f.file_length,
+        createdAt:  f.file_created,
+        public:     f.file_public === '1',
+        canPlay:    f.canplay === 1,
+        status:     f.status,
+        thumbnail:  f.player_img,
+        tags:       f.tags || null,
+        embedUrl:   `https://uqload.is/embed-${f.file_code}.html`,
+      },
+      message: null,
+    });
+  } catch (e: any) {
+    res.status(500).json({ success: false, data: null, message: e.message });
+  }
+});
+
+
 router.post('/uqload/upload/movies', adminMiddleware, async (req: AuthRequest, res: Response) => {
   const client = getClient(req);
   if (!client) {

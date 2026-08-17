@@ -4,16 +4,16 @@ import { useEffect, useState, useCallback } from 'react';
 import {
   adminUqloadStatus, adminUqloadPending, adminUqloadPendingBoth,
   adminUqloadUploadMovies, adminUqloadUploadSeries, adminUqloadStop,
-  adminUqloadFiles,
+  adminUqloadFiles, adminUqloadFileInfo,
 } from '@/services/admin';
 import {
   Card, Statistic, Row, Col, Button, Space, Typography, Alert, Spin,
-  Tag, Segmented, Input, Select, Table, Tooltip, Badge,
+  Tag, Segmented, Input, Select, Table, Tooltip, Badge, Modal, Descriptions, Image,
 } from 'antd';
 import {
   CloudUploadOutlined, StopOutlined, ReloadOutlined,
   CheckCircleOutlined, SearchOutlined, LinkOutlined,
-  PlayCircleOutlined, FileTextOutlined,
+  PlayCircleOutlined, FileTextOutlined, InfoCircleOutlined, EyeOutlined,
 } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
@@ -52,6 +52,70 @@ function CopyBtn({ text, label }: { text: string; label?: string }) {
         {label}
       </Button>
     </Tooltip>
+  );
+}
+
+/* ─── FileInfoModal : stats temps réel depuis l'API Uqload ─── */
+function FileInfoModal({ code, title, onClose }: { code: string; title: string; onClose: () => void }) {
+  const [info, setInfo] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    adminUqloadFileInfo(code)
+      .then((res: any) => { setInfo(res.data); })
+      .catch((e: any) => setError(e.message || 'Erreur'))
+      .finally(() => setLoading(false));
+  }, [code]);
+
+  const statusColor = info?.status === 200 ? '#34d399' : info?.status === 0 ? '#fbbf24' : '#f87171';
+  const statusLabel = info?.status === 200 ? 'Actif ✓' : info?.status === 0 ? 'En traitement…' : `Erreur (${info?.status})`;
+
+  return (
+    <Modal
+      open
+      title={<><InfoCircleOutlined style={{ marginRight: 8, color: '#60a5fa' }} />{title}</>}
+      onCancel={onClose}
+      footer={<Button onClick={onClose}>Fermer</Button>}
+      width={560}
+    >
+      {loading && <div style={{ textAlign: 'center', padding: '2rem' }}><Spin /></div>}
+      {error && <Alert type="error" message={error} showIcon />}
+      {info && (
+        <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          {/* Miniature */}
+          {info.thumbnail && (
+            <Image
+              src={info.thumbnail}
+              alt={info.title}
+              width={120}
+              style={{ borderRadius: 6, objectFit: 'cover', flexShrink: 0 }}
+              preview={false}
+            />
+          )}
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <Descriptions column={1} size="small" bordered>
+              <Descriptions.Item label={<><EyeOutlined /> Vues totales</>}>
+                <strong style={{ fontSize: 18, color: '#60a5fa' }}>{info.views.toLocaleString('fr-FR')}</strong>
+              </Descriptions.Item>
+              <Descriptions.Item label="Durée">{info.duration || '—'}</Descriptions.Item>
+              <Descriptions.Item label="Statut">
+                <span style={{ color: statusColor, fontWeight: 600 }}>{statusLabel}</span>
+              </Descriptions.Item>
+              <Descriptions.Item label="Créé le">
+                {info.createdAt ? new Date(info.createdAt).toLocaleString('fr-FR') : '—'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Public">{info.public ? 'Oui' : 'Non'}</Descriptions.Item>
+              <Descriptions.Item label="Lisible">{info.canPlay ? 'Oui ✓' : 'Non ✗'}</Descriptions.Item>
+              {info.tags && <Descriptions.Item label="Tags">{info.tags}</Descriptions.Item>}
+            </Descriptions>
+            <div style={{ marginTop: '0.75rem' }}>
+              <CopyBtn text={info.embedUrl} label="Copier lien embed" />
+            </div>
+          </div>
+        </div>
+      )}
+    </Modal>
   );
 }
 

@@ -183,6 +183,15 @@ export const adminUqloadFiles = (params: {
   return adminRequest<AdminEnvelope<unknown>>(`/uqload/files?${q.toString()}`);
 };
 
+/** Infos temps réel d'un fichier Uqload (vues, durée, statut, miniature…) */
+export const adminUqloadFileInfo = (code: string) =>
+  adminRequest<AdminEnvelope<{
+    code: string; title: string; views: number; duration: string;
+    createdAt: string; public: boolean; canPlay: boolean;
+    status: number; thumbnail: string; tags: string | null; embedUrl: string;
+  }>>(`/uqload/file-info/${encodeURIComponent(code)}`);
+
+
 /* Dead links / TMDB linking */
 
 export const adminUpdateDeadLink = (id: string, lien: string) =>
