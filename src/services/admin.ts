@@ -169,6 +169,19 @@ export const adminUqloadStop = () =>
   adminRequest<AdminEnvelope<unknown>>("/uqload/stop", { method: "POST" });
 export const adminUqloadPendingBoth = () =>
   adminRequest<AdminEnvelope<unknown>>("/uqload/pending-both");
+export const adminUqloadFiles = (params: {
+  type?: "movies" | "series" | "all";
+  page?: number;
+  limit?: number;
+  search?: string;
+} = {}) => {
+  const q = new URLSearchParams();
+  if (params.type)   q.set("type",   params.type);
+  if (params.page)   q.set("page",   String(params.page));
+  if (params.limit)  q.set("limit",  String(params.limit));
+  if (params.search) q.set("search", params.search);
+  return adminRequest<AdminEnvelope<unknown>>(`/uqload/files?${q.toString()}`);
+};
 
 /* Dead links / TMDB linking */
 
