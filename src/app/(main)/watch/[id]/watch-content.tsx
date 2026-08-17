@@ -435,17 +435,8 @@ function WatchContent() {
             <span>{currentEpisode ? currentEpisode.duration : item.duration}</span>
           </div>
 
-          {/* Action Buttons (Lecture / Télécharger) */}
+          {/* Action Buttons */}
           <div className="flex flex-col gap-3 py-2">
-            <button
-              onClick={() => {
-                 playerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-              }}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded bg-white text-black font-bold text-sm hover:bg-zinc-200 transition-colors"
-            >
-              <IconPlayerPlay className="h-5 w-5 fill-black" />
-              Lecture
-            </button>
             <button
               onClick={isTV ? handleSeriesDownload : handleDownload}
               disabled={streamUnavailable}

@@ -61,7 +61,8 @@ export async function streamDownloadToDisk(
   const ss = await getStreamSaver();
 
   const { filename, signal, onProgress, throttleMs = 200 } = opts;
-  const writer = (ss as any).createWriteStream(filename);
+  const fileStream = (ss as any).createWriteStream(filename);
+  const writer = fileStream.getWriter();
 
   // Combine the caller's signal with an internal timeout so a stuck server
   // doesn't hang the download forever.
