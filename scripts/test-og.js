@@ -1,12 +1,8 @@
 const https = require('https');
 
 const urls = [
-  { name: 'Game of Thrones (Série)', url: 'https://chillers-pi.vercel.app/watch/1399?type=tv' },
-  { name: 'House of the Dragon (Série)', url: 'https://chillers-pi.vercel.app/watch/94997?type=tv' },
-  { name: 'Spider-Man: No Way Home (Film)', url: 'https://chillers-pi.vercel.app/watch/634649?type=movie' },
-  { name: 'Spider-Man (2002) (Film)', url: 'https://chillers-pi.vercel.app/watch/557?type=movie' },
-  { name: 'Spider-Man: Across the Spider-Verse', url: 'https://chillers-pi.vercel.app/watch/569094?type=movie' },
-  { name: 'Supergirl (Film testé avant)', url: 'https://chillers-pi.vercel.app/watch/1081003?type=movie' },
+  { name: 'Le Diable s\'habille en Prada (watch)', url: 'https://chillers-pi.vercel.app/watch/350?type=movie' },
+  { name: 'Le Diable s\'habille en Prada (media fiche)', url: 'https://chillers-pi.vercel.app/media/350?type=movie' },
 ];
 
 function fetchMeta(item) {

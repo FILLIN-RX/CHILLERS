@@ -12,13 +12,37 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id, seasonNumber } = await params;
 
   try {
-    const res = await fetch(`${API_BASE}/tv/${id}?language=fr`, {
-      signal: AbortSignal.timeout(5000),
-    });
-    const json = await res.json();
+    let d = null;
 
-    if (json.success && json.data) {
-      const d = json.data;
+    // 1. Fetch TMDB directement pour éviter timeout Vercel
+    const tmdbToken = process.env.TMDB_TOKEN || process.env.NEXT_PUBLIC_TMDB_TOKEN;
+    if (tmdbToken) {
+      try {
+        const tmdbRes = await fetch(`https://api.themoviedb.org/3/tv/${id}?language=fr-FR`, {
+          headers: { Authorization: `Bearer ${tmdbToken}` },
+          signal: AbortSignal.timeout(5000),
+        });
+        const json = await tmdbRes.json();
+        if (json && !json.status_code) {
+          d = json;
+        }
+      } catch (err) {
+        console.warn("TMDB fetch failed for OG metadata, falling back to backend...", err);
+      }
+    }
+
+    // 2. Fallback sur le backend
+    if (!d) {
+      const res = await fetch(`${API_BASE}/tv/${id}?language=fr`, {
+        signal: AbortSignal.timeout(8000),
+      });
+      const json = await res.json();
+      if (json.success && json.data) {
+        d = json.data;
+      }
+    }
+
+    if (d) {
       const title = `${d.title || d.name || id} — Saison ${seasonNumber}`;
       const year = d.release_date
         ? new Date(d.release_date).getFullYear()
