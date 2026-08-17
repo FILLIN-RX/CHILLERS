@@ -8,6 +8,13 @@ export const SITE_LOCALE = "fr_FR";
 
 export const TMDB_IMAGE = "https://image.tmdb.org/t/p";
 
+export const DEFAULT_OG_IMAGE = {
+  url: `${SITE_URL}/og-image.png`,
+  width: 1200,
+  height: 630,
+  alt: "CHILLERS — Films et séries en streaming gratuit",
+};
+
 function truncate(text: string, max: number): string {
   const trimmed = text.trim().replace(/\s+/g, " ");
   if (trimmed.length <= max) return trimmed;
@@ -98,6 +105,7 @@ export function buildMediaMetadata(input: MediaMetaInput): Metadata {
       ? [{ url: poster, width: 500, height: 750, alt: `${title}${yearLabel} — affiche` }]
       : []),
   ];
+  const ogImages = images.length > 0 ? images : [DEFAULT_OG_IMAGE];
 
   return {
     title: pageTitle,
@@ -111,14 +119,14 @@ export function buildMediaMetadata(input: MediaMetaInput): Metadata {
       description,
       url: canonical,
       locale: SITE_LOCALE,
-      images,
+      images: ogImages,
     },
     twitter: {
       card: "summary_large_image",
       title: ogTitle,
       description,
       site: "@chillers",
-      images,
+      images: ogImages,
     },
   };
 }

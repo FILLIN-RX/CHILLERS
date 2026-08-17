@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { Suspense } from "react";
 import { API_BASE } from "@/lib/server-api";
-import { buildMediaMetadata, SITE_LOCALE } from "@/lib/seo";
+import { buildMediaMetadata, SITE_LOCALE, DEFAULT_OG_IMAGE } from "@/lib/seo";
 import MediaPageClient from "./client-page";
 
 const LISTING_TYPES = new Set(["movies", "series", "anime"]);
@@ -45,11 +45,13 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
         description: meta.description,
         url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://chillers.vercel.app"}/media/${slug}`,
         locale: SITE_LOCALE,
+        images: [DEFAULT_OG_IMAGE],
       },
       twitter: {
         card: "summary_large_image",
         title: `${meta.title} · CHILLERS`,
         description: meta.description,
+        images: [DEFAULT_OG_IMAGE],
       },
     };
   }

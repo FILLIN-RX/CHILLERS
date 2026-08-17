@@ -13,7 +13,6 @@ import { LRUCache } from 'lru-cache';
 export interface CachedStream {
   embedUrl: string;
   provider: string;
-  downloadUrl?: string;
 }
 
 const STREAM_CACHE_TTL = 10 * 60 * 1000; // 10 minutes

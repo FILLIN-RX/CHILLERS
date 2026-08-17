@@ -20,6 +20,13 @@ const geistMono = Geist_Mono({
 
 const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://chillers.vercel.app").replace(/\/$/, "");
 
+const defaultOgImage = {
+  url: "/og-image.png",
+  width: 1200,
+  height: 630,
+  alt: "CHILLERS — Films et séries en streaming gratuit",
+};
+
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
@@ -55,6 +62,7 @@ export const metadata: Metadata = {
     title: "CHILLERS — Films et séries en streaming gratuit",
     description:
       "Regardez vos films, séries et anime préférés en streaming gratuit et illimité sur CHILLERS, en VF et VOSTFR.",
+    images: [defaultOgImage],
   },
   twitter: {
     card: "summary_large_image",
@@ -63,6 +71,7 @@ export const metadata: Metadata = {
     title: "CHILLERS — Films et séries en streaming gratuit",
     description:
       "Regardez vos films, séries et anime préférés en streaming gratuit et illimité sur CHILLERS, en VF et VOSTFR.",
+    images: [defaultOgImage],
   },
   icons: {
     icon: [
