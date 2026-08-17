@@ -26,6 +26,7 @@ const NAV_ITEMS: MenuProps['items'] = [
   { key: '/admin/add-media', icon: <PlusOutlined />, label: <Link href="/admin/add-media">Ajouter</Link> },
   { key: '/admin/movies', icon: <VideoCameraOutlined />, label: <Link href="/admin/movies">Films</Link> },
   { key: '/admin/series', icon: <VideoCameraOutlined />, label: <Link href="/admin/series">Séries</Link> },
+  { key: '/admin/animes', icon: <VideoCameraOutlined />, label: <Link href="/admin/animes">Animes</Link> },
   { key: '/admin/affiches', icon: <AppstoreOutlined />, label: <Link href="/admin/affiches">Affiches</Link> },
   { key: '/admin/tmdb', icon: <AppstoreOutlined />, label: <Link href="/admin/tmdb">TMDB</Link> },
   { key: '/admin/scrapper', icon: <BugOutlined />, label: <Link href="/admin/scrapper">Scrapper</Link> },

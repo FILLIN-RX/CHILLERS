@@ -117,6 +117,8 @@ export const adminGetScraperState = () => adminRequest<AdminEnvelope<unknown>>("
 
 export const adminGetSerie = (id: string) => adminRequest<AdminEnvelope<unknown>>(`/serie/${id}`);
 
+export const adminGetMovie = (id: string) => adminRequest<AdminEnvelope<unknown>>(`/movie/${id}`);
+
 export const adminGetTmdbStats = () => adminRequest<AdminEnvelope<unknown>>("/tmdb/stats");
 
 export const adminTriggerTmdbLink = (type: string) =>

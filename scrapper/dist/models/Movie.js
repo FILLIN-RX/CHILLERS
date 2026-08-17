@@ -50,5 +50,10 @@ const MovieSchema = new mongoose_1.Schema({
     year: { type: Number },
     streamtapeCode: { type: String },
     streamtapeLink: { type: String },
+    posterUrl: { type: String },
+    posterSource: { type: String, enum: ['tmdb', 'web', 'ai', 'none'], default: undefined },
+    speech: { type: String },
+    disponible: { type: Boolean },
+    disponibleCheckedAt: { type: Date },
 });
 exports.default = mongoose_1.default.model('Movie', MovieSchema);

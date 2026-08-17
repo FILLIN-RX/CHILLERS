@@ -34,6 +34,8 @@ class UqloadClient {
         if (fldId)
             params.fld_id = fldId;
         const res = await this.get('/upload/url', params);
+        if (!res.result)
+            throw new Error(`Uqload API error: ${res.msg || 'result is empty'}`);
         return res.result.filecode;
     }
     async getFileInfo(fileCode) {
@@ -45,7 +47,10 @@ class UqloadClient {
             params.q = quality;
         if (hls)
             params.hls = 1;
-        return this.get('/file/direct_link', params);
+        const res = await this.get('/file/direct_link', params);
+        if (!res.result)
+            throw new Error(`Uqload API error (direct_link): ${res.msg || 'result is empty'}`);
+        return res;
     }
     async getFileList(fldId, page = 1, perPage = 50) {
         const params = { page, per_page: perPage };

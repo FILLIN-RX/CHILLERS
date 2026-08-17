@@ -9,7 +9,8 @@ exports.browserConfig = {
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
-        '--disable-gpu'
+        '--disable-gpu',
+        '--disable-blink-features=AutomationControlled'
     ]
 };
 const getBrowser = async () => {

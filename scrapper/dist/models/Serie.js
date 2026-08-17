@@ -54,7 +54,13 @@ const SerieSchema = new mongoose_1.Schema({
     titre: { type: String, required: true, unique: true },
     pageUrl: { type: String, required: true },
     episodes: [EpisodeSchema],
-    tmdbId: { type: Number, index: true }
+    tmdbId: { type: Number, index: true },
+    year: { type: Number },
+    posterUrl: { type: String },
+    posterSource: { type: String, enum: ['tmdb', 'web', 'ai', 'none'], default: undefined },
+    speech: { type: String },
+    disponible: { type: Boolean },
+    disponibleCheckedAt: { type: Date },
 }, { timestamps: true });
 SerieSchema.index({ titre: 1, 'episodes.season': 1, 'episodes.episodeNumber': 1 });
 exports.default = mongoose_1.default.model('Serie', SerieSchema);

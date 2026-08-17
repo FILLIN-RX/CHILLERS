@@ -76,6 +76,8 @@ async function main() {
     runner('Scraping Films', 'src/scraping/scrape-films.ts');
     console.log('[Scrapper] Lancement du scraping séries continu...');
     runner('Scraping Séries', 'src/scraping/scrape-series.ts');
+    console.log('[Scrapper] Lancement du scraping animes continu...');
+    runner('Scraping Animes', 'src/scraping/scrape-animes.ts');
   });
 }
 

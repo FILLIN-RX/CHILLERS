@@ -9,6 +9,7 @@
     "start": "node dist/index.js",
     "scrape:films": "npx tsx src/scraping/scrape-films.ts",
     "scrape:series": "npx tsx src/scraping/scrape-series.ts",
+    "scrape:animes": "npx tsx src/scraping/scrape-animes.ts",
     "maintenance": "npx tsx src/maintenance/maintainer.ts",
     "link:movies": "npx tsx src/maintenance/link-movies-tmdb.ts",
     "link:series": "npx tsx src/maintenance/link-series-tmdb.ts"

@@ -33,7 +33,15 @@ async function fetchMissingMedia(title, type, episodeNum) {
         const dlLink = page.locator('a#fs-dl-link');
         const link = await dlLink.getAttribute('href');
         result = { titre: title, lien: link };
-        await Movie_1.default.findOneAndUpdate({ titre: title }, { $set: { titre: title, pageUrl: page.url(), lien: link } }, { upsert: true });
+        let year;
+        try {
+            const yearText = await page.$eval('.fs-meta-tag.accent', (el) => el.innerText.trim());
+            const parsed = parseInt(yearText, 10);
+            if (parsed > 1900 && parsed < 2100)
+                year = parsed;
+        }
+        catch { }
+        await Movie_1.default.findOneAndUpdate({ titre: title }, { $set: { titre: title, pageUrl: page.url(), lien: link, ...(year ? { year } : {}) } }, { upsert: true });
     }
     await browser.close();
     return result;

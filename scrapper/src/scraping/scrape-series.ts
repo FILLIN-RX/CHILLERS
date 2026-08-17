@@ -141,6 +141,20 @@ async function scrapeSeriesDetails() {
 
                 if (serieData.episodes.length === 0) {
                     console.log(`  -> Récupération des épisodes pour : ${titre}`);
+                    // Le player remplit #fs-episode-select en JS (via /api/episodes) :
+                    // il faut attendre que des options existent, sinon
+                    // "option:checked" échoue avec Failed to find element.
+                    try {
+                        await page.waitForFunction(
+                            () => document.querySelectorAll('#fs-episode-select option').length > 0,
+                            { timeout: 45000 }
+                        );
+                    } catch (e) {
+                        console.log(`  -> ⏭ Aucun épisode chargé pour : ${titre}`);
+                        await page.goto(url, { waitUntil: 'networkidle' });
+                        await page.waitForSelector('.fs-card');
+                        continue;
+                    }
                     while (true) {
                         await page.waitForSelector('#fs-episode-select', { state: 'attached', timeout: 10000 });
                         let epTitre = await page.$eval('#fs-episode-select option:checked', (el: any) => el.innerText.trim());

@@ -77,6 +77,8 @@ async function main() {
         (0, cron_manager_1.runner)('Scraping Films', 'src/scraping/scrape-films.ts');
         console.log('[Scrapper] Lancement du scraping séries continu...');
         (0, cron_manager_1.runner)('Scraping Séries', 'src/scraping/scrape-series.ts');
+        console.log('[Scrapper] Lancement du scraping animes continu...');
+        (0, cron_manager_1.runner)('Scraping Animes', 'src/scraping/scrape-animes.ts');
     });
 }
 main().catch((err) => {

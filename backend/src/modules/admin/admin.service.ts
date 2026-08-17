@@ -86,9 +86,29 @@ export function getCronLogs(lines: number = 100) {
 }
 
 export async function searchCollection(type: string, q: string, page: number, limit: number) {
+    const regex = q ? { $regex: q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' } : null;
+
+    if (type === 'animes') {
+        const filter: any = { pageUrl: /newsid/ };
+        if (regex) filter.titre = regex;
+        const [movies, series, total] = await Promise.all([
+            Movie.find(filter, 'titre pageUrl lien tmdbId createdAt uqloadCode uqloadLink fileCode')
+                .sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+            Serie.find(filter, 'titre pageUrl tmdbId createdAt episodes.uqloadCode episodes.fileCode episodes.episode episodes.season episodes.episodeNumber episodes.lien')
+                .sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+            Movie.countDocuments(filter).then(n => Serie.countDocuments(filter).then(m => n + m)),
+        ]);
+        const items = [
+            ...movies.map(m => ({ ...m, kind: 'movie' })),
+            ...series.map(s => ({ ...s, kind: 'series' })),
+        ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .slice((page - 1) * limit, page * limit);
+        return { items, total, page, limit, totalPages: Math.max(1, Math.ceil(total / limit)) };
+    }
+
     const Model: any = type === 'series' ? Serie : Movie;
     const filter: any = {};
-    if (q) filter.titre = { $regex: q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
+    if (regex) filter.titre = regex;
 
     const projection = type === 'series'
       ? 'titre pageUrl lien tmdbId createdAt episodes.uqloadCode episodes.fileCode episodes.episode episodes.season episodes.episodeNumber episodes.lien'
