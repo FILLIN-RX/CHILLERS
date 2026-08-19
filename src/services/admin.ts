@@ -365,3 +365,40 @@ export const adminLiveUpdate = (id: string, data: LiveChannelInput) =>
   liveAdminRequest<AdminEnvelope<LiveChannel>>(`/${id}`, { method: "PUT", body: data });
 export const adminLiveDelete = (id: string) =>
   liveAdminRequest<AdminEnvelope<{ deleted: boolean }>>(`/${id}`, { method: "DELETE" });
+
+/* Assistant IA Marketing & Contenu */
+
+export interface SocialSuggestionItem {
+  platform: string;
+  mediaTitle: string;
+  mediaType: "movie" | "series";
+  tmdbId?: number;
+  hook: string;
+  caption: string;
+  chillersLink: string;
+}
+
+export interface ContentGapItem {
+  tmdbId: number;
+  title: string;
+  type: "movie" | "series";
+  overview?: string;
+  releaseDate?: string;
+  voteAverage?: number;
+  posterPath?: string;
+  reason: string;
+}
+
+export async function adminAiSocialSuggestions() {
+  return adminRequest<AdminEnvelope<{ suggestions: SocialSuggestionItem[]; usedProvider: "gemini" | "groq" }>>(
+    "/ai/social-suggestions",
+    { method: "POST", timeoutMs: 45_000 }
+  );
+}
+
+export async function adminAiContentGap() {
+  return adminRequest<AdminEnvelope<{ items: ContentGapItem[]; usedProvider: "gemini" | "groq" }>>(
+    "/ai/content-gap",
+    { method: "GET", timeoutMs: 45_000 }
+  );
+}

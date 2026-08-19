@@ -19,6 +19,7 @@ import affichesRoutes from './modules/affiches/affiches.routes';
 import liveRoutes from './modules/live/live.routes';
 import subtitlesRoutes from './modules/subtitles/subtitles.routes';
 import torrentsRoutes from './streaming/torrents/torrents.routes';
+import aiRoutes from './modules/ai/ai.routes';
 
 import path from 'path';
 dotenv.config({ path: path.join(__dirname, '../.env') });
@@ -63,6 +64,7 @@ app.use('/api/download', downloadRoutes);
 app.use('/api/doodstream', doodstreamRoutes);
 app.use('/api/otaku', otakuRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/admin/ai', aiRoutes);
 app.use('/api/availability', availabilityRoutes);
 app.use('/api/affiches', affichesRoutes);
 app.use('/api/live', liveRoutes);

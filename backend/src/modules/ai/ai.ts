@@ -142,6 +142,105 @@ export async function generatePosterImage(input: PosterInput): Promise<string | 
   return null;
 }
 
+const GROQ_API_URL = 'https://api.groq.com/openai/v1';
+
+export interface AICompletionOptions {
+  prompt: string;
+  systemPrompt?: string;
+  maxTokens?: number;
+  temperature?: number;
+  jsonMode?: boolean;
+}
+
+export interface AICompletionResult {
+  text: string;
+  usedProvider: 'gemini' | 'groq';
+}
+
+/**
+ * Moteur d'IA unifié : tente d'abord Google Gemini, et en cas d'échec ou d'absence de clé,
+ * bascule automatiquement sur Groq.
+ */
+export async function generateAICompletion(options: AICompletionOptions): Promise<AICompletionResult> {
+  const { prompt, systemPrompt, maxTokens = 2000, temperature = 0.7, jsonMode = false } = options;
+
+  const geminiKey = process.env.AI_GEMINI_KEY || process.env.GEMINI_API_KEY;
+  const groqKey = process.env.AI_GROQ_KEY || process.env.GROQ_API_KEY;
+
+  // 1. Tenter Gemini
+  if (geminiKey) {
+    try {
+      const model = process.env.AI_GEMINI_MODEL || 'gemini-2.5-flash';
+      const contents = systemPrompt
+        ? [{ role: 'user', parts: [{ text: `${systemPrompt}\n\n${prompt}` }] }]
+        : [{ role: 'user', parts: [{ text: prompt }] }];
+
+      const reqBody: any = { contents, generationConfig: { temperature, maxOutputTokens: maxTokens } };
+      if (jsonMode) {
+        reqBody.generationConfig.responseMimeType = 'application/json';
+      }
+
+      const { data } = await axios.post(
+        `${GEMINI_API_URL}/models/${model}:generateContent`,
+        reqBody,
+        { params: { key: geminiKey }, timeout: 30000 }
+      );
+
+      const resultText = data?.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('').trim();
+      if (resultText) {
+        return { text: resultText, usedProvider: 'gemini' };
+      }
+    } catch (err: any) {
+      console.warn('[AI] Gemini API a échoué, bascule sur Groq...', err?.response?.data || err?.message);
+    }
+  }
+
+  // 2. Secours : Groq API
+  if (groqKey) {
+    try {
+      const model = process.env.AI_GROQ_MODEL || 'llama-3.3-70b-versatile';
+      const messages: any[] = [];
+      if (systemPrompt) {
+        messages.push({ role: 'system', content: systemPrompt });
+      }
+      messages.push({ role: 'user', content: prompt });
+
+      const reqBody: any = {
+        model,
+        messages,
+        max_tokens: maxTokens,
+        temperature,
+      };
+      if (jsonMode) {
+        reqBody.response_format = { type: 'json_object' };
+      }
+
+      const { data } = await axios.post(
+        `${GROQ_API_URL}/chat/completions`,
+        reqBody,
+        {
+          headers: {
+            Authorization: `Bearer ${groqKey}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000,
+        }
+      );
+
+      const resultText = data?.choices?.[0]?.message?.content?.trim();
+      if (resultText) {
+        return { text: resultText, usedProvider: 'groq' };
+      }
+    } catch (err: any) {
+      console.error('[AI] Groq API erreur:', err?.response?.data || err?.message);
+    }
+  }
+
+  throw new Error(
+    'Aucun service IA n\'a pu répondre. Veuillez configurer AI_GEMINI_KEY ou AI_GROQ_KEY dans le fichier .env du backend.'
+  );
+}
+
 async function saveGeneratedImage(base64: string, filename: string): Promise<string | null> {
   try {
     const fs = await import('fs');
@@ -156,3 +255,4 @@ async function saveGeneratedImage(base64: string, filename: string): Promise<str
     return null;
   }
 }
+
