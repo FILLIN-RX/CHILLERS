@@ -158,8 +158,9 @@ export interface AICompletionResult {
 }
 
 /**
- * Moteur d'IA unifié : tente d'abord Google Gemini, et en cas d'échec ou d'absence de clé,
- * bascule automatiquement sur Groq.
+ * Moteur d'IA unifié avec tentative multi-modèles :
+ * Tente les modèles Gemini (ex: gemini-3.6-flash, gemini-2.5-flash),
+ * et bascule automatiquement sur Groq (ex: openai/gpt-oss-20b, qwen/qwen3.6-27b) en secours.
  */
 export async function generateAICompletion(options: AICompletionOptions): Promise<AICompletionResult> {
   const { prompt, systemPrompt, maxTokens = 2000, temperature = 0.7, jsonMode = false } = options;
@@ -167,77 +168,93 @@ export async function generateAICompletion(options: AICompletionOptions): Promis
   const geminiKey = process.env.AI_GEMINI_KEY || process.env.GEMINI_API_KEY;
   const groqKey = process.env.AI_GROQ_KEY || process.env.GROQ_API_KEY;
 
-  // 1. Tenter Gemini
+  const geminiModels = [
+    process.env.AI_GEMINI_MODEL,
+    'gemini-3.6-flash',
+    'gemini-2.5-flash',
+  ].filter((m, i, self): m is string => Boolean(m) && self.indexOf(m) === i);
+
+  const groqModels = [
+    process.env.AI_GROQ_MODEL,
+    'openai/gpt-oss-20b',
+    'qwen/qwen3.6-27b',
+    'openai/gpt-oss-120b',
+    'groq/compound-mini',
+  ].filter((m, i, self): m is string => Boolean(m) && self.indexOf(m) === i);
+
+  // 1. Tenter Gemini avec les différents modèles valides
   if (geminiKey) {
-    try {
-      const model = process.env.AI_GEMINI_MODEL || 'gemini-1.5-flash';
-      const contents = systemPrompt
-        ? [{ role: 'user', parts: [{ text: `${systemPrompt}\n\n${prompt}` }] }]
-        : [{ role: 'user', parts: [{ text: prompt }] }];
+    for (const model of geminiModels) {
+      try {
+        const contents = systemPrompt
+          ? [{ role: 'user', parts: [{ text: `${systemPrompt}\n\n${prompt}` }] }]
+          : [{ role: 'user', parts: [{ text: prompt }] }];
 
-      const reqBody: any = { contents, generationConfig: { temperature, maxOutputTokens: maxTokens } };
-      if (jsonMode) {
-        reqBody.generationConfig.responseMimeType = 'application/json';
+        const reqBody: any = { contents, generationConfig: { temperature, maxOutputTokens: maxTokens } };
+        if (jsonMode) {
+          reqBody.generationConfig.responseMimeType = 'application/json';
+        }
+
+        const { data } = await axios.post(
+          `${GEMINI_API_URL}/models/${model}:generateContent`,
+          reqBody,
+          { params: { key: geminiKey }, timeout: 30000 }
+        );
+
+        const resultText = data?.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('').trim();
+        if (resultText) {
+          return { text: resultText, usedProvider: 'gemini' };
+        }
+      } catch (err: any) {
+        console.warn(`[AI] Gemini API (${model}) a échoué:`, err?.response?.data?.error?.message || err?.message);
       }
-
-      const { data } = await axios.post(
-        `${GEMINI_API_URL}/models/${model}:generateContent`,
-        reqBody,
-        { params: { key: geminiKey }, timeout: 30000 }
-      );
-
-      const resultText = data?.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('').trim();
-      if (resultText) {
-        return { text: resultText, usedProvider: 'gemini' };
-      }
-    } catch (err: any) {
-      console.warn('[AI] Gemini API a échoué, bascule sur Groq...', err?.response?.data || err?.message);
     }
   }
 
-  // 2. Secours : Groq API
+  // 2. Secours : Groq API avec les modèles actifs de votre compte
   if (groqKey) {
-    try {
-      const model = process.env.AI_GROQ_MODEL || 'llama-3.1-8b-instant';
-      const messages: any[] = [];
-      if (systemPrompt) {
-        messages.push({ role: 'system', content: systemPrompt });
-      }
-      messages.push({ role: 'user', content: prompt });
-
-      const reqBody: any = {
-        model,
-        messages,
-        max_tokens: maxTokens,
-        temperature,
-      };
-      if (jsonMode) {
-        reqBody.response_format = { type: 'json_object' };
-      }
-
-      const { data } = await axios.post(
-        `${GROQ_API_URL}/chat/completions`,
-        reqBody,
-        {
-          headers: {
-            Authorization: `Bearer ${groqKey}`,
-            'Content-Type': 'application/json',
-          },
-          timeout: 30000,
+    for (const model of groqModels) {
+      try {
+        const messages: any[] = [];
+        if (systemPrompt) {
+          messages.push({ role: 'system', content: systemPrompt });
         }
-      );
+        messages.push({ role: 'user', content: prompt });
 
-      const resultText = data?.choices?.[0]?.message?.content?.trim();
-      if (resultText) {
-        return { text: resultText, usedProvider: 'groq' };
+        const reqBody: any = {
+          model,
+          messages,
+          max_tokens: maxTokens,
+          temperature,
+        };
+        if (jsonMode) {
+          reqBody.response_format = { type: 'json_object' };
+        }
+
+        const { data } = await axios.post(
+          `${GROQ_API_URL}/chat/completions`,
+          reqBody,
+          {
+            headers: {
+              Authorization: `Bearer ${groqKey}`,
+              'Content-Type': 'application/json',
+            },
+            timeout: 30000,
+          }
+        );
+
+        const resultText = data?.choices?.[0]?.message?.content?.trim();
+        if (resultText) {
+          return { text: resultText, usedProvider: 'groq' };
+        }
+      } catch (err: any) {
+        console.warn(`[AI] Groq API (${model}) a échoué:`, err?.response?.data?.error?.message || err?.message);
       }
-    } catch (err: any) {
-      console.error('[AI] Groq API erreur:', err?.response?.data || err?.message);
     }
   }
 
   throw new Error(
-    'Aucun service IA n\'a pu répondre. Veuillez configurer AI_GEMINI_KEY ou AI_GROQ_KEY dans le fichier .env du backend.'
+    'Aucun service IA n\'a pu répondre. Veuillez vérifier vos clés d\'API dans le fichier .env du backend.'
   );
 }
 
