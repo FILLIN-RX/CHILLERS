@@ -200,7 +200,12 @@ export default function AdminAffiches() {
                   showIcon
                   message="Vos suggestions de publication pour aujourd'hui"
                   description="Ces suggestions combinent vos films/séries disponibles avec les sujets tendances actuels du web. Cliquez sur 'Copier le post' pour le coller directement sur votre page."
-                  style={{ marginBottom: 24 }}
+                  style={{
+                    marginBottom: 24,
+                    backgroundColor: '#161b26',
+                    borderColor: '#242e42',
+                    color: '#e6e9f0',
+                  }}
                 />
 
                 {loadingSuggestions ? (
@@ -335,7 +340,12 @@ export default function AdminAffiches() {
                   showIcon
                   message="Recommandations d'ajout par l'IA"
                   description="Ces contenus rencontrent une forte demande actuellement en France et sur les réseaux sociaux. Les ajouter sur CHILLERS vous permettra d'attirer un maximum de trafic."
-                  style={{ marginBottom: 24 }}
+                  style={{
+                    marginBottom: 24,
+                    backgroundColor: '#261c14',
+                    borderColor: '#422f1d',
+                    color: '#e6e9f0',
+                  }}
                 />
 
                 {loadingContentGap ? (

@@ -170,7 +170,7 @@ export async function generateAICompletion(options: AICompletionOptions): Promis
   // 1. Tenter Gemini
   if (geminiKey) {
     try {
-      const model = process.env.AI_GEMINI_MODEL || 'gemini-2.5-flash';
+      const model = process.env.AI_GEMINI_MODEL || 'gemini-1.5-flash';
       const contents = systemPrompt
         ? [{ role: 'user', parts: [{ text: `${systemPrompt}\n\n${prompt}` }] }]
         : [{ role: 'user', parts: [{ text: prompt }] }];
@@ -198,7 +198,7 @@ export async function generateAICompletion(options: AICompletionOptions): Promis
   // 2. Secours : Groq API
   if (groqKey) {
     try {
-      const model = process.env.AI_GROQ_MODEL || 'llama-3.3-70b-versatile';
+      const model = process.env.AI_GROQ_MODEL || 'llama-3.1-8b-instant';
       const messages: any[] = [];
       if (systemPrompt) {
         messages.push({ role: 'system', content: systemPrompt });
