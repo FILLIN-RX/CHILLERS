@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { Suspense } from "react";
 import { API_BASE } from "@/lib/server-api";
-import { buildMediaMetadata } from "@/lib/seo";
+import { buildMediaMetadata, buildMediaJsonLd } from "@/lib/seo";
 import WatchContent from "./watch-content";
 
 type Props = {
@@ -9,44 +9,44 @@ type Props = {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 };
 
+async function fetchMediaData(id: string, isTV: boolean) {
+  let d = null;
+  const tmdbToken = process.env.TMDB_TOKEN || process.env.NEXT_PUBLIC_TMDB_TOKEN;
+  if (tmdbToken) {
+    try {
+      const tmdbRes = await fetch(`https://api.themoviedb.org/3/${isTV ? "tv" : "movie"}/${id}?language=fr-FR`, {
+        headers: { Authorization: `Bearer ${tmdbToken}` },
+        signal: AbortSignal.timeout(5000),
+      });
+      const json = await tmdbRes.json();
+      if (json && !json.status_code) {
+        d = json;
+      }
+    } catch (err) {
+      console.warn("TMDB fetch failed for watch metadata, falling back to backend...", err);
+    }
+  }
+
+  if (!d) {
+    const endpoint = isTV ? "tv" : "movies";
+    const res = await fetch(`${API_BASE}/${endpoint}/${id}?language=fr`, {
+      signal: AbortSignal.timeout(8000),
+    });
+    const json = await res.json();
+    if (json.success && json.data) {
+      d = json.data;
+    }
+  }
+  return d;
+}
+
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const { id } = await params;
   const sp = await searchParams;
   const isTV = sp?.type === "tv" || sp?.type === "series" || sp?.type === "anime";
 
   try {
-    const endpoint = isTV ? "tv" : "movies";
-    let d = null;
-
-    // 1. Essayer de fetch TMDB directement pour éviter que Vercel ne timeout
-    // pendant que le backend Render se réveille (cold start de 50s).
-    const tmdbToken = process.env.TMDB_TOKEN || process.env.NEXT_PUBLIC_TMDB_TOKEN;
-    if (tmdbToken) {
-      try {
-        const tmdbRes = await fetch(`https://api.themoviedb.org/3/${isTV ? "tv" : "movie"}/${id}?language=fr-FR`, {
-          headers: { Authorization: `Bearer ${tmdbToken}` },
-          signal: AbortSignal.timeout(5000),
-        });
-        const json = await tmdbRes.json();
-        if (json && !json.status_code) {
-          d = json;
-        }
-      } catch (err) {
-        console.warn("TMDB fetch failed for OG metadata, falling back to backend...", err);
-      }
-    }
-
-    // 2. Fallback sur le backend
-    if (!d) {
-      const res = await fetch(`${API_BASE}/${endpoint}/${id}?language=fr`, {
-        signal: AbortSignal.timeout(8000),
-      });
-      const json = await res.json();
-      if (json.success && json.data) {
-        d = json.data;
-      }
-    }
-
+    const d = await fetchMediaData(id, isTV);
     if (d) {
       const title = d.title || d.name || id;
       const year = d.release_date
@@ -76,7 +76,40 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   return {};
 }
 
-export default function WatchPage() {
+export default async function WatchPage({ params, searchParams }: Props) {
+  const { id } = await params;
+  const sp = await searchParams;
+  const isTV = sp?.type === "tv" || sp?.type === "series" || sp?.type === "anime";
+  let jsonLd = null;
+
+  try {
+    const d = await fetchMediaData(id, isTV);
+    if (d) {
+      const title = d.title || d.name || id;
+      const year = d.release_date
+        ? new Date(d.release_date).getFullYear()
+        : d.first_air_date
+          ? new Date(d.first_air_date).getFullYear()
+          : undefined;
+      const rating = typeof d.vote_average === "number" ? Math.round(d.vote_average * 10) / 10 : undefined;
+      const genres = Array.isArray(d.genres) ? d.genres.map((g: any) => g.name) : [];
+
+      jsonLd = buildMediaJsonLd({
+        id,
+        title,
+        type: isTV ? "tv" : "movie",
+        overview: d.overview,
+        posterPath: d.poster_path,
+        backdropPath: d.backdrop_path,
+        year,
+        rating,
+        genres,
+        path: `/watch/${id}?type=${isTV ? "tv" : "movie"}`,
+        context: "watch",
+      });
+    }
+  } catch {}
+
   return (
     <Suspense
       fallback={
@@ -85,7 +118,14 @@ export default function WatchPage() {
         </div>
       }
     >
+      {jsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      )}
       <WatchContent />
     </Suspense>
   );
 }
+

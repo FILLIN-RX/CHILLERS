@@ -19,19 +19,21 @@ export const DEFAULT_OG_IMAGE = {
   alt: "CHILLERS — Films et séries en streaming gratuit",
 };
 
-function truncate(text: string, max: number): string {
+function smartTruncate(text: string, max: number): string {
   const trimmed = text.trim().replace(/\s+/g, " ");
   if (trimmed.length <= max) return trimmed;
-  return trimmed.slice(0, max - 1).trimEnd() + "…";
+  const cut = trimmed.slice(0, max - 1);
+  const lastSpace = cut.lastIndexOf(" ");
+  const cleanCut = lastSpace > max * 0.6 ? cut.slice(0, lastSpace) : cut;
+  return cleanCut.replace(/[,;:.!?—\-]+$/, "").trimEnd() + "…";
 }
 
-const DESCRIPTION_MAX = 120; // méta description et cartes sociales (~125 affichés)
-const TITLE_MAX = 49; // + " · CHILLERS" (11) => 60 caractères max
+const DESCRIPTION_MAX = 175; // méta description SEO recommandée par Google (150-180 caractères)
+const TITLE_MAX = 52; // + " · CHILLERS" => 63 caractères max
 
 function buildPageTitle(title: string, year?: number | string): string {
   const t = title.trim().replace(/\s+/g, " ");
   const yearLabel = year ? ` (${year})` : "";
-  // Évite le doublon quand le titre TMDB contient déjà l'année ("Supergirl (2026)")
   const tWithYear = yearLabel && !t.endsWith(yearLabel) ? `${t}${yearLabel}` : t;
   const full = `${tWithYear} en streaming VF/VOSTFR`;
   if (full.length <= TITLE_MAX) return full;
@@ -40,7 +42,7 @@ function buildPageTitle(title: string, year?: number | string): string {
   return (i > 20 ? cut.slice(0, i) : cut).trimEnd() + "…";
 }
 
-interface MediaMetaInput {
+export interface MediaMetaInput {
   id: string;
   title: string;
   type: "movie" | "tv";
@@ -57,12 +59,13 @@ interface MediaMetaInput {
 
 /**
  * Construit une metadata complète et "sur mesure" pour une fiche film/série :
- * titre, description enrichie (année, note, genres, synopsis), poster + backdrop
- * pour l'OG (backdrop en premier, c'est le format 16:9 que les réseaux sociaux
- * préfèrent), URL canonique, locale et card Twitter optimisée.
+ * - Texte d'accroche : "Ce film est disponible sur CHILLERS. [Description TMDB]"
+ * - Images HD TMDB (1280p/780p) + fallback dynamique 16:9 (/api/og)
+ * - URL canonique et Twitter card optimisée
  */
 export function buildMediaMetadata(input: MediaMetaInput): Metadata {
   const {
+    id,
     title,
     type,
     overview,
@@ -78,44 +81,86 @@ export function buildMediaMetadata(input: MediaMetaInput): Metadata {
 
   const isTV = type === "tv";
   const yearLabel = year ? ` (${year})` : "";
-  const genresLabel = genres && genres.length > 0 ? ` ${genres.slice(0, 3).join(", ")}` : "";
-  const ratingLabel = rating ? ` Note : ${rating}/10.` : "";
 
-  const verb = context === "watch" ? "Regardez" : context === "season" ? "Retrouvez" : "Découvrez";
-  const kind =
-    context === "season"
-      ? `${seasonLabel || "cette saison"} de la série`
-      : isTV
-        ? "cette série"
-        : "ce film";
+  // 1. Accroche textuelle conforme ("Ce film est disponible sur CHILLERS...")
+  let prefix = isTV
+    ? context === "season"
+      ? `Cette saison de ${title} est disponible sur CHILLERS.`
+      : `Cette série est disponible sur CHILLERS.`
+    : `Ce film est disponible sur CHILLERS.`;
 
-  const base = `${verb} ${kind} ${title}${yearLabel} en streaming VF/VOSTFR sur CHILLERS.`;
-  const withMeta = `${base}${genresLabel}.${ratingLabel}`;
-  const description = overview
-    ? truncate(`${withMeta} ${overview}`, DESCRIPTION_MAX)
-    : withMeta;
+  let description: string;
+  if (overview && overview.trim().length > 0) {
+    const cleanOverview = overview.trim().replace(/\s+/g, " ");
+    description = smartTruncate(`${prefix} ${cleanOverview}`, DESCRIPTION_MAX);
+  } else {
+    description = `${prefix} Regardez ${title}${yearLabel} en streaming VF et VOSTFR gratuit.`;
+  }
 
   const pageTitle = buildPageTitle(title, year);
   const ogTitle = `${pageTitle} · CHILLERS`;
   const canonical = `${SITE_URL}${path}`;
 
-  const poster = posterPath ? `${TMDB_IMAGE}/w500${posterPath}` : undefined;
+  // 2. Images HD et bannière 16:9 dynamique /api/og
+  const poster = posterPath ? `${TMDB_IMAGE}/w780${posterPath}` : undefined;
   const backdrop = backdropPath ? `${TMDB_IMAGE}/w1280${backdropPath}` : undefined;
+
+  const ogApiParams = new URLSearchParams({
+    id: id.toString(),
+    title,
+    type,
+    ...(posterPath ? { poster: posterPath } : {}),
+    ...(backdropPath ? { backdrop: backdropPath } : {}),
+    ...(year ? { year: year.toString() } : {}),
+    ...(rating ? { rating: rating.toString() } : {}),
+    ...(overview ? { overview: smartTruncate(overview, 120) } : {}),
+  });
+  const dynamicOgUrl = `${SITE_URL}/api/og?${ogApiParams.toString()}`;
+
   const images = [
     ...(backdrop
-      ? [{ url: backdrop, width: 1280, height: 720, alt: `${title}${yearLabel} — photo de couverture` }]
+      ? [
+          {
+            url: backdrop,
+            secureUrl: backdrop,
+            width: 1280,
+            height: 720,
+            alt: `${title}${yearLabel} — photo de couverture HD`,
+            type: "image/jpeg",
+          },
+        ]
       : []),
+    {
+      url: dynamicOgUrl,
+      secureUrl: dynamicOgUrl,
+      width: 1200,
+      height: 630,
+      alt: `${title}${yearLabel} sur CHILLERS`,
+      type: "image/png",
+    },
     ...(poster
-      ? [{ url: poster, width: 500, height: 750, alt: `${title}${yearLabel} — affiche` }]
+      ? [
+          {
+            url: poster,
+            secureUrl: poster,
+            width: 780,
+            height: 1170,
+            alt: `${title}${yearLabel} — affiche HD`,
+            type: "image/jpeg",
+          },
+        ]
       : []),
   ];
+
   const ogImages = images.length > 0 ? images : [DEFAULT_OG_IMAGE];
 
   return {
     title: pageTitle,
     description,
     alternates: { canonical },
-    keywords: [title, ...(genres ?? []), isTV ? "série" : "film", "streaming", "VF", "VOSTFR"].filter(Boolean),
+    keywords: [title, ...(genres ?? []), isTV ? "série" : "film", "streaming", "VF", "VOSTFR", "CHILLERS"].filter(
+      Boolean
+    ),
     openGraph: {
       type: isTV ? "video.tv_show" : "video.movie",
       siteName: SITE_NAME,
@@ -130,7 +175,48 @@ export function buildMediaMetadata(input: MediaMetaInput): Metadata {
       title: ogTitle,
       description,
       site: "@chillers",
+      creator: "@chillers",
       images: ogImages,
     },
   };
 }
+
+/**
+ * Génère l'objet de données structurées Schema.org JSON-LD pour Google Search (Rich Snippets)
+ */
+export function buildMediaJsonLd(input: MediaMetaInput) {
+  const { id, title, type, overview, posterPath, backdropPath, year, rating, path } = input;
+  const isTV = type === "tv";
+  const canonical = `${SITE_URL}${path}`;
+  const poster = posterPath ? `${TMDB_IMAGE}/w780${posterPath}` : `${SITE_URL}/og-image.png`;
+  const backdrop = backdropPath ? `${TMDB_IMAGE}/w1280${backdropPath}` : poster;
+
+  return {
+    "@context": "https://schema.org",
+    "@type": isTV ? "TVSeries" : "Movie",
+    name: title,
+    description: overview || `${title} est disponible sur CHILLERS en streaming gratuit.`,
+    url: canonical,
+    image: [backdrop, poster],
+    ...(year ? { dateCreated: year.toString() } : {}),
+    inLanguage: "fr",
+    ...(rating
+      ? {
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: rating,
+            bestRating: "10",
+            worstRating: "1",
+            ratingCount: 100,
+          },
+        }
+      : {}),
+    offers: {
+      "@type": "Offer",
+      price: "0",
+      priceCurrency: "EUR",
+      availability: "https://schema.org/InStock",
+    },
+  };
+}
+

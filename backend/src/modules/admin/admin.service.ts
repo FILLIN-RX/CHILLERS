@@ -20,8 +20,11 @@ function readLogFile(filename: string, lines: number = 100): string[] {
 }
 
 export async function getDashboardStats() {
+    const animeFilter = { pageUrl: /newsid/ };
     const moviesCount = await Movie.countDocuments();
     const seriesCount = await Serie.countDocuments();
+    const animeMovies = await Movie.countDocuments(animeFilter);
+    const animeSeries = await Serie.countDocuments(animeFilter);
     const completeSeries = await Serie.countDocuments({ pageUrl: { $ne: null }, episodes: { $ne: [] } });
     const totalEpisodes = await Serie.aggregate([
         { $unwind: '$episodes' },
@@ -34,10 +37,16 @@ export async function getDashboardStats() {
 
     const tmdbLinkedMovies = await Movie.countDocuments({ tmdbId: { $ne: null } });
     const tmdbLinkedSeries = await Serie.countDocuments({ tmdbId: { $ne: null } });
+    const tmdbLinkedAnimeMovies = await Movie.countDocuments({ ...animeFilter, tmdbId: { $ne: null } });
+    const tmdbLinkedAnimeSeries = await Serie.countDocuments({ ...animeFilter, tmdbId: { $ne: null } });
 
     return {
         movies: moviesCount,
         series: seriesCount,
+        animes: animeMovies + animeSeries,
+        animeMovies,
+        animeSeries,
+        tmdbLinkedAnimes: tmdbLinkedAnimeMovies + tmdbLinkedAnimeSeries,
         completeSeries,
         totalEpisodes: totalEpisodes[0]?.total || 0,
         deadLinks: deadLinksCount,
@@ -121,9 +130,12 @@ export async function searchCollection(type: string, q: string, page: number, li
 }
 
 export async function getRecentItems() {
-    const [recentMovies, recentSeries] = await Promise.all([
+    const animeFilter = { pageUrl: /newsid/ };
+    const [recentMovies, recentSeries, recentAnimeMovies, recentAnimeSeries] = await Promise.all([
         Movie.find().sort({ createdAt: -1 }).limit(5).select('titre createdAt tmdbId').lean(),
         Serie.find().sort({ createdAt: -1 }).limit(5).select('titre createdAt tmdbId episodes').lean(),
+        Movie.find(animeFilter).sort({ createdAt: -1 }).limit(5).select('titre createdAt tmdbId').lean(),
+        Serie.find(animeFilter).sort({ createdAt: -1 }).limit(5).select('titre createdAt tmdbId episodes').lean(),
     ]);
 
     const now = Date.now();
@@ -152,6 +164,26 @@ export async function getRecentItems() {
             addedAt: s.createdAt,
             ago: fmt(s.createdAt),
         })),
+        animes: [
+            ...recentAnimeMovies.map(m => ({
+                _id: m._id,
+                titre: m.titre,
+                tmdbId: m.tmdbId,
+                kind: 'movie' as const,
+                episodesCount: 1,
+                addedAt: m.createdAt,
+                ago: fmt(m.createdAt),
+            })),
+            ...recentAnimeSeries.map(s => ({
+                _id: s._id,
+                titre: s.titre,
+                tmdbId: s.tmdbId,
+                kind: 'series' as const,
+                episodesCount: (s as any).episodes?.length || 0,
+                addedAt: s.createdAt,
+                ago: fmt(s.createdAt),
+            })),
+        ].sort((a, b) => new Date(b.addedAt).getTime() - new Date(a.addedAt).getTime()).slice(0, 5),
     };
 }
 
@@ -208,9 +240,11 @@ export async function getScraperState() {
     const ScraperState = (await import('../../models/ScraperState')).default;
     const films = await ScraperState.findOne({ name: 'films' });
     const series = await ScraperState.findOne({ name: 'series' });
+    const animes = await ScraperState.findOne({ name: 'animes' });
     return {
         films: films ? { lastPage: films.lastPage, updatedAt: films.updatedAt } : null,
         series: series ? { lastPage: series.lastPage, updatedAt: series.updatedAt } : null,
+        animes: animes ? { lastPage: animes.lastPage, updatedAt: animes.updatedAt } : null,
     };
 }
 

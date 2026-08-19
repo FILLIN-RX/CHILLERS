@@ -9,6 +9,7 @@ import {
 import {
   VideoCameraOutlined, PlaySquareOutlined, FileTextOutlined, WarningOutlined,
   CloudUploadOutlined, ThunderboltOutlined, ClearOutlined, ArrowRightOutlined,
+  TrophyOutlined,
 } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
@@ -19,21 +20,26 @@ interface RecentMovie {
 interface RecentSerie {
   _id: string; titre: string; tmdbId?: number; episodesCount: number; addedAt: string; ago: string;
 }
+interface RecentAnime extends RecentSerie {
+  kind: 'movie' | 'series';
+}
 interface HealthCheck {
   status: string; message: string;
 }
 interface DashboardData {
-  movies: number; series: number; completeSeries: number; totalEpisodes: number;
+  movies: number; series: number; animes: number; animeMovies: number; animeSeries: number;
+  tmdbLinkedAnimes: number; completeSeries: number; totalEpisodes: number;
   deadLinks: number; tmdbLinkedMovies: number; tmdbLinkedSeries: number; uptime: number;
-  recent: { movies: RecentMovie[]; series: RecentSerie[] };
+  recent: { movies: RecentMovie[]; series: RecentSerie[]; animes: RecentAnime[] };
   health: Record<string, HealthCheck>;
 }
 interface ScraperStateItem { lastPage: number; updatedAt: string; }
-interface ScraperStateData { films: ScraperStateItem | null; series: ScraperStateItem | null; }
+interface ScraperStateData { films: ScraperStateItem | null; series: ScraperStateItem | null; animes: ScraperStateItem | null; }
 
 const SHORTCUTS = [
   { href: '/admin/movies', label: 'Films', icon: <VideoCameraOutlined />, color: '#818cf8' },
   { href: '/admin/series', label: 'Séries', icon: <PlaySquareOutlined />, color: '#34d399' },
+  { href: '/admin/animes', label: 'Animes', icon: <TrophyOutlined />, color: '#f472b6' },
   { href: '/admin/tmdb', label: 'TMDB', icon: <CloudUploadOutlined />, color: '#2dd4bf' },
   { href: '/admin/uqload', label: 'Uqload', icon: <CloudUploadOutlined />, color: '#fbbf24' },
   { href: '/admin/logs', label: 'Logs', icon: <FileTextOutlined />, color: '#fbbf24' },
@@ -128,13 +134,45 @@ export default function AdminDashboard() {
     },
   ];
 
+const animeColumns = [
+    {
+      title: 'Titre',
+      dataIndex: 'titre',
+      key: 'titre',
+      render: (t: string, r: RecentAnime) => (
+        <Space size={4}>
+          <Link href={`/admin/animes/${r._id}?kind=${r.kind}`} style={{ color: '#e6e9f0', textDecoration: 'none', fontWeight: 500 }}>
+            {t}
+          </Link>
+          <Tag color={r.kind === 'movie' ? 'geekblue' : 'purple'} style={{ fontSize: 10, marginInlineEnd: 0 }}>
+            {r.kind === 'movie' ? 'Film' : 'Série'}
+          </Tag>
+        </Space>
+      ),
+    },
+    {
+      title: 'Ép.',
+      dataIndex: 'episodesCount',
+      key: 'episodesCount',
+      align: 'right' as const,
+      render: (n: number) => <Tag>{n}</Tag>,
+    },
+    {
+      title: 'Il y a',
+      dataIndex: 'ago',
+      key: 'ago',
+      align: 'right' as const,
+      render: (a: string) => <Text type="secondary" style={{ fontSize: 12 }}>{a}</Text>,
+    },
+  ];
+
   return (
     <div>
       <Title level={3} style={{ marginTop: 0, marginBottom: '1.25rem' }}>Dashboard</Title>
 
       {/* STATS */}
       <Row gutter={[16, 16]} style={{ marginBottom: '1.75rem' }}>
-        <Col xs={24} sm={12} lg={8} xl={5}>
+        <Col xs={24} sm={12} lg={8} xl={4}>
           <Card size="small">
             <Statistic
               title={<span style={{ textTransform: 'uppercase', letterSpacing: '0.06em' }}>Films</span>}
@@ -144,7 +182,7 @@ export default function AdminDashboard() {
             <Text type="secondary" style={{ fontSize: 12 }}>{data.tmdbLinkedMovies} liés TMDB</Text>
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={8} xl={5}>
+        <Col xs={24} sm={12} lg={8} xl={4}>
           <Card size="small">
             <Statistic
               title={<span style={{ textTransform: 'uppercase', letterSpacing: '0.06em' }}>Séries</span>}
@@ -154,7 +192,19 @@ export default function AdminDashboard() {
             <Text type="secondary" style={{ fontSize: 12 }}>{data.tmdbLinkedSeries} liés TMDB</Text>
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={8} xl={5}>
+        <Col xs={24} sm={12} lg={8} xl={4}>
+          <Card size="small">
+            <Statistic
+              title={<span style={{ textTransform: 'uppercase', letterSpacing: '0.06em' }}>Animes</span>}
+              value={data.animes}
+              prefix={<TrophyOutlined style={{ color: '#f472b6', marginRight: 8 }} />}
+            />
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {data.animeMovies} films · {data.animeSeries} séries · {data.tmdbLinkedAnimes} liés TMDB
+            </Text>
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={8} xl={4}>
           <Card size="small">
             <Statistic
               title={<span style={{ textTransform: 'uppercase', letterSpacing: '0.06em' }}>Épisodes</span>}
@@ -164,7 +214,7 @@ export default function AdminDashboard() {
             <Text type="secondary" style={{ fontSize: 12 }}>{data.completeSeries} séries complètes</Text>
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={8} xl={5}>
+        <Col xs={24} sm={12} lg={8} xl={4}>
           <Card size="small">
             <Statistic
               title={<span style={{ textTransform: 'uppercase', letterSpacing: '0.06em' }}>Liens morts</span>}
@@ -254,6 +304,37 @@ export default function AdminDashboard() {
               pagination={false}
               locale={{ emptyText: <Empty description="Aucune série" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
             />
+          </Card>
+        </Col>
+      </Row>
+
+      {/* RECENT ANIMES */}
+      <Row gutter={[16, 16]} style={{ marginBottom: '1.75rem' }}>
+        <Col xs={24} lg={12}>
+          <Card
+            title="Derniers animes ajoutés"
+            size="small"
+            styles={{ body: { padding: 0 } }}
+          >
+            <Table
+              rowKey="_id"
+              size="small"
+              dataSource={data.recent?.animes || []}
+              columns={animeColumns}
+              pagination={false}
+              locale={{ emptyText: <Empty description="Aucun anime" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} lg={12}>
+          <Card size="small" title="Scraping animes">
+            <Statistic
+              value={scraper?.animes ? `Page ${scraper.animes.lastPage}` : '—'}
+              valueStyle={{ fontSize: 22 }}
+            />
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {scraper?.animes ? new Date(scraper.animes.updatedAt).toLocaleString() : 'Aucun scraping'}
+            </Text>
           </Card>
         </Col>
       </Row>
