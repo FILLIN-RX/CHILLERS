@@ -58,13 +58,35 @@ async function getDirectLink(embedUrl: string): Promise<string | null> {
     }
 }
 
+async function fetchWithRetry(url: string, params: any, retries = 3, delayMs = 3500): Promise<any> {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+            const { data } = await axios.get(url, {
+                params,
+                timeout: 30000,
+                headers: { 'User-Agent': 'Mozilla/5.0' }
+            });
+            return data;
+        } catch (err: any) {
+            const is429 = err?.response?.status === 429 || err?.message?.includes('429');
+            if (is429 && attempt < retries) {
+                const wait = delayMs * attempt;
+                console.log(`[ScrapeSeries] [429 RateLimit] Pause de ${wait / 1000}s avant retry (tentative ${attempt}/${retries})...`);
+                await sleep(wait);
+                continue;
+            }
+            if (attempt === retries) {
+                throw err;
+            }
+            await sleep(1500 * attempt);
+        }
+    }
+    return null;
+}
+
 async function fetchSeriesPage(page: number): Promise<FsItem[]> {
     try {
-        const { data } = await axios.get(`${BASE_URL}/api/fs-home`, {
-            params: { category: 'series', page },
-            timeout: 30000,
-            headers: { 'User-Agent': 'Mozilla/5.0' }
-        });
+        const data = await fetchWithRetry(`${BASE_URL}/api/fs-home`, { category: 'series', page });
         return Array.isArray(data?.items) ? data.items : [];
     } catch (err: any) {
         console.error(`[ScrapeSeries] Erreur fetch page ${page}:`, err.message);
@@ -74,11 +96,7 @@ async function fetchSeriesPage(page: number): Promise<FsItem[]> {
 
 async function fetchWatchDetails(id: string): Promise<any> {
     try {
-        const { data } = await axios.get(`${BASE_URL}/api/fs-watch`, {
-            params: { id },
-            timeout: 30000,
-            headers: { 'User-Agent': 'Mozilla/5.0' }
-        });
+        const data = await fetchWithRetry(`${BASE_URL}/api/fs-watch`, { id });
         return data || {};
     } catch (err: any) {
         console.error(`[ScrapeSeries] Erreur fetch fs-watch (${id}):`, err.message);

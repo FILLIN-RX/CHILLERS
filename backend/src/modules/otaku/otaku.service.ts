@@ -17,15 +17,39 @@ function toDownloadUrl(url: string): string {
   return url;
 }
 
+async function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchWithRetry(url: string, params: any, retries = 3, delayMs = 3000): Promise<any> {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const { data } = await axios.get(url, {
+        params,
+        timeout: 20000,
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+      });
+      return data;
+    } catch (err: any) {
+      const is429 = err?.response?.status === 429 || err?.message?.includes('429');
+      if (is429 && attempt < retries) {
+        const wait = delayMs * attempt;
+        console.log(`[Otaku Service] [429 RateLimit] Pause ${wait / 1000}s avant retry...`);
+        await sleep(wait);
+        continue;
+      }
+      if (attempt === retries) throw err;
+      await sleep(1000 * attempt);
+    }
+  }
+  return null;
+}
+
 async function getDirectLink(embedUrl: string): Promise<string | null> {
   try {
     const dlUrl = toDownloadUrl(embedUrl);
     if (!dlUrl) return null;
-    const { data } = await axios.get(`${BASE_URL}/api/dl`, {
-      params: { url: dlUrl },
-      timeout: 15000,
-      headers: { 'User-Agent': 'Mozilla/5.0' }
-    });
+    const data = await fetchWithRetry(`${BASE_URL}/api/dl`, { url: dlUrl });
     return data?.success && data?.downloadUrl ? data.downloadUrl : null;
   } catch {
     return null;
@@ -43,11 +67,7 @@ export async function searchOtaku(title: string, type: 'movie' | 'series' = 'mov
     console.log(`[Otaku Direct API] Searching "${title}" (type: ${type})`);
     
     // 1. Recherche directe via l'API interne d'OpenOtaku
-    const { data } = await axios.get(`${BASE_URL}/api/fs-search`, {
-      params: { q: title },
-      timeout: 15000,
-      headers: { 'User-Agent': 'Mozilla/5.0' }
-    });
+    const data = await fetchWithRetry(`${BASE_URL}/api/fs-search`, { q: title });
 
     const results: Array<{ id: string; title: string; poster?: string }> = data?.results || [];
     if (results.length === 0) {
@@ -78,11 +98,7 @@ export async function searchOtaku(title: string, type: 'movie' | 'series' = 'mov
     }
 
     // 3. Récupérer les détails de visionnage (players / épisodes)
-    const { data: watch } = await axios.get(`${BASE_URL}/api/fs-watch`, {
-      params: { id: bestItem.id },
-      timeout: 15000,
-      headers: { 'User-Agent': 'Mozilla/5.0' }
-    });
+    const watch = await fetchWithRetry(`${BASE_URL}/api/fs-watch`, { id: bestItem.id });
 
     const detailTitle = watch?.meta?.title || bestItem.title || title;
 
