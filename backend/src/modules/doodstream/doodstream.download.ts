@@ -345,6 +345,112 @@ async function findByMongoDB(title?: string, tmdbId?: number, season?: number, e
   return null;
 }
 
+async function resolveLinkFromOpenOtaku(
+  title?: string,
+  tmdbId?: number,
+  season?: number,
+  episode?: number,
+  type?: 'movie' | 'series' | 'anime'
+): Promise<string | null> {
+  try {
+    let searchTitle = title;
+    if (!searchTitle && tmdbId) {
+      const Movie = (await import('../../models/Movie')).default;
+      const Serie = (await import('../../models/Serie')).default;
+      const m = await Movie.findOne({ tmdbId }).lean();
+      if (m?.titre) searchTitle = m.titre;
+      else {
+        const s = await Serie.findOne({ tmdbId }).lean();
+        if (s?.titre) searchTitle = s.titre;
+      }
+    }
+    if (!searchTitle) return null;
+
+    console.log(`[Download OpenOtaku Fallback] Resolving "${searchTitle}" S${season || 1}E${episode || 1}...`);
+
+    const { data: searchRes } = await axios.get('https://www.open-otaku.me/api/fs-search', {
+      params: { q: searchTitle },
+      timeout: 12000,
+      headers: { 'User-Agent': 'Mozilla/5.0' }
+    });
+
+    const results: Array<{ id: string; title: string }> = searchRes?.results || [];
+    if (!results.length) return null;
+
+    let bestId = results[0].id;
+    const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const searchNorm = norm(searchTitle);
+    for (const r of results) {
+      const rNorm = norm(r.title || '');
+      if (rNorm.includes(searchNorm) || searchNorm.includes(rNorm)) {
+        bestId = r.id;
+        break;
+      }
+    }
+
+    const { data: watch } = await axios.get('https://www.open-otaku.me/api/fs-watch', {
+      params: { id: bestId },
+      timeout: 12000,
+      headers: { 'User-Agent': 'Mozilla/5.0' }
+    });
+
+    const isSeries = (season !== undefined && episode !== undefined) || type === 'series' || type === 'anime' || (watch?.episodes && Object.keys(watch.episodes).length > 0);
+
+    if (isSeries && watch?.episodes) {
+      const vfMap = watch.episodes.vf || {};
+      const vostfrMap = watch.episodes.vostfr || {};
+      const version = Object.keys(vfMap).length > 0 ? vfMap : vostfrMap;
+      const targetEp = String(episode || 1);
+      const players = version[targetEp] || Object.values(version)[0] || {};
+      const embedUrl = (players as any).vidzy || (players as any).luluvid || (Object.values(players)[0] as string) || '';
+      if (embedUrl) {
+        let dlUrl = embedUrl;
+        if (dlUrl.includes('vidzy.')) dlUrl = dlUrl.replace('/embed-', '/d/').replace('.html', '_n.html');
+        else if (dlUrl.includes('luluvid.')) dlUrl = dlUrl.replace('/embed-', '/d/').replace('.html', '');
+
+        const { data: dlRes } = await axios.get('https://www.open-otaku.me/api/dl', {
+          params: { url: dlUrl },
+          timeout: 15000,
+          headers: { 'User-Agent': 'Mozilla/5.0' }
+        });
+        if (dlRes?.success && dlRes?.downloadUrl) {
+          console.log(`[Download OpenOtaku Fallback] ✅ Direct link resolved: ${dlRes.downloadUrl.slice(0, 60)}...`);
+          return dlRes.downloadUrl;
+        }
+      }
+    } else {
+      const players = watch?.players || {};
+      const embedUrl =
+        players.vidzy?.default ||
+        players.vidzy?.vff ||
+        players.vidzy?.vf ||
+        players.vidzy?.vostfr ||
+        players.premium?.default ||
+        (Object.values(players)[0] as any)?.default ||
+        '';
+
+      if (embedUrl) {
+        let dlUrl = embedUrl;
+        if (dlUrl.includes('vidzy.')) dlUrl = dlUrl.replace('/embed-', '/d/').replace('.html', '_n.html');
+        else if (dlUrl.includes('luluvid.')) dlUrl = dlUrl.replace('/embed-', '/d/').replace('.html', '');
+
+        const { data: dlRes } = await axios.get('https://www.open-otaku.me/api/dl', {
+          params: { url: dlUrl },
+          timeout: 15000,
+          headers: { 'User-Agent': 'Mozilla/5.0' }
+        });
+        if (dlRes?.success && dlRes?.downloadUrl) {
+          console.log(`[Download OpenOtaku Fallback] ✅ Direct link resolved: ${dlRes.downloadUrl.slice(0, 60)}...`);
+          return dlRes.downloadUrl;
+        }
+      }
+    }
+  } catch (err: any) {
+    console.error(`[Download OpenOtaku Fallback] Error:`, err.message);
+  }
+  return null;
+}
+
 export const getDownloadByTitle = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { title, tmdb_id, file_code, season, episode } = req.query as Record<string, string>;
@@ -385,24 +491,28 @@ export const getDownloadByTitle = async (req: Request, res: Response, next: Next
     }
 
     if (!match) {
+      // Fallback direct sur OpenOtaku
+      const otakuLink = await resolveLinkFromOpenOtaku(title, tmdb_id ? Number(tmdb_id) : undefined, seasonNum, episodeNum, req.query.type as any);
+      if (otakuLink) {
+        return res.json({
+          success: true,
+          data: {
+            fileCode: '',
+            directUrl: otakuLink,
+            downloadUrl: otakuLink,
+            title: title || '',
+          },
+          message: null,
+        });
+      }
+
       return res.json({
         success: false,
         data: null,
-        message: 'No DoodStream file found',
+        message: 'No DoodStream or OpenOtaku file found',
       });
     }
 
-    // ── Résolution de l'URL de téléchargement ────────────────────────────
-    //
-    // Priorité pour les fichiers Uqload :
-    //   1. API direct_link → URL MP4 fraîche → proxy backend (MÊME IP → 200)
-    //   2. Scraping PACKER → flux HLS → FFmpeg proxy (si API indisponible)
-    //   3. DoodStream /d/ en dernier recours
-    //
-    // ⚠ On ne renvoie JAMAIS une URL .mp4 directe au navigateur :
-    //   les tokens Uqload sont liés à l'IP serveur → le browser (IP
-    //   différente) reçoit un 403. Le proxy backend évite ce problème.
-    // ─────────────────────────────────────────────────────────────────────
     let downloadUrl: string | null = null;
 
     const uqloadCode = match.info.uqloadCode ||
@@ -428,9 +538,6 @@ export const getDownloadByTitle = async (req: Request, res: Response, next: Next
     const filename = `${match.info.titre || title || 'video'}.mp4`;
 
     if (uqloadCode) {
-      // ── Priorité 1 : Scraping PACKER → HLS master playlist (avec view ID v) → FFmpeg proxy
-      // L'URL HLS extraite du PACKER contient le paramètre view ID (ex: v=1988399),
-      // ce qui permet à FFmpeg de télécharger et assembler la vidéo MP4 complète.
       const fresh = await getFreshUqloadHls(uqloadCode);
       if (fresh?.type === 'hls') {
         downloadUrl = buildHlsDownloadUrl(fresh.url, filename);
@@ -438,7 +545,6 @@ export const getDownloadByTitle = async (req: Request, res: Response, next: Next
       }
     }
 
-    // ── Fallback : liens stockés en base non-DoodStream ────────────────
     if (!downloadUrl) {
       const linksToTry = [
         match.info.uqloadLink !== match.info.lien ? match.info.uqloadLink : undefined,
@@ -456,7 +562,6 @@ export const getDownloadByTitle = async (req: Request, res: Response, next: Next
       }
     }
 
-    // 3) DoodStream /d/ page as last resort
     if (!downloadUrl) {
       const doodCode =
         match.fileCode ||
@@ -465,6 +570,14 @@ export const getDownloadByTitle = async (req: Request, res: Response, next: Next
         extractDoodFileCode(match.info.lienFallback);
       if (doodCode) {
         downloadUrl = `https://doodstream.com/d/${doodCode}`;
+      }
+    }
+
+    // Dernier recours : résolution directe OpenOtaku à la volée
+    if (!downloadUrl) {
+      const otakuLink = await resolveLinkFromOpenOtaku(match.info.titre || title, tmdb_id ? Number(tmdb_id) : undefined, seasonNum, episodeNum, req.query.type as any);
+      if (otakuLink) {
+        downloadUrl = otakuLink;
       }
     }
 
@@ -489,8 +602,9 @@ export const getDownloadByTitle = async (req: Request, res: Response, next: Next
       },
       message: null,
     });
-  } catch (error) {
-    next(error);
+  } catch (err: any) {
+    console.error('[Download] getDownloadByTitle error:', err);
+    return res.status(500).json({ success: false, data: null, message: err.message });
   }
 };
 
