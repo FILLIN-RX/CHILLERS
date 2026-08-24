@@ -58,11 +58,27 @@ export default function AppShell({ children, showBottomNav }: AppShellProps) {
     window.addEventListener("open-search", handleSearch);
     window.addEventListener("open-donation", handleDonation);
 
+    // Auto-pop donation modal once per session on site load
+    try {
+      const alreadyShown = sessionStorage.getItem("chillers_donation_shown");
+      if (!alreadyShown && !pathname?.startsWith("/admin")) {
+        const timer = setTimeout(() => {
+          setIsDonationOpen(true);
+          sessionStorage.setItem("chillers_donation_shown", "true");
+        }, 1800);
+        return () => {
+          clearTimeout(timer);
+          window.removeEventListener("open-search", handleSearch);
+          window.removeEventListener("open-donation", handleDonation);
+        };
+      }
+    } catch {}
+
     return () => {
       window.removeEventListener("open-search", handleSearch);
       window.removeEventListener("open-donation", handleDonation);
     };
-  }, []);
+  }, [pathname]);
 
   return (
     <MantineProvider theme={theme} forceColorScheme="dark">
