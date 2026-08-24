@@ -49,24 +49,21 @@ export async function uploadToStreamtape(
   }
 
   try {
-    console.log(`[StreamtapeUpload] Starting remote upload: "${title}"`);
+    console.log(`[StreamtapeUpload] Lancement remote upload async: "${title}"`);
     const result = await client.addRemoteUpload(directUrl, undefined, title);
-    const remoteId = (result as any).id;
+    const remoteId = (result as any)?.id || (result as any)?.extid;
     if (!remoteId) {
-      console.log(`[StreamtapeUpload] No remote id returned for "${title}"`);
+      console.log(`[StreamtapeUpload] Pas de remote id retourné pour "${title}"`);
       return null;
     }
 
-    const extid = await pollRemoteUpload(client, remoteId);
-    if (!extid) return null;
+    const embedUrl = `https://streamtape.com/e/${remoteId}`;
+    const directLink = `https://streamtape.com/v/${remoteId}/${encodeURIComponent(title)}`;
 
-    const embedUrl = `https://streamtape.com/e/${extid}`;
-    const directLink = `https://streamtape.com/v/${extid}/${encodeURIComponent(title)}`;
-
-    console.log(`[StreamtapeUpload] ✅ "${title}" → embed=${embedUrl}`);
-    return { linkId: extid, embedUrl, directLink };
+    console.log(`[StreamtapeUpload] ✅ "${title}" (async) → id=${remoteId}`);
+    return { linkId: remoteId, embedUrl, directLink };
   } catch (e: any) {
-    console.log(`[StreamtapeUpload] Upload failed for "${title}": ${e.message}`);
+    console.log(`[StreamtapeUpload] Erreur upload "${title}": ${e.message}`);
     return null;
   }
 }

@@ -20,7 +20,7 @@ const GRACEFUL_KILL_MS = 5000;
 // Mapping centralisé : nom logique → chemin du script
 // Sert à la fois au scheduler et à l'endpoint POST /admin/cron/run/:taskName
 export const ALL_TASKS: Record<string, { label: string; path: string; command: 'tsx' | 'node' }> = {
-    'scraping-films':           { label: 'Scraping Films',            path: 'scraping/core/scrape-films.js',                 command: 'node' },
+    'scraping-films':           { label: 'Scraping Films',            path: 'scraping/core/scrape-films.ts',                 command: 'tsx' },
     'scraping-series':          { label: 'Scraping Séries',           path: 'scraping/core/scrape-series.ts',                command: 'tsx' },
     'scraping-animes':          { label: 'Scraping Animes',           path: 'scraping/core/scrape-animes.ts',                command: 'tsx' },
     'maintenance-liens':        { label: 'Maintenance Liens',         path: 'scraping/maintenance/maintainer.ts',           command: 'tsx' },
@@ -308,7 +308,7 @@ export function getSystemCronStatus(): { present: boolean; lines: string[] } {
 
 export function runScrapingTasks() {
     console.log(`[${new Date().toISOString()}] [Cron] Lancement des tâches de scraping internes...`);
-    runner('Scraping Films', 'scraping/core/scrape-films.js');
+    runner('Scraping Films', 'scraping/core/scrape-films.ts');
     runner('Scraping Séries', 'scraping/core/scrape-series.ts');
     runner('Scraping Animes', 'scraping/core/scrape-animes.ts');
 }
