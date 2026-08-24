@@ -70,7 +70,7 @@ export default function DonationModal({ isOpen, onClose }: DonationModalProps) {
             backdropFilter: "blur(8px)",
             backgroundColor: "rgba(0, 0, 0, 0.75)",
           },
-          content: {
+          body: {
             background: "linear-gradient(180deg, #20131A 0%, #18181B 35%, #121214 100%)",
             border: "1px solid rgba(215, 4, 102, 0.25)",
             boxShadow: "0 25px 50px -12px rgba(215, 4, 102, 0.25), 0 0 40px rgba(0, 0, 0, 0.9)",
