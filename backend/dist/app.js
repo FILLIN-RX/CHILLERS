@@ -24,10 +24,25 @@ const affiches_routes_1 = __importDefault(require("./modules/affiches/affiches.r
 const live_routes_1 = __importDefault(require("./modules/live/live.routes"));
 const subtitles_routes_1 = __importDefault(require("./modules/subtitles/subtitles.routes"));
 const torrents_routes_1 = __importDefault(require("./streaming/torrents/torrents.routes"));
+const ai_routes_1 = __importDefault(require("./modules/ai/ai.routes"));
+const compression_1 = __importDefault(require("compression"));
 const path_1 = __importDefault(require("path"));
 dotenv_1.default.config({ path: path_1.default.join(__dirname, '../.env') });
 const app = (0, express_1.default)();
 app.use((0, cors_1.default)());
+app.use((0, compression_1.default)({
+    filter: (req, res) => {
+        if (req.headers['x-no-compression']) {
+            return false;
+        }
+        const contentType = res.getHeader('Content-Type');
+        if (typeof contentType === 'string' && (contentType.includes('video/') || contentType.includes('application/octet-stream'))) {
+            return false;
+        }
+        return compression_1.default.filter(req, res);
+    },
+    threshold: 512, // Compress payloads larger than 512 bytes
+}));
 app.use((0, helmet_1.default)({
     contentSecurityPolicy: {
         directives: {
@@ -40,7 +55,7 @@ app.use((0, helmet_1.default)({
         },
     },
 }));
-app.use(express_1.default.json());
+app.use(express_1.default.json({ limit: '10mb' }));
 // Fichiers uploadés manuellement par l'admin (uploads/ en mémoire) - servis
 // publiquement pour permettre l'upload Uqload via URL
 app.use('/uploads', express_1.default.static(path_1.default.join(__dirname, '../uploads')));
@@ -61,6 +76,7 @@ app.use('/api/download', download_routes_1.default);
 app.use('/api/doodstream', doodstream_routes_1.default);
 app.use('/api/otaku', otaku_routes_1.default);
 app.use('/api/admin', admin_routes_1.default);
+app.use('/api/admin/ai', ai_routes_1.default);
 app.use('/api/availability', availability_routes_1.default);
 app.use('/api/affiches', affiches_routes_1.default);
 app.use('/api/live', live_routes_1.default);

@@ -11,6 +11,31 @@ import type { MovieOrShow, Genre, MediaType } from "@/types/media";
 
 /* ─── helpers ─────────────────────────────────────────────────────────────── */
 
+export function isSlowConnection(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const nav = navigator as any;
+  const conn = nav.connection || nav.mozConnection || nav.webkitConnection;
+  if (!conn) return false;
+  if (conn.saveData) return true;
+  if (conn.effectiveType === "slow-2g" || conn.effectiveType === "2g" || conn.effectiveType === "3g") return true;
+  return false;
+}
+
+export function getTmdbImageUrl(
+  path?: string | null,
+  type: "poster" | "backdrop" | "still" = "poster"
+): string {
+  if (!path) return "";
+  const isSlow = isSlowConnection();
+  if (type === "backdrop") {
+    return `https://image.tmdb.org/t/p/${isSlow ? "w780" : "w1280"}${path}`;
+  }
+  if (type === "still") {
+    return `https://image.tmdb.org/t/p/${isSlow ? "w300" : "w500"}${path}`;
+  }
+  return `https://image.tmdb.org/t/p/${isSlow ? "w342" : "w500"}${path}`;
+}
+
 function clientLang(): string {
   if (typeof window === "undefined") return "fr";
   try {
@@ -132,7 +157,7 @@ export function mapTMDBToMovieOrShow(
       id: String(s.id),
       name: s.name,
       seasonNumber: s.season_number,
-      posterUrl: s.poster_path ? `https://image.tmdb.org/t/p/w500${s.poster_path}` : "",
+      posterUrl: getTmdbImageUrl(s.poster_path, "poster"),
       episodeCount: s.episode_count ?? 0,
       airDate: s.air_date || undefined,
       episodes: [],
@@ -154,8 +179,8 @@ export function mapTMDBToMovieOrShow(
     if (trailer?.key) trailerUrl = `https://www.youtube.com/embed/${trailer.key}`;
   }
 
-  const backdropUrl = item.backdrop_path ? `https://image.tmdb.org/t/p/w1280${item.backdrop_path}` : "";
-  const posterUrl = item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : "";
+  const backdropUrl = getTmdbImageUrl(item.backdrop_path, "backdrop");
+  const posterUrl = getTmdbImageUrl(item.poster_path, "poster");
 
   return {
     id: String(item.id),

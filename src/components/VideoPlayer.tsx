@@ -24,6 +24,7 @@ import { isIframeProviderUrl, toEmbedUrl } from "@/lib/providers";
 import { useDebouncedEffect } from "@/hooks/useDebouncedEffect";
 import { useStreamUrl } from "@/hooks/useStreamUrl";
 import { useTorrentPlayback } from "@/hooks/useTorrentPlayback";
+import { isSlowConnection } from "@/services/media";
 import Hls from "hls.js";
 
 interface VideoPlayerProps {
@@ -47,6 +48,7 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
 
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [bufferedPct, setBufferedPct] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [volume, setVolume] = useState(1);
@@ -54,6 +56,10 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
   const [playbackRate, setPlaybackRate] = useState(1);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [showSubMenu, setShowSubMenu] = useState(false);
+  const [showQualityMenu, setShowQualityMenu] = useState(false);
+  const [qualityLevels, setQualityLevels] = useState<Array<{ index: number; label: string; height: number; bitrate: number }>>([]);
+  const [currentQuality, setCurrentQuality] = useState<number>(-1);
+  const [isLowBandwidth, setIsLowBandwidth] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [subtitles, setSubtitles] = useState<Array<{ fileId: number; lang: string; langName?: string }>>([]);
   const [activeSubId, setActiveSubId] = useState<number | null>(null);
@@ -184,7 +190,7 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
   }, [p2p.status, resolvedStreamUrl, streamQuery]);
   const isHls = !isIframe && !!videoUrl && (videoUrl.includes(".m3u8") || videoUrl.includes("m3u8"));
 
-  /* ───────── HLS setup ───────── */
+  /* ───────── HLS setup & Network Optimization ───────── */
   useEffect(() => {
     if (isIframe || !videoUrl || !hasStarted) return;
     const video = videoRef.current;
@@ -195,19 +201,71 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
       hlsRef.current = null;
     }
 
+    const slowConn = isSlowConnection();
+    setIsLowBandwidth(slowConn);
+
     if (isHls) {
       if (Hls.isSupported()) {
         const hls = new Hls({
-          maxBufferLength: 30,
-          maxMaxBufferLength: 60,
-          backBufferLength: 2,
-          startLevel: -1,
+          capLevelToPlayerSize: true, // Don't fetch 1080p if screen or window is small
+          abrEwmaDefaultEstimate: slowConn ? 350_000 : 750_000, // conservative bandwidth start
+          abrBandWidthFactor: 0.75, // safety margin before stepping up
+          abrBandWidthUpFactor: 0.7, // slow ramp up prevents buffering jitter
+          maxBufferLength: 30, // 30s forward buffer
+          maxMaxBufferLength: 60, // 60s max
+          backBufferLength: 10, // keep 10s to conserve memory
+          maxBufferSize: 25 * 1024 * 1024,
+          lowLatencyMode: false, // deep buffer for stability on packet-lossy connections
+          startLevel: slowConn ? 0 : -1, // start at lowest bitrate immediately on 2G/3G
+
+          // Aggressive loading retries on bad connections:
+          fragLoadingMaxRetry: 8,
+          fragLoadingRetryDelay: 1000,
+          fragLoadingMaxRetryTimeout: 64000,
+          manifestLoadingMaxRetry: 8,
+          manifestLoadingRetryDelay: 1000,
+          manifestLoadingMaxRetryTimeout: 64000,
+          levelLoadingMaxRetry: 8,
+          levelLoadingRetryDelay: 1000,
+          levelLoadingMaxRetryTimeout: 64000,
         });
+
         hls.loadSource(videoUrl);
         hls.attachMedia(video);
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+
+        hls.on(Hls.Events.MANIFEST_PARSED, (_event, data) => {
+          if (data && data.levels && data.levels.length > 1) {
+            const lvls = data.levels.map((l, idx) => ({
+              index: idx,
+              height: l.height,
+              bitrate: l.bitrate,
+              label: l.height ? `${l.height}p` : `${Math.round(l.bitrate / 1000)}k`,
+            }));
+            setQualityLevels(lvls);
+          }
           video.play().catch(() => {});
         });
+
+        // Error recovery against network dropouts and media stalls
+        hls.on(Hls.Events.ERROR, (_event, data) => {
+          if (data.fatal) {
+            switch (data.type) {
+              case Hls.ErrorTypes.NETWORK_ERROR:
+                console.warn("[HLS] Network error, recovering...", data);
+                hls.startLoad();
+                break;
+              case Hls.ErrorTypes.MEDIA_ERROR:
+                console.warn("[HLS] Media error, recovering...", data);
+                hls.recoverMediaError();
+                break;
+              default:
+                console.error("[HLS] Fatal error, destroying instance", data);
+                hls.destroy();
+                break;
+            }
+          }
+        });
+
         hlsRef.current = hls;
       } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
         video.src = videoUrl;
@@ -225,6 +283,51 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
       }
     };
   }, [videoUrl, isHls, isIframe, hasStarted]);
+
+  /* ───────── Quality Selector Handler ───────── */
+  const changeQuality = useCallback((qualityIndex: number) => {
+    setCurrentQuality(qualityIndex);
+    if (hlsRef.current) {
+      hlsRef.current.currentLevel = qualityIndex;
+    }
+    setShowQualityMenu(false);
+  }, []);
+
+  /* ───────── Buffer range calculation ───────── */
+  const updateProgressAndBuffer = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const cur = video.currentTime || 0;
+    setCurrentTime(cur);
+
+    if (video.duration > 0 && video.buffered.length > 0) {
+      const b = video.buffered;
+      for (let i = 0; i < b.length; i++) {
+        if (b.start(i) <= cur && cur <= b.end(i)) {
+          setBufferedPct(Math.min(100, (b.end(i) / video.duration) * 100));
+          return;
+        }
+      }
+      setBufferedPct(Math.min(100, (b.end(b.length - 1) / video.duration) * 100));
+    }
+  }, []);
+
+  /* ───────── Stall Auto-Recovery Watchdog ───────── */
+  useEffect(() => {
+    if (!isBuffering || !isPlaying) return;
+    const timer = setTimeout(() => {
+      const video = videoRef.current;
+      if (video && video.paused === false) {
+        // Nudge playback slightly to unstick dropped frames or buffer gaps
+        try {
+          if (video.buffered.length > 0) {
+            video.currentTime = video.currentTime + 0.05;
+          }
+        } catch {}
+      }
+    }, 4500);
+    return () => clearTimeout(timer);
+  }, [isBuffering, isPlaying]);
 
   /* ───────── Sous-titres OpenSubtitles ───────── */
   useEffect(() => {
@@ -268,10 +371,6 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
   const handleMouseMove = useCallback(() => {
     scheduleHideControls();
   }, [scheduleHideControls]);
-
-  useEffect(() => {
-    if (!isPlaying) setShowControls(true);
-  }, [isPlaying]);
 
   /* ───────── Contrôles ───────── */
   const togglePlay = useCallback(() => {
@@ -457,8 +556,9 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
             ref={videoRef}
             className="absolute inset-0 w-full h-full object-contain bg-black"
             playsInline
-            preload="metadata"
-            onTimeUpdate={() => setCurrentTime(videoRef.current?.currentTime ?? 0)}
+            preload="auto"
+            onTimeUpdate={updateProgressAndBuffer}
+            onProgress={updateProgressAndBuffer}
             onLoadedMetadata={handleLoadedMetadata}
             onDurationChange={() => setDuration(videoRef.current?.duration ?? 0)}
             onPlay={() => setIsPlaying(true)}
@@ -517,6 +617,12 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
                     S{String(currentEpisode.season ?? 1).padStart(2, "0")}E{String(currentEpisode.number).padStart(2, "0")} · {currentEpisode.title}
                   </span>
                 )}
+                {isLowBandwidth && (
+                  <span className="hidden sm:flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-amber-400 bg-amber-400/10 border border-amber-400/20 rounded-full px-2 py-0.5" title="Mode réseau faible actif - Qualité optimisée">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                    Mode Éco
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-1.5">
                 {/* ── Tuile de statut P2P ── */}
@@ -567,7 +673,7 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
 
             {/* ── Bottom control bar ── */}
             <div className="pointer-events-auto bg-[#111111] px-3 sm:px-4 pt-2 pb-3 space-y-2">
-              {/* ── Progress bar ── */}
+              {/* ── Progress bar with real-time buffered segment indicator ── */}
               <div
                 className="group/prog w-full h-5 flex items-center cursor-pointer"
                 onClick={(e) => {
@@ -577,8 +683,14 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
                 }}
               >
                 <div className="relative w-full h-[3px] group-hover/prog:h-1 rounded-full bg-white/20 transition-all duration-150">
+                  {/* Buffered track */}
                   <div
-                    className="absolute inset-y-0 left-0 bg-white rounded-full"
+                    className="absolute inset-y-0 left-0 bg-white/30 rounded-full transition-all duration-300 pointer-events-none"
+                    style={{ width: `${bufferedPct}%` }}
+                  />
+                  {/* Played track */}
+                  <div
+                    className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#D70466] to-[#7C3AED] rounded-full"
                     style={{ width: duration > 0 ? `${(currentTime / duration) * 100}%` : "0%" }}
                   >
                     <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-3 h-3 bg-white rounded-full shadow opacity-0 group-hover/prog:opacity-100 scale-0 group-hover/prog:scale-100 transition-all duration-150" />
@@ -630,18 +742,57 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
                 {/* Remaining time */}
                 <span className="text-[11px] text-white/50 tabular-nums font-medium mr-1">{formatTime(duration)}</span>
 
-                {/* Right cluster: speed | subtitles | pip | fullscreen */}
+                {/* Right cluster: quality | speed | subtitles | pip | fullscreen */}
                 <div className="flex items-center gap-0.5">
+                  {/* Quality Menu (HLS adaptive / low bandwidth selector) */}
+                  {qualityLevels.length > 0 && (
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => { setShowQualityMenu(!showQualityMenu); setShowSpeedMenu(false); setShowSubMenu(false); }}
+                        className={`px-1.5 py-1 text-[11px] font-bold rounded-md transition-colors ${
+                          currentQuality !== -1 ? "text-[#D70466] bg-[#D70466]/10" : "text-white/75 hover:text-white hover:bg-white/10"
+                        }`}
+                        title="Qualité vidéo"
+                      >
+                        {currentQuality === -1 ? (isLowBandwidth ? "Éco" : "Auto") : qualityLevels.find(q => q.index === currentQuality)?.label || "HD"}
+                      </button>
+                      {showQualityMenu && (
+                        <div className="absolute bottom-full right-0 mb-2 w-32 py-1 bg-[#111] border border-white/10 rounded-xl shadow-2xl flex flex-col z-50">
+                          <button
+                            onClick={() => changeQuality(-1)}
+                            className={`px-3 py-1.5 text-xs text-left font-medium transition-colors ${
+                              currentQuality === -1 ? "text-white font-bold bg-white/10" : "text-white/60 hover:bg-white/10 hover:text-white"
+                            }`}
+                          >
+                            Auto {isLowBandwidth && "(Éco)"}
+                          </button>
+                          {qualityLevels.map((lvl) => (
+                            <button
+                              key={lvl.index}
+                              onClick={() => changeQuality(lvl.index)}
+                              className={`px-3 py-1.5 text-xs text-left font-medium transition-colors ${
+                                currentQuality === lvl.index ? "text-white font-bold bg-white/10" : "text-white/60 hover:bg-white/10 hover:text-white"
+                              }`}
+                            >
+                              {lvl.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Speed */}
                   <div className="relative">
                     <button type="button"
-                      onClick={() => { setShowSpeedMenu(!showSpeedMenu); setShowSubMenu(false); }}
+                      onClick={() => { setShowSpeedMenu(!showSpeedMenu); setShowSubMenu(false); setShowQualityMenu(false); }}
                       className="p-1.5 text-white/75 hover:text-white rounded-md hover:bg-white/10 transition-colors"
                       title="Vitesse">
                       {/* Gear icon */}
                       <svg className="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                         <circle cx="12" cy="12" r="3"/>
-                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
                       </svg>
                     </button>
                     {showSpeedMenu && (
@@ -662,7 +813,7 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
                   {subtitles.length > 0 && (
                     <div className="relative">
                       <button type="button"
-                        onClick={() => { setShowSubMenu(!showSubMenu); setShowSpeedMenu(false); }}
+                        onClick={() => { setShowSubMenu(!showSubMenu); setShowSpeedMenu(false); setShowQualityMenu(false); }}
                         className={`p-1.5 rounded-md transition-colors ${
                           activeSubId !== null ? "text-white" : "text-white/75 hover:text-white hover:bg-white/10"
                         }`} title="Sous-titres">

@@ -7,6 +7,7 @@ import { MantineProvider, createTheme } from "@mantine/core";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import BottomNav from "@/components/BottomNav";
+import NetworkStatusBanner from "@/components/NetworkStatusBanner";
 
 const theme = createTheme({
   primaryColor: "pink",
@@ -73,6 +74,7 @@ export default function AppShell({ children, showBottomNav }: AppShellProps) {
       <Header onSearchClick={() => setIsSearchOpen(true)} />
       <main className="flex-1 flex flex-col">{children}</main>
       <Footer />
+      <NetworkStatusBanner />
       {shouldShowBottomNav && <BottomNav onSearchClick={() => setIsSearchOpen(true)} />}
     </MantineProvider>
   );

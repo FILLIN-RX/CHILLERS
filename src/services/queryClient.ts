@@ -12,17 +12,18 @@ export function getQueryClient(): QueryClient {
   _client = new QueryClient({
     defaultOptions: {
       queries: {
-        // Server-rendered pages don't need to refetch on mount for SEO-friendly data.
-        staleTime: 60_000,
-        gcTime: 5 * 60_000,
-        retry: 1,
+        // High resilience on slow or intermittent mobile networks
+        networkMode: "offlineFirst",
+        staleTime: 5 * 60_000, // 5 min cache
+        gcTime: 30 * 60_000,   // 30 min garbage collection
+        retry: 3,
         refetchOnWindowFocus: false,
-        // We use our own AbortController pattern in service functions; let TanStack Query
-        // abort in-flight requests on unmount by default.
-        retryDelay: (attempt) => Math.min(1_000 * 2 ** attempt, 8_000),
+        refetchOnReconnect: true,
+        retryDelay: (attempt) => Math.min(1_000 * 2 ** attempt, 10_000),
       },
       mutations: {
-        retry: 0,
+        networkMode: "offlineFirst",
+        retry: 1,
       },
     },
   });

@@ -589,13 +589,15 @@ export const proxyStream = async (req: Request, res: Response, next: NextFunctio
     }
 
     const headers: Record<string, string> = {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
       'Referer': referer || 'https://vidzy.cc/',
     };
 
     if (req.headers.range) {
       headers['Range'] = req.headers.range as string;
     }
+
+    const isSegment = /\.(ts|m4s|mp4|webm)(\?|$)/i.test(url) && !url.includes('.m3u8');
 
     const response = await axios.get(url, {
       responseType: 'stream',
@@ -604,8 +606,19 @@ export const proxyStream = async (req: Request, res: Response, next: NextFunctio
       headers,
     });
 
+    // Abort upstream stream if client disconnects
+    req.on('close', () => {
+      try {
+        response.data?.destroy?.();
+      } catch {}
+    });
+
     const contentType = (response.headers['content-type'] as string || '').toLowerCase();
-    const isHls = contentType.includes('mpegurl') || url.endsWith('.m3u8');
+    const isHls = contentType.includes('mpegurl') || url.endsWith('.m3u8') || url.includes('.m3u8?');
+
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Range, User-Agent, Referer, Content-Type');
 
     if (isHls) {
       const contentLength = response.headers['content-length'] as string | undefined;
@@ -613,8 +626,8 @@ export const proxyStream = async (req: Request, res: Response, next: NextFunctio
         res.setHeader('Content-Length', contentLength);
       }
       res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Access-Control-Allow-Origin', '*');
+      // Manifests must not be cached long, but allow small 5s caching to reduce storms on bad networks
+      res.setHeader('Cache-Control', 'public, max-age=5, stale-while-revalidate=10');
 
       const body = await axios.get(url, {
         timeout: 30000,
@@ -647,6 +660,14 @@ export const proxyStream = async (req: Request, res: Response, next: NextFunctio
       return;
     }
 
+    // Static segment (.ts / .m4s / video chunks) caching optimization:
+    // This allows the browser to cache media segments and not redownload them when seeking or rewinding
+    if (isSegment) {
+      res.setHeader('Cache-Control', 'public, max-age=86400, immutable');
+    } else {
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+    }
+
     const contentLength = response.headers['content-length'] as string | undefined;
     if (contentLength) {
       res.setHeader('Content-Length', contentLength);
@@ -657,15 +678,8 @@ export const proxyStream = async (req: Request, res: Response, next: NextFunctio
       res.setHeader('Content-Range', contentRange);
     }
 
-    const acceptRanges = response.headers['accept-ranges'] as string | undefined;
-    if (acceptRanges) {
-      res.setHeader('Accept-Ranges', acceptRanges);
-    }
-
+    res.setHeader('Accept-Ranges', 'bytes');
     res.setHeader('Content-Type', response.headers['content-type'] as string || 'video/mp4');
-    if (req.headers.range) {
-      res.setHeader('Accept-Ranges', 'bytes');
-    }
 
     res.status(response.status);
     response.data.pipe(res);
