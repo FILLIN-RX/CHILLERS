@@ -28,32 +28,62 @@ async function adminRequest<T>(
   path: string,
   options: { method?: "GET" | "POST" | "PUT" | "DELETE"; body?: unknown; timeoutMs?: number } = {},
 ): Promise<T> {
+  const token = getAdminToken();
+  if (!token && !path.startsWith("/auth/login")) {
+    return { success: false, message: "Non authentifié" } as unknown as T;
+  }
   const headers = { Accept: "application/json", ...authHeaders() };
-  return httpJson<T>(`/admin${path}`, {
-    method: options.method ?? "GET",
-    body: options.body,
-    headers,
-    timeoutMs: options.timeoutMs,
-  });
+  try {
+    return await httpJson<T>(`/admin${path}`, {
+      method: options.method ?? "GET",
+      body: options.body,
+      headers,
+      timeoutMs: options.timeoutMs,
+    });
+  } catch (err: any) {
+    if (err?.status === 401 || err?.message?.includes("401")) {
+      if (typeof window !== "undefined") {
+        try { localStorage.removeItem("admin-token"); } catch {}
+      }
+      return { success: false, message: "Session expirée ou non autorisée" } as unknown as T;
+    }
+    throw err;
+  }
 }
 
 /* Auth */
 
 export async function adminLogin(username: string, password: string): Promise<AdminEnvelope<{ token: string }>> {
-  // Login has its own unauth path and stores the token on success.
-  const res = await httpJson<AdminEnvelope<{ token: string }>>("/admin/auth/login", {
-    method: "POST",
-    body: { username, password },
-    timeoutMs: 15_000,
-  });
-  if (res.success && res.data?.token) {
-    try {
-      localStorage.setItem("admin-token", res.data.token);
-    } catch {
-      /* storage disabled */
+  try {
+    // Login has its own unauth path and stores the token on success.
+    const res = await httpJson<AdminEnvelope<{ token: string }>>("/admin/auth/login", {
+      method: "POST",
+      body: { username, password },
+      timeoutMs: 15_000,
+    });
+    if (res.success && res.data?.token) {
+      try {
+        localStorage.setItem("admin-token", res.data.token);
+      } catch {
+        /* storage disabled */
+      }
     }
+    return res;
+  } catch (err: any) {
+    let message = "Erreur de connexion";
+    if (err?.body) {
+      try {
+        const parsed = JSON.parse(err.body);
+        if (parsed?.message) message = parsed.message;
+      } catch {}
+    } else if (err?.message) {
+      message = err.message;
+    }
+    return {
+      success: false,
+      message,
+    };
   }
-  return res;
 }
 
 export async function adminVerify(): Promise<AdminEnvelope<unknown>> {

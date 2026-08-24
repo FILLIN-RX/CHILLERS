@@ -33,26 +33,15 @@ export interface UseDownloadsBatchReturn {
     failed: number;
     canceled: number;
   };
-  /** Cancel a single task (e.g. user clicked "stop" on row). */
   cancelOne: (id: string) => void;
-  /** Retry a single task — re-queues it and the pool picks it up. */
   retryOne: (id: string) => void;
-  /** Cancel every task in this batch. */
   cancelAll: () => void;
-  /** Force-requeue all non-terminal tasks (e.g. after a refresh). */
   resumeAll: () => void;
 }
 
-/**
- * useDownloadsBatch — orchestrates a batch of downloads with a fixed
- * concurrency pool of 3. Each task is independently retried up to MAX_RETRIES
- * times with exponential backoff on transient failure.
- */
 export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatchReturn {
   const { tmdbId, seriesTitle, type, episodes, gated = false } = args;
 
-  // Subscribe to *only* the fields we need, with shallow equality so we
-  // don't re-render when every progress tick mutates `tasks`.
   const tasks = useDownloadsStore((s) => s.tasks);
   const addMany = useDownloadsStore((s) => s.addMany);
   const updateTask = useDownloadsStore((s) => s.update);
@@ -61,7 +50,6 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
   const requestCancel = useDownloadsStore((s) => s.requestCancel);
   const isCancelRequested = useDownloadsStore((s) => s.isCancelRequested);
 
-  // Stable map of per-task runtime state (abort controllers, retry timers).
   const runtimeRef = useRef<
     Map<
       string,
@@ -73,8 +61,9 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
     >
   >(new Map());
 
-  // Stable ref of the latest args so the worker loop doesn't re-create on
-  // every render (the loop reads from refs).
+  const inflightRef = useRef<Set<string>>(new Set());
+  const unmountedRef = useRef(false);
+
   const argsRef = useRef(args);
   const tasksRef = useRef(tasks);
   useEffect(() => {
@@ -82,9 +71,7 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
     tasksRef.current = tasks;
   }, [args, tasks]);
 
-  // Seed the store with task rows on mount / when the episode list changes.
-  // We only keep rows for the *current* selection so stale tasks from a
-  // previous series open don't pile up in the store.
+  // Seed tasks when episodes change
   useEffect(() => {
     const newRows: DownloadTask[] = episodes.map((ep) => {
       const id = downloadTaskId({
@@ -117,167 +104,161 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
     addMany(newRows);
   }, [episodes, addMany, seriesTitle, tmdbId, type]);
 
-  // Pool worker loop. Triggered by every `tasks` change — no setInterval
-  // — so we never pick up an already-canceled task or schedule twice.
-  useEffect(() => {
-    let cancelled = false;
-    const inflight = new Set<Promise<void>>();
+  // Main task execution
+  const runOne = useCallback(async (task: DownloadTask) => {
+    if (unmountedRef.current) return;
+    const { type, seriesTitle, tmdbId } = argsRef.current;
 
-    const pickNext = (): DownloadTask | undefined => {
-      const runtime = runtimeRef.current;
-      const episodesNow = argsRef.current.episodes;
-      const gatedNow = argsRef.current.gated ?? false;
-      const currentTasks = tasksRef.current;
-      const seriesTasks = currentTasks.filter(
-        (t) =>
-          t.tmdbId === String(argsRef.current.tmdbId) &&
-          episodesNow.some(
-            (ep) => ep.number === t.episodeNumber && ep.season === t.season,
-          ),
-      );
-      return seriesTasks.find(
+    const ctrl = new AbortController();
+    runtimeRef.current.set(task.id, { ctrl, retries: 0, retryTimer: null });
+    inflightRef.current.add(task.id);
+
+    if (isCancelRequested(task.id)) {
+      ctrl.abort();
+    }
+
+    try {
+      setStatus(task.id, "resolving");
+
+      let result: { downloadUrl: string; fileCode: string } | null = null;
+      if (task.resolvedUrl) {
+        result = { downloadUrl: task.resolvedUrl, fileCode: "" };
+      } else {
+        result = await resolveDownloadUrl(
+          tmdbId,
+          type,
+          seriesTitle,
+          task.season,
+          task.episodeNumber,
+        );
+      }
+
+      if (ctrl.signal.aborted || isCancelRequested(task.id)) {
+        setStatus(task.id, "canceled");
+        return;
+      }
+
+      if (!result) {
+        setStatus(task.id, "error", "Aucun lien trouvé");
+        return;
+      }
+
+      updateTask(task.id, { resolvedUrl: result.downloadUrl });
+
+      if (argsRef.current.gated) {
+        setStatus(task.id, "ready");
+        return;
+      }
+
+      setStatus(task.id, "downloading");
+
+      await streamDownloadToDisk(result.downloadUrl, {
+        filename: task.filename,
+        signal: ctrl.signal,
+        onProgress: (bytes, total) => {
+          setProgress(task.id, {
+            bytesDownloaded: bytes,
+            totalBytes: total,
+            percent:
+              total && total > 0
+                ? Math.min(100, Math.round((bytes / total) * 100))
+                : null,
+          });
+        },
+      });
+
+      if (ctrl.signal.aborted || isCancelRequested(task.id)) {
+        setStatus(task.id, "canceled");
+      } else {
+        setStatus(task.id, "done");
+      }
+    } catch (err) {
+      const wasAborted = ctrl.signal.aborted || isCancelRequested(task.id);
+      if (wasAborted) {
+        setStatus(task.id, "canceled");
+        return;
+      }
+
+      const prevRetries = runtimeRef.current.get(task.id)?.retries ?? 0;
+      const retries = prevRetries + 1;
+      if (retries <= MAX_RETRIES) {
+        const nextCtrl = new AbortController();
+        runtimeRef.current.set(task.id, {
+          ctrl: nextCtrl,
+          retries,
+          retryTimer: null,
+        });
+        const backoff = 1000 * Math.pow(2, retries - 1);
+        const timer = setTimeout(() => {
+          if (unmountedRef.current) return;
+          const cur = runtimeRef.current.get(task.id);
+          if (cur?.retryTimer === timer) {
+            cur.retryTimer = null;
+          }
+          setStatus(task.id, "queued");
+        }, backoff);
+        const cur = runtimeRef.current.get(task.id);
+        if (cur) cur.retryTimer = timer;
+      } else {
+        const message = err instanceof Error ? err.message : String(err);
+        setStatus(task.id, "error", message);
+      }
+    } finally {
+      inflightRef.current.delete(task.id);
+      const cur = runtimeRef.current.get(task.id);
+      if (cur?.ctrl === ctrl) {
+        runtimeRef.current.delete(task.id);
+      }
+    }
+  }, [isCancelRequested, setProgress, setStatus, updateTask]);
+
+  // Scheduler loop: picks up queued/ready tasks up to concurrency limit
+  const schedule = useCallback(() => {
+    if (unmountedRef.current) return;
+    const episodesNow = argsRef.current.episodes;
+    const gatedNow = argsRef.current.gated ?? false;
+    const currentTasks = tasksRef.current;
+    const seriesTasks = currentTasks.filter(
+      (t) =>
+        t.tmdbId === String(argsRef.current.tmdbId) &&
+        episodesNow.some(
+          (ep) => ep.number === t.episodeNumber && ep.season === t.season,
+        ),
+    );
+
+    while (inflightRef.current.size < MAX_CONCURRENT && !unmountedRef.current) {
+      const next = seriesTasks.find(
         (t) =>
           (t.status === "queued" || (!gatedNow && t.status === "ready")) &&
-          !runtime.has(t.id) &&
+          !inflightRef.current.has(t.id) &&
+          !runtimeRef.current.has(t.id) &&
           !isCancelRequested(t.id),
       );
-    };
+      if (!next) break;
 
-    const runOne = async (task: DownloadTask) => {
-      const { type, seriesTitle, tmdbId } = argsRef.current;
-      // Fresh controller per attempt — never reuse across retries.
-      const ctrl = new AbortController();
-      runtimeRef.current.set(task.id, { ctrl, retries: 0, retryTimer: null });
+      runOne(next).finally(() => {
+        schedule();
+      });
+    }
+  }, [isCancelRequested, runOne]);
 
-      // Honour a cancel request that landed before we started.
-      if (isCancelRequested(task.id)) {
-        ctrl.abort();
-      }
-
-      try {
-        setStatus(task.id, "resolving");
-
-        let result: { downloadUrl: string; fileCode: string } | null = null;
-        if (task.resolvedUrl) {
-          result = { downloadUrl: task.resolvedUrl, fileCode: "" };
-        } else {
-          result = await resolveDownloadUrl(
-            tmdbId,
-            type,
-            seriesTitle,
-            task.season,
-            task.episodeNumber,
-          );
-        }
-
-        if (ctrl.signal.aborted) {
-          setStatus(task.id, "canceled");
-          return;
-        }
-
-        if (!result) {
-          setStatus(task.id, "error", "Aucun lien trouvé");
-          return;
-        }
-
-        updateTask(task.id, { resolvedUrl: result.downloadUrl });
-
-        // Gated mode: stop at "ready" — the pool streams only once ungated.
-        if (argsRef.current.gated) {
-          setStatus(task.id, "ready");
-          return;
-        }
-
-        setStatus(task.id, "downloading");
-
-        await streamDownloadToDisk(result.downloadUrl, {
-          filename: task.filename,
-          signal: ctrl.signal,
-          onProgress: (bytes, total) => {
-            setProgress(task.id, {
-              bytesDownloaded: bytes,
-              totalBytes: total,
-              percent:
-                total && total > 0
-                  ? Math.min(100, Math.round((bytes / total) * 100))
-                  : null,
-            });
-          },
-        });
-
-        if (ctrl.signal.aborted) {
-          setStatus(task.id, "canceled");
-        } else {
-          setStatus(task.id, "done");
-        }
-      } catch (err) {
-        const wasAborted = ctrl.signal.aborted || isCancelRequested(task.id);
-        if (wasAborted) {
-          setStatus(task.id, "canceled");
-          return;
-        }
-
-        const prevRetries = runtimeRef.current.get(task.id)?.retries ?? 0;
-        const retries = prevRetries + 1;
-        if (retries <= MAX_RETRIES) {
-          // Always allocate a *fresh* controller for the retry: the previous
-          // fetch may have left the old one in an aborted state.
-          const nextCtrl = new AbortController();
-          runtimeRef.current.set(task.id, {
-            ctrl: nextCtrl,
-            retries,
-            retryTimer: null,
-          });
-          // Exponential backoff: 1s, 2s, 4s, ...
-          const backoff = 1000 * Math.pow(2, retries - 1);
-          const timer = setTimeout(() => {
-            // If the whole batch was unmounted while we were waiting, drop it.
-            if (cancelled) return;
-            const cur = runtimeRef.current.get(task.id);
-            if (cur?.retryTimer === timer) {
-              cur.retryTimer = null;
-            }
-            setStatus(task.id, "queued");
-          }, backoff);
-          const cur = runtimeRef.current.get(task.id);
-          if (cur) cur.retryTimer = timer;
-        } else {
-          const message = err instanceof Error ? err.message : String(err);
-          setStatus(task.id, "error", message);
-        }
-      } finally {
-        // Only clear if we're still the active run (a retry may have
-        // replaced the runtime entry already).
-        const cur = runtimeRef.current.get(task.id);
-        if (cur?.ctrl === ctrl) {
-          runtimeRef.current.delete(task.id);
-        }
-      }
-    };
-
-    // Continuously schedule until no more slots or tasks.
-    const schedule = () => {
-      while (inflight.size < MAX_CONCURRENT && !cancelled) {
-        const next = pickNext();
-        if (!next) break;
-        const p = runOne(next).finally(() => inflight.delete(p));
-        inflight.add(p);
-      }
-    };
-
+  useEffect(() => {
     schedule();
+  }, [tasks, gated, schedule]);
 
+  // Cleanup ONLY on unmount
+  useEffect(() => {
+    unmountedRef.current = false;
     return () => {
-      cancelled = true;
-      // Tear down inflight controllers + clear any pending retry timers.
+      unmountedRef.current = true;
       runtimeRef.current.forEach(({ ctrl, retryTimer }) => {
         if (retryTimer) clearTimeout(retryTimer);
         ctrl.abort();
       });
       runtimeRef.current.clear();
+      inflightRef.current.clear();
     };
-    // Re-runs whenever the task list changes — that's the only signal we need.
-  }, [tasks, gated, isCancelRequested, setProgress, setStatus, updateTask]);
+  }, []);
 
   const cancelOne = useCallback(
     (id: string) => {
@@ -290,38 +271,36 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
         }
         entry.ctrl.abort();
         runtimeRef.current.delete(id);
-      } else {
-        // If it's not in runtime, we must forcefully cancel it (e.g. queued/ready)
-        setStatus(id, "canceled");
       }
+      inflightRef.current.delete(id);
+      setStatus(id, "canceled");
     },
     [requestCancel, setStatus],
   );
 
   const retryOne = useCallback(
     (id: string) => {
-      // Make sure no zombie controller is left over from a previous attempt.
       const stale = runtimeRef.current.get(id);
       if (stale?.retryTimer) clearTimeout(stale.retryTimer);
       runtimeRef.current.delete(id);
+      inflightRef.current.delete(id);
       setStatus(id, "queued");
     },
     [setStatus],
   );
 
   const cancelAll = useCallback(() => {
-    // Iterate over a snapshot so we can mutate the map safely.
     const snapshot = Array.from(runtimeRef.current.entries());
     runtimeRef.current.clear();
+    inflightRef.current.clear();
     for (const [id, { ctrl, retryTimer }] of snapshot) {
       if (retryTimer) clearTimeout(retryTimer);
       requestCancel(id);
       ctrl.abort();
     }
-    // Forcefully cancel any queued or ready tasks that weren't in runtime
     tasks.forEach((t) => {
       if (t.tmdbId === String(tmdbId)) {
-        if (t.status === "queued" || t.status === "ready") {
+        if (t.status === "queued" || t.status === "ready" || t.status === "resolving" || t.status === "downloading") {
           setStatus(t.id, "canceled");
         }
       }
@@ -330,7 +309,7 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
 
   const resumeAll = useCallback(() => {
     tasks
-      .filter((t) => t.tmdbId === String(tmdbId) && t.status === "paused")
+      .filter((t) => t.tmdbId === String(tmdbId) && (t.status === "paused" || t.status === "canceled"))
       .forEach((t) => setStatus(t.id, "queued"));
   }, [tasks, setStatus, tmdbId]);
 
