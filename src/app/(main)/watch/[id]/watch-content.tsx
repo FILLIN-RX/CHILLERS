@@ -19,7 +19,19 @@ import DownloadModal from "@/features/downloads/DownloadModal";
 import MovieCard from "@/components/MovieCard";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { PopupFirewall } from "@/lib/PopupFirewall";
-import { IconArrowLeft, IconPlayerPlay, IconStar, IconClock, IconCalendar, IconMovie, IconDownload, IconShare } from '@tabler/icons-react';
+import {
+  IconArrowLeft,
+  IconPlayerPlay,
+  IconStar,
+  IconClock,
+  IconCalendar,
+  IconMovie,
+  IconDownload,
+  IconShare,
+  IconChevronDown,
+  IconPlayerTrackNext,
+  IconPlayerTrackPrev,
+} from "@tabler/icons-react";
 
 function WatchContent() {
   const params = useParams();
@@ -33,10 +45,11 @@ function WatchContent() {
     typeParam === "tv" ||
     typeParam === "series" ||
     typeParam === "anime";
-  const seasonParam = searchParams?.get("season");
-  const episodeParam = searchParams?.get("episode");
+  const initialSeasonParam = searchParams?.get("season") || "1";
+  const initialEpisodeParam = searchParams?.get("episode") || "1";
 
   const [item, setItem] = useState<MovieOrShow | null>(null);
+  const [currentSeason, setCurrentSeason] = useState<number>(parseInt(initialSeasonParam) || 1);
   const [streamUrl, setStreamUrl] = useState("");
   const [streamLoading, setStreamLoading] = useState(true);
   const [streamUnavailable, setStreamUnavailable] = useState(false);
@@ -48,13 +61,16 @@ function WatchContent() {
 
   const [similar, setSimilar] = useState<MovieOrShow[]>([]);
 
+  // Modals state
   const [showSingleDownload, setShowSingleDownload] = useState(false);
-  const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const [selectedDownloadEpisode, setSelectedDownloadEpisode] = useState<Episode | null>(null);
+  const [showBatchDownloadModal, setShowBatchDownloadModal] = useState(false);
   const [notification, setNotification] = useState<{ title: string; message: string } | null>(null);
 
   const playerRef = useRef<HTMLDivElement>(null);
   const currentEpisode = episodes[currentEpisodeIndex];
 
+  // Initial Load (Media Details + First Stream)
   useEffect(() => {
     if (!id) return;
     const controller = new AbortController();
@@ -70,20 +86,17 @@ function WatchContent() {
         if (cancelled) return;
         if (detail) setItem(detail);
 
-        // Pour les séries, saison + stream sont indépendants → on les lance
-        // en parallèle. Pour les films, le stream attend implicitement `detail`
-        // (besoin du titre pour la requête backend), donc une seule branche.
         if (isTV) {
           setSeasonLoading(true);
-          const targetSeason = seasonParam || "1";
-          const seasonDataPromise = getSeasonDetails(id, targetSeason, signal);
+          const targetSeason = parseInt(initialSeasonParam) || 1;
+          const targetEp = parseInt(initialEpisodeParam) || 1;
+          setCurrentSeason(targetSeason);
 
-          // On pré-calcule l'épisode cible sans attendre les épisodes (fallback Ep 1).
-          const targetEp = episodeParam ? parseInt(episodeParam) : 1;
+          const seasonDataPromise = getSeasonDetails(id, String(targetSeason), signal);
           const firstStreamPromise = getStreamUrl(
             id,
             "series",
-            parseInt(targetSeason),
+            targetSeason,
             targetEp,
             detail?.title || id,
             signal
@@ -104,7 +117,7 @@ function WatchContent() {
                 title: ep.name || `${_("media.episode")} ${ep.episode_number}`,
                 duration: `${ep.runtime || 24}m`,
                 number: ep.episode_number,
-                season: parseInt(targetSeason),
+                season: targetSeason,
                 thumbnail: ep.still_path
                   ? `https://image.tmdb.org/t/p/w500${ep.still_path}`
                   : "",
@@ -115,9 +128,8 @@ function WatchContent() {
             setCurrentEpisodeIndex(startIdx);
           }
 
-          // Stream : fallback saison 1 si la cible n'a rien donné.
           let stream = firstStream;
-          if (!stream && parseInt(targetSeason) !== 1) {
+          if (!stream && targetSeason !== 1) {
             stream = await getStreamUrl(
               id,
               "series",
@@ -147,7 +159,6 @@ function WatchContent() {
             setStreamUnavailable(true);
           }
         }
-
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") return;
         console.error("Watch page load error:", err);
@@ -163,8 +174,9 @@ function WatchContent() {
       cancelled = true;
       controller.abort();
     };
-  }, [id, isTV]);
+  }, [id, isTV, initialSeasonParam, initialEpisodeParam, _]);
 
+  // Load Similar Content
   useEffect(() => {
     if (!id) return;
     const controller = new AbortController();
@@ -196,24 +208,86 @@ function WatchContent() {
     return () => controller.abort();
   }, [id, isTV]);
 
-  // ── Anti-popup firewall + redirect protection ────────────────────────
+  // Anti-popup firewall
   useEffect(() => {
     PopupFirewall.activate();
 
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (streamUrl && !streamUnavailable) {
         e.preventDefault();
-        e.returnValue = '';
+        e.returnValue = "";
       }
     };
-    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener("beforeunload", handleBeforeUnload);
 
     return () => {
       PopupFirewall.deactivate();
-      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, [streamUrl, streamUnavailable]);
 
+  // Switch Season Handler
+  const handleSeasonChange = useCallback(
+    async (newSeason: number) => {
+      if (!id || newSeason === currentSeason) return;
+      setCurrentSeason(newSeason);
+      setSeasonLoading(true);
+      setStreamLoading(true);
+      setStreamUrl("");
+      setStreamUnavailable(false);
+
+      try {
+        const seasonData = await getSeasonDetails(id, String(newSeason));
+        if (seasonData?.episodes?.length) {
+          const eps: Episode[] = seasonData.episodes.map((ep: any) => ({
+            id: String(ep.id),
+            title: ep.name || `${_("media.episode")} ${ep.episode_number}`,
+            duration: `${ep.runtime || 24}m`,
+            number: ep.episode_number,
+            season: newSeason,
+            thumbnail: ep.still_path
+              ? `https://image.tmdb.org/t/p/w500${ep.still_path}`
+              : "",
+            synopsis: ep.overview || "",
+          }));
+          setEpisodes(eps);
+          setCurrentEpisodeIndex(0);
+
+          const firstEp = eps[0];
+          const stream = await getStreamUrl(
+            id,
+            "series",
+            newSeason,
+            firstEp ? firstEp.number : 1,
+            item?.title || id
+          );
+          if (stream) {
+            setStreamUrl(stream.embedUrl);
+          } else {
+            setStreamUnavailable(true);
+          }
+
+          // Update URL silently
+          window.history.replaceState(
+            null,
+            "",
+            `/watch/${id}?type=tv&season=${newSeason}&episode=${firstEp ? firstEp.number : 1}`
+          );
+        } else {
+          setStreamUnavailable(true);
+        }
+      } catch (err) {
+        console.error("Season switch error:", err);
+        setStreamUnavailable(true);
+      } finally {
+        setSeasonLoading(false);
+        setStreamLoading(false);
+      }
+    },
+    [id, currentSeason, item, _]
+  );
+
+  // Play Specific Episode Handler
   const playEpisode = useCallback(
     async (idx: number) => {
       const ep = episodes[idx];
@@ -221,14 +295,28 @@ function WatchContent() {
       setCurrentEpisodeIndex(idx);
       setStreamLoading(true);
       setStreamUrl("");
+      setStreamUnavailable(false);
+
       try {
-        setStreamUnavailable(false);
-        const stream = await getStreamUrl(id, "series", ep.season || 1, ep.number, item.title || id);
+        const stream = await getStreamUrl(
+          id,
+          "series",
+          ep.season || currentSeason,
+          ep.number,
+          item.title || id
+        );
         if (stream) {
           setStreamUrl(stream.embedUrl);
         } else {
           setStreamUnavailable(true);
         }
+
+        // Update URL silently
+        window.history.replaceState(
+          null,
+          "",
+          `/watch/${id}?type=tv&season=${ep.season || currentSeason}&episode=${ep.number}`
+        );
       } catch (err) {
         console.error("Episode stream error:", err);
         setStreamUnavailable(true);
@@ -240,16 +328,31 @@ function WatchContent() {
         100
       );
     },
-    [episodes, id, item]
+    [episodes, id, item, currentSeason]
   );
 
-  const handleDownload = () => {
-    setShowSingleDownload(true);
-  };
+  // Next / Prev Episode Navigation
+  const playNextEpisode = useCallback(() => {
+    if (currentEpisodeIndex < episodes.length - 1) {
+      playEpisode(currentEpisodeIndex + 1);
+    }
+  }, [currentEpisodeIndex, episodes.length, playEpisode]);
 
-  const handleSeriesDownload = () => {
-    if (!item) return;
-    setShowDownloadModal(true);
+  const playPrevEpisode = useCallback(() => {
+    if (currentEpisodeIndex > 0) {
+      playEpisode(currentEpisodeIndex - 1);
+    }
+  }, [currentEpisodeIndex, playEpisode]);
+
+  const handleDownloadSingle = (ep?: Episode) => {
+    if (ep) {
+      setSelectedDownloadEpisode(ep);
+    } else if (currentEpisode) {
+      setSelectedDownloadEpisode(currentEpisode);
+    } else {
+      setSelectedDownloadEpisode(null);
+    }
+    setShowSingleDownload(true);
   };
 
   const handleShare = async () => {
@@ -257,10 +360,12 @@ function WatchContent() {
     const url = window.location.href;
     if (navigator.share) {
       try {
-        await navigator.share({ title: item ? `Regardez ${item.title} sur CHILLERS` : "CHILLERS", url });
+        await navigator.share({
+          title: item ? `Regardez ${item.title} sur CHILLERS` : "CHILLERS",
+          url,
+        });
         return;
-      } catch {
-      }
+      } catch {}
     }
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -277,15 +382,16 @@ function WatchContent() {
         title: _("watch.linkCopied"),
         message: _("watch.linkCopiedDesc"),
       });
-    } catch {
-    }
+    } catch {}
   };
+
+  const availableSeasons = item?.seasons?.filter((s) => s.seasonNumber > 0) || [];
 
   const playerItem: MovieOrShow | null = item
     ? currentEpisode
       ? {
           ...item,
-          title: `${item.title} · E${currentEpisode.number}`,
+          title: `${item.title} · S${currentEpisode.season || currentSeason}E${currentEpisode.number}`,
           backdropUrl: currentEpisode.thumbnail || item.backdropUrl,
           videoUrl: streamUrl,
         }
@@ -339,9 +445,13 @@ function WatchContent() {
 
   return (
     <div className="min-h-screen bg-[#09090B] text-white">
+      {/* Top Back Navigation */}
       <div className="fixed top-0 left-0 z-40 p-4">
         <button
-          onClick={() => { window.scrollTo(0, 0); router.back(); }}
+          onClick={() => {
+            window.scrollTo(0, 0);
+            router.back();
+          }}
           aria-label={_("media.back")}
           className="flex items-center justify-center w-10 h-10 rounded-full bg-black/70 backdrop-blur-md border border-white/10 text-white hover:bg-white/10 hover:border-white/20 transition-all shadow-lg"
         >
@@ -351,13 +461,14 @@ function WatchContent() {
 
       <div
         className={`pt-[72px] pb-16 lg:pb-24 ${
-          hasEpisodes ? "lg:pr-[28rem]" : ""
+          hasEpisodes ? "lg:pr-[26rem] xl:pr-[28rem]" : ""
         }`}
       >
+        {/* Main Video Player Section */}
         <div ref={playerRef} className="scroll-mt-20 w-full">
-          <div className="w-full max-h-[70vh] aspect-video bg-black relative mx-auto shadow-2xl">
+          <div className="w-full max-h-[75vh] aspect-video bg-black relative mx-auto shadow-2xl">
             {streamUnavailable ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-6">
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-6 bg-zinc-950/90">
                 <div className="w-20 h-20 rounded-full bg-zinc-800/80 flex items-center justify-center border border-zinc-700/50">
                   <IconMovie className="h-10 w-10 text-zinc-500" />
                 </div>
@@ -370,7 +481,11 @@ function WatchContent() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-brand-primary/10 border border-brand-primary/20">
-                  <svg className="animate-pulse h-3 w-3 text-brand-primary" viewBox="0 0 8 8" fill="currentColor">
+                  <svg
+                    className="animate-pulse h-3 w-3 text-brand-primary"
+                    viewBox="0 0 8 8"
+                    fill="currentColor"
+                  >
                     <circle cx="4" cy="4" r="4" />
                   </svg>
                   <span className="text-xs font-bold text-brand-primary uppercase tracking-wider">
@@ -379,10 +494,12 @@ function WatchContent() {
                 </div>
               </div>
             ) : showPlayerSkeleton ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-zinc-500">
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-zinc-500 bg-zinc-950">
                 <div className="animate-spin h-10 w-10 border-4 border-brand-primary border-t-transparent rounded-full" />
                 <p className="text-xs uppercase tracking-widest font-bold">
-                  {seasonLoading ? _("media.loadingEpisodes") : _("media.loadingStream")}
+                  {seasonLoading
+                    ? _("media.loadingEpisodes")
+                    : _("media.loadingStream")}
                 </p>
               </div>
             ) : (
@@ -402,124 +519,202 @@ function WatchContent() {
           </div>
         </div>
 
-        <div className="mt-4 sm:mt-8 space-y-4 sm:space-y-5 px-4 sm:px-6 md:px-12 lg:px-[4%]">
-          {/* Brand Logo / Netflix style */}
-          <div className="flex items-center gap-1.5 mb-1">
-            <span className="text-red-600 font-black tracking-widest text-sm">CHILLERS</span>
-          </div>
+        {/* Media Details & Controls */}
+        <div className="mt-4 sm:mt-6 space-y-4 sm:space-y-5 px-4 sm:px-6 md:px-10 lg:px-[3%]">
+          {/* Series Episode Switcher Quick Bar */}
+          {hasEpisodes && (
+            <div className="flex items-center justify-between gap-2 p-3 rounded-xl bg-zinc-900/80 border border-white/5 backdrop-blur-md">
+              <button
+                onClick={playPrevEpisode}
+                disabled={currentEpisodeIndex === 0}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 text-xs font-semibold text-zinc-300 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              >
+                <IconPlayerTrackPrev className="h-4 w-4" />
+                <span className="hidden sm:inline">Précédent</span>
+              </button>
 
-          <div className="space-y-1">
-            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white leading-tight">
+              <div className="text-center truncate px-2">
+                <span className="text-xs font-bold text-brand-primary uppercase tracking-wider">
+                  Saison {currentSeason} · Épisode {currentEpisode?.number || 1}
+                </span>
+                <p className="text-sm font-semibold text-white truncate max-w-xs sm:max-w-md">
+                  {currentEpisode?.title}
+                </p>
+              </div>
+
+              <button
+                onClick={playNextEpisode}
+                disabled={currentEpisodeIndex >= episodes.length - 1}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 text-xs font-semibold text-zinc-300 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              >
+                <span className="hidden sm:inline">Suivant</span>
+                <IconPlayerTrackNext className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Title Header */}
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <span className="text-red-600 font-black tracking-widest text-xs uppercase">
+                CHILLERS {isTV ? "SÉRIE" : "FILM"}
+              </span>
+            </div>
+
+            <h1 className="text-2xl sm:text-4xl font-black text-white leading-tight">
               {item.title}
             </h1>
+
             {currentEpisode && (
-              <p className="text-zinc-400 text-sm font-semibold flex items-center gap-2 flex-wrap">
-                <span className="text-white">{_("media.season")} {currentEpisode.season || 1}</span>
+              <p className="text-zinc-400 text-sm font-medium flex items-center gap-2 flex-wrap">
+                <span className="text-white font-bold">
+                  Saison {currentSeason}
+                </span>
                 <span className="text-zinc-600">•</span>
-                <span className="text-white">{_("media.episode")} {currentEpisode.number}</span>
+                <span className="text-white font-bold">
+                  Épisode {currentEpisode.number}
+                </span>
                 <span className="text-zinc-600">•</span>
-                <span className="truncate text-white max-w-xs sm:max-w-md">
+                <span className="text-zinc-300 truncate max-w-xs sm:max-w-md">
                   {currentEpisode.title}
                 </span>
               </p>
             )}
           </div>
 
-          {/* Metadata dynamic */}
-          <div className="flex flex-wrap items-center gap-2 text-[13px] sm:text-sm text-zinc-400 font-medium">
+          {/* Metadata Badges */}
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-zinc-400 font-medium">
             {item.rating > 0 && (
-              <span className="text-green-500 font-bold">Recommandé à {Math.round(item.rating * 10)}%</span>
+              <span className="text-green-400 font-bold flex items-center gap-1">
+                <IconStar className="h-4 w-4 fill-green-400" />
+                {Math.round(item.rating * 10)}% match
+              </span>
             )}
-            {item.year && <span>{item.year}</span>}
-            <span className="px-1 py-0.5 rounded border border-zinc-600 text-[10px] uppercase font-bold leading-none">HD</span>
-            <span>{currentEpisode ? currentEpisode.duration : item.duration}</span>
+            {item.year && (
+              <span className="flex items-center gap-1">
+                <IconCalendar className="h-3.5 w-3.5 text-zinc-500" />
+                {item.year}
+              </span>
+            )}
+            <span className="px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-[10px] uppercase font-bold text-zinc-200">
+              HD
+            </span>
+            <span className="flex items-center gap-1">
+              <IconClock className="h-3.5 w-3.5 text-zinc-500" />
+              {currentEpisode ? currentEpisode.duration : item.duration}
+            </span>
+            {isTV && availableSeasons.length > 0 && (
+              <span className="text-xs text-zinc-400">
+                {availableSeasons.length} saison{availableSeasons.length > 1 ? "s" : ""}
+              </span>
+            )}
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex flex-col gap-3 py-2">
+          {/* Action Download Buttons */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 py-1 max-w-lg">
             <button
-              onClick={isTV ? handleSeriesDownload : handleDownload}
+              onClick={() => handleDownloadSingle(currentEpisode)}
               disabled={streamUnavailable}
-              className={`w-full flex items-center justify-center gap-2 py-2.5 rounded font-bold text-sm transition-colors ${
-                streamUnavailable 
-                  ? "bg-zinc-800 text-zinc-500 cursor-not-allowed" 
-                  : "bg-zinc-800 text-white hover:bg-zinc-700"
+              className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-bold text-sm transition-all ${
+                streamUnavailable
+                  ? "bg-zinc-800/50 text-zinc-500 cursor-not-allowed"
+                  : "bg-zinc-800 text-white hover:bg-zinc-700 shadow-md"
               }`}
             >
-              <IconDownload className="h-5 w-5" />
-              {streamUnavailable ? "Bientôt dispo" : "Télécharger"}
+              <IconDownload className="h-4 w-4" />
+              {isTV
+                ? `Télécharger l'épisode ${currentEpisode?.number || 1}`
+                : "Télécharger le film"}
             </button>
+
+            {isTV && (
+              <button
+                onClick={() => setShowBatchDownloadModal(true)}
+                className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-bold text-sm bg-brand-primary/20 border border-brand-primary/30 text-brand-primary hover:bg-brand-primary/30 transition-all"
+              >
+                <IconDownload className="h-4 w-4" />
+                Télécharger plusieurs épisodes
+              </button>
+            )}
           </div>
 
           {/* Synopsis */}
           {(currentEpisode?.synopsis || item.synopsis || item.description) && (
-            <p className="text-white text-[14px] sm:text-base leading-snug max-w-3xl">
+            <p className="text-zinc-200 text-sm sm:text-base leading-relaxed max-w-3xl">
               {currentEpisode?.synopsis || item.synopsis || item.description}
             </p>
           )}
 
-          {/* Cast info */}
+          {/* Cast */}
           {item.cast && item.cast.length > 0 && item.cast[0] !== "Cast Info Unavailable" && (
-            <div className="text-[13px] sm:text-sm text-zinc-400 leading-snug">
-              <span className="text-zinc-500">Distribution : </span>
+            <div className="text-xs sm:text-sm text-zinc-400">
+              <span className="text-zinc-500 font-semibold">Distribution : </span>
               {item.cast.join(", ")}
-              <span className="text-white cursor-pointer ml-1 font-semibold">... plus</span>
             </div>
           )}
 
-          {/* Action icons: Ma liste, Évaluer, Partager, Télécharger */}
-          <div className="flex items-center gap-6 sm:gap-8 pt-4 pb-2">
-            <button className="flex flex-col items-center gap-1.5 text-zinc-400 hover:text-white transition-colors">
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-              </svg>
-              <span className="text-[11px] font-medium">Ma liste</span>
-            </button>
-            <button className="flex flex-col items-center gap-1.5 text-zinc-400 hover:text-white transition-colors">
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6.633 10.5c.806 0 1.533-.446 2.031-1.08a9.041 9.041 0 012.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 00.322-1.672V3a.75.75 0 01.75-.75A2.25 2.25 0 0116.5 4.5c0 1.152-.26 2.243-.723 3.218-.266.558.107 1.282.725 1.282h3.126c1.026 0 1.945.694 2.054 1.715.045.422.068.85.068 1.285a11.95 11.95 0 01-2.649 7.521c-.388.482-.987.729-1.605.729H13.48c-.483 0-.964-.078-1.423-.23l-3.114-1.04a4.501 4.501 0 00-1.423-.23H5.904M14.25 9h2.25" />
-              </svg>
-              <span className="text-[11px] font-medium">Évaluer</span>
-            </button>
-            <button onClick={handleShare} className="flex flex-col items-center gap-1.5 text-zinc-400 hover:text-white transition-colors">
-              <IconShare className="h-6 w-6" />
+          {/* Bottom Action Icons */}
+          <div className="flex items-center gap-6 sm:gap-8 pt-2 pb-2 border-t border-white/5">
+            <button
+              onClick={handleShare}
+              className="flex flex-col items-center gap-1.5 text-zinc-400 hover:text-white transition-colors"
+            >
+              <IconShare className="h-5 w-5" />
               <span className="text-[11px] font-medium">Partager</span>
-            </button>
-            <button onClick={handleDownload} disabled={streamUnavailable} className={`flex flex-col items-center gap-1.5 transition-colors ${streamUnavailable ? "text-zinc-600" : "text-zinc-400 hover:text-white"}`}>
-              <IconDownload className="h-6 w-6" />
-              <span className="text-[11px] font-medium">Télécharger</span>
             </button>
           </div>
         </div>
 
+        {/* Mobile & Tablet Series Episode List */}
         {hasEpisodes && (
-          <section className="lg:hidden mt-10 space-y-4">
-            <h2 className="text-lg sm:text-xl font-black text-white flex items-center gap-3">
-              <span className="h-5 w-1 rounded-full bg-brand-primary" />
-              {_("watch.episodes")} · {episodes.length}
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <section className="lg:hidden mt-8 px-4 sm:px-6 space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-lg font-black text-white flex items-center gap-2">
+                <span className="h-4 w-1 rounded-full bg-brand-primary" />
+                Épisodes
+              </h2>
+
+              {/* Mobile Season Picker */}
+              {availableSeasons.length > 1 && (
+                <div className="relative">
+                  <select
+                    value={currentSeason}
+                    onChange={(e) => handleSeasonChange(parseInt(e.target.value))}
+                    className="appearance-none bg-zinc-800 text-white font-bold text-xs py-1.5 pl-3 pr-8 rounded-lg border border-white/10 focus:outline-none focus:border-brand-primary"
+                  >
+                    {availableSeasons.map((s) => (
+                      <option key={s.seasonNumber} value={s.seasonNumber}>
+                        {s.name || `Saison ${s.seasonNumber}`} ({s.episodeCount} ép.)
+                      </option>
+                    ))}
+                  </select>
+                  <IconChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400 pointer-events-none" />
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2">
               {episodes.map((ep, idx) => (
                 <EpisodeCard
                   key={ep.id}
                   ep={ep}
                   active={idx === currentEpisodeIndex}
                   onClick={() => playEpisode(idx)}
+                  onDownload={() => handleDownloadSingle(ep)}
                 />
               ))}
             </div>
           </section>
         )}
 
-
-
+        {/* Similar / Recommendations Section */}
         {similar.length > 0 && (
-          <section className="mt-12 space-y-4">
+          <section className="mt-12 px-4 sm:px-6 md:px-10 lg:px-[3%] space-y-4">
             <h2 className="text-lg sm:text-xl font-black text-white flex items-center gap-3">
               <span className="h-5 w-1 rounded-full bg-brand-primary" />
               {_("media.youMightAlsoLike")}
             </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
               {similar.map((sim) => (
                 <MovieCard
                   key={sim.id}
@@ -546,26 +741,52 @@ function WatchContent() {
         )}
       </div>
 
+      {/* Desktop Persistent Sidebar with Season Selector & Episode List */}
       {hasEpisodes && (
-        <aside className="hidden lg:block fixed top-[88px] right-4 w-[24rem] max-h-[calc(100vh-110px)] overflow-y-auto pr-1 z-30">
-          <div className="sticky top-0 bg-[#09090B]/85 backdrop-blur-md py-3 z-10 -mx-1 px-1">
-            <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest">
-              {_("watch.episodes")} · {episodes.length}
-            </h3>
+        <aside className="hidden lg:block fixed top-[72px] right-0 w-[26rem] xl:w-[28rem] h-[calc(100vh-72px)] bg-[#0c0c0e]/95 backdrop-blur-xl border-l border-white/5 overflow-y-auto p-4 z-30 space-y-3">
+          {/* Season Selector Dropdown */}
+          <div className="sticky top-0 bg-[#0c0c0e]/95 backdrop-blur-md pb-3 pt-1 z-10 border-b border-white/5 space-y-2">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                <span className="h-3 w-1 rounded-full bg-brand-primary" />
+                Épisodes ({episodes.length})
+              </h3>
+            </div>
+
+            {availableSeasons.length > 1 && (
+              <div className="relative">
+                <select
+                  value={currentSeason}
+                  onChange={(e) => handleSeasonChange(parseInt(e.target.value))}
+                  className="w-full appearance-none bg-zinc-800/90 text-white font-bold text-sm py-2.5 pl-3.5 pr-10 rounded-xl border border-white/10 hover:border-white/20 focus:outline-none focus:border-brand-primary transition-all cursor-pointer"
+                >
+                  {availableSeasons.map((s) => (
+                    <option key={s.seasonNumber} value={s.seasonNumber} className="bg-zinc-900 text-white">
+                      {s.name || `Saison ${s.seasonNumber}`} ({s.episodeCount} épisodes)
+                    </option>
+                  ))}
+                </select>
+                <IconChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-400 pointer-events-none" />
+              </div>
+            )}
           </div>
-          <div className="space-y-2">
+
+          {/* Desktop Episode Cards */}
+          <div className="space-y-2.5 pb-8">
             {episodes.map((ep, idx) => (
               <EpisodeCard
                 key={ep.id}
                 ep={ep}
                 active={idx === currentEpisodeIndex}
                 onClick={() => playEpisode(idx)}
+                onDownload={() => handleDownloadSingle(ep)}
               />
             ))}
           </div>
         </aside>
       )}
 
+      {/* Modals */}
       {notification && (
         <NotificationModal
           isOpen={!!notification}
@@ -577,8 +798,8 @@ function WatchContent() {
 
       {isTV && item && (
         <SeriesDownloadModal
-          isOpen={showDownloadModal}
-          onClose={() => setShowDownloadModal(false)}
+          isOpen={showBatchDownloadModal}
+          onClose={() => setShowBatchDownloadModal(false)}
           seriesTitle={item.title}
           tmdbId={item.id}
           episodes={episodes}
@@ -588,12 +809,15 @@ function WatchContent() {
       {item && (
         <DownloadModal
           isOpen={showSingleDownload}
-          onClose={() => setShowSingleDownload(false)}
+          onClose={() => {
+            setShowSingleDownload(false);
+            setSelectedDownloadEpisode(null);
+          }}
           title={item.title}
           id={id}
-          type={isTV ? 'series' : 'movie'}
-          season={currentEpisode?.season}
-          episode={currentEpisode?.number}
+          type={isTV ? "series" : "movie"}
+          season={selectedDownloadEpisode?.season || currentSeason}
+          episode={selectedDownloadEpisode?.number || currentEpisode?.number || 1}
         />
       )}
     </div>
@@ -604,65 +828,81 @@ function EpisodeCard({
   ep,
   active,
   onClick,
+  onDownload,
 }: {
   ep: Episode;
   active: boolean;
   onClick: () => void;
+  onDownload?: () => void;
 }) {
   return (
     <div
       onClick={onClick}
-      className={`flex flex-col gap-2 p-2 sm:p-3 rounded-md cursor-pointer transition-colors border border-transparent ${
+      className={`group flex items-start gap-3 p-2.5 rounded-xl cursor-pointer transition-all border ${
         active
-          ? "bg-zinc-800/60"
-          : "hover:bg-zinc-900 border-b-zinc-800/50"
+          ? "bg-zinc-800/80 border-brand-primary/40 shadow-lg"
+          : "bg-white/[0.02] hover:bg-white/[0.06] border-transparent"
       }`}
     >
-      <div className="flex items-center gap-3 sm:gap-4">
-        <div className="flex-none w-28 sm:w-36 aspect-video rounded overflow-hidden bg-zinc-800 relative">
-          {ep.thumbnail ? (
-            <Image
-              src={ep.thumbnail}
-              alt={ep.title}
-              fill
-              className="object-cover"
-              sizes="(max-width: 640px) 112px, 144px"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <IconMovie className="h-5 w-5 text-zinc-600" />
+      <div className="flex-none w-28 sm:w-32 aspect-video rounded-lg overflow-hidden bg-zinc-800 relative">
+        {ep.thumbnail ? (
+          <Image
+            src={ep.thumbnail}
+            alt={ep.title}
+            fill
+            className="object-cover transition-transform group-hover:scale-105"
+            sizes="128px"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <IconMovie className="h-5 w-5 text-zinc-600" />
+          </div>
+        )}
+        {active && (
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-full bg-brand-primary flex items-center justify-center shadow-lg">
+              <IconPlayerPlay className="h-4 w-4 text-white fill-white ml-0.5" />
             </div>
-          )}
-          {active && (
-            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-              <IconPlayerPlay className="h-6 w-6 text-white" />
-            </div>
-          )}
-        </div>
-        <div className="flex-1 min-w-0 flex flex-col justify-center">
+          </div>
+        )}
+      </div>
+
+      <div className="flex-1 min-w-0 flex flex-col justify-center">
+        <div className="flex items-center justify-between gap-1">
           <h4
-            className={`text-sm font-bold line-clamp-2 leading-tight ${
-              active ? "text-white" : "text-zinc-200"
+            className={`text-xs sm:text-sm font-bold line-clamp-1 leading-snug ${
+              active ? "text-brand-primary" : "text-white group-hover:text-zinc-200"
             }`}
           >
             {ep.number}. {ep.title}
           </h4>
-          <span className="text-xs text-zinc-400 mt-1">
-            {ep.duration}
-          </span>
+
+          {onDownload && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDownload();
+              }}
+              aria-label={`Télécharger ${ep.title}`}
+              className="p-1 rounded-md text-zinc-500 hover:text-white hover:bg-white/10 transition-colors"
+            >
+              <IconDownload className="h-4 w-4" />
+            </button>
+          )}
         </div>
-        <div className="flex-none px-2 hidden sm:block">
-          <IconDownload className="h-6 w-6 text-zinc-500" />
-        </div>
+
+        <span className="text-[11px] text-zinc-400 mt-0.5">
+          {ep.duration}
+        </span>
+
+        {ep.synopsis && (
+          <p className="text-[11px] text-zinc-500 line-clamp-2 leading-tight mt-1">
+            {ep.synopsis}
+          </p>
+        )}
       </div>
-      {ep.synopsis && (
-        <p className="text-xs text-zinc-400 line-clamp-3 leading-snug mt-1">
-          {ep.synopsis}
-        </p>
-      )}
     </div>
   );
 }
 
 export default WatchContent;
-
