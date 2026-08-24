@@ -332,6 +332,10 @@ export function startCron() {
     isRunning = true;
     appendLog('[Cron] Tâches planifiées démarrées (toutes les 10min + scraping 03:00)');
     console.log('[Cron] Tâches planifiées démarrées.');
+
+    // Lancement automatique immédiat du scraping Films, Séries et Animes au démarrage du serveur
+    console.log('[Cron] 🚀 Démarrage automatique initial du scraping (Films, Séries, Animes)...');
+    runScrapingTasks();
 }
 
 export async function stopCron() {
