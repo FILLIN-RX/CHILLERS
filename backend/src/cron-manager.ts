@@ -322,22 +322,14 @@ export function getSystemCronStatus(): { present: boolean; lines: string[] } {
 }
 
 export function runScrapingTasks() {
-    if (process.env.SCRAPER_API_URL) {
-        console.log(`[${new Date().toISOString()}] [Cron] SCRAPER_API_URL défini, scraping délégué au scraper distant`);
-        return;
-    }
-    console.log(`[${new Date().toISOString()}] [Cron] Lancement des tâches de scraping...`);
+    console.log(`[${new Date().toISOString()}] [Cron] Lancement des tâches de scraping internes...`);
     runner('Scraping Films', 'scraping/core/scrape-films.js');
-    runner('Scraping Séries', 'scraping/core/scrape-series.js');
-    runner('Scraping Animes', 'scraping/core/scrape-animes.js');
+    runner('Scraping Séries', 'scraping/core/scrape-series.ts');
+    runner('Scraping Animes', 'scraping/core/scrape-animes.ts');
 }
 
 export function runMaintenanceTasks() {
-    if (process.env.SCRAPER_API_URL) {
-        console.log(`[${new Date().toISOString()}] [Cron] SCRAPER_API_URL défini, maintenance déléguée au scraper distant`);
-        return;
-    }
-    console.log(`[${new Date().toISOString()}] [Cron] Lancement des tâches de maintenance...`);
+    console.log(`[${new Date().toISOString()}] [Cron] Lancement des tâches de maintenance internes...`);
     runner('Vérification Liens Morts', 'scraping/maintenance/check-all-links.ts');
     runner('Maintenance Liens', 'scraping/maintenance/maintainer.ts');
     runner('Linking TMDB Films', 'scraping/maintenance/link-movies-tmdb.ts');
