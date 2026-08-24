@@ -106,7 +106,9 @@ export default function LiveChannelContent() {
       <div className="rounded-2xl overflow-hidden shadow-2xl bg-black border border-white/10">
         <LivePlayer
           channel={channel}
+          allChannels={allChannels}
           onBack={() => router.push("/live")}
+          onSelectChannel={(ch) => router.push(`/live/${ch.slug}`)}
         />
       </div>
 
