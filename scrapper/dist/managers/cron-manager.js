@@ -8,6 +8,7 @@ exports.stopTask = stopTask;
 exports.getRunningTasks = getRunningTasks;
 exports.runScrapingTasks = runScrapingTasks;
 exports.runMaintenanceTasks = runMaintenanceTasks;
+exports.runKeepAliveTasks = runKeepAliveTasks;
 exports.startCron = startCron;
 exports.stopCron = stopCron;
 exports.getCronStatus = getCronStatus;
@@ -64,14 +65,23 @@ function runMaintenanceTasks() {
     (0, exports.runner)('Linking TMDB Films', 'src/maintenance/link-movies-tmdb.ts');
     (0, exports.runner)('Linking TMDB Séries', 'src/maintenance/link-series-tmdb.ts');
 }
+function runKeepAliveTasks() {
+    console.log(`[${new Date().toISOString()}] [Cron] Lancement du Keep-Alive Uqload...`);
+    (0, exports.runner)('KeepAlive Uqload', 'src/maintenance/keepalive-uqload.ts');
+}
 function startCron() {
     if (isRunning)
         return;
     cronTasks = [
+        // Maintenance quotidienne à 10h00 UTC
         node_cron_1.default.schedule('0 10 * * *', runMaintenanceTasks),
+        // Keep-Alive Uqload : le 1er de chaque mois à 03h00 UTC
+        // Uqload supprime les fichiers après 90j sans activité — on ping tout chaque mois
+        node_cron_1.default.schedule('0 3 1 * *', runKeepAliveTasks),
     ];
     isRunning = true;
-    console.log('[Cron] Maintenance planifiée à 11h00 (heure Cameroun, UTC+1)');
+    console.log('[Cron] Maintenance quotidienne planifiée à 10h00 UTC');
+    console.log('[Cron] Keep-Alive Uqload planifié le 1er de chaque mois à 03h00 UTC');
 }
 function stopCron() {
     if (!isRunning)
@@ -93,7 +103,7 @@ function resolveScript(relativePath) {
 }
 const runner = (name, scriptPath) => {
     if (isDev) {
-        runProcess(name, 'npx', ['tsx', resolveScript(scriptPath)]);
+        runProcess(name, 'node', ['--import', 'tsx', resolveScript(scriptPath)]);
     }
     else {
         runProcess(name, 'node', [resolveScript(scriptPath)]);

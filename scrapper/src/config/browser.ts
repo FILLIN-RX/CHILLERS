@@ -1,4 +1,4 @@
-import { chromium, LaunchOptions } from 'playwright';
+import { chromium, LaunchOptions, BrowserContext, Page } from 'playwright';
 
 export const browserConfig: LaunchOptions = {
   headless: true,
@@ -16,4 +16,23 @@ export const getBrowser = async () => {
   return await chromium.launch(browserConfig);
 };
 
-module.exports = { browserConfig, getBrowser };
+export async function setupFastContext(context: BrowserContext) {
+  await context.route('**/*', (route) => {
+    const resourceType = route.request().resourceType();
+    if (['image', 'media', 'font', 'stylesheet'].includes(resourceType)) {
+      return route.abort();
+    }
+    return route.continue();
+  });
+}
+
+export async function setupFastPage(page: Page) {
+  await page.route('**/*', (route) => {
+    const resourceType = route.request().resourceType();
+    if (['image', 'media', 'font', 'stylesheet'].includes(resourceType)) {
+      return route.abort();
+    }
+    return route.continue();
+  });
+}
+

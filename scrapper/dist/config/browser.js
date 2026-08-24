@@ -1,6 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getBrowser = exports.browserConfig = void 0;
+exports.setupFastContext = setupFastContext;
+exports.setupFastPage = setupFastPage;
 const playwright_1 = require("playwright");
 exports.browserConfig = {
     headless: true,
@@ -17,4 +19,21 @@ const getBrowser = async () => {
     return await playwright_1.chromium.launch(exports.browserConfig);
 };
 exports.getBrowser = getBrowser;
-module.exports = { browserConfig: exports.browserConfig, getBrowser: exports.getBrowser };
+async function setupFastContext(context) {
+    await context.route('**/*', (route) => {
+        const resourceType = route.request().resourceType();
+        if (['image', 'media', 'font', 'stylesheet'].includes(resourceType)) {
+            return route.abort();
+        }
+        return route.continue();
+    });
+}
+async function setupFastPage(page) {
+    await page.route('**/*', (route) => {
+        const resourceType = route.request().resourceType();
+        if (['image', 'media', 'font', 'stylesheet'].includes(resourceType)) {
+            return route.abort();
+        }
+        return route.continue();
+    });
+}

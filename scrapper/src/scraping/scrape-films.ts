@@ -1,13 +1,72 @@
-import { chromium } from 'playwright';
+import axios from 'axios';
 import Movie from '../models/Movie';
 import ScraperState from '../models/ScraperState';
-import { browserConfig } from '../config/browser';
 import { connectDB } from '../config/db';
 import { reuploadMovie } from '../modules/reupload/reupload';
 import { waitForScrapingHours } from '../utils/scraping-hours';
-import { installDonateOverlayBlocker } from '../utils/donate-overlay';
 
+const BASE_URL = 'https://www.open-otaku.me';
 const MAX_EMPTY_RETRIES = 5;
+const CONCURRENCY = 3;
+
+interface FsItem {
+  id: string;
+  title: string;
+  poster?: string;
+  quality?: string;
+  version?: string;
+  description?: string;
+}
+
+function toDownloadUrl(url: string): string {
+  if (!url) return '';
+  if (url.includes('vidzy.')) return url.replace('/embed-', '/d/').replace('.html', '_n.html');
+  if (url.includes('luluvid.')) return url.replace('/embed-', '/d/').replace('.html', '');
+  return url;
+}
+
+async function getDirectLink(embedUrl: string): Promise<string | null> {
+  try {
+    const dlUrl = toDownloadUrl(embedUrl);
+    if (!dlUrl) return null;
+    const { data } = await axios.get(`${BASE_URL}/api/dl`, {
+      params: { url: dlUrl },
+      timeout: 20000,
+      headers: { 'User-Agent': 'Mozilla/5.0' }
+    });
+    return data?.success && data?.downloadUrl ? data.downloadUrl : null;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchFilmsPage(page: number): Promise<FsItem[]> {
+  try {
+    const { data } = await axios.get(`${BASE_URL}/api/fs-home`, {
+      params: { category: 'films', page },
+      timeout: 30000,
+      headers: { 'User-Agent': 'Mozilla/5.0' }
+    });
+    return Array.isArray(data?.items) ? data.items : [];
+  } catch (err: any) {
+    console.error(`[ScrapeFilms] Erreur fetch page ${page}:`, err.message);
+    return [];
+  }
+}
+
+async function fetchWatchDetails(id: string): Promise<any> {
+  try {
+    const { data } = await axios.get(`${BASE_URL}/api/fs-watch`, {
+      params: { id },
+      timeout: 30000,
+      headers: { 'User-Agent': 'Mozilla/5.0' }
+    });
+    return data || {};
+  } catch (err: any) {
+    console.error(`[ScrapeFilms] Erreur fetch fs-watch (${id}):`, err.message);
+    return null;
+  }
+}
 
 async function getLastPage(): Promise<number> {
   try {
@@ -30,16 +89,72 @@ function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+async function processFilm(item: FsItem): Promise<void> {
+  const titre = item.title.trim();
+  const ficheUrl = `${BASE_URL}/?watch_fs=${item.id}`;
+
+  try {
+    console.log(`[ScrapeFilms] Traitement : ${titre} (ID: ${item.id})`);
+    const watch = await fetchWatchDetails(item.id);
+    if (!watch) {
+      console.log(`[ScrapeFilms] ⚠️ Données introuvables pour : ${titre}`);
+      return;
+    }
+
+    const players = watch.players || {};
+    // Priorité à Vidzy (compatible direct /api/dl), sinon premier lecteur disponible
+    const embedUrl =
+      players.vidzy?.default ||
+      players.vidzy?.vff ||
+      players.vidzy?.vf ||
+      players.vidzy?.vostfr ||
+      players.premium?.default ||
+      (Object.values(players)[0] as any)?.default ||
+      '';
+
+    let directLink: string | null = null;
+    if (embedUrl) {
+      directLink = await getDirectLink(embedUrl);
+    }
+
+    if (!directLink) {
+      console.log(`[ScrapeFilms] ⚠️ Lien direct introuvable pour : ${titre}`);
+      return;
+    }
+
+    let year: number | undefined;
+    if (watch.meta?.year) {
+      const parsed = parseInt(String(watch.meta.year), 10);
+      if (parsed > 1900 && parsed < 2100) year = parsed;
+    }
+    const poster = watch.meta?.poster || item.poster || undefined;
+
+    const updateData: any = {
+      titre,
+      pageUrl: ficheUrl,
+      lien: directLink,
+      ...(year ? { year } : {}),
+      ...(poster ? { posterUrl: poster, posterSource: 'tmdb' } : {})
+    };
+
+    const saved = await Movie.findOneAndUpdate(
+      { titre },
+      { $set: updateData },
+      { upsert: true, returnDocument: 'after' }
+    );
+
+    console.log(`[ScrapeFilms] ✅ Sauvegardé : ${titre}`);
+    if (saved) {
+      await reuploadMovie(saved._id.toString(), directLink, titre);
+    }
+  } catch (err: any) {
+    console.error(`[ScrapeFilms] ❌ Erreur sur ${titre}:`, err.message);
+  }
+}
+
 export async function scrapeFilms() {
   await connectDB();
-
-  const browser = await chromium.launch(browserConfig);
-  const context = await browser.newContext({
-    viewport: { width: 1920, height: 1080 },
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
-  });
-  const page = await context.newPage();
-  await installDonateOverlayBlocker(page);
+  console.log('[ScrapeFilms] Scraper ultra-rapide initialisé.');
 
   while (true) {
     await waitForScrapingHours();
@@ -48,108 +163,76 @@ export async function scrapeFilms() {
     console.log(`[ScrapeFilms] Démarrage boucle depuis la page ${currentPage}`);
 
     while (hasMorePages) {
-      const url = `https://www.open-otaku.me/?cat=films&page=${currentPage}`;
       console.log(`\n--- Page ${currentPage} ---`);
+      let items = await fetchFilmsPage(currentPage);
 
-      await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
-
-      try {
-        await page.waitForSelector('.fs-card', { timeout: 30000 });
-      } catch {
+      if (items.length === 0) {
         let retries = 0;
         let pageLoaded = false;
         while (retries < MAX_EMPTY_RETRIES) {
           retries++;
-          console.log(`Page ${currentPage} vide (tentative ${retries}/${MAX_EMPTY_RETRIES}) — attend 15s puis réessaie...`);
-          await sleep(15000);
-          try {
-            await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
-            await page.waitForSelector('.fs-card', { timeout: 30000 });
+          console.log(`Page ${currentPage} vide (tentative ${retries}/${MAX_EMPTY_RETRIES}) — attend 5s...`);
+          await sleep(5000);
+          items = await fetchFilmsPage(currentPage);
+          if (items.length > 0) {
             pageLoaded = true;
             break;
-          } catch {}
+          }
         }
         if (!pageLoaded) {
-          console.log(`Page ${currentPage} toujours vide après ${MAX_EMPTY_RETRIES} tentatives — vraie fin, retour page 1`);
+          console.log(`Page ${currentPage} toujours vide après ${MAX_EMPTY_RETRIES} tentatives — fin du cycle, retour page 1`);
           hasMorePages = false;
           await saveLastPage(1);
           break;
         }
       }
 
-      let cards = await page.$$('.fs-card');
-      console.log(`Films trouvés : ${cards.length}`);
+      console.log(`Films trouvés sur la page : ${items.length}`);
 
-      for (let i = 0; i < cards.length; i++) {
-        let titre = `<film #${i}>`;
-        try {
-          let currentCards = await page.$$('.fs-card');
-          let card = currentCards[i];
-          titre = await card.$eval('.fs-card-title', (el: any) => el.innerText.trim());
+      // Filtrer les éléments invalides ou séries
+      const validItems = items.filter(
+        (it) => it.title && !it.title.includes('Saison') && !it.title.includes('Épisode')
+      );
 
-          if (titre.includes("Saison") || titre.includes("Épisode")) continue;
+      // Vérification MongoDB en batch
+      const titles = validItems.map((it) => it.title.trim());
+      const existingMovies = await Movie.find(
+        { titre: { $in: titles } },
+        { titre: 1, pageUrl: 1, lien: 1 }
+      ).lean();
+      const existingSet = new Set(
+        existingMovies.filter((m) => m.pageUrl && m.lien).map((m) => m.titre)
+      );
 
-          const existingFilm = await Movie.findOne({ titre });
-          if (existingFilm && existingFilm.pageUrl && existingFilm.lien) {
-            console.log(`Déjà traité : ${titre}`);
-            continue;
-          }
-
-          console.log(`Traitement : ${titre}`);
-          await card.click();
-          await page.waitForLoadState('domcontentloaded');
-          await page.waitForTimeout(1000);
-
-          const pageUrl = page.url();
-
-          let year: number | undefined;
-          try {
-            const yearText = await page.$eval('.fs-meta-tag.accent', (el: any) => el.innerText.trim());
-            const parsed = parseInt(yearText, 10);
-            if (parsed > 1900 && parsed < 2100) year = parsed;
-          } catch {}
-
-          await page.click('button#fs-quick-download', { force: true });
-          await page.waitForTimeout(10000);
-
-          let dlLink = await page.$('a#fs-dl-link');
-          let link = dlLink ? await dlLink.getAttribute('href') : "#";
-
-          if (link && link !== "#") {
-            const updateData: any = { titre, pageUrl, lien: link };
-            if (year) updateData.year = year;
-            const saved = await Movie.findOneAndUpdate(
-              { titre },
-              { $set: updateData },
-              { upsert: true, returnDocument: 'after' }
-            );
-            console.log(`Sauvegardé : ${titre}`);
-            if (saved) {
-              await reuploadMovie(saved._id.toString(), link, titre);
-            }
-          }
-
-          await page.goto(url, { waitUntil: 'networkidle' });
-          await page.waitForSelector('.fs-card');
-        } catch (e: any) {
-          console.error(`Erreur ${titre}: ${e.message}`);
-          try {
-            await page.goto(url, { waitUntil: 'networkidle' });
-            await page.waitForSelector('.fs-card');
-          } catch (recoveryErr: any) {
-            console.error(`Récupération échouée: ${recoveryErr.message}`);
-          }
+      const toProcess = validItems.filter((it) => {
+        if (existingSet.has(it.title.trim())) {
+          console.log(`Déjà traité : ${it.title.trim()}`);
+          return false;
         }
+        return true;
+      });
+
+      console.log(`Films restants à traiter : ${toProcess.length}/${validItems.length}`);
+
+      // Traitement avec concurrence contrôlée
+      for (let i = 0; i < toProcess.length; i += CONCURRENCY) {
+        const chunk = toProcess.slice(i, i + CONCURRENCY);
+        await Promise.all(chunk.map((item) => processFilm(item)));
       }
+
       currentPage++;
       await saveLastPage(currentPage);
     }
-    console.log("[ScrapeFilms] Cycle terminé, redémarrage immédiat...");
+
+    console.log("[ScrapeFilms] Cycle terminé, redémarrage dans 10s...");
+    await sleep(10000);
   }
 }
 
-// Exécution directe (sans require.main car tsx ne le set pas correctement)
+// Exécution directe
 const isDirectExecution = process.argv[1] && (process.argv[1].includes('scrape-films') || process.argv[1].endsWith('scrape-films.ts') || process.argv[1].endsWith('scrape-films.js'));
 if (isDirectExecution) {
   scrapeFilms().catch(console.error);
 }
+
+

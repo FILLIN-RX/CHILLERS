@@ -1,12 +1,23 @@
-import { chromium } from 'playwright';
+import axios from 'axios';
 import mongoose from 'mongoose';
-import Serie from '../models/Serie';
+import Serie, { type IEpisode } from '../models/Serie';
 import ScraperState from '../models/ScraperState';
-import { browserConfig } from '../config/browser';
 import { connectDB } from '../config/db';
 import { reuploadEpisode } from '../modules/reupload/reupload';
 import { waitForScrapingHours } from '../utils/scraping-hours';
-import { installDonateOverlayBlocker } from '../utils/donate-overlay';
+
+const BASE_URL = 'https://www.open-otaku.me';
+const MAX_EMPTY_RETRIES = 5;
+const CONCURRENCY = 2;
+
+interface FsItem {
+    id: string;
+    title: string;
+    poster?: string;
+    quality?: string;
+    version?: string;
+    description?: string;
+}
 
 function parseEpisodeLabel(label: string, defaultSeason = 1): { season: number; episodeNumber: number; canonical: string } {
     const trimmed = label.trim();
@@ -22,6 +33,56 @@ function parseEpisodeLabel(label: string, defaultSeason = 1): { season: number; 
         return { season: defaultSeason, episodeNumber: num, canonical: `S${String(defaultSeason).padStart(2, "0")}E${String(num).padStart(2, "0")}` };
     }
     return { season: defaultSeason, episodeNumber: 0, canonical: trimmed };
+}
+
+function toDownloadUrl(url: string): string {
+    if (!url) return '';
+    if (url.includes('vidzy.')) return url.replace('/embed-', '/d/').replace('.html', '_n.html');
+    if (url.includes('luluvid.')) return url.replace('/embed-', '/d/').replace('.html', '');
+    return url;
+}
+
+async function getDirectLink(embedUrl: string): Promise<string | null> {
+    try {
+        const dlUrl = toDownloadUrl(embedUrl);
+        if (!dlUrl) return null;
+        const { data } = await axios.get(`${BASE_URL}/api/dl`, {
+            params: { url: dlUrl },
+            timeout: 20000,
+            headers: { 'User-Agent': 'Mozilla/5.0' }
+        });
+        return data?.success && data?.downloadUrl ? data.downloadUrl : null;
+    } catch {
+        return null;
+    }
+}
+
+async function fetchSeriesPage(page: number): Promise<FsItem[]> {
+    try {
+        const { data } = await axios.get(`${BASE_URL}/api/fs-home`, {
+            params: { category: 'series', page },
+            timeout: 30000,
+            headers: { 'User-Agent': 'Mozilla/5.0' }
+        });
+        return Array.isArray(data?.items) ? data.items : [];
+    } catch (err: any) {
+        console.error(`[ScrapeSeries] Erreur fetch page ${page}:`, err.message);
+        return [];
+    }
+}
+
+async function fetchWatchDetails(id: string): Promise<any> {
+    try {
+        const { data } = await axios.get(`${BASE_URL}/api/fs-watch`, {
+            params: { id },
+            timeout: 30000,
+            headers: { 'User-Agent': 'Mozilla/5.0' }
+        });
+        return data || {};
+    } catch (err: any) {
+        console.error(`[ScrapeSeries] Erreur fetch fs-watch (${id}):`, err.message);
+        return null;
+    }
 }
 
 async function loadState(): Promise<{ lastPage: number }> {
@@ -41,183 +102,179 @@ async function saveState(lastPage: number) {
     );
 }
 
-async function scrapeSeriesDetails() {
-    console.log('[START] scrapeSeriesDetails() called — connecting to MongoDB...');
-    await connectDB();
-    console.log('[OK] MongoDB connected, launching Playwright...');
+function sleep(ms: number) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
 
-    const browser = await chromium.launch(browserConfig);
-    console.log('[OK] Playwright browser launched');
-    const context = await browser.newContext({
-      viewport: { width: 1920, height: 1080 },
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
-    });
-    const page = await context.newPage();
-    await installDonateOverlayBlocker(page);
+async function processSerie(item: FsItem, existingSeries: any): Promise<void> {
+    const titre = item.title.trim();
+    const ficheUrl = `${BASE_URL}/?watch_fs=${item.id}`;
+
+    try {
+        console.log(`[ScrapeSeries] Traitement : ${titre} (ID: ${item.id})`);
+        const watch = await fetchWatchDetails(item.id);
+        if (!watch) {
+            console.log(`[ScrapeSeries] ⚠️ Données introuvables pour : ${titre}`);
+            return;
+        }
+
+        let year: number | undefined;
+        if (watch.meta?.year) {
+            const parsed = parseInt(String(watch.meta.year), 10);
+            if (parsed > 1900 && parsed < 2100) year = parsed;
+        }
+        if (!year) {
+            const y = titre.match(/(\d{4})/);
+            if (y) { const p = parseInt(y[1], 10); if (p > 1900 && p < 2100) year = p; }
+        }
+
+        const poster = watch.meta?.poster || item.poster || undefined;
+        const rawEps = watch.episodes || {};
+        const vfMap = rawEps.vf || {};
+        const vostfrMap = rawEps.vostfr || {};
+        const version = Object.keys(vfMap).length > 0 ? vfMap : vostfrMap;
+        const epNumbers = Object.keys(version).sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
+
+        let episodes: Array<{ episode: string; season: number; episodeNumber: number; lien: string }> = [];
+
+        if (existingSeries && existingSeries.episodes && existingSeries.episodes.length > 0) {
+            episodes = existingSeries.episodes;
+        } else {
+            const seasonMatch = titre.match(/Saison\s*(\d+)/i);
+            const defaultSeason = seasonMatch ? parseInt(seasonMatch[1], 10) : 1;
+
+            const episodeTasks = epNumbers.map(async (num) => {
+                const players = version[num] || {};
+                const embedUrl = players.vidzy || players.luluvid || (Object.values(players)[0] as any) || '';
+                if (!embedUrl) return null;
+
+                const link = await getDirectLink(embedUrl);
+                if (link) {
+                    const { season, episodeNumber, canonical } = parseEpisodeLabel(`Épisode ${num}`, defaultSeason);
+                    return { episode: canonical, season, episodeNumber, lien: link };
+                }
+                return null;
+            });
+
+            const resolved = await Promise.all(episodeTasks);
+            episodes = resolved.filter((ep): ep is { episode: string; season: number; episodeNumber: number; lien: string } => Boolean(ep));
+            for (const ep of episodes) {
+                console.log(`  -> ${ep.episode} : ${ep.lien.slice(0, 70)}...`);
+            }
+        }
+
+        if (episodes.length === 0) {
+            console.log(`[ScrapeSeries] ⚠️ Aucun épisode extrait pour : ${titre}`);
+            return;
+        }
+
+        const serieData: any = {
+            titre,
+            pageUrl: ficheUrl,
+            episodes,
+            ...(year ? { year } : {}),
+            ...(poster ? { posterUrl: poster, posterSource: 'tmdb' } : {})
+        };
+
+        const saved = await Serie.findOneAndUpdate(
+            { titre },
+            { $set: serieData },
+            { upsert: true, returnDocument: 'after' }
+        );
+
+        console.log(`[ScrapeSeries] ✅ Série enregistrée (${episodes.length} ép.) : ${titre}`);
+
+        if (saved) {
+            for (let epIdx = 0; epIdx < (saved.episodes || []).length; epIdx++) {
+                const ep = saved.episodes[epIdx];
+                if (!ep.lien || ep.lien === '#') continue;
+                await reuploadEpisode(saved._id.toString(), ep, epIdx);
+            }
+        }
+    } catch (e: any) {
+        console.error(`[ScrapeSeries] ❌ Erreur sur ${titre}:`, e.message);
+    }
+}
+
+async function scrapeSeriesDetails() {
+    console.log('[START] scrapeSeriesDetails() — connexion MongoDB...');
+    await connectDB();
+    console.log('[OK] Scraper Séries ultra-rapide initialisé.');
 
     let shuttingDown = false;
     process.on('SIGTERM', async () => {
         if (shuttingDown) return;
         shuttingDown = true;
-        console.log('\n[SIGTERM] Arrêt demandé, fermeture du navigateur...');
-        await browser.close().catch(() => {});
+        console.log('\n[SIGTERM] Arrêt demandé, déconnexion...');
         await mongoose.disconnect().catch(() => {});
         process.exit(0);
     });
 
     while (true) {
-    await waitForScrapingHours();
-    let currentPage = (await loadState()).lastPage;
-    let hasMorePages = true;
+        await waitForScrapingHours();
+        let currentPage = (await loadState()).lastPage;
+        let hasMorePages = true;
 
-    while (hasMorePages && !shuttingDown) {
-        const url = `https://www.open-otaku.me/?cat=series&page=${currentPage}`;
-        console.log(`\n--- Navigation vers ${url} ---`);
+        while (hasMorePages && !shuttingDown) {
+            console.log(`\n--- Page Séries ${currentPage} ---`);
+            let items = await fetchSeriesPage(currentPage);
 
-        await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
-
-        try {
-            await page.waitForSelector('.fs-card', { timeout: 30000 });
-        } catch (e) {
-            let retries = 0;
-            let pageLoaded = false;
-            while (retries < 5) {
-                retries++;
-                console.log(`Page ${currentPage} vide (tentative ${retries}/5) — attend 15s puis réessaie...`);
-                await new Promise(r => setTimeout(r, 15000));
-                try {
-                    await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
-                    await page.waitForSelector('.fs-card', { timeout: 30000 });
-                    pageLoaded = true;
+            if (items.length === 0) {
+                let retries = 0;
+                let pageLoaded = false;
+                while (retries < MAX_EMPTY_RETRIES) {
+                    retries++;
+                    console.log(`Page ${currentPage} vide (tentative ${retries}/${MAX_EMPTY_RETRIES}) — attend 5s...`);
+                    await sleep(5000);
+                    items = await fetchSeriesPage(currentPage);
+                    if (items.length > 0) {
+                        pageLoaded = true;
+                        break;
+                    }
+                }
+                if (!pageLoaded) {
+                    console.log(`Page ${currentPage} toujours vide après ${MAX_EMPTY_RETRIES} tentatives — fin du cycle, retour page 1`);
+                    hasMorePages = false;
+                    await saveState(1);
                     break;
-                } catch {}
+                }
             }
-            if (!pageLoaded) {
-                console.log(`Page ${currentPage} toujours vide après 5 tentatives — vraie fin, retour page 1`);
-                hasMorePages = false;
-                await saveState(1);
-                break;
+
+            console.log(`Séries trouvées sur la page : ${items.length}`);
+            const validItems = items.filter(it => it.title);
+            const titles = validItems.map(it => it.title.trim());
+
+            // Vérification MongoDB en batch
+            const existingSeriesList = await Serie.find(
+                { titre: { $in: titles } },
+                { titre: 1, pageUrl: 1, episodes: 1 }
+            ).lean();
+            const existingMap = new Map(existingSeriesList.map(s => [s.titre, s]));
+
+            const toProcess = validItems.filter(it => {
+                const existing = existingMap.get(it.title.trim());
+                if (existing && existing.pageUrl && existing.episodes && existing.episodes.length > 0) {
+                    console.log(`Déjà traitée et complète : ${it.title.trim()}`);
+                    return false;
+                }
+                return true;
+            });
+
+            console.log(`Séries à traiter : ${toProcess.length}/${validItems.length}`);
+
+            for (let i = 0; i < toProcess.length; i += CONCURRENCY) {
+                if (shuttingDown) break;
+                const chunk = toProcess.slice(i, i + CONCURRENCY);
+                await Promise.all(chunk.map(it => processSerie(it, existingMap.get(it.title.trim()))));
             }
+
+            currentPage++;
+            await saveState(currentPage);
         }
 
-        let cards = await page.$$('.fs-card');
-        console.log(`Séries trouvées sur la page : ${cards.length}`);
-
-        for (let i = 0; i < cards.length; i++) {
-            try {
-                let currentCards = await page.$$('.fs-card');
-                let card = currentCards[i];
-                let titre = await card.$eval('.fs-card-title', (el: any) => el.innerText.trim());
-
-                const existingSeries = await Serie.findOne({ titre: titre });
-                if (existingSeries && existingSeries.pageUrl && existingSeries.episodes && existingSeries.episodes.length > 0) {
-                    console.log(`Série déjà traitée et complète : ${titre}`);
-                    continue;
-                }
-
-                console.log(`Traitement de la série : ${titre}`);
-                await card.click();
-                await page.waitForLoadState('domcontentloaded');
-                await page.waitForTimeout(1000);
-                const pageUrl = page.url();
-
-                let year: number | undefined;
-                try {
-                    const watchTitle = await page.$eval('#fs-watch-title', (el: any) => el.innerText.trim());
-                    const y = watchTitle.match(/(\d{4})$/);
-                    if (y) { const p = parseInt(y[1], 10); if (p > 1900 && p < 2100) year = p; }
-                } catch {}
-                if (!year) {
-                    const y = titre.match(/(\d{4})/);
-                    if (y) { const p = parseInt(y[1], 10); if (p > 1900 && p < 2100) year = p; }
-                }
-
-                let serieData: any = { 
-                    titre: titre, 
-                    pageUrl: pageUrl, 
-                    episodes: existingSeries ? existingSeries.episodes : [] 
-                };
-                if (year) serieData.year = year;
-
-                if (serieData.episodes.length === 0) {
-                    console.log(`  -> Récupération des épisodes pour : ${titre}`);
-                    // Le player remplit #fs-episode-select en JS (via /api/episodes) :
-                    // il faut attendre que des options existent, sinon
-                    // "option:checked" échoue avec Failed to find element.
-                    try {
-                        await page.waitForFunction(
-                            () => document.querySelectorAll('#fs-episode-select option').length > 0,
-                            { timeout: 45000 }
-                        );
-                    } catch (e) {
-                        console.log(`  -> ⏭ Aucun épisode chargé pour : ${titre}`);
-                        await page.goto(url, { waitUntil: 'networkidle' });
-                        await page.waitForSelector('.fs-card');
-                        continue;
-                    }
-                    while (true) {
-                        await page.waitForSelector('#fs-episode-select', { state: 'attached', timeout: 10000 });
-                        let epTitre = await page.$eval('#fs-episode-select option:checked', (el: any) => el.innerText.trim());
-                        await page.click('button#fs-quick-download', { force: true });
-                        await page.waitForTimeout(10000);
-                        let dlLink = await page.$('a#fs-dl-link');
-                        let link = dlLink ? await dlLink.getAttribute('href') : "#";
-
-                        if (link && link !== "#") {
-                            const seasonMatch = titre.match(/Saison (\d+)/i);
-                            const defaultSeason = seasonMatch ? parseInt(seasonMatch[1], 10) : 1;
-                            const { season, episodeNumber, canonical } = parseEpisodeLabel(epTitre, defaultSeason);
-                            serieData.episodes.push({
-                                episode: canonical,
-                                season,
-                                episodeNumber,
-                                lien: link,
-                            });
-                        }
-                        await page.evaluate(() => {
-                            document.querySelector('#fs-donate-overlay')?.remove();
-                        });
-                        await page.click('button#fs-modal-close');
-                        await page.waitForTimeout(2000);
-                        let nextBtn = await page.$('button#fs-next-ep');
-                        if (!nextBtn || !(await nextBtn.isEnabled())) break;
-                        await nextBtn.click();
-                        await page.waitForTimeout(5000);
-                    }
-                }
-
-                const saved = await Serie.findOneAndUpdate(
-                    { titre: titre },
-                    { $set: serieData },
-                    { upsert: true, returnDocument: 'after' }
-                );
-                console.log(`Série enregistrée dans MongoDB : ${titre}`);
-
-                if (saved) {
-                    for (let epIdx = 0; epIdx < (saved.episodes || []).length; epIdx++) {
-                        const ep = saved.episodes[epIdx];
-                        if (!ep.lien || ep.lien === "#") continue;
-                        await reuploadEpisode(saved._id.toString(), ep, epIdx);
-                    }
-                }
-
-                await page.goto(url, { waitUntil: 'networkidle' });
-                await page.waitForSelector('.fs-card');
-            } catch (e) {
-                console.error(`Erreur sur la série :`, e);
-                try {
-                    await page.goto(url, { waitUntil: 'networkidle' });
-                    await page.waitForSelector('.fs-card');
-                } catch (recoveryErr) {
-                    console.error(`Récupération échouée :`, recoveryErr);
-                }
-            }
-        }
-        currentPage++;
-        await saveState(currentPage);
+        console.log("[ScrapeSeries] Cycle terminé, redémarrage dans 10s...");
+        await sleep(10000);
     }
-    console.log("[ScrapeSeries] Cycle terminé, redémarrage immédiat...");
-  }
 }
 
 export { scrapeSeriesDetails as scrapeSeries };
@@ -225,14 +282,16 @@ export { scrapeSeriesDetails as scrapeSeries };
 // Exécution directe
 const isDirectExecution = process.argv[1] && (process.argv[1].includes('scrape-series') || process.argv[1].endsWith('scrape-series.ts') || process.argv[1].endsWith('scrape-series.js'));
 if (isDirectExecution) {
-  (async () => {
-    while (true) {
-      try {
-        await scrapeSeriesDetails();
-      } catch (err: any) {
-        console.log(`[ScrapeSeries] Crash: ${err?.message || err} — redémarrage dans 10s...`);
-        await new Promise(r => setTimeout(r, 10000));
-      }
-    }
-  })();
+    (async () => {
+        while (true) {
+            try {
+                await scrapeSeriesDetails();
+            } catch (err: any) {
+                console.log(`[ScrapeSeries] Crash: ${err?.message || err} — redémarrage dans 10s...`);
+                await sleep(10000);
+            }
+        }
+    })();
 }
+
+

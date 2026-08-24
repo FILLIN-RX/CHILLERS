@@ -26,27 +26,28 @@ function normalize(str) {
 async function searchOtaku(title, type = 'movie') {
     const b = await getBrowser();
     const page = await b.newPage();
+    await (0, browser_1.setupFastPage)(page);
     try {
         const searchUrl = type === 'series'
             ? `${BASE_URL}/?cat=series`
             : `${BASE_URL}/`;
         console.log(`[Otaku] Searching "${title}" on ${searchUrl}`);
         await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
-        await page.waitForTimeout(2000);
+        await page.waitForTimeout(1000);
         const searchBtn = page.locator('#fs-search-icon-btn');
         if (await searchBtn.count() > 0) {
             await searchBtn.click();
-            await page.waitForTimeout(1000);
+            await page.waitForTimeout(500);
         }
         const searchInput = page.locator('input[type="search"], input[type="text"], #fs-search-input, .fs-search-input');
         if (await searchInput.count() > 0) {
             await searchInput.first().fill(title);
             await page.keyboard.press('Enter');
-            await page.waitForTimeout(3000);
+            await page.waitForTimeout(1500);
         }
         else {
             await page.goto(`${BASE_URL}/?s=${encodeURIComponent(title)}`, { waitUntil: 'domcontentloaded', timeout: 30000 });
-            await page.waitForTimeout(3000);
+            await page.waitForTimeout(1500);
         }
         const cards = await page.locator('.fs-card').all();
         if (cards.length === 0) {
@@ -75,13 +76,9 @@ async function searchOtaku(title, type = 'movie') {
         await page.evaluate(() => {
             document.querySelector('#fs-donate-overlay')?.remove();
         }).catch(() => { });
-        await page.waitForTimeout(500);
-        await page.evaluate(() => {
-            document.querySelector('#fs-donate-overlay')?.remove();
-        }).catch(() => { });
         await bestCard.click({ force: true });
         await page.waitForLoadState('domcontentloaded');
-        await page.waitForTimeout(2000);
+        await page.waitForTimeout(1000);
         const detailTitle = await page.locator('.fs-card-title, h1, h2').first().innerText().catch(() => title);
         if (type === 'series') {
             const link = await extractEpisodeDownload(page);
@@ -111,10 +108,9 @@ async function extractMovieDownload(page) {
         const dlBtn = page.locator('button#fs-quick-download, .fs-download-btn, button:has-text("Download")');
         if (await dlBtn.count() > 0) {
             await dlBtn.first().click({ force: true });
-            await page.waitForTimeout(8000);
-            const dlLink = page.locator('a#fs-dl-link, a[href*="vidzy"], a[href*="doodstream"], a[href*=".mp4"]');
-            if (await dlLink.count() > 0) {
-                const href = await dlLink.first().getAttribute('href');
+            const dlLink = await page.waitForSelector('a#fs-dl-link[href]:not([href="#"]):not([href=""]), a[href*="vidzy"], a[href*="doodstream"], a[href*=".mp4"]', { state: 'attached', timeout: 10000 }).catch(() => null);
+            if (dlLink) {
+                const href = await dlLink.getAttribute('href');
                 if (href && href !== '#')
                     return href;
             }
@@ -137,10 +133,9 @@ async function extractEpisodeDownload(page) {
         const dlBtn = page.locator('button#fs-quick-download, .fs-download-btn');
         if (await dlBtn.count() > 0) {
             await dlBtn.first().click({ force: true });
-            await page.waitForTimeout(8000);
-            const dlLink = page.locator('a#fs-dl-link, a[href*="vidzy"], a[href*="doodstream"], a[href*=".mp4"]');
-            if (await dlLink.count() > 0) {
-                const href = await dlLink.first().getAttribute('href');
+            const dlLink = await page.waitForSelector('a#fs-dl-link[href]:not([href="#"]):not([href=""]), a[href*="vidzy"], a[href*="doodstream"], a[href*=".mp4"]', { state: 'attached', timeout: 10000 }).catch(() => null);
+            if (dlLink) {
+                const href = await dlLink.getAttribute('href');
                 if (href && href !== '#')
                     return href;
             }
