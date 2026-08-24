@@ -71,37 +71,65 @@ function isPidAlive(pid: number): boolean {
     }
 }
 
-function resolveScript(relativePath: string): string {
+function resolveScript(relativePath: string): { command: string; args: string[] } {
+    const isProd = process.env.NODE_ENV === 'production' || __dirname.includes('dist');
+
+    if (isProd) {
+        const jsRel = relativePath.replace(/\.ts$/, '.js');
+        const distPath = path.join(__dirname, jsRel);
+        if (fs.existsSync(distPath)) {
+            return { command: 'node', args: [distPath] };
+        }
+    }
+
     let fullPath = path.join(__dirname, relativePath);
+    if (fs.existsSync(fullPath)) {
+        if (fullPath.endsWith('.js')) return { command: 'node', args: [fullPath] };
+        return { command: 'npx', args: ['tsx', fullPath] };
+    }
+
     const tsPath = fullPath.replace(/\.js$/, '.ts');
-    if (fs.existsSync(tsPath)) return tsPath;
-    return fullPath;
+    if (fs.existsSync(tsPath)) {
+        return { command: 'npx', args: ['tsx', tsPath] };
+    }
+
+    const jsPath = fullPath.replace(/\.ts$/, '.js');
+    if (fs.existsSync(jsPath)) {
+        return { command: 'node', args: [jsPath] };
+    }
+
+    const distFallback = fullPath.replace('/src/', '/dist/').replace(/\.ts$/, '.js');
+    if (fs.existsSync(distFallback)) {
+        return { command: 'node', args: [distFallback] };
+    }
+
+    const srcFallback = fullPath.replace('/dist/', '/src/').replace(/\.js$/, '.ts');
+    if (fs.existsSync(srcFallback)) {
+        return { command: 'npx', args: ['tsx', srcFallback] };
+    }
+
+    return { command: 'node', args: [fullPath] };
 }
 
-/**
- * Tue un arbre de process complet (le PGID du child + tous ses descendants).
- * SIGTERM d'abord, attend `graceMs`, puis SIGKILL si toujours vivant.
- */
 function killTree(child: ChildProcess | { pid: number }, graceMs = GRACEFUL_KILL_MS): Promise<boolean> {
     const pid = (child as any).pid;
     if (!pid || !Number.isFinite(pid) || pid <= 0) return Promise.resolve(false);
 
-    const pgid = -pid; // PGID = -PID quand detached: true
+    const pgid = -pid;
     return new Promise((resolve) => {
-        try { process.kill(pgid, 'SIGTERM'); } catch { /* le groupe peut déjà être mort */ }
+        try { process.kill(pgid, 'SIGTERM'); } catch { }
         const killTimer = setTimeout(() => {
             if (isPidAlive(pid)) {
-                try { process.kill(pgid, 'SIGKILL'); } catch { /* ignore */ }
+                try { process.kill(pgid, 'SIGKILL'); } catch { }
             }
             resolve(isPidAlive(pid));
         }, graceMs);
-        // Si le process exit avant le timer, on résout immédiatement.
         try {
             (child as any).once?.('exit', () => {
                 clearTimeout(killTimer);
                 resolve(false);
             });
-        } catch { /* ChildProcess-like sans .once, pas grave */ }
+        } catch { }
     });
 }
 
@@ -115,7 +143,7 @@ function runProcess(name: string, command: string, args: string[]) {
     if (child.pid) writePidFile(name, child.pid);
     runningProcesses.set(name, child);
 
-    child.stdout.on('data', (data) => {
+    child.stdout?.on('data', (data) => {
         for (const line of data.toString().split('\n').filter((l: string) => l)) {
             const msg = `[${name}] ${line}`;
             console.log(msg);
@@ -123,7 +151,7 @@ function runProcess(name: string, command: string, args: string[]) {
         }
     });
 
-    child.stderr.on('data', (data) => {
+    child.stderr?.on('data', (data) => {
         for (const line of data.toString().split('\n').filter((l: string) => l)) {
             const msg = `[${name}] ${line}`;
             console.error(msg);
@@ -144,11 +172,13 @@ function runProcess(name: string, command: string, args: string[]) {
 }
 
 function runScript(name: string, scriptRelativePath: string) {
-    runProcess(name, 'npx', ['tsx', resolveScript(scriptRelativePath)]);
+    const resolved = resolveScript(scriptRelativePath);
+    runProcess(name, resolved.command, resolved.args);
 }
 
 function runNodeScript(name: string, scriptRelativePath: string) {
-    runProcess(name, 'node', [resolveScript(scriptRelativePath)]);
+    const resolved = resolveScript(scriptRelativePath);
+    runProcess(name, resolved.command, resolved.args);
 }
 
 export const runner = runScript;
