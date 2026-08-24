@@ -41,10 +41,13 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/support" className="flex items-center gap-2 hover:text-brand-primary transition-colors">
-                  <IconHeart className="h-3.5 w-3.5" />
-                  Soutenir
-                </Link>
+                <button
+                  onClick={() => window.dispatchEvent(new Event("open-donation"))}
+                  className="flex items-center gap-2 hover:text-brand-primary transition-colors text-left"
+                >
+                  <IconHeart className="h-3.5 w-3.5 text-red-500 fill-red-500/20" />
+                  Faire un don (Orange / MoMo)
+                </button>
               </li>
               <li>
                 <Link href="/privacy" className="flex items-center gap-2 hover:text-brand-primary transition-colors">

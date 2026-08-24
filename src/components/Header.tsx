@@ -102,6 +102,15 @@ export default function Header({ onSearchClick }: HeaderProps) {
 
         <div className="flex items-center gap-2 sm:gap-3">
           <button
+            onClick={() => window.dispatchEvent(new Event("open-donation"))}
+            aria-label="Faire un don"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-red-600/90 to-orange-500/90 hover:from-red-600 hover:to-orange-500 text-white text-xs font-bold shadow-md shadow-red-500/20 hover:scale-105 active:scale-95 transition-all"
+          >
+            <span>💖</span>
+            <span className="hidden sm:inline">Faire un don</span>
+          </button>
+
+          <button
             onClick={onSearchClick}
             aria-label={_("nav.search")}
             className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full hover:bg-zinc-800 hover:text-white transition-colors focus:outline-none text-zinc-300"
