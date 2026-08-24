@@ -196,71 +196,26 @@ export function runTaskById(id: string): boolean {
  */
 export function getRunningTasks(): string[] {
     const out = new Set<string>();
-    // 1. Process trackés par le backend (et toujours vivants)
     for (const [name, child] of runningProcesses) {
-        if (child.pid && isPidAlive(child.pid)) out.add(name);
-        else runningProcesses.delete(name);
-    }
-    // 2. Process orphelins (lancés hors backend mais matchant une signature connue)
-    for (const entry of Object.values(ALL_TASKS)) {
-        if (out.has(entry.label)) continue;
-        if (scanProcessForLabel(entry.label)) out.add(entry.label);
+        if (child.pid && isPidAlive(child.pid)) {
+            out.add(name);
+        } else {
+            runningProcesses.delete(name);
+        }
     }
     return Array.from(out);
 }
 
-/**
- * Liste brute des process OS qui matchent une signature de scraper.
- * Utile pour le panneau debug et pour détecter des fantômes.
- */
 export function listOsProcesses(): Array<{ label: string; pid: number; cmd: string }> {
     const results: Array<{ label: string; pid: number; cmd: string }> = [];
-    let lines: string;
-    try {
-        // ps -eo pid,cmd pour avoir PID + commande
-        lines = execSync('ps -eo pid=,cmd=', { encoding: 'utf8', maxBuffer: 4 * 1024 * 1024 });
-    } catch {
-        return results;
-    }
-    for (const raw of lines.split('\n')) {
-        const line = raw.trim();
-        if (!line) continue;
-        const match = line.match(/^(\d+)\s+(.*)$/);
-        if (!match) continue;
-        const pid = parseInt(match[1], 10);
-        const cmd = match[2];
-        for (const entry of Object.values(ALL_TASKS)) {
-            // On détecte via le chemin du script dans la commande
-            const scriptBasename = entry.path.split('/').pop()?.replace(/\.ts$/, '').replace(/\.js$/, '');
-            if (!scriptBasename) continue;
-            if (cmd.includes(scriptBasename) && (cmd.includes('tsx') || cmd.includes('node'))) {
-                results.push({ label: entry.label, pid, cmd });
-                break;
-            }
+    for (const [label, child] of runningProcesses) {
+        if (child.pid && isPidAlive(child.pid)) {
+            results.push({ label, pid: child.pid, cmd: `node/tsx ${label}` });
         }
     }
     return results;
 }
 
-function scanProcessForLabel(label: string): boolean {
-    const entry = Object.values(ALL_TASKS).find(t => t.label === label);
-    if (!entry) return false;
-    const scriptBasename = entry.path.split('/').pop()?.replace(/\.ts$/, '').replace(/\.js$/, '');
-    if (!scriptBasename) return false;
-    try {
-        const out = execSync(`ps -eo pid=,cmd=`, { encoding: 'utf8' });
-        return out.split('\n').some(line => {
-            const l = line.trim();
-            return l && l.includes(scriptBasename) && (l.includes('tsx') || l.includes('node'));
-        });
-    } catch {
-        return false;
-    }
-}
-
-/**
- * Indique si une tâche est en cours (basé sur la source de vérité OS).
- */
 export function isTaskRunning(label: string): boolean {
     return getRunningTasks().includes(label);
 }
