@@ -368,28 +368,48 @@ async function resolveLinkFromOpenOtaku(
 
     console.log(`[Download OpenOtaku Fallback] Resolving "${searchTitle}" S${season || 1}E${episode || 1}...`);
 
-    const { data: searchRes } = await axios.get('https://www.open-otaku.me/api/fs-search', {
-      params: { q: searchTitle },
-      timeout: 12000,
-      headers: { 'User-Agent': 'Mozilla/5.0' }
-    });
+    let results: Array<{ id: string; title: string }> = [];
 
-    const results: Array<{ id: string; title: string }> = searchRes?.results || [];
+    // 1. Si une saison est spécifiée, chercher d'abord "Titre Saison X"
+    if (season !== undefined) {
+      try {
+        const { data: searchSeasonRes } = await axios.get('https://www.open-otaku.me/api/fs-search', {
+          params: { q: `${searchTitle} Saison ${season}` },
+          timeout: 12000,
+          headers: { 'User-Agent': 'Mozilla/5.0' }
+        });
+        results = searchSeasonRes?.results || [];
+      } catch {}
+    }
+
+    // 2. Si pas de résultats avec la saison, chercher le titre global
+    if (!results.length) {
+      const { data: searchRes } = await axios.get('https://www.open-otaku.me/api/fs-search', {
+        params: { q: searchTitle },
+        timeout: 12000,
+        headers: { 'User-Agent': 'Mozilla/5.0' }
+      });
+      results = searchRes?.results || [];
+    }
+
     if (!results.length) return null;
 
-    let bestId = results[0].id;
-    const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const searchNorm = norm(searchTitle);
-    for (const r of results) {
-      const rNorm = norm(r.title || '');
-      if (rNorm.includes(searchNorm) || searchNorm.includes(rNorm)) {
-        bestId = r.id;
-        break;
-      }
+    let bestItem = results[0];
+    if (season !== undefined) {
+      const seasonMatch = results.find((r) => {
+        const t = (r.title || '').toLowerCase();
+        return (
+          t.includes(`saison ${season}`) ||
+          t.includes(`season ${season}`) ||
+          t.includes(`s0${season}`) ||
+          t.includes(`s${season}`)
+        );
+      });
+      if (seasonMatch) bestItem = seasonMatch;
     }
 
     const { data: watch } = await axios.get('https://www.open-otaku.me/api/fs-watch', {
-      params: { id: bestId },
+      params: { id: bestItem.id },
       timeout: 12000,
       headers: { 'User-Agent': 'Mozilla/5.0' }
     });
@@ -414,7 +434,7 @@ async function resolveLinkFromOpenOtaku(
           headers: { 'User-Agent': 'Mozilla/5.0' }
         });
         if (dlRes?.success && dlRes?.downloadUrl) {
-          console.log(`[Download OpenOtaku Fallback] ✅ Direct link resolved: ${dlRes.downloadUrl.slice(0, 60)}...`);
+          console.log(`[Download OpenOtaku Fallback] ✅ Direct link resolved for S0${season || 1}E0${episode || 1}: ${dlRes.downloadUrl.slice(0, 60)}...`);
           return dlRes.downloadUrl;
         }
       }
@@ -546,14 +566,23 @@ export const getDownloadByTitle = async (req: Request, res: Response, next: Next
     }
 
     if (!downloadUrl) {
+      const streamtapeDirect = match.info.streamtapeCode
+        ? `https://streamtape.com/v/${match.info.streamtapeCode}`
+        : match.info.streamtapeLink;
+
       const linksToTry = [
         match.info.uqloadLink !== match.info.lien ? match.info.uqloadLink : undefined,
         match.info.lien,
+        streamtapeDirect,
         match.info.lienFallback,
       ].filter(Boolean) as string[];
 
       for (const url of [...new Set(linksToTry)]) {
         if (!url || /doodstream\.com\/(e|d)\//i.test(url)) continue;
+        if (url.includes('streamtape.com/v/')) {
+          downloadUrl = url;
+          break;
+        }
         const alive = await isLinkAlive(url);
         if (alive) {
           downloadUrl = url;
