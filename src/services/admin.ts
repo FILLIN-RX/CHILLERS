@@ -56,8 +56,15 @@ export async function adminLogin(username: string, password: string): Promise<Ad
   return res;
 }
 
-export function adminVerify() {
-  return adminRequest<AdminEnvelope<unknown>>("/auth/verify");
+export async function adminVerify(): Promise<AdminEnvelope<unknown>> {
+  try {
+    return await adminRequest<AdminEnvelope<unknown>>("/auth/verify");
+  } catch (err: any) {
+    if (err?.status === 401 || err?.message?.includes("401")) {
+      return { success: false, message: "Non authentifié" };
+    }
+    throw err;
+  }
 }
 
 export function adminLogout(): void {
