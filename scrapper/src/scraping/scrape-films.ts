@@ -137,15 +137,15 @@ async function processFilm(item: FsItem): Promise<void> {
       ...(poster ? { posterUrl: poster, posterSource: 'tmdb' } : {})
     };
 
-    const saved = await Movie.findOneAndUpdate(
+    const movieDoc = await Movie.findOneAndUpdate(
       { titre },
       { $set: updateData },
       { upsert: true, returnDocument: 'after' }
     );
 
     console.log(`[ScrapeFilms] ✅ Sauvegardé : ${titre}`);
-    if (saved) {
-      await reuploadMovie(saved._id.toString(), directLink, titre);
+    if (movieDoc && directLink && !movieDoc.uqloadLink && !(movieDoc as any).streamtapeCode) {
+      reuploadMovie(String(movieDoc._id), directLink, titre).catch(() => {});
     }
   } catch (err: any) {
     console.error(`[ScrapeFilms] ❌ Erreur sur ${titre}:`, err.message);

@@ -152,7 +152,7 @@ async function processFilm(item: FsItem): Promise<void> {
 
         // Reupload Uqload + Streamtape asynchrone non-bloquant
         if (movieDoc && directLink && !movieDoc.uqloadLink && !(movieDoc as any).streamtapeCode) {
-            reuploadMovie(titre, directLink, String(movieDoc._id)).catch(() => {});
+            reuploadMovie(String(movieDoc._id), directLink, titre).catch(() => {});
         }
 
     } catch (err: any) {

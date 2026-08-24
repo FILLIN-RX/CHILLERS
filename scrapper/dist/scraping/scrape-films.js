@@ -122,10 +122,10 @@ async function processFilm(item) {
             ...(year ? { year } : {}),
             ...(poster ? { posterUrl: poster, posterSource: 'tmdb' } : {})
         };
-        const saved = await Movie_1.default.findOneAndUpdate({ titre }, { $set: updateData }, { upsert: true, returnDocument: 'after' });
+        const movieDoc = await Movie_1.default.findOneAndUpdate({ titre }, { $set: updateData }, { upsert: true, returnDocument: 'after' });
         console.log(`[ScrapeFilms] ✅ Sauvegardé : ${titre}`);
-        if (saved) {
-            await (0, reupload_1.reuploadMovie)(saved._id.toString(), directLink, titre);
+        if (movieDoc && directLink && !movieDoc.uqloadLink && !movieDoc.streamtapeCode) {
+            (0, reupload_1.reuploadMovie)(String(movieDoc._id), directLink, titre).catch(() => { });
         }
     }
     catch (err) {
