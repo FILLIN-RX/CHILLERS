@@ -27,18 +27,60 @@ function toDownloadUrl(url: string): string {
 }
 
 async function getDirectLink(embedUrl: string): Promise<string | null> {
+    if (!embedUrl) return null;
+    const dlUrl = toDownloadUrl(embedUrl);
     try {
-        const dlUrl = toDownloadUrl(embedUrl);
-        if (!dlUrl) return null;
         const { data } = await axios.get(`${BASE_URL}/api/dl`, {
             params: { url: dlUrl },
             timeout: 20000,
             headers: { 'User-Agent': 'Mozilla/5.0' }
         });
-        return data?.success && data?.downloadUrl ? data.downloadUrl : null;
-    } catch {
-        return null;
+        if (data?.success && data?.downloadUrl) return data.downloadUrl;
+    } catch (_) {}
+
+    if (dlUrl !== embedUrl) {
+        try {
+            const { data } = await axios.get(`${BASE_URL}/api/dl`, {
+                params: { url: embedUrl },
+                timeout: 20000,
+                headers: { 'User-Agent': 'Mozilla/5.0' }
+            });
+            if (data?.success && data?.downloadUrl) return data.downloadUrl;
+        } catch (_) {}
     }
+
+    return null;
+}
+
+async function resolveBestFilmLink(players: Record<string, any>): Promise<string | null> {
+    if (!players || typeof players !== 'object') return null;
+
+    const candidateUrls: string[] = [];
+    const orderedKeys = ['vidzy', 'luluvid', 'premium', 'default', ...Object.keys(players)];
+    const seen = new Set<string>();
+
+    for (const key of orderedKeys) {
+        const p = players[key];
+        if (!p) continue;
+        const urls = typeof p === 'string' ? [p] : Object.values(p);
+        for (const u of urls) {
+            if (typeof u === 'string' && u.startsWith('http') && !seen.has(u)) {
+                seen.add(u);
+                candidateUrls.push(u);
+            }
+        }
+    }
+
+    for (const u of candidateUrls) {
+        const direct = await getDirectLink(u);
+        if (direct) return direct;
+    }
+
+    if (candidateUrls.length > 0) {
+        return candidateUrls[0];
+    }
+
+    return null;
 }
 
 async function fetchWithRetry(url: string, params: any, retries = 3, delayMs = 3500): Promise<any> {
@@ -120,24 +162,10 @@ async function processFilm(item: FsItem): Promise<void> {
             return;
         }
 
-        const players = watch.players || {};
-        const embedUrl =
-            players.vidzy?.default ||
-            players.vidzy?.vff ||
-            players.vidzy?.vf ||
-            players.vidzy?.vostfr ||
-            players.premium?.default ||
-            (Object.values(players)[0] as any)?.default ||
-            '';
+        const directLink = await resolveBestFilmLink(watch.players || {});
 
-        if (!embedUrl) {
-            console.log(`[ScrapeFilms] ⚠️ Aucun lecteur trouvé pour : ${titre}`);
-            return;
-        }
-
-        const directLink = await getDirectLink(embedUrl);
         if (!directLink) {
-            console.log(`[ScrapeFilms] ⚠️ Lien direct introuvable pour : ${titre}`);
+            console.log(`[ScrapeFilms] ⚠️ Aucun lecteur ou lien direct exploitable pour : ${titre}`);
             return;
         }
 

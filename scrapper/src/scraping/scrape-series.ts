@@ -43,18 +43,62 @@ function toDownloadUrl(url: string): string {
 }
 
 async function getDirectLink(embedUrl: string): Promise<string | null> {
+    if (!embedUrl) return null;
+    const dlUrl = toDownloadUrl(embedUrl);
     try {
-        const dlUrl = toDownloadUrl(embedUrl);
-        if (!dlUrl) return null;
         const { data } = await axios.get(`${BASE_URL}/api/dl`, {
             params: { url: dlUrl },
             timeout: 20000,
             headers: { 'User-Agent': 'Mozilla/5.0' }
         });
-        return data?.success && data?.downloadUrl ? data.downloadUrl : null;
-    } catch {
-        return null;
+        if (data?.success && data?.downloadUrl) return data.downloadUrl;
+    } catch (_) {}
+
+    if (dlUrl !== embedUrl) {
+        try {
+            const { data } = await axios.get(`${BASE_URL}/api/dl`, {
+                params: { url: embedUrl },
+                timeout: 20000,
+                headers: { 'User-Agent': 'Mozilla/5.0' }
+            });
+            if (data?.success && data?.downloadUrl) return data.downloadUrl;
+        } catch (_) {}
     }
+
+    return null;
+}
+
+async function resolveBestEpisodeLink(players: Record<string, any>): Promise<string | null> {
+    if (!players || typeof players !== 'object') return null;
+
+    const candidateUrls: string[] = [];
+    const orderedKeys = ['vidzy', 'luluvid', 'premium', 'default', ...Object.keys(players)];
+    const seen = new Set<string>();
+
+    for (const key of orderedKeys) {
+        const p = players[key];
+        if (!p) continue;
+        const urls = typeof p === 'string' ? [p] : Object.values(p);
+        for (const u of urls) {
+            if (typeof u === 'string' && u.startsWith('http') && !seen.has(u)) {
+                seen.add(u);
+                candidateUrls.push(u);
+            }
+        }
+    }
+
+    // 1. Tenter l'extraction MP4 directe pour chaque lecteur
+    for (const u of candidateUrls) {
+        const direct = await getDirectLink(u);
+        if (direct) return direct;
+    }
+
+    // 2. Fallback direct sur l'URL du lecteur vidéo
+    if (candidateUrls.length > 0) {
+        return candidateUrls[0];
+    }
+
+    return null;
 }
 
 async function fetchSeriesPage(page: number): Promise<FsItem[]> {
@@ -145,10 +189,7 @@ async function processSerie(item: FsItem, existingSeries: any): Promise<void> {
 
             const episodeTasks = epNumbers.map(async (num) => {
                 const players = version[num] || {};
-                const embedUrl = players.vidzy || players.luluvid || (Object.values(players)[0] as any) || '';
-                if (!embedUrl) return null;
-
-                const link = await getDirectLink(embedUrl);
+                const link = await resolveBestEpisodeLink(players);
                 if (link) {
                     const { season, episodeNumber, canonical } = parseEpisodeLabel(`Épisode ${num}`, defaultSeason);
                     return { episode: canonical, season, episodeNumber, lien: link };
