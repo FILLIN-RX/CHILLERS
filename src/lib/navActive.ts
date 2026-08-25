@@ -3,7 +3,17 @@
 // light up the header underline but not the bottom-nav dot).
 export type NavTabId = "home" | "movies" | "series" | "anime" | "live" | "categories";
 
-export function getActiveNavTab(pathname: string | null | undefined): NavTabId {
+function resolveDetailTabFromType(typeParam: string | null | undefined): NavTabId {
+  if (typeParam === "movie") return "movies";
+  if (typeParam === "anime") return "anime";
+  if (typeParam === "tv" || typeParam === "series") return "series";
+  return "home";
+}
+
+export function getActiveNavTab(
+  pathname: string | null | undefined,
+  typeParam?: string | null,
+): NavTabId {
   const p = pathname ?? "";
   if (p === "/" || p === "") return "home";
   if (p.startsWith("/media/movies")) return "movies";
@@ -12,6 +22,9 @@ export function getActiveNavTab(pathname: string | null | undefined): NavTabId {
   if (p.startsWith("/live")) return "live";
   if (p.startsWith("/tv")) return "series";
   if (p.startsWith("/categories")) return "categories";
-  // Watch + media detail pages stay on the originating tab; default to home.
+  if (p.startsWith("/watch/")) return resolveDetailTabFromType(typeParam);
+  if (/^\/media\/(?!movies$|series$|anime$)(.+)$/.test(p)) {
+   return resolveDetailTabFromType(typeParam);
+  }
   return "home";
 }

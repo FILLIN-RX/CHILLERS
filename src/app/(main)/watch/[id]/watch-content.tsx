@@ -45,6 +45,7 @@ function WatchContent() {
     typeParam === "tv" ||
     typeParam === "series" ||
     typeParam === "anime";
+  const watchTypeQuery = typeParam === "anime" ? "anime" : isTV ? "series" : "movie";
   const initialSeasonParam = searchParams?.get("season") || "1";
   const initialEpisodeParam = searchParams?.get("episode") || "1";
 
@@ -271,7 +272,7 @@ function WatchContent() {
           window.history.replaceState(
             null,
             "",
-            `/watch/${id}?type=tv&season=${newSeason}&episode=${firstEp ? firstEp.number : 1}`
+            `/watch/${id}?type=${watchTypeQuery}&season=${newSeason}&episode=${firstEp ? firstEp.number : 1}`
           );
         } else {
           setStreamUnavailable(true);
@@ -284,7 +285,7 @@ function WatchContent() {
         setStreamLoading(false);
       }
     },
-    [id, currentSeason, item, _]
+    [id, currentSeason, item, watchTypeQuery, _]
   );
 
   // Play Specific Episode Handler
@@ -315,7 +316,7 @@ function WatchContent() {
         window.history.replaceState(
           null,
           "",
-          `/watch/${id}?type=tv&season=${ep.season || currentSeason}&episode=${ep.number}`
+          `/watch/${id}?type=${watchTypeQuery}&season=${ep.season || currentSeason}&episode=${ep.number}`
         );
       } catch (err) {
         console.error("Episode stream error:", err);
@@ -328,7 +329,7 @@ function WatchContent() {
         100
       );
     },
-    [episodes, id, item, currentSeason]
+    [episodes, id, item, currentSeason, watchTypeQuery]
   );
 
   // Next / Prev Episode Navigation
@@ -510,7 +511,7 @@ function WatchContent() {
                 onOpenDetails={(it) =>
                   router.push(
                     `/media/${it.id}?type=${
-                      it.type === "series" || it.type === "anime" ? "tv" : "movie"
+                      it.type === "movie" ? "movie" : it.type
                     }`
                   )
                 }
@@ -723,14 +724,14 @@ function WatchContent() {
                   onPlay={(i) =>
                     router.push(
                       `/watch/${i.id}?type=${
-                        i.type === "series" || i.type === "anime" ? "tv" : "movie"
+                        i.type === "movie" ? "movie" : i.type
                       }`
                     )
                   }
                   onOpenDetails={(i) =>
                     router.push(
                       `/media/${i.id}?type=${
-                        i.type === "series" || i.type === "anime" ? "tv" : "movie"
+                        i.type === "movie" ? "movie" : i.type
                       }`
                     )
                   }

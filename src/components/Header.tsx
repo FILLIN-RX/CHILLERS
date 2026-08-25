@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { IconSearch, IconHome, IconMovie, IconDeviceTv, IconSparkles, IconTower } from '@tabler/icons-react';
 import { useLanguage } from "@/i18n/LanguageContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
@@ -15,6 +15,7 @@ interface HeaderProps {
 
 export default function Header({ onSearchClick }: HeaderProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { translate: _ } = useLanguage();
 
   const tabs = [
@@ -27,7 +28,7 @@ export default function Header({ onSearchClick }: HeaderProps) {
 
   // Single source of truth shared with <BottomNav> so the two indicators
   // never disagree (see src/lib/navActive.ts).
-  const activeTab = getActiveNavTab(pathname);
+  const activeTab = getActiveNavTab(pathname, searchParams?.get("type"));
 
   const isDetailPage = /^\/media\/(?!movies$|series$|anime$)(.+)$/.test(pathname) || pathname.startsWith("/tv/") || pathname.startsWith("/watch/");
   const isListingPage = pathname.startsWith("/media/movies") || pathname.startsWith("/media/series") || pathname.startsWith("/media/anime");

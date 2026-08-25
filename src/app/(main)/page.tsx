@@ -328,7 +328,7 @@ function Home() {
   const handleOpenDetails = (item: MovieOrShow) => {
     // Mobile: navigate directly instead of opening modal
     if (typeof window !== "undefined" && window.innerWidth < 768) {
-      const typeParam = item.type === "series" || item.type === "anime" ? "tv" : item.type;
+      const typeParam = item.type === "movie" ? "movie" : item.type;
       router.push(`/media/${item.id}?type=${typeParam}`);
       return;
     }
@@ -341,8 +341,7 @@ function Home() {
 
   const handleWatchNow = (item: MovieOrShow, season?: number, episode?: number) => {
     setIsModalOpen(false);
-    const typeParam =
-      item.type === "series" || item.type === "anime" ? "tv" : "movie";
+    const typeParam = item.type === "movie" ? "movie" : item.type;
     let url = `/watch/${item.id}?type=${typeParam}`;
     if (season) url += `&season=${season}`;
     if (episode) url += `&episode=${episode}`;

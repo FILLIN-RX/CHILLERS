@@ -88,7 +88,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   }
 
   const sp = await searchParams;
-  const isTV = sp?.type === "tv" || sp?.type === "series";
+  const isTV = sp?.type === "tv" || sp?.type === "series" || sp?.type === "anime";
 
   try {
     const d = await fetchMediaData(slug, isTV);
@@ -131,7 +131,7 @@ export default async function Page({ params, searchParams }: Props) {
   }
 
   const sp = await searchParams;
-  const isTV = sp?.type === "tv" || sp?.type === "series";
+  const isTV = sp?.type === "tv" || sp?.type === "series" || sp?.type === "anime";
   let jsonLd = null;
 
   try {
@@ -173,4 +173,3 @@ export default async function Page({ params, searchParams }: Props) {
     </Suspense>
   );
 }
-

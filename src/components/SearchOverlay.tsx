@@ -55,7 +55,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
 
   const goToDetail = (item: MovieOrShow) => {
     onClose();
-    const typeParam = item.type === "series" || item.type === "anime" ? "tv" : item.type;
+    const typeParam = item.type === "movie" ? "movie" : item.type;
     router.push(`/media/${item.id}?type=${typeParam}`, { scroll: false });
   };
 
@@ -223,7 +223,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                   item={item}
                   variant="grid"
                   onPlay={(i) => {
-                    const typeParam = i.type === "series" || i.type === "anime" ? "tv" : "movie";
+                    const typeParam = i.type === "movie" ? "movie" : i.type;
                     router.push(`/watch/${i.id}?type=${typeParam}`);
                   }}
                   onOpenDetails={(i) => goToDetail(i)}
