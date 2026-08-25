@@ -220,6 +220,16 @@ export default function LivePlayer({
       config.pLoader = ProxiedHlsLoader;
     }
 
+    const isCorsRestricted = Boolean(
+      (channel as any).proxy ||
+      channel.streamUrl?.includes('amagi.tv') ||
+      channel.streamUrl?.includes('wurl.com') ||
+      channel.streamUrl?.includes('edgesuite.net')
+    );
+    const effectiveUrl = (proxyMode || isCorsRestricted)
+      ? buildProxyUrl(channel.streamUrl)
+      : channel.streamUrl;
+
     const startPlayback = () => {
       setIsLoading(false);
       el.muted = isMuted;
@@ -232,7 +242,7 @@ export default function LivePlayer({
 
     if (Hls.isSupported()) {
       hls = new Hls(config);
-      hls.loadSource(channel.streamUrl);
+      hls.loadSource(effectiveUrl);
       hls.attachMedia(el);
       hls.on(Hls.Events.MANIFEST_PARSED, startPlayback);
       hls.on(Hls.Events.FRAG_LOADED, () => {
@@ -246,11 +256,7 @@ export default function LivePlayer({
           return;
         }
         if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-          if (
-            !proxyMode &&
-            (data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR ||
-              data.details === Hls.ErrorDetails.MANIFEST_LOAD_TIMEOUT)
-          ) {
+          if (!proxyMode) {
             setProxyMode(true);
             return;
           }
@@ -260,9 +266,15 @@ export default function LivePlayer({
         setError("stream");
       });
     } else if (el.canPlayType("application/vnd.apple.mpegurl")) {
-      el.src = channel.streamUrl;
+      el.src = effectiveUrl;
       el.addEventListener("loadedmetadata", startPlayback);
-      el.addEventListener("error", () => setError("stream"));
+      el.addEventListener("error", () => {
+        if (!proxyMode) {
+          setProxyMode(true);
+        } else {
+          setError("stream");
+        }
+      });
     } else {
       setError("unsupported");
     }

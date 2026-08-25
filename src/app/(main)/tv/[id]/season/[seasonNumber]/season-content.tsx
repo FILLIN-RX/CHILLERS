@@ -40,7 +40,7 @@ export default function SeasonContent() {
         const title = detail?.title || "";
         if (title) setShowTitle(title);
 
-        if (data && data.episodes) {
+        if (data && data.episodes && data.episodes.length > 0) {
           const mapped = data.episodes.map((ep: any) => ({
             id: String(ep.id),
             title: ep.name,
@@ -69,6 +69,13 @@ export default function SeasonContent() {
             } finally {
               setStreamLoading(false);
             }
+          }
+        } else {
+          // Si aucune saison n'est trouvée, vérifier s'il s'agit d'un film et rediriger proprement
+          const movieDetail = await getMediaDetails(id as string, false);
+          if (movieDetail && movieDetail.id) {
+            router.replace(`/watch/${id}?type=movie`);
+            return;
           }
         }
       } catch (err) {
