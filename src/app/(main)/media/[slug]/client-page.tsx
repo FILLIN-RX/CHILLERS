@@ -35,8 +35,9 @@ import MovieCard from "@/components/MovieCard";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { IconArrowLeft, IconPlayerPlay, IconStar, IconClock, IconCalendar, IconMovie, IconChevronLeft, IconChevronRight, IconDownload, IconShare, IconSparkles } from '@tabler/icons-react';
 
+import CatalogSpotlightHero from "@/components/CatalogSpotlightHero";
+
 const MovieModal = dynamic(() => import("@/components/MovieModal"), { ssr: false });
-const HeroCarousel = dynamic(() => import("@/components/HeroCarousel"), { ssr: false });
 
 const LISTING_TYPES = ["movies", "series", "anime"];
 
@@ -900,15 +901,14 @@ function MediaListingPage() {
       {/* ── MODE 1 : Multi-Category Carousel Catalog (like Prime Video / Netflix) ── */}
       {!activeGenreId && (
         <div className="space-y-6 sm:space-y-8">
-          {/* Top Hero Carousel */}
+          {/* Dedicated Catalog Spotlight Hero */}
           {heroItems.length > 0 && (
-            <div className="relative -mt-2">
-              <HeroCarousel
-                slides={heroItems}
-                onWatchNow={handlePlay}
-                onOpenDetails={handleOpenDetails}
-              />
-            </div>
+            <CatalogSpotlightHero
+              items={heroItems}
+              type={type}
+              onPlay={handlePlay}
+              onOpenDetails={handleOpenDetails}
+            />
           )}
 
           {/* Anime Powered Notice */}
