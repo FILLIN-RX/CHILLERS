@@ -632,38 +632,41 @@ function MediaDetailPage() {
 }
 
 const MOVIE_ROWS_CONFIG = [
-  { id: 'trending', title: 'Films tendances & exclusifs', variant: 'poster' as const },
-  { id: '28', title: 'Action & Aventure', genreId: '28', variant: 'scroll' as const },
-  { id: '35', title: 'Comédies', genreId: '35', variant: 'scroll' as const },
+  { id: 'recent', title: 'Films récents & Nouveautés', variant: 'scroll' as const },
+  { id: 'trending', title: 'Programmes exclusifs et popularités du moment', variant: 'poster' as const },
+  { id: '28', title: 'Action & Aventure - Films', genreId: '28', variant: 'scroll' as const },
+  { id: '35', title: 'Comédies - Films', genreId: '35', variant: 'scroll' as const },
   { id: '878', title: 'Science-Fiction & Fantastique', genreId: '878', variant: 'scroll' as const },
+  { id: '99', title: 'Documentaires - Films', genreId: '99', variant: 'scroll' as const },
+  { id: '37', title: 'Western - Films', genreId: '37', variant: 'scroll' as const },
   { id: '27', title: 'Horreur & Épouvante', genreId: '27', variant: 'scroll' as const },
   { id: '16', title: 'Animation & Famille', genreId: '16', variant: 'scroll' as const },
-  { id: '18', title: 'Drames', genreId: '18', variant: 'scroll' as const },
+  { id: '18', title: 'Drames - Films', genreId: '18', variant: 'scroll' as const },
   { id: '53', title: 'Mystère & Thrillers', genreId: '53', variant: 'scroll' as const },
-  { id: '10749', title: 'Romance', genreId: '10749', variant: 'scroll' as const },
+  { id: '10749', title: 'Romance - Films', genreId: '10749', variant: 'scroll' as const },
   { id: '80', title: 'Films policiers & Crime', genreId: '80', variant: 'scroll' as const },
-  { id: '99', title: 'Documentaires', genreId: '99', variant: 'scroll' as const },
   { id: '36', title: 'Histoire & Guerre', genreId: '36', variant: 'scroll' as const },
-  { id: '37', title: 'Western', genreId: '37', variant: 'scroll' as const },
 ];
 
 const SERIES_ROWS_CONFIG = [
-  { id: 'trending', title: 'Séries tendances & populaires', variant: 'poster' as const },
-  { id: '10759', title: 'Action & Aventure', genreId: '10759', variant: 'scroll' as const },
-  { id: '18', title: 'Drames', genreId: '18', variant: 'scroll' as const },
-  { id: '35', title: 'Comédies', genreId: '35', variant: 'scroll' as const },
+  { id: 'recent', title: 'Séries récentes & Nouveautés', variant: 'scroll' as const },
+  { id: 'trending', title: 'Programmes exclusifs et popularités du moment', variant: 'poster' as const },
+  { id: '10759', title: 'Action & Aventure - Séries', genreId: '10759', variant: 'scroll' as const },
+  { id: '18', title: 'Drames - Séries', genreId: '18', variant: 'scroll' as const },
+  { id: '35', title: 'Comédies - Séries', genreId: '35', variant: 'scroll' as const },
   { id: '10765', title: 'Sci-Fi & Fantastique', genreId: '10765', variant: 'scroll' as const },
   { id: '9648', title: 'Mystère & Enquêtes', genreId: '9648', variant: 'scroll' as const },
   { id: '80', title: 'Crime & Séries policières', genreId: '80', variant: 'scroll' as const },
-  { id: '16', title: 'Animation', genreId: '16', variant: 'scroll' as const },
-  { id: '99', title: 'Documentaires', genreId: '99', variant: 'scroll' as const },
+  { id: '16', title: 'Animation - Séries', genreId: '16', variant: 'scroll' as const },
+  { id: '99', title: 'Documentaires - Séries', genreId: '99', variant: 'scroll' as const },
 ];
 
 const ANIME_ROWS_CONFIG = [
-  { id: 'popular', title: 'Anime populaires & Nouveautés', variant: 'poster' as const },
+  { id: 'recent', title: 'Anime récents & Tendances', variant: 'scroll' as const },
+  { id: 'trending', title: 'Grands Classiques & Exclusivités', variant: 'poster' as const },
   { id: '10759', title: 'Shōnen & Action Aventure', genreId: '10759', variant: 'scroll' as const },
   { id: '10765', title: 'Sci-Fi & Isekai / Fantastique', genreId: '10765', variant: 'scroll' as const },
-  { id: '16', title: 'Grands Classiques & Animation', genreId: '16', variant: 'scroll' as const },
+  { id: '16', title: 'Animation Japonaise', genreId: '16', variant: 'scroll' as const },
   { id: '35', title: 'Comédie & Slice of Life', genreId: '35', variant: 'scroll' as const },
 ];
 
@@ -753,10 +756,18 @@ function MediaListingPage() {
           initialBatch.map(async (row) => {
             let rowItems: MovieOrShow[] = [];
             try {
-              if (row.id === 'trending') {
-                rowItems = type === "movies" ? await getPopularMovies(1) : await getPopularTV(1);
-              } else if (row.id === 'popular') {
-                rowItems = await getAnimeSeries(1);
+              if (row.id === 'recent') {
+                rowItems = type === "movies" 
+                  ? await getPopularMovies(1) 
+                  : type === "series" 
+                    ? await getPopularTV(1) 
+                    : await getAnimeSeries(1);
+              } else if (row.id === 'trending') {
+                rowItems = type === "movies" 
+                  ? await getTrendingMovies() 
+                  : type === "series" 
+                    ? await getTrendingTV() 
+                    : await getAnimeSeries(2);
               } else if (row.genreId) {
                 if (type === "movies") {
                   rowItems = await getMoviesByGenre(row.genreId, 1);
@@ -898,19 +909,9 @@ function MediaListingPage() {
         />
       </div>
 
-      {/* ── MODE 1 : Multi-Category Carousel Catalog (like Prime Video / Netflix) ── */}
+      {/* ── MODE 1 : Multi-Category Carousel Catalog (Clean Prime Video Style) ── */}
       {!activeGenreId && (
-        <div className="space-y-6 sm:space-y-8">
-          {/* Dedicated Catalog Spotlight Hero */}
-          {heroItems.length > 0 && (
-            <CatalogSpotlightHero
-              items={heroItems}
-              type={type}
-              onPlay={handlePlay}
-              onOpenDetails={handleOpenDetails}
-            />
-          )}
-
+        <div className="space-y-6 sm:space-y-8 pt-2">
           {/* Anime Powered Notice */}
           {type === "anime" && (
             <div className="px-2 sm:px-6 md:px-12 lg:px-[3%]">
