@@ -4,8 +4,13 @@ import React, { useRef, useState, useEffect, useCallback } from "react";
 import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
 import gsap from "gsap";
 
+import Link from "next/link";
+
 interface ScrollRowProps {
   title: string;
+  seeAllHref?: string;
+  seeAllText?: string;
+  onSeeAll?: () => void;
   accentColor?: "primary" | "secondary";
   autoScroll?: boolean;
   autoScrollSpeed?: number;
@@ -15,6 +20,9 @@ interface ScrollRowProps {
 
 export default function ScrollRow({
   title,
+  seeAllHref,
+  seeAllText = "Voir plus",
+  onSeeAll,
   accentColor = "primary",
   autoScroll = false,
   autoScrollSpeed = 0.5,
@@ -117,31 +125,51 @@ export default function ScrollRow({
           {title}
         </h2>
 
-        <div className="hidden sm:flex items-center gap-1.5">
-          <button
-            onClick={() => scroll("left")}
-            disabled={!canScrollLeft}
-            aria-label="Scroll left"
-            className={`flex h-8 w-8 items-center justify-center rounded-full border transition-all duration-200 focus:outline-none ${
-              canScrollLeft
-                ? "border-zinc-600 bg-zinc-900 text-white hover:border-zinc-400 hover:bg-zinc-800 cursor-pointer"
-                : "border-zinc-800 bg-zinc-950 text-zinc-700 cursor-not-allowed opacity-50"
-            }`}
-          >
-            <IconChevronLeft className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => scroll("right")}
-            disabled={!canScrollRight}
-            aria-label="Scroll right"
-            className={`flex h-8 w-8 items-center justify-center rounded-full border transition-all duration-200 focus:outline-none ${
-              canScrollRight
-                ? "border-zinc-600 bg-zinc-900 text-white hover:border-zinc-400 hover:bg-zinc-800 cursor-pointer"
-                : "border-zinc-800 bg-zinc-950 text-zinc-700 cursor-not-allowed opacity-50"
-            }`}
-          >
-            <IconChevronRight className="h-4 w-4" />
-          </button>
+        <div className="flex items-center gap-3">
+          {seeAllHref ? (
+            <Link
+              href={seeAllHref}
+              className="text-xs sm:text-sm font-semibold text-zinc-400 hover:text-white flex items-center gap-0.5 group transition-colors focus:outline-none"
+            >
+              <span>{seeAllText}</span>
+              <IconChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+            </Link>
+          ) : onSeeAll ? (
+            <button
+              onClick={onSeeAll}
+              className="text-xs sm:text-sm font-semibold text-zinc-400 hover:text-white flex items-center gap-0.5 group transition-colors focus:outline-none cursor-pointer"
+            >
+              <span>{seeAllText}</span>
+              <IconChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+            </button>
+          ) : null}
+
+          <div className="hidden sm:flex items-center gap-1.5">
+            <button
+              onClick={() => scroll("left")}
+              disabled={!canScrollLeft}
+              aria-label="Scroll left"
+              className={`flex h-8 w-8 items-center justify-center rounded-full border transition-all duration-200 focus:outline-none ${
+                canScrollLeft
+                  ? "border-zinc-600 bg-zinc-900 text-white hover:border-zinc-400 hover:bg-zinc-800 cursor-pointer"
+                  : "border-zinc-800 bg-zinc-950 text-zinc-700 cursor-not-allowed opacity-50"
+              }`}
+            >
+              <IconChevronLeft className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => scroll("right")}
+              disabled={!canScrollRight}
+              aria-label="Scroll right"
+              className={`flex h-8 w-8 items-center justify-center rounded-full border transition-all duration-200 focus:outline-none ${
+                canScrollRight
+                  ? "border-zinc-600 bg-zinc-900 text-white hover:border-zinc-400 hover:bg-zinc-800 cursor-pointer"
+                  : "border-zinc-800 bg-zinc-950 text-zinc-700 cursor-not-allowed opacity-50"
+              }`}
+            >
+              <IconChevronRight className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </div>
 

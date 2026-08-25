@@ -90,9 +90,9 @@ export default function LiveChannelContent() {
   const isSports = channel.categories?.includes("sports");
 
   return (
-    <div className="pt-20 sm:pt-24 pb-20 max-w-6xl mx-auto w-full px-4 sm:px-8 md:px-12 lg:px-[4%]">
+    <div className="pt-16 sm:pt-20 pb-20 w-full px-2 sm:px-4 md:px-6 lg:px-[2%]">
       {/* Return button */}
-      <div className="mb-4">
+      <div className="mb-3 px-1">
         <Link
           href="/live"
           className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-zinc-400 hover:text-white transition-colors"
@@ -102,8 +102,8 @@ export default function LiveChannelContent() {
         </Link>
       </div>
 
-      {/* Video Player */}
-      <div className="rounded-2xl overflow-hidden shadow-2xl bg-black border border-white/10">
+      {/* Video Player - Full Width Cinema */}
+      <div className="w-full rounded-2xl overflow-hidden shadow-2xl bg-black border border-white/10">
         <LivePlayer
           channel={channel}
           allChannels={allChannels}
@@ -113,7 +113,7 @@ export default function LiveChannelContent() {
       </div>
 
       {/* Channel info */}
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-4 p-4 rounded-2xl bg-zinc-900/60 border border-white/10">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-4 p-4 sm:p-5 rounded-2xl bg-zinc-900/60 border border-white/10">
         <div className="flex items-center gap-4 min-w-0">
           <ChannelLogo channel={channel} />
           <div className="min-w-0">
@@ -141,15 +141,15 @@ export default function LiveChannelContent() {
         </div>
       </div>
 
-      {/* Other Channels */}
+      {/* Other Channels - Responsive Full Grid */}
       {others.length > 0 && (
-        <section className="mt-10">
+        <section className="mt-8">
           <h2 className="text-lg font-black text-white mb-4 flex items-center gap-2">
             <span className="h-4 w-1 rounded-full bg-brand-primary" />
             {_("live.otherChannels")}
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {others.slice(0, 12).map((c) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+            {others.slice(0, 18).map((c) => (
               <MiniChannel key={c.slug} channel={c} />
             ))}
           </div>

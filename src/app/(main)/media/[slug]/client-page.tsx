@@ -1,18 +1,42 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo, Suspense } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
+import dynamic from "next/dynamic";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
-import { getMediaDetails, getPopularMovies, getPopularTV, getPopularMoviesPage, getPopularTVPage, getAnimeSeriesPage, getMoviesByGenrePage, getTVByGenrePage, getMovieGenres, getTVGenres, getDisponible } from "@/services/media";
-import type { Genre } from "@/types/media";
+import {
+  getMediaDetails,
+  getPopularMovies,
+  getPopularTV,
+  getTrendingMovies,
+  getTrendingTV,
+  getTopRatedMovies,
+  getTopRatedTV,
+  getUpcomingMovies,
+  getAnimeSeries,
+  getPopularMoviesPage,
+  getPopularTVPage,
+  getAnimeSeriesPage,
+  getMoviesByGenrePage,
+  getTVByGenrePage,
+  getMoviesByGenre,
+  getByGenreMultiple,
+  getMovieGenres,
+  getTVGenres,
+  getDisponible,
+} from "@/services/media";
+import type { Genre, MovieOrShow } from "@/types/media";
 import GenreFilterBar from "@/components/GenreFilterBar";
 import NotificationModal from "@/components/NotificationModal";
 import DownloadModal from "@/features/downloads/DownloadModal";
-import type { MovieOrShow } from "@/types/media";
-import { useLanguage } from "@/i18n/LanguageContext";
-import { IconArrowLeft, IconPlayerPlay, IconStar, IconClock, IconCalendar, IconMovie, IconChevronLeft, IconChevronRight, IconDownload, IconShare } from '@tabler/icons-react';
+import ScrollRow from "@/components/ScrollRow";
 import MovieCard from "@/components/MovieCard";
+import { useLanguage } from "@/i18n/LanguageContext";
+import { IconArrowLeft, IconPlayerPlay, IconStar, IconClock, IconCalendar, IconMovie, IconChevronLeft, IconChevronRight, IconDownload, IconShare, IconSparkles } from '@tabler/icons-react';
+
+const MovieModal = dynamic(() => import("@/components/MovieModal"), { ssr: false });
+const HeroCarousel = dynamic(() => import("@/components/HeroCarousel"), { ssr: false });
 
 const LISTING_TYPES = ["movies", "series", "anime"];
 
@@ -606,6 +630,42 @@ function MediaDetailPage() {
   );
 }
 
+const MOVIE_ROWS_CONFIG = [
+  { id: 'trending', title: 'Films tendances & exclusifs', variant: 'poster' as const },
+  { id: '28', title: 'Action & Aventure', genreId: '28', variant: 'scroll' as const },
+  { id: '35', title: 'Comédies', genreId: '35', variant: 'scroll' as const },
+  { id: '878', title: 'Science-Fiction & Fantastique', genreId: '878', variant: 'scroll' as const },
+  { id: '27', title: 'Horreur & Épouvante', genreId: '27', variant: 'scroll' as const },
+  { id: '16', title: 'Animation & Famille', genreId: '16', variant: 'scroll' as const },
+  { id: '18', title: 'Drames', genreId: '18', variant: 'scroll' as const },
+  { id: '53', title: 'Mystère & Thrillers', genreId: '53', variant: 'scroll' as const },
+  { id: '10749', title: 'Romance', genreId: '10749', variant: 'scroll' as const },
+  { id: '80', title: 'Films policiers & Crime', genreId: '80', variant: 'scroll' as const },
+  { id: '99', title: 'Documentaires', genreId: '99', variant: 'scroll' as const },
+  { id: '36', title: 'Histoire & Guerre', genreId: '36', variant: 'scroll' as const },
+  { id: '37', title: 'Western', genreId: '37', variant: 'scroll' as const },
+];
+
+const SERIES_ROWS_CONFIG = [
+  { id: 'trending', title: 'Séries tendances & populaires', variant: 'poster' as const },
+  { id: '10759', title: 'Action & Aventure', genreId: '10759', variant: 'scroll' as const },
+  { id: '18', title: 'Drames', genreId: '18', variant: 'scroll' as const },
+  { id: '35', title: 'Comédies', genreId: '35', variant: 'scroll' as const },
+  { id: '10765', title: 'Sci-Fi & Fantastique', genreId: '10765', variant: 'scroll' as const },
+  { id: '9648', title: 'Mystère & Enquêtes', genreId: '9648', variant: 'scroll' as const },
+  { id: '80', title: 'Crime & Séries policières', genreId: '80', variant: 'scroll' as const },
+  { id: '16', title: 'Animation', genreId: '16', variant: 'scroll' as const },
+  { id: '99', title: 'Documentaires', genreId: '99', variant: 'scroll' as const },
+];
+
+const ANIME_ROWS_CONFIG = [
+  { id: 'popular', title: 'Anime populaires & Nouveautés', variant: 'poster' as const },
+  { id: '10759', title: 'Shōnen & Action Aventure', genreId: '10759', variant: 'scroll' as const },
+  { id: '10765', title: 'Sci-Fi & Isekai / Fantastique', genreId: '10765', variant: 'scroll' as const },
+  { id: '16', title: 'Grands Classiques & Animation', genreId: '16', variant: 'scroll' as const },
+  { id: '35', title: 'Comédie & Slice of Life', genreId: '35', variant: 'scroll' as const },
+];
+
 function MediaListingPage() {
   const params = useParams();
   const type = params?.slug as string;
@@ -613,11 +673,20 @@ function MediaListingPage() {
   const searchParams = useSearchParams();
   const { translate: _ } = useLanguage();
 
-  const [items, setItems] = useState<MovieOrShow[]>([]);
+  const [heroItems, setHeroItems] = useState<MovieOrShow[]>([]);
+  const [categoryRows, setCategoryRows] = useState<Array<{ id: string; title: string; genreId?: string; variant: 'scroll' | 'poster'; items: MovieOrShow[] }>>([]);
+  const [isLoadingCatalog, setIsLoadingCatalog] = useState(true);
+
+  // Single Genre Paginated Grid state
+  const [gridItems, setGridItems] = useState<MovieOrShow[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingGrid, setIsLoadingGrid] = useState(false);
   const [headerHidden, setHeaderHidden] = useState(false);
+
+  // Modal detail
+  const [selectedMovie, setSelectedMovie] = useState<MovieOrShow | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => setHeaderHidden(window.scrollY > 20);
@@ -634,63 +703,151 @@ function MediaListingPage() {
   // Fetch genres depending on content type
   useEffect(() => {
     setGenresLoading(true);
-    const fetchGenres = type === "movies"
-      ? getMovieGenres
-      : getTVGenres;
+    const fetchGenres = type === "movies" ? getMovieGenres : getTVGenres;
     fetchGenres()
       .then(setGenres)
       .finally(() => setGenresLoading(false));
-    // Reset filter when switching type
     setActiveGenreId(null);
     setPage(1);
   }, [type]);
 
-  // Read ?genre= from URL on mount
+  // Read ?genre= from URL on mount or change
   useEffect(() => {
     const genreParam = searchParams?.get("genre");
-    if (genreParam) {
-      setActiveGenreId(genreParam);
-    }
+    setActiveGenreId(genreParam || null);
   }, [searchParams]);
 
-  // Reset to page 1 when genre changes
+  // Reset page when genre changes
   useEffect(() => {
     setPage(1);
   }, [activeGenreId]);
 
-  // Fetch content — uses genre filter if active, otherwise default lists
+  // ── 1. Fetch Multi-Category Catalog (when activeGenreId is null) ──
   useEffect(() => {
+    if (activeGenreId) return; // Not in multi-category mode
+
     let cancelled = false;
-    async function fetchPage() {
-      setIsLoading(true);
+    async function loadCatalog() {
+      setIsLoadingCatalog(true);
+      try {
+        const rowsConfig = type === "movies" 
+          ? MOVIE_ROWS_CONFIG 
+          : type === "series" 
+            ? SERIES_ROWS_CONFIG 
+            : ANIME_ROWS_CONFIG;
+
+        // Fetch top hero items + initial rows in parallel
+        let heroesPromise: Promise<MovieOrShow[]>;
+        if (type === "movies") heroesPromise = getTrendingMovies();
+        else if (type === "series") heroesPromise = getTrendingTV();
+        else heroesPromise = getAnimeSeries(1);
+
+        const heroes = await heroesPromise;
+        if (cancelled) return;
+        setHeroItems(heroes.slice(0, 6));
+
+        // Initial 4 rows for fast paint
+        const initialBatch = rowsConfig.slice(0, 4);
+        const initialResults = await Promise.all(
+          initialBatch.map(async (row) => {
+            let rowItems: MovieOrShow[] = [];
+            try {
+              if (row.id === 'trending') {
+                rowItems = type === "movies" ? await getPopularMovies(1) : await getPopularTV(1);
+              } else if (row.id === 'popular') {
+                rowItems = await getAnimeSeries(1);
+              } else if (row.genreId) {
+                if (type === "movies") rowItems = await getMoviesByGenre(row.genreId, 1);
+                else rowItems = await getByGenreMultiple([row.genreId], true);
+              }
+            } catch {}
+            return { ...row, items: rowItems };
+          })
+        );
+
+        if (cancelled) return;
+        setCategoryRows(initialResults.filter(r => r.items.length > 0));
+        setIsLoadingCatalog(false);
+
+        // Progressively load remaining rows
+        const remainingBatch = rowsConfig.slice(4);
+        const remainingResults = await Promise.all(
+          remainingBatch.map(async (row) => {
+            let rowItems: MovieOrShow[] = [];
+            try {
+              if (row.genreId) {
+                if (type === "movies") rowItems = await getMoviesByGenre(row.genreId, 1);
+                else rowItems = await getByGenreMultiple([row.genreId], true);
+              }
+            } catch {}
+            return { ...row, items: rowItems };
+          })
+        );
+
+        if (cancelled) return;
+        setCategoryRows((prev) => {
+          const valid = remainingResults.filter(r => r.items.length > 0);
+          return [...prev, ...valid];
+        });
+      } catch (err) {
+        console.error("Error loading catalog:", err);
+      } finally {
+        if (!cancelled) setIsLoadingCatalog(false);
+      }
+    }
+
+    loadCatalog();
+    return () => { cancelled = true; };
+  }, [type, activeGenreId]);
+
+  // ── 2. Fetch Single Genre Paginated Grid (when activeGenreId is set) ──
+  useEffect(() => {
+    if (!activeGenreId) return;
+
+    let cancelled = false;
+    async function fetchGridPage() {
+      setIsLoadingGrid(true);
       try {
         let result: { results: MovieOrShow[]; totalPages: number } = { results: [], totalPages: 1 };
-
-        if (activeGenreId) {
-          // Genre filtered
-          if (type === "movies") result = await getMoviesByGenrePage(activeGenreId, page);
-          else result = await getTVByGenrePage(activeGenreId, page); // series + anime
+        if (type === "movies") {
+          result = await getMoviesByGenrePage(activeGenreId!, page);
         } else {
-          // Default lists
-          if (type === "movies") result = await getPopularMoviesPage(page);
-          else if (type === "series") result = await getPopularTVPage(page);
-          else if (type === "anime") result = await getAnimeSeriesPage(page);
+          result = await getTVByGenrePage(activeGenreId!, page);
         }
 
         if (!cancelled) {
-          setItems(result.results);
+          setGridItems(result.results);
           setTotalPages(result.totalPages);
           window.scrollTo({ top: 0, behavior: "smooth" });
         }
       } catch (err) {
-        console.error("Failed to load data", err);
+        console.error("Failed to load genre grid", err);
       } finally {
-        if (!cancelled) setIsLoading(false);
+        if (!cancelled) setIsLoadingGrid(false);
       }
     }
-    fetchPage();
+
+    fetchGridPage();
     return () => { cancelled = true; };
   }, [type, page, activeGenreId]);
+
+  const handleOpenDetails = (item: MovieOrShow) => {
+    setSelectedMovie(item);
+    setIsModalOpen(true);
+  };
+
+  const handlePlay = (item: MovieOrShow) => {
+    router.push(`/watch/${item.id}?type=${item.type === "series" || item.type === "anime" ? "tv" : "movie"}`);
+  };
+
+  const handleSelectGenre = (id: string | null) => {
+    setActiveGenreId(id);
+    if (id) {
+      router.push(`/media/${type}?genre=${id}`);
+    } else {
+      router.push(`/media/${type}`);
+    }
+  };
 
   const goToPage = (p: number) => {
     if (p >= 1 && p <= totalPages && p !== page) setPage(p);
@@ -715,110 +872,184 @@ function MediaListingPage() {
     anime: { title: _("home.globalAnime"), subtitle: _("search.animePoweredBy") },
   };
   const { title, subtitle } = titles[type] || { title: type, subtitle: "" };
-
-  // Active genre label
   const activeGenreName = genres.find(g => String(g.id) === activeGenreId)?.name;
 
   return (
     <main className="min-h-screen bg-brand-dark pb-28">
 
-      {/* ── Sticky filter bar ── */}
-      <div className={`sticky z-30 bg-brand-dark/95 backdrop-blur-md border-b border-zinc-800/50 px-2 sm:px-6 md:px-12 lg:px-[4%] py-2.5 transition-all duration-500 ${
-        headerHidden ? "top-0" : "top-[64px]"
+      {/* ── Sticky genre filter bar ── */}
+      <div className={`sticky z-30 bg-brand-dark/95 backdrop-blur-md border-b border-zinc-800/50 px-2 sm:px-6 md:px-12 lg:px-[3%] py-2.5 transition-all duration-500 ${
+        headerHidden ? "top-0" : "top-[60px] sm:top-[64px]"
       }`}>
         <GenreFilterBar
           genres={genres}
           activeGenreId={activeGenreId}
-          onSelect={(id) => setActiveGenreId(id)}
+          onSelect={handleSelectGenre}
           isLoading={genresLoading}
         />
       </div>
 
-      {/* ── Page content ── */}
-      <div className="px-2 sm:px-6 md:px-12 lg:px-[4%] pt-4 space-y-4">
+      {/* ── MODE 1 : Multi-Category Carousel Catalog (like Prime Video / Netflix) ── */}
+      {!activeGenreId && (
+        <div className="space-y-6 sm:space-y-8">
+          {/* Top Hero Carousel */}
+          {heroItems.length > 0 && (
+            <div className="relative -mt-2">
+              <HeroCarousel
+                items={heroItems}
+                onPlay={handlePlay}
+                onOpenDetails={handleOpenDetails}
+              />
+            </div>
+          )}
 
-        {/* Header */}
-        <div className="flex items-center justify-between px-1">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-extrabold text-white">
-              {activeGenreName ? `${title} · ${activeGenreName}` : title}
-            </h1>
-            <p className="text-zinc-500 text-xs mt-0.5">{subtitle}</p>
+          {/* Anime Powered Notice */}
+          {type === "anime" && (
+            <div className="px-2 sm:px-6 md:px-12 lg:px-[3%]">
+              <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-brand-secondary/10 border border-brand-secondary/30">
+                <IconSparkles className="h-4 w-4 text-brand-secondary" />
+                <p className="text-xs font-bold text-white">{_("search.animePoweredBy")}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Category Carousel Rows */}
+          <div className="px-2 sm:px-6 md:px-12 lg:px-[3%] space-y-6 sm:space-y-8">
+            {isLoadingCatalog && categoryRows.length === 0 ? (
+              Array.from({ length: 4 }).map((_, rIdx) => (
+                <div key={rIdx} className="space-y-3">
+                  <div className="h-5 w-48 bg-zinc-800 rounded skeleton-loading" />
+                  <div className="flex gap-3 overflow-hidden">
+                    {Array.from({ length: 5 }).map((_, cIdx) => (
+                      <div key={cIdx} className="aspect-video w-[240px] sm:w-[280px] bg-zinc-900 rounded-md skeleton-loading shrink-0" />
+                    ))}
+                  </div>
+                </div>
+              ))
+            ) : (
+              categoryRows.map((row) => (
+                <ScrollRow
+                  key={row.id}
+                  title={`${row.title} · ${type === 'movies' ? 'Films' : type === 'series' ? 'Séries' : 'Anime'}`}
+                  seeAllHref={row.genreId ? `/media/${type}?genre=${row.genreId}` : undefined}
+                  onSeeAll={row.genreId ? () => handleSelectGenre(row.genreId!) : undefined}
+                  seeAllText="Voir plus"
+                >
+                  {row.items.map((item) => (
+                    <MovieCard
+                      key={item.id}
+                      item={item}
+                      variant={row.variant}
+                      onPlay={handlePlay}
+                      onOpenDetails={handleOpenDetails}
+                    />
+                  ))}
+                </ScrollRow>
+              ))
+            )}
           </div>
-          {!isLoading && (
-            <span className="text-xs text-zinc-500">
-              {_("common.page")} <span className="text-white font-bold">{page}</span>/{_("common.of")} {totalPages}
-            </span>
+        </div>
+      )}
+
+      {/* ── MODE 2 : Dedicated Filtered Genre Grid with Pagination ── */}
+      {activeGenreId && (
+        <div className="px-2 sm:px-6 md:px-12 lg:px-[3%] pt-4 space-y-5">
+          {/* Header */}
+          <div className="flex items-center justify-between px-1">
+            <div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleSelectGenre(null)}
+                  className="text-xs font-semibold text-zinc-400 hover:text-white flex items-center gap-1 transition-colors cursor-pointer"
+                >
+                  <IconChevronLeft className="h-4 w-4" />
+                  <span>Tous les {type === 'movies' ? 'films' : type === 'series' ? 'séries' : 'animes'}</span>
+                </button>
+              </div>
+              <h1 className="text-xl sm:text-2xl font-extrabold text-white mt-1">
+                {activeGenreName ? `${title} · ${activeGenreName}` : title}
+              </h1>
+              <p className="text-zinc-500 text-xs mt-0.5">{subtitle}</p>
+            </div>
+            {!isLoadingGrid && (
+              <span className="text-xs text-zinc-500">
+                {_("common.page")} <span className="text-white font-bold">{page}</span>/{_("common.of")} {totalPages}
+              </span>
+            )}
+          </div>
+
+          {/* Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
+            {isLoadingGrid
+              ? Array.from({ length: 20 }).map((_, i) => (
+                  <div key={i} className="aspect-video rounded-md bg-zinc-900 skeleton-loading" />
+                ))
+              : gridItems.map((item) => (
+                  <MovieCard
+                    key={item.id}
+                    item={item}
+                    variant="grid"
+                    onPlay={handlePlay}
+                    onOpenDetails={handleOpenDetails}
+                  />
+                ))}
+          </div>
+
+          {/* Pagination */}
+          {!isLoadingGrid && totalPages > 1 && (
+            <div className="flex items-center justify-center gap-1.5 pt-6 flex-wrap">
+              <button
+                onClick={() => goToPage(page - 1)}
+                disabled={page === 1}
+                className="flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-semibold border transition-all focus:outline-none disabled:opacity-30 disabled:cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white cursor-pointer"
+              >
+                <IconChevronLeft className="h-4 w-4" />
+                <span className="hidden sm:inline">{_("common.previous")}</span>
+              </button>
+
+              {buildPages().map((p, idx) =>
+                p === "..." ? (
+                  <span key={`dots-${idx}`} className="px-2 py-2 text-zinc-600 text-sm select-none">…</span>
+                ) : (
+                  <button
+                    key={p}
+                    onClick={() => goToPage(p as number)}
+                    className={`min-w-[36px] px-3 py-2 rounded-xl text-sm font-bold border transition-all focus:outline-none cursor-pointer ${
+                      p === page
+                        ? "bg-brand-primary border-brand-primary text-white shadow-lg shadow-brand-primary/30"
+                        : "border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                    }`}
+                  >
+                    {p}
+                  </button>
+                )
+              )}
+
+              <button
+                onClick={() => goToPage(page + 1)}
+                disabled={page === totalPages}
+                className="flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-semibold border transition-all focus:outline-none disabled:opacity-30 disabled:cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white cursor-pointer"
+              >
+                <span className="hidden sm:inline">{_("common.next")}</span>
+                <IconChevronRight className="h-4 w-4" />
+              </button>
+            </div>
           )}
         </div>
+      )}
 
-        {/* Anime banner */}
-        {type === "anime" && (
-          <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-brand-secondary/10 border border-brand-secondary/30">
-            <p className="text-xs font-bold text-white">{_("search.animePoweredBy")}</p>
-          </div>
-        )}
-
-        {/* Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
-          {isLoading
-            ? Array.from({ length: 20 }).map((_, i) => (
-                <div key={i} className="aspect-video rounded-md bg-zinc-900 skeleton-loading" />
-              ))
-            : items.map((item) => (
-                <MovieCard
-                  key={item.id}
-                  item={item}
-                  variant="grid"
-                  onPlay={(i) => router.push(`/media/${i.id}?type=${i.type === "series" || i.type === "anime" ? "tv" : "movie"}`)}
-                  onOpenDetails={(i) => router.push(`/media/${i.id}?type=${i.type === "series" || i.type === "anime" ? "tv" : "movie"}`)}
-                />
-              ))
-          }
-        </div>
-
-        {/* Pagination */}
-        {!isLoading && totalPages > 1 && (
-          <div className="flex items-center justify-center gap-1.5 pt-4 flex-wrap">
-            <button
-              onClick={() => goToPage(page - 1)}
-              disabled={page === 1}
-              className="flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-semibold border transition-all focus:outline-none disabled:opacity-30 disabled:cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white cursor-pointer"
-            >
-              <IconChevronLeft className="h-4 w-4" />
-              <span className="hidden sm:inline">{_("common.previous")}</span>
-            </button>
-
-            {buildPages().map((p, idx) =>
-              p === "..." ? (
-                <span key={`dots-${idx}`} className="px-2 py-2 text-zinc-600 text-sm select-none">…</span>
-              ) : (
-                <button
-                  key={p}
-                  onClick={() => goToPage(p as number)}
-                  className={`min-w-[36px] px-3 py-2 rounded-xl text-sm font-bold border transition-all focus:outline-none cursor-pointer ${
-                    p === page
-                      ? "bg-brand-primary border-brand-primary text-white shadow-lg shadow-brand-primary/30"
-                      : "border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white"
-                  }`}
-                >
-                  {p}
-                </button>
-              )
-            )}
-
-            <button
-              onClick={() => goToPage(page + 1)}
-              disabled={page === totalPages}
-              className="flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-semibold border transition-all focus:outline-none disabled:opacity-30 disabled:cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white cursor-pointer"
-            >
-              <span className="hidden sm:inline">{_("common.next")}</span>
-              <IconChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-        )}
-
-      </div>
+      {/* Detail Movie Modal */}
+      {selectedMovie && (
+        <MovieModal
+          item={selectedMovie}
+          isOpen={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false);
+            setSelectedMovie(null);
+          }}
+          onPlay={handlePlay}
+        />
+      )}
     </main>
   );
 }

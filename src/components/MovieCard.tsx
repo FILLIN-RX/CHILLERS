@@ -10,7 +10,7 @@ interface MovieCardProps {
   item: MovieOrShow;
   onPlay: (item: MovieOrShow) => void;
   onOpenDetails: (item: MovieOrShow) => void;
-  variant?: "scroll" | "grid";
+  variant?: "scroll" | "grid" | "poster";
 }
 
 function MovieCard({
@@ -23,14 +23,19 @@ function MovieCard({
   const [imgError, setImgError] = useState(false);
   const [backdropFailed, setBackdropFailed] = useState(false);
 
-  const primarySrc = !backdropFailed && item.backdropUrl ? item.backdropUrl : item.posterUrl;
+  const isPoster = variant === "poster";
+  const primarySrc = isPoster 
+    ? (item.posterUrl || item.backdropUrl) 
+    : (!backdropFailed && item.backdropUrl ? item.backdropUrl : item.posterUrl);
   const hasImage = !!primarySrc && !imgError;
 
-  // Size tokens match Netflix-style row cards (~300px on lg+).
+  // Size tokens match Netflix/Prime-style row cards
   const sizeClass =
     variant === "grid"
       ? "w-full"
-      : "flex-none w-[250px] sm:w-[300px] md:w-[360px] lg:w-[420px]";
+      : isPoster
+        ? "flex-none w-[140px] sm:w-[160px] md:w-[190px] lg:w-[220px]"
+        : "flex-none w-[240px] sm:w-[280px] md:w-[320px] lg:w-[360px]";
 
   // Genres are limited to the first 3 to keep the panel compact.
   const visibleGenres = (item.genres ?? []).slice(0, 3);
@@ -59,8 +64,8 @@ function MovieCard({
         hover:scale-[1.05] hover:-translate-y-1 hover:z-20 hover:shadow-[0_6px_22px_rgba(0,0,0,0.55)]
         [&:hover_.movie-card-img]:scale-[1.07]`}
     >
-      {/* Poster / backdrop — 16:9 landscape, no border, rounded-md */}
-      <div className="relative aspect-video w-full overflow-hidden rounded-md bg-zinc-900">
+      {/* Poster / backdrop — aspect ratio dynamic */}
+      <div className={`relative ${isPoster ? "aspect-[2/3]" : "aspect-video"} w-full overflow-hidden rounded-md bg-zinc-900`}>
         {hasImage ? (
           <Image
             src={primarySrc}
