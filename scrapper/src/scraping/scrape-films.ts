@@ -1,3 +1,6 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import axios from 'axios';
 import Movie from '../models/Movie';
 import ScraperState from '../models/ScraperState';

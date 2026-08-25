@@ -1,11 +1,13 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import axios from 'axios';
 import mongoose from 'mongoose';
 import Movie from '../models/Movie';
 import Serie from '../models/Serie';
 import ScraperState from '../models/ScraperState';
 import { connectDB } from '../config/db';
-import { reuploadEpisode } from '../modules/reupload/reupload';
-import { reuploadMovie } from '../modules/reupload/reupload';
+import { reuploadEpisode, reuploadMovie } from '../modules/reupload/reupload';
 import { waitForScrapingHours } from '../utils/scraping-hours';
 
 const BASE_URL = 'https://www.open-otaku.me';
