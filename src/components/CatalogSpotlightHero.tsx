@@ -63,7 +63,7 @@ export default function CatalogSpotlightHero({
     <div className="relative w-full px-2 sm:px-6 md:px-12 lg:px-[3%] pt-2 pb-4">
       <div className="relative w-full rounded-2xl sm:rounded-3xl overflow-hidden border border-white/10 bg-zinc-950 shadow-2xl min-h-[320px] sm:min-h-[380px] md:min-h-[440px] flex flex-col justify-end">
         
-        {/* Background Backdrop with Gradient Overlays */}
+        {/* Background Backdrop with Gradient Overlays - Bright & Crisp */}
         <div className="absolute inset-0 z-0">
           {current.backdropUrl ? (
             <Image
@@ -71,8 +71,8 @@ export default function CatalogSpotlightHero({
               alt={current.title}
               fill
               priority
-              className={`object-cover object-center transition-all duration-700 ease-out ${
-                isFading ? "opacity-30 scale-105" : "opacity-60 sm:opacity-75 scale-100"
+              className={`object-cover object-right md:object-center transition-all duration-700 ease-out ${
+                isFading ? "opacity-40 scale-105" : "opacity-90 scale-100"
               }`}
             />
           ) : current.posterUrl ? (
@@ -81,15 +81,16 @@ export default function CatalogSpotlightHero({
               alt={current.title}
               fill
               priority
-              className={`object-cover object-center transition-all duration-700 ease-out ${
-                isFading ? "opacity-30 scale-105" : "opacity-50 scale-100"
+              className={`object-cover object-right md:object-center transition-all duration-700 ease-out ${
+                isFading ? "opacity-40 scale-105" : "opacity-85 scale-100"
               }`}
             />
           ) : null}
 
-          {/* Vignette gradients */}
-          <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/60 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-r from-zinc-950 via-zinc-950/70 to-transparent" />
+          {/* Clean contrast shield for text readability */}
+          <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/70 to-transparent md:hidden" />
+          <div className="absolute inset-0 hidden md:block bg-gradient-to-r from-zinc-950 via-zinc-950/85 to-transparent w-3/4" />
+          <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-transparent to-transparent h-24 bottom-0" />
         </div>
 
         {/* Content Body */}
@@ -105,27 +106,27 @@ export default function CatalogSpotlightHero({
               </span>
 
               {Boolean(current.rating) && (
-                <div className="flex items-center gap-1 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full text-xs font-bold border border-white/10 text-amber-400">
+                <div className="flex items-center gap-1 bg-black/70 backdrop-blur-md px-2.5 py-1 rounded-full text-xs font-bold border border-white/10 text-amber-400">
                   <IconStar className="h-3.5 w-3.5 fill-amber-400" />
                   <span>{current.rating}</span>
                 </div>
               )}
 
               {current.year && (
-                <span className="text-xs font-bold text-zinc-400 bg-black/40 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10">
+                <span className="text-xs font-bold text-zinc-300 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10">
                   {current.year}
                 </span>
               )}
             </div>
 
             {/* Title */}
-            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-white leading-tight tracking-tight drop-shadow-lg line-clamp-2">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-white leading-tight tracking-tight drop-shadow-md line-clamp-2">
               {current.title}
             </h2>
 
             {/* Synopsis */}
             {current.description && (
-              <p className="text-xs sm:text-sm text-zinc-300 line-clamp-2 sm:line-clamp-3 leading-relaxed max-w-xl drop-shadow">
+              <p className="text-xs sm:text-sm text-zinc-200 font-normal line-clamp-2 sm:line-clamp-3 leading-relaxed max-w-xl">
                 {current.description}
               </p>
             )}
