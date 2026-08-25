@@ -33,6 +33,7 @@ export const ALL_TASKS: Record<string, { label: string; path: string; command: '
     'fix-series-seasons':       { label: 'Fix Seasons Séries',        path: 'scraping/maintenance/fix-series-seasons.ts',   command: 'tsx' },
     'upload-doodstream-movies': { label: 'Upload Films DoodStream',   path: 'scraping/maintenance/upload-doodstream.ts',    command: 'tsx' },
     'upload-doodstream-series': { label: 'Upload Séries DoodStream',  path: 'scraping/maintenance/upload-series-doodstream.ts', command: 'tsx' },
+    'keepalive-uqload':         { label: 'KeepAlive Uqload',          path: 'scraping/maintenance/keepalive-uqload.ts',         command: 'tsx' },
     'link-movies':              { label: 'Link Movies (legacy)',      path: 'scripts/link-movies-tmdb.ts',                  command: 'tsx' },
     'link-series':              { label: 'Link Series (legacy)',      path: 'scripts/link-series-tmdb.ts',                  command: 'tsx' },
 };
@@ -323,14 +324,20 @@ export function runMaintenanceTasks() {
     runner('Sync Séries → MongoDB', 'scraping/maintenance/sync-series-to-mongo.ts');
 }
 
+export function runKeepAliveTasks() {
+    console.log(`[${new Date().toISOString()}] [Cron] Lancement du Keep-Alive Uqload...`);
+    runner('KeepAlive Uqload', 'scraping/maintenance/keepalive-uqload.ts');
+}
+
 export function startCron() {
     if (isRunning) return;
     cronTasks = [
         cron.schedule('*/10 * * * *', runMaintenanceTasks),
         cron.schedule('0 3 * * *', runScrapingTasks),
+        cron.schedule('0 3 * * 0', runKeepAliveTasks), // Chaque dimanche à 03h00 UTC
     ];
     isRunning = true;
-    appendLog('[Cron] Tâches planifiées démarrées (toutes les 10min + scraping 03:00)');
+    appendLog('[Cron] Tâches planifiées démarrées (10min + scraping 03:00 + KeepAlive dimanche 03:00)');
     console.log('[Cron] Tâches planifiées démarrées.');
 
     // Scraping automatique au démarrage supprimé : contrôlé manuellement par l'admin.

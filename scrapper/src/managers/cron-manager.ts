@@ -71,13 +71,13 @@ export function startCron() {
   cronTasks = [
     // Maintenance quotidienne à 10h00 UTC
     cron.schedule('0 10 * * *', runMaintenanceTasks),
-    // Keep-Alive Uqload : le 1er de chaque mois à 03h00 UTC
-    // Uqload supprime les fichiers après 90j sans activité — on ping tout chaque mois
-    cron.schedule('0 3 1 * *', runKeepAliveTasks),
+    // Keep-Alive Uqload : chaque semaine (dimanche à 03h00 UTC)
+    // Uqload supprime les fichiers inactifs — on ping tous les liens chaque semaine
+    cron.schedule('0 3 * * 0', runKeepAliveTasks),
   ];
   isRunning = true;
   console.log('[Cron] Maintenance quotidienne planifiée à 10h00 UTC');
-  console.log('[Cron] Keep-Alive Uqload planifié le 1er de chaque mois à 03h00 UTC');
+  console.log('[Cron] Keep-Alive Uqload planifié chaque semaine (dimanche à 03h00 UTC)');
 }
 
 export function stopCron() {

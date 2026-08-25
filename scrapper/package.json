@@ -12,7 +12,8 @@
     "scrape:animes": "npx tsx src/scraping/scrape-animes.ts",
     "maintenance": "npx tsx src/maintenance/maintainer.ts",
     "link:movies": "npx tsx src/maintenance/link-movies-tmdb.ts",
-    "link:series": "npx tsx src/maintenance/link-series-tmdb.ts"
+    "link:series": "npx tsx src/maintenance/link-series-tmdb.ts",
+    "keepalive": "npx tsx src/maintenance/keepalive-uqload.ts"
   },
   "dependencies": {
     "axios": "^1.18.1",

@@ -20,6 +20,7 @@ on:
           - 'animes'
           - 'maintenance'
           - 'link-tmdb'
+          - 'keepalive'
 
 jobs:
   scrape-and-sync:
@@ -75,6 +76,9 @@ jobs:
             "link-tmdb")
               npx tsx src/scraping/maintenance/link-movies-tmdb.ts
               npx tsx src/scraping/maintenance/link-series-tmdb.ts
+              ;;
+            "keepalive")
+              npx tsx src/scraping/maintenance/keepalive-uqload.ts
               ;;
             "all")
               echo "1/3 Scraping Films..."

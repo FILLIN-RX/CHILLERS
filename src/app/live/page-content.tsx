@@ -18,6 +18,10 @@ import LivePlayer from "@/components/LivePlayer";
 export function ChannelLogo({ channel }: { channel: LiveChannel }) {
   const [broken, setBroken] = useState(false);
 
+  useEffect(() => {
+    setBroken(false);
+  }, [channel.logo]);
+
   const initials = channel.name
     .replace(/^bein\s+sports/i, "beIN")
     .split(/[\s-]+/)
@@ -28,14 +32,14 @@ export function ChannelLogo({ channel }: { channel: LiveChannel }) {
 
   if (!channel.logo || broken) {
     return (
-      <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-white/10 flex items-center justify-center text-[10px] font-black text-white shrink-0">
+      <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-white/10 flex items-center justify-center text-[10px] font-black text-zinc-300 shrink-0 shadow-sm">
         {initials || "TV"}
       </div>
     );
   }
 
   return (
-    <div className="h-6 w-auto max-w-[80px] px-1.5 py-0.5 rounded bg-black/70 backdrop-blur-sm border border-white/10 flex items-center justify-center shrink-0">
+    <div className="h-7 w-12 px-1 py-0.5 rounded bg-black/70 backdrop-blur-sm border border-white/10 flex items-center justify-center shrink-0 overflow-hidden">
       <img
         src={channel.logo}
         alt={channel.name}

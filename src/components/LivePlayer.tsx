@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import Hls from "hls.js";
 import { useLanguage } from "@/i18n/LanguageContext";
 import type { LiveChannel } from "@/types/live";
@@ -22,7 +21,6 @@ import {
   IconPictureInPicture,
   IconRefresh,
   IconChevronRight,
-  IconStar,
 } from "@tabler/icons-react";
 
 interface LivePlayerProps {
@@ -47,6 +45,57 @@ class ProxiedHlsLoader extends BaseLoader {
   }
 }
 
+/** Composant Logo avec fallback élégant pour ne jamais casser l'interface */
+export function ChannelLogoBadge({
+  logo,
+  name,
+  className = "h-7 w-auto max-w-[80px]",
+  fallbackClassName = "w-8 h-7",
+}: {
+  logo?: string;
+  name: string;
+  className?: string;
+  fallbackClassName?: string;
+}) {
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    setHasError(false);
+  }, [logo]);
+
+  const initials = name
+    .replace(/^bein\s+sports/i, "beIN")
+    .split(/[\s-]+/)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase() || "TV";
+
+  if (!logo || hasError) {
+    return (
+      <div
+        className={`${fallbackClassName} rounded bg-zinc-800 border border-white/10 flex items-center justify-center text-[10px] font-black text-zinc-300 shrink-0 shadow-sm`}
+        title={name}
+      >
+        {initials}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`${className} px-1.5 py-0.5 rounded bg-black/70 backdrop-blur-sm border border-white/10 flex items-center justify-center shrink-0 overflow-hidden`}
+    >
+      <img
+        src={logo}
+        alt={name}
+        className="h-full w-auto object-contain max-h-5"
+        onError={() => setHasError(true)}
+      />
+    </div>
+  );
+}
+
 export default function LivePlayer({
   channel,
   allChannels = [],
@@ -60,8 +109,9 @@ export default function LivePlayer({
 
   const [isLoading, setIsLoading] = useState(true);
   const [isPlaying, setIsPlaying] = useState(true);
+  const [isLive, setIsLive] = useState(true);
+  const [liveProgress, setLiveProgress] = useState(100);
   const [isMuted, setIsMuted] = useState(false);
-  const [volume, setVolume] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [showChannelDrawer, setShowChannelDrawer] = useState(false);
@@ -85,10 +135,46 @@ export default function LivePlayer({
     setError(null);
     setProxyMode(false);
     setIsLoading(true);
+    setIsLive(true);
+    setLiveProgress(100);
     setReloadKey((k) => k + 1);
   }, []);
 
-  // Controls auto-hide on inactivity
+  // Détection dynamique de l'état LIVE (en direct vs différé/pause)
+  const updateLiveState = useCallback(() => {
+    const el = videoRef.current;
+    if (!el) return;
+
+    if (el.paused) {
+      setIsLive(false);
+      return;
+    }
+
+    if (el.seekable && el.seekable.length > 0) {
+      const end = el.seekable.end(el.seekable.length - 1);
+      const start = el.seekable.start(0);
+      const current = el.currentTime;
+      const delay = end - current;
+
+      // Si le retard sur le flux direct est inférieur à 6 secondes, on est en LIVE
+      const atLiveEdge = delay <= 6;
+      setIsLive(atLiveEdge);
+
+      const totalDuration = end - start;
+      if (totalDuration > 0) {
+        const pct = Math.min(100, Math.max(0, ((current - start) / totalDuration) * 100));
+        setLiveProgress(pct);
+      } else {
+        setLiveProgress(100);
+      }
+    } else {
+      // Flux continu direct sans seekable buffer
+      setIsLive(!el.paused);
+      setLiveProgress(100);
+    }
+  }, []);
+
+  // Gestion de la disparition automatique des contrôles
   const handleMouseMove = () => {
     setShowControls(true);
     if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
@@ -111,6 +197,8 @@ export default function LivePlayer({
 
     setError(null);
     setIsLoading(true);
+    setIsLive(true);
+    setLiveProgress(100);
 
     const config: any = {
       enableWorker: true,
@@ -137,6 +225,7 @@ export default function LivePlayer({
       el.muted = isMuted;
       el.play().catch(() => {});
       setIsPlaying(true);
+      setIsLive(true);
     };
 
     let hls: Hls | null = null;
@@ -146,7 +235,10 @@ export default function LivePlayer({
       hls.loadSource(channel.streamUrl);
       hls.attachMedia(el);
       hls.on(Hls.Events.MANIFEST_PARSED, startPlayback);
-      hls.on(Hls.Events.FRAG_LOADED, () => setIsLoading(false));
+      hls.on(Hls.Events.FRAG_LOADED, () => {
+        setIsLoading(false);
+        updateLiveState();
+      });
       hls.on(Hls.Events.ERROR, (_e, data) => {
         if (!data?.fatal) return;
         if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
@@ -178,7 +270,7 @@ export default function LivePlayer({
     return () => {
       if (hls) hls.destroy();
     };
-  }, [isHls, channel.streamUrl, proxyMode, reloadKey, isMuted]);
+  }, [isHls, channel.streamUrl, proxyMode, reloadKey, isMuted, updateLiveState]);
 
   // Fullscreen change listener
   useEffect(() => {
@@ -195,9 +287,11 @@ export default function LivePlayer({
     if (el.paused) {
       el.play().catch(() => {});
       setIsPlaying(true);
+      updateLiveState();
     } else {
       el.pause();
       setIsPlaying(false);
+      setIsLive(false);
     }
   };
 
@@ -221,14 +315,37 @@ export default function LivePlayer({
     const el = videoRef.current;
     if (!el) return;
     el.currentTime = Math.max(0, el.currentTime + seconds);
+    updateLiveState();
   };
 
+  // Revenir au direct instantanément
   const jumpToLive = () => {
     const el = videoRef.current;
     if (!el) return;
     if (el.seekable && el.seekable.length > 0) {
-      el.currentTime = el.seekable.end(el.seekable.length - 1);
+      el.currentTime = el.seekable.end(el.seekable.length - 1) - 0.5;
     }
+    if (el.paused) {
+      el.play().catch(() => {});
+    }
+    setIsPlaying(true);
+    setIsLive(true);
+    setLiveProgress(100);
+  };
+
+  const handleTimelineClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const el = videoRef.current;
+    if (!el || !el.seekable || el.seekable.length === 0) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickRatio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+
+    const start = el.seekable.start(0);
+    const end = el.seekable.end(el.seekable.length - 1);
+    const targetTime = start + clickRatio * (end - start);
+
+    el.currentTime = targetTime;
+    updateLiveState();
   };
 
   const togglePictureInPicture = async () => {
@@ -269,12 +386,23 @@ export default function LivePlayer({
           preload="auto"
           onClick={togglePlay}
           onWaiting={() => setIsLoading(true)}
-          onPlaying={() => setIsLoading(false)}
+          onPlaying={() => {
+            setIsLoading(false);
+            setIsPlaying(true);
+            updateLiveState();
+          }}
           onCanPlay={() => setIsLoading(false)}
+          onTimeUpdate={updateLiveState}
+          onPause={() => {
+            setIsPlaying(false);
+            setIsLive(false);
+          }}
+          onSeeking={updateLiveState}
+          onSeeked={updateLiveState}
         />
       )}
 
-      {/* ── Central Circular Canal+ Spinner ────────────────────── */}
+      {/* ── Central Circular Spinner (Canal+ Style) ─────────────── */}
       {isLoading && !error && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/40 z-20 pointer-events-none">
           <div className="w-12 h-12 rounded-full border-[3.5px] border-white/10 border-t-red-600 border-r-red-500 animate-spin" />
@@ -308,7 +436,7 @@ export default function LivePlayer({
         }`}
       >
         <div className="flex items-center justify-between gap-4">
-          {/* Left Side : Back + Logo + Channel Title + Subtitle */}
+          {/* Gauche : Retour + Logo + Titre de la chaîne */}
           <div className="flex items-center gap-3 sm:gap-4 min-w-0">
             <button
               onClick={onBack}
@@ -318,15 +446,12 @@ export default function LivePlayer({
               <IconArrowLeft className="h-5 w-5" />
             </button>
 
-            {channel.logo && (
-              <div className="h-7 w-auto max-w-[80px] px-1.5 py-0.5 rounded bg-black/60 border border-white/10 flex items-center justify-center shrink-0">
-                <img
-                  src={channel.logo}
-                  alt={channel.name}
-                  className="h-full w-auto object-contain max-h-5"
-                />
-              </div>
-            )}
+            <ChannelLogoBadge
+              logo={channel.logo}
+              name={channel.name}
+              className="h-7 w-auto max-w-[80px]"
+              fallbackClassName="w-8 h-7"
+            />
 
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 cursor-pointer hover:text-red-400 transition-colors">
@@ -336,12 +461,12 @@ export default function LivePlayer({
                 <IconChevronRight className="h-4 w-4 text-zinc-400 shrink-0" />
               </div>
               <p className="text-[11px] sm:text-xs text-zinc-400 font-medium truncate">
-                Direct HD · {channel.categories?.[0]?.toUpperCase() || "DIRECT"}
+                {isLive ? "En direct HD" : "Différé"} · {channel.categories?.[0]?.toUpperCase() || "DIRECT"}
               </p>
             </div>
           </div>
 
-          {/* Right Side : Volume + PiP + Close */}
+          {/* Droite : Volume + PiP + Fermer */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <button
               onClick={toggleMute}
@@ -381,20 +506,32 @@ export default function LivePlayer({
           showControls ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
       >
-        {/* Red Broadcast Live Timeline Progress Bar */}
+        {/* Barre de timeline de diffusion en direct (interactive) */}
         <div className="space-y-1">
-          <div className="relative w-full h-1 sm:h-1.5 bg-zinc-800 rounded-full overflow-hidden cursor-pointer group/bar">
-            <div className="absolute top-0 bottom-0 left-0 w-[88%] bg-red-600 rounded-r-full shadow-[0_0_12px_rgba(220,38,38,0.9)]" />
+          <div
+            onClick={handleTimelineClick}
+            className="relative w-full h-1.5 sm:h-2 bg-zinc-800/90 rounded-full overflow-hidden cursor-pointer group/bar"
+          >
+            <div
+              style={{ width: `${liveProgress}%` }}
+              className={`absolute top-0 bottom-0 left-0 rounded-r-full transition-all duration-150 ${
+                isLive
+                  ? "bg-red-600 shadow-[0_0_12px_rgba(220,38,38,0.9)]"
+                  : "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]"
+              }`}
+            />
           </div>
           <div className="flex items-center justify-between text-[10px] sm:text-xs text-zinc-400 font-mono">
-            <span>En direct</span>
-            <span className="text-zinc-500">LIVE HD</span>
+            <span>{isLive ? "En direct" : "En différé"}</span>
+            <span className={isLive ? "text-red-500 font-bold" : "text-zinc-500"}>
+              {isLive ? "LIVE HD" : "PAUSE / DIFFÉRÉ"}
+            </span>
           </div>
         </div>
 
-        {/* Controls Row */}
+        {/* Ligne des contrôles */}
         <div className="flex items-center justify-between gap-2 sm:gap-4">
-          {/* Left Controls : -10s, Play/Pause, +10s, LIVE Badge */}
+          {/* Contrôles de gauche : -10s, Play/Pause, +10s, Bouton LIVE dynamique */}
           <div className="flex items-center gap-2 sm:gap-4">
             <button
               onClick={() => seekRelative(-10)}
@@ -426,16 +563,26 @@ export default function LivePlayer({
               <IconRotateDot className="h-5 w-5" />
             </button>
 
+            {/* Bouton LIVE Canal+ : Rouge en direct, Gris si en pause/différé */}
             <button
               onClick={jumpToLive}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-red-600 text-white text-[11px] font-black uppercase tracking-wider hover:bg-red-500 transition-colors shadow-md shadow-red-600/30 ml-1"
+              title={isLive ? "Vous êtes en direct" : "Cliquer pour revenir au direct"}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded text-[11px] font-black uppercase tracking-wider transition-all duration-200 ml-1 ${
+                isLive
+                  ? "bg-red-600 text-white shadow-md shadow-red-600/30 hover:bg-red-500 cursor-default"
+                  : "bg-zinc-800/90 border border-white/15 text-zinc-400 hover:text-white hover:bg-zinc-700 hover:border-white/30 cursor-pointer"
+              }`}
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  isLive ? "bg-white animate-pulse" : "bg-zinc-500"
+                }`}
+              />
               LIVE
             </button>
           </div>
 
-          {/* Right Controls : TOUTES LES CHAÎNES, REVOIR/À SUIVRE, Options, Fullscreen */}
+          {/* Contrôles de droite : TOUTES LES CHAÎNES, REVOIR/À SUIVRE, Options, Plein écran */}
           <div className="flex items-center gap-2 sm:gap-4">
             {allChannels.length > 0 && (
               <button
@@ -510,19 +657,12 @@ export default function LivePlayer({
                       : "bg-zinc-900/60 hover:bg-zinc-800/80 border border-transparent text-zinc-300"
                   }`}
                 >
-                  {ch.logo ? (
-                    <div className="w-10 h-7 rounded bg-black/60 p-1 flex items-center justify-center shrink-0 border border-white/10">
-                      <img
-                        src={ch.logo}
-                        alt={ch.name}
-                        className="max-h-full max-w-full object-contain"
-                      />
-                    </div>
-                  ) : (
-                    <div className="w-10 h-7 rounded bg-zinc-800 flex items-center justify-center text-[10px] font-black text-white shrink-0">
-                      TV
-                    </div>
-                  )}
+                  <ChannelLogoBadge
+                    logo={ch.logo}
+                    name={ch.name}
+                    className="h-7 w-10"
+                    fallbackClassName="w-10 h-7"
+                  />
 
                   <div className="min-w-0 flex-1">
                     <h4 className="text-xs font-bold text-white truncate">{ch.name}</h4>

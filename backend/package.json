@@ -16,7 +16,8 @@
     "upload-series": "npx tsx src/scripts/upload-series-doodstream.ts",
     "organize-series": "npx tsx src/scripts/organize-series.ts",
     "check-status": "npx tsx src/scripts/check-upload-status.ts",
-    "otaku-picker": "npx tsx src/scripts/openotaku-picker.ts"
+    "otaku-picker": "npx tsx src/scripts/openotaku-picker.ts",
+    "keepalive": "npx tsx src/scraping/maintenance/keepalive-uqload.ts"
   },
   "keywords": [
     "chiller",
