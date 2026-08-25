@@ -368,8 +368,14 @@ async function resolveLinkFromOpenOtaku(
 
     console.log(`[Download OpenOtaku Fallback] Resolving "${searchTitle}" S${season || 1}E${episode || 1}...`);
 
+    const isSeries = (season !== undefined && episode !== undefined) || type === 'series' || type === 'anime';
+
     // Génération de requêtes de recherche intelligentes (apostrophes droites/courbes, sans articles, mots-clés)
     const queriesToTry = new Set<string>();
+    if (isSeries && season !== undefined) {
+      queriesToTry.add(`${searchTitle} - Saison ${season}`);
+      queriesToTry.add(`${searchTitle} Saison ${season}`);
+    }
     queriesToTry.add(searchTitle);
     queriesToTry.add(searchTitle.replace(/'/g, '’'));
     queriesToTry.add(searchTitle.replace(/’/g, "'"));
@@ -382,136 +388,114 @@ async function resolveLinkFromOpenOtaku(
       queriesToTry.add(words.join(' '));
     }
 
-    let results: Array<{ id: string; title: string }> = [];
+    const allResults: Array<{ id: string; title: string }> = [];
 
-    // 1. Si une saison est spécifiée, chercher avec la saison
-    if (season !== undefined) {
-      for (const q of queriesToTry) {
-        try {
-          const { data: searchSeasonRes } = await axios.get('https://www.open-otaku.me/api/fs-search', {
-            params: { q: `${q} Saison ${season}` },
-            timeout: 10000,
-            headers: { 'User-Agent': 'Mozilla/5.0' }
-          });
-          if (searchSeasonRes?.results?.length) {
-            results = searchSeasonRes.results;
-            break;
+    for (const q of queriesToTry) {
+      try {
+        const { data: searchRes } = await axios.get('https://www.open-otaku.me/api/fs-search', {
+          params: { q },
+          timeout: 10000,
+          headers: { 'User-Agent': 'Mozilla/5.0' }
+        });
+        if (searchRes?.results?.length) {
+          for (const r of searchRes.results) {
+            if (!allResults.some(x => x.id === r.id)) {
+              allResults.push(r);
+            }
           }
-        } catch {}
-      }
+        }
+      } catch {}
     }
 
-    // 2. Recherche générale avec les différentes requêtes
-    if (!results.length) {
-      for (const q of queriesToTry) {
-        try {
-          const { data: searchRes } = await axios.get('https://www.open-otaku.me/api/fs-search', {
-            params: { q },
-            timeout: 10000,
-            headers: { 'User-Agent': 'Mozilla/5.0' }
-          });
-          if (searchRes?.results?.length) {
-            results = searchRes.results;
-            break;
-          }
-        } catch {}
-      }
-    }
-
-    if (!results.length) {
+    if (!allResults.length) {
       console.log(`[Download OpenOtaku Fallback] ⚠️ Aucun résultat trouvé pour "${searchTitle}"`);
       return null;
     }
 
-    let bestItem = results[0];
-    if (season !== undefined) {
-      const seasonMatch = results.find((r) => {
-        const t = (r.title || '').toLowerCase();
-        return (
-          t.includes(`saison ${season}`) ||
-          t.includes(`season ${season}`) ||
-          t.includes(`s0${season}`) ||
-          t.includes(`s${season}`)
-        );
+    // Si c'est une série, prioriser les résultats correspondant à la bonne saison
+    if (isSeries && season !== undefined) {
+      allResults.sort((a, b) => {
+        const aHas = (a.title || '').toLowerCase().includes(`saison ${season}`) ? 1 : 0;
+        const bHas = (b.title || '').toLowerCase().includes(`saison ${season}`) ? 1 : 0;
+        return bHas - aHas;
       });
-      if (seasonMatch) bestItem = seasonMatch;
     }
 
-    const { data: watch } = await axios.get('https://www.open-otaku.me/api/fs-watch', {
-      params: { id: bestItem.id },
-      timeout: 15000,
-      headers: { 'User-Agent': 'Mozilla/5.0' }
-    });
-
-    const isSeries = (season !== undefined && episode !== undefined) || type === 'series' || type === 'anime' || (watch?.episodes && Object.keys(watch.episodes).length > 0);
-
-    const candidateUrls: string[] = [];
-
-    if (isSeries && watch?.episodes) {
-      const vfMap = watch.episodes.vf || {};
-      const vostfrMap = watch.episodes.vostfr || {};
-      const version = Object.keys(vfMap).length > 0 ? vfMap : vostfrMap;
-      const targetEp = String(episode || 1);
-      const players = version[targetEp] || Object.values(version)[0] || {};
-      
-      const orderedKeys = ['vidzy', 'luluvid', 'premium', 'default', ...Object.keys(players)];
-      for (const k of orderedKeys) {
-        const u = players[k];
-        if (typeof u === 'string' && u.startsWith('http') && !candidateUrls.includes(u)) {
-          candidateUrls.push(u);
-        }
-      }
-    } else {
-      const players = watch?.players || {};
-      const orderedKeys = ['vidzy', 'luluvid', 'premium', 'default', ...Object.keys(players)];
-      for (const k of orderedKeys) {
-        const p = players[k];
-        if (!p) continue;
-        const urls = typeof p === 'string' ? [p] : Object.values(p);
-        for (const u of urls) {
-          if (typeof u === 'string' && u.startsWith('http') && !candidateUrls.includes(u)) {
-            candidateUrls.push(u);
-          }
-        }
-      }
-    }
-
-    // Essayer de résoudre un lien direct MP4 sur chaque lecteur
-    for (const embedUrl of candidateUrls) {
-      let dlUrl = embedUrl;
-      if (dlUrl.includes('vidzy.')) dlUrl = dlUrl.replace('/embed-', '/d/').replace('.html', '_n.html');
-      else if (dlUrl.includes('luluvid.')) dlUrl = dlUrl.replace('/embed-', '/d/').replace('.html', '');
-
+    for (const item of allResults.slice(0, 4)) {
       try {
-        const { data: dlRes } = await axios.get('https://www.open-otaku.me/api/dl', {
-          params: { url: dlUrl },
+        const { data: watch } = await axios.get('https://www.open-otaku.me/api/fs-watch', {
+          params: { id: item.id },
           timeout: 15000,
           headers: { 'User-Agent': 'Mozilla/5.0' }
         });
-        if (dlRes?.success && dlRes?.downloadUrl) {
-          console.log(`[Download OpenOtaku Fallback] ✅ Direct download link resolved: ${dlRes.downloadUrl.slice(0, 60)}...`);
-          return dlRes.downloadUrl;
+
+        const candidateUrls: string[] = [];
+
+        if (isSeries && watch?.episodes && Object.keys(watch.episodes).length > 0) {
+          const vfMap = watch.episodes.vf || {};
+          const vostfrMap = watch.episodes.vostfr || {};
+          const version = Object.keys(vfMap).length > 0 ? vfMap : vostfrMap;
+          const targetEp = String(episode || 1);
+          const epData = version[targetEp] || Object.values(version)[0] || {};
+          
+          const orderedKeys = ['vidzy', 'luluvid', 'premium', 'default', ...Object.keys(epData)];
+          for (const k of orderedKeys) {
+            const u = epData[k];
+            if (typeof u === 'string' && u.startsWith('http') && !candidateUrls.includes(u)) {
+              candidateUrls.push(u);
+            }
+          }
+        } else if (watch?.players && Object.keys(watch.players).length > 0) {
+          const players = watch.players;
+          const orderedKeys = ['vidzy', 'luluvid', 'premium', 'default', ...Object.keys(players)];
+          for (const k of orderedKeys) {
+            const p = players[k];
+            if (!p) continue;
+            const urls = typeof p === 'string' ? [p] : Object.values(p);
+            for (const u of urls) {
+              if (typeof u === 'string' && u.startsWith('http') && !candidateUrls.includes(u)) {
+                candidateUrls.push(u);
+              }
+            }
+          }
+        }
+
+        for (const embedUrl of candidateUrls) {
+          let dlUrl = embedUrl;
+          if (dlUrl.includes('vidzy.')) dlUrl = dlUrl.replace('/embed-', '/d/').replace('.html', '_n.html');
+          else if (dlUrl.includes('luluvid.')) dlUrl = dlUrl.replace('/embed-', '/d/').replace('.html', '');
+
+          try {
+            const { data: dlRes } = await axios.get('https://www.open-otaku.me/api/dl', {
+              params: { url: dlUrl },
+              timeout: 15000,
+              headers: { 'User-Agent': 'Mozilla/5.0' }
+            });
+            if (dlRes?.success && dlRes?.downloadUrl) {
+              console.log(`[Download OpenOtaku Fallback] ✅ Direct link resolved: ${dlRes.downloadUrl.slice(0, 60)}...`);
+              return dlRes.downloadUrl;
+            }
+          } catch (_) {}
+
+          if (dlUrl !== embedUrl) {
+            try {
+              const { data: dlResRaw } = await axios.get('https://www.open-otaku.me/api/dl', {
+                params: { url: embedUrl },
+                timeout: 15000,
+                headers: { 'User-Agent': 'Mozilla/5.0' }
+              });
+              if (dlResRaw?.success && dlResRaw?.downloadUrl) {
+                console.log(`[Download OpenOtaku Fallback] ✅ Direct link resolved (raw): ${dlResRaw.downloadUrl.slice(0, 60)}...`);
+                return dlResRaw.downloadUrl;
+              }
+            } catch (_) {}
+          }
+        }
+
+        if (candidateUrls.length > 0) {
+          return candidateUrls[0];
         }
       } catch (_) {}
-
-      if (dlUrl !== embedUrl) {
-        try {
-          const { data: dlResRaw } = await axios.get('https://www.open-otaku.me/api/dl', {
-            params: { url: embedUrl },
-            timeout: 15000,
-            headers: { 'User-Agent': 'Mozilla/5.0' }
-          });
-          if (dlResRaw?.success && dlResRaw?.downloadUrl) {
-            console.log(`[Download OpenOtaku Fallback] ✅ Direct download link resolved (raw): ${dlResRaw.downloadUrl.slice(0, 60)}...`);
-            return dlResRaw.downloadUrl;
-          }
-        } catch (_) {}
-      }
-    }
-
-    // Si aucun MP4 direct, renvoyer l'URL du lecteur
-    if (candidateUrls.length > 0) {
-      return candidateUrls[0];
     }
   } catch (err: any) {
     console.error(`[Download OpenOtaku Fallback] Error:`, err.message);

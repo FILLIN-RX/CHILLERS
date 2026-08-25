@@ -816,8 +816,8 @@ function WatchContent() {
           title={item.title}
           id={id}
           type={isTV ? "series" : "movie"}
-          season={selectedDownloadEpisode?.season || currentSeason}
-          episode={selectedDownloadEpisode?.number || currentEpisode?.number || 1}
+          season={isTV ? (selectedDownloadEpisode?.season || currentSeason) : undefined}
+          episode={isTV ? (selectedDownloadEpisode?.number || currentEpisode?.number || 1) : undefined}
         />
       )}
     </div>
