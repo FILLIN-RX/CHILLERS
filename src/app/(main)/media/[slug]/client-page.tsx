@@ -48,7 +48,11 @@ function MediaDetailPage() {
   const { translate: _ } = useLanguage();
 
   const id = params?.slug as string;
-  const isTV = searchParams?.get("type") === "tv" || searchParams?.get("type") === "series";
+  const isTV =
+    searchParams?.get("type") === "tv" ||
+    searchParams?.get("type") === "series" ||
+    searchParams?.get("type") === "anime";
+  const detailTypeParam = searchParams?.get("type") === "anime" ? "anime" : isTV ? "series" : "movie";
 
   const [item, setItem] = useState<MovieOrShow | null>(null);
   const [similar, setSimilar] = useState<MovieOrShow[]>([]);
@@ -156,7 +160,7 @@ function MediaDetailPage() {
     if (!item) return;
     // Tout le streaming passe par /watch — on ne lance plus rien en inline
     // sur la page /media (le player a été retiré de cette vue).
-    router.push(`/watch/${item.id}?type=${isTV ? "tv" : "movie"}`, { scroll: false });
+    router.push(`/watch/${item.id}?type=${detailTypeParam}`, { scroll: false });
   };
 
   const [showSingleDownload, setShowSingleDownload] = useState(false);
@@ -673,6 +677,7 @@ const ANIME_ROWS_CONFIG = [
 function MediaListingPage() {
   const params = useParams();
   const type = params?.slug as string;
+  const isSelectListing = type === "movies" || type === "series";
   const router = useRouter();
   const searchParams = useSearchParams();
   const { translate: _ } = useLanguage();
@@ -728,7 +733,7 @@ function MediaListingPage() {
 
   // ── 1. Fetch Multi-Category Catalog (when activeGenreId is null) ──
   useEffect(() => {
-    if (activeGenreId) return; // Not in multi-category mode
+    if (activeGenreId || isSelectListing) return; // Not in multi-category mode
 
     let cancelled = false;
     async function loadCatalog() {
@@ -818,21 +823,25 @@ function MediaListingPage() {
 
     loadCatalog();
     return () => { cancelled = true; };
-  }, [type, activeGenreId]);
+  }, [type, activeGenreId, isSelectListing]);
 
   // ── 2. Fetch Single Genre Paginated Grid (when activeGenreId is set) ──
   useEffect(() => {
-    if (!activeGenreId) return;
+    if (!activeGenreId && !isSelectListing) return;
 
     let cancelled = false;
     async function fetchGridPage() {
       setIsLoadingGrid(true);
       try {
         let result: { results: MovieOrShow[]; totalPages: number } = { results: [], totalPages: 1 };
-        if (type === "movies") {
-          result = await getMoviesByGenrePage(activeGenreId!, page);
+        if (!activeGenreId) {
+          if (type === "movies") result = await getPopularMoviesPage(page);
+          else if (type === "series") result = await getPopularTVPage(page);
+          else result = await getAnimeSeriesPage(page);
+        } else if (type === "movies") {
+          result = await getMoviesByGenrePage(activeGenreId, page);
         } else {
-          result = await getTVByGenrePage(activeGenreId!, page);
+          result = await getTVByGenrePage(activeGenreId, page);
         }
 
         if (!cancelled) {
@@ -849,15 +858,21 @@ function MediaListingPage() {
 
     fetchGridPage();
     return () => { cancelled = true; };
-  }, [type, page, activeGenreId]);
+  }, [type, page, activeGenreId, isSelectListing]);
 
   const handleOpenDetails = (item: MovieOrShow) => {
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      const typeParam = item.type === "movie" ? "movie" : item.type;
+      router.push(`/media/${item.id}?type=${typeParam}`);
+      return;
+    }
     setSelectedMovie(item);
     setIsModalOpen(true);
   };
 
   const handlePlay = (item: MovieOrShow) => {
-    router.push(`/watch/${item.id}?type=${item.type === "series" || item.type === "anime" ? "tv" : "movie"}`);
+    const typeParam = item.type === "movie" ? "movie" : item.type;
+    router.push(`/watch/${item.id}?type=${typeParam}`);
   };
 
   const handleSelectGenre = (id: string | null) => {
@@ -901,16 +916,35 @@ function MediaListingPage() {
       <div className={`sticky z-30 bg-brand-dark/95 backdrop-blur-md border-b border-zinc-800/50 px-2 sm:px-6 md:px-12 lg:px-[3%] py-2.5 transition-all duration-500 ${
         headerHidden ? "top-0" : "top-[60px] sm:top-[64px]"
       }`}>
-        <GenreFilterBar
-          genres={genres}
-          activeGenreId={activeGenreId}
-          onSelect={handleSelectGenre}
-          isLoading={genresLoading}
-        />
+        {isSelectListing ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-zinc-400">Genre</span>
+            <select
+              value={activeGenreId ?? ""}
+              onChange={(e) => handleSelectGenre(e.target.value || null)}
+              disabled={genresLoading}
+              className="min-h-[42px] rounded-lg border border-zinc-700 bg-zinc-900 px-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-primary/60 disabled:opacity-50"
+            >
+              <option value="">Tous</option>
+              {genres.map((genre) => (
+                <option key={genre.id} value={String(genre.id)}>
+                  {genre.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          <GenreFilterBar
+            genres={genres}
+            activeGenreId={activeGenreId}
+            onSelect={handleSelectGenre}
+            isLoading={genresLoading}
+          />
+        )}
       </div>
 
       {/* ── MODE 1 : Multi-Category Carousel Catalog (Clean Prime Video Style) ── */}
-      {!activeGenreId && (
+      {!activeGenreId && !isSelectListing && (
         <div className="space-y-6 sm:space-y-8 pt-2">
           {/* Anime Powered Notice */}
           {type === "anime" && (
@@ -961,20 +995,22 @@ function MediaListingPage() {
       )}
 
       {/* ── MODE 2 : Dedicated Filtered Genre Grid with Pagination ── */}
-      {activeGenreId && (
+      {(activeGenreId || isSelectListing) && (
         <div className="px-2 sm:px-6 md:px-12 lg:px-[3%] pt-4 space-y-5">
           {/* Header */}
           <div className="flex items-center justify-between px-1">
             <div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handleSelectGenre(null)}
-                  className="text-xs font-semibold text-zinc-400 hover:text-white flex items-center gap-1 transition-colors cursor-pointer"
-                >
-                  <IconChevronLeft className="h-4 w-4" />
-                  <span>Tous les {type === 'movies' ? 'films' : type === 'series' ? 'séries' : 'animes'}</span>
-                </button>
-              </div>
+              {!isSelectListing && activeGenreId && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleSelectGenre(null)}
+                    className="text-xs font-semibold text-zinc-400 hover:text-white flex items-center gap-1 transition-colors cursor-pointer"
+                  >
+                    <IconChevronLeft className="h-4 w-4" />
+                    <span>Tous les {type === 'movies' ? 'films' : type === 'series' ? 'séries' : 'animes'}</span>
+                  </button>
+                </div>
+              )}
               <h1 className="text-xl sm:text-2xl font-extrabold text-white mt-1">
                 {activeGenreName ? `${title} · ${activeGenreName}` : title}
               </h1>

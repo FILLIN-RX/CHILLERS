@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { IconHome, IconMovie, IconDeviceTv, IconSearch, IconLayoutGrid } from '@tabler/icons-react';
 import { useLanguage } from "@/i18n/LanguageContext";
 import { getActiveNavTab } from "@/lib/navActive";
@@ -13,6 +13,7 @@ interface BottomNavProps {
 
 export default function BottomNav({ onSearchClick }: BottomNavProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { translate: _ } = useLanguage();
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -33,7 +34,7 @@ export default function BottomNav({ onSearchClick }: BottomNavProps) {
 
   // Shared with <Header> so the underline and the dot never disagree
   // (e.g. on /categories both light up "Catégories" now).
-  const activeTab = getActiveNavTab(pathname);
+  const activeTab = getActiveNavTab(pathname, searchParams?.get("type"));
 
   if (isFullscreen) return null;
 
