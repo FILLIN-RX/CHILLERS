@@ -9,242 +9,272 @@ import Serie from '../models/Serie';
 
 const ERROR_LOG_PATH = path.join(__dirname, '../../tmdb-link-errors.log');
 
-function parseTitre(titre: string): { seriesName: string; season: number } | null {
-  const match = titre.match(/^(.*?)\s*[-–—:]\s*(?:Saison|Season)\s*(\d+)/i);
-  if (!match) return null;
-  return { seriesName: match[1].trim(), season: parseInt(match[2], 10) };
-}
-
-function normalize(str: string): string {
+export function normalizeText(str: string): string {
+  if (!str) return '';
   return str
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
+    .replace(/['’]/g, ' ')
     .replace(/[^a-z0-9 ]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
 
-function nameSimilarity(a: string, b: string): number {
-  const wordsA = new Set(normalize(a).split(' ').filter(w => w.length > 1));
-  const wordsB = new Set(normalize(b).split(' ').filter(w => w.length > 1));
-  if (wordsA.size === 0 && wordsB.size === 0) return 1;
-  let intersect = 0;
-  for (const w of wordsA) if (wordsB.has(w)) intersect++;
-  const union = new Set([...wordsA, ...wordsB]).size;
-  return intersect / union;
-}
+function levenshteinDistance(a: string, b: string): number {
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
 
-function extractEpisodeTitleFromFilename(filename: string): string | null {
-  const cleaned = filename
-    .replace(/\.(?:mkv|mp4|avi|mov)$/i, '')
-    .replace(/\.[A-Za-z0-9]+(?:-[A-Za-z0-9]+)?$/g, '')
-    .replace(/\.(?:1080p|720p|480p|2160p|WEB|BLURAY|BRRiP|WEBRiP|HDTV|x264|x265|H264|H265|MULTi|VFF|VOSTFR|FRENCH|TRUEFRENCH|SUPPLY|TyHD|GL0P|d4kid|AMZN|NF|iT|iTA|iNTERNAL|PROPER|REPACK)\..*/gi, '')
-    .replace(/[._]/g, ' ')
-    .trim();
+  const matrix: number[][] = [];
+  for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+  for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
 
-  const seMatch = cleaned.match(/[sS]\d+[eE]\d+\s+(.+)/);
-  if (seMatch) {
-    const title = seMatch[1].trim();
-    if (title && !/^(?:episode|épisode|ep)\s*\d+$/i.test(title) && title.length > 2) {
-      return title;
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
+        );
+      }
     }
   }
 
-  return null;
+  return matrix[b.length][a.length];
 }
 
-async function searchTmdb(query: string): Promise<any[]> {
+export function stringSimilarity(a: string, b: string): number {
+  const normA = normalizeText(a);
+  const normB = normalizeText(b);
+  if (normA === normB) return 1.0;
+  if (!normA || !normB) return 0.0;
+
+  const maxLen = Math.max(normA.length, normB.length);
+  const levScore = 1.0 - (levenshteinDistance(normA, normB) / maxLen);
+
+  const wordsA = new Set(normA.split(' ').filter(w => w.length > 0));
+  const wordsB = new Set(normB.split(' ').filter(w => w.length > 0));
+  let intersect = 0;
+  for (const w of wordsA) if (wordsB.has(w)) intersect++;
+  const union = new Set([...wordsA, ...wordsB]).size;
+  const jaccardScore = union > 0 ? intersect / union : 0;
+
+  let subScore = 0;
+  if (normA.includes(normB) || normB.includes(normA)) {
+    const minLen = Math.min(normA.length, normB.length);
+    subScore = minLen / maxLen;
+  }
+
+  return Math.max(levScore * 0.5 + jaccardScore * 0.5, subScore, jaccardScore);
+}
+
+export function parseSeriesTitle(rawTitle: string): { seriesName: string; season: number; year?: number; searchQueries: string[] } {
+  let cleaned = rawTitle
+    .replace(/[\(\[\{]?(?:VF|VOSTFR|VOST|TRUEFRENCH|FRENCH|MULTI|MULTI-VF|HD|4K|1080p|720p|HDRip|WEBRip|BDRip|BluRay|AMZN|NF)[\)\]\}]?/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  let season = 1;
+  const seasonMatch = cleaned.match(/(?:[-–—:]\s*)?(?:Saison|Season|S|Partie|Part|Cour)\s*(\d+)/i);
+  if (seasonMatch) {
+    season = parseInt(seasonMatch[1], 10);
+    cleaned = cleaned.replace(seasonMatch[0], ' ').trim();
+  }
+
+  let year: number | undefined;
+  const yearMatch = cleaned.match(/\b(19\d{2}|20\d{2})\b/);
+  if (yearMatch) {
+    const parsed = parseInt(yearMatch[1], 10);
+    if (parsed >= 1950 && parsed <= 2030) {
+      year = parsed;
+      cleaned = cleaned.replace(yearMatch[0], ' ').trim();
+    }
+  }
+
+  cleaned = cleaned.replace(/^[-–—:\s]+|[-–—:\s]+$/g, '').trim();
+
+  const queries = new Set<string>();
+  if (cleaned.length > 0) queries.add(cleaned);
+
+  const parts = cleaned.split(/[:–—-]/);
+  if (parts.length > 1 && parts[0].trim().length >= 3) {
+    queries.add(parts[0].trim());
+  }
+
+  const withoutArticles = cleaned.replace(/^(?:le|la|les|l'|un|une|des|the)\s+/i, '').trim();
+  if (withoutArticles.length >= 3 && withoutArticles !== cleaned) {
+    queries.add(withoutArticles);
+  }
+
+  return {
+    seriesName: cleaned,
+    season,
+    year,
+    searchQueries: Array.from(queries)
+  };
+}
+
+async function searchTmdbSeriesSmart(rawTitle: string, explicitYear?: number | null): Promise<any[]> {
+  const { seriesName, year: extractedYear, searchQueries } = parseSeriesTitle(rawTitle);
+  const targetYear = explicitYear || extractedYear;
+
+  const candidatesMap = new Map<number, any>();
+
+  for (const query of searchQueries) {
+    try {
+      const params: Record<string, any> = { query, language: 'fr-FR', page: 1 };
+      if (targetYear) params.first_air_date_year = targetYear;
+      const { data } = await tmdbClient.get('/search/tv', { params });
+      if (Array.isArray(data?.results)) {
+        for (const item of data.results) candidatesMap.set(item.id, item);
+      }
+    } catch (_) {}
+
+    if (candidatesMap.size >= 5) break;
+
+    if (targetYear) {
+      try {
+        const { data } = await tmdbClient.get('/search/tv', {
+          params: { query, language: 'fr-FR', page: 1 }
+        });
+        if (Array.isArray(data?.results)) {
+          for (const item of data.results) candidatesMap.set(item.id, item);
+        }
+      } catch (_) {}
+    }
+
+    try {
+      const params: Record<string, any> = { query, language: 'en-US', page: 1 };
+      const { data } = await tmdbClient.get('/search/tv', { params });
+      if (Array.isArray(data?.results)) {
+        for (const item of data.results) candidatesMap.set(item.id, item);
+      }
+    } catch (_) {}
+  }
+
+  if (candidatesMap.size === 0 && seriesName.length > 2) {
+    try {
+      const { data } = await tmdbClient.get('/search/multi', {
+        params: { query: seriesName, language: 'fr-FR', page: 1 }
+      });
+      if (Array.isArray(data?.results)) {
+        for (const item of data.results) {
+          if (item.media_type === 'tv' || item.media_type === 'movie') {
+            candidatesMap.set(item.id, item);
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
+  return Array.from(candidatesMap.values());
+}
+
+function scoreSeriesCandidate(rawTitle: string, targetYear: number | undefined | null, candidate: any): number {
+  const { seriesName, year: extractedYear } = parseSeriesTitle(rawTitle);
+  const year = targetYear || extractedYear;
+
+  const candidateName = candidate.name || candidate.title || '';
+  const candidateOrigName = candidate.original_name || candidate.original_title || '';
+
+  const simFR = stringSimilarity(seriesName, candidateName);
+  const simOrig = stringSimilarity(seriesName, candidateOrigName);
+  let bestSim = Math.max(simFR, simOrig);
+
+  let yearBonus = 0;
+  if (candidate.first_air_date || candidate.release_date) {
+    const candYear = new Date(candidate.first_air_date || candidate.release_date).getFullYear();
+    if (year && !isNaN(candYear)) {
+      const diff = Math.abs(candYear - year);
+      if (diff === 0) yearBonus = 0.20;
+      else if (diff <= 2) yearBonus = 0.10;
+      else if (diff > 5 && bestSim < 0.95) yearBonus = -0.15;
+    }
+  }
+
+  const popBonus = Math.min(0.06, Math.log10((candidate.popularity || 1) + 1) * 0.02);
+
+  return bestSim + yearBonus + popBonus;
+}
+
+export async function linkSeriesTmdb(serieId: string): Promise<{ ok: boolean; tmdbId?: number; reason?: string }> {
   try {
-    const { data } = await tmdbClient.get('/search/tv', {
-      params: { query, page: 1 },
-    });
-    return data.results || [];
+    const serie: any = await Serie.findById(serieId).select('titre episodes tmdbId year').lean();
+    if (!serie) return { ok: false, reason: 'not_found' };
+    if (serie.tmdbId) return { ok: true, tmdbId: serie.tmdbId };
+
+    const results = await searchTmdbSeriesSmart(serie.titre, serie.year);
+    if (results.length === 0) return { ok: false, reason: 'no_tmdb_results' };
+
+    let bestCandidate: any = null;
+    let highestScore = -1;
+
+    for (const candidate of results) {
+      const score = scoreSeriesCandidate(serie.titre, serie.year, candidate);
+      if (score > highestScore) {
+        highestScore = score;
+        bestCandidate = candidate;
+      }
+    }
+
+    if (bestCandidate && highestScore >= 0.45) {
+      await Serie.updateOne({ _id: serie._id }, { $set: { tmdbId: bestCandidate.id } });
+      console.log(`[TMDB-AUTO] Serie "${serie.titre}" → tmdbId=${bestCandidate.id} ("${bestCandidate.name || bestCandidate.title}", score=${highestScore.toFixed(2)})`);
+      return { ok: true, tmdbId: bestCandidate.id };
+    }
+
+    return { ok: false, reason: 'no_confident_match' };
   } catch (err: any) {
-    console.error(`[TMDB] Search error for "${query}":`, err.message);
-    return [];
-  }
-}
-
-async function getTvDetails(tmdbId: number): Promise<any | null> {
-  try {
-    const { data } = await tmdbClient.get(`/tv/${tmdbId}`);
-    return data;
-  } catch {
-    return null;
-  }
-}
-
-async function getSeasonDetails(tmdbId: number, seasonNumber: number): Promise<any | null> {
-  try {
-    const { data } = await tmdbClient.get(`/tv/${tmdbId}/season/${seasonNumber}`);
-    return data;
-  } catch {
-    return null;
+    console.error(`[TMDB-AUTO] Serie ${serieId} failed:`, err.message);
+    return { ok: false, reason: 'exception' };
   }
 }
 
 async function main() {
   await connectDB();
 
-  const allSeries = await Serie.find({ tmdbId: { $exists: false } })
-    .select('titre episodes tmdbId')
+  const toLink = await Serie.find({ tmdbId: { $exists: false } })
+    .select('titre episodes tmdbId year')
     .lean();
 
-  if (allSeries.length === 0) {
+  if (toLink.length === 0) {
     console.log('Aucune série à lier (toutes ont déjà un tmdbId).');
     return;
   }
 
-  const groups = new Map<string, { entries: typeof allSeries; season: number; maxEpisode: number }>();
-  for (const serie of allSeries) {
-    const groupKey = serie.titre;
-    if (!groups.has(groupKey)) {
-      const epNumbers = serie.episodes.map(e => e.episodeNumber);
-      const season = Math.min(...epNumbers);
-      groups.set(groupKey, { entries: [], season, maxEpisode: 0 });
-    }
-    const group = groups.get(groupKey)!;
-    group.entries.push(serie);
-    const epNums = serie.episodes.map(e => e.episodeNumber);
-    const hasRealNumbers = epNums.some(n => typeof n === 'number' && n > 0);
-    const maxEp = hasRealNumbers
-      ? Math.max(...epNums.filter((n): n is number => typeof n === 'number'), 0)
-      : serie.episodes.length;
-    if (maxEp > group.maxEpisode) group.maxEpisode = maxEp;
-  }
+  console.log(`${toLink.length} séries sans TMDB à traiter\n`);
 
   let linked = 0;
-  let skipped = 0;
   let failed = 0;
   const errors: string[] = [];
+  const total = toLink.length;
 
-  for (const [titre, group] of groups) {
-    const parsed = parseTitre(titre);
-    if (!parsed) {
-      errors.push(`[PARSE] Cannot parse titre: "${titre}"`);
+  for (let idx = 0; idx < total; idx++) {
+    const s: any = toLink[idx];
+    const res = await linkSeriesTmdb(String(s._id));
+    if (res.ok && res.tmdbId) {
+      linked++;
+    } else {
       failed++;
-      continue;
-    }
-
-    const { seriesName, season } = parsed;
-    const uploadedCount = group.maxEpisode;
-    console.log(`\n--- ${seriesName} S${season} (${uploadedCount} épisodes) ---`);
-
-    const results = await searchTmdb(seriesName);
-    if (results.length === 0) {
-      errors.push(`[SEARCH] No TMDB results for "${seriesName}"`);
-      failed++;
-      continue;
-    }
-
-    let matched = false;
-    for (let i = 0; i < Math.min(3, results.length); i++) {
-      const candidate = results[i];
-      console.log(`  Candidat ${i + 1}: "${candidate.name}" (id: ${candidate.id})`);
-
-      const sim = nameSimilarity(seriesName, candidate.name);
-      if (sim < 0.3) {
-        console.log(`    ❌ Similarité: ${sim.toFixed(2)} — ignoré`);
-        continue;
-      }
-      console.log(`    ✅ Similarité: ${sim.toFixed(2)}`);
-
-      const details = await getTvDetails(candidate.id);
-      if (!details) {
-        console.log(`    → Impossible de récupérer les détails`);
-        continue;
-      }
-
-      const seasons = details.seasons || [];
-      const seasonExists = seasons.some((s: any) => s.season_number === season);
-      if (!seasonExists) {
-        console.log(`    → Saison ${season} introuvable`);
-        continue;
-      }
-      console.log(`    ✅ Saison ${season} existe`);
-
-      const seasonDetail = await getSeasonDetails(candidate.id, season);
-      if (!seasonDetail) {
-        console.log(`    → Impossible de récupérer les épisodes S${season}`);
-        continue;
-      }
-
-      const tmdbEpisodes = seasonDetail.episodes || [];
-      const tmdbCount = tmdbEpisodes.length;
-
-      const uploadedEpTitles: { ep: number; title: string | null }[] = [];
-      for (const serie of group.entries) {
-        for (const ep of serie.episodes) {
-          const filename = (ep.lien || '').split('/').pop()?.split('?')[0] || '';
-          uploadedEpTitles.push({ ep: ep.episodeNumber, title: extractEpisodeTitleFromFilename(filename) });
-        }
-      }
-      const titleMatches = uploadedEpTitles.filter(u => {
-        if (!u.title) return false;
-        const tmdbEp = tmdbEpisodes.find((te: any) => te.episode_number === u.ep);
-        if (!tmdbEp || !tmdbEp.name) return false;
-        return nameSimilarity(u.title, tmdbEp.name) > 0.4;
-      });
-
-      if (titleMatches.length > 0) {
-        console.log(`    ✅ Match par titres d'épisodes (ex: "${titleMatches[0].title}")`);
-        const firstMatch = tmdbEpisodes.find((te: any) => te.episode_number === titleMatches[0].ep);
-        console.log(`    ✅ LIEN RÉUSSI → tmdbId=${candidate.id}`);
-        await Serie.updateMany({ titre }, { $set: { tmdbId: candidate.id } });
-        linked++;
-        matched = true;
-        break;
-      }
-
-      if (tmdbCount === uploadedCount) {
-        console.log(`    ⚠ Nombre exact d'épisodes: ${tmdbCount}`);
-        console.log(`    ✅ LIEN RÉUSSI → tmdbId=${candidate.id}`);
-        await Serie.updateMany({ titre }, { $set: { tmdbId: candidate.id } });
-        linked++;
-        matched = true;
-        break;
-      }
-
-      if (uploadedCount <= tmdbCount) {
-        const uploadedEpNumbers = new Set<number>();
-        for (const serie of group.entries) {
-          for (const ep of serie.episodes) uploadedEpNumbers.add(ep.episodeNumber);
-        }
-        const tmdbEpNumbers = new Set(tmdbEpisodes.map((e: any) => e.episode_number));
-        const anyNumMatch = [...uploadedEpNumbers].some(n => tmdbEpNumbers.has(n));
-
-        if (anyNumMatch) {
-          console.log(`    ⚠ Match relâché: TMDB=${tmdbCount}, uploadés=${uploadedCount}`);
-          console.log(`    ✅ LIEN RÉUSSI → tmdbId=${candidate.id}`);
-          await Serie.updateMany({ titre }, { $set: { tmdbId: candidate.id } });
-          linked++;
-          matched = true;
-          break;
-        }
-      }
-
-      console.log(`    ❌ TMDB: ${tmdbCount} épisodes, uploadés: ${uploadedCount}`);
-    }
-
-    if (!matched) {
-      errors.push(`[NO MATCH] ${seriesName} S${season} — ${uploadedCount} épisodes`);
-      failed++;
+      errors.push(`[NO MATCH] "${s.titre}" (reason: ${res.reason || 'unknown'})`);
     }
   }
 
-  console.log(`\n=== RÉSULTAT ===`);
-  console.log(`✅ Liés: ${linked}`);
-  console.log(`⏭️  Déjà liés (ignorés): ${skipped}`);
+  console.log(`\n=== RÉSULTAT SÉRIES ===`);
+  console.log(`✅ Liées: ${linked}`);
   console.log(`❌ Échecs: ${failed}`);
+  console.log(`📊 Total traitées: ${total}`);
 
   if (errors.length > 0) {
     const logContent = errors.join('\n') + '\n';
-    fs.appendFileSync(ERROR_LOG_PATH, logContent + '\n', 'utf-8');
+    fs.appendFileSync(ERROR_LOG_PATH, logContent, 'utf-8');
     console.log(`\nErreurs logguées dans tmdb-link-errors.log`);
   }
-
-  process.exit(0);
 }
 
-main().catch(err => { console.error('[FATAL]', err); process.exit(1); });
+if (require.main === module) {
+  main().catch(err => console.error('[FATAL]', err));
+}
