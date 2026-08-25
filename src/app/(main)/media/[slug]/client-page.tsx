@@ -757,8 +757,12 @@ function MediaListingPage() {
               } else if (row.id === 'popular') {
                 rowItems = await getAnimeSeries(1);
               } else if (row.genreId) {
-                if (type === "movies") rowItems = await getMoviesByGenre(row.genreId, 1);
-                else rowItems = await getByGenreMultiple([row.genreId], true);
+                if (type === "movies") {
+                  rowItems = await getMoviesByGenre(row.genreId, 1);
+                } else {
+                  const tvRes = await getTVByGenrePage(row.genreId, 1);
+                  rowItems = tvRes.results;
+                }
               }
             } catch {}
             return { ...row, items: rowItems };
@@ -776,8 +780,12 @@ function MediaListingPage() {
             let rowItems: MovieOrShow[] = [];
             try {
               if (row.genreId) {
-                if (type === "movies") rowItems = await getMoviesByGenre(row.genreId, 1);
-                else rowItems = await getByGenreMultiple([row.genreId], true);
+                if (type === "movies") {
+                  rowItems = await getMoviesByGenre(row.genreId, 1);
+                } else {
+                  const tvRes = await getTVByGenrePage(row.genreId, 1);
+                  rowItems = tvRes.results;
+                }
               }
             } catch {}
             return { ...row, items: rowItems };
@@ -896,8 +904,8 @@ function MediaListingPage() {
           {heroItems.length > 0 && (
             <div className="relative -mt-2">
               <HeroCarousel
-                items={heroItems}
-                onPlay={handlePlay}
+                slides={heroItems}
+                onWatchNow={handlePlay}
                 onOpenDetails={handleOpenDetails}
               />
             </div>
@@ -1047,7 +1055,8 @@ function MediaListingPage() {
             setIsModalOpen(false);
             setSelectedMovie(null);
           }}
-          onPlay={handlePlay}
+          onWatch={handlePlay}
+          onOpenDetails={handleOpenDetails}
         />
       )}
     </main>
