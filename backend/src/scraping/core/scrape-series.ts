@@ -8,7 +8,7 @@ import { reuploadEpisode } from '../../modules/reupload/reupload';
 import { autoLink } from '../maintenance/auto-link';
 
 const BASE_URL = 'https://www.open-otaku.me';
-const MAX_EMPTY_RETRIES = 5;
+const MAX_EMPTY_RETRIES = 10;
 const CONCURRENCY = 2;
 
 interface FsItem {
@@ -255,10 +255,10 @@ async function scrapeSeriesDetails() {
                     }
                 }
                 if (!pageLoaded) {
-                    console.log(`Page ${currentPage} toujours vide après ${MAX_EMPTY_RETRIES} tentatives — fin du cycle, retour page 1`);
-                    hasMorePages = false;
-                    await saveState(1);
-                    break;
+                    console.log(`Page ${currentPage} toujours vide après ${MAX_EMPTY_RETRIES} tentatives — passage à la page suivante : ${currentPage + 1}`);
+                    currentPage++;
+                    await saveState(currentPage);
+                    continue;
                 }
             }
 

@@ -7,7 +7,7 @@ import { reuploadMovie } from '../../modules/reupload/reupload';
 import { autoLink } from '../maintenance/auto-link';
 
 const BASE_URL = 'https://www.open-otaku.me';
-const MAX_EMPTY_RETRIES = 5;
+const MAX_EMPTY_RETRIES = 10;
 const CONCURRENCY = 3;
 
 interface FsItem {
@@ -194,11 +194,10 @@ async function scrapeFilms() {
             emptyRetries++;
             console.log(`Page ${page} vide (tentative ${emptyRetries}/${MAX_EMPTY_RETRIES}) — attend 5s...`);
             if (emptyRetries >= MAX_EMPTY_RETRIES) {
-                console.log(`Fin atteinte à la page ${page}. Retour à la page 1.`);
-                page = 1;
+                console.log(`Page ${page} toujours vide après ${MAX_EMPTY_RETRIES} tentatives — passage à la page suivante : ${page + 1}`);
+                page++;
                 await saveLastPage(page);
                 emptyRetries = 0;
-                await sleep(60000);
                 continue;
             }
             await sleep(5000);
