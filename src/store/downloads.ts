@@ -22,6 +22,12 @@ interface DownloadsState {
   clearAllCancelRequests: () => void;
   isCancelRequested: (id: string) => boolean;
   resetTasks: (ids: string[]) => void;
+
+  /** Global AbortControllers — survive component unmount so downloads keep running. */
+  controllers: Map<string, AbortController>;
+  setController: (id: string, ctrl: AbortController) => void;
+  getController: (id: string) => AbortController | undefined;
+  removeController: (id: string) => void;
 }
 
 const STORAGE_KEY = "chillers_downloads_v2";
@@ -61,6 +67,7 @@ export const useDownloadsStore = create<DownloadsState>()(
     (set, get) => ({
       tasks: [],
       cancelRequested: new Set<string>(),
+      controllers: new Map<string, AbortController>(),
 
       addMany: (newTasks) =>
         set((state) => {
@@ -148,6 +155,20 @@ export const useDownloadsStore = create<DownloadsState>()(
               : t,
           ),
         }));
+      },
+
+      setController: (id, ctrl) => {
+        const next = new Map(get().controllers);
+        next.set(id, ctrl);
+        set({ controllers: next });
+      },
+
+      getController: (id) => get().controllers.get(id),
+
+      removeController: (id) => {
+        const next = new Map(get().controllers);
+        next.delete(id);
+        set({ controllers: next });
       },
     }),
     {

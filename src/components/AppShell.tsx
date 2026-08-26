@@ -9,6 +9,11 @@ import Footer from "@/components/Footer";
 import BottomNav from "@/components/BottomNav";
 import NetworkStatusBanner from "@/components/NetworkStatusBanner";
 
+const DownloadFloatingBar = dynamic(
+  () => import("@/features/downloads/DownloadFloatingBar"),
+  { ssr: false },
+);
+
 const theme = createTheme({
   primaryColor: "pink",
   colors: {
@@ -95,6 +100,7 @@ export default function AppShell({ children, showBottomNav }: AppShellProps) {
       <main className="flex-1 flex flex-col">{children}</main>
       <Footer />
       <NetworkStatusBanner />
+      <DownloadFloatingBar />
       {shouldShowBottomNav && <BottomNav onSearchClick={() => setIsSearchOpen(true)} />}
     </MantineProvider>
   );

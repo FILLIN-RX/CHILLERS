@@ -14,6 +14,10 @@ import { useDownloadsStore } from "@/store/downloads";
  * disk via StreamSaver with live progress. Exposes start/cancel/retry hooks.
  * The underlying task is registered in the global downloads store so other
  * panels (notification badge, drawer) can show the same state.
+ *
+ * AbortControllers are stored in the global Zustand store so downloads
+ * survive component unmount (modal close). The modal can be dismissed
+ * while the download continues in the background.
  */
 export interface UseDownloadArgs {
   tmdbId: string | number;
@@ -50,9 +54,11 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
   const requestCancel = useDownloadsStore((s) => s.requestCancel);
   const clearCancelRequest = useDownloadsStore((s) => s.clearCancelRequest);
   const resetTasks = useDownloadsStore((s) => s.resetTasks);
+  const setController = useDownloadsStore((s) => s.setController);
+  const getController = useDownloadsStore((s) => s.getController);
+  const removeController = useDownloadsStore((s) => s.removeController);
   const task = useDownloadsStore((s) => s.tasks.find((t) => t.id === id));
 
-  const abortCtrlRef = useRef<AbortController | null>(null);
   const [isRunning, setIsRunning] = useState(false);
 
   // Latest task ref so callbacks always read the freshest row without
@@ -100,8 +106,9 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
 
   const cancel = useCallback(() => {
     requestCancel(id);
-    abortCtrlRef.current?.abort();
-  }, [id, requestCancel]);
+    const ctrl = getController(id);
+    ctrl?.abort();
+  }, [id, requestCancel, getController]);
 
   const resolve = useCallback(async () => {
     if (isRunning) return;
@@ -109,7 +116,7 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
     setIsRunning(true);
 
     const ctrl = new AbortController();
-    abortCtrlRef.current = ctrl;
+    setController(id, ctrl);
 
     try {
       setStatus(id, "resolving");
@@ -142,16 +149,15 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
         setStatus(id, "error", message);
       }
     } finally {
-      abortCtrlRef.current = null;
       setIsRunning(false);
     }
-  }, [id, isRunning, isCancelRequested, setStatus, tmdbId, type, title, season, episodeNumber, updateTask]);
+  }, [id, isRunning, isCancelRequested, setStatus, tmdbId, type, title, season, episodeNumber, updateTask, setController, clearCancelRequest]);
 
   const streamCurrent = useCallback(async (url: string) => {
     setIsRunning(true);
 
     const ctrl = new AbortController();
-    abortCtrlRef.current = ctrl;
+    setController(id, ctrl);
 
     try {
       setStatus(id, "downloading");
@@ -184,10 +190,10 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
         setStatus(id, "error", message);
       }
     } finally {
-      abortCtrlRef.current = null;
+      removeController(id);
       setIsRunning(false);
     }
-  }, [id, isCancelRequested, setProgress, setStatus]);
+  }, [id, isCancelRequested, setProgress, setStatus, setController, removeController]);
 
   const start = useCallback(async () => {
     if (isRunning) return;
@@ -209,12 +215,9 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
     void resolve();
   }, [id, isRunning, setStatus, resolve]);
 
-  // Tear down on unmount so we don't leak a pending fetch.
-  useEffect(() => {
-    return () => {
-      abortCtrlRef.current?.abort();
-    };
-  }, []);
+  // NOTE: We intentionally do NOT abort on unmount.
+  // Downloads are tracked via global store controllers and continue
+  // even after the modal / component is closed.
 
   const percent =
     task && task.totalBytes && task.totalBytes > 0

@@ -187,6 +187,21 @@ body {
   animation: fade-in 200ms ease-out;
 }
 
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 250ms ease-out;
+}
+
 /* Banner gradient overlay — brighter version */
 .banner-overlay {
   background: linear-gradient(to top, var(--background) 0%, rgba(var(--overlay-base), 0.75) 15%, rgba(var(--overlay-base), 0.1) 40%, transparent 70%),

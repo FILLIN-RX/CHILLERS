@@ -20,7 +20,7 @@ interface DownloadModalProps {
 const STATUS_LABEL: Record<DownloadStatus, string> = {
   queued: "En attente",
   resolving: "Recherche du lien…",
-  ready: "Lien trouvé, prêt à démarrer",
+  ready: "Lien trouvé",
   downloading: "Téléchargement en cours",
   paused: "En pause",
   done: "Téléchargement réussi",
@@ -62,21 +62,27 @@ export default function DownloadModal({
     };
   }, [isOpen, onClose]);
 
-  // Auto-resolve the link as soon as the modal opens. The actual download
-  // only starts when the user clicks "Télécharger" (status flips to ready).
+  // Auto-resolve + auto-start: as soon as the modal opens, resolve the link
+  // and immediately start streaming. No user click needed.
   useEffect(() => {
     if (!isOpen) return;
-    if (dl.status === "queued" && dl.task?.status !== "ready") {
+    if (dl.status === "queued") {
       dl.resolve();
     }
-    // We only want this on open change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
+
+  // Once resolved (ready), auto-start the download.
+  useEffect(() => {
+    if (dl.status === "ready") {
+      dl.start();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dl.status]);
 
   if (!isOpen) return null;
 
   const showSpinner = dl.status === "resolving" || dl.status === "downloading";
-  const showReady = dl.status === "ready";
   const showSuccess = dl.status === "done";
   const showError = dl.status === "error";
 
@@ -108,7 +114,6 @@ export default function DownloadModal({
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
           )}
-          {showReady && <IconDownload className="h-7 w-7 text-white" />}
           {showSuccess && (
             <div className="w-full h-full rounded-full bg-emerald-500/20 flex items-center justify-center">
               <IconCheck className="h-7 w-7 text-emerald-400" />
@@ -132,14 +137,10 @@ export default function DownloadModal({
           {dl.error ? dl.error : STATUS_LABEL[dl.status]}
         </p>
 
-        {showReady && (
-          <button
-            onClick={dl.start}
-            className="w-full px-8 py-3 rounded bg-white text-black font-bold text-sm hover:bg-zinc-200 transition-all flex items-center justify-center gap-2"
-          >
-            <IconDownload className="h-5 w-5" />
-            Démarrer le téléchargement
-          </button>
+        {dl.status === "downloading" && (
+          <p className="text-zinc-500 text-xs mb-4">
+            Tu peux fermer cette fenêtre. Le téléchargement continue en arrière-plan.
+          </p>
         )}
 
         {dl.status === "error" && (
@@ -162,7 +163,7 @@ export default function DownloadModal({
 
         {dl.status === "downloading" && (
           <button
-            onClick={dl.cancel}
+            onClick={() => { dl.cancel(); onClose(); }}
             className="w-full px-8 py-3 rounded bg-zinc-800 text-white font-bold text-sm hover:bg-zinc-700 transition-all mt-3"
           >
             Annuler

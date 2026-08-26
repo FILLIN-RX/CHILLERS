@@ -52,17 +52,12 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
   const clearCancelRequest = useDownloadsStore((s) => s.clearCancelRequest);
   const isCancelRequested = useDownloadsStore((s) => s.isCancelRequested);
   const resetTasks = useDownloadsStore((s) => s.resetTasks);
+  const setController = useDownloadsStore((s) => s.setController);
+  const getController = useDownloadsStore((s) => s.getController);
+  const removeController = useDownloadsStore((s) => s.removeController);
 
-  const runtimeRef = useRef<
-    Map<
-      string,
-      {
-        ctrl: AbortController;
-        retries: number;
-        retryTimer: ReturnType<typeof setTimeout> | null;
-      }
-    >
-  >(new Map());
+  const retriesRef = useRef<Map<string, number>>(new Map());
+  const retryTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   const inflightRef = useRef<Set<string>>(new Set());
   const unmountedRef = useRef(false);
@@ -126,7 +121,8 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
     const { type, seriesTitle, tmdbId } = argsRef.current;
 
     const ctrl = new AbortController();
-    runtimeRef.current.set(task.id, { ctrl, retries: 0, retryTimer: null });
+    setController(task.id, ctrl);
+    retriesRef.current.set(task.id, 0);
     inflightRef.current.add(task.id);
 
     if (isCancelRequested(task.id)) {
@@ -195,38 +191,26 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
         return;
       }
 
-      const prevRetries = runtimeRef.current.get(task.id)?.retries ?? 0;
+      const prevRetries = retriesRef.current.get(task.id) ?? 0;
       const retries = prevRetries + 1;
       if (retries <= MAX_RETRIES) {
-        const nextCtrl = new AbortController();
-        runtimeRef.current.set(task.id, {
-          ctrl: nextCtrl,
-          retries,
-          retryTimer: null,
-        });
+        retriesRef.current.set(task.id, retries);
         const backoff = 1000 * Math.pow(2, retries - 1);
         const timer = setTimeout(() => {
           if (unmountedRef.current) return;
-          const cur = runtimeRef.current.get(task.id);
-          if (cur?.retryTimer === timer) {
-            cur.retryTimer = null;
-          }
+          retryTimersRef.current.delete(task.id);
           setStatus(task.id, "queued");
         }, backoff);
-        const cur = runtimeRef.current.get(task.id);
-        if (cur) cur.retryTimer = timer;
+        retryTimersRef.current.set(task.id, timer);
       } else {
         const message = err instanceof Error ? err.message : String(err);
         setStatus(task.id, "error", message);
       }
     } finally {
       inflightRef.current.delete(task.id);
-      const cur = runtimeRef.current.get(task.id);
-      if (cur?.ctrl === ctrl) {
-        runtimeRef.current.delete(task.id);
-      }
+      removeController(task.id);
     }
-  }, [isCancelRequested, setProgress, setStatus, updateTask]);
+  }, [isCancelRequested, setProgress, setStatus, updateTask, setController, removeController]);
 
   // Scheduler loop: picks up queued/ready tasks up to concurrency limit
   const schedule = useCallback(() => {
@@ -247,7 +231,7 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
         (t) =>
           (t.status === "queued" || (!gatedNow && t.status === "ready")) &&
           !inflightRef.current.has(t.id) &&
-          !runtimeRef.current.has(t.id) &&
+          !retriesRef.current.has(t.id) &&
           !isCancelRequested(t.id),
       );
       if (!next) break;
@@ -262,16 +246,20 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
     schedule();
   }, [tasks, gated, schedule]);
 
-  // Cleanup ONLY on unmount
+  // Cleanup ONLY on unmount — abort all in-flight downloads
   useEffect(() => {
     unmountedRef.current = false;
     return () => {
       unmountedRef.current = true;
-      runtimeRef.current.forEach(({ ctrl, retryTimer }) => {
-        if (retryTimer) clearTimeout(retryTimer);
-        ctrl.abort();
+      // Abort via store controllers
+      inflightRef.current.forEach((id) => {
+        const ctrl = useDownloadsStore.getState().getController(id);
+        ctrl?.abort();
       });
-      runtimeRef.current.clear();
+      // Clear retry timers
+      retryTimersRef.current.forEach((timer) => clearTimeout(timer));
+      retryTimersRef.current.clear();
+      retriesRef.current.clear();
       inflightRef.current.clear();
     };
   }, []);
@@ -279,31 +267,33 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
   const cancelOne = useCallback(
     (id: string) => {
       requestCancel(id);
-      const entry = runtimeRef.current.get(id);
-      if (entry) {
-        if (entry.retryTimer) {
-          clearTimeout(entry.retryTimer);
-          entry.retryTimer = null;
-        }
-        entry.ctrl.abort();
-        runtimeRef.current.delete(id);
+      const ctrl = getController(id);
+      ctrl?.abort();
+      removeController(id);
+      const timer = retryTimersRef.current.get(id);
+      if (timer) {
+        clearTimeout(timer);
+        retryTimersRef.current.delete(id);
       }
+      retriesRef.current.delete(id);
       inflightRef.current.delete(id);
       setStatus(id, "canceled");
     },
-    [requestCancel, setStatus],
+    [requestCancel, setStatus, getController, removeController],
   );
 
   const retryOne = useCallback(
     (id: string) => {
-      const stale = runtimeRef.current.get(id);
-      if (stale?.retryTimer) clearTimeout(stale.retryTimer);
-      runtimeRef.current.delete(id);
+      const timer = retryTimersRef.current.get(id);
+      if (timer) clearTimeout(timer);
+      retryTimersRef.current.delete(id);
+      retriesRef.current.delete(id);
+      removeController(id);
       inflightRef.current.delete(id);
       clearCancelRequest(id);
       resetTasks([id]);
     },
-    [clearCancelRequest, resetTasks],
+    [clearCancelRequest, resetTasks, removeController],
   );
 
   const relaunchAll = useCallback(() => {
@@ -315,23 +305,31 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
       })
     );
     for (const id of ids) {
-      const stale = runtimeRef.current.get(id);
-      if (stale?.retryTimer) clearTimeout(stale.retryTimer);
-      runtimeRef.current.delete(id);
+      const timer = retryTimersRef.current.get(id);
+      if (timer) clearTimeout(timer);
+      retryTimersRef.current.delete(id);
+      retriesRef.current.delete(id);
+      removeController(id);
       inflightRef.current.delete(id);
     }
     resetTasks(ids);
-  }, [episodes, resetTasks, tmdbId]);
+  }, [episodes, resetTasks, tmdbId, removeController]);
 
   const cancelAll = useCallback(() => {
-    const snapshot = Array.from(runtimeRef.current.entries());
-    runtimeRef.current.clear();
+    const snapshot = Array.from(inflightRef.current);
     inflightRef.current.clear();
-    for (const [id, { ctrl, retryTimer }] of snapshot) {
-      if (retryTimer) clearTimeout(retryTimer);
+    for (const id of snapshot) {
+      const timer = retryTimersRef.current.get(id);
+      if (timer) clearTimeout(timer);
+      retryTimersRef.current.delete(id);
+      retriesRef.current.delete(id);
+      const ctrl = getController(id);
       requestCancel(id);
-      ctrl.abort();
+      ctrl?.abort();
+      removeController(id);
     }
+    retryTimersRef.current.clear();
+    retriesRef.current.clear();
     tasks.forEach((t) => {
       if (t.tmdbId === String(tmdbId)) {
         if (t.status === "queued" || t.status === "ready" || t.status === "resolving" || t.status === "downloading") {
@@ -339,7 +337,7 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
         }
       }
     });
-  }, [requestCancel, tasks, setStatus, tmdbId]);
+  }, [requestCancel, tasks, setStatus, tmdbId, getController, removeController]);
 
   const resumeAll = useCallback(() => {
     const ids = tasks
