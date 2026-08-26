@@ -25,14 +25,15 @@ function MovieCard({
   const [backdropFailed, setBackdropFailed] = useState(false);
 
   const cardRef = useRef<HTMLDivElement>(null);
-  const imgRef = useRef<HTMLDivElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
+  const posterRef = useRef<HTMLDivElement>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
   const buttonsRef = useRef<HTMLDivElement>(null);
 
   const isPoster = variant === "poster";
-  const primarySrc = isPoster 
-    ? (item.posterUrl || item.backdropUrl) 
-    : (!backdropFailed && item.backdropUrl ? item.backdropUrl : item.posterUrl);
+  const posterSrc = item.posterUrl || item.backdropUrl;
+  const backdropSrc = (!backdropFailed && item.backdropUrl) ? item.backdropUrl : item.posterUrl;
+  const primarySrc = isPoster ? posterSrc : backdropSrc;
   const hasImage = !!primarySrc && !imgError;
 
   const sizeClass =
@@ -58,45 +59,75 @@ function MovieCard({
   ];
   const gradientIndex = item.id.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0) % gradients.length;
 
-  // GSAP Smooth Hover Animations
+  // GSAP Smooth Hover Animations (Prime Video Cinematic Easing)
   const handleMouseEnter = useCallback(() => {
     if (cardRef.current) {
       gsap.to(cardRef.current, {
         y: -6,
-        scale: isPoster ? 1.03 : 1.04,
-        zIndex: 80,
-        duration: 0.35,
+        scale: 1.02,
+        zIndex: 30,
+        duration: 0.48,
         ease: "power2.out",
         overwrite: "auto",
       });
     }
-    if (imgRef.current) {
-      gsap.to(imgRef.current, {
-        scale: 1.06,
-        duration: 0.5,
-        ease: "power2.out",
-        overwrite: "auto",
-      });
+
+    if (isPoster) {
+      // Crossfade from vertical poster to wide backdrop
+      if (backdropRef.current) {
+        gsap.to(backdropRef.current, {
+          opacity: 1,
+          scale: 1.05,
+          duration: 0.52,
+          ease: "power2.out",
+          overwrite: "auto",
+        });
+      }
+      if (posterRef.current) {
+        gsap.to(posterRef.current, {
+          opacity: 0,
+          duration: 0.35,
+          ease: "power2.out",
+          overwrite: "auto",
+        });
+      }
+    } else {
+      if (posterRef.current) {
+        gsap.to(posterRef.current, {
+          scale: 1.06,
+          duration: 0.5,
+          ease: "power2.out",
+          overwrite: "auto",
+        });
+      }
     }
-    if (panelRef.current) {
+
+    if (overlayRef.current) {
       gsap.fromTo(
-        panelRef.current,
-        { opacity: 0, x: isPoster ? -10 : 0, y: isPoster ? 0 : 8 },
+        overlayRef.current,
+        { opacity: 0, y: 12 },
         {
           opacity: 1,
-          x: 0,
           y: 0,
-          duration: 0.35,
-          ease: "power3.out",
+          duration: 0.42,
+          ease: "power2.out",
           overwrite: "auto",
         }
       );
     }
+
     if (buttonsRef.current) {
       gsap.fromTo(
         buttonsRef.current.children,
-        { scale: 0.85, opacity: 0 },
-        { scale: 1, opacity: 1, stagger: 0.04, duration: 0.25, ease: "back.out(1.5)", overwrite: "auto" }
+        { scale: 0.9, opacity: 0 },
+        {
+          scale: 1,
+          opacity: 1,
+          stagger: 0.05,
+          duration: 0.35,
+          ease: "back.out(1.4)",
+          overwrite: "auto",
+        }
       );
     }
   }, [isPoster]);
@@ -107,160 +138,202 @@ function MovieCard({
         y: 0,
         scale: 1,
         zIndex: 1,
-        duration: 0.3,
-        ease: "power2.out",
+        duration: 0.38,
+        ease: "power2.inOut",
         overwrite: "auto",
       });
     }
-    if (imgRef.current) {
-      gsap.to(imgRef.current, {
-        scale: 1,
-        duration: 0.4,
-        ease: "power2.out",
-        overwrite: "auto",
-      });
+
+    if (isPoster) {
+      if (backdropRef.current) {
+        gsap.to(backdropRef.current, {
+          opacity: 0,
+          scale: 1,
+          duration: 0.35,
+          ease: "power2.inOut",
+          overwrite: "auto",
+        });
+      }
+      if (posterRef.current) {
+        gsap.to(posterRef.current, {
+          opacity: 1,
+          duration: 0.35,
+          ease: "power2.inOut",
+          overwrite: "auto",
+        });
+      }
+    } else {
+      if (posterRef.current) {
+        gsap.to(posterRef.current, {
+          scale: 1,
+          duration: 0.35,
+          ease: "power2.inOut",
+          overwrite: "auto",
+        });
+      }
     }
-    if (panelRef.current) {
-      gsap.to(panelRef.current, {
+
+    if (overlayRef.current) {
+      gsap.to(overlayRef.current, {
         opacity: 0,
-        x: isPoster ? -8 : 0,
-        y: isPoster ? 0 : 6,
-        duration: 0.25,
+        y: 8,
+        duration: 0.28,
         ease: "power2.in",
         overwrite: "auto",
       });
     }
   }, [isPoster]);
 
-  // Vertical Poster Cards (Large, opening smoothly to the RIGHT with Glassmorphism)
+  // Prime Video Style Poster Card: Full-bleed wide expansion with overlayed details at bottom
   if (isPoster) {
     return (
       <div
         ref={cardRef}
         data-testid="movie-card-poster"
-        onClick={() => onOpenDetails(item)}
+        onClick={() => {
+          handleMouseLeave();
+          onOpenDetails(item);
+        }}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
-        className="group relative flex-none h-[250px] sm:h-[295px] md:h-[340px] lg:h-[385px] w-[165px] sm:w-[195px] md:w-[225px] lg:w-[255px] hover:w-[165px] sm:hover:w-[390px] md:hover:w-[450px] lg:hover:w-[510px] transition-all duration-300 ease-out cursor-pointer rounded-2xl overflow-hidden bg-zinc-950 shadow-[0_12px_36px_rgba(0,0,0,0.7)] hover:shadow-[0_20px_50px_rgba(0,0,0,0.95)] hover:z-30"
+        className="group relative flex-none h-[250px] sm:h-[295px] md:h-[340px] lg:h-[385px] w-[165px] sm:w-[195px] md:w-[225px] lg:w-[255px] sm:hover:w-[380px] md:hover:w-[440px] lg:hover:w-[500px] transition-all duration-500 ease-out cursor-pointer rounded-2xl overflow-hidden bg-zinc-950 shadow-[0_12px_36px_rgba(0,0,0,0.7)] hover:shadow-[0_24px_60px_rgba(0,0,0,0.95)] hover:z-30"
       >
-        <div className="relative w-full h-full flex flex-row overflow-hidden">
-          
-          {/* 1. Main Poster Image (Fixed on LEFT, anchored) */}
-          <div className="relative h-full flex-none w-[165px] sm:w-[195px] md:w-[225px] lg:w-[255px] overflow-hidden bg-zinc-900">
-            <div ref={imgRef} className="relative w-full h-full">
-              {hasImage ? (
-                <Image
-                  src={primarySrc}
-                  alt={item.title}
-                  fill
-                  className="object-cover object-center"
-                  sizes="(max-width: 640px) 165px, (max-width: 768px) 195px, 255px"
-                />
-              ) : (
-                <div className={`absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-br ${gradients[gradientIndex]} p-3 text-center`}>
-                  <IconMovie className="h-8 w-8 text-white/40" />
-                  <span className="line-clamp-3 text-xs font-semibold text-white/70">{item.title}</span>
-                </div>
+        {/* 1. Base Vertical Poster Image (visible when not hovered) */}
+        <div ref={posterRef} className="absolute inset-0 w-full h-full bg-zinc-900 transition-opacity duration-300">
+          {posterSrc && !imgError ? (
+            <Image
+              src={posterSrc}
+              alt={item.title}
+              fill
+              className="object-cover object-center"
+              sizes="(max-width: 640px) 165px, (max-width: 768px) 195px, 255px"
+            />
+          ) : (
+            <div className={`w-full h-full flex flex-col items-center justify-center gap-2 bg-gradient-to-br ${gradients[gradientIndex]} p-3 text-center`}>
+              <IconMovie className="h-8 w-8 text-white/40" />
+              <span className="line-clamp-3 text-xs font-semibold text-white/70">{item.title}</span>
+            </div>
+          )}
+        </div>
+
+        {/* 2. Full-bleed Landscape Backdrop Image (crossfades on hover) */}
+        <div
+          ref={backdropRef}
+          style={{ opacity: 0 }}
+          className="hidden sm:block absolute inset-0 w-full h-full bg-zinc-900 pointer-events-none"
+        >
+          {backdropSrc ? (
+            <Image
+              src={backdropSrc}
+              alt={item.title}
+              fill
+              className="object-cover object-center"
+              sizes="(max-width: 1024px) 440px, 500px"
+            />
+          ) : null}
+        </div>
+
+        {/* Top-right "NOUVEAU" or Type Badge (Prime Video style) */}
+        <div className="absolute top-3 right-3 z-10">
+          <span className="rounded-md glass-badge px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-zinc-200">
+            {item.isTrending ? "NOUVEAU" : item.type === "series" ? "SÉRIE" : item.type === "anime" ? "ANIME" : "FILM"}
+          </span>
+        </div>
+
+        {/* Top-left Rating Badge */}
+        {Boolean(item.rating) && (
+          <div className="absolute top-3 left-3 z-10 flex items-center gap-1 rounded-md glass-badge px-2 py-0.5 text-[10px] font-bold">
+            <IconStar className="h-3 w-3 fill-amber-400 text-amber-400" />
+            <span className="text-amber-400">{item.rating}</span>
+          </div>
+        )}
+
+        {/* Bottom Crown Badge (collapsed state) */}
+        <div className="absolute bottom-3 left-3 z-10 group-hover:opacity-0 transition-opacity duration-300">
+          <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-amber-500/90 text-xs shadow-md">
+            👑
+          </span>
+        </div>
+
+        {/* 3. Bottom Cinematic Gradient & Details Overlay (Visible on Hover like Prime Video) */}
+        <div
+          ref={overlayRef}
+          style={{ opacity: 0, transform: "translateY(8px)" }}
+          className="hidden sm:flex absolute inset-0 flex-col justify-end p-4 sm:p-5 bg-gradient-to-t from-black via-black/75 to-transparent z-20 pointer-events-none group-hover:pointer-events-auto"
+        >
+          <div className="space-y-2.5">
+            {/* Title */}
+            <h3 className="text-base sm:text-xl font-black text-white leading-tight line-clamp-1 drop-shadow-md">
+              {item.title}
+            </h3>
+
+            {/* Action Buttons (Prime Video style) */}
+            <div ref={buttonsRef} className="flex items-center gap-2.5 pt-1">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleMouseLeave();
+                  onOpenDetails(item);
+                }}
+                className="py-2 px-4 rounded-xl glass-button text-white font-bold text-xs transition-all text-center truncate cursor-pointer shadow-lg"
+              >
+                Plus d'informations
+              </button>
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleMouseLeave();
+                  onPlay(item);
+                }}
+                aria-label={_("media.watch")}
+                className="h-8 w-8 rounded-xl bg-white text-black hover:bg-zinc-200 hover:scale-105 active:scale-95 flex items-center justify-center shrink-0 shadow-lg transition-all cursor-pointer"
+              >
+                <IconPlayerPlay className="h-4 w-4 fill-black translate-x-[0.5px]" />
+              </button>
+            </div>
+
+            {/* Metadata Tags */}
+            <div className="flex items-center gap-2 text-[11px] sm:text-xs text-zinc-300 font-medium flex-wrap pt-0.5">
+              {item.rating && (
+                <span className="glass-badge px-1.5 py-0.5 rounded text-amber-400 font-bold">
+                  ★ {item.rating}
+                </span>
               )}
+              {item.genres && item.genres.length > 0 && (
+                <span className="text-zinc-300">{item.genres.slice(0, 2).join(", ")}</span>
+              )}
+              {item.duration && <span>• {item.duration}</span>}
+              {item.year && <span>• {item.year}</span>}
             </div>
 
-            {/* Top-left rating badge (no harsh border) */}
-            {Boolean(item.rating) && (
-              <div className="absolute top-2.5 left-2.5 z-10 flex items-center gap-1 rounded-md glass-badge px-2 py-0.5 text-[10px] font-bold">
-                <IconStar className="h-3 w-3 fill-amber-400 text-amber-400" />
-                <span className="text-amber-400">{item.rating}</span>
-              </div>
-            )}
-
-            {/* Top-right type badge */}
-            <div className="absolute top-2.5 right-2.5 z-10">
-              <span className="rounded-md glass-badge px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-zinc-200">
-                {item.type === "series" ? "SÉRIE" : item.type === "anime" ? "ANIME" : "FILM"}
-              </span>
-            </div>
-
-            {/* Bottom brand crown badge */}
-            <div className="absolute bottom-2.5 left-2.5 z-10">
-              <span className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-amber-500/90 text-[10px] shadow-sm">
-                👑
-              </span>
+            {/* Prime / Chillers Tagline */}
+            <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 font-medium pt-0.5">
+              <span className="text-amber-400">👑</span>
+              <span>Inclus avec Chillers</span>
             </div>
           </div>
-
-          {/* 2. Expanded Info Pane (Opens smoothly to the RIGHT on Desktop) */}
-          <div
-            ref={panelRef}
-            className="hidden group-hover:flex flex-col justify-between flex-1 min-w-0 p-3.5 sm:p-5 glass-card-poster-panel z-20 transition-all duration-300 animate-fade-in"
-          >
-            <div className="space-y-2">
-              <span className="inline-block text-[10px] font-black uppercase tracking-wider text-brand-primary drop-shadow-[0_2px_8px_rgba(215,4,102,0.5)]">
-                {item.type === "series" ? "Série Chillers" : "Film Chillers"}
-              </span>
-              <h3 className="text-sm sm:text-base font-extrabold text-white leading-tight line-clamp-2 drop-shadow-sm">
-                {item.title}
-              </h3>
-              {item.description && (
-                <p className="text-[11px] sm:text-xs text-zinc-300 line-clamp-3 sm:line-clamp-4 leading-relaxed mt-1">
-                  {item.description}
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-3 pt-2">
-              {/* Action Buttons */}
-              <div ref={buttonsRef} className="flex items-center gap-2">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onOpenDetails(item);
-                  }}
-                  className="flex-1 py-2 px-3 rounded-xl glass-button text-white font-bold text-xs transition-all text-center truncate cursor-pointer"
-                >
-                  Plus d'informations
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onPlay(item);
-                  }}
-                  aria-label={_("media.watch")}
-                  className="h-8 w-8 rounded-xl bg-white text-black hover:bg-zinc-200 hover:scale-105 active:scale-95 flex items-center justify-center shrink-0 shadow-lg transition-all cursor-pointer"
-                >
-                  <IconPlayerPlay className="h-4 w-4 fill-black translate-x-[0.5px]" />
-                </button>
-              </div>
-
-              {/* Metadata tags */}
-              <div className="flex items-center gap-2 text-[10px] sm:text-[11px] text-zinc-400 font-semibold flex-wrap">
-                {item.rating && (
-                  <span className="glass-badge px-1.5 py-0.5 rounded text-amber-400 font-bold">
-                    ★ {item.rating}
-                  </span>
-                )}
-                {item.year && <span>{item.year}</span>}
-                {item.duration && <span>• {item.duration}</span>}
-              </div>
-            </div>
-          </div>
-
         </div>
       </div>
     );
   }
 
-  // Standard Landscape / Grid Cards with GSAP micro-animation and Glassmorphism overlay
+  // Standard Landscape / Grid Cards
   return (
     <div
       ref={cardRef}
       data-testid="movie-card"
-      onClick={() => onOpenDetails(item)}
+      onClick={() => {
+        handleMouseLeave();
+        onOpenDetails(item);
+      }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       className={`group relative ${sizeClass} cursor-pointer`}
     >
       {/* Landscape 16:9 box */}
       <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-zinc-900 shadow-md transition-colors duration-300">
-        <div ref={imgRef} className="relative w-full h-full">
+        <div ref={posterRef} className="relative w-full h-full">
           {hasImage ? (
             <Image
               src={primarySrc}
@@ -313,7 +386,7 @@ function MovieCard({
 
       {/* Glassmorphism Info overlay on hover */}
       <div
-        ref={panelRef}
+        ref={overlayRef}
         style={{ opacity: 0, transform: "translateY(6px)" }}
         className="pointer-events-none absolute bottom-0 left-0 right-0 z-30 max-md:hidden"
       >
@@ -326,6 +399,7 @@ function MovieCard({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
+                  handleMouseLeave();
                   onPlay(item);
                 }}
                 className="pointer-events-auto flex h-7 w-7 items-center justify-center rounded-full bg-white text-black hover:bg-zinc-200 hover:scale-110 active:scale-95 transition-all shadow-md cursor-pointer"
@@ -337,6 +411,7 @@ function MovieCard({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
+                  handleMouseLeave();
                   onOpenDetails(item);
                 }}
                 className="pointer-events-auto flex h-7 w-7 items-center justify-center rounded-full glass-button text-white cursor-pointer"

@@ -90,7 +90,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-black">
+    <div className="fixed inset-0 z-[100] flex flex-col bg-black">
       {/* Header bar */}
       <div className="flex items-center gap-3 px-4 sm:px-8 md:px-12 lg:px-[4%] py-4 border-b border-zinc-800">
         <button
