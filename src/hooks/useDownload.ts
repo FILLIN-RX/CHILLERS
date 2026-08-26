@@ -48,6 +48,8 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
   const setProgress = useDownloadsStore((s) => s.setProgress);
   const isCancelRequested = useDownloadsStore((s) => s.isCancelRequested);
   const requestCancel = useDownloadsStore((s) => s.requestCancel);
+  const clearCancelRequest = useDownloadsStore((s) => s.clearCancelRequest);
+  const resetTasks = useDownloadsStore((s) => s.resetTasks);
   const task = useDownloadsStore((s) => s.tasks.find((t) => t.id === id));
 
   const abortCtrlRef = useRef<AbortController | null>(null);
@@ -62,7 +64,13 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
 
   // Ensure the task row exists in the store before we drive it.
   useEffect(() => {
-    if (task) return;
+    if (task) {
+      if (task.status === "canceled") {
+        clearCancelRequest(id);
+        resetTasks([id]);
+      }
+      return;
+    }
     const filename = buildEpisodeFilename({
       title,
       season,
@@ -97,15 +105,11 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
 
   const resolve = useCallback(async () => {
     if (isRunning) return;
+    clearCancelRequest(id);
     setIsRunning(true);
 
     const ctrl = new AbortController();
     abortCtrlRef.current = ctrl;
-
-    // Honour a cancel request that landed between rows.
-    if (isCancelRequested(id)) {
-      ctrl.abort();
-    }
 
     try {
       setStatus(id, "resolving");

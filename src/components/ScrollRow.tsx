@@ -214,7 +214,7 @@ export default function ScrollRow({
 
         <div
           ref={scrollRef}
-          className="flex gap-2 sm:gap-3 overflow-x-auto pb-3 no-scrollbar"
+          className="flex gap-2 sm:gap-3 overflow-x-auto pt-2 pb-5 px-1 no-scrollbar"
         >
           {children}
         </div>

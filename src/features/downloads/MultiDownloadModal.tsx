@@ -210,14 +210,30 @@ export default function MultiDownloadModal({
                       </span>
                     )}
                     {status === "done" && (
-                      <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 rounded-full px-3 py-1">
-                        <IconCheck className="h-3 w-3" />Terminé
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-400 bg-emerald-500/15 rounded-full px-2.5 py-1">
+                          <IconCheck className="h-3 w-3" />Terminé
+                        </span>
+                        <button
+                          onClick={() => batch.retryOne(id)}
+                          className="text-[11px] font-bold text-zinc-400 hover:text-white underline cursor-pointer"
+                        >
+                          Re-télécharger
+                        </button>
+                      </div>
+                    )}
+                    {status === "canceled" && (
+                      <button
+                        onClick={() => batch.retryOne(id)}
+                        className="flex items-center gap-1 text-xs font-bold text-zinc-300 bg-white/10 hover:bg-white/20 rounded-full px-3 py-1 transition-colors cursor-pointer"
+                      >
+                        <IconDownload className="h-3 w-3" />Relancer
+                      </button>
                     )}
                     {status === "error" && (
                       <button
                         onClick={() => batch.retryOne(id)}
-                        className="flex items-center gap-1.5 text-xs font-bold text-rose-400 bg-rose-500/10 border border-rose-500/25 rounded-full px-3 py-1 hover:bg-rose-500/15"
+                        className="flex items-center gap-1.5 text-xs font-bold text-rose-400 bg-rose-500/10 rounded-full px-3 py-1 hover:bg-rose-500/15 cursor-pointer"
                       >
                         <IconAlertTriangle className="h-3 w-3" />Réessayer
                       </button>
@@ -225,7 +241,7 @@ export default function MultiDownloadModal({
                     {(status === "downloading" || status === "queued" || status === "resolving") && (
                       <button
                         onClick={() => batch.cancelOne(id)}
-                        className="text-[10px] text-zinc-400 hover:text-white underline"
+                        className="text-[10px] text-zinc-400 hover:text-white underline cursor-pointer"
                       >
                         Stop
                       </button>
@@ -250,36 +266,56 @@ export default function MultiDownloadModal({
         {/* Footer */}
         <div className="flex-none border-t border-white/8 px-5 py-4 flex items-center gap-2">
           {!started ? (
-            <button
-              onClick={() => setStarted(true)}
-              disabled={totals.ready === 0}
-              className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded font-bold text-sm bg-white text-black hover:bg-zinc-200 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg"
-            >
-              <IconDownload className="h-4 w-4" />
-              {totals.ready > 0
-                ? `Télécharger ${totals.ready} épisode${totals.ready > 1 ? "s" : ""}`
-                : "Préparation des liens…"}
-            </button>
+            <div className="flex-1 flex items-center gap-2">
+              <button
+                onClick={() => setStarted(true)}
+                disabled={totals.ready === 0 && totals.queued === 0}
+                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-sm bg-white text-black hover:bg-zinc-200 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg cursor-pointer"
+              >
+                <IconDownload className="h-4 w-4" />
+                {totals.ready > 0
+                  ? `Télécharger ${totals.ready} épisode${totals.ready > 1 ? "s" : ""}`
+                  : totals.queued > 0
+                  ? "Préparation des liens…"
+                  : `Télécharger (${episodes.length})`}
+              </button>
+              {(totals.done > 0 || totals.canceled > 0) && (
+                <button
+                  onClick={batch.relaunchAll}
+                  className="px-4 py-3 rounded-xl font-bold text-xs bg-white/10 text-white hover:bg-white/20 transition-all cursor-pointer"
+                >
+                  Tout relancer
+                </button>
+              )}
+            </div>
           ) : (
             <>
               {totals.running > 0 && (
                 <button
                   onClick={batch.cancelAll}
-                  className="flex-1 px-4 py-3 rounded font-bold text-sm bg-zinc-800 text-white hover:bg-zinc-700 transition-all"
+                  className="flex-1 px-4 py-3 rounded-xl font-bold text-sm bg-zinc-800 text-white hover:bg-zinc-700 transition-all cursor-pointer"
                 >
                   Tout arrêter
                 </button>
               )}
+              {totals.running === 0 && (totals.done > 0 || totals.canceled > 0) && (
+                <button
+                  onClick={batch.relaunchAll}
+                  className="flex-1 px-4 py-3 rounded-xl font-bold text-sm bg-white/10 text-white hover:bg-white/20 transition-all cursor-pointer"
+                >
+                  Tout re-télécharger
+                </button>
+              )}
               <button
                 onClick={onClose}
-                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded font-bold text-sm bg-white text-black hover:bg-zinc-200 transition-all shadow-lg"
+                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-sm bg-white text-black hover:bg-zinc-200 transition-all shadow-lg cursor-pointer"
               >
-                <IconDownload className="h-4 w-4" />
+                <IconCheck className="h-4 w-4" />
                 {totals.done === totals.total && totals.total > 0
-                  ? "Tous terminés"
+                  ? "Terminé"
                   : totals.running > 0
-                  ? `Téléchargement…`
-                  : `${totals.done}/${totals.total}`}
+                  ? `Téléchargement (${totals.done}/${totals.total})`
+                  : "Fermer"}
               </button>
             </>
           )}

@@ -405,7 +405,16 @@ function Home() {
                         {Array.from({ length: 6 }).map((_, i) => (
                           <div
                             key={`trending-sk-${i}`}
-                            className="flex-none w-[250px] sm:w-[300px] md:w-[360px] lg:w-[420px] aspect-video rounded-md bg-zinc-900/60 skeleton-loading"
+                            className="flex-none w-[165px] sm:w-[195px] md:w-[225px] lg:w-[255px] h-[250px] sm:h-[295px] md:h-[340px] lg:h-[385px] rounded-2xl bg-zinc-900/60 skeleton-loading"
+                          />
+                        ))}
+                      </ScrollRow>
+
+                      <ScrollRow title="Nouveautés" accentColor="primary">
+                        {Array.from({ length: 6 }).map((_, i) => (
+                          <div
+                            key={`new-sk-${i}`}
+                            className="flex-none w-[165px] sm:w-[195px] md:w-[225px] lg:w-[255px] h-[250px] sm:h-[295px] md:h-[340px] lg:h-[385px] rounded-2xl bg-zinc-900/60 skeleton-loading"
                           />
                         ))}
                       </ScrollRow>
@@ -458,6 +467,7 @@ function Home() {
                             <MovieCard
                               key={item.id}
                               item={item}
+                              variant="poster"
                               onPlay={handleWatchNow}
                               onOpenDetails={handleOpenDetails}
                             />
@@ -471,6 +481,7 @@ function Home() {
                             <MovieCard
                               key={item.id}
                               item={item}
+                              variant="poster"
                               onPlay={handleWatchNow}
                               onOpenDetails={handleOpenDetails}
                             />

@@ -895,10 +895,10 @@ function MediaListingPage() {
   const activeGenreName = genres.find(g => String(g.id) === activeGenreId)?.name;
 
   return (
-    <main className="min-h-screen bg-brand-dark pb-28">
+    <main className="min-h-screen bg-brand-dark pt-16 sm:pt-20 pb-28">
 
-      {/* ── Sticky genre filter bar ── */}
-      <div className={`sticky z-30 bg-brand-dark/95 backdrop-blur-md border-b border-zinc-800/50 px-2 sm:px-6 md:px-12 lg:px-[3%] py-2.5 transition-all duration-500 ${
+      {/* ── Sticky genre filter bar with generous breathing room ── */}
+      <div className={`sticky z-30 bg-brand-dark/95 backdrop-blur-md border-b border-zinc-800/40 px-2 sm:px-6 md:px-12 lg:px-[3%] py-3 transition-all duration-500 ${
         headerHidden ? "top-0" : "top-[60px] sm:top-[64px]"
       }`}>
         <GenreFilterBar
@@ -911,7 +911,7 @@ function MediaListingPage() {
 
       {/* ── MODE 1 : Multi-Category Carousel Catalog (Clean Prime Video Style) ── */}
       {!activeGenreId && (
-        <div className="space-y-6 sm:space-y-8 pt-2">
+        <div className="space-y-8 sm:space-y-10 pt-4 sm:pt-6">
           {/* Anime Powered Notice */}
           {type === "anime" && (
             <div className="px-2 sm:px-6 md:px-12 lg:px-[3%]">

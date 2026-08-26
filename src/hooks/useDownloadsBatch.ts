@@ -37,6 +37,7 @@ export interface UseDownloadsBatchReturn {
   retryOne: (id: string) => void;
   cancelAll: () => void;
   resumeAll: () => void;
+  relaunchAll: () => void;
 }
 
 export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatchReturn {
@@ -48,7 +49,9 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
   const setStatus = useDownloadsStore((s) => s.setStatus);
   const setProgress = useDownloadsStore((s) => s.setProgress);
   const requestCancel = useDownloadsStore((s) => s.requestCancel);
+  const clearCancelRequest = useDownloadsStore((s) => s.clearCancelRequest);
   const isCancelRequested = useDownloadsStore((s) => s.isCancelRequested);
+  const resetTasks = useDownloadsStore((s) => s.resetTasks);
 
   const runtimeRef = useRef<
     Map<
@@ -71,14 +74,18 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
     tasksRef.current = tasks;
   }, [args, tasks]);
 
-  // Seed tasks when episodes change
+  // Seed tasks when episodes change & reset any canceled/stuck tasks
   useEffect(() => {
-    const newRows: DownloadTask[] = episodes.map((ep) => {
-      const id = downloadTaskId({
+    const ids = episodes.map((ep) =>
+      downloadTaskId({
         tmdbId,
         season: ep.season,
         episodeNumber: ep.number,
-      });
+      })
+    );
+
+    const newRows: DownloadTask[] = episodes.map((ep, idx) => {
+      const id = ids[idx];
       return {
         id,
         tmdbId: String(tmdbId),
@@ -102,7 +109,16 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
       };
     });
     addMany(newRows);
-  }, [episodes, addMany, seriesTitle, tmdbId, type]);
+
+    // If any of the requested episodes were canceled or paused, reset them fresh
+    const currentTasks = tasksRef.current;
+    const toReset = currentTasks
+      .filter((t) => ids.includes(t.id) && (t.status === "canceled" || t.status === "paused"))
+      .map((t) => t.id);
+    if (toReset.length > 0) {
+      resetTasks(toReset);
+    }
+  }, [episodes, addMany, resetTasks, seriesTitle, tmdbId, type]);
 
   // Main task execution
   const runOne = useCallback(async (task: DownloadTask) => {
@@ -284,10 +300,28 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
       if (stale?.retryTimer) clearTimeout(stale.retryTimer);
       runtimeRef.current.delete(id);
       inflightRef.current.delete(id);
-      setStatus(id, "queued");
+      clearCancelRequest(id);
+      resetTasks([id]);
     },
-    [setStatus],
+    [clearCancelRequest, resetTasks],
   );
+
+  const relaunchAll = useCallback(() => {
+    const ids = episodes.map((ep) =>
+      downloadTaskId({
+        tmdbId,
+        season: ep.season,
+        episodeNumber: ep.number,
+      })
+    );
+    for (const id of ids) {
+      const stale = runtimeRef.current.get(id);
+      if (stale?.retryTimer) clearTimeout(stale.retryTimer);
+      runtimeRef.current.delete(id);
+      inflightRef.current.delete(id);
+    }
+    resetTasks(ids);
+  }, [episodes, resetTasks, tmdbId]);
 
   const cancelAll = useCallback(() => {
     const snapshot = Array.from(runtimeRef.current.entries());
@@ -308,10 +342,11 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
   }, [requestCancel, tasks, setStatus, tmdbId]);
 
   const resumeAll = useCallback(() => {
-    tasks
+    const ids = tasks
       .filter((t) => t.tmdbId === String(tmdbId) && (t.status === "paused" || t.status === "canceled"))
-      .forEach((t) => setStatus(t.id, "queued"));
-  }, [tasks, setStatus, tmdbId]);
+      .map((t) => t.id);
+    resetTasks(ids);
+  }, [tasks, resetTasks, tmdbId]);
 
   const relevantTasks = tasks.filter((t) => t.tmdbId === String(tmdbId));
 
@@ -336,5 +371,6 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
     retryOne,
     cancelAll,
     resumeAll,
+    relaunchAll,
   };
 }

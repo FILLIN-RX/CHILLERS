@@ -18,7 +18,10 @@ interface DownloadsState {
 
   cancelRequested: Set<string>;
   requestCancel: (id: string) => void;
+  clearCancelRequest: (id: string) => void;
+  clearAllCancelRequests: () => void;
   isCancelRequested: (id: string) => boolean;
+  resetTasks: (ids: string[]) => void;
 }
 
 const STORAGE_KEY = "chillers_downloads_v2";
@@ -113,7 +116,39 @@ export const useDownloadsStore = create<DownloadsState>()(
         set({ cancelRequested: next });
       },
 
+      clearCancelRequest: (id) => {
+        const next = new Set(get().cancelRequested);
+        next.delete(id);
+        set({ cancelRequested: next });
+      },
+
+      clearAllCancelRequests: () => {
+        set({ cancelRequested: new Set<string>() });
+      },
+
       isCancelRequested: (id) => get().cancelRequested.has(id),
+
+      resetTasks: (ids) => {
+        const idSet = new Set(ids);
+        const nextCancel = new Set(get().cancelRequested);
+        for (const id of ids) nextCancel.delete(id);
+        set((state) => ({
+          cancelRequested: nextCancel,
+          tasks: state.tasks.map((t) =>
+            idSet.has(t.id)
+              ? {
+                  ...t,
+                  status: "queued" as DownloadStatus,
+                  resolvedUrl: null,
+                  bytesDownloaded: 0,
+                  totalBytes: null,
+                  error: undefined,
+                  updatedAt: Date.now(),
+                }
+              : t,
+          ),
+        }));
+      },
     }),
     {
       name: STORAGE_KEY,
