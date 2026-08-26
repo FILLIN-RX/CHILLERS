@@ -1,7 +1,6 @@
 import './config/env';
 import app from './app';
 import { connectDB } from './config/db';
-import { startCron, runDeployTasksOnce } from './cron-manager';
 import bcrypt from 'bcryptjs';
 import Admin from './models/Admin';
 
@@ -41,14 +40,6 @@ connectDB().then(async () => {
   await seedAdmin();
   app.listen(PORT, () => {
     console.log(`[Chiller API] Running on http://localhost:${PORT}`);
-    // Démarre le scheduler (scraping + maintenance) sauf opt-out explicite.
-    if (process.env.DISABLE_CRON === 'true') {
-      console.log(`[Chiller System] Cron manager disabled (DISABLE_CRON=true).`);
-    } else {
-      startCron();
-      console.log(`[Chiller System] Cron manager attached and running.`);
-    }
-    // Migration DoodStream → Uqload une fois par déploiement (non bloquant).
-    runDeployTasksOnce().catch((err) => console.error('[Deploy] Migration Uqload échouée:', err));
+    console.log(`[Chiller System] Cron géré par GitHub Actions. Le backend ne lance plus de tâches automatiques.`);
   });
 });

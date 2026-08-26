@@ -1,11 +1,11 @@
 name: Chiller Scraper & Maintenance
 
 on:
-  # Déclenchement automatique planifié tous les jours à 03h00 UTC
+  # Scraping + Maintenance quotidien à 03h00 UTC
   schedule:
     - cron: '0 3 * * *'
 
-  # Déclenchement manuel depuis l'interface GitHub (Actions > Run workflow)
+  # Déclenchement manuel depuis l'interface GitHub
   workflow_dispatch:
     inputs:
       task:
@@ -21,9 +21,10 @@ on:
           - 'maintenance'
           - 'link-tmdb'
           - 'keepalive'
+          - 'deploy-migration'
 
 jobs:
-  scrape-and-sync:
+  scrape-and-maintenance:
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
@@ -43,7 +44,7 @@ jobs:
           cd backend
           npm ci
 
-      - name: Exécution du Scraping / Maintenance
+      - name: Scraping & Maintenance
         env:
           NODE_ENV: production
           MONGO_URI: ${{ secrets.MONGO_URI }}
@@ -70,8 +71,14 @@ jobs:
               npx tsx src/scraping/core/scrape-animes.ts
               ;;
             "maintenance")
-              npx tsx src/scraping/maintenance/check-all-links.ts
+              echo "1/4 Vérification des liens morts..."
+              npx tsx src/scraping/maintenance/check-all-links.ts || true
+              echo "2/4 Maintenance liens séries..."
               npx tsx src/scraping/maintenance/maintainer.ts || true
+              echo "3/4 Organize séries Doodstream..."
+              npx tsx src/scraping/maintenance/organize-series.ts || true
+              echo "4/4 Sync séries vers MongoDB..."
+              npx tsx src/scraping/maintenance/sync-series-to-mongo.ts || true
               ;;
             "link-tmdb")
               npx tsx src/scraping/maintenance/link-movies-tmdb.ts
@@ -80,19 +87,49 @@ jobs:
             "keepalive")
               npx tsx src/scraping/maintenance/keepalive-uqload.ts
               ;;
+            "deploy-migration")
+              echo "Migration DoodStream → Uqload..."
+              npx tsx src/scripts/migrate-dood-to-uqload.ts || true
+              npx tsx src/scripts/upload-uqload.ts --verify || true
+              ;;
             "all")
-              echo "1/3 Scraping Films..."
+              echo "=== 1/7 Scraping Films ==="
               npx tsx src/scraping/core/scrape-films.ts
-              echo "2/3 Scraping Séries..."
+              echo "=== 2/7 Scraping Séries ==="
               npx tsx src/scraping/core/scrape-series.ts
-              echo "3/3 Scraping Animes..."
+              echo "=== 3/7 Scraping Animes ==="
               npx tsx src/scraping/core/scrape-animes.ts
-              echo "Maintenance et Linking TMDB..."
+              echo "=== 4/7 Linking TMDB ==="
               npx tsx src/scraping/maintenance/link-movies-tmdb.ts || true
               npx tsx src/scraping/maintenance/link-series-tmdb.ts || true
+              echo "=== 5/7 Vérification liens morts ==="
+              npx tsx src/scraping/maintenance/check-all-links.ts || true
+              echo "=== 6/7 Maintenance liens séries ==="
+              npx tsx src/scraping/maintenance/maintainer.ts || true
+              echo "=== 7/7 Organize + Sync séries ==="
+              npx tsx src/scraping/maintenance/organize-series.ts || true
+              npx tsx src/scraping/maintenance/sync-series-to-mongo.ts || true
               ;;
             *)
               echo "Tâche inconnue : $TASK"
               exit 1
               ;;
           esac
+
+      - name: KeepAlive Uqload (dimanche uniquement)
+        env:
+          NODE_ENV: production
+          MONGO_URI: ${{ secrets.MONGO_URI }}
+          UQLOAD_API_KEY: ${{ secrets.UQLOAD_API_KEY }}
+        run: |
+          cd backend
+          # En schedule, vérifier que c'est dimanche (jour 7)
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            DAY=$(date -u +%u)
+            if [ "$DAY" != "7" ]; then
+              echo "Pas dimanche (jour $DAY), skip keepalive."
+              exit 0
+            fi
+          fi
+          echo "=== KeepAlive Uqload ==="
+          npx tsx src/scraping/maintenance/keepalive-uqload.ts
