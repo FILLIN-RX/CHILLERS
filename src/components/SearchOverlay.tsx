@@ -50,8 +50,22 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
   useEffect(() => {
     if (!isOpen) return;
     acquireModalScrollLock();
-    return () => releaseModalScrollLock();
-  }, [isOpen]);
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKey);
+    // Focus the input immediately when the overlay opens
+    const timer = setTimeout(() => {
+      inputRef.current?.focus();
+    }, 50);
+    return () => {
+      releaseModalScrollLock();
+      window.removeEventListener("keydown", handleKey);
+      clearTimeout(timer);
+    };
+  }, [isOpen, onClose]);
 
   const goToDetail = (item: MovieOrShow) => {
     onClose();
@@ -114,6 +128,12 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                 <IconX className="h-4 w-4" />
               </button>
             ) : undefined}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                e.stopPropagation();
+                onClose();
+              }
+            }}
             classNames={{
               input: "bg-transparent border-0 text-lg sm:text-xl font-medium text-white placeholder-zinc-600 h-12 px-0 focus:outline-none focus:ring-0",
               dropdown: "bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl mt-2",
