@@ -107,6 +107,7 @@ export default function ContinueWatchingCard({
             fill
             className="object-cover"
             sizes="(max-width: 640px) 250px, (max-width: 768px) 300px, (max-width: 1024px) 360px, 420px"
+            loading="lazy"
           />
         </div>
 

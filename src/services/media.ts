@@ -23,17 +23,17 @@ export function isSlowConnection(): boolean {
 
 export function getTmdbImageUrl(
   path?: string | null,
-  type: "poster" | "backdrop" | "still" = "poster"
+  type: "poster" | "backdrop" | "still" = "poster",
+  original = false,
 ): string {
   if (!path) return "";
-  const isSlow = isSlowConnection();
   if (type === "backdrop") {
-    return `https://image.tmdb.org/t/p/${isSlow ? "w780" : "w1280"}${path}`;
+    return `https://image.tmdb.org/t/p/${original || true ? "original" : "w1280"}${path}`;
   }
   if (type === "still") {
-    return `https://image.tmdb.org/t/p/${isSlow ? "w300" : "w500"}${path}`;
+    return `https://image.tmdb.org/t/p/${original || true ? "original" : "w500"}${path}`;
   }
-  return `https://image.tmdb.org/t/p/${isSlow ? "w342" : "w500"}${path}`;
+  return `https://image.tmdb.org/t/p/${original || true ? "original" : "w500"}${path}`;
 }
 
 function clientLang(): string {
@@ -180,6 +180,7 @@ export function mapTMDBToMovieOrShow(
   }
 
   const backdropUrl = getTmdbImageUrl(item.backdrop_path, "backdrop");
+  const backdropOriginalUrl = getTmdbImageUrl(item.backdrop_path, "backdrop", true);
   const posterUrl = getTmdbImageUrl(item.poster_path, "poster");
 
   return {
@@ -189,6 +190,7 @@ export function mapTMDBToMovieOrShow(
     description: item.overview || "No description available.",
     synopsis: item.overview || "No synopsis available.",
     backdropUrl,
+    backdropOriginalUrl,
     posterUrl,
     rating: item.vote_average ? parseFloat(item.vote_average.toFixed(1)) : 7.0,
     year,

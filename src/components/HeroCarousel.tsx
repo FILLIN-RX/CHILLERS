@@ -118,7 +118,7 @@ export default function HeroCarousel({
   }
 
   return (
-    <section className="relative w-full h-screen overflow-hidden bg-black">
+    <section className="relative w-full h-[75vh] sm:h-screen overflow-hidden bg-black">
       <div 
         className="flex flex-row w-full h-full transition-transform duration-700 ease-out"
         style={{ transform: `translateX(-${currentIndex * 100}%)` }}
@@ -130,13 +130,14 @@ export default function HeroCarousel({
             <div key={slide.id} className="w-full h-full flex-shrink-0 relative">
               <div className="absolute inset-0 w-full h-full bg-black">
                 <Image
-                  src={slide.backdropUrl}
+                  src={slide.backdropOriginalUrl || slide.backdropUrl}
                   alt={slide.title}
                   fill
                   className="object-cover object-center"
                   style={{ filter: "brightness(0.85) saturate(1.1)" }}
                   sizes="100vw"
                   priority={index === 0}
+                  loading={index === 0 ? "eager" : "lazy"}
                 />
 
                 {isActive && slide.videoUrl && !isPaused && (

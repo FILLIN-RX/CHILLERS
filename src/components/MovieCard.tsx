@@ -207,6 +207,7 @@ function MovieCard({
               fill
               className="object-cover object-center"
               sizes="(max-width: 640px) 165px, (max-width: 768px) 195px, 255px"
+              loading="lazy"
             />
           ) : (
             <div className={`w-full h-full flex flex-col items-center justify-center gap-2 bg-gradient-to-br ${gradients[gradientIndex]} p-3 text-center`}>
@@ -229,6 +230,7 @@ function MovieCard({
               fill
               className="object-cover object-center"
               sizes="(max-width: 1024px) 440px, 500px"
+              loading="lazy"
             />
           ) : null}
         </div>
@@ -277,7 +279,7 @@ function MovieCard({
                 }}
                 className="py-2 px-4 rounded-xl glass-button text-white font-bold text-xs transition-all text-center truncate cursor-pointer shadow-lg"
               >
-                Plus d'informations
+                Plus d&apos;informations
               </button>
 
               <button
@@ -340,6 +342,7 @@ function MovieCard({
               alt={item.title}
               fill
               className="object-cover object-center"
+              loading="lazy"
               onError={() => {
                 if (!backdropFailed && item.posterUrl) {
                   setBackdropFailed(true);
@@ -382,9 +385,18 @@ function MovieCard({
             👑
           </span>
         </div>
+
+        {/* Mobile: always-visible title gradient */}
+        <div className="absolute bottom-0 left-0 right-0 z-20 md:hidden">
+          <div className="bg-gradient-to-t from-black/90 via-black/50 to-transparent p-2.5 pt-6">
+            <h3 className="text-[11px] font-bold text-white leading-tight line-clamp-1 drop-shadow-md">
+              {item.title}
+            </h3>
+          </div>
+        </div>
       </div>
 
-      {/* Glassmorphism Info overlay on hover */}
+      {/* Glassmorphism Info overlay on hover (desktop only) */}
       <div
         ref={overlayRef}
         style={{ opacity: 0, transform: "translateY(6px)" }}

@@ -32,6 +32,7 @@ export interface MovieOrShow {
   description: string;
   synopsis: string;
   backdropUrl: string;
+  backdropOriginalUrl?: string;
   posterUrl: string;
   rating: number;
   year: number;

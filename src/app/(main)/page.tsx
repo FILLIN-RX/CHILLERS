@@ -7,6 +7,8 @@ import HeroCarousel from "@/components/HeroCarousel";
 import MovieCard from "@/components/MovieCard";
 import ContinueWatchingCard from "@/components/ContinueWatchingCard";
 import ScrollRow from "@/components/ScrollRow";
+import SpotlightGrid from "@/components/SpotlightGrid";
+import MostViewedMovie from "@/components/MostViewedMovie";
 import { useLanguage } from "@/i18n/LanguageContext";
 import {
   MovieOrShow,
@@ -21,6 +23,7 @@ import {
   getMoviesByGenre,
   getAnimeSeries,
   getUpcomingMovies,
+  getRecommendedForYou,
 } from "../api";
 
 const HOME_GENRES = [
@@ -28,6 +31,30 @@ const HOME_GENRES = [
   { id: '28', title: 'Action' },
   { id: '10749', title: 'Romance' },
 ];
+
+// Full catalogue of home sections. Each entry either fetches a single TMDB
+// genre or combines several genres into one row (deduped at load time).
+type HomeSectionDef = {
+  key: string;
+  title: string;
+  genreIds?: string[];
+  tv?: boolean;
+  recommended?: boolean;
+};
+
+const HOME_SECTIONS: HomeSectionDef[] = [
+  { key: 'action', title: "Films d'Action", genreIds: ['28'] },
+  { key: 'comedy', title: "Films de Comédie", genreIds: ['35'] },
+  { key: 'animation', title: "Films d'Animation", genreIds: ['16'] },
+  { key: 'drama', title: "Films Dramatiques (Drama)", genreIds: ['18'] },
+  { key: 'series', title: "Séries TV", tv: true },
+  { key: 'fantasy', title: "Films de Fantaisie / Aventure", genreIds: ['12', '14'] },
+  { key: 'recommended', title: "Recommandés pour vous", recommended: true },
+  { key: 'scifi', title: "Films de Science-Fiction", genreIds: ['878'] },
+  { key: 'horror', title: "Films d'Horreur / Thriller", genreIds: ['27', '53'] },
+];
+
+const HOME_SECTION_KEYS = HOME_SECTIONS.map((s) => s.key);
 
 const ANIME_GENRES = [
   { id: '10759', title: 'Action & Adventure Anime' },
@@ -87,11 +114,15 @@ function Home() {
   const [newReleases, setNewReleases] = useState<MovieOrShow[]>([]);
   const [genreRows, setGenreRows] = useState<{ title: string; items: MovieOrShow[] }[]>([]);
   const [animeGenreRows, setAnimeGenreRows] = useState<{ title: string; items: MovieOrShow[] }[]>([]);
+  const [homeSectionRows, setHomeSectionRows] = useState<{ title: string; items: MovieOrShow[] }[]>([]);
+  const [spotlightItems, setSpotlightItems] = useState<MovieOrShow[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isLoadingGenreRows, setIsLoadingGenreRows] = useState(false);
   const [isLoadingAnimeGenreRows, setIsLoadingAnimeGenreRows] = useState(false);
+  const [isLoadingHomeSections, setIsLoadingHomeSections] = useState(false);
   const [hasTriedGenreRows, setHasTriedGenreRows] = useState(false);
   const [hasTriedAnimeGenreRows, setHasTriedAnimeGenreRows] = useState(false);
+  const [hasTriedHomeSections, setHasTriedHomeSections] = useState(false);
 
   // Two animated rows derived from `trendingAll`:
   // - `mostWatched`: top items by rating (people-rated popularity proxy)
@@ -113,6 +144,58 @@ function Home() {
         .slice(0, 10),
     [trendingAll],
   );
+
+  // Global on-page de-duplication: a `MovieOrShow` should never appear twice on
+  // the home page, even if it belongs to several sections/genres. Each row keeps
+  // the top items that haven't been shown above, so rows lower on the page don't
+  // repeat titles from rows higher up.
+  const homeRows = useMemo<Array<{
+    title: string;
+    items: MovieOrShow[];
+    accent: "primary" | "secondary";
+    variant?: "poster";
+    autoScroll?: boolean;
+    autoScrollSpeed?: number;
+  }>>(() => {
+    const rows: Array<{
+      title: string;
+      items: MovieOrShow[];
+      accent: "primary" | "secondary";
+      variant?: "poster";
+      autoScroll?: boolean;
+      autoScrollSpeed?: number;
+    }> = [];
+    const seen = new Set<string>();
+    const push = (
+      title: string,
+      items: MovieOrShow[],
+      accent: "primary" | "secondary",
+      variant?: "poster",
+      autoScroll?: boolean,
+      autoScrollSpeed?: number,
+    ) => {
+      const fresh = items.filter((it) => !seen.has(it.id));
+      fresh.forEach((it) => seen.add(it.id));
+      if (fresh.length === 0) return;
+      rows.push({ title, items: fresh, accent, variant, autoScroll, autoScrollSpeed });
+    };
+    push(_("home.trending"), trendingAll, "primary", "poster");
+    push("Nouveautés", newReleases, "primary", "poster");
+    push(_("home.mostWatched"), mostWatched, "primary", undefined, true, 0.4);
+    push(_("home.trendingNow"), trendingNow, "secondary", undefined, true, 0.5);
+    push(_("home.popularSeries"), seriesData, "primary");
+    push(_("home.animeCollection"), animeData, "secondary");
+    animeGenreRows.forEach((r) => push(r.title, r.items, "secondary"));
+    genreRows.forEach((r) => push(r.title, r.items, "secondary"));
+    for (const section of HOME_SECTIONS) {
+      if (section.key === 'animation' || section.key === 'action') continue;
+      const row = homeSectionRows.find((r) => r.title === section.title);
+      if (!row || row.items.length === 0) continue;
+      push(section.title, row.items, "secondary");
+    }
+    return rows;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trendingAll, newReleases, mostWatched, trendingNow, seriesData, animeData, animeGenreRows, genreRows, homeSectionRows]);
 
   // Continue-watching is read from localStorage. Declared BEFORE the useEffect
   // that calls it so the effect's first run can't hit a TDZ (P0-#8).
@@ -210,7 +293,7 @@ function Home() {
       if (allTrending.length > 0) setTrendingAll(allTrending);
       if (popular.length > 0) {
         setMoviesData(popular);
-        setHeroSlides(popular.slice(0, 5));
+        setHeroSlides(popular.slice(0, 10));
       }
       if (popularTV.length > 0) setSeriesData(popularTV);
       if (anime.length > 0) setAnimeData(anime);
@@ -228,6 +311,7 @@ function Home() {
   const loadGenreRows = useCallback(async (signal?: AbortSignal) => {
     if (genreRows.length > 0) return;
     setIsLoadingGenreRows(true);
+    let success = false;
     try {
       const rowsData = await Promise.all(
         HOME_GENRES.map(async (g) => ({
@@ -237,17 +321,20 @@ function Home() {
       );
       const validRows = rowsData.filter((row) => row.items.length > 0);
       if (validRows.length > 0) setGenreRows(validRows);
+      success = true;
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
       console.error("Failed to load home genre rows", err);
     } finally {
       setIsLoadingGenreRows(false);
+      if (success) setHasTriedGenreRows(true);
     }
   }, [genreRows.length]);
 
   const loadAnimeGenreRows = useCallback(async (signal?: AbortSignal) => {
     if (animeGenreRows.length > 0) return;
     setIsLoadingAnimeGenreRows(true);
+    let success = false;
     try {
       const rowsData = await Promise.all(
         ANIME_GENRES.map(async (g) => ({
@@ -257,13 +344,84 @@ function Home() {
       );
       const validRows = rowsData.filter((row) => row.items.length > 0);
       if (validRows.length > 0) setAnimeGenreRows(validRows);
+      success = true;
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
       console.error("Failed to load anime genre rows", err);
     } finally {
       setIsLoadingAnimeGenreRows(false);
+      if (success) setHasTriedAnimeGenreRows(true);
     }
   }, [animeGenreRows.length]);
+
+  // Loads the full home catalogue (genre / series / recommended rows) plus the
+  // promo banner (the single most prominent TMDB title). Home sections are
+  // loaded together, deduping combined-genre rows. The banner uses the trending
+  // movie as the most-seen title across TMDB.
+  const loadHomeSections = useCallback(
+    async (signal?: AbortSignal) => {
+      if (homeSectionRows.length > 0 && spotlightItems.length > 0) return;
+      setIsLoadingHomeSections(true);
+      let success = false;
+      try {
+        const loadSection = async (def: HomeSectionDef): Promise<{ title: string; items: MovieOrShow[] }> => {
+          try {
+            let items: MovieOrShow[] = [];
+            if (def.recommended) {
+              items = await getRecommendedForYou();
+            } else if (def.tv) {
+              items = await getPopularTV(1, signal);
+            } else if (def.genreIds && def.genreIds.length > 0) {
+              const results = await Promise.all(
+                def.genreIds.map(async (gid) => {
+                  try {
+                    return await getMoviesByGenre(gid, 1, signal);
+                  } catch (e) {
+                    if (e instanceof DOMException && e.name === "AbortError") throw e;
+                    console.error(`Failed to load genre ${gid}`, e);
+                    return [] as MovieOrShow[];
+                  }
+                }),
+              );
+              const seen = new Set<string>();
+              items = results
+                .flat()
+                .filter((m) => {
+                  if (seen.has(m.id)) return false;
+                  seen.add(m.id);
+                  return true;
+                });
+            }
+            return { title: def.title, items };
+          } catch (e) {
+            if (e instanceof DOMException && e.name === "AbortError") throw e;
+            console.error(`Failed to load section ${def.key}`, e);
+            return { title: def.title, items: [] };
+          }
+        };
+
+        const [rows, banner] = await Promise.all([
+          Promise.all(HOME_SECTIONS.map((def) => loadSection(def))),
+          getTrendingMovies(signal).catch((e) => {
+            if (e instanceof DOMException && e.name === "AbortError") throw e;
+            return [] as MovieOrShow[];
+          }),
+        ]);
+
+        const validRows = rows.filter((row) => row.items.length > 0);
+        if (validRows.length > 0) setHomeSectionRows(validRows);
+        if (banner.length > 0) setSpotlightItems(banner.slice(0, 5));
+        success = true;
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        console.error("Failed to load home sections", err);
+      } finally {
+        setIsLoadingHomeSections(false);
+        if (success) setHasTriedHomeSections(true);
+      }
+    },
+    [homeSectionRows.length, spotlightItems.length],
+  );
 
   // Home tab: load all rows once. Aborted on unmount or tab change.
   useEffect(() => {
@@ -280,14 +438,13 @@ function Home() {
     if (genreRows.length > 0 || isLoadingGenreRows || hasTriedGenreRows) return;
     const controller = new AbortController();
     const idleTimer = setTimeout(() => {
-      setHasTriedGenreRows(true);
       loadGenreRows(controller.signal).catch(() => {});
     }, 350);
     return () => {
       clearTimeout(idleTimer);
       controller.abort();
     };
-  }, [activeTab, isLoadingData, genreRows.length, isLoadingGenreRows, hasTriedGenreRows, loadGenreRows]);
+  }, [activeTab, isLoadingData, genreRows.length, hasTriedGenreRows, loadGenreRows]);
 
   useEffect(() => {
     if (activeTab !== "home") return;
@@ -295,14 +452,27 @@ function Home() {
     if (animeGenreRows.length > 0 || isLoadingAnimeGenreRows || hasTriedAnimeGenreRows) return;
     const controller = new AbortController();
     const idleTimer = setTimeout(() => {
-      setHasTriedAnimeGenreRows(true);
       loadAnimeGenreRows(controller.signal).catch(() => {});
     }, 700); // Slight delay to stagger
     return () => {
       clearTimeout(idleTimer);
       controller.abort();
     };
-  }, [activeTab, isLoadingData, animeGenreRows.length, isLoadingAnimeGenreRows, hasTriedAnimeGenreRows, loadAnimeGenreRows]);
+  }, [activeTab, isLoadingData, animeGenreRows.length, hasTriedAnimeGenreRows, loadAnimeGenreRows]);
+
+  useEffect(() => {
+    if (activeTab !== "home") return;
+    if (isLoadingData) return;
+    if (homeSectionRows.length > 0 || isLoadingHomeSections || hasTriedHomeSections) return;
+    const controller = new AbortController();
+    const idleTimer = setTimeout(() => {
+      loadHomeSections(controller.signal).catch(() => {});
+    }, 500);
+    return () => {
+      clearTimeout(idleTimer);
+      controller.abort();
+    };
+  }, [activeTab, isLoadingData, homeSectionRows.length, hasTriedHomeSections, loadHomeSections]);
 
   // P1-#22: one effect dispatches on `activeTab` instead of three near-identical
   // effects. Each tab fetcher is in TAB_FETCHERS; the matching setter is in
@@ -371,7 +541,7 @@ function Home() {
                 slides={heroSlides}
                 onWatchNow={handleWatchNow}
                 onOpenDetails={handleOpenDetails}
-                slideTimings={[20000, 20000, 20000, 20000, 20000]}
+                slideTimings={[20000, 20000, 20000, 20000, 20000, 20000, 20000, 20000, 20000, 20000]}
               />
             )}
 
@@ -458,105 +628,35 @@ function Home() {
                           ))}
                         </ScrollRow>
                       ))}
+
+                      {HOME_SECTION_KEYS.filter((k) => k !== 'animation' && k !== 'action').map((k) => (
+                        <ScrollRow key={`home-section-sk-${k}`} title={k} accentColor="secondary">
+                          {Array.from({ length: 6 }).map((_, i) => (
+                            <div
+                              key={`home-section-item-sk-${k}-${i}`}
+                              className="flex-none w-[250px] sm:w-[300px] md:w-[360px] lg:w-[420px] aspect-video rounded-md bg-zinc-900/60 skeleton-loading"
+                            />
+                          ))}
+                        </ScrollRow>
+                      ))}
+
+                      <div className="w-full aspect-[16/10] sm:aspect-[16/9] rounded-2xl bg-zinc-900/60 skeleton-loading" />
                     </>
                   ) : (
                     <>
-                      {trendingAll.length > 0 && (
-                        <ScrollRow title={_("home.trending")} accentColor="primary">
-                          {trendingAll.map((item) => (
-                            <MovieCard
-                              key={item.id}
-                              item={item}
-                              variant="poster"
-                              onPlay={handleWatchNow}
-                              onOpenDetails={handleOpenDetails}
-                            />
-                          ))}
-                        </ScrollRow>
-                      )}
-
-                      {newReleases.length > 0 && (
-                        <ScrollRow title="Nouveautés" accentColor="primary">
-                          {newReleases.map((item) => (
-                            <MovieCard
-                              key={item.id}
-                              item={item}
-                              variant="poster"
-                              onPlay={handleWatchNow}
-                              onOpenDetails={handleOpenDetails}
-                            />
-                          ))}
-                        </ScrollRow>
-                      )}
-
-                      {mostWatched.length > 0 && (
+                      {homeRows.slice(0, 2).map((row) => (
                         <ScrollRow
-                          title={_("home.mostWatched")}
-                          accentColor="primary"
-                          autoScroll
-                          autoScrollSpeed={0.4}
+                          key={row.title}
+                          title={row.title}
+                          accentColor={row.accent}
+                          autoScroll={row.autoScroll}
+                          autoScrollSpeed={row.autoScrollSpeed}
                         >
-                          {mostWatched.map((item) => (
-                            <MovieCard
-                              key={item.id}
-                              item={item}
-                              onPlay={handleWatchNow}
-                              onOpenDetails={handleOpenDetails}
-                            />
-                          ))}
-                        </ScrollRow>
-                      )}
-
-                      {trendingNow.length > 0 && (
-                        <ScrollRow
-                          title={_("home.trendingNow")}
-                          accentColor="secondary"
-                          autoScroll
-                          autoScrollSpeed={0.5}
-                        >
-                          {trendingNow.map((item) => (
-                            <MovieCard
-                              key={item.id}
-                              item={item}
-                              onPlay={handleWatchNow}
-                              onOpenDetails={handleOpenDetails}
-                            />
-                          ))}
-                        </ScrollRow>
-                      )}
-
-                      {seriesData.length > 0 && (
-                        <ScrollRow title={_("home.popularSeries")} accentColor="primary">
-                          {seriesData.map((item) => (
-                            <MovieCard
-                              key={item.id}
-                              item={item}
-                              onPlay={handleWatchNow}
-                              onOpenDetails={handleOpenDetails}
-                            />
-                          ))}
-                        </ScrollRow>
-                      )}
-
-                      {animeData.length > 0 && (
-                        <ScrollRow title={_("home.animeCollection")} accentColor="secondary">
-                          {animeData.map((item) => (
-                            <MovieCard
-                              key={item.id}
-                              item={item}
-                              onPlay={handleWatchNow}
-                              onOpenDetails={handleOpenDetails}
-                            />
-                          ))}
-                        </ScrollRow>
-                      )}
-
-                      {animeGenreRows.map((row) => (
-                        <ScrollRow key={row.title} title={row.title} accentColor="secondary">
                           {row.items.map((item) => (
                             <MovieCard
                               key={item.id}
                               item={item}
+                              variant={row.variant}
                               onPlay={handleWatchNow}
                               onOpenDetails={handleOpenDetails}
                             />
@@ -564,12 +664,75 @@ function Home() {
                         </ScrollRow>
                       ))}
 
-                      {genreRows.map((row) => (
-                        <ScrollRow key={row.title} title={row.title} accentColor="secondary">
+                      {spotlightItems.length >= 5 && (
+                        <MostViewedMovie
+                          item={spotlightItems[0]}
+                          onWatchNow={handleWatchNow}
+                          onOpenDetails={handleOpenDetails}
+                        />
+                      )}
+
+                      {homeRows.slice(2, 5).map((row) => (
+                        <ScrollRow
+                          key={row.title}
+                          title={row.title}
+                          accentColor={row.accent}
+                          autoScroll={row.autoScroll}
+                          autoScrollSpeed={row.autoScrollSpeed}
+                        >
                           {row.items.map((item) => (
                             <MovieCard
                               key={item.id}
                               item={item}
+                              variant={row.variant}
+                              onPlay={handleWatchNow}
+                              onOpenDetails={handleOpenDetails}
+                            />
+                          ))}
+                        </ScrollRow>
+                      ))}
+
+                      {spotlightItems.length >= 5 && (
+                        <SpotlightGrid
+                          items={spotlightItems}
+                          onWatchNow={handleWatchNow}
+                          onOpenDetails={handleOpenDetails}
+                        />
+                      )}
+
+                      {homeRows.slice(5, -3).map((row) => (
+                        <ScrollRow
+                          key={row.title}
+                          title={row.title}
+                          accentColor={row.accent}
+                          autoScroll={row.autoScroll}
+                          autoScrollSpeed={row.autoScrollSpeed}
+                        >
+                          {row.items.map((item) => (
+                            <MovieCard
+                              key={item.id}
+                              item={item}
+                              variant={row.variant}
+                              onPlay={handleWatchNow}
+                              onOpenDetails={handleOpenDetails}
+                            />
+                          ))}
+                        </ScrollRow>
+                      ))}
+
+                      {homeRows.slice(-3).map((row) => (
+                        <ScrollRow
+                          key={row.title}
+                          title={row.title}
+                          accentColor={row.accent}
+                          autoScroll={row.autoScroll}
+                          autoScrollSpeed={row.autoScrollSpeed}
+                        >
+                          {row.items.map((item) => (
+                            <MovieCard
+                              key={item.id}
+                              item={item}
+                              variant={row.variant}
                               onPlay={handleWatchNow}
                               onOpenDetails={handleOpenDetails}
                             />

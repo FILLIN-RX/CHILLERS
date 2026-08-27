@@ -1,25 +1,39 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { IconX, IconCheck, IconAlertTriangle, IconGripVertical, IconDownload } from "@tabler/icons-react";
+import {
+  IconX,
+  IconCheck,
+  IconAlertTriangle,
+  IconGripVertical,
+  IconDownload,
+  IconPlayerPlay,
+} from "@tabler/icons-react";
 import { useDownloadsStore } from "@/store/downloads";
+import { streamDownloadToDisk } from "@/services/streamSaver";
 import { formatBytes } from "@/lib/format";
 import DownloadProgressBar from "./DownloadProgressBar";
 
 /**
  * Floating bar that appears when one or more downloads are active in the
- * background. On desktop: a small panel with per-task progress. On mobile:
- * a compact bubble that expands on tap. Draggable via the header grip.
+ * background. On desktop: a small panel. On mobile: a compact bubble
+ * that expands on tap. Draggable via the header grip.
+ *
+ * Also shows paused tasks (e.g. after page reload) with a resume button.
  */
 export default function DownloadFloatingBar() {
   const tasks = useDownloadsStore((s) => s.tasks);
   const requestCancel = useDownloadsStore((s) => s.requestCancel);
   const getController = useDownloadsStore((s) => s.getController);
+  const setController = useDownloadsStore((s) => s.setController);
+  const removeController = useDownloadsStore((s) => s.removeController);
+  const setStatus = useDownloadsStore((s) => s.setStatus);
+  const setProgress = useDownloadsStore((s) => s.setProgress);
+  const isCancelRequested = useDownloadsStore((s) => s.isCancelRequested);
   const [dismissed, setDismissed] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
-  // Detect mobile
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 640);
     check();
@@ -56,16 +70,13 @@ export default function DownloadFloatingBar() {
   const onPointerMove = useCallback((e: React.PointerEvent) => {
     if (!dragRef.current.isDragging || !barRef.current) return;
     e.preventDefault();
-
     const dx = e.clientX - dragRef.current.startX;
     const dy = e.clientY - dragRef.current.startY;
     if (Math.abs(dx) + Math.abs(dy) > 4) dragRef.current.moved = true;
-
     const parentW = window.innerWidth;
     const parentH = window.innerHeight;
     const barW = barRef.current.offsetWidth;
     const barH = barRef.current.offsetHeight;
-
     const x = Math.min(Math.max(dragRef.current.startPosX + dx, 0), parentW - barW);
     const y = Math.min(Math.max(dragRef.current.startPosY + dy, 0), parentH - barH);
     setPosition({ x, y });
@@ -75,16 +86,15 @@ export default function DownloadFloatingBar() {
     dragRef.current.isDragging = false;
   }, []);
 
-  // Active tasks
+  // Tasks: active + paused (reload) + recently done
   const active = tasks.filter(
     (t) => t.status === "downloading" || t.status === "resolving",
   );
-
+  const paused = tasks.filter((t) => t.status === "paused");
   const recentDone = tasks.filter(
     (t) => t.status === "done" && Date.now() - t.updatedAt < 8_000,
   );
-
-  const visible = [...active, ...recentDone];
+  const visible = [...active, ...paused, ...recentDone];
 
   if (visible.length === 0 || dismissed) return null;
 
@@ -92,6 +102,46 @@ export default function DownloadFloatingBar() {
     requestCancel(taskId);
     const ctrl = getController(taskId);
     ctrl?.abort();
+  };
+
+  const handleResume = async (t: (typeof tasks)[0]) => {
+    if (!t.resolvedUrl) return;
+
+    const ctrl = new AbortController();
+    setController(t.id, ctrl);
+    setStatus(t.id, "downloading");
+
+    try {
+      await streamDownloadToDisk(t.resolvedUrl, {
+        filename: t.filename,
+        signal: ctrl.signal,
+        onProgress: (bytes, total) => {
+          setProgress(t.id, {
+            bytesDownloaded: bytes,
+            totalBytes: total,
+            percent:
+              total && total > 0
+                ? Math.min(100, Math.round((bytes / total) * 100))
+                : null,
+          });
+        },
+      });
+
+      if (ctrl.signal.aborted || isCancelRequested(t.id)) {
+        setStatus(t.id, "canceled");
+      } else {
+        setStatus(t.id, "done");
+      }
+    } catch (err) {
+      if (ctrl.signal.aborted || isCancelRequested(t.id)) {
+        setStatus(t.id, "canceled");
+      } else {
+        const message = err instanceof Error ? err.message : String(err);
+        setStatus(t.id, "error", message);
+      }
+    } finally {
+      removeController(t.id);
+    }
   };
 
   const handleHeaderClick = () => {
@@ -110,8 +160,8 @@ export default function DownloadFloatingBar() {
       ? { top: position.y, left: position.x, right: "auto", bottom: "auto" }
       : { bottom: 80, right: 16 };
 
-    const doneCount = visible.filter((t) => t.status === "done").length;
-    const totalActive = active.length;
+    const doneCount = recentDone.length;
+    const totalActive = active.length + paused.length;
 
     return (
       <div
@@ -128,7 +178,7 @@ export default function DownloadFloatingBar() {
         >
           <IconDownload className="h-5 w-5 text-white" />
           {totalActive > 0 && (
-            <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-white text-[10px] font-bold text-black flex items-center justify-center">
+            <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-white text-[10px] font-bold text-black flex items-center justify-center">
               {totalActive}
             </span>
           )}
@@ -140,13 +190,9 @@ export default function DownloadFloatingBar() {
           {/* Mini progress ring */}
           {active.length > 0 && active[0].totalBytes != null && (
             <svg className="absolute inset-0 -rotate-90" viewBox="0 0 48 48">
+              <circle cx="24" cy="24" r="22" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="3" />
               <circle
-                cx="24" cy="24" r="22"
-                fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="3"
-              />
-              <circle
-                cx="24" cy="24" r="22"
-                fill="none" stroke="white" strokeWidth="3"
+                cx="24" cy="24" r="22" fill="none" stroke="white" strokeWidth="3"
                 strokeDasharray={`${2 * Math.PI * 22}`}
                 strokeDashoffset={`${2 * Math.PI * 22 * (1 - (active[0].bytesDownloaded / active[0].totalBytes))}`}
                 strokeLinecap="round"
@@ -154,6 +200,15 @@ export default function DownloadFloatingBar() {
               />
             </svg>
           )}
+          {/* Close button */}
+          <button
+            onClick={(e) => { e.stopPropagation(); setDismissed(true); }}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="absolute -top-2 -left-2 w-5 h-5 rounded-full bg-zinc-700 hover:bg-zinc-600 flex items-center justify-center transition-colors"
+            aria-label="Fermer"
+          >
+            <IconX className="h-2.5 w-2.5 text-zinc-300" />
+          </button>
         </div>
       </div>
     );
@@ -185,14 +240,26 @@ export default function DownloadFloatingBar() {
               Téléchargement{active.length > 1 ? "s" : ""}
             </span>
           </div>
-          <button
-            onClick={(e) => { e.stopPropagation(); setDismissed(true); }}
-            onPointerDown={(e) => e.stopPropagation()}
-            className="p-1 rounded hover:bg-white/10 text-zinc-500 hover:text-white transition-colors"
-            aria-label="Masquer"
-          >
-            <IconX className="h-3 w-3" />
-          </button>
+          <div className="flex items-center gap-1">
+            {isMobile && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setExpanded(false); }}
+                onPointerDown={(e) => e.stopPropagation()}
+                className="p-1 rounded hover:bg-white/10 text-zinc-500 hover:text-white transition-colors"
+                aria-label="Réduire"
+              >
+                <IconX className="h-3 w-3" />
+              </button>
+            )}
+            <button
+              onClick={(e) => { e.stopPropagation(); setDismissed(true); }}
+              onPointerDown={(e) => e.stopPropagation()}
+              className="p-1 rounded hover:bg-white/10 text-zinc-500 hover:text-white transition-colors"
+              aria-label="Masquer"
+            >
+              <IconX className="h-3 w-3" />
+            </button>
+          </div>
         </div>
 
         {/* Task list */}
@@ -225,6 +292,15 @@ export default function DownloadFloatingBar() {
                     {t.status === "error" && (
                       <IconAlertTriangle className="h-3 w-3 text-rose-400" />
                     )}
+                    {t.status === "paused" && t.resolvedUrl && (
+                      <button
+                        onClick={() => handleResume(t)}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        className="flex items-center gap-1 text-[10px] font-bold text-brand-primary hover:text-white transition-colors"
+                      >
+                        <IconPlayerPlay className="h-3 w-3" /> Reprendre
+                      </button>
+                    )}
                     {(t.status === "downloading" || t.status === "resolving") && (
                       <button
                         onClick={() => handleCancel(t.id)}
@@ -249,6 +325,8 @@ export default function DownloadFloatingBar() {
                       ? "Recherche…"
                       : t.status === "downloading"
                       ? percent != null ? `${percent}%` : "…"
+                      : t.status === "paused"
+                      ? "Interrompu — reprendre ?"
                       : t.status === "done"
                       ? "OK"
                       : ""}

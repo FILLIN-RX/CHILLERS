@@ -169,6 +169,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                             fill
                             className="object-cover group-hover:scale-105 transition-transform duration-500"
                             sizes="(max-width: 640px) 144px, 176px"
+                            loading="lazy"
                           />
                         ) : (
                           <div className="absolute inset-0 flex items-center justify-center text-zinc-700">

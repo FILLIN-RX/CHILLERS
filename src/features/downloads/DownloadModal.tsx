@@ -62,8 +62,7 @@ export default function DownloadModal({
     };
   }, [isOpen, onClose]);
 
-  // Auto-resolve + auto-start: as soon as the modal opens, resolve the link
-  // and immediately start streaming. No user click needed.
+  // Auto-resolve: as soon as the modal opens, resolve the link.
   useEffect(() => {
     if (!isOpen) return;
     if (dl.status === "queued") {
@@ -71,14 +70,6 @@ export default function DownloadModal({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
-
-  // Once resolved (ready), auto-start the download.
-  useEffect(() => {
-    if (dl.status === "ready") {
-      dl.start();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dl.status]);
 
   if (!isOpen) return null;
 
@@ -137,10 +128,14 @@ export default function DownloadModal({
           {dl.error ? dl.error : STATUS_LABEL[dl.status]}
         </p>
 
-        {dl.status === "downloading" && (
-          <p className="text-zinc-500 text-xs mb-4">
-            Tu peux fermer cette fenêtre. Le téléchargement continue en arrière-plan.
-          </p>
+        {dl.status === "ready" && (
+          <button
+            onClick={() => { dl.start(); onClose(); }}
+            className="w-full px-8 py-3 rounded bg-white text-black font-bold text-sm hover:bg-zinc-200 transition-all flex items-center justify-center gap-2"
+          >
+            <IconDownload className="h-5 w-5" />
+            Télécharger
+          </button>
         )}
 
         {dl.status === "error" && (

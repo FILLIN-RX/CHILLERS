@@ -94,6 +94,7 @@ export default function CategoryCard({ category, onClick }: CategoryCardProps) {
         fill
         className="object-cover brightness-75 group-hover:brightness-90 transition-all duration-300"
         sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 20vw"
+        loading="lazy"
       />
 
       {/* Luxury Glass Cinematic Gradient Overlay */}

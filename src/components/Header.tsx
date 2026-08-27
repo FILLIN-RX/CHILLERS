@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { IconSearch, IconHome, IconMovie, IconDeviceTv, IconSparkles, IconTower } from '@tabler/icons-react';
+import { IconSearch, IconHome, IconMovie, IconDeviceTv, IconSparkles, IconTower, IconHomeFilled, IconDeviceTvFilled, IconSparklesFilled } from '@tabler/icons-react';
 import { useLanguage } from "@/i18n/LanguageContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { getActiveNavTab } from "@/lib/navActive";
@@ -18,11 +18,11 @@ export default function Header({ onSearchClick }: HeaderProps) {
   const { translate: _ } = useLanguage();
 
   const tabs = [
-    { id: "home", label: _("nav.home"), href: "/", icon: IconHome },
-    { id: "movies", label: _("nav.movies"), href: "/media/movies", icon: IconMovie },
-    { id: "series", label: _("nav.series"), href: "/media/series", icon: IconDeviceTv },
-    { id: "anime", label: _("nav.anime"), href: "/media/anime", icon: IconSparkles },
-    { id: "live", label: _("nav.live"), href: "/live", icon: IconTower },
+    { id: "home", label: _("nav.home"), href: "/", icon: IconHome, fillIcon: IconHomeFilled },
+    { id: "movies", label: _("nav.movies"), href: "/media/movies", icon: IconMovie, fillIcon: null },
+    { id: "series", label: _("nav.series"), href: "/media/series", icon: IconDeviceTv, fillIcon: IconDeviceTvFilled },
+    { id: "anime", label: _("nav.anime"), href: "/media/anime", icon: IconSparkles, fillIcon: IconSparklesFilled },
+    { id: "live", label: _("nav.live"), href: "/live", icon: IconTower, fillIcon: null },
   ];
 
   // Single source of truth shared with <BottomNav> so the two indicators
@@ -73,26 +73,33 @@ export default function Header({ onSearchClick }: HeaderProps) {
           </Link>
 
           <nav className="hidden md:flex items-center gap-1">
-            {tabs.map((tab) => (
-              <Link
-                key={tab.id}
-                href={tab.href}
-                aria-current={activeTab === tab.id ? "page" : undefined}
-                className={`relative px-3 py-1.5 text-sm font-medium transition-colors focus:outline-none rounded ${
-                  activeTab === tab.id
-                    ? "text-white font-bold"
-                    : "text-zinc-300 hover:text-white"
-                }`}
-              >
-                {tab.label}
-              </Link>
-            ))}
+            {tabs.map((tab) => {
+              const isActive = activeTab === tab.id;
+              const ActiveIcon = tab.fillIcon ?? tab.icon;
+              const TabIcon = isActive ? ActiveIcon : tab.icon;
+              return (
+                <Link
+                  key={tab.id}
+                  href={tab.href}
+                  aria-current={isActive ? "page" : undefined}
+                  className={`relative flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-colors focus:outline-none rounded-full ${
+                    isActive
+                      ? "text-white font-bold bg-white/5 backdrop-blur-md ring-1 ring-white/15 shadow-lg shadow-black/40"
+                      : "text-zinc-300 hover:text-white hover:bg-white/5"
+                  }`}
+                >
+                  <TabIcon className={`h-4 w-4 ${isActive ? "text-red-500" : ""}`} />
+                  {tab.label}
+                </Link>
+              );
+            })}
             <Link
               href="/categories"
-              className={`relative px-3 py-1.5 text-sm font-medium transition-colors focus:outline-none rounded ${
+              aria-current={activeTab === "categories" ? "page" : undefined}
+              className={`relative flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-colors focus:outline-none rounded ${
                 activeTab === "categories"
-                  ? "text-white font-bold"
-                  : "text-zinc-300 hover:text-white"
+                  ? "text-white font-bold bg-white/5 backdrop-blur-sm ring-1 ring-white/10 shadow-lg shadow-black/40"
+                  : "text-zinc-300 hover:text-white hover:bg-white/5"
               }`}
             >
               {_("nav.categories")}

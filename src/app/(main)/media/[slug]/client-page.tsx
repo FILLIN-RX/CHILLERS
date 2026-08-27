@@ -251,7 +251,7 @@ function MediaDetailPage() {
         </button>
       </div>
 
-      <div className="relative w-full h-[70vh] sm:h-[75vh] overflow-hidden">
+      <div className="relative w-full h-[65vh] sm:h-[75vh] overflow-hidden">
         <Image
           src={item.backdropUrl}
           alt={item.title}
@@ -265,24 +265,25 @@ function MediaDetailPage() {
         <div className="absolute inset-0 bg-gradient-to-r from-[#09090B]/80 via-[#09090B]/40 to-transparent" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#09090B] via-transparent to-transparent" />
 
-        <div className="absolute inset-0 flex items-end pb-16 px-6 sm:px-12 lg:px-20">
-          <div className="flex flex-col sm:flex-row gap-8 items-start w-full">
+        <div className="absolute inset-0 flex items-end pb-14 sm:pb-16 px-4 sm:px-8 lg:px-20">
+          <div className="flex flex-col sm:flex-row gap-4 sm:gap-8 items-start w-full">
 
-            <div className="hidden sm:block relative flex-none w-44 lg:w-56 rounded-2xl overflow-hidden shadow-2xl border border-white/10 ring-1 ring-white/5">
+            <div className="hidden sm:block relative flex-none w-40 lg:w-56 rounded-2xl overflow-hidden shadow-2xl border border-white/10 ring-1 ring-white/5">
               <Image
                 src={item.posterUrl}
                 alt={item.title}
                 fill
                 className="object-cover"
-                sizes="(max-width: 1024px) 176px, 224px"
+                sizes="(max-width: 1024px) 160px, 224px"
+                loading="lazy"
               />
             </div>
 
-            <div className="flex-1 space-y-4">
-              <div className="flex flex-wrap gap-2">
+            <div className="flex-1 space-y-3 sm:space-y-4">
+              <div className="flex flex-wrap gap-1.5 sm:gap-2">
                 {disponible && (
                   <span
-                    className={`px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-widest border ${
+                    className={`px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[9px] sm:text-xs font-bold uppercase tracking-widest border ${
                       disponible.disponible
                         ? "border-green-500/40 text-green-400 bg-green-500/10"
                         : "border-red-500/40 text-red-400 bg-red-500/10"
@@ -294,37 +295,37 @@ function MediaDetailPage() {
                 {item.genres.slice(0, 3).map((g) => (
                   <span
                     key={g}
-                    className="px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-widest border border-[#D70466]/40 text-[#D70466] bg-[#D70466]/10"
+                    className="px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[9px] sm:text-xs font-bold uppercase tracking-widest border border-[#D70466]/40 text-[#D70466] bg-[#D70466]/10"
                   >
                     {g}
                   </span>
                 ))}
               </div>
 
-              <h1 className="text-xl sm:text-5xl lg:text-7xl font-black text-white leading-tight drop-shadow-xl">
+              <h1 className="text-2xl sm:text-4xl lg:text-6xl font-black text-white leading-tight drop-shadow-xl">
                 {item.title}
               </h1>
 
-              <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-base text-zinc-300 font-medium">
-                <div className="flex items-center gap-1 sm:gap-1.5 text-amber-400">
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-4 text-[11px] sm:text-base text-zinc-300 font-medium">
+                <div className="flex items-center gap-1 text-amber-400">
                   <IconStar className="h-3.5 w-3.5 sm:h-5 sm:w-5" />
                   <span className="font-bold">{item.rating}</span>
-                  <span className="text-zinc-500">/10</span>
+                  <span className="text-zinc-500 text-[10px] sm:text-sm">/10</span>
                 </div>
-                <div className="flex items-center gap-1 sm:gap-1.5">
-                  <IconCalendar className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-zinc-500" />
+                <div className="flex items-center gap-1">
+                  <IconCalendar className="h-3 w-3 sm:h-5 sm:w-5 text-zinc-500" />
                   {item.year}
                 </div>
-                <div className="flex items-center gap-1 sm:gap-1.5">
-                  <IconClock className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-zinc-500" />
+                <div className="flex items-center gap-1">
+                  <IconClock className="h-3 w-3 sm:h-5 sm:w-5 text-zinc-500" />
                   {item.duration}
                 </div>
-                <span className="px-2 py-0.5 rounded border border-zinc-700 text-zinc-400 text-[10px] sm:text-xs uppercase tracking-wider">
+                <span className="px-1.5 sm:px-2 py-0.5 rounded border border-zinc-700 text-zinc-400 text-[9px] sm:text-xs uppercase tracking-wider">
                   {item.type}
                 </span>
               </div>
 
-              <p className="text-zinc-300 text-sm sm:text-lg leading-relaxed max-w-2xl"
+              <p className="text-zinc-300 text-xs sm:text-base leading-relaxed max-w-2xl"
                 style={{
                   display: "-webkit-box",
                   WebkitLineClamp: 3,
@@ -335,11 +336,11 @@ function MediaDetailPage() {
                 {item.synopsis || item.description}
               </p>
 
-              <div className="flex items-center gap-2 pt-2 overflow-x-auto no-scrollbar">
+              <div className="flex items-center gap-1.5 sm:gap-2 pt-1 sm:pt-2 overflow-x-auto no-scrollbar">
                 <button
                   onClick={handleWatch}
                   disabled={!item || loading}
-                  className={`flex-none flex items-center gap-1.5 px-3 sm:px-6 py-1.5 sm:py-3 rounded-full font-bold text-[11px] sm:text-sm transition-all hover:scale-105 shadow-lg whitespace-nowrap ${
+                  className={`flex-none flex items-center gap-1.5 px-3 sm:px-6 py-2 sm:py-3 rounded-full font-bold text-xs sm:text-sm transition-all hover:scale-105 shadow-lg whitespace-nowrap ${
                     !item || loading
                       ? "bg-zinc-800 border border-zinc-700 text-zinc-400 cursor-not-allowed shadow-none"
                       : "bg-[#D70466] hover:bg-[#b5034f] text-white shadow-lg shadow-[#D70466]/30"
@@ -353,20 +354,20 @@ function MediaDetailPage() {
                 {isYouTube && (
                   <button
                     onClick={() => setTrailerOpen(true)}
-                    className="flex-none flex items-center gap-1.5 px-3 sm:px-6 py-1.5 sm:py-3 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white font-bold text-[11px] sm:text-sm transition-all hover:scale-105"
+                    className="flex-none flex items-center gap-1.5 px-3 sm:px-6 py-2 sm:py-3 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white font-bold text-xs sm:text-sm transition-all hover:scale-105"
                   >
                     <IconMovie className="h-3.5 w-3.5 sm:h-5 sm:w-5" />
-                    <span className="sm:hidden">Bande-annonce</span>
+                    <span className="sm:hidden">Trailer</span>
                     <span className="hidden sm:inline">{_("media.trailer")}</span>
                   </button>
                 )}
 
                 <button
-                  className="flex-none flex items-center gap-1.5 px-3 sm:px-6 py-1.5 sm:py-3 rounded-full bg-white/10 border border-white/20 text-white hover:bg-white/20 hover:scale-105 transition-all font-bold text-[11px] sm:text-sm whitespace-nowrap"
+                  className="flex-none flex items-center gap-1.5 px-3 sm:px-6 py-2 sm:py-3 rounded-full bg-white/10 border border-white/20 text-white hover:bg-white/20 hover:scale-105 transition-all font-bold text-xs sm:text-sm whitespace-nowrap"
                   onClick={handleDownload}
                   disabled={!item || loading}
                 >
-                  <IconDownload className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1.5" />
+                  <IconDownload className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   <span className="hidden sm:inline">{_("download.single")}</span>
                 </button>
 
@@ -374,7 +375,7 @@ function MediaDetailPage() {
                   <button
                     onClick={handleShare}
                     aria-label={_("media.share")}
-                    className="flex-none flex items-center gap-1.5 px-2.5 sm:px-5 py-1.5 sm:py-3 rounded-full bg-white/10 border border-white/20 text-white hover:bg-white/20 transition-all hover:scale-105 font-bold text-[11px] sm:text-sm"
+                    className="flex-none flex items-center gap-1.5 px-2.5 sm:px-5 py-2 sm:py-3 rounded-full bg-white/10 border border-white/20 text-white hover:bg-white/20 transition-all hover:scale-105 font-bold text-xs sm:text-sm"
                   >
                     <IconShare className="h-3.5 w-3.5 sm:h-5 sm:w-5" />
                   </button>
@@ -425,28 +426,28 @@ function MediaDetailPage() {
         </div>
       </div>
 
-      <div className="mx-auto px-4 sm:px-8 md:px-12 lg:px-[4%] py-12 sm:py-16 space-y-12 sm:space-y-16">
-        <section className="space-y-3 sm:space-y-4">
-          <h2 className="text-lg sm:text-2xl font-black text-white flex items-center gap-3">
-            <span className="h-4 w-1 sm:h-5 sm:w-1 rounded-full bg-[#D70466]" />
+      <div className="mx-auto px-4 sm:px-8 md:px-12 lg:px-[4%] py-8 sm:py-12 lg:py-16 space-y-8 sm:space-y-12">
+        <section className="space-y-2 sm:space-y-4">
+          <h2 className="text-base sm:text-2xl font-black text-white flex items-center gap-2 sm:gap-3">
+            <span className="h-4 sm:h-5 w-1 rounded-full bg-[#D70466]" />
             {_("media.synopsis")}
           </h2>
-          <p className="text-zinc-300 text-sm sm:text-lg leading-relaxed max-w-3xl">
+          <p className="text-zinc-300 text-xs sm:text-base leading-relaxed max-w-3xl">
             {item.synopsis || item.description || _("media.noSynopsis")}
           </p>
         </section>
 
         {item.cast && item.cast.length > 0 && item.cast[0] !== "Cast Info Unavailable" && (
-          <section className="space-y-3 sm:space-y-4">
-            <h2 className="text-lg sm:text-2xl font-black text-white flex items-center gap-3">
-              <span className="h-4 w-1 sm:h-5 sm:w-1 rounded-full bg-[#7C3AED]" />
+          <section className="space-y-2 sm:space-y-4">
+            <h2 className="text-base sm:text-2xl font-black text-white flex items-center gap-2 sm:gap-3">
+              <span className="h-4 sm:h-5 w-1 rounded-full bg-[#7C3AED]" />
               {_("media.cast")}
             </h2>
-            <div className="flex flex-wrap gap-2 sm:gap-3">
+            <div className="flex flex-wrap gap-1.5 sm:gap-3">
               {item.cast.map((actor) => (
                 <span
                   key={actor}
-                  className="px-3 sm:px-4 py-1 sm:py-2 rounded-full bg-zinc-900 border border-zinc-800 text-[11px] sm:text-sm font-medium text-zinc-300 hover:border-zinc-600 transition-colors"
+                  className="px-2.5 sm:px-4 py-1 sm:py-2 rounded-full bg-zinc-900 border border-zinc-800 text-[10px] sm:text-sm font-medium text-zinc-300 hover:border-zinc-600 transition-colors"
                 >
                   {actor}
                 </span>
@@ -456,9 +457,9 @@ function MediaDetailPage() {
         )}
 
         {!isTV && (
-          <section ref={playerRef} className="space-y-3 sm:space-y-4">
-            <h2 className="text-lg sm:text-2xl font-black text-white flex items-center gap-3">
-              <span className="h-4 w-1 sm:h-5 sm:w-1 rounded-full bg-[#D70466]" />
+          <section ref={playerRef} className="space-y-2 sm:space-y-4">
+            <h2 className="text-base sm:text-2xl font-black text-white flex items-center gap-2 sm:gap-3">
+              <span className="h-4 sm:h-5 w-1 rounded-full bg-[#D70466]" />
               {_("media.watch")}
             </h2>
             <div className="w-full bg-black relative">
@@ -472,16 +473,14 @@ function MediaDetailPage() {
                   src={item.backdropUrl || item.posterUrl}
                   alt={item.title}
                   fill
-                  priority
                   sizes="100vw"
                   className="object-cover scale-105 transition-transform duration-700 ease-out group-hover:scale-100"
                   style={{ filter: "brightness(0.55) saturate(1.1)" }}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/30" />
-                <span className="pointer-events-none absolute top-4 left-4 sm:top-6 sm:left-6 text-sm sm:text-base font-black tracking-widest uppercase bg-gradient-to-r from-[#D70466] to-[#7C3AED] bg-clip-text text-transparent drop-shadow-lg">
+                <span className="pointer-events-none absolute top-4 left-4 sm:top-6 sm:left-6 hidden text-sm sm:text-base font-black tracking-widest uppercase bg-gradient-to-r from-[#D70466] to-[#7C3AED] bg-clip-text text-transparent drop-shadow-lg">
                   Chillers
-                </span>
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 sm:gap-4 px-6 text-center">
+                </span>                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 sm:gap-4 px-6 text-center">
                   <div className="flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-[#D70466] to-[#7C3AED] shadow-[0_12px_48px_rgba(215,4,102,0.55)] transition-transform duration-200 ease-out group-hover:scale-110">
                     <IconPlayerPlay className="h-7 w-7 sm:h-9 sm:w-9 text-white translate-x-0.5" fill="currentColor" />
                   </div>
@@ -519,6 +518,7 @@ function MediaDetailPage() {
                         fill
                         className="object-cover group-hover:scale-105 transition-transform duration-500"
                         sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 20vw"
+                        loading="lazy"
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
@@ -563,6 +563,7 @@ function MediaDetailPage() {
                       fill
                       className="object-cover group-hover:scale-105 transition-transform duration-500"
                       sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
+                      loading="lazy"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
                       <IconPlayerPlay className="h-8 w-8 text-white mx-auto mb-2 opacity-90" />
