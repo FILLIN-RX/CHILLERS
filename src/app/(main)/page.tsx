@@ -785,6 +785,7 @@ function Home() {
                     ))}
                   </div>
                 </div>
+              </div>
               )}
 
               {activeTab === "series" && (
@@ -818,6 +819,7 @@ function Home() {
                     ))}
                   </div>
                 </div>
+              </div>
               )}
 
               {activeTab === "anime" && (
