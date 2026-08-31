@@ -12,13 +12,14 @@ import type { MovieOrShow, Genre, MediaType } from "@/types/media";
 /* ─── helpers ─────────────────────────────────────────────────────────────── */
 
 export function isSlowConnection(): boolean {
-  if (typeof navigator === "undefined") return false;
+  if (typeof navigator === "undefined") return true; // Faible résolution par défaut (SSR)
   const nav = navigator as any;
   const conn = nav.connection || nav.mozConnection || nav.webkitConnection;
-  if (!conn) return false;
+  if (!conn) return true; // Faible résolution par défaut si l'API n'est pas supportée
   if (conn.saveData) return true;
   if (conn.effectiveType === "slow-2g" || conn.effectiveType === "2g" || conn.effectiveType === "3g") return true;
-  return false;
+  if (conn.effectiveType === "4g") return false;
+  return true; // Faible résolution par défaut
 }
 
 export function getTmdbImageUrl(
@@ -27,13 +28,20 @@ export function getTmdbImageUrl(
   original = false,
 ): string {
   if (!path) return "";
+  const weak = isSlowConnection();
+
+  // On respecte original uniquement si le réseau est bon
+  if (original && !weak) {
+    return `https://image.tmdb.org/t/p/original${path}`;
+  }
+
   if (type === "backdrop") {
-    return `https://image.tmdb.org/t/p/${original || true ? "original" : "w1280"}${path}`;
+    return `https://image.tmdb.org/t/p/${weak ? "w300" : "w1280"}${path}`;
   }
   if (type === "still") {
-    return `https://image.tmdb.org/t/p/${original || true ? "original" : "w500"}${path}`;
+    return `https://image.tmdb.org/t/p/${weak ? "w185" : "w500"}${path}`;
   }
-  return `https://image.tmdb.org/t/p/${original || true ? "original" : "w500"}${path}`;
+  return `https://image.tmdb.org/t/p/${weak ? "w185" : "w500"}${path}`;
 }
 
 function clientLang(): string {
@@ -267,6 +275,13 @@ export function getUpcomingMovies(page = 1, signal?: AbortSignal): Promise<Movie
 }
 export function getTopRatedMovies(page = 1, signal?: AbortSignal): Promise<MovieOrShow[]> {
   return getPage("/movies/top-rated", page, signal);
+}
+
+export function getAfricanMovies(page = 1, signal?: AbortSignal): Promise<MovieOrShow[]> {
+  return getPage("/movies/african", page, signal);
+}
+export function getAfricanTV(page = 1, signal?: AbortSignal): Promise<MovieOrShow[]> {
+  return getPage("/tv/african", page, signal);
 }
 
 /* Paged variants that return totals (used by listings/genre pages). */

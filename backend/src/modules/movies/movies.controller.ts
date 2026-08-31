@@ -89,3 +89,13 @@ export const getByGenre = async (req: Request, res: Response, next: NextFunction
     next(error);
   }
 };
+
+export const getAfrican = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const page = Number(req.query.page) || 1;
+    const data = await moviesService.getAfrican(page, getLang(req));
+    res.json({ success: true, data, message: null });
+  } catch (error) {
+    next(error);
+  }
+};

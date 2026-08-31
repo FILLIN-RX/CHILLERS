@@ -22,6 +22,8 @@ import {
   getPopularTV,
   getMoviesByGenre,
   getAnimeSeries,
+  getAfricanMovies,
+  getAfricanTV,
   getUpcomingMovies,
   getRecommendedForYou,
 } from "../api";
@@ -111,6 +113,8 @@ function Home() {
   const [moviesData, setMoviesData] = useState<MovieOrShow[]>([]);
   const [seriesData, setSeriesData] = useState<MovieOrShow[]>([]);
   const [animeData, setAnimeData] = useState<MovieOrShow[]>([]);
+  const [africanMoviesData, setAfricanMoviesData] = useState<MovieOrShow[]>([]);
+  const [africanSeriesData, setAfricanSeriesData] = useState<MovieOrShow[]>([]);
   const [newReleases, setNewReleases] = useState<MovieOrShow[]>([]);
   const [genreRows, setGenreRows] = useState<{ title: string; items: MovieOrShow[] }[]>([]);
   const [animeGenreRows, setAnimeGenreRows] = useState<{ title: string; items: MovieOrShow[] }[]>([]);
@@ -185,6 +189,8 @@ function Home() {
     push(_("home.trendingNow"), trendingNow, "secondary", undefined, true, 0.5);
     push(_("home.popularSeries"), seriesData, "primary");
     push(_("home.animeCollection"), animeData, "secondary");
+    push("Films Africains", africanMoviesData, "secondary");
+    push("Séries Africaines", africanSeriesData, "secondary");
     animeGenreRows.forEach((r) => push(r.title, r.items, "secondary"));
     genreRows.forEach((r) => push(r.title, r.items, "secondary"));
     for (const section of HOME_SECTIONS) {
@@ -195,7 +201,7 @@ function Home() {
     }
     return rows;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trendingAll, newReleases, mostWatched, trendingNow, seriesData, animeData, animeGenreRows, genreRows, homeSectionRows]);
+  }, [trendingAll, newReleases, mostWatched, trendingNow, seriesData, animeData, animeGenreRows, genreRows, homeSectionRows, africanMoviesData, africanSeriesData]);
 
   // Continue-watching is read from localStorage. Declared BEFORE the useEffect
   // that calls it so the effect's first run can't hit a TDZ (P0-#8).
@@ -281,12 +287,14 @@ function Home() {
         }
       };
 
-      const [trending, trendingTV, popular, popularTV, anime] = await Promise.all([
+      const [trending, trendingTV, popular, popularTV, anime, africanM, africanS] = await Promise.all([
         fetchWithCatch(getTrendingMovies(signal), []),
         fetchWithCatch(getTrendingTV(signal), []),
         fetchWithCatch(getPopularMovies(1, signal), []),
         fetchWithCatch(getPopularTV(1, signal), []),
         fetchWithCatch(getAnimeSeries(1, signal), []),
+        fetchWithCatch(getAfricanMovies(1, signal), []),
+        fetchWithCatch(getAfricanTV(1, signal), []),
       ]);
 
       const allTrending = [...trending, ...trendingTV];
@@ -297,6 +305,8 @@ function Home() {
       }
       if (popularTV.length > 0) setSeriesData(popularTV);
       if (anime.length > 0) setAnimeData(anime);
+      if (africanM.length > 0) setAfricanMoviesData(africanM);
+      if (africanS.length > 0) setAfricanSeriesData(africanS);
 
       await loadNewReleases();
 
@@ -745,12 +755,25 @@ function Home() {
               )}
 
               {activeTab === "movies" && (
-                <div className="space-y-4">
-                  <div>
-                    <h2 className="text-xl sm:text-3xl font-extrabold text-white">{_("home.blockbusterMovies")}</h2>
-                    <p className="text-zinc-500 text-xs sm:text-sm mt-0.5">{_("home.blockbusterSubtitle")}</p>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
+                <div className="space-y-8">
+                  {africanMoviesData.length > 0 && (
+                    <ScrollRow title="Films Africains" accentColor="secondary">
+                      {africanMoviesData.map((item) => (
+                        <MovieCard
+                          key={item.id}
+                          item={item}
+                          onPlay={handleWatchNow}
+                          onOpenDetails={handleOpenDetails}
+                        />
+                      ))}
+                    </ScrollRow>
+                  )}
+                  <div className="space-y-4">
+                    <div>
+                      <h2 className="text-xl sm:text-3xl font-extrabold text-white">{_("home.blockbusterMovies")}</h2>
+                      <p className="text-zinc-500 text-xs sm:text-sm mt-0.5">{_("home.blockbusterSubtitle")}</p>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
                     {getFilteredMedia("movie").map((item) => (
                       <MovieCard
                         key={item.id}
@@ -765,12 +788,25 @@ function Home() {
               )}
 
               {activeTab === "series" && (
-                <div className="space-y-4">
-                  <div>
-                    <h2 className="text-xl sm:text-3xl font-extrabold text-white">{_("home.featuredSeries")}</h2>
-                    <p className="text-zinc-500 text-xs sm:text-sm mt-0.5">{_("home.featuredSeriesSubtitle")}</p>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
+                <div className="space-y-8">
+                  {africanSeriesData.length > 0 && (
+                    <ScrollRow title="Séries Africaines" accentColor="secondary">
+                      {africanSeriesData.map((item) => (
+                        <MovieCard
+                          key={item.id}
+                          item={item}
+                          onPlay={handleWatchNow}
+                          onOpenDetails={handleOpenDetails}
+                        />
+                      ))}
+                    </ScrollRow>
+                  )}
+                  <div className="space-y-4">
+                    <div>
+                      <h2 className="text-xl sm:text-3xl font-extrabold text-white">{_("home.featuredSeries")}</h2>
+                      <p className="text-zinc-500 text-xs sm:text-sm mt-0.5">{_("home.featuredSeriesSubtitle")}</p>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
                     {getFilteredMedia("series").map((item) => (
                       <MovieCard
                         key={item.id}

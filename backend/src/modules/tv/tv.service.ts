@@ -24,13 +24,37 @@ export const getByGenre = async (genreId: string, page: number = 1, language?: s
 };
 
 export const getAnime = async (page: number = 1, language?: string) => {
+  const params = {
+    with_genres: '16',
+    sort_by: 'popularity.desc',
+    page,
+    with_original_language: 'ja',
+    language: toTMDBLanguage(language),
+  };
+
+  const [tvRes, movieRes] = await Promise.all([
+    tmdbClient.get('/discover/tv', { params }),
+    tmdbClient.get('/discover/movie', { params }),
+  ]);
+
+  const combinedResults = [...tvRes.data.results, ...movieRes.data.results]
+    .sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
+
+  return {
+    page: tvRes.data.page,
+    results: combinedResults,
+    total_pages: Math.max(tvRes.data.total_pages, movieRes.data.total_pages),
+    total_results: tvRes.data.total_results + movieRes.data.total_results,
+  };
+};
+
+export const getAfrican = async (page: number = 1, language?: string) => {
   const { data } = await tmdbClient.get('/discover/tv', {
-    params: {
-      with_genres: '16',
-      sort_by: 'popularity.desc',
-      page,
-      with_original_language: 'ja',
-      language: toTMDBLanguage(language),
+    params: { 
+      with_origin_country: 'NG|ZA|GH|KE|SN|CI', 
+      sort_by: 'popularity.desc', 
+      page, 
+      language: toTMDBLanguage(language) 
     },
   });
   return data;

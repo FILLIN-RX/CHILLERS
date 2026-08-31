@@ -60,3 +60,15 @@ export const getByGenre = async (genreId: string, page: number = 1, language?: s
   });
   return data;
 };
+
+export const getAfrican = async (page: number = 1, language?: string) => {
+  const { data } = await tmdbClient.get('/discover/movie', {
+    params: { 
+      with_origin_country: 'NG|ZA|GH|KE|SN|CI', 
+      sort_by: 'popularity.desc', 
+      page, 
+      language: toTMDBLanguage(language) 
+    },
+  });
+  return data;
+};

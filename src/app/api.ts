@@ -25,6 +25,8 @@ export {
   getAnimeSeries,
   getUpcomingMovies,
   getTopRatedMovies,
+  getAfricanMovies,
+  getAfricanTV,
   getMediaDetails,
   getSeasonDetails,
   getMovieRecommendations,
