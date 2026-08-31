@@ -83,7 +83,8 @@ export const getSeasonDetails = async (req: Request, res: Response, next: NextFu
 export const getAfrican = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const page = Number(req.query.page) || 1;
-    const data = await tvService.getAfrican(page, getLang(req));
+    const country = req.query.country as string | undefined;
+    const data = await tvService.getAfrican(page, getLang(req), country);
     res.json({ success: true, data, message: null });
   } catch (error) {
     next(error);

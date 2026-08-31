@@ -27,6 +27,7 @@ export {
   getTopRatedMovies,
   getAfricanMovies,
   getAfricanTV,
+  AFRICAN_COUNTRIES,
   getMediaDetails,
   getSeasonDetails,
   getMovieRecommendations,

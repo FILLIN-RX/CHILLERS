@@ -48,10 +48,11 @@ export const getAnime = async (page: number = 1, language?: string) => {
   };
 };
 
-export const getAfrican = async (page: number = 1, language?: string) => {
+export const getAfrican = async (page: number = 1, language?: string, country?: string) => {
+  const originCountry = country || 'NG|GH|CM|CI|SN';
   const { data } = await tmdbClient.get('/discover/tv', {
     params: { 
-      with_origin_country: 'NG|ZA|GH|KE|SN|CI', 
+      with_origin_country: originCountry, 
       sort_by: 'popularity.desc', 
       page, 
       language: toTMDBLanguage(language) 

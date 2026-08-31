@@ -279,11 +279,22 @@ export function getTopRatedMovies(page = 1, signal?: AbortSignal): Promise<Movie
   return getPage("/movies/top-rated", page, signal);
 }
 
-export function getAfricanMovies(page = 1, signal?: AbortSignal): Promise<MovieOrShow[]> {
-  return getPage("/movies/african", page, signal);
+export const AFRICAN_COUNTRIES = [
+  { code: "CM", name: "Cameroun", emoji: "🇨🇲" },
+  { code: "NG", name: "Nigeria", emoji: "🇳🇬" },
+  { code: "CI", name: "Côte d'Ivoire", emoji: "🇨🇮" },
+  { code: "GH", name: "Ghana", emoji: "🇬🇭" },
+  { code: "SN", name: "Sénégal", emoji: "🇸🇳" },
+  { code: "ZA", name: "Afrique du Sud", emoji: "🇿🇦" },
+];
+
+export function getAfricanMovies(page = 1, country?: string, signal?: AbortSignal): Promise<MovieOrShow[]> {
+  const url = country ? `/movies/african?country=${country}` : "/movies/african";
+  return getPage(url, page, signal);
 }
-export function getAfricanTV(page = 1, signal?: AbortSignal): Promise<MovieOrShow[]> {
-  return getPage("/tv/african", page, signal);
+export function getAfricanTV(page = 1, country?: string, signal?: AbortSignal): Promise<MovieOrShow[]> {
+  const url = country ? `/tv/african?country=${country}` : "/tv/african";
+  return getPage(url, page, signal);
 }
 
 /* Paged variants that return totals (used by listings/genre pages). */

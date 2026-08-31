@@ -24,6 +24,7 @@ import {
   getAnimeSeries,
   getAfricanMovies,
   getAfricanTV,
+  AFRICAN_COUNTRIES,
   getUpcomingMovies,
   getRecommendedForYou,
 } from "../api";
@@ -115,6 +116,7 @@ function Home() {
   const [animeData, setAnimeData] = useState<MovieOrShow[]>([]);
   const [africanMoviesData, setAfricanMoviesData] = useState<MovieOrShow[]>([]);
   const [africanSeriesData, setAfricanSeriesData] = useState<MovieOrShow[]>([]);
+  const [selectedAfricanCountry, setSelectedAfricanCountry] = useState<string>("");
   const [newReleases, setNewReleases] = useState<MovieOrShow[]>([]);
   const [genreRows, setGenreRows] = useState<{ title: string; items: MovieOrShow[] }[]>([]);
   const [animeGenreRows, setAnimeGenreRows] = useState<{ title: string; items: MovieOrShow[] }[]>([]);
@@ -293,8 +295,8 @@ function Home() {
         fetchWithCatch(getPopularMovies(1, signal), []),
         fetchWithCatch(getPopularTV(1, signal), []),
         fetchWithCatch(getAnimeSeries(1, signal), []),
-        fetchWithCatch(getAfricanMovies(1, signal), []),
-        fetchWithCatch(getAfricanTV(1, signal), []),
+        fetchWithCatch(getAfricanMovies(1, undefined, signal), []),
+        fetchWithCatch(getAfricanTV(1, undefined, signal), []),
       ]);
 
       const allTrending = [...trending, ...trendingTV];
@@ -317,6 +319,20 @@ function Home() {
       setIsLoadingData(false);
     }
   }, [loadNewReleases]);
+
+  const handleCountrySelect = useCallback(async (code: string) => {
+    setSelectedAfricanCountry(code);
+    try {
+      const [africanM, africanS] = await Promise.all([
+        getAfricanMovies(1, code || undefined),
+        getAfricanTV(1, code || undefined),
+      ]);
+      setAfricanMoviesData(africanM || []);
+      setAfricanSeriesData(africanS || []);
+    } catch (err) {
+      console.error(err);
+    }
+  }, []);
 
   const loadGenreRows = useCallback(async (signal?: AbortSignal) => {
     if (genreRows.length > 0) return;
@@ -757,16 +773,43 @@ function Home() {
               {activeTab === "movies" && (
                 <div className="space-y-8">
                   {africanMoviesData.length > 0 && (
-                    <ScrollRow title="Films Africains" accentColor="secondary">
-                      {africanMoviesData.map((item) => (
-                        <MovieCard
-                          key={item.id}
-                          item={item}
-                          onPlay={handleWatchNow}
-                          onOpenDetails={handleOpenDetails}
-                        />
-                      ))}
-                    </ScrollRow>
+                    <div className="space-y-3">
+                      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                        <button
+                          onClick={() => handleCountrySelect("")}
+                          className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${
+                            selectedAfricanCountry === ""
+                              ? "bg-brand-primary text-white"
+                              : "bg-zinc-800 text-zinc-400 hover:text-white"
+                          }`}
+                        >
+                          Tous les pays
+                        </button>
+                        {AFRICAN_COUNTRIES.map((country) => (
+                          <button
+                            key={country.code}
+                            onClick={() => handleCountrySelect(country.code)}
+                            className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${
+                              selectedAfricanCountry === country.code
+                                ? "bg-brand-primary text-white"
+                                : "bg-zinc-800 text-zinc-400 hover:text-white"
+                            }`}
+                          >
+                            {country.name}
+                          </button>
+                        ))}
+                      </div>
+                      <ScrollRow title={selectedAfricanCountry ? `Films: ${AFRICAN_COUNTRIES.find((c) => c.code === selectedAfricanCountry)?.name}` : "Films Africains"} accentColor="secondary">
+                        {africanMoviesData.map((item) => (
+                          <MovieCard
+                            key={item.id}
+                            item={item}
+                            onPlay={handleWatchNow}
+                            onOpenDetails={handleOpenDetails}
+                          />
+                        ))}
+                      </ScrollRow>
+                    </div>
                   )}
                   <div className="space-y-4">
                     <div>
@@ -791,16 +834,43 @@ function Home() {
               {activeTab === "series" && (
                 <div className="space-y-8">
                   {africanSeriesData.length > 0 && (
-                    <ScrollRow title="Séries Africaines" accentColor="secondary">
-                      {africanSeriesData.map((item) => (
-                        <MovieCard
-                          key={item.id}
-                          item={item}
-                          onPlay={handleWatchNow}
-                          onOpenDetails={handleOpenDetails}
-                        />
-                      ))}
-                    </ScrollRow>
+                    <div className="space-y-3">
+                      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                        <button
+                          onClick={() => handleCountrySelect("")}
+                          className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${
+                            selectedAfricanCountry === ""
+                              ? "bg-brand-primary text-white"
+                              : "bg-zinc-800 text-zinc-400 hover:text-white"
+                          }`}
+                        >
+                          Tous les pays
+                        </button>
+                        {AFRICAN_COUNTRIES.map((country) => (
+                          <button
+                            key={country.code}
+                            onClick={() => handleCountrySelect(country.code)}
+                            className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${
+                              selectedAfricanCountry === country.code
+                                ? "bg-brand-primary text-white"
+                                : "bg-zinc-800 text-zinc-400 hover:text-white"
+                            }`}
+                          >
+                            {country.name}
+                          </button>
+                        ))}
+                      </div>
+                      <ScrollRow title={selectedAfricanCountry ? `Séries: ${AFRICAN_COUNTRIES.find((c) => c.code === selectedAfricanCountry)?.name}` : "Séries Africaines"} accentColor="secondary">
+                        {africanSeriesData.map((item) => (
+                          <MovieCard
+                            key={item.id}
+                            item={item}
+                            onPlay={handleWatchNow}
+                            onOpenDetails={handleOpenDetails}
+                          />
+                        ))}
+                      </ScrollRow>
+                    </div>
                   )}
                   <div className="space-y-4">
                     <div>
