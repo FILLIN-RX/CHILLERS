@@ -30,18 +30,20 @@ export function getTmdbImageUrl(
   if (!path) return "";
   const weak = isSlowConnection();
 
-  // On respecte original uniquement si le réseau est bon
+  // Si on force "original" mais que le réseau est faible, on rétrograde à une taille adaptée
   if (original && !weak) {
     return `https://image.tmdb.org/t/p/original${path}`;
   }
 
+  // TMDB ne génère pas toujours les très petites résolutions (w185/w300) pour toutes les images récentes,
+  // ce qui cause des erreurs 404. On utilise w500 et w780 comme fallback fiable "faible résolution".
   if (type === "backdrop") {
-    return `https://image.tmdb.org/t/p/${weak ? "w300" : "w1280"}${path}`;
+    return `https://image.tmdb.org/t/p/${weak ? "w780" : "original"}${path}`;
   }
   if (type === "still") {
-    return `https://image.tmdb.org/t/p/${weak ? "w185" : "w500"}${path}`;
+    return `https://image.tmdb.org/t/p/${weak ? "w500" : "original"}${path}`;
   }
-  return `https://image.tmdb.org/t/p/${weak ? "w185" : "w500"}${path}`;
+  return `https://image.tmdb.org/t/p/${weak ? "w500" : "original"}${path}`;
 }
 
 function clientLang(): string {
