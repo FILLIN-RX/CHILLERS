@@ -80,7 +80,7 @@ export default function MovieModal({
               duration: `${ep.runtime || 24}m`,
               number: ep.episode_number,
               thumbnail: ep.still_path
-                ? `https://image.tmdb.org/t/p/w500${ep.still_path}`
+                ? `https://image.tmdb.org/t/p/w185${ep.still_path}`
                 : "",
               synopsis: ep.overview,
             })),

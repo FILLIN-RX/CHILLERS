@@ -128,7 +128,7 @@ function WatchContent() {
                 number: ep.episode_number,
                 season: targetSeason,
                 thumbnail: ep.still_path
-                  ? `https://image.tmdb.org/t/p/w500${ep.still_path}`
+                  ? `https://image.tmdb.org/t/p/w185${ep.still_path}`
                   : "",
                 synopsis: ep.overview || "",
               };
@@ -255,7 +255,7 @@ function WatchContent() {
             number: ep.episode_number,
             season: newSeason,
             thumbnail: ep.still_path
-              ? `https://image.tmdb.org/t/p/w500${ep.still_path}`
+              ? `https://image.tmdb.org/t/p/w185${ep.still_path}`
               : "",
             synopsis: ep.overview || "",
           }));
