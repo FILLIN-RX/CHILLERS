@@ -529,12 +529,13 @@ export async function getNexStreamUrl(
   type: "movie" | "series" | "anime" = "movie",
   season?: number,
   episode?: number,
+  title?: string,
 ): Promise<string | null> {
   const isTv = type === "series" || type === "anime";
   const endpoint = isTv
     ? `/nexstream/tv/${id}/${season ?? 1}/${episode ?? 1}`
     : `/nexstream/movie/${id}`;
-  const payload = await getStreamOnce(endpoint, type, undefined, undefined, 12_000);
+  const payload = await getStreamOnce(endpoint, type, title, undefined, 12_000);
   return payload?.embedUrl ?? null;
 }
 

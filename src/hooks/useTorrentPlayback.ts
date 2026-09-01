@@ -6,6 +6,7 @@ import {
   getTorrentClient,
   pickTorrentVideoFile,
   type TorrentMagnet,
+  type TorrentSource,
 } from "@/services/webTorrent";
 import type { Torrent } from "webtorrent";
 
@@ -40,9 +41,10 @@ export interface UseTorrentPlaybackReturn {
   peers: number;
   error: string | null;
   magnet: TorrentMagnet | null;
+  availableQualities: TorrentSource[] | null;
   fileName: string | null;
-  /** Retry the whole session (new magnet fetch). */
-  retry: () => void;
+  /** Retry the whole session (new magnet fetch, or with a specific source). */
+  retry: (forceSource?: TorrentSource) => void;
   /**
    * Streams the torrent file straight to disk (client-side, 0 bytes via the
    * server) using StreamSaver. Resolves when the file is fully written.
@@ -57,13 +59,14 @@ interface TorrentState {
   peers: number;
   error: string | null;
   magnet: TorrentMagnet | null;
+  availableQualities: TorrentSource[] | null;
   fileName: string | null;
 }
 
 type TorrentAction =
   | { type: "reset" }
   | { type: "phase"; status: TorrentPlaybackStatus }
-  | { type: "magnet"; magnet: TorrentMagnet }
+  | { type: "magnet"; magnet: TorrentMagnet; qualities: TorrentSource[] }
   | { type: "file"; name: string }
   | { type: "stats"; progress: number; downloadSpeed: number; peers: number }
   | { type: "stall" }
@@ -76,6 +79,7 @@ const initialState: TorrentState = {
   peers: 0,
   error: null,
   magnet: null,
+  availableQualities: null,
   fileName: null,
 };
 
@@ -86,7 +90,7 @@ function torrentReducer(state: TorrentState, action: TorrentAction): TorrentStat
     case "phase":
       return { ...state, status: action.status, error: null };
     case "magnet":
-      return { ...state, magnet: action.magnet };
+      return { ...state, magnet: action.magnet, availableQualities: action.qualities };
     case "file":
       return { ...state, fileName: action.name };
     case "stats":
@@ -134,7 +138,7 @@ export function useTorrentPlayback(args: UseTorrentPlaybackArgs): UseTorrentPlay
     }
   }, []);
 
-  const startSession = useCallback(async () => {
+  const startSession = useCallback(async (forceSource?: TorrentSource) => {
     runDisposers();
     dropTorrent();
     dispatch({ type: "reset" });
@@ -144,14 +148,26 @@ export function useTorrentPlayback(args: UseTorrentPlaybackArgs): UseTorrentPlay
     addDisposer(() => abort.abort());
 
     try {
-      const res = await fetchTorrentMagnet({ title, year, type, season, episode, signal: abort.signal });
-      if (!res || abort.signal.aborted) return;
+      let selected = forceSource;
+      let allQualities: TorrentSource[] = [];
 
-      if (!res.magnet && !res.torrentBase64) {
-        dispatch({ type: "fail", message: "Aucun torrent trouvé" });
-        return;
+      if (!selected) {
+        const res = await fetchTorrentMagnet({ title, year, type, season, episode, signal: abort.signal });
+        if (!res || abort.signal.aborted) return;
+
+        if (res.length === 0) {
+          dispatch({ type: "fail", message: "Aucun torrent trouvé" });
+          return;
+        }
+        selected = res[0];
+        allQualities = res;
+      } else {
+        // We already have available qualities if we're forcing a source
+        allQualities = state.availableQualities ?? [selected];
       }
-      dispatch({ type: "magnet", magnet: res });
+
+      const torrentMagnet: TorrentMagnet = { ...selected, title, seeders: 0, indexer: '' };
+      dispatch({ type: "magnet", magnet: torrentMagnet, qualities: allQualities });
       dispatch({ type: "phase", status: "adding" });
 
       const client = await getTorrentClient();
@@ -230,7 +246,7 @@ export function useTorrentPlayback(args: UseTorrentPlaybackArgs): UseTorrentPlay
       if (abort.signal.aborted) return;
       dispatch({ type: "fail", message: err instanceof Error ? err.message : String(err) });
     }
-  }, [title, year, type, season, episode, stallTimeoutMs, videoRef, runDisposers, dropTorrent, addDisposer]);
+  }, [title, year, type, season, episode, stallTimeoutMs, videoRef, runDisposers, dropTorrent, addDisposer, state.availableQualities]);
 
   // Session lifecycle : démarre quand `enabled`, tout est nettoyé au stop.
   useEffect(() => {
@@ -247,8 +263,8 @@ export function useTorrentPlayback(args: UseTorrentPlaybackArgs): UseTorrentPlay
     };
   }, [enabled, startSession, runDisposers, dropTorrent]);
 
-  const retry = useCallback(() => {
-    void startSession();
+  const retry = useCallback((forceSource?: TorrentSource) => {
+    void startSession(forceSource);
   }, [startSession]);
 
   const downloadToDisk = useCallback(
@@ -302,6 +318,7 @@ export function useTorrentPlayback(args: UseTorrentPlaybackArgs): UseTorrentPlay
     peers: state.peers,
     error: state.error,
     magnet: state.magnet,
+    availableQualities: state.availableQualities,
     fileName: state.fileName,
     retry,
     downloadToDisk,

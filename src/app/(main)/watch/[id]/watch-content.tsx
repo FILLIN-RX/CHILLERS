@@ -18,6 +18,8 @@ import SeriesDownloadModal from "@/features/downloads/SeriesDownloadModal";
 import DownloadModal from "@/features/downloads/DownloadModal";
 import MovieCard from "@/components/MovieCard";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { useAuthStore } from "@/stores/useAuthStore";
+import { userService } from "@/services/user";
 import { PopupFirewall } from "@/lib/PopupFirewall";
 import {
   IconArrowLeft,
@@ -38,6 +40,7 @@ function WatchContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { translate: _ } = useLanguage();
+  const { token, updateUser } = useAuthStore();
 
   const id = params?.id as string;
   const typeParam = searchParams?.get("type");
@@ -184,6 +187,23 @@ function WatchContent() {
       controller.abort();
     };
   }, [id, isTV, initialSeasonParam, initialEpisodeParam, _]);
+
+  // Record into Watch History when media is ready
+  useEffect(() => {
+    if (!token || !item) return;
+    userService.markAsWatched(token, {
+      tmdbId: String(item.id),
+      mediaType: isTV ? "series" : "movie",
+      season: currentEpisode?.season || (isTV ? currentSeason : undefined),
+      episode: currentEpisode?.number,
+      title: item.title,
+      posterPath: item.posterUrl,
+    }).then((res) => {
+      if (res?.success && res.watchHistory) {
+        updateUser({ watchHistory: res.watchHistory });
+      }
+    }).catch(console.error);
+  }, [token, item?.id, isTV, currentSeason, currentEpisode?.number, item?.title, item?.posterUrl, updateUser]);
 
   // Load Similar Content
   useEffect(() => {
@@ -519,6 +539,7 @@ function WatchContent() {
               <VideoPlayer
                 key={`${currentEpisode?.id ?? item.id}-${streamUrl}`}
                 item={playerItem!}
+                episode={currentEpisode}
                 onBack={() => router.back()}
                 onOpenDetails={(it) =>
                   router.push(

@@ -86,7 +86,7 @@ async function raceProviders(
   });
 
   const secondaryPromise = withTimeout(
-    getNexStreamUrl(args.id, args.type, args.season, args.episode)
+    getNexStreamUrl(args.id, args.type, args.season, args.episode, args.title)
       .then<StreamResolution | null>((url) => (url ? { embedUrl: url, provider: "secondary" as const } : null))
       .catch(() => null),
     SECONDARY_TIMEOUT_MS,

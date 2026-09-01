@@ -14,19 +14,16 @@
 
 import type WebTorrent from "webtorrent/dist/webtorrent.min.js";
 
-export interface TorrentMagnet {
+export interface TorrentSource {
+  quality: string;
   magnet: string;
   infoHash: string;
-  title: string;
   size: number;
-  seeders: number;
-  indexer: string;
-  torrentBase64?: string;
 }
 
 interface MagnetEnvelope {
   success: boolean;
-  data?: TorrentMagnet | null;
+  data?: TorrentSource[] | null;
   message?: string | null;
 }
 
@@ -58,7 +55,7 @@ export async function fetchTorrentMagnet(opts: {
   season?: number;
   episode?: number;
   signal?: AbortSignal;
-}): Promise<TorrentMagnet | null> {
+}): Promise<TorrentSource[] | null> {
   if (typeof window === "undefined") return null;
   const params = new URLSearchParams({ title: opts.title });
   if (opts.year && opts.year > 0) params.set("year", String(opts.year));

@@ -2,6 +2,7 @@
 
 import { useLanguage } from "@/i18n/LanguageContext";
 import { languages, type Language } from "@/i18n";
+import { IconWorld } from "@tabler/icons-react";
 import { useState, useRef, useEffect } from "react";
 
 export default function LanguageSwitcher() {
@@ -28,8 +29,9 @@ export default function LanguageSwitcher() {
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors uppercase tracking-wider"
+        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white/80 bg-white/10 hover:bg-white/20 border border-white/5 rounded-full transition-colors uppercase tracking-wider"
       >
+        <IconWorld className="w-4 h-4" />
         {lang}
         <svg
           className={`w-3 h-3 transition-transform ${open ? "rotate-180" : ""}`}

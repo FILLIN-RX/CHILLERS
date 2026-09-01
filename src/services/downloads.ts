@@ -131,3 +131,11 @@ export async function verifyDownloadStarted(
     controller.abort();
   }
 }
+
+/**
+ * Résout le lien de téléchargement 1080p haute vitesse pour les membres Premium
+ */
+export function getPremiumDownloadUrl(title: string, filename?: string): string {
+  const file = filename || `${title || 'film'}.mp4`;
+  return `${API_BASE_PATH}/download/premium?title=${encodeURIComponent(title)}&filename=${encodeURIComponent(file)}`;
+}

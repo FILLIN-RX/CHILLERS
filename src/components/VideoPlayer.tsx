@@ -17,6 +17,7 @@ import {
   IconPlayerSkipBack,
   IconPlayerSkipForward,
   IconLoader2,
+  IconSettings,
 } from "@tabler/icons-react";
 import NotificationModal from "./NotificationModal";
 import DownloadModal from "@/features/downloads/DownloadModal";
@@ -24,6 +25,9 @@ import { isIframeProviderUrl, toEmbedUrl } from "@/lib/providers";
 import { useDebouncedEffect } from "@/hooks/useDebouncedEffect";
 import { useStreamUrl } from "@/hooks/useStreamUrl";
 import { useTorrentPlayback } from "@/hooks/useTorrentPlayback";
+import { parseTmdbId } from "@/services/tmdb";
+import { useAuthStore } from "@/stores/useAuthStore";
+import { userService } from "@/services/user";
 import { isSlowConnection } from "@/services/media";
 import Hls from "hls.js";
 
@@ -40,7 +44,8 @@ const SEEK_STEP_SECONDS = 10;
 const VOLUME_STEP = 0.1;
 
 export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps) {
-  const { lang } = useLanguage();
+  const { lang, translate: _ } = useLanguage();
+  const { token, user, updateUser } = useAuthStore();
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -121,8 +126,29 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
           updatedAt: Date.now(),
         }),
       );
+
+      // Sync with backend if logged in
+      if (token) {
+        userService.updateProgress(token, {
+          tmdbId: String(item.id),
+          mediaType: item.type as "movie" | "series" | "anime",
+          season: currentEpisode?.season,
+          episode: currentEpisode?.number,
+          progress: currentTime,
+          duration: duration,
+          title: item.title,
+          posterPath: item.posterUrl,
+          backdropPath: item.backdropUrl,
+        }).then((res) => {
+          if (res?.success) {
+            const updates: any = { continueWatching: res.continueWatching };
+            if (res.watchHistory) updates.watchHistory = res.watchHistory;
+            updateUser(updates);
+          }
+        }).catch(err => console.error("Failed to sync progress", err));
+      }
     },
-    [currentTime, duration, progressKey],
+    [currentTime, duration, progressKey, token, item.id, item.type, currentEpisode],
     PROGRESS_PERSIST_DEBOUNCE_MS,
   );
 
@@ -543,9 +569,6 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
               <button onClick={toggleFullscreen} className="p-1.5 text-white/70 hover:text-white rounded-lg hover:bg-white/10 transition-colors" title="Plein écran">
                 <IconMaximize className="h-4 w-4" />
               </button>
-              <button onClick={onBack} className="p-1.5 text-white/70 hover:text-white rounded-lg hover:bg-white/10 transition-colors" title="Fermer">
-                <IconX className="h-4 w-4" />
-              </button>
             </div>
           </div>
         </>
@@ -562,6 +585,24 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
             onLoadedMetadata={handleLoadedMetadata}
             onDurationChange={() => setDuration(videoRef.current?.duration ?? 0)}
             onPlay={() => setIsPlaying(true)}
+            onEnded={() => {
+              setIsPlaying(false);
+              if (token) {
+                userService.markAsWatched(token, {
+                  tmdbId: String(item.id),
+                  mediaType: item.type as "movie" | "series" | "anime",
+                  season: currentEpisode?.season,
+                  episode: currentEpisode?.number,
+                  title: item.title,
+                  posterPath: item.posterUrl,
+                }).then((res) => {
+                  if (res?.success && res.watchHistory) {
+                    updateUser({ watchHistory: res.watchHistory });
+                  }
+                }).catch(console.error);
+              }
+              if (onBack) onBack();
+            }}
             onPause={() => setIsPlaying(false)}
             onWaiting={() => setIsBuffering(true)}
             onCanPlay={() => setIsBuffering(false)}
@@ -606,17 +647,27 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
               controlsVisible ? "opacity-100" : "opacity-0"
             }`}
           >
-            {/* ── Top bar (hover) ── */}
-            <div className={`pointer-events-auto flex items-center justify-between px-4 py-3 bg-gradient-to-b from-black/75 to-transparent transition-opacity duration-300`}>
-              <div className="flex items-center gap-2.5">
-                <span className="text-xs font-black tracking-widest uppercase bg-gradient-to-r from-[#D70466] to-[#7C3AED] bg-clip-text text-transparent">
+            {/* ── Top bar (floating glass header) ── */}
+            <div className="pointer-events-auto flex items-center justify-between p-3 sm:p-4 bg-gradient-to-b from-black/80 via-black/30 to-transparent transition-all duration-300">
+              <div className="flex items-center gap-2 sm:gap-3 bg-black/40 backdrop-blur-xl border border-white/10 px-3 py-1.5 rounded-full shadow-lg">
+                <span className="text-xs sm:text-sm font-black tracking-widest uppercase bg-gradient-to-r from-[#D70466] to-[#7C3AED] bg-clip-text text-transparent">
                   Chillers
                 </span>
-                {currentEpisode && (
-                  <span className="text-[11px] text-white/70 font-medium truncate max-w-xs">
-                    S{String(currentEpisode.season ?? 1).padStart(2, "0")}E{String(currentEpisode.number).padStart(2, "0")} · {currentEpisode.title}
-                  </span>
-                )}
+                {currentEpisode ? (
+                  <>
+                    <span className="w-1 h-1 rounded-full bg-white/30" />
+                    <span className="text-[11px] sm:text-xs text-white/90 font-semibold truncate max-w-[160px] sm:max-w-xs">
+                      S{String(currentEpisode.season ?? 1).padStart(2, "0")}E{String(currentEpisode.number).padStart(2, "0")} · {currentEpisode.title}
+                    </span>
+                  </>
+                ) : item.title ? (
+                  <>
+                    <span className="w-1 h-1 rounded-full bg-white/30" />
+                    <span className="text-[11px] sm:text-xs text-white/90 font-semibold truncate max-w-[160px] sm:max-w-xs">
+                      {item.title}
+                    </span>
+                  </>
+                ) : null}
                 {isLowBandwidth && (
                   <span className="hidden sm:flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-amber-400 bg-amber-400/10 border border-amber-400/20 rounded-full px-2 py-0.5" title="Mode réseau faible actif - Qualité optimisée">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
@@ -624,235 +675,342 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
                   </span>
                 )}
               </div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-2">
                 {/* ── Tuile de statut P2P ── */}
                 {canP2P && hasStarted && ["fetching", "scanning", "connecting"].includes(p2p.status) && (
-                  <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[#22d3ee] bg-[#22d3ee]/10 border border-[#22d3ee]/20 rounded-full px-2 py-1">
+                  <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[#22d3ee] bg-black/40 backdrop-blur-xl border border-[#22d3ee]/30 rounded-full px-2.5 py-1.5 shadow-lg">
                     <IconLoader2 className="h-3 w-3 animate-spin" />
                     P2P…
                   </span>
                 )}
                 {canP2P && p2pActive && (
-                  <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-400/10 border border-emerald-400/25 rounded-full px-2 py-1">
+                  <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-400 bg-black/40 backdrop-blur-xl border border-emerald-400/30 rounded-full px-2.5 py-1.5 shadow-lg">
                     P2P · {p2p.peers} pair{p2p.peers > 1 ? "s" : ""} · {formatSpeed(p2p.downloadSpeed)}
                   </span>
                 )}
-                <button type="button"
-                  onClick={() => {
-                    // 1) P2P actif → téléchargement 100 % client-side (0
-                    //    octet via le serveur). 2) Sinon proxy serveur torrent.
-                    //    3) Sinon modal DoodStream classique.
-                    if (p2pHasTorrent && !p2pActive) {
-                      // Le torrent est en cours de chargement : on attend la
-                      // disponibilité du fichier avant d'ouvrir le flux.
-                      void p2p.downloadToDisk().catch(() => setShowSingleDownload(true));
-                      return;
-                    }
-                    if (p2pActive) {
-                      void p2p.downloadToDisk().catch(() => setShowSingleDownload(true));
-                      return;
-                    }
-                    if (torrentDownloadUrl) {
-                      window.location.href = torrentDownloadUrl;
-                      return;
-                    }
-                    setShowSingleDownload(true);
-                  }}
-                  className="p-1.5 text-white/60 hover:text-white rounded-lg hover:bg-white/10 transition-colors" title="Télécharger">
-                  <IconDownload className="h-4 w-4" />
-                </button>
-                <button type="button" onClick={onBack}
-                  className="p-1.5 text-white/60 hover:text-white rounded-lg hover:bg-white/10 transition-colors" title="Fermer">
-                  <IconX className="h-4 w-4" />
-                </button>
               </div>
             </div>
 
             {/* ── Center click zone ── */}
             <div className="flex-1 pointer-events-auto cursor-pointer" onClick={togglePlay} />
 
-            {/* ── Bottom control bar ── */}
-            <div className="pointer-events-auto bg-[#111111] px-3 sm:px-4 pt-2 pb-3 space-y-2">
-              {/* ── Progress bar with real-time buffered segment indicator ── */}
-              <div
-                className="group/prog w-full h-5 flex items-center cursor-pointer"
-                onClick={(e) => {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-                  seekTo(pct * duration);
-                }}
-              >
-                <div className="relative w-full h-[3px] group-hover/prog:h-1 rounded-full bg-white/20 transition-all duration-150">
-                  {/* Buffered track */}
-                  <div
-                    className="absolute inset-y-0 left-0 bg-white/30 rounded-full transition-all duration-300 pointer-events-none"
-                    style={{ width: `${bufferedPct}%` }}
-                  />
-                  {/* Played track */}
-                  <div
-                    className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#D70466] to-[#7C3AED] rounded-full"
-                    style={{ width: duration > 0 ? `${(currentTime / duration) * 100}%` : "0%" }}
-                  >
-                    <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-3 h-3 bg-white rounded-full shadow opacity-0 group-hover/prog:opacity-100 scale-0 group-hover/prog:scale-100 transition-all duration-150" />
-                  </div>
-                </div>
-              </div>
-
-              {/* ── Buttons row ── */}
-              <div className="flex items-center gap-1">
-                {/* Left cluster: seek-back | volume | elapsed */}
-                <button type="button" onClick={() => seekBy(-10)}
-                  className="p-1.5 text-white/75 hover:text-white rounded-md hover:bg-white/10 transition-colors" title="← 10s">
-                  <IconPlayerSkipBack className="h-[18px] w-[18px]" />
-                </button>
-
-                {/* Volume */}
-                <div className="flex items-center group/vol">
-                  <button type="button" onClick={toggleMute}
-                    className="p-1.5 text-white/75 hover:text-white rounded-md hover:bg-white/10 transition-colors" title="Mute (M)">
-                    {isMuted || volume === 0
-                      ? <IconVolumeOff className="h-[18px] w-[18px]" />
-                      : <IconVolume className="h-[18px] w-[18px]" />
-                    }
-                  </button>
-                  <div className="overflow-hidden transition-all duration-200 w-0 group-hover/vol:w-[72px]">
-                    <input
-                      type="range" min={0} max={1} step={0.05} value={isMuted ? 0 : volume}
-                      onChange={(e) => changeVolume(Number(e.target.value))}
-                      className="w-[72px] h-[3px] accent-white cursor-pointer appearance-none rounded-full bg-white/25"
+            {/* ── Bottom floating glassmorphic control bar ── */}
+            <div className="pointer-events-auto bg-gradient-to-t from-black/90 via-black/40 to-transparent pt-8 sm:pt-12 pb-3 sm:pb-5 px-3 sm:px-6">
+              <div className="rounded-2xl bg-zinc-950/65 backdrop-blur-2xl border border-white/15 shadow-[0_12px_40px_rgba(0,0,0,0.8)] p-3 sm:p-4 space-y-2.5">
+                {/* ── Progress bar with real-time buffered segment indicator ── */}
+                <div
+                  className="group/prog w-full h-4 flex items-center cursor-pointer select-none"
+                  onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+                    seekTo(pct * duration);
+                  }}
+                >
+                  <div className="relative w-full h-1.5 group-hover/prog:h-2.5 rounded-full bg-white/15 backdrop-blur-md transition-all duration-200 overflow-hidden group-hover/prog:overflow-visible">
+                    {/* Buffered track */}
+                    <div
+                      className="absolute inset-y-0 left-0 bg-white/30 rounded-full transition-all duration-300 pointer-events-none"
+                      style={{ width: `${bufferedPct}%` }}
                     />
+                    {/* Played track */}
+                    <div
+                      className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#D70466] to-[#7C3AED] rounded-full shadow-[0_0_12px_rgba(215,4,102,0.6)]"
+                      style={{ width: duration > 0 ? `${(currentTime / duration) * 100}%` : "0%" }}
+                    >
+                      <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-3.5 h-3.5 bg-white rounded-full shadow-[0_0_10px_rgba(255,255,255,0.8)] ring-2 ring-[#D70466] opacity-0 group-hover/prog:opacity-100 scale-0 group-hover/prog:scale-100 transition-all duration-150" />
+                    </div>
                   </div>
                 </div>
 
-                {/* Elapsed time */}
-                <span className="text-[11px] text-white/75 tabular-nums font-medium ml-1">{formatTime(currentTime)}</span>
+                {/* ── Buttons row ── */}
+                <div className="flex items-center justify-between gap-2">
+                  {/* Left cluster: Play/Pause | seek-back | volume | time badge */}
+                  <div className="flex items-center gap-1 sm:gap-2">
+                    {/* Centered / prominent Play/Pause Button */}
+                    <button
+                      type="button"
+                      onClick={togglePlay}
+                      className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-tr from-[#D70466] to-[#7C3AED] text-white flex items-center justify-center shadow-[0_0_16px_rgba(215,4,102,0.4)] hover:scale-105 active:scale-95 transition-all ring-1 ring-white/25 flex-shrink-0"
+                      title={isPlaying ? "Pause (K)" : "Lire (K)"}
+                    >
+                      {isPlaying ? (
+                        <IconPlayerPause className="h-4 w-4 sm:h-5 sm:w-5" fill="currentColor" />
+                      ) : (
+                        <IconPlayerPlay className="h-4 w-4 sm:h-5 sm:w-5 translate-x-0.5" fill="currentColor" />
+                      )}
+                    </button>
 
-                {/* ── Flex spacer + centered play button ── */}
-                <div className="flex-1 flex items-center justify-center">
-                  <button type="button" onClick={togglePlay}
-                    className="p-1.5 text-white rounded-md hover:bg-white/10 transition-all active:scale-90"
-                    title={isPlaying ? "Pause (K)" : "Lire (K)"}>
-                    {isPlaying
-                      ? <IconPlayerPause className="h-5 w-5" />
-                      : <IconPlayerPlay className="h-5 w-5" />
-                    }
-                  </button>
-                </div>
+                    <button
+                      type="button"
+                      onClick={() => seekBy(-10)}
+                      className="p-2 text-white/80 hover:text-white rounded-xl hover:bg-white/10 active:scale-95 transition-all"
+                      title="Reculer 10s (←)"
+                    >
+                      <IconPlayerSkipBack className="h-[18px] w-[18px]" />
+                    </button>
 
-                {/* Remaining time */}
-                <span className="text-[11px] text-white/50 tabular-nums font-medium mr-1">{formatTime(duration)}</span>
+                    <button
+                      type="button"
+                      onClick={() => seekBy(10)}
+                      className="p-2 text-white/80 hover:text-white rounded-xl hover:bg-white/10 active:scale-95 transition-all"
+                      title="Avancer 10s (→)"
+                    >
+                      <IconPlayerSkipForward className="h-[18px] w-[18px]" />
+                    </button>
 
-                {/* Right cluster: quality | speed | subtitles | pip | fullscreen */}
-                <div className="flex items-center gap-0.5">
-                  {/* Quality Menu (HLS adaptive / low bandwidth selector) */}
-                  {qualityLevels.length > 0 && (
+                    {/* Volume */}
+                    <div className="flex items-center group/vol">
+                      <button
+                        type="button"
+                        onClick={toggleMute}
+                        className="p-2 text-white/80 hover:text-white rounded-xl hover:bg-white/10 active:scale-95 transition-all"
+                        title="Mute (M)"
+                      >
+                        {isMuted || volume === 0 ? (
+                          <IconVolumeOff className="h-[18px] w-[18px] text-red-400" />
+                        ) : (
+                          <IconVolume className="h-[18px] w-[18px]" />
+                        )}
+                      </button>
+                      <div className="overflow-hidden transition-all duration-200 w-0 group-hover/vol:w-[72px] sm:group-hover/vol:w-[84px]">
+                        <input
+                          type="range"
+                          min={0}
+                          max={1}
+                          step={0.05}
+                          value={isMuted ? 0 : volume}
+                          onChange={(e) => changeVolume(Number(e.target.value))}
+                          className="w-[72px] sm:w-[84px] h-[4px] accent-[#D70466] cursor-pointer appearance-none rounded-full bg-white/20"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Elapsed & Duration time badge */}
+                    <div className="hidden sm:flex items-center gap-1 bg-white/5 border border-white/10 px-2.5 py-1 rounded-lg text-[11px] font-mono font-medium text-white/90 shadow-inner ml-1">
+                      <span className="text-white font-semibold">{formatTime(currentTime)}</span>
+                      <span className="text-white/40">/</span>
+                      <span className="text-white/60">{formatTime(duration)}</span>
+                    </div>
+                  </div>
+
+                  {/* Right cluster: quality | speed | subtitles | pip | fullscreen */}
+                  <div className="flex items-center gap-1 sm:gap-1.5">
+                    {/* Time in mobile */}
+                    <div className="flex sm:hidden items-center gap-1 text-[11px] font-mono text-white/80 mr-1">
+                      <span>{formatTime(currentTime)}</span>
+                      <span className="text-white/40">/</span>
+                      <span className="text-white/50">{formatTime(duration)}</span>
+                    </div>
+
+                    {/* Quality Menu */}
+                    {qualityLevels.length > 0 && (
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowQualityMenu(!showQualityMenu);
+                            setShowSpeedMenu(false);
+                            setShowSubMenu(false);
+                          }}
+                          className={`px-2 py-1 text-[11px] font-bold rounded-lg border transition-all ${
+                            currentQuality !== -1
+                              ? "text-white bg-[#D70466]/30 border-[#D70466]/50 shadow-[0_0_12px_rgba(215,4,102,0.3)]"
+                              : "text-white/80 bg-white/5 border-white/10 hover:bg-white/15 hover:text-white"
+                          }`}
+                          title="Qualité vidéo"
+                        >
+                          {currentQuality === -1
+                            ? isLowBandwidth
+                              ? "Éco"
+                              : "Auto"
+                            : qualityLevels.find((q) => q.index === currentQuality)?.label || "HD"}
+                        </button>
+                        {showQualityMenu && (
+                          <div className="absolute bottom-full right-0 mb-3 w-36 py-1.5 bg-zinc-900/85 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-[0_16px_48px_rgba(0,0,0,0.85)] flex flex-col z-50 animate-in fade-in zoom-in-95 duration-150">
+                            <div className="px-3 py-1 text-[10px] font-bold text-white/40 uppercase tracking-wider">Qualité</div>
+                            <button
+                              onClick={() => changeQuality(-1)}
+                              className={`px-3 py-1.5 text-xs text-left font-medium rounded-xl mx-1 transition-all ${
+                                currentQuality === -1
+                                  ? "text-white font-bold bg-gradient-to-r from-[#D70466]/30 to-[#7C3AED]/30 border border-[#D70466]/40"
+                                  : "text-white/70 hover:bg-white/10 hover:text-white"
+                              }`}
+                            >
+                              Auto {isLowBandwidth && "(Éco)"}
+                            </button>
+                            {qualityLevels.map((lvl) => (
+                              <button
+                                key={lvl.index}
+                                onClick={() => changeQuality(lvl.index)}
+                                className={`px-3 py-1.5 text-xs text-left font-medium rounded-xl mx-1 transition-all ${
+                                  currentQuality === lvl.index
+                                    ? "text-white font-bold bg-gradient-to-r from-[#D70466]/30 to-[#7C3AED]/30 border border-[#D70466]/40"
+                                    : "text-white/70 hover:bg-white/10 hover:text-white"
+                                }`}
+                              >
+                                {lvl.label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Torrent Quality Menu */}
+                    {canP2P && p2p.availableQualities && p2p.availableQualities.length > 1 && (
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowQualityMenu(!showQualityMenu);
+                            setShowSpeedMenu(false);
+                            setShowSubMenu(false);
+                          }}
+                          className="px-2 py-1 text-[11px] font-bold rounded-lg border text-white/80 bg-white/5 border-white/10 hover:bg-white/15 hover:text-white transition-all"
+                          title="Qualité Torrent"
+                        >
+                          {p2p.availableQualities.find((q) => q.infoHash === p2p.magnet?.infoHash)?.quality || "HD"}
+                        </button>
+                        {showQualityMenu && (
+                          <div className="absolute bottom-full right-0 mb-3 w-36 py-1.5 bg-zinc-900/85 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-[0_16px_48px_rgba(0,0,0,0.85)] flex flex-col z-50 animate-in fade-in zoom-in-95 duration-150">
+                            <div className="px-3 py-1 text-[10px] font-bold text-white/40 uppercase tracking-wider">Qualité Torrent</div>
+                            {p2p.availableQualities.map((qual, idx) => (
+                              <button
+                                key={idx}
+                                onClick={() => {
+                                  setShowQualityMenu(false);
+                                  if (p2p.magnet?.infoHash !== qual.infoHash) {
+                                    p2p.retry(qual);
+                                  }
+                                }}
+                                className={`px-3 py-1.5 text-xs text-left font-medium rounded-xl mx-1 transition-all ${
+                                  p2p.magnet?.infoHash === qual.infoHash
+                                    ? "text-white font-bold bg-gradient-to-r from-[#D70466]/30 to-[#7C3AED]/30 border border-[#D70466]/40"
+                                    : "text-white/70 hover:bg-white/10 hover:text-white"
+                                }`}
+                              >
+                                {qual.quality}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Speed Selector */}
                     <div className="relative">
                       <button
                         type="button"
-                        onClick={() => { setShowQualityMenu(!showQualityMenu); setShowSpeedMenu(false); setShowSubMenu(false); }}
-                        className={`px-1.5 py-1 text-[11px] font-bold rounded-md transition-colors ${
-                          currentQuality !== -1 ? "text-[#D70466] bg-[#D70466]/10" : "text-white/75 hover:text-white hover:bg-white/10"
+                        onClick={() => {
+                          setShowSpeedMenu(!showSpeedMenu);
+                          setShowSubMenu(false);
+                          setShowQualityMenu(false);
+                        }}
+                        className={`p-2 rounded-xl transition-all ${
+                          playbackRate !== 1
+                            ? "text-[#D70466] bg-[#D70466]/15 border border-[#D70466]/30"
+                            : "text-white/80 hover:text-white hover:bg-white/10"
                         }`}
-                        title="Qualité vidéo"
+                        title="Vitesse de lecture"
                       >
-                        {currentQuality === -1 ? (isLowBandwidth ? "Éco" : "Auto") : qualityLevels.find(q => q.index === currentQuality)?.label || "HD"}
+                        <IconSettings className="h-[18px] w-[18px]" />
                       </button>
-                      {showQualityMenu && (
-                        <div className="absolute bottom-full right-0 mb-2 w-32 py-1 bg-[#111] border border-white/10 rounded-xl shadow-2xl flex flex-col z-50">
-                          <button
-                            onClick={() => changeQuality(-1)}
-                            className={`px-3 py-1.5 text-xs text-left font-medium transition-colors ${
-                              currentQuality === -1 ? "text-white font-bold bg-white/10" : "text-white/60 hover:bg-white/10 hover:text-white"
-                            }`}
-                          >
-                            Auto {isLowBandwidth && "(Éco)"}
-                          </button>
-                          {qualityLevels.map((lvl) => (
+                      {showSpeedMenu && (
+                        <div className="absolute bottom-full right-0 mb-3 w-32 py-1.5 bg-zinc-900/85 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-[0_16px_48px_rgba(0,0,0,0.85)] flex flex-col z-50 animate-in fade-in zoom-in-95 duration-150">
+                          <div className="px-3 py-1 text-[10px] font-bold text-white/40 uppercase tracking-wider">Vitesse</div>
+                          {[0.5, 0.75, 1, 1.25, 1.5, 1.75, 2].map((rate) => (
                             <button
-                              key={lvl.index}
-                              onClick={() => changeQuality(lvl.index)}
-                              className={`px-3 py-1.5 text-xs text-left font-medium transition-colors ${
-                                currentQuality === lvl.index ? "text-white font-bold bg-white/10" : "text-white/60 hover:bg-white/10 hover:text-white"
+                              key={rate}
+                              onClick={() => changePlaybackRate(rate)}
+                              className={`px-3 py-1.5 text-xs text-left font-medium rounded-xl mx-1 transition-all ${
+                                playbackRate === rate
+                                  ? "text-white font-bold bg-gradient-to-r from-[#D70466]/30 to-[#7C3AED]/30 border border-[#D70466]/40"
+                                  : "text-white/70 hover:bg-white/10 hover:text-white"
                               }`}
                             >
-                              {lvl.label}
+                              {rate}x {rate === 1 && "(Normal)"}
                             </button>
                           ))}
                         </div>
                       )}
                     </div>
-                  )}
 
-                  {/* Speed */}
-                  <div className="relative">
-                    <button type="button"
-                      onClick={() => { setShowSpeedMenu(!showSpeedMenu); setShowSubMenu(false); setShowQualityMenu(false); }}
-                      className="p-1.5 text-white/75 hover:text-white rounded-md hover:bg-white/10 transition-colors"
-                      title="Vitesse">
-                      {/* Gear icon */}
-                      <svg className="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="12" r="3"/>
-                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-                      </svg>
-                    </button>
-                    {showSpeedMenu && (
-                      <div className="absolute bottom-full right-0 mb-2 w-24 py-1 bg-[#111] border border-white/10 rounded-xl shadow-2xl flex flex-col z-50">
-                        {[0.5, 0.75, 1, 1.25, 1.5, 1.75, 2].map((rate) => (
-                          <button key={rate} onClick={() => changePlaybackRate(rate)}
-                            className={`px-3 py-1.5 text-xs text-left font-medium transition-colors ${
-                              playbackRate === rate ? "text-white font-bold" : "text-white/60 hover:bg-white/10 hover:text-white"
-                            }`}>
-                            {rate}x
-                          </button>
-                        ))}
+                    {/* Subtitles */}
+                    {subtitles.length > 0 && (
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowSubMenu(!showSubMenu);
+                            setShowSpeedMenu(false);
+                            setShowQualityMenu(false);
+                          }}
+                          className={`p-2 rounded-xl transition-all ${
+                            activeSubId !== null
+                              ? "text-white bg-[#D70466]/30 border border-[#D70466]/40 shadow-[0_0_12px_rgba(215,4,102,0.3)]"
+                              : "text-white/80 hover:text-white hover:bg-white/10"
+                          }`}
+                          title="Sous-titres"
+                        >
+                          <IconSubtitles className="h-[18px] w-[18px]" />
+                        </button>
+                        {showSubMenu && (
+                          <div className="absolute bottom-full right-0 mb-3 w-44 py-1.5 bg-zinc-900/85 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-[0_16px_48px_rgba(0,0,0,0.85)] flex flex-col z-50 max-h-52 overflow-y-auto animate-in fade-in zoom-in-95 duration-150">
+                            <div className="px-3 py-1 text-[10px] font-bold text-white/40 uppercase tracking-wider">Sous-titres</div>
+                            <button
+                              onClick={() => {
+                                setActiveSubId(null);
+                                setShowSubMenu(false);
+                              }}
+                              className={`px-3 py-1.5 text-xs text-left font-medium rounded-xl mx-1 transition-all ${
+                                activeSubId === null
+                                  ? "text-white font-bold bg-gradient-to-r from-[#D70466]/30 to-[#7C3AED]/30 border border-[#D70466]/40"
+                                  : "text-white/70 hover:bg-white/10 hover:text-white"
+                              }`}
+                            >
+                              Désactivé
+                            </button>
+                            {subtitles.map((sub) => (
+                              <button
+                                key={sub.fileId}
+                                onClick={() => {
+                                  setActiveSubId(sub.fileId);
+                                  setShowSubMenu(false);
+                                }}
+                                className={`px-3 py-1.5 text-xs text-left font-medium rounded-xl mx-1 transition-all ${
+                                  activeSubId === sub.fileId
+                                    ? "text-white font-bold bg-gradient-to-r from-[#D70466]/30 to-[#7C3AED]/30 border border-[#D70466]/40"
+                                    : "text-white/70 hover:bg-white/10 hover:text-white"
+                                }`}
+                              >
+                                {sub.langName || sub.lang.toUpperCase()}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
+
+                    {/* PiP */}
+                    <button
+                      type="button"
+                      onClick={togglePiP}
+                      className="p-2 text-white/80 hover:text-white rounded-xl hover:bg-white/10 active:scale-95 transition-all"
+                      title="Image dans l'image"
+                    >
+                      <IconPictureInPicture className="h-[18px] w-[18px]" />
+                    </button>
+
+                    {/* Fullscreen */}
+                    <button
+                      type="button"
+                      onClick={toggleFullscreen}
+                      className="p-2 text-white/80 hover:text-white rounded-xl hover:bg-white/10 active:scale-95 transition-all"
+                      title="Plein écran (F)"
+                    >
+                      <IconMaximize className="h-[18px] w-[18px]" />
+                    </button>
                   </div>
-
-                  {/* Subtitles */}
-                  {subtitles.length > 0 && (
-                    <div className="relative">
-                      <button type="button"
-                        onClick={() => { setShowSubMenu(!showSubMenu); setShowSpeedMenu(false); setShowQualityMenu(false); }}
-                        className={`p-1.5 rounded-md transition-colors ${
-                          activeSubId !== null ? "text-white" : "text-white/75 hover:text-white hover:bg-white/10"
-                        }`} title="Sous-titres">
-                        <IconSubtitles className="h-[18px] w-[18px]" />
-                      </button>
-                      {showSubMenu && (
-                        <div className="absolute bottom-full right-0 mb-2 w-40 py-1 bg-[#111] border border-white/10 rounded-xl shadow-2xl flex flex-col z-50 max-h-48 overflow-y-auto">
-                          <button onClick={() => { setActiveSubId(null); setShowSubMenu(false); }}
-                            className={`px-3 py-1.5 text-xs text-left font-medium transition-colors ${
-                              activeSubId === null ? "text-white font-bold" : "text-white/60 hover:bg-white/10 hover:text-white"
-                            }`}>Désactivé</button>
-                          {subtitles.map((sub) => (
-                            <button key={sub.fileId} onClick={() => { setActiveSubId(sub.fileId); setShowSubMenu(false); }}
-                              className={`px-3 py-1.5 text-xs text-left font-medium transition-colors ${
-                                activeSubId === sub.fileId ? "text-white font-bold" : "text-white/60 hover:bg-white/10 hover:text-white"
-                              }`}>{sub.langName || sub.lang.toUpperCase()}</button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* PiP */}
-                  <button type="button" onClick={togglePiP}
-                    className="p-1.5 text-white/75 hover:text-white rounded-md hover:bg-white/10 transition-colors" title="Image dans l'image">
-                    <IconPictureInPicture className="h-[18px] w-[18px]" />
-                  </button>
-
-                  {/* Seek forward */}
-                  <button type="button" onClick={() => seekBy(10)}
-                    className="p-1.5 text-white/75 hover:text-white rounded-md hover:bg-white/10 transition-colors" title="→ 10s">
-                    <IconPlayerSkipForward className="h-[18px] w-[18px]" />
-                  </button>
-
-                  {/* Fullscreen */}
-                  <button type="button" onClick={toggleFullscreen}
-                    className="p-1.5 text-white/75 hover:text-white rounded-md hover:bg-white/10 transition-colors" title="Plein écran (F)">
-                    <IconMaximize className="h-[18px] w-[18px]" />
-                  </button>
                 </div>
               </div>
             </div>

@@ -4,8 +4,10 @@ import React, { useState, useRef, useCallback } from "react";
 import Image from "next/image";
 import gsap from "gsap";
 import type { MovieOrShow } from "@/types/media";
-import { IconPlayerPlay, IconStar, IconInfoCircle, IconMovie } from '@tabler/icons-react';
+import { IconPlayerPlay, IconStar, IconInfoCircle, IconMovie, IconBookmark, IconBookmarkFilled } from '@tabler/icons-react';
 import { useLanguage } from "@/i18n/LanguageContext";
+import { useAuthStore } from "@/stores/useAuthStore";
+import { userService } from "@/services/user";
 
 interface MovieCardProps {
   item: MovieOrShow;
@@ -21,8 +23,33 @@ function MovieCard({
   variant = "scroll",
 }: MovieCardProps) {
   const { translate: _ } = useLanguage();
+  const { user, token, updateUser } = useAuthStore();
   const [imgError, setImgError] = useState(false);
   const [backdropFailed, setBackdropFailed] = useState(false);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
+
+  const isFavorite = user?.favorites?.some((f) => f.tmdbId === String(item?.id) && f.mediaType === (item.type === 'series' ? 'series' : item.type === 'anime' ? 'anime' : 'movie'));
+
+  const toggleFavorite = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!token || !user || !item) return;
+    setFavoriteLoading(true);
+    try {
+      const res = await userService.toggleFavorite(token, {
+        mediaType: item.type === 'series' ? 'series' : item.type === 'anime' ? 'anime' : 'movie',
+        tmdbId: String(item.id),
+        title: item.title,
+        posterPath: item.posterUrl,
+      });
+      if (res.success) {
+        updateUser({ favorites: res.favorites });
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setFavoriteLoading(false);
+    }
+  };
 
   const cardRef = useRef<HTMLDivElement>(null);
   const posterRef = useRef<HTMLDivElement>(null);
@@ -235,11 +262,26 @@ function MovieCard({
           ) : null}
         </div>
 
-        {/* Top-right "NOUVEAU" or Type Badge (Prime Video style) */}
-        <div className="absolute top-3 right-3 z-10">
-          <span className="rounded-md glass-badge px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-zinc-200">
+        {/* Top-right "NOUVEAU" or Type Badge & Bookmark */}
+        <div className="absolute top-3 right-3 z-20 flex flex-col items-end gap-2">
+          <span className="rounded-md glass-badge px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-zinc-200 shadow-lg">
             {item.isTrending ? "NOUVEAU" : item.type === "series" ? "SÉRIE" : item.type === "anime" ? "ANIME" : "FILM"}
           </span>
+          {user && (
+            <button 
+              onClick={toggleFavorite}
+              disabled={favoriteLoading}
+              className={`rounded-full p-1.5 shadow-lg backdrop-blur-md transition-all ${
+                isFavorite ? 'bg-[#D70466]/90 text-white' : 'bg-black/40 text-white hover:bg-black/60 border border-white/20'
+              }`}
+            >
+              {isFavorite ? (
+                <IconBookmarkFilled className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              ) : (
+                <IconBookmark className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              )}
+            </button>
+          )}
         </div>
 
         {/* Top-left Rating Badge */}

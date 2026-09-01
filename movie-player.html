@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MovieBox Player</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #0a0a0a;
+            color: white;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        h1 {
+            margin-bottom: 20px;
+            color: #00d4aa;
+        }
+        
+        .player-container {
+            width: 100%;
+            max-width: 900px;
+            background: #1a1a1a;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+        
+        video {
+            width: 100%;
+            display: block;
+        }
+        
+        .info {
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .download-btn {
+            display: inline-block;
+            margin-top: 15px;
+            padding: 12px 30px;
+            background: #00d4aa;
+            color: black;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        
+        .download-btn:hover {
+            background: #00b894;
+        }
+        
+        .quality-info {
+            margin-top: 15px;
+            padding: 10px;
+            background: #2a2a2a;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        
+        .error-box {
+            margin-top: 20px;
+            padding: 20px;
+            background: #ff4757;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .instructions {
+            margin-top: 20px;
+            padding: 20px;
+            background: #2a2a2a;
+            border-radius: 8px;
+            max-width: 600px;
+        }
+        
+        .instructions h3 {
+            color: #00d4aa;
+            margin-bottom: 10px;
+        }
+        
+        .instructions ol {
+            text-align: left;
+            padding-left: 20px;
+        }
+        
+        .instructions li {
+            margin-bottom: 8px;
+        }
+        
+        code {
+            background: #3a3a3a;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎬 MovieBox Player</h1>
+    
+    <div class="player-container">
+        <video controls id="player">
+            <source src="https://bcdnxw.hakunaymatata.com/bt/8513dd243bde1dac0d27c123739028f9.mp4?sign=337dbcc79bfa150b7ae700e597138e3e&t=1788272286" type="video/mp4">
+            Votre navigateur ne supporte pas la vidéo.
+        </video>
+        
+        <div class="info">
+            <div class="quality-info">
+                <p>📌 Qualité : Basse résolution (MP4)</p>
+                <p>⚠️ Les liens haute résolution nécessitent un compte Premium</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="error-box" id="errorBox" style="display:none;">
+        <h3>❌ Erreur 429 - Trop de requêtes</h3>
+        <p>Le lien est temporairement bloqué. Attends quelques minutes ou récupère un nouveau lien.</p>
+    </div>
+    
+    <div class="instructions">
+        <h3>📝 Comment récupérer un nouveau lien</h3>
+        <ol>
+            <li>Ouvre <a href="https://netfilm.world" target="_blank" style="color:#00d4aa;">netfilm.world</a></li>
+            <li>Insère le film et lance la lecture</li>
+            <li>Appuie sur <code>F12</code> (Outils de développement)</li>
+            <li>Va dans l'onglet <code>Network</code> (Réseau)</li>
+            <li>Filtre par <code>mp4</code> ou <code>m3u8</code></li>
+            <li>Clic droit sur la requête → <code>Copy</code> → <code>Copy link address</code></li>
+            <li>Colle le nouveau lien dans le code HTML</li>
+        </ol>
+    </div>
+    
+    <script>
+        // Gestion de l'erreur vidéo
+        const player = document.getElementById('player');
+        const errorBox = document.getElementById('errorBox');
+        
+        player.addEventListener('error', function(e) {
+            console.error('Erreur vidéo:', e);
+            errorBox.style.display = 'block';
+        });
+        
+        // Vérifier si le lien fonctionne
+        fetch(player.querySelector('source').src, { method: 'HEAD' })
+            .then(response => {
+                if (!response.ok) {
+                    errorBox.style.display = 'block';
+                }
+            })
+            .catch(() => {
+                errorBox.style.display = 'block';
+            });
+    </script>
+</body>
+</html>

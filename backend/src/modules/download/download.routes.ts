@@ -62,4 +62,33 @@ router.get('/stream', (req: Request, res: Response) => {
   });
 });
 
+/**
+ * GET /api/download/premium
+ *
+ * Téléchargement direct 1080p Full HD pour les membres Premium
+ * Query: ?title=<nom_du_film>&filename=<nom_fichier>
+ */
+router.get('/premium', async (req: Request, res: Response) => {
+  try {
+    const title = req.query.title as string;
+    if (!title) {
+      res.status(400).json({ success: false, error: 'title query param required' });
+      return;
+    }
+
+    const { getFrenchStreamMovie } = await import('../frenchstream/frenchstream.service');
+    const movie = await getFrenchStreamMovie(title);
+
+    if (!movie?.streamUrl) {
+      res.status(404).json({ success: false, error: `Aucune version 1080p trouvée pour "${title}"` });
+      return;
+    }
+
+    // Redirige directement vers le fichier MP4 1080p haute vitesse
+    res.redirect(movie.streamUrl);
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 export default router;

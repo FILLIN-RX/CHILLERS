@@ -30,10 +30,13 @@ import type { Genre, MovieOrShow } from "@/types/media";
 import GenreFilterBar from "@/components/GenreFilterBar";
 import NotificationModal from "@/components/NotificationModal";
 import DownloadModal from "@/features/downloads/DownloadModal";
+import UpgradeModal from "@/components/UpgradeModal";
 import ScrollRow from "@/components/ScrollRow";
 import MovieCard from "@/components/MovieCard";
 import { useLanguage } from "@/i18n/LanguageContext";
-import { IconArrowLeft, IconPlayerPlay, IconStar, IconClock, IconCalendar, IconMovie, IconChevronLeft, IconChevronRight, IconDownload, IconShare, IconSparkles } from '@tabler/icons-react';
+import { IconArrowLeft, IconPlayerPlay, IconStar, IconClock, IconCalendar, IconMovie, IconChevronLeft, IconChevronRight, IconDownload, IconShare, IconSparkles, IconBookmark, IconBookmarkFilled } from '@tabler/icons-react';
+import { useAuthStore } from '@/stores/useAuthStore';
+import { userService } from '@/services/user';
 
 import CatalogSpotlightHero from "@/components/CatalogSpotlightHero";
 
@@ -45,7 +48,8 @@ function MediaDetailPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { translate: _ } = useLanguage();
+  const { translate: _, lang } = useLanguage();
+  const { user, token, updateUser } = useAuthStore();
 
   const id = params?.slug as string;
   const isTV = searchParams?.get("type") === "tv" || searchParams?.get("type") === "series";
@@ -62,6 +66,7 @@ function MediaDetailPage() {
   const shareMenuRef = useRef<HTMLDivElement>(null);
   const [sharePos, setSharePos] = useState<{ top: number; right: number } | null>(null);
   const [disponible, setDisponible] = useState<{ disponible: boolean; streaming: boolean; download: boolean } | null>(null);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -160,9 +165,36 @@ function MediaDetailPage() {
   };
 
   const [showSingleDownload, setShowSingleDownload] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   const handleDownload = () => {
+    if (!user || (user?.subscription?.features && !user.subscription.features.hasDownloads)) {
+      setShowUpgradeModal(true);
+      return;
+    }
     setShowSingleDownload(true);
+  };
+
+  const isFavorite = user?.favorites?.some((f) => f.tmdbId === String(item?.id) && f.mediaType === (isTV ? 'series' : 'movie'));
+
+  const toggleFavorite = async () => {
+    if (!token || !user || !item) return;
+    setFavoriteLoading(true);
+    try {
+      const res = await userService.toggleFavorite(token, {
+        mediaType: isTV ? 'series' : 'movie',
+        tmdbId: String(item.id),
+        title: item.title || item.name,
+        posterPath: item.poster_path,
+      });
+      if (res.success) {
+        updateUser({ favorites: res.favorites });
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setFavoriteLoading(false);
+    }
   };
 
   const jsonLd = !loading && item ? (() => {
@@ -350,6 +382,23 @@ function MediaDetailPage() {
                   <span className="sm:hidden">{isTV ? 'Série' : 'Film'}</span>
                   <span className="hidden sm:inline">{_("media.watch")}</span>
                 </button>
+
+                {user && (
+                  <button
+                    onClick={toggleFavorite}
+                    disabled={favoriteLoading || !item}
+                    className="flex-none flex items-center gap-1.5 px-3 sm:px-6 py-2 sm:py-3 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white font-bold text-xs sm:text-sm transition-all hover:scale-105"
+                  >
+                    {isFavorite ? (
+                      <IconBookmarkFilled className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-[#D70466]" />
+                    ) : (
+                      <IconBookmark className="h-3.5 w-3.5 sm:h-5 sm:w-5" />
+                    )}
+                    <span className="hidden sm:inline">
+                      {isFavorite ? (lang === 'fr' ? 'Dans ma liste' : 'In My List') : (lang === 'fr' ? 'Ma liste' : 'My List')}
+                    </span>
+                  </button>
+                )}
 
                 {isYouTube && (
                   <button
@@ -626,6 +675,14 @@ function MediaDetailPage() {
           title={item.title}
           id={id}
           type={isTV ? 'series' : 'movie'}
+        />
+      )}
+
+      {item && (
+        <UpgradeModal
+          isOpen={showUpgradeModal}
+          onClose={() => setShowUpgradeModal(false)}
+          featureName="Le téléchargement de films et séries"
         />
       )}
     </div>

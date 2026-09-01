@@ -60,6 +60,7 @@ export {
   verifyDownloadStarted,
   proxyDownloadHref,
   isHtmlPageDownload,
+  getPremiumDownloadUrl,
   // legacy alias kept for v1 modals
   resolveDownloadUrl as startDownload,
 } from "@/services/downloads";

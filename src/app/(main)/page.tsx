@@ -28,6 +28,9 @@ import {
   getUpcomingMovies,
   getRecommendedForYou,
 } from "../api";
+import { MediaRow } from "@/features/home/MediaRow";
+import UpgradeModal from "@/components/UpgradeModal";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 const HOME_GENRES = [
   { id: '16', title: 'Animation' },
@@ -104,7 +107,9 @@ function Home() {
 
   const [selectedMovie, setSelectedMovie] = useState<MovieOrShow | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
+  const { user } = useAuthStore();
   const [continueWatching, setContinueWatching] = useState<
     { item: MovieOrShow; progress: number; remaining: string; episodeName?: string; season?: number; episode?: number }[]
   >([]);
@@ -205,46 +210,73 @@ function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trendingAll, newReleases, mostWatched, trendingNow, seriesData, animeData, animeGenreRows, genreRows, homeSectionRows, africanMoviesData, africanSeriesData]);
 
-  // Continue-watching is read from localStorage. Declared BEFORE the useEffect
-  // that calls it so the effect's first run can't hit a TDZ (P0-#8).
+  // Continue-watching is read from backend if logged in, else localStorage.
   const loadContinueWatchingHistory = useCallback(() => {
     const history: { item: MovieOrShow; progress: number; remaining: string; episodeName?: string; season?: number; episode?: number; updatedAt: number }[] = [];
 
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith("chiller_progress_")) {
-        try {
-          const raw = localStorage.getItem(key);
-          if (raw) {
-            const parsed = JSON.parse(raw);
-            if (parsed.title) {
-              history.push({
-                item: {
-                  id: parsed.id,
-                  title: parsed.title,
-                  type: parsed.type || 'movie',
-                  posterUrl: parsed.posterUrl || '',
-                  backdropUrl: parsed.backdropUrl || '',
-                  description: '',
-                  synopsis: '',
-                  rating: 0,
-                  year: 0,
-                  duration: '',
-                  genres: [],
-                  cast: [],
-                  videoUrl: '',
-                },
-                progress: parsed.progress,
-                remaining: parsed.remaining,
-                episodeName: parsed.episodeName,
-                season: parsed.season,
-                episode: parsed.episode,
-                updatedAt: parsed.updatedAt || 0,
-              });
+    if (user && user.continueWatching) {
+      user.continueWatching.forEach((cw: any) => {
+        history.push({
+          item: {
+            id: cw.tmdbId,
+            title: cw.title,
+            type: cw.mediaType,
+            posterUrl: cw.posterPath || '',
+            backdropUrl: cw.backdropPath || '',
+            description: '',
+            synopsis: '',
+            rating: 0,
+            year: 0,
+            duration: '',
+            genres: [],
+            cast: [],
+            videoUrl: '',
+          },
+          progress: cw.progress ? Math.min((cw.progress / cw.duration) * 100, 100) : 0,
+          remaining: cw.duration && cw.progress ? `${Math.round((cw.duration - cw.progress) / 60)}m left` : '',
+          episodeName: cw.season && cw.episode ? `S${String(cw.season).padStart(2, "0")}E${String(cw.episode).padStart(2, "0")}` : undefined,
+          season: cw.season,
+          episode: cw.episode,
+          updatedAt: new Date(cw.updatedAt).getTime(),
+        });
+      });
+    } else {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith("chiller_progress_")) {
+          try {
+            const raw = localStorage.getItem(key);
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              if (parsed.title) {
+                history.push({
+                  item: {
+                    id: parsed.id,
+                    title: parsed.title,
+                    type: parsed.type || 'movie',
+                    posterUrl: parsed.posterUrl || '',
+                    backdropUrl: parsed.backdropUrl || '',
+                    description: '',
+                    synopsis: '',
+                    rating: 0,
+                    year: 0,
+                    duration: '',
+                    genres: [],
+                    cast: [],
+                    videoUrl: '',
+                  },
+                  progress: parsed.progress,
+                  remaining: parsed.remaining,
+                  episodeName: parsed.episodeName,
+                  season: parsed.season,
+                  episode: parsed.episode,
+                  updatedAt: parsed.updatedAt || 0,
+                });
+              }
             }
+          } catch (e) {
+            console.error("Failed to read progress history item", e);
           }
-        } catch (e) {
-          console.error("Failed to read progress history item", e);
         }
       }
     }
@@ -545,6 +577,14 @@ function Home() {
     router.push(url);
   };
 
+  const handleResume = (item: MovieOrShow, season?: number, episode?: number) => {
+    if (!user || (user?.subscription?.features && !user.subscription.features.hasContinueWatching)) {
+      setShowUpgradeModal(true);
+      return;
+    }
+    handleWatchNow(item, season, episode);
+  };
+
   const handleModalWatch = (item: MovieOrShow, episode?: Episode) => {
     handleWatchNow(item, episode?.season, episode?.number);
   };
@@ -583,7 +623,7 @@ function Home() {
                       progress={progress}
                       remainingTime={remaining}
                       episodeName={episodeName}
-                      onResume={() => handleWatchNow(item, season, episode)}
+                      onResume={() => handleResume(item, season, episode)}
                       onOpenDetails={handleOpenDetails}
                     />
                   ))}
@@ -936,6 +976,12 @@ function Home() {
 
           </div>
       </main>
+
+      <UpgradeModal 
+        isOpen={showUpgradeModal} 
+        onClose={() => setShowUpgradeModal(false)} 
+        featureName="La reprise de lecture"
+      />
 
       <MovieModal
         item={selectedMovie}

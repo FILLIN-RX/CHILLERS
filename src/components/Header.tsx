@@ -3,11 +3,14 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { IconSearch, IconHome, IconMovie, IconDeviceTv, IconSparkles, IconTower, IconHomeFilled, IconDeviceTvFilled, IconSparklesFilled } from '@tabler/icons-react';
+import { usePathname, useRouter } from "next/navigation";
+import { IconSearch, IconHome, IconHomeFilled, IconMovie, IconDeviceTv, IconDeviceTvFilled, IconSparkles, IconTower, IconSparklesFilled, IconUser, IconMenu2, IconX, IconSettings, IconHistory, IconBookmark, IconLogout } from "@tabler/icons-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { getActiveNavTab } from "@/lib/navActive";
+import { useAuthStore } from "@/stores/useAuthStore";
+import AuthModal from "@/components/AuthModal";
+import UserAvatar from "@/components/UserAvatar";
 
 interface HeaderProps {
   onSearchClick: () => void;
@@ -15,7 +18,8 @@ interface HeaderProps {
 
 export default function Header({ onSearchClick }: HeaderProps) {
   const pathname = usePathname();
-  const { translate: _ } = useLanguage();
+  const router = useRouter();
+  const { translate: _, lang } = useLanguage();
 
   const tabs = [
     { id: "home", label: _("nav.home"), href: "/", icon: IconHome, fillIcon: IconHomeFilled },
@@ -34,6 +38,9 @@ export default function Header({ onSearchClick }: HeaderProps) {
 
   const [isScrolled, setIsScrolled] = useState(false);
   const [hideMobile, setHideMobile] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
+  const { user, logout } = useAuthStore();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -109,25 +116,80 @@ export default function Header({ onSearchClick }: HeaderProps) {
 
         <div className="flex items-center gap-2 sm:gap-3">
           <button
-            onClick={() => window.dispatchEvent(new Event("open-donation"))}
-            aria-label="Faire un don"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-red-600/90 to-orange-500/90 hover:from-red-600 hover:to-orange-500 text-white text-xs font-bold shadow-md shadow-red-500/20 hover:scale-105 active:scale-95 transition-all"
-          >
-            <span>💖</span>
-            <span className="hidden sm:inline">Faire un don</span>
-          </button>
-
-          <button
             onClick={onSearchClick}
             aria-label={_("nav.search")}
-            className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full hover:bg-zinc-800 hover:text-white transition-colors focus:outline-none text-zinc-300"
+            className="hidden sm:flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full hover:bg-zinc-800 hover:text-white transition-colors focus:outline-none text-zinc-300"
           >
             <IconSearch className="h-5 w-5" />
           </button>
 
           <LanguageSwitcher />
+
+          {user ? (
+            <div className="relative group/user">
+              <button 
+                onClick={() => router.push('/profile')}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/5 text-white/90 transition-all focus:outline-none"
+              >
+                <UserAvatar user={user} size="xs" showBadge={false} />
+                <span className="text-xs font-semibold uppercase tracking-wider truncate max-w-[90px]">
+                  {user.username || user.email.split('@')[0]}
+                </span>
+              </button>
+              <div className="absolute right-0 top-full mt-2 w-64 bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl opacity-0 invisible group-hover/user:opacity-100 group-hover/user:visible transition-all flex flex-col p-2 z-50">
+                <div className="flex items-center gap-3 px-3 py-2.5 border-b border-white/10 mb-1">
+                  <UserAvatar user={user} size="sm" showBadge={true} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs sm:text-sm text-white font-bold truncate">{user.username || user.email}</p>
+                    <p className="text-[10px] sm:text-xs text-zinc-400 truncate">{user.email}</p>
+                  </div>
+                </div>
+                
+                <Link href="/profile" className="flex items-center gap-2 px-3 py-2 text-xs sm:text-sm text-zinc-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors font-medium">
+                  <IconUser className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  {lang === 'fr' ? 'Mon Profil' : 'My Profile'}
+                </Link>
+                
+                <Link href="/profile?tab=watchlist" className="flex items-center gap-2 px-3 py-2 text-xs sm:text-sm text-zinc-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors font-medium">
+                  <IconBookmark className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  {lang === 'fr' ? 'Ma Liste' : 'Watchlist'}
+                </Link>
+
+                <Link href="/profile?tab=history" className="flex items-center gap-2 px-3 py-2 text-xs sm:text-sm text-zinc-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors font-medium">
+                  <IconHistory className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  {lang === 'fr' ? 'Historique' : 'History'}
+                </Link>
+
+                <Link href="/profile?tab=settings" className="flex items-center gap-2 px-3 py-2 text-xs sm:text-sm text-zinc-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors font-medium">
+                  <IconSettings className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  {lang === 'fr' ? 'Paramètres' : 'Settings'}
+                </Link>
+
+                <div className="border-t border-white/10 my-1"></div>
+
+                <button onClick={logout} className="flex items-center gap-2 px-3 py-2 text-xs sm:text-sm text-left text-red-400 hover:bg-white/10 rounded-lg transition-colors font-medium">
+                  <IconLogout className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  {lang === 'fr' ? 'Se déconnecter' : 'Log out'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="relative group/user">
+              <button 
+                onClick={() => setIsAuthModalOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/5 text-white/80 transition-colors focus:outline-none"
+              >
+                <IconUser className="w-4 h-4" />
+                <span className="text-xs font-semibold uppercase tracking-wider">
+                  {lang === 'fr' ? 'Connexion' : 'Log in'}
+                </span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
+
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
     </header>
   );
 }

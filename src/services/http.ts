@@ -5,6 +5,8 @@
 //
 // All service modules in src/services/*.ts should funnel their HTTP through here.
 
+import { getAntiBotHeaders } from "@/lib/antibot";
+
 export const API_BASE_PATH = "/api";
 const SERVER_TIMEOUT_MS = 12_000;
 
@@ -54,6 +56,18 @@ function buildUrl(path: string, query?: HttpJsonOptions["query"]): string {
   return base.includes("?") ? `${base}&${qs}` : `${base}?${qs}`;
 }
 
+function getStoredAuthToken(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem("chiller-auth-storage");
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed?.state?.token || null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Typed JSON over fetch. Throws HttpError on non-2xx, DOMException("AbortError") on abort.
  * Caches nothing — caching belongs to TanStack Query at the call site.
@@ -68,11 +82,19 @@ export async function httpJson<T>(path: string, options: HttpJsonOptions = {}): 
   const onExternalAbort = () => ctrl.abort(options.signal?.reason);
   options.signal?.addEventListener("abort", onExternalAbort, { once: true });
 
+  const storedToken = getStoredAuthToken();
+  const authHeader =
+    storedToken && !options.headers?.Authorization && !options.headers?.authorization
+      ? { Authorization: `Bearer ${storedToken}` }
+      : {};
+
   try {
     const res = await fetch(url, {
       method: options.method ?? "GET",
       headers: {
         Accept: "application/json",
+        ...getAntiBotHeaders(),
+        ...authHeader,
         ...(options.body !== undefined ? { "Content-Type": "application/json" } : {}),
         ...options.headers,
       },
