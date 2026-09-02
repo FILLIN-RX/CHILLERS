@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { API_BASE } from "@/lib/server-api";
+import { API_BASE, getServerApiHeaders } from "@/lib/server-api";
 import { SITE_URL, SITE_NAME, SITE_LOCALE } from "@/lib/seo";
 import LiveChannelContent from "./page-content";
 
@@ -13,6 +13,7 @@ export async function generateMetadata({
   let channel: { name: string; slug: string; logo?: string } | null = null;
   try {
     const res = await fetch(`${API_BASE}/live/channels/${encodeURIComponent(slug)}`, {
+      headers: getServerApiHeaders(),
       cache: "no-store",
     });
     const json = await res.json().catch(() => null);

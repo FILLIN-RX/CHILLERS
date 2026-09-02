@@ -2,6 +2,7 @@
 // routed through services/http.ts so timeouts/abort/errors are uniform.
 
 import { httpJson, API_BASE_PATH } from "./http";
+import { getAntiBotHeaders } from "@/lib/antibot";
 import type { LiveChannel, LiveChannelInput } from "@/types/live";
 
 function getAdminToken(): string | null {
@@ -15,7 +16,10 @@ function getAdminToken(): string | null {
 
 function authHeaders(): Record<string, string> {
   const token = getAdminToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  return {
+    ...getAntiBotHeaders(),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
 }
 
 export interface AdminEnvelope<T> {
@@ -267,7 +271,10 @@ export const adminCreateManualMedia = (payload: {
 export async function adminCreateManualMediaUpload(formData: FormData): Promise<AdminEnvelope<unknown>> {
   // Bypass JSON content-type; use FormData multipart with the admin token manually.
   const token = getAdminToken();
-  const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+  const headers: Record<string, string> = {
+    ...getAntiBotHeaders(),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 10 * 60_000);
   try {

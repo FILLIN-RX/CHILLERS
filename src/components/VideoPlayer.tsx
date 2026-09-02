@@ -33,6 +33,7 @@ import { useTorrentPlayback } from "@/hooks/useTorrentPlayback";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { userService } from "@/services/user";
 import { isSlowConnection } from "@/services/media";
+import { getAntiBotHeaders } from "@/lib/antibot";
 import Hls from "hls.js";
 
 interface VideoPlayerProps {
@@ -429,7 +430,9 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
         if (item.year > 0) params.set("year", String(item.year));
         if (currentEpisode?.season) params.set("season", String(currentEpisode.season));
         if (currentEpisode?.number) params.set("episode", String(currentEpisode.number));
-        const res = await fetch(`/api/subtitles/find?${params.toString()}`);
+        const res = await fetch(`/api/subtitles/find?${params.toString()}`, {
+          headers: getAntiBotHeaders(),
+        });
         if (!res.ok || cancelled) return;
         const json = await res.json();
         const subs: Array<{ fileId: number; lang: string; langName?: string }> = json?.subtitles ?? [];

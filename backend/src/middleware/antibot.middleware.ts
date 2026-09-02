@@ -2,13 +2,18 @@ import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 
 const ANTIBOT_SECRET = process.env.ANTIBOT_SECRET || 'chillers_antibot_secret_key_2025';
-const MAX_TIME_DRIFT_SECONDS = 120; // 2 minutes de marge pour les dérives d'horloge
+const MAX_TIME_DRIFT_SECONDS = 300; // 5 minutes de marge pour les dérives d'horloge sur appareils mobiles / PWA
 
 /**
  * Middleware de protection anti-scraping / anti-bot.
  * Vérifie l'en-tête dynamique "X-Client-Token" généré par le client officiel CHILLERS.
  */
 export const antiBotMiddleware = (req: Request, res: Response, next: NextFunction): void => {
+  // Toujours autoriser les requêtes préliminaires CORS
+  if (req.method === 'OPTIONS') {
+    return next();
+  }
+
   // Optionnel : bypass si désactivé en dev
   if (process.env.DISABLE_ANTIBOT === 'true') {
     return next();
@@ -20,18 +25,23 @@ export const antiBotMiddleware = (req: Request, res: Response, next: NextFunctio
     return next();
   }
 
-  // Les routes de streaming vidéo direct et de téléchargement de fichier initiées par le navigateur
-  // (ex: <a href="..." download>, window.open, streaming direct balise <video> sur iPhone/Safari)
+  // Les routes de streaming vidéo direct, de téléchargement, de sous-titres, de flux live
+  // et de fichiers multimédias initiées par le navigateur / PWA
+  // (ex: balises <video>, <track>, <audio>, <a> download, window.open, streaming HLS)
   // ne peuvent pas envoyer d'en-têtes HTTP personnalisés.
   const path = req.path || req.originalUrl || '';
   if (
-    path.includes('/download/file') ||
-    path.includes('/download/stream') ||
-    path.includes('/download/proxy') ||
+    path.includes('/download') ||
     path.includes('/stream') ||
-    path.includes('/doodstream/file') ||
+    path.includes('/doodstream') ||
+    path.includes('/nexstream') ||
+    path.includes('/subtitles') ||
+    path.includes('/torrents') ||
+    path.includes('/live') ||
     path.includes('/uploads') ||
-    path.includes('/nexstream')
+    path.includes('/affiches') ||
+    path.includes('/clear-cache') ||
+    path.includes('/og')
   ) {
     return next();
   }

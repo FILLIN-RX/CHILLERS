@@ -13,6 +13,7 @@
 // it lazily on first browser use (same pattern as streamSaver.ts).
 
 import type WebTorrent from "webtorrent/dist/webtorrent.min.js";
+import { getAntiBotHeaders } from "@/lib/antibot";
 
 export interface TorrentSource {
   quality: string;
@@ -71,6 +72,7 @@ export async function fetchTorrentMagnet(opts: {
 
   try {
     const res = await fetch(`/api/torrents/magnet?${params.toString()}`, {
+      headers: getAntiBotHeaders(),
       signal: opts.signal,
     });
     if (!res.ok) return null;

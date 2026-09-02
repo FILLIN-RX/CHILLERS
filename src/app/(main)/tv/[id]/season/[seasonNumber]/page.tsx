@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import { Suspense } from "react";
-import { API_BASE } from "@/lib/server-api";
+import { API_BASE, getServerApiHeaders } from "@/lib/server-api";
 import { buildMediaMetadata, buildMediaJsonLd } from "@/lib/seo";
 import SeasonContent from "./season-content";
 
@@ -28,10 +28,11 @@ async function fetchSeasonData(id: string) {
 
   if (!d) {
     const res = await fetch(`${API_BASE}/tv/${id}?language=fr`, {
+      headers: getServerApiHeaders(),
       signal: AbortSignal.timeout(8000),
     });
-    const json = await res.json();
-    if (json.success && json.data) {
+    const json = await res.json().catch(() => null);
+    if (json && json.success && json.data) {
       d = json.data;
     }
   }

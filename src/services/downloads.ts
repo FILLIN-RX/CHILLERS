@@ -5,6 +5,7 @@
 // logic lives in services/streamSaver.ts and is wired up in Phase 3.
 
 import { httpJson, API_BASE_PATH, HttpError } from "./http";
+import { getAntiBotHeaders } from "@/lib/antibot";
 import type { DownloadResolutionResult } from "@/types/download";
 
 interface ApiEnvelope<T> {
@@ -125,7 +126,10 @@ export async function verifyDownloadStarted(
   const timer = setTimeout(() => controller.abort(), 30_000);
   try {
     const res = await fetch(href, {
-      headers: { Range: "bytes=0-0" },
+      headers: {
+        ...getAntiBotHeaders(),
+        Range: "bytes=0-0",
+      },
       signal: controller.signal,
     });
     if (!res.ok) return false;

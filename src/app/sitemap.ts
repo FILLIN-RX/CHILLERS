@@ -1,5 +1,5 @@
 import { MetadataRoute } from "next";
-import { API_BASE } from "@/lib/server-api";
+import { API_BASE, getServerApiHeaders } from "@/lib/server-api";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://chillers.vercel.app";
 
@@ -20,9 +20,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const fetchPage = async (url: string): Promise<any[]> => {
     try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+      const res = await fetch(url, {
+        headers: getServerApiHeaders(),
+        signal: AbortSignal.timeout(5000),
+      });
       const json = await res.json();
-      if (json.success && json.data?.results) return json.data.results;
+      if (json && json.success && json.data?.results) return json.data.results;
     } catch {}
     return [];
   };

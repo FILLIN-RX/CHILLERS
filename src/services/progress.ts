@@ -70,13 +70,16 @@ export function listRecentProgress(limit = 12): ProgressEntry[] {
   return out.sort((a, b) => b.updatedAt - a.updatedAt).slice(0, limit);
 }
 
-/* ─── optional backend sync (Phase 5 endpoint) ───────────────────────────── */
+import { getAntiBotHeaders } from "@/lib/antibot";
 
 export async function pushProgressToBackend(entry: ProgressEntry): Promise<void> {
   try {
     await fetch(`${API_BASE_PATH}/progress`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...getAntiBotHeaders(),
+      },
       body: JSON.stringify(entry),
       // keepalive ensures the request outlives a page navigation
       keepalive: true,

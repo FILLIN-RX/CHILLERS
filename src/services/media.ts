@@ -7,6 +7,7 @@
 //   Most callers should use react-query so they don't have to handle throws explicitly.
 
 import { httpJson, HttpError, API_BASE_PATH } from "./http";
+import { getAntiBotHeaders } from "@/lib/antibot";
 import type { MovieOrShow, Genre, MediaType, CastMember, Network } from "@/types/media";
 
 /* ─── in-memory client cache (5 min TTL) ─────────────────────────────────── */
@@ -1014,7 +1015,10 @@ export async function getDisponible(
 
 export async function clearTmdbCache(): Promise<void> {
   try {
-    await fetch(`${API_BASE_PATH}/clear-cache`, { method: "POST" });
+    await fetch(`${API_BASE_PATH}/clear-cache`, {
+      method: "POST",
+      headers: getAntiBotHeaders(),
+    });
   } catch {
     /* silent */
   }
