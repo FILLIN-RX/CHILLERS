@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { getTrendingMovies, getTrendingTV, getPopularMovies, getPopularTV, getAnimeSeries } from "@/services/media";
+import { useSplashStore } from "@/stores/useSplashStore";
 import type { MovieOrShow } from "@/types/media";
 
 export interface HomeData {
@@ -16,8 +18,11 @@ export interface HomeData {
  * useHomeData — fan-out query for the homepage rows. Runs all five fetches
  * in parallel via useQueries and returns an aggregate result. Each entry
  * is independently cached, so the next visit only refetches stale ones.
+ * Also signals the SplashStore when the first batch of data is ready.
  */
 export function useHomeData() {
+  const setReady = useSplashStore((s) => s.setReady);
+
   const results = useQueries({
     queries: [
       { queryKey: ["home", "trending-movies"] as const, queryFn: ({ signal }) => getTrendingMovies(signal), staleTime: 60_000 },
@@ -27,6 +32,16 @@ export function useHomeData() {
       { queryKey: ["home", "anime"] as const, queryFn: ({ signal }) => getAnimeSeries(1, signal), staleTime: 60_000 },
     ],
   });
+
+  // Dès que la première query renvoie des données, on peut cacher le splash
+  const hasAnyData = results.some((r) => r.data !== undefined);
+  const isAllSettled = results.every((r) => !r.isLoading);
+
+  useEffect(() => {
+    if (hasAnyData || isAllSettled) {
+      setReady(true);
+    }
+  }, [hasAnyData, isAllSettled, setReady]);
 
   return {
     data: {

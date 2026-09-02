@@ -8,6 +8,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import BottomNav from "@/components/BottomNav";
 import NetworkStatusBanner from "@/components/NetworkStatusBanner";
+import { useSplashReady } from "@/hooks/useSplashReady";
 
 const DownloadFloatingBar = dynamic(
   () => import("@/features/downloads/DownloadFloatingBar"),
@@ -50,6 +51,10 @@ export default function AppShell({ children, showBottomNav }: AppShellProps) {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isDonationOpen, setIsDonationOpen] = useState(false);
   const pathname = usePathname();
+
+  // Fallback : garantit que le splash disparaît sur les pages sans fetch home
+  // (1500 ms = temps raisonnable pour que la page soit rendue)
+  useSplashReady(1500);
 
   const shouldShowBottomNav =
     typeof showBottomNav === "boolean"

@@ -136,7 +136,61 @@ export default async function RootLayout({
       lang={initialLang}
       className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
     >
+      <head>
+        {/*
+          Splash natif : injecté AVANT React pour s'afficher immédiatement au lancement de la PWA.
+          Le composant React SplashScreen.tsx gère ensuite la disparition animée.
+        */}
+        <style dangerouslySetInnerHTML={{ __html: `
+          #__chillers_splash {
+            position:fixed;inset:0;z-index:99999;
+            display:flex;flex-direction:column;
+            align-items:center;justify-content:center;
+            background:#09090b;
+            pointer-events:none;
+          }
+          #__chillers_splash img {
+            width:96px;height:96px;
+            filter:drop-shadow(0 0 28px rgba(215,4,102,0.6));
+            animation:__csp 2s ease-in-out infinite;
+          }
+          #__chillers_splash h1 {
+            margin:20px 0 32px;
+            font-size:28px;font-weight:900;
+            letter-spacing:.18em;text-transform:uppercase;
+            background:linear-gradient(135deg,#d70466,#7c3aed);
+            -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+            background-clip:text;
+          }
+          #__chillers_splash .bar-track {
+            width:120px;height:3px;
+            background:rgba(255,255,255,.1);
+            border-radius:99px;overflow:hidden;
+          }
+          #__chillers_splash .bar-fill {
+            height:100%;
+            background:linear-gradient(90deg,#d70466,#7c3aed);
+            border-radius:99px;
+            animation:__clb 1.8s ease-in-out infinite;
+          }
+          @keyframes __csp {
+            0%,100%{transform:scale(1);filter:drop-shadow(0 0 28px rgba(215,4,102,.55));}
+            50%{transform:scale(1.07);filter:drop-shadow(0 0 44px rgba(215,4,102,.9));}
+          }
+          @keyframes __clb {
+            0%{width:0%;margin-left:0%}
+            50%{width:75%;margin-left:12%}
+            100%{width:0%;margin-left:100%}
+          }
+        `}} />
+      </head>
       <body suppressHydrationWarning className="min-h-screen flex flex-col bg-brand-dark text-foreground selection:bg-brand-primary selection:text-white">
+        {/* Splash pré-React — retiré par SplashScreen.tsx une fois les données chargées */}
+        <div id="__chillers_splash" aria-hidden="true">
+          <img src="/android-chrome-192x192.png" alt="" />
+          <h1>CHILLERS</h1>
+          <div className="bar-track"><div className="bar-fill" /></div>
+        </div>
         <LanguageProvider initialLang={initialLang}>
           <PWARegister />
           <SplashScreen />

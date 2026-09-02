@@ -1,67 +1,63 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Image from "next/image";
+import { useEffect, useRef, useState } from "react";
+import { useSplashStore } from "@/stores/useSplashStore";
 
 /**
- * Splash screen cinématique professionnel pour CHILLERS PWA & Mobile
- * S'affiche brièvement au lancement de l'application installée avec un fondu fluide
+ * SplashScreen natif CHILLERS — comportement identique à une app mobile native.
+ *
+ * Architecture double-couche :
+ *  1. Un div HTML statique (#__chillers_splash) est rendu par le serveur et s'affiche
+ *     AVANT que React se charge — zéro flash de contenu vide.
+ *  2. Ce composant React prend le relais : il attend que les données soient prêtes
+ *     (via useSplashStore), puis anime la disparition et retire les deux éléments du DOM.
  */
 export default function SplashScreen() {
-  const [visible, setVisible] = useState(false);
-  const [fading, setFading] = useState(false);
+  const ready = useSplashStore((s) => s.ready);
+  const [phase, setPhase] = useState<"visible" | "fading" | "gone">("visible");
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Masquer le splash pré-React SSR dès que React prend la main
   useEffect(() => {
-    // Vérifier si l'application est en mode standalone (PWA installée) ou sur mobile
-    const isStandalone =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      (window.navigator as any).standalone === true;
-
-    // Ne s'affiche qu'une seule fois par session
-    const hasShown = sessionStorage.getItem("chillers-splash-shown");
-
-    if (isStandalone && !hasShown) {
-      setVisible(true);
-      sessionStorage.setItem("chillers-splash-shown", "true");
-
-      const timerFade = setTimeout(() => setFading(true), 1200);
-      const timerHide = setTimeout(() => setVisible(false), 1700);
-
-      return () => {
-        clearTimeout(timerFade);
-        clearTimeout(timerHide);
-      };
+    const staticSplash = document.getElementById("__chillers_splash");
+    if (staticSplash) {
+      // Garder le div visible — on le cachera via notre propre fondu
+      staticSplash.style.transition = "opacity 0.5s ease";
     }
   }, []);
 
-  if (!visible) return null;
+  /* Sécurité : disparaît au bout de 7s même si les données ne chargent jamais */
+  useEffect(() => {
+    timerRef.current = setTimeout(() => {
+      triggerFade();
+    }, 7000);
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  return (
-    <div
-      className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#0a0a0a] transition-opacity duration-500 pointer-events-none ${
-        fading ? "opacity-0" : "opacity-100"
-      }`}
-    >
-      <div className="relative flex flex-col items-center animate-fade-in">
-        <div className="relative w-24 h-24 sm:w-28 sm:h-28 mb-4">
-          <Image
-            src="/android-chrome-192x192.png"
-            alt="CHILLERS"
-            fill
-            sizes="112px"
-            priority
-            className="object-contain drop-shadow-[0_0_25px_rgba(229,9,20,0.4)]"
-          />
-        </div>
-        <h1 className="text-2xl sm:text-3xl font-black tracking-widest text-white uppercase">
-          CHILL<span className="text-[#e50914]">ERS</span>
-        </h1>
-        <div className="mt-6 flex items-center gap-1.5">
-          <div className="w-1.5 h-1.5 rounded-full bg-[#e50914] animate-ping" />
-          <div className="w-1.5 h-1.5 rounded-full bg-white/40" />
-          <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
-        </div>
-      </div>
-    </div>
-  );
+  /* Disparaît dès que les données sont prêtes */
+  useEffect(() => {
+    if (!ready) return;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    triggerFade();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready]);
+
+  function triggerFade() {
+    // Animer le div statique pré-React
+    const staticSplash = document.getElementById("__chillers_splash");
+    if (staticSplash) {
+      staticSplash.style.opacity = "0";
+      setTimeout(() => staticSplash.remove(), 520);
+    }
+    setPhase("fading");
+    setTimeout(() => setPhase("gone"), 520);
+  }
+
+  if (phase === "gone") return null;
+
+  // Ce composant React est transparent : toute la UI du splash vient du div statique.
+  // On ne rend rien de visible ici, mais on garde le composant monté pour gérer
+  // la logique de disparition.
+  return null;
 }
