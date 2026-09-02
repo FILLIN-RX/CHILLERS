@@ -20,7 +20,23 @@ export const antiBotMiddleware = (req: Request, res: Response, next: NextFunctio
     return next();
   }
 
-  const clientToken = req.headers['x-client-token'] as string;
+  // Les routes de streaming vidéo direct et de téléchargement de fichier initiées par le navigateur
+  // (ex: <a href="..." download>, window.open, streaming direct balise <video> sur iPhone/Safari)
+  // ne peuvent pas envoyer d'en-têtes HTTP personnalisés.
+  const path = req.path || req.originalUrl || '';
+  if (
+    path.includes('/download/file') ||
+    path.includes('/download/stream') ||
+    path.includes('/download/proxy') ||
+    path.includes('/stream') ||
+    path.includes('/doodstream/file') ||
+    path.includes('/uploads') ||
+    path.includes('/nexstream')
+  ) {
+    return next();
+  }
+
+  const clientToken = (req.headers['x-client-token'] || req.query['x-client-token'] || req.query['client_token'] || req.query['token']) as string;
 
   if (!clientToken || typeof clientToken !== 'string') {
     res.status(403).json({

@@ -324,23 +324,21 @@ function MediaDetailPage() {
   return (
     <div className="flex-1 flex flex-col bg-[#09090B] text-white pb-20 sm:pb-0">
 
-      {jsonLd && (
+{jsonLd && (
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       )}
 
-
-
       {/* 1. HERO SECTION */}
-      <div className="relative w-full min-h-[60vh] sm:h-[70vh] lg:h-[78vh] max-h-[750px] overflow-hidden">
+      <div className="relative w-full min-h-[65vh] sm:min-h-[70vh] lg:h-[78vh] max-h-[750px] overflow-hidden flex flex-col justify-end">
         {item.backdropOriginalUrl || item.backdropUrl ? (
           <Image
             src={item.backdropOriginalUrl || item.backdropUrl}
             alt={item.title}
             fill
-            className="object-cover object-top filter brightness-[0.78]"
+            className="object-cover object-top filter brightness-[0.75]"
             sizes="100vw"
             priority
           />
@@ -354,30 +352,30 @@ function MediaDetailPage() {
         <div className="absolute top-0 left-0 right-0 h-28 bg-gradient-to-b from-black/80 to-transparent pointer-events-none" />
 
         {/* Contenu du Hero */}
-        <div className="absolute inset-0 flex items-end pb-8 sm:pb-12 px-4 sm:px-8 md:px-12 lg:px-16 z-20">
-          <div className="flex flex-col sm:flex-row gap-6 sm:gap-8 items-end sm:items-center w-full">
-            {/* Poster vertical non tronqué */}
-            <div className="hidden sm:block relative flex-none w-44 md:w-52 lg:w-56 aspect-[2/3] rounded-2xl overflow-hidden shadow-2xl border border-white/10 ring-1 ring-white/5 bg-zinc-900">
+        <div className="relative z-20 w-full px-4 sm:px-8 md:px-12 lg:px-16 pt-24 pb-8 sm:pb-12">
+          <div className="flex flex-col sm:flex-row gap-5 sm:gap-8 items-start sm:items-end w-full">
+            {/* Poster vertical avec taille adaptative mobile / desktop */}
+            <div className="relative flex-none w-28 sm:w-44 md:w-52 lg:w-56 aspect-[2/3] rounded-xl sm:rounded-2xl overflow-hidden shadow-2xl border border-white/10 ring-1 ring-white/5 bg-zinc-900 shrink-0">
               {item.posterUrl ? (
                 <Image
                   src={item.posterUrl}
                   alt={item.title}
                   fill
                   className="object-cover object-top"
-                  sizes="(max-width: 1024px) 210px, 240px"
+                  sizes="(max-width: 640px) 112px, (max-width: 1024px) 210px, 240px"
                   priority
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-zinc-600">
-                  <IconMovie className="w-12 h-12" />
+                  <IconMovie className="w-10 h-10 sm:w-12 sm:h-12" />
                 </div>
               )}
             </div>
 
             {/* Informations textuelles */}
-            <div className="flex-1 space-y-3 sm:space-y-4">
+            <div className="flex-1 space-y-3 sm:space-y-4 min-w-0">
               {/* Badges : Disponibilité, Audio, Âge, Genres */}
-              <div className="flex flex-wrap items-center gap-2 text-xs font-bold">
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-xs font-bold">
                 {disponible && (
                   <span
                     className={`px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider border ${
@@ -457,11 +455,11 @@ function MediaDetailPage() {
               </p>
 
               {/* Actions */}
-              <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 pt-2">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-2">
                 <button
                   onClick={handleWatch}
                   disabled={!item || loading}
-                  className={`flex items-center gap-2 px-6 sm:px-8 py-3 rounded-full font-bold text-xs sm:text-sm transition-all hover:scale-105 shadow-xl whitespace-nowrap ${
+                  className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-6 sm:px-8 py-3 rounded-full font-bold text-xs sm:text-sm transition-all hover:scale-105 shadow-xl whitespace-nowrap ${
                     !item || loading
                       ? "bg-zinc-800 border border-zinc-700 text-zinc-400 cursor-not-allowed"
                       : "bg-[#D70466] hover:bg-[#b5034f] text-white shadow-[#D70466]/30"
@@ -474,7 +472,7 @@ function MediaDetailPage() {
                 {item.trailerUrl && (
                   <button
                     onClick={() => setTrailerOpen(true)}
-                    className="flex items-center gap-2 px-4 sm:px-6 py-3 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-white font-bold text-xs sm:text-sm transition-all hover:scale-105"
+                    className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-white font-bold text-xs sm:text-sm transition-all hover:scale-105"
                   >
                     <IconMovie className="h-4 w-4" />
                     <span>Bande-annonce</span>
@@ -484,7 +482,7 @@ function MediaDetailPage() {
                 <button
                   onClick={handleDownload}
                   disabled={!item || loading}
-                  className="flex items-center gap-2 px-4 sm:px-5 py-3 rounded-full bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-700 text-white font-bold text-xs sm:text-sm transition-all hover:scale-105"
+                  className="flex items-center justify-center gap-2 px-4 sm:px-5 py-3 rounded-full bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-700 text-white font-bold text-xs sm:text-sm transition-all hover:scale-105"
                 >
                   <IconDownload className="h-4 w-4" />
                   <span className="hidden sm:inline">Télécharger</span>
@@ -551,50 +549,36 @@ function MediaDetailPage() {
                     {item.castDetails.length} acteurs
                   </span>
                 </div>
-                <div className="flex items-start gap-3 sm:gap-5 overflow-x-auto no-scrollbar scroll-smooth py-2 px-1">
+                <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
                   {item.castDetails.map((actor) => (
                     <div
                       key={actor.id}
-                      className="flex flex-col items-center text-center space-y-1.5 flex-shrink-0 w-20 sm:w-24 group cursor-pointer"
+                      className="flex-none w-24 sm:w-28 flex flex-col items-center text-center group"
                     >
-                      <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-full overflow-hidden bg-zinc-800 ring-2 ring-white/5 group-hover:ring-[#D70466] group-hover:scale-105 transition-all duration-300">
+                      <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden bg-zinc-800 border border-white/10 group-hover:border-[#7C3AED]/50 transition-all shadow-lg mb-2 relative">
                         {actor.profileUrl ? (
                           <Image
                             src={actor.profileUrl}
                             alt={actor.name}
                             fill
-                            className="object-cover object-top"
-                            sizes="64px"
+                            className="object-cover"
+                            sizes="96px"
                           />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center text-zinc-600 font-bold text-xs">
+                          <div className="w-full h-full flex items-center justify-center text-zinc-600 font-black text-sm sm:text-base">
                             {actor.name.charAt(0)}
                           </div>
                         )}
                       </div>
-                      <div className="w-full">
-                        <p className="text-[11px] sm:text-xs font-bold text-white truncate group-hover:text-[#D70466] transition-colors" title={actor.name}>
-                          {actor.name}
-                        </p>
-                        <p className="text-[10px] text-zinc-400 truncate" title={actor.character}>
+                      <p className="text-xs font-bold text-white line-clamp-1 group-hover:text-[#7C3AED] transition-colors">
+                        {actor.name}
+                      </p>
+                      {actor.character && (
+                        <p className="text-[10px] text-zinc-400 line-clamp-1">
                           {actor.character}
                         </p>
-                      </div>
+                      )}
                     </div>
-                  ))}
-                </div>
-              </section>
-            ) : item.cast && item.cast.length > 0 && item.cast[0] !== "Cast Info Unavailable" ? (
-              <section className="space-y-3">
-                <h2 className="text-lg font-bold text-white">Distribution</h2>
-                <div className="flex flex-wrap gap-2">
-                  {item.cast.map((actor) => (
-                    <span
-                      key={actor}
-                      className="px-3 py-1.5 rounded-full bg-zinc-900 border border-zinc-800 text-xs font-medium text-zinc-300"
-                    >
-                      {actor}
-                    </span>
                   ))}
                 </div>
               </section>
@@ -657,7 +641,7 @@ function MediaDetailPage() {
           </div>
         </div>
 
-        {/* 3. FILMS SIMILAIRES & RECOMMANDÉS (GRID 3 SUR MOBILE) */}
+        {/* 3. FILMS SIMILAIRES & RECOMMANDÉS */}
         {similar.length > 0 && (
           <section className="space-y-6 pt-6 border-t border-zinc-800/80 w-full">
             <div className="flex items-center justify-between">
@@ -667,7 +651,7 @@ function MediaDetailPage() {
               </h2>
               <span className="text-xs text-zinc-400 font-semibold">{similar.length} titres</span>
             </div>
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-4 sm:gap-5 lg:gap-6 w-full">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 lg:gap-6 w-full">
               {similar.map((sim) => (
                 <MovieCard
                   key={sim.id}
