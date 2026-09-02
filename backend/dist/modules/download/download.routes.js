@@ -120,9 +120,16 @@ router.get('/file', async (req, res) => {
             responseType: 'stream',
             validateStatus: status => status >= 200 && status < 400
         });
+        const isIos = /iPhone|iPad|iPod/i.test(req.headers['user-agent'] || '');
         res.status(response.status);
-        res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
-        res.setHeader('Content-Type', response.headers['content-type'] || 'video/mp4');
+        if (isIos) {
+            // Force Safari iOS to trigger native download dialog to Files app
+            res.setHeader('Content-Type', 'application/octet-stream');
+        }
+        else {
+            res.setHeader('Content-Type', response.headers['content-type'] || 'video/mp4');
+        }
+        res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"; filename*=UTF-8''${encodeURIComponent(filename)}`);
         for (const [key, val] of Object.entries(response.headers)) {
             if (['content-length', 'accept-ranges', 'content-range'].includes(key.toLowerCase())) {
                 res.setHeader(key, val);

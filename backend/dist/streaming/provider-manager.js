@@ -239,8 +239,59 @@ class ProviderManager {
             url.includes('embed'));
     }
     async validateUrl(url) {
-        // Skip validation for internal proxy and iframe embeds
-        if (url.startsWith('/api/') || this.isIframeEmbedUrl(url)) {
+        // Skip validation for internal proxy
+        if (url.startsWith('/api/')) {
+            return true;
+        }
+        // Validation active pour Uqload
+        if (url.includes('uqload')) {
+            try {
+                const res = await axios_1.default.get(url, {
+                    timeout: 3000,
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    },
+                    validateStatus: (s) => s === 200,
+                });
+                const html = typeof res.data === 'string' ? res.data : '';
+                if (html.includes('File is no longer available') ||
+                    html.includes('expired or has been deleted') ||
+                    html.includes('File Not Found') ||
+                    (html.includes('deleted') && html.includes('expired'))) {
+                    console.log(`[Stream Validation] Uqload embed is dead/deleted: ${url}`);
+                    return false;
+                }
+                return true;
+            }
+            catch {
+                return false;
+            }
+        }
+        // Validation active pour Doodstream et Streamtape
+        if (url.includes('doodstream') || url.includes('d000d') || url.includes('streamtape')) {
+            try {
+                const res = await axios_1.default.get(url, {
+                    timeout: 3000,
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                    },
+                    validateStatus: (s) => s === 200,
+                });
+                const html = typeof res.data === 'string' ? res.data : '';
+                if (html.includes('Video not found') ||
+                    html.includes('File has been deleted') ||
+                    html.includes('File has been removed') ||
+                    html.includes('404 Not Found')) {
+                    console.log(`[Stream Validation] Dood/Tape embed is dead: ${url}`);
+                    return false;
+                }
+                return true;
+            }
+            catch {
+                return false;
+            }
+        }
+        if (this.isIframeEmbedUrl(url)) {
             return true;
         }
         try {

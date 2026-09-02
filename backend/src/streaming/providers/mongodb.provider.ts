@@ -56,6 +56,31 @@ async function isUrlAlive(url: string): Promise<boolean> {
   }
 }
 
+async function isUqloadAlive(code: string): Promise<boolean> {
+  if (!code) return false;
+  try {
+    const res = await axios.get(`https://uqload.is/embed-${code}.html`, {
+      timeout: 3000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+      validateStatus: (s) => s === 200,
+    });
+    const html = typeof res.data === 'string' ? res.data : '';
+    if (
+      html.includes('File is no longer available') ||
+      html.includes('expired or has been deleted') ||
+      html.includes('File Not Found') ||
+      (html.includes('deleted') && html.includes('expired'))
+    ) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export class MongoDBProvider implements StreamingProvider {
   readonly name = 'mongodb';
 
@@ -98,15 +123,21 @@ export class MongoDBProvider implements StreamingProvider {
         }
       }
 
-      // 1. Priorité au lien direct direct (Vidzy/MP4 OpenOtaku) s'il est actif
+      // 1. Priorité au lien direct (Vidzy/MP4 OpenOtaku) s'il est actif
       const directUrl = resolveUrl(movie.lien);
       if (directUrl && await isUrlAlive(directUrl)) {
         return { provider: movie.source || this.name, embedUrl: toEmbedUrl(directUrl), type: 'movie' };
       }
 
-      // 2. Fallback Uqload
+      // 2. Fallback Uqload (vérification active de la disponibilité du fichier)
       if (movie.uqloadCode) {
-        return { provider: 'uqload', embedUrl: uqloadEmbedUrl(movie.uqloadCode), type: 'movie' };
+        const alive = await isUqloadAlive(movie.uqloadCode);
+        if (alive) {
+          return { provider: 'uqload', embedUrl: uqloadEmbedUrl(movie.uqloadCode), type: 'movie' };
+        } else {
+          console.log(`[MongoDB] Uqload code ${movie.uqloadCode} est expiré/mort pour "${movie.titre}" → suppression et passage aux autres sources`);
+          Movie.updateOne({ _id: movie._id }, { $unset: { uqloadCode: 1, uqloadLink: 1 } }).exec().catch(() => {});
+        }
       }
 
       // 3. Fallback Streamtape
@@ -181,9 +212,14 @@ export class MongoDBProvider implements StreamingProvider {
         return { provider: ep.source || this.name, embedUrl: toEmbedUrl(directUrl), type: 'episode' };
       }
 
-      // 2. Fallback Uqload
+      // 2. Fallback Uqload (vérification active)
       if (ep.uqloadCode) {
-        return { provider: 'uqload', embedUrl: uqloadEmbedUrl(ep.uqloadCode), type: 'episode' };
+        const alive = await isUqloadAlive(ep.uqloadCode);
+        if (alive) {
+          return { provider: 'uqload', embedUrl: uqloadEmbedUrl(ep.uqloadCode), type: 'episode' };
+        } else {
+          console.log(`[MongoDB] Uqload code ${ep.uqloadCode} est expiré/mort pour S${query.season}E${query.episode} de "${serie.titre}" → suppression`);
+        }
       }
 
       // 3. Fallback Streamtape
