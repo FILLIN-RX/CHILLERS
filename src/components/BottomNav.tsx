@@ -26,8 +26,14 @@ export default function BottomNav({ onSearchClick }: BottomNavProps) {
   const { translate: _, lang } = useLanguage();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
 
   const { user } = useAuthStore();
+
+  // Defer conditional rendering until after hydration to avoid mismatch
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
 
   const items = [
     { id: "home", label: _("bottomNav.home"), icon: IconHome, href: "/" },
@@ -56,6 +62,7 @@ export default function BottomNav({ onSearchClick }: BottomNavProps) {
 
   const activeTab = getActiveNavTab(pathname);
 
+  if (!hydrated) return null;
   if (isFullscreen || pathname?.startsWith("/watch")) return null;
 
   return (

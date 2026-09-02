@@ -35,6 +35,7 @@ export const antiBotMiddleware = (req: Request, res: Response, next: NextFunctio
     path.includes('/stream') ||
     path.includes('/doodstream') ||
     path.includes('/nexstream') ||
+    path.includes('/omnisave') ||
     path.includes('/subtitles') ||
     path.includes('/torrents') ||
     path.includes('/live') ||

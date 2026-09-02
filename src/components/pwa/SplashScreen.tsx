@@ -14,50 +14,50 @@ import { useSplashStore } from "@/stores/useSplashStore";
  */
 export default function SplashScreen() {
   const ready = useSplashStore((s) => s.ready);
-  const [phase, setPhase] = useState<"visible" | "fading" | "gone">("visible");
+  const [mounted, setMounted] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Masquer le splash pré-React SSR dès que React prend la main
+  // Track when mounted so we know hydration is complete
   useEffect(() => {
+    setMounted(true);
     const staticSplash = document.getElementById("__chillers_splash");
     if (staticSplash) {
-      // Garder le div visible — on le cachera via notre propre fondu
       staticSplash.style.transition = "opacity 0.5s ease";
     }
   }, []);
 
   /* Sécurité : disparaît au bout de 7s même si les données ne chargent jamais */
   useEffect(() => {
+    if (!mounted) return;
     timerRef.current = setTimeout(() => {
-      triggerFade();
+      fadeOutSplash();
     }, 7000);
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [mounted]);
 
   /* Disparaît dès que les données sont prêtes */
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || !mounted) return;
     if (timerRef.current) clearTimeout(timerRef.current);
-    triggerFade();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready]);
+    fadeOutSplash();
+  }, [ready, mounted]);
 
-  function triggerFade() {
-    // Animer le div statique pré-React
+  function fadeOutSplash() {
     const staticSplash = document.getElementById("__chillers_splash");
     if (staticSplash) {
       staticSplash.style.opacity = "0";
-      setTimeout(() => staticSplash.remove(), 520);
+      // Use CSS animation end event instead of arbitrary timeout
+      const handleEnd = () => {
+        staticSplash.removeEventListener("transitionend", handleEnd);
+        staticSplash.remove();
+      };
+      staticSplash.addEventListener("transitionend", handleEnd);
+      // Fallback removal if transitionend never fires
+      setTimeout(() => {
+        if (staticSplash.parentNode) staticSplash.remove();
+      }, 1000);
     }
-    setPhase("fading");
-    setTimeout(() => setPhase("gone"), 520);
   }
 
-  if (phase === "gone") return null;
-
-  // Ce composant React est transparent : toute la UI du splash vient du div statique.
-  // On ne rend rien de visible ici, mais on garde le composant monté pour gérer
-  // la logique de disparition.
   return null;
 }

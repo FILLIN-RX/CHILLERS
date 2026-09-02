@@ -186,7 +186,7 @@ export default async function RootLayout({
       </head>
       <body suppressHydrationWarning className="min-h-screen flex flex-col bg-brand-dark text-foreground selection:bg-brand-primary selection:text-white">
         {/* Splash pré-React — retiré par SplashScreen.tsx une fois les données chargées */}
-        <div id="__chillers_splash" aria-hidden="true">
+        <div id="__chillers_splash" aria-hidden="true" suppressHydrationWarning>
           <img src="/android-chrome-192x192.png" alt="" />
           <h1>CHILLERS</h1>
           <div className="bar-track"><div className="bar-fill" /></div>

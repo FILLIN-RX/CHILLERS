@@ -1,23 +1,26 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { IconHeart, IconCamera, IconInfoCircle, IconMail, IconShieldCheck, IconPlayerPlay } from '@tabler/icons-react';
 
 export default function Footer() {
-  const [isStandalone, setIsStandalone] = React.useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const check =
       window.matchMedia("(display-mode: standalone)").matches ||
       (window.navigator as any).standalone === true;
-    setIsStandalone(check);
+    if (check) setIsStandalone(true);
   }, []);
 
-  if (isStandalone) return null;
-
+  // Use CSS visibility instead of conditional return to avoid hydration mismatch.
+  // Server always renders the footer; client hides it via style when standalone.
   return (
-    <footer className="w-full bg-brand-dark border-t border-brand-border mt-auto transition-colors duration-300 [@media(display-mode:standalone)]:hidden">
+    <footer
+      className="w-full bg-brand-dark border-t border-brand-border mt-auto transition-colors duration-300"
+      style={isStandalone ? { display: "none" } : undefined}
+    >
       <div className="mx-auto px-4 sm:px-8 md:px-12 lg:px-[4%] py-12 space-y-12">
         
         {/* Top Info Grid */}

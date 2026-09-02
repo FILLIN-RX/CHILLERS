@@ -50,8 +50,8 @@
 .bg-brand-dark          { background-color: var(--background); }
 .text-foreground        { color: var(--foreground); }
 .bg-brand-card          { background-color: var(--card-bg); }
-.bg-brand-card\/40      { background-color: color-mix(in srgb, var(--card-bg) 40%, transparent); }
-.bg-brand-card\/60      { background-color: color-mix(in srgb, var(--card-bg) 60%, transparent); }
+.bg-brand-card\/40      { background-color: rgba(39, 39, 42, 0.4); background-color: color-mix(in srgb, var(--card-bg) 40%, transparent); }
+.bg-brand-card\/60      { background-color: rgba(39, 39, 42, 0.6); background-color: color-mix(in srgb, var(--card-bg) 60%, transparent); }
 .border-brand-border    { border-color: var(--card-border); }
 .text-brand-text-muted  { color: var(--text-muted); }
 
