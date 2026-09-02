@@ -37,14 +37,25 @@ export async function resolveDownloadUrl(
   if (!query.tmdb_id && !query.title) return null;
 
   try {
-    const env = await httpJson<ApiEnvelope<DownloadResponse>>("/doodstream/download", {
+    // 1. Tente en priorité le résolveur universel multi-sources (MongoDB, OmniSave, FrenchStream, etc.)
+    const env = await httpJson<ApiEnvelope<DownloadResponse>>("/download/resolve", {
       query,
-      timeoutMs: 30_000,
+      timeoutMs: 25_000,
     });
     if (env.success && env.data?.downloadUrl) {
-      return { downloadUrl: env.data.downloadUrl, fileCode: env.data.fileCode };
+      return { downloadUrl: env.data.downloadUrl, fileCode: env.data.fileCode || "" };
     }
   } catch (err) {
+    // 2. Fallback sur le résolveur doodstream historique si nécessaire
+    try {
+      const fallback = await httpJson<ApiEnvelope<DownloadResponse>>("/doodstream/download", {
+        query,
+        timeoutMs: 20_000,
+      });
+      if (fallback.success && fallback.data?.downloadUrl) {
+        return { downloadUrl: fallback.data.downloadUrl, fileCode: fallback.data.fileCode || "" };
+      }
+    } catch (_) {}
     if (err instanceof HttpError) return null;
     console.error("Error starting download:", err);
   }
@@ -88,7 +99,7 @@ export function proxyDownloadHref(downloadUrl: string, filename: string): string
     return downloadUrl.startsWith(API_BASE_PATH) ? downloadUrl : `${API_BASE_PATH}${downloadUrl}`;
   }
   if (/doodstream\.com\/d\//i.test(downloadUrl)) return downloadUrl;
-  return `${API_BASE_PATH}/doodstream/download/proxy?url=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(filename)}`;
+  return `${API_BASE_PATH}/download/file?url=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(filename)}`;
 }
 
 /**

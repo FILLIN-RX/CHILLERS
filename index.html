@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OmniSave Clone - Video Downloader & Stream Extractor</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body {
+      background: radial-gradient(circle at top, #0d1f1c 0%, #080c10 100%);
+      min-height: 100vh;
+      color: #f1f5f9;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    .gradient-btn {
+      background: linear-gradient(135deg, #00ff9d 0%, #00c8b8 48%, #00d4ff 100%);
+      color: #021a10;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+    .gradient-btn:hover {
+      filter: brightness(1.1);
+      box-shadow: 0 0 20px rgba(0, 255, 157, 0.4);
+      transform: translateY(-1px);
+    }
+    .glass-card {
+      background: rgba(255, 255, 255, 0.03);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+    }
+  </style>
+</head>
+<body class="p-4 md:p-8 flex flex-col items-center">
+
+  <!-- Header -->
+  <header class="w-full max-w-4xl text-center my-8">
+    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-4">
+      <i class="fa-solid fa-bolt"></i> Extracteur de Flux Vidéo
+    </div>
+    <h1 class="text-3xl md:text-5xl font-extrabold tracking-tight mb-3">
+      Rechercher & Extraire des <span class="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">Vidéos</span>
+    </h1>
+    <p class="text-slate-400 text-sm md:text-base max-w-xl mx-auto">
+      Entrez un titre (ex: film, anime, trailer) ou collez directement une URL pour récupérer les flux directs et qualités.
+    </p>
+  </header>
+
+  <!-- Search Bar -->
+  <section class="w-full max-w-2xl mb-8">
+    <form id="searchForm" class="relative flex items-center">
+      <i class="fa-solid fa-magnifying-glass absolute left-5 text-slate-400 text-lg"></i>
+      <input 
+        type="text" 
+        id="queryInput" 
+        placeholder="Rechercher un film, anime, ou coller une URL (YouTube, etc.)..." 
+        class="w-full pl-14 pr-32 py-4 rounded-2xl bg-white/[0.05] border border-white/10 text-white placeholder:text-slate-500 focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/20 transition-all text-sm md:text-base"
+        required
+      />
+      <button 
+        type="submit" 
+        id="searchBtn"
+        class="gradient-btn absolute right-2.5 px-6 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2"
+      >
+        <span>Chercher</span>
+      </button>
+    </form>
+  </section>
+
+  <!-- Loader -->
+  <div id="loader" class="hidden my-12 text-center">
+    <i class="fa-solid fa-circle-notch fa-spin text-4xl text-emerald-400 mb-3"></i>
+    <p class="text-slate-400 text-sm animate-pulse">Extraction des flux en cours, veuillez patienter...</p>
+  </div>
+
+  <!-- Error message -->
+  <div id="errorMessage" class="hidden w-full max-w-2xl p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm mb-6 text-center"></div>
+
+  <!-- Results Section -->
+  <main id="resultsContainer" class="w-full max-w-4xl flex flex-col gap-6"></main>
+
+  <script>
+    const form = document.getElementById('searchForm');
+    const queryInput = document.getElementById('queryInput');
+    const loader = document.getElementById('loader');
+    const resultsContainer = document.getElementById('resultsContainer');
+    const errorMessage = document.getElementById('errorMessage');
+
+    function formatDuration(seconds) {
+      if (!seconds) return 'Durée inconnue';
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      return `${mins}m ${secs < 10 ? '0' : ''}${secs}s`;
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const query = queryInput.value.trim();
+      if (!query) return;
+
+      // Reset UI
+      resultsContainer.innerHTML = '';
+      errorMessage.classList.add('hidden');
+      loader.classList.remove('hidden');
+
+      try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+        const data = await res.json();
+
+        loader.classList.add('hidden');
+
+        if (!res.ok || data.error) {
+          throw new Error(data.error || "Erreur lors de la récupération");
+        }
+
+        if (data.results.length === 0) {
+          errorMessage.innerText = "Aucun résultat trouvé pour cette recherche.";
+          errorMessage.classList.remove('hidden');
+          return;
+        }
+
+        renderResults(data.results);
+      } catch (err) {
+        loader.classList.add('hidden');
+        errorMessage.innerText = err.message;
+        errorMessage.classList.remove('hidden');
+      }
+    });
+
+    function renderResults(videos) {
+      resultsContainer.innerHTML = '';
+
+      videos.forEach((video, index) => {
+        const card = document.createElement('div');
+        card.className = "glass-card p-5 md:p-6 flex flex-col md:flex-row gap-5 items-start transition-all hover:border-emerald-500/30";
+
+        // Thumbnails
+        const thumb = video.thumbnail || 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=400';
+        
+        // Formats badges
+        let formatsHtml = '';
+        if (video.formats && video.formats.length > 0) {
+          formatsHtml = video.formats.map(f => `
+            <a href="${f.download_url}" target="_blank" rel="noopener noreferrer" 
+               class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-emerald-500/20 border border-white/10 hover:border-emerald-500/40 text-xs text-slate-200 transition-colors">
+              <i class="fa-solid fa-download text-emerald-400"></i>
+              <span class="font-bold text-white">${f.resolution}</span>
+              <span class="text-slate-400">(${f.ext})</span>
+              ${f.size !== 'N/A' ? `<span class="text-[10px] text-slate-400 font-mono">${f.size}</span>` : ''}
+            </a>
+          `).join('');
+        } else {
+          formatsHtml = `<span class="text-xs text-slate-500">Aucun format direct extrait</span>`;
+        }
+
+        card.innerHTML = `
+          <div class="relative w-full md:w-56 h-36 flex-shrink-0 rounded-xl overflow-hidden bg-black/40 border border-white/10">
+            <img src="${thumb}" alt="${video.title}" class="w-full h-full object-cover"/>
+            <span class="absolute bottom-2 right-2 bg-black/80 px-2 py-0.5 rounded text-[11px] font-mono text-slate-200">
+              ${formatDuration(video.duration)}
+            </span>
+          </div>
+
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-xs text-slate-400">${video.uploader}</span>
+            </div>
+            <h3 class="text-base md:text-lg font-semibold text-white mb-2 leading-snug line-clamp-2">
+              ${video.title}
+            </h3>
+            
+            <div class="mt-4">
+              <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                <i class="fa-solid fa-layer-group text-emerald-400 mr-1"></i> Qualités disponibles :
+              </p>
+              <div class="flex flex-wrap gap-2">
+                ${formatsHtml}
+              </div>
+            </div>
+          </div>
+        `;
+
+        resultsContainer.appendChild(card);
+      });
+    }
+  </script>
+</body>
+</html>

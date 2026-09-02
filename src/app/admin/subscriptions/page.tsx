@@ -3,8 +3,13 @@
 import React, { useEffect, useState } from 'react';
 import { httpJson } from '@/app/api';
 import { IconDeviceFloppy, IconEdit, IconCheck, IconX } from '@tabler/icons-react';
-import { toast } from 'react-hot-toast';
+import { message } from 'antd';
 import { useAuthStore } from '@/stores/useAuthStore';
+
+const toast = {
+  error: (msg: string) => message.error(msg),
+  success: (msg: string) => message.success(msg),
+};
 
 export default function AdminSubscriptionsPage() {
   const [plans, setPlans] = useState<any[]>([]);

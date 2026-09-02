@@ -3,6 +3,19 @@
 
 export type MediaType = "movie" | "series" | "anime" | "documentary";
 
+export interface CastMember {
+  id: number;
+  name: string;
+  character: string;
+  profileUrl: string;
+}
+
+export interface Network {
+  id: number;
+  name: string;
+  logoUrl: string;
+}
+
 export interface Episode {
   id: string;
   title: string;
@@ -11,6 +24,8 @@ export interface Episode {
   season?: number;
   thumbnail: string;
   synopsis: string;
+  airDate?: string;
+  rating?: number;
 }
 
 export interface Season {
@@ -22,6 +37,7 @@ export interface Season {
   episodeCount?: number;
   /** from TMDB air_date field (YYYY-MM-DD or null) */
   airDate?: string;
+  overview?: string;
   episodes: Episode[];
 }
 
@@ -35,16 +51,30 @@ export interface MovieOrShow {
   backdropOriginalUrl?: string;
   posterUrl: string;
   rating: number;
+  voteCount?: number;
   year: number;
   /** e.g. "2h 15m" or "10 Episodes" */
   duration: string;
   genres: string[];
   cast: string[];
+  castDetails?: CastMember[];
+  directors?: string[];
+  creators?: string[];
+  networks?: Network[];
+  status?: string;
+  statusLabel?: string;
+  tagline?: string;
+  contentRating?: string;
+  numberOfSeasons?: number;
+  numberOfEpisodes?: number;
   isTrending?: boolean;
   isPopular?: boolean;
   videoUrl?: string;
   trailerUrl?: string;
   seasons?: Season[];
+  similar?: MovieOrShow[];
+  langueAudio?: string;
+  isFrenchAudio?: boolean;
 }
 
 export interface Genre {
@@ -60,7 +90,7 @@ export interface StreamResult {
 }
 
 export interface MediaDetails extends MovieOrShow {
-  /** Full enriched details (TMDB complete payload). Subset of MovieOrShow for now. */
+  /** Full enriched details (TMDB complete payload). */
 }
 
 export interface SearchResults {
@@ -82,6 +112,8 @@ export interface SeasonDetails {
   season_number: number;
   poster_path?: string | null;
   overview?: string;
+  air_date?: string;
+  vote_average?: number;
   episodes?: Array<{
     id: number;
     name: string;
@@ -89,5 +121,7 @@ export interface SeasonDetails {
     runtime?: number;
     still_path?: string | null;
     overview?: string;
+    air_date?: string;
+    vote_average?: number;
   }>;
 }

@@ -97,7 +97,7 @@ export async function httpJson<T>(path: string, options: HttpJsonOptions = {}): 
         ...authHeader,
         ...(options.body !== undefined ? { "Content-Type": "application/json" } : {}),
         ...options.headers,
-      },
+      } as Record<string, string>,
       body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
       signal: ctrl.signal,
     });

@@ -174,9 +174,7 @@ export function useTorrentPlayback(args: UseTorrentPlaybackArgs): UseTorrentPlay
       if (abort.signal.aborted) return;
 
       const torrent = await new Promise<Torrent>((resolve, reject) => {
-        const torrentId = res.magnet
-          ? res.magnet
-          : Uint8Array.from(atob(res.torrentBase64!), (c) => c.charCodeAt(0));
+        const torrentId = selected.magnet;
         client.add(torrentId, { path: title }, (err, t) => {
           if (err) reject(new Error(`add: ${err.message}`));
           else if (!t) reject(new Error("add: torrent introuvable"));

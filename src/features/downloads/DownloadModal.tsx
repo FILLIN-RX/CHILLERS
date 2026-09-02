@@ -15,6 +15,8 @@ interface DownloadModalProps {
   type: "movie" | "series" | "anime";
   season?: number;
   episode?: number;
+  posterUrl?: string;
+  backdropUrl?: string;
 }
 
 const STATUS_LABEL: Record<DownloadStatus, string> = {
@@ -36,6 +38,8 @@ export default function DownloadModal({
   type,
   season,
   episode,
+  posterUrl,
+  backdropUrl,
 }: DownloadModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const { translate: _ } = useLanguage();
@@ -46,6 +50,8 @@ export default function DownloadModal({
     title,
     season,
     episodeNumber: episode,
+    posterUrl,
+    backdropUrl,
   });
 
   // Scroll lock + ESC handler.

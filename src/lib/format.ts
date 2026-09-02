@@ -42,12 +42,13 @@ export function buildEpisodeFilename(opts: {
 /** Stable id for a download task derived from its media coordinates. */
 export function downloadTaskId(opts: {
   tmdbId: string | number;
-  season?: number;
-  episodeNumber?: number;
+  season?: number | null;
+  episodeNumber?: number | null;
 }): string {
   const { tmdbId, season, episodeNumber } = opts;
-  if (season != null && episodeNumber != null) {
-    return `${tmdbId}-s${season}e${episodeNumber}`;
+  if (episodeNumber != null) {
+    const s = season != null ? season : 1;
+    return `${tmdbId}-s${s}e${episodeNumber}`;
   }
   return `${tmdbId}`;
 }

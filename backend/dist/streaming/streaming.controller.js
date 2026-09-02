@@ -32,20 +32,52 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getEpisodeStream = exports.getMovieStream = void 0;
 const streamingService = __importStar(require("./streaming.service"));
 const types_1 = require("../types");
+const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const User_1 = require("../models/User");
+const JWT_SECRET = process.env.JWT_SECRET || 'chillers-super-secret-key-change-me';
+async function isRequestPremium(req) {
+    try {
+        // 1. Vérification par header explicite si injecté par middleware
+        if (req.headers['x-is-premium'] === 'true' || req.query.is_premium === 'true') {
+            return true;
+        }
+        // 2. Vérification par Token JWT utilisateur
+        const authHeader = req.headers.authorization;
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            const token = authHeader.split(' ')[1];
+            const decoded = jsonwebtoken_1.default.verify(token, JWT_SECRET);
+            if (decoded?.role === 'admin')
+                return true;
+            if (decoded?.id) {
+                const user = await User_1.User.findById(decoded.id).select('subscription role');
+                if (user?.role === 'admin' || user?.subscription?.plan === 'premium') {
+                    return true;
+                }
+            }
+        }
+    }
+    catch (_) { }
+    return false;
+}
 const getMovieStream = async (req, res, next) => {
     try {
         const id = parseInt(req.params.id, 10);
         if (isNaN(id))
             throw new types_1.AppError('Valid TMDB movie ID is required', 400);
+        const isPremium = await isRequestPremium(req);
         const result = await streamingService.getMovieStream({
             tmdbId: id,
             type: req.query.type || 'movie',
             title: req.query.title,
             language: req.query.language || 'fr',
+            isPremium,
         });
         if (!result) {
             res.json({
@@ -57,7 +89,11 @@ const getMovieStream = async (req, res, next) => {
         }
         res.json({
             success: true,
-            data: { embedUrl: result.embedUrl },
+            data: {
+                embedUrl: result.embedUrl,
+                quality: isPremium && result.provider === 'frenchstream' ? '1080p' : 'standard',
+                isPremiumStream: isPremium && result.provider === 'frenchstream',
+            },
             provider: result.provider,
             message: null,
         });

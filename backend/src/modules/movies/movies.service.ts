@@ -24,14 +24,20 @@ export const getTopRated = async (page: number = 1, language?: string) => {
 export const getDetails = async (id: string, language?: string) => {
   try {
     const { data } = await tmdbClient.get(`/movie/${id}`, {
-      params: { append_to_response: 'credits,videos', language: toTMDBLanguage(language) },
+      params: { 
+        append_to_response: 'credits,videos,release_dates,recommendations,similar', 
+        language: toTMDBLanguage(language) 
+      },
     });
     return data;
   } catch (err: any) {
     if (err?.response?.status === 404) {
       try {
         const { data } = await tmdbClient.get(`/tv/${id}`, {
-          params: { append_to_response: 'credits,videos', language: toTMDBLanguage(language) },
+          params: { 
+            append_to_response: 'credits,videos,content_ratings,recommendations,similar', 
+            language: toTMDBLanguage(language) 
+          },
         });
         return data;
       } catch (_) {}

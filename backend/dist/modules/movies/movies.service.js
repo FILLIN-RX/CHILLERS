@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getByGenre = exports.getTrailer = exports.getRecommendations = exports.getDetails = exports.getTopRated = exports.getUpcoming = exports.getTrending = exports.getPopular = void 0;
+exports.getAfrican = exports.getByGenre = exports.getTrailer = exports.getRecommendations = exports.getDetails = exports.getTopRated = exports.getUpcoming = exports.getTrending = exports.getPopular = void 0;
 const tmdb_1 = __importDefault(require("../../config/tmdb"));
 const language_1 = require("../../config/language");
 const getPopular = async (page = 1, language) => {
@@ -27,10 +27,30 @@ const getTopRated = async (page = 1, language) => {
 };
 exports.getTopRated = getTopRated;
 const getDetails = async (id, language) => {
-    const { data } = await tmdb_1.default.get(`/movie/${id}`, {
-        params: { append_to_response: 'credits,videos', language: (0, language_1.toTMDBLanguage)(language) },
-    });
-    return data;
+    try {
+        const { data } = await tmdb_1.default.get(`/movie/${id}`, {
+            params: {
+                append_to_response: 'credits,videos,release_dates,recommendations,similar',
+                language: (0, language_1.toTMDBLanguage)(language)
+            },
+        });
+        return data;
+    }
+    catch (err) {
+        if (err?.response?.status === 404) {
+            try {
+                const { data } = await tmdb_1.default.get(`/tv/${id}`, {
+                    params: {
+                        append_to_response: 'credits,videos,content_ratings,recommendations,similar',
+                        language: (0, language_1.toTMDBLanguage)(language)
+                    },
+                });
+                return data;
+            }
+            catch (_) { }
+        }
+        throw err;
+    }
 };
 exports.getDetails = getDetails;
 const getRecommendations = async (id, language) => {
@@ -52,3 +72,16 @@ const getByGenre = async (genreId, page = 1, language) => {
     return data;
 };
 exports.getByGenre = getByGenre;
+const getAfrican = async (page = 1, language, country) => {
+    const originCountry = country || 'NG|GH|CM|CI|SN';
+    const { data } = await tmdb_1.default.get('/discover/movie', {
+        params: {
+            with_origin_country: originCountry,
+            sort_by: 'popularity.desc',
+            page,
+            language: (0, language_1.toTMDBLanguage)(language)
+        },
+    });
+    return data;
+};
+exports.getAfrican = getAfrican;

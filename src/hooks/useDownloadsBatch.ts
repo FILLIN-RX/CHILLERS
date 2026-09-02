@@ -1,14 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
-import { resolveDownloadUrl } from "@/services/downloads";
+import { resolveDownloadUrl, proxyDownloadHref } from "@/services/downloads";
 import { streamDownloadToDisk } from "@/services/streamSaver";
+import { saveOfflineVideoBlob } from "@/services/offlineStorage";
 import { buildEpisodeFilename, downloadTaskId } from "@/lib/format";
 import type { DownloadTask } from "@/types/download";
 import type { Episode } from "@/types/media";
 import { useDownloadsStore } from "@/store/downloads";
 
-const MAX_CONCURRENT = 3;
+const MAX_CONCURRENT = 1;
 const MAX_RETRIES = 2;
 
 export interface UseDownloadsBatchArgs {
@@ -69,12 +70,15 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
     tasksRef.current = tasks;
   }, [args, tasks]);
 
-  // Seed tasks when episodes change & reset any canceled/stuck tasks
+  // Seed tasks when user actually triggers download (gated === false)
   useEffect(() => {
+    if (gated) return;
+    if (!episodes || episodes.length === 0) return;
+
     const ids = episodes.map((ep) =>
       downloadTaskId({
         tmdbId,
-        season: ep.season,
+        season: ep.season ?? 1,
         episodeNumber: ep.number,
       })
     );
@@ -86,13 +90,15 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
         tmdbId: String(tmdbId),
         title: seriesTitle,
         type,
+        posterUrl: ep.thumbnail,
+        backdropUrl: ep.thumbnail,
         filename: buildEpisodeFilename({
           title: seriesTitle,
-          season: ep.season,
+          season: ep.season ?? 1,
           episodeNumber: ep.number,
           extension: "mp4",
         }),
-        season: ep.season,
+        season: ep.season ?? 1,
         episodeNumber: ep.number,
         episode: ep,
         resolvedUrl: null,
@@ -113,7 +119,7 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
     if (toReset.length > 0) {
       resetTasks(toReset);
     }
-  }, [episodes, addMany, resetTasks, seriesTitle, tmdbId, type]);
+  }, [episodes, addMany, resetTasks, seriesTitle, tmdbId, type, gated]);
 
   // Main task execution
   const runOne = useCallback(async (task: DownloadTask) => {
@@ -150,7 +156,7 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
         return;
       }
 
-      if (!result) {
+      if (!result || !result.downloadUrl) {
         setStatus(task.id, "error", "Aucun lien trouvé");
         return;
       }
@@ -164,20 +170,41 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
 
       setStatus(task.id, "downloading");
 
-      await streamDownloadToDisk(result.downloadUrl, {
-        filename: task.filename,
-        signal: ctrl.signal,
-        onProgress: (bytes, total) => {
-          setProgress(task.id, {
-            bytesDownloaded: bytes,
-            totalBytes: total,
-            percent:
-              total && total > 0
-                ? Math.min(100, Math.round((bytes / total) * 100))
-                : null,
-          });
-        },
-      });
+      try {
+        const streamRes = await streamDownloadToDisk(result.downloadUrl, {
+          filename: task.filename,
+          signal: ctrl.signal,
+          onProgress: (bytes, total) => {
+            setProgress(task.id, {
+              bytesDownloaded: bytes,
+              totalBytes: total,
+              percent:
+                total && total > 0
+                  ? Math.min(100, Math.round((bytes / total) * 100))
+                  : null,
+            });
+          },
+        });
+
+        if (streamRes?.blob) {
+          await saveOfflineVideoBlob(task.id, streamRes.blob, task.filename, task.title);
+        }
+      } catch (streamErr) {
+        if (ctrl.signal.aborted || isCancelRequested(task.id)) {
+          throw streamErr;
+        }
+        console.warn(`[Download] StreamSaver secours pour ${task.filename}:`, streamErr);
+        // Fallback sécurisé : déclenchement du téléchargement direct navigateur
+        if (typeof window !== "undefined") {
+          const href = proxyDownloadHref(result.downloadUrl, task.filename);
+          const a = document.createElement("a");
+          a.href = href;
+          a.download = task.filename;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        }
+      }
 
       if (ctrl.signal.aborted || isCancelRequested(task.id)) {
         setStatus(task.id, "canceled");
@@ -346,7 +373,17 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
     resetTasks(ids);
   }, [tasks, resetTasks, tmdbId]);
 
-  const relevantTasks = tasks.filter((t) => t.tmdbId === String(tmdbId));
+  const requestedIds = new Set(
+    episodes.map((ep) =>
+      downloadTaskId({
+        tmdbId,
+        season: ep.season ?? 1,
+        episodeNumber: ep.number,
+      })
+    )
+  );
+
+  const relevantTasks = tasks.filter((t) => requestedIds.has(t.id));
 
   const totals = relevantTasks.reduce(
     (acc, t) => {

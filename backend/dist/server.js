@@ -6,9 +6,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 require("./config/env");
 const app_1 = __importDefault(require("./app"));
 const db_1 = require("./config/db");
-const cron_manager_1 = require("./cron-manager");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const Admin_1 = __importDefault(require("./models/Admin"));
+const SubscriptionPlan_1 = require("./models/SubscriptionPlan");
 const PORT = process.env.PORT || 4000;
 /**
  * En production, refuse de démarrer avec des secrets par défaut/faibles.
@@ -36,19 +36,22 @@ async function seedAdmin() {
     }
 }
 assertProductionSecrets();
+async function seedPlans() {
+    const count = await SubscriptionPlan_1.SubscriptionPlan.countDocuments();
+    if (count === 0) {
+        await SubscriptionPlan_1.SubscriptionPlan.create([
+            { code: 'free', name: 'Gratuit', price: 0, durationMonths: 1, features: { maxDevices: 1, maxResolution: '720p', hasContinueWatching: false, hasWatchHistory: false, hasDownloads: false } },
+            { code: 'standard', name: 'Standard', price: 4.99, durationMonths: 1, features: { maxDevices: 2, maxResolution: '1080p', hasContinueWatching: true, hasWatchHistory: true, hasDownloads: false } },
+            { code: 'premium', name: 'Premium', price: 9.99, durationMonths: 1, features: { maxDevices: 4, maxResolution: '4K', hasContinueWatching: true, hasWatchHistory: true, hasDownloads: true } }
+        ]);
+        console.log('[Admin] Plans d\'abonnement créés (Free, Standard, Premium)');
+    }
+}
 (0, db_1.connectDB)().then(async () => {
     await seedAdmin();
+    await seedPlans();
     app_1.default.listen(PORT, () => {
         console.log(`[Chiller API] Running on http://localhost:${PORT}`);
-        // Démarre le scheduler (scraping + maintenance) sauf opt-out explicite.
-        if (process.env.DISABLE_CRON === 'true') {
-            console.log(`[Chiller System] Cron manager disabled (DISABLE_CRON=true).`);
-        }
-        else {
-            (0, cron_manager_1.startCron)();
-            console.log(`[Chiller System] Cron manager attached and running.`);
-        }
-        // Migration DoodStream → Uqload une fois par déploiement (non bloquant).
-        (0, cron_manager_1.runDeployTasksOnce)().catch((err) => console.error('[Deploy] Migration Uqload échouée:', err));
+        console.log(`[Chiller System] Cron géré par GitHub Actions. Le backend ne lance plus de tâches automatiques.`);
     });
 });

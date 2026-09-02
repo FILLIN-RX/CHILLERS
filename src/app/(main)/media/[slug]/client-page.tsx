@@ -54,6 +54,12 @@ function MediaDetailPage() {
   const id = params?.slug as string;
   const isTV = searchParams?.get("type") === "tv" || searchParams?.get("type") === "series";
 
+  useEffect(() => {
+    if (isTV && id) {
+      router.replace(`/tv/${id}`);
+    }
+  }, [isTV, id, router]);
+
   const [item, setItem] = useState<MovieOrShow | null>(null);
   const [similar, setSimilar] = useState<MovieOrShow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,13 +71,53 @@ function MediaDetailPage() {
   const shareBtnRef = useRef<HTMLDivElement>(null);
   const shareMenuRef = useRef<HTMLDivElement>(null);
   const [sharePos, setSharePos] = useState<{ top: number; right: number } | null>(null);
-  const [disponible, setDisponible] = useState<{ disponible: boolean; streaming: boolean; download: boolean } | null>(null);
+  const [disponible, setDisponible] = useState<{ disponible: boolean; streaming: boolean; download: boolean; langueAudio?: string; isFrenchAudio?: boolean } | null>(null);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
 
-  useEffect(() => {
+  const fetchData = useCallback(async () => {
     if (!id) return;
-    getDisponible(id, isTV ? 'series' : 'movie').then(setDisponible).catch(() => {});
+    setLoading(true);
+    try {
+      const [detail, dispo, similarList] = await Promise.all([
+        getMediaDetails(id, isTV),
+        getDisponible(id, isTV ? 'series' : 'movie'),
+        isTV ? getPopularTV(1) : getPopularMovies(1),
+      ]);
+
+      if (detail) {
+        if (detail.trailerUrl) {
+          setTrailerUrl(detail.trailerUrl);
+        } else if (detail.videoUrl?.includes("youtube.com") || detail.videoUrl?.includes("embed")) {
+          setTrailerUrl(detail.videoUrl);
+        }
+        setItem(detail);
+      }
+      if (dispo) setDisponible(dispo);
+      if (detail?.similar && detail.similar.length > 0) {
+        setSimilar(detail.similar);
+      } else if (similarList) {
+        setSimilar(similarList.filter((m) => m.id !== id).slice(0, 14));
+      }
+    } catch (err) {
+      console.error("Error loading detail page:", err);
+    } finally {
+      setLoading(false);
+    }
   }, [id, isTV]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData, id]);
+
+  const handleWatch = async () => {
+    if (!item) return;
+    // Tout le streaming passe par /watch — on ne lance plus rien en inline
+    // sur la page /media (le player a été retiré de cette vue).
+    router.push(`/watch/${item.id}?type=${isTV ? "tv" : "movie"}`, { scroll: false });
+  };
+
+  const [showSingleDownload, setShowSingleDownload] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -109,64 +155,6 @@ function MediaDetailPage() {
     setShareOpen(true);
   };
 
-  const fetchData = useCallback(async () => {
-    if (!id) return;
-    setLoading(true);
-    setSimilar([]);
-    try {
-      const detail = await getMediaDetails(id, isTV);
-      if (detail) {
-        if (detail.trailerUrl) {
-          setTrailerUrl(detail.trailerUrl);
-        } else if (detail.videoUrl?.includes("youtube.com") || detail.videoUrl?.includes("embed")) {
-          setTrailerUrl(detail.videoUrl);
-        }
-        // On garde `videoUrl` s'il pointe vers une URL embed (YouTube bande-annonce)
-        // mais on ne lance plus de fetch de stream ici — la page /watch s'en charge.
-        setItem(detail);
-      }
-    } catch (err) {
-      console.error("Error loading detail page:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [id, isTV]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData, id]);
-
-  useEffect(() => {
-    if (!id) return;
-    let cancelled = false;
-
-    const loadSimilar = async () => {
-      try {
-        const similarList = isTV ? await getPopularTV() : await getPopularMovies();
-        if (!cancelled) {
-          setSimilar(similarList.filter((m) => m.id !== id).slice(0, 8));
-        }
-      } catch (err) {
-        if (!cancelled) console.error("Error loading similar media:", err);
-      }
-    };
-
-    loadSimilar();
-    return () => {
-      cancelled = true;
-    };
-  }, [id, isTV]);
-
-  const handleWatch = async () => {
-    if (!item) return;
-    // Tout le streaming passe par /watch — on ne lance plus rien en inline
-    // sur la page /media (le player a été retiré de cette vue).
-    router.push(`/watch/${item.id}?type=${isTV ? "tv" : "movie"}`, { scroll: false });
-  };
-
-  const [showSingleDownload, setShowSingleDownload] = useState(false);
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-
   const handleDownload = () => {
     if (!user || (user?.subscription?.features && !user.subscription.features.hasDownloads)) {
       setShowUpgradeModal(true);
@@ -184,8 +172,8 @@ function MediaDetailPage() {
       const res = await userService.toggleFavorite(token, {
         mediaType: isTV ? 'series' : 'movie',
         tmdbId: String(item.id),
-        title: item.title || item.name,
-        posterPath: item.poster_path,
+        title: item.title,
+        posterPath: item.posterUrl,
       });
       if (res.success) {
         updateUser({ favorites: res.favorites });
@@ -221,23 +209,94 @@ function MediaDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#09090B] text-white flex flex-col">
+      <div className="flex-1 flex flex-col bg-[#09090B] text-white pb-20">
+        {/* Bouton retour */}
         <div className="fixed top-0 left-0 z-40 p-4">
-          <button
-            onClick={() => { window.scrollTo(0, 0); router.back(); }}
-            aria-label={_("media.back")}
-            className="flex items-center justify-center w-10 h-10 rounded-full bg-black/70 backdrop-blur-sm border border-white/10 text-white hover:bg-black/90 transition-all"
-          >
-            <IconArrowLeft className="h-5 w-5" />
-          </button>
+          <div className="w-10 h-10 rounded-full bg-black/70 border border-white/10" />
         </div>
 
-        <div className="w-full h-[60vh] sm:h-[65vh] bg-zinc-900 animate-pulse" />
-        <div className="mx-auto px-6 sm:px-8 md:px-12 lg:px-[4%] py-10 space-y-6 w-full">
-          <div className="h-10 bg-zinc-800 rounded-xl w-2/3 animate-pulse" />
-          <div className="h-4 bg-zinc-800 rounded w-1/3 animate-pulse" />
-          <div className="h-4 bg-zinc-800 rounded w-full animate-pulse" />
-          <div className="h-4 bg-zinc-800 rounded w-5/6 animate-pulse" />
+        {/* 1. HERO SKELETON */}
+        <div className="relative w-full min-h-[60vh] sm:h-[70vh] lg:h-[78vh] max-h-[750px] overflow-hidden bg-zinc-900 animate-pulse">
+          <div className="absolute inset-0 bg-gradient-to-t from-[#09090B] via-[#09090B]/60 to-transparent" />
+          <div className="absolute bottom-0 left-0 right-0 px-4 sm:px-8 md:px-12 lg:px-16 pb-8 sm:pb-12 flex flex-col md:flex-row md:items-end gap-6 sm:gap-8">
+            {/* Poster vertical */}
+            <div className="relative w-[180px] sm:w-[210px] lg:w-[240px] aspect-[2/3] rounded-2xl bg-zinc-800 border border-white/10 shrink-0 shadow-2xl" />
+
+            {/* Détails texte */}
+            <div className="flex-1 space-y-4">
+              <div className="flex gap-2">
+                <div className="h-6 w-24 rounded-full bg-zinc-800" />
+                <div className="h-6 w-16 rounded-full bg-zinc-800" />
+                <div className="h-6 w-12 rounded-full bg-zinc-800" />
+              </div>
+              <div className="h-10 sm:h-12 w-3/4 rounded-xl bg-zinc-800" />
+              <div className="h-4 w-1/3 rounded-lg bg-zinc-800" />
+              <div className="flex gap-3 pt-2">
+                <div className="h-11 w-36 rounded-full bg-zinc-800" />
+                <div className="h-11 w-32 rounded-full bg-zinc-800" />
+                <div className="h-11 w-11 rounded-full bg-zinc-800" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 2. POST-HERO SKELETON (2 Colonnes) */}
+        <div className="w-full px-4 sm:px-8 md:px-12 lg:px-16 py-8 sm:py-12">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Colonne Gauche : Synopsis + Casting */}
+            <div className="lg:col-span-2 space-y-8">
+              {/* Carte Synopsis */}
+              <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-3xl p-6 sm:p-8 space-y-4 animate-pulse">
+                <div className="h-6 w-32 bg-zinc-800 rounded-lg" />
+                <div className="space-y-2">
+                  <div className="h-4 bg-zinc-800 rounded w-full" />
+                  <div className="h-4 bg-zinc-800 rounded w-5/6" />
+                  <div className="h-4 bg-zinc-800 rounded w-4/6" />
+                </div>
+              </div>
+
+              {/* Carte Casting */}
+              <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-3xl p-6 sm:p-8 space-y-4 animate-pulse">
+                <div className="h-6 w-44 bg-zinc-800 rounded-lg" />
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-full bg-zinc-800 shrink-0" />
+                      <div className="space-y-1.5 flex-1">
+                        <div className="h-3.5 bg-zinc-800 rounded w-3/4" />
+                        <div className="h-2.5 bg-zinc-800 rounded w-1/2" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Colonne Droite : Specs Techniques */}
+            <div className="lg:col-span-1">
+              <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-3xl p-6 sm:p-8 space-y-5 animate-pulse">
+                <div className="h-6 w-40 bg-zinc-800 rounded-lg" />
+                <div className="space-y-3">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="flex justify-between py-2 border-b border-zinc-800/50">
+                      <div className="h-4 w-20 bg-zinc-800 rounded" />
+                      <div className="h-4 w-28 bg-zinc-800 rounded" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 3. SIMILAR MOVIES GRID SKELETON */}
+          <div className="mt-14 space-y-6 animate-pulse">
+            <div className="h-7 w-48 bg-zinc-800 rounded-lg" />
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4">
+              {Array.from({ length: 7 }).map((_, i) => (
+                <div key={i} className="aspect-[2/3] rounded-2xl bg-zinc-800 border border-zinc-800/80" />
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -272,202 +331,191 @@ function MediaDetailPage() {
         />
       )}
 
-      {/* Back button */}
-      <div className="fixed top-0 left-0 z-40 p-4">
-        <button
-          onClick={() => { window.scrollTo(0, 0); router.back(); }}
-          aria-label={_("media.back")}
-          className="flex items-center justify-center w-10 h-10 rounded-full bg-black/70 backdrop-blur-sm border border-white/10 text-white hover:bg-white/10 transition-all"
-        >
-          <IconArrowLeft className="h-5 w-5" />
-        </button>
-      </div>
 
-      <div className="relative w-full h-[65vh] sm:h-[75vh] overflow-hidden">
-        <Image
-          src={item.backdropUrl}
-          alt={item.title}
-          fill
-          className="object-cover scale-105"
-          style={{ filter: "brightness(0.65) saturate(1.05)" }}
-          sizes="100vw"
-          priority
-        />
 
-        <div className="absolute inset-0 bg-gradient-to-r from-[#09090B]/80 via-[#09090B]/40 to-transparent" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#09090B] via-transparent to-transparent" />
+      {/* 1. HERO SECTION */}
+      <div className="relative w-full min-h-[60vh] sm:h-[70vh] lg:h-[78vh] max-h-[750px] overflow-hidden">
+        {item.backdropOriginalUrl || item.backdropUrl ? (
+          <Image
+            src={item.backdropOriginalUrl || item.backdropUrl}
+            alt={item.title}
+            fill
+            className="object-cover object-top filter brightness-[0.78]"
+            sizes="100vw"
+            priority
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-b from-zinc-800 to-black" />
+        )}
 
-        <div className="absolute inset-0 flex items-end pb-14 sm:pb-16 px-4 sm:px-8 lg:px-20">
-          <div className="flex flex-col sm:flex-row gap-4 sm:gap-8 items-start w-full">
+        {/* Dégradés cinéma pour immersion */}
+        <div className="absolute inset-0 bg-gradient-to-r from-black via-black/60 to-transparent max-w-4xl" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#09090B] via-[#09090B]/40 to-transparent" />
+        <div className="absolute top-0 left-0 right-0 h-28 bg-gradient-to-b from-black/80 to-transparent pointer-events-none" />
 
-            <div className="hidden sm:block relative flex-none w-40 lg:w-56 rounded-2xl overflow-hidden shadow-2xl border border-white/10 ring-1 ring-white/5">
-              <Image
-                src={item.posterUrl}
-                alt={item.title}
-                fill
-                className="object-cover"
-                sizes="(max-width: 1024px) 160px, 224px"
-                loading="lazy"
-              />
+        {/* Contenu du Hero */}
+        <div className="absolute inset-0 flex items-end pb-8 sm:pb-12 px-4 sm:px-8 md:px-12 lg:px-16 z-20">
+          <div className="flex flex-col sm:flex-row gap-6 sm:gap-8 items-end sm:items-center w-full">
+            {/* Poster vertical non tronqué */}
+            <div className="hidden sm:block relative flex-none w-44 md:w-52 lg:w-56 aspect-[2/3] rounded-2xl overflow-hidden shadow-2xl border border-white/10 ring-1 ring-white/5 bg-zinc-900">
+              {item.posterUrl ? (
+                <Image
+                  src={item.posterUrl}
+                  alt={item.title}
+                  fill
+                  className="object-cover object-top"
+                  sizes="(max-width: 1024px) 210px, 240px"
+                  priority
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-zinc-600">
+                  <IconMovie className="w-12 h-12" />
+                </div>
+              )}
             </div>
 
+            {/* Informations textuelles */}
             <div className="flex-1 space-y-3 sm:space-y-4">
-              <div className="flex flex-wrap gap-1.5 sm:gap-2">
+              {/* Badges : Disponibilité, Audio, Âge, Genres */}
+              <div className="flex flex-wrap items-center gap-2 text-xs font-bold">
                 {disponible && (
                   <span
-                    className={`px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[9px] sm:text-xs font-bold uppercase tracking-widest border ${
+                    className={`px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider border ${
                       disponible.disponible
-                        ? "border-green-500/40 text-green-400 bg-green-500/10"
+                        ? "border-emerald-500/40 text-emerald-400 bg-emerald-500/10"
                         : "border-red-500/40 text-red-400 bg-red-500/10"
                     }`}
                   >
-                    {disponible.disponible ? "● Disponible" : "● Non disponible"}
+                    {disponible.disponible ? "● Disponible" : "● Bientôt disponible"}
                   </span>
                 )}
-                {item.genres.slice(0, 3).map((g) => (
+
+                {/* Badge Audio */}
+                {(disponible?.langueAudio || item.langueAudio) && (disponible?.langueAudio !== 'UNKNOWN') && (
+                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider shadow-md ${
+                    disponible?.isFrenchAudio || item.isFrenchAudio
+                      ? 'bg-blue-600/90 text-white border border-blue-400/30' 
+                      : 'bg-amber-600/90 text-white border border-amber-400/30'
+                  }`}>
+                    {disponible?.langueAudio === 'VFF' ? 'VF (TrueFrench)' : disponible?.langueAudio === 'VFQ' ? 'VF (Québec)' : (disponible?.langueAudio || item.langueAudio)}
+                  </span>
+                )}
+
+                {item.contentRating && (
+                  <span className="px-2 py-0.5 rounded bg-zinc-900/80 border border-zinc-700 text-zinc-300 text-[10px] sm:text-xs font-mono">
+                    {item.contentRating}
+                  </span>
+                )}
+
+                {item.genres?.slice(0, 2).map((g) => (
                   <span
                     key={g}
-                    className="px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[9px] sm:text-xs font-bold uppercase tracking-widest border border-[#D70466]/40 text-[#D70466] bg-[#D70466]/10"
+                    className="px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold text-zinc-300 bg-white/10 border border-white/10"
                   >
                     {g}
                   </span>
                 ))}
               </div>
 
-              <h1 className="text-2xl sm:text-4xl lg:text-6xl font-black text-white leading-tight drop-shadow-xl">
+              {/* Titre */}
+              <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white leading-tight drop-shadow-xl">
                 {item.title}
               </h1>
 
-              <div className="flex flex-wrap items-center gap-1.5 sm:gap-4 text-[11px] sm:text-base text-zinc-300 font-medium">
-                <div className="flex items-center gap-1 text-amber-400">
-                  <IconStar className="h-3.5 w-3.5 sm:h-5 sm:w-5" />
-                  <span className="font-bold">{item.rating}</span>
-                  <span className="text-zinc-500 text-[10px] sm:text-sm">/10</span>
+              {/* Tagline */}
+              {item.tagline && (
+                <p className="text-zinc-300 italic text-xs sm:text-sm font-medium line-clamp-1">
+                  &ldquo;{item.tagline}&rdquo;
+                </p>
+              )}
+
+              {/* Métadonnées : Note, Année, Durée */}
+              <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-zinc-300 font-medium">
+                <div className="flex items-center gap-1 text-amber-400 font-bold">
+                  <IconStar className="h-4 w-4 fill-amber-400" />
+                  <span>{item.rating}</span>
+                  <span className="text-zinc-500 text-[10px] sm:text-xs">/10</span>
+                  {item.voteCount && (
+                    <span className="text-zinc-500 text-[10px] font-normal">({item.voteCount.toLocaleString()})</span>
+                  )}
                 </div>
+                <span className="text-zinc-600">•</span>
                 <div className="flex items-center gap-1">
-                  <IconCalendar className="h-3 w-3 sm:h-5 sm:w-5 text-zinc-500" />
-                  {item.year}
+                  <IconCalendar className="h-4 w-4 text-zinc-500" />
+                  <span>{item.year}</span>
                 </div>
+                <span className="text-zinc-600">•</span>
                 <div className="flex items-center gap-1">
-                  <IconClock className="h-3 w-3 sm:h-5 sm:w-5 text-zinc-500" />
-                  {item.duration}
+                  <IconClock className="h-4 w-4 text-zinc-500" />
+                  <span>{item.duration}</span>
                 </div>
-                <span className="px-1.5 sm:px-2 py-0.5 rounded border border-zinc-700 text-zinc-400 text-[9px] sm:text-xs uppercase tracking-wider">
-                  {item.type}
-                </span>
               </div>
 
-              <p className="text-zinc-300 text-xs sm:text-base leading-relaxed max-w-2xl"
-                style={{
-                  display: "-webkit-box",
-                  WebkitLineClamp: 3,
-                  WebkitBoxOrient: "vertical",
-                  overflow: "hidden",
-                }}
-              >
+              {/* Synopsis court */}
+              <p className="text-zinc-300 text-xs sm:text-sm leading-relaxed max-w-3xl line-clamp-3">
                 {item.synopsis || item.description}
               </p>
 
-              <div className="flex items-center gap-1.5 sm:gap-2 pt-1 sm:pt-2 overflow-x-auto no-scrollbar">
+              {/* Actions */}
+              <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 pt-2">
                 <button
                   onClick={handleWatch}
                   disabled={!item || loading}
-                  className={`flex-none flex items-center gap-1.5 px-3 sm:px-6 py-2 sm:py-3 rounded-full font-bold text-xs sm:text-sm transition-all hover:scale-105 shadow-lg whitespace-nowrap ${
+                  className={`flex items-center gap-2 px-6 sm:px-8 py-3 rounded-full font-bold text-xs sm:text-sm transition-all hover:scale-105 shadow-xl whitespace-nowrap ${
                     !item || loading
-                      ? "bg-zinc-800 border border-zinc-700 text-zinc-400 cursor-not-allowed shadow-none"
-                      : "bg-[#D70466] hover:bg-[#b5034f] text-white shadow-lg shadow-[#D70466]/30"
+                      ? "bg-zinc-800 border border-zinc-700 text-zinc-400 cursor-not-allowed"
+                      : "bg-[#D70466] hover:bg-[#b5034f] text-white shadow-[#D70466]/30"
                   }`}
                 >
-                  <IconPlayerPlay className="h-3.5 w-3.5 sm:h-5 sm:w-5" />
-                  <span className="sm:hidden">{isTV ? 'Série' : 'Film'}</span>
-                  <span className="hidden sm:inline">{_("media.watch")}</span>
+                  <IconPlayerPlay className="h-4 w-4 fill-white" />
+                  <span>{_("media.watch")}</span>
+                </button>
+
+                {item.trailerUrl && (
+                  <button
+                    onClick={() => setTrailerOpen(true)}
+                    className="flex items-center gap-2 px-4 sm:px-6 py-3 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-white font-bold text-xs sm:text-sm transition-all hover:scale-105"
+                  >
+                    <IconMovie className="h-4 w-4" />
+                    <span>Bande-annonce</span>
+                  </button>
+                )}
+
+                <button
+                  onClick={handleDownload}
+                  disabled={!item || loading}
+                  className="flex items-center gap-2 px-4 sm:px-5 py-3 rounded-full bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-700 text-white font-bold text-xs sm:text-sm transition-all hover:scale-105"
+                >
+                  <IconDownload className="h-4 w-4" />
+                  <span className="hidden sm:inline">Télécharger</span>
                 </button>
 
                 {user && (
                   <button
                     onClick={toggleFavorite}
                     disabled={favoriteLoading || !item}
-                    className="flex-none flex items-center gap-1.5 px-3 sm:px-6 py-2 sm:py-3 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white font-bold text-xs sm:text-sm transition-all hover:scale-105"
+                    className={`p-3 rounded-full border transition-all hover:scale-105 backdrop-blur-md ${
+                      isFavorite
+                        ? "bg-[#D70466]/90 border-[#D70466] text-white shadow-lg shadow-[#D70466]/40"
+                        : "bg-black/50 border-white/20 text-white hover:bg-black/80"
+                    }`}
                   >
                     {isFavorite ? (
-                      <IconBookmarkFilled className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-[#D70466]" />
+                      <IconBookmarkFilled className="h-4 w-4" />
                     ) : (
-                      <IconBookmark className="h-3.5 w-3.5 sm:h-5 sm:w-5" />
+                      <IconBookmark className="h-4 w-4" />
                     )}
-                    <span className="hidden sm:inline">
-                      {isFavorite ? (lang === 'fr' ? 'Dans ma liste' : 'In My List') : (lang === 'fr' ? 'Ma liste' : 'My List')}
-                    </span>
                   </button>
                 )}
-
-                {isYouTube && (
-                  <button
-                    onClick={() => setTrailerOpen(true)}
-                    className="flex-none flex items-center gap-1.5 px-3 sm:px-6 py-2 sm:py-3 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white font-bold text-xs sm:text-sm transition-all hover:scale-105"
-                  >
-                    <IconMovie className="h-3.5 w-3.5 sm:h-5 sm:w-5" />
-                    <span className="sm:hidden">Trailer</span>
-                    <span className="hidden sm:inline">{_("media.trailer")}</span>
-                  </button>
-                )}
-
-                <button
-                  className="flex-none flex items-center gap-1.5 px-3 sm:px-6 py-2 sm:py-3 rounded-full bg-white/10 border border-white/20 text-white hover:bg-white/20 hover:scale-105 transition-all font-bold text-xs sm:text-sm whitespace-nowrap"
-                  onClick={handleDownload}
-                  disabled={!item || loading}
-                >
-                  <IconDownload className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                  <span className="hidden sm:inline">{_("download.single")}</span>
-                </button>
 
                 <div className="relative" ref={shareBtnRef}>
                   <button
                     onClick={handleShare}
-                    aria-label={_("media.share")}
-                    className="flex-none flex items-center gap-1.5 px-2.5 sm:px-5 py-2 sm:py-3 rounded-full bg-white/10 border border-white/20 text-white hover:bg-white/20 transition-all hover:scale-105 font-bold text-xs sm:text-sm"
+                    aria-label="Partager"
+                    className="p-3 rounded-full bg-black/50 hover:bg-black/80 border border-white/20 text-white transition-all hover:scale-105 backdrop-blur-md"
                   >
-                    <IconShare className="h-3.5 w-3.5 sm:h-5 sm:w-5" />
+                    <IconShare className="h-4 w-4" />
                   </button>
-                  {shareOpen && sharePos &&
-                    createPortal(
-                      <div
-                        ref={shareMenuRef}
-                        style={{ position: "fixed", top: sharePos.top, right: sharePos.right }}
-                        className="w-44 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl overflow-hidden z-[100]"
-                      >
-                        <a
-                          href={`https://wa.me/?text=${encodeURIComponent((item?.title || 'Chillers') + ' ' + window.location.href)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={() => setShareOpen(false)}
-                          className="flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-zinc-800 transition-colors"
-                        >
-                          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                          WhatsApp
-                        </a>
-                        <a
-                          href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={() => setShareOpen(false)}
-                          className="flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-zinc-800 transition-colors"
-                        >
-                          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="#1877F2"><path d="M24 12.073c0-6.627-5.373-12-12-12S0 5.446 0 12.073c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-                          Facebook
-                        </a>
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(window.location.href);
-                            setShareOpen(false);
-                          }}
-                          className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-zinc-800 transition-colors"
-                        >
-                          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.86-2.04a4.5 4.5 0 00-6.364 0l-4.5 4.5a4.5 4.5 0 006.364 6.364l1.757-1.757" /></svg>
-                          Copier le lien
-                        </button>
-                      </div>,
-                      document.body
-                    )}
                 </div>
               </div>
             </div>
@@ -475,163 +523,159 @@ function MediaDetailPage() {
         </div>
       </div>
 
-      <div className="mx-auto px-4 sm:px-8 md:px-12 lg:px-[4%] py-8 sm:py-12 lg:py-16 space-y-8 sm:space-y-12">
-        <section className="space-y-2 sm:space-y-4">
-          <h2 className="text-base sm:text-2xl font-black text-white flex items-center gap-2 sm:gap-3">
-            <span className="h-4 sm:h-5 w-1 rounded-full bg-[#D70466]" />
-            {_("media.synopsis")}
-          </h2>
-          <p className="text-zinc-300 text-xs sm:text-base leading-relaxed max-w-3xl">
-            {item.synopsis || item.description || _("media.noSynopsis")}
-          </p>
-        </section>
+      {/* 2. CONTENU DÉTAILLÉ APRÈS LE HERO */}
+      <div className="w-full px-4 sm:px-8 md:px-12 lg:px-16 py-10 space-y-12">
+        {/* Grille Synopsis & Fiche Technique */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Colonne gauche : Synopsis & Réalisateur */}
+          <div className="lg:col-span-2 space-y-6">
+            <section className="bg-zinc-900/40 border border-zinc-800/80 rounded-2xl p-6 space-y-3">
+              <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+                <span className="h-4 w-1 rounded-full bg-[#D70466]" />
+                <span>Synopsis</span>
+              </h2>
+              <p className="text-zinc-300 text-sm sm:text-base leading-relaxed">
+                {item.synopsis || item.description || "Aucun résumé disponible pour ce film."}
+              </p>
+            </section>
 
-        {item.cast && item.cast.length > 0 && item.cast[0] !== "Cast Info Unavailable" && (
-          <section className="space-y-2 sm:space-y-4">
-            <h2 className="text-base sm:text-2xl font-black text-white flex items-center gap-2 sm:gap-3">
-              <span className="h-4 sm:h-5 w-1 rounded-full bg-[#7C3AED]" />
-              {_("media.cast")}
-            </h2>
-            <div className="flex flex-wrap gap-1.5 sm:gap-3">
-              {item.cast.map((actor) => (
-                <span
-                  key={actor}
-                  className="px-2.5 sm:px-4 py-1 sm:py-2 rounded-full bg-zinc-900 border border-zinc-800 text-[10px] sm:text-sm font-medium text-zinc-300 hover:border-zinc-600 transition-colors"
-                >
-                  {actor}
-                </span>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {!isTV && (
-          <section ref={playerRef} className="space-y-2 sm:space-y-4">
-            <h2 className="text-base sm:text-2xl font-black text-white flex items-center gap-2 sm:gap-3">
-              <span className="h-4 sm:h-5 w-1 rounded-full bg-[#D70466]" />
-              {_("media.watch")}
-            </h2>
-            <div className="w-full bg-black relative">
-              <button
-                type="button"
-                onClick={() => router.push(`/watch/${item.id}?type=movie`)}
-                className="group relative block w-full aspect-video overflow-hidden rounded-2xl border border-white/10"
-                aria-label={_("media.watch")}
-              >
-                <Image
-                  src={item.backdropUrl || item.posterUrl}
-                  alt={item.title}
-                  fill
-                  sizes="100vw"
-                  className="object-cover scale-105 transition-transform duration-700 ease-out group-hover:scale-100"
-                  style={{ filter: "brightness(0.55) saturate(1.1)" }}
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/30" />
-                <span className="pointer-events-none absolute top-4 left-4 sm:top-6 sm:left-6 hidden text-sm sm:text-base font-black tracking-widest uppercase bg-gradient-to-r from-[#D70466] to-[#7C3AED] bg-clip-text text-transparent drop-shadow-lg">
-                  Chillers
-                </span>                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 sm:gap-4 px-6 text-center">
-                  <div className="flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-[#D70466] to-[#7C3AED] shadow-[0_12px_48px_rgba(215,4,102,0.55)] transition-transform duration-200 ease-out group-hover:scale-110">
-                    <IconPlayerPlay className="h-7 w-7 sm:h-9 sm:w-9 text-white translate-x-0.5" fill="currentColor" />
-                  </div>
-                  <h3 className="text-xl sm:text-3xl font-black text-white drop-shadow-2xl">
-                    {item.title}
-                  </h3>
-                  <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 border border-white/20 backdrop-blur-sm text-[11px] sm:text-xs font-bold uppercase tracking-widest text-white/90">
-                    <IconPlayerPlay className="h-3 w-3 sm:h-4 sm:w-4" fill="currentColor" />
-                    {_("media.watch")}
+            {/* Casting avec photos (Carrousel sur 1 ligne) */}
+            {item.castDetails && item.castDetails.length > 0 ? (
+              <section className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+                    <span className="h-4 w-1 rounded-full bg-[#7C3AED]" />
+                    <span>Casting & Personnages</span>
+                  </h2>
+                  <span className="text-xs text-zinc-500 font-medium">
+                    {item.castDetails.length} acteurs
                   </span>
                 </div>
-              </button>
-            </div>
-          </section>
-        )}
-
-        {isTV && item.seasons && item.seasons.length > 0 && (
-          <section className="space-y-4 sm:space-y-6">
-            <h2 className="text-lg sm:text-2xl font-black text-white flex items-center gap-3">
-              <span className="h-4 w-1 sm:h-5 sm:w-1 rounded-full bg-[#D70466]" />
-              {_("media.season")}s
-            </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-              {item.seasons.filter(s => s.seasonNumber > 0).map((season) => (
-                <div
-                  key={season.id}
-                  onClick={() => router.push(`/tv/${item.id}/season/${season.seasonNumber}`)}
-                  className="group cursor-pointer space-y-2"
-                >
-                  <div className="aspect-[2/3] w-full rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800 relative">
-                    {season.posterUrl ? (
-                      <Image
-                        src={season.posterUrl}
-                        alt={season.name}
-                        fill
-                        className="object-cover group-hover:scale-105 transition-transform duration-500"
-                        sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 20vw"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <IconMovie className="h-12 w-12 text-zinc-700" />
+                <div className="flex items-start gap-3 sm:gap-5 overflow-x-auto no-scrollbar scroll-smooth py-2 px-1">
+                  {item.castDetails.map((actor) => (
+                    <div
+                      key={actor.id}
+                      className="flex flex-col items-center text-center space-y-1.5 flex-shrink-0 w-20 sm:w-24 group cursor-pointer"
+                    >
+                      <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-full overflow-hidden bg-zinc-800 ring-2 ring-white/5 group-hover:ring-[#D70466] group-hover:scale-105 transition-all duration-300">
+                        {actor.profileUrl ? (
+                          <Image
+                            src={actor.profileUrl}
+                            alt={actor.name}
+                            fill
+                            className="object-cover object-top"
+                            sizes="64px"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-zinc-600 font-bold text-xs">
+                            {actor.name.charAt(0)}
+                          </div>
+                        )}
                       </div>
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
-                      <IconPlayerPlay className="h-8 w-8 text-white mx-auto mb-2 opacity-90" />
+                      <div className="w-full">
+                        <p className="text-[11px] sm:text-xs font-bold text-white truncate group-hover:text-[#D70466] transition-colors" title={actor.name}>
+                          {actor.name}
+                        </p>
+                        <p className="text-[10px] text-zinc-400 truncate" title={actor.character}>
+                          {actor.character}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-white group-hover:text-[#D70466] transition-colors truncate">
-                      {season.name}
-                    </h3>
-                    <p className="text-xs text-zinc-500 mt-0.5">
-                       {season.episodeCount ?? season.episodes.length} {_("media.episodes")}
-                    </p>
-                  </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </section>
-        )}
+              </section>
+            ) : item.cast && item.cast.length > 0 && item.cast[0] !== "Cast Info Unavailable" ? (
+              <section className="space-y-3">
+                <h2 className="text-lg font-bold text-white">Distribution</h2>
+                <div className="flex flex-wrap gap-2">
+                  {item.cast.map((actor) => (
+                    <span
+                      key={actor}
+                      className="px-3 py-1.5 rounded-full bg-zinc-900 border border-zinc-800 text-xs font-medium text-zinc-300"
+                    >
+                      {actor}
+                    </span>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+          </div>
 
+          {/* Colonne droite : Fiche Technique & Specs */}
+          <div className="space-y-4">
+            <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-6 space-y-4">
+              <h3 className="text-base font-bold text-white border-b border-zinc-800 pb-3">
+                Informations du Film
+              </h3>
+
+              <div className="space-y-3 text-xs sm:text-sm">
+                {item.directors && item.directors.length > 0 && (
+                  <div className="flex justify-between items-center py-1 border-b border-zinc-800/40">
+                    <span className="text-zinc-400">Réalisation</span>
+                    <span className="font-semibold text-white truncate max-w-[160px]">{item.directors.join(", ")}</span>
+                  </div>
+                )}
+
+                <div className="flex justify-between items-center py-1 border-b border-zinc-800/40">
+                  <span className="text-zinc-400">Qualité</span>
+                  <span className="font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">1080p Full HD</span>
+                </div>
+
+                <div className="flex justify-between items-center py-1 border-b border-zinc-800/40">
+                  <span className="text-zinc-400">Version Audio</span>
+                  <span className="font-bold text-blue-400">
+                    {disponible?.langueAudio === 'VFF' ? 'VF (TrueFrench)' : (disponible?.langueAudio || 'VF / French')}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center py-1 border-b border-zinc-800/40">
+                  <span className="text-zinc-400">Année</span>
+                  <span className="text-white font-medium">{item.year}</span>
+                </div>
+
+                <div className="flex justify-between items-center py-1 border-b border-zinc-800/40">
+                  <span className="text-zinc-400">Durée</span>
+                  <span className="text-white font-medium">{item.duration}</span>
+                </div>
+
+                {item.genres && item.genres.length > 0 && (
+                  <div className="flex justify-between items-start py-1 border-b border-zinc-800/40">
+                    <span className="text-zinc-400">Genres</span>
+                    <span className="text-white font-medium text-right max-w-[160px]">{item.genres.join(", ")}</span>
+                  </div>
+                )}
+
+                <div className="flex justify-between items-center pt-1">
+                  <span className="text-zinc-400">Note TMDB</span>
+                  <span className="font-bold text-amber-400 flex items-center gap-1">
+                    <IconStar className="w-3.5 h-3.5 fill-amber-400" />
+                    {item.rating}/10
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 3. FILMS SIMILAIRES & RECOMMANDÉS (GRID 3 SUR MOBILE) */}
         {similar.length > 0 && (
-          <section className="space-y-4 sm:space-y-6">
-            <h2 className="text-lg sm:text-2xl font-black text-white flex items-center gap-3">
-              <span className="h-4 w-1 sm:h-5 sm:w-1 rounded-full bg-[#7C3AED]" />
-              {_("media.youMightAlsoLike")}
-            </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-5">
+          <section className="space-y-6 pt-6 border-t border-zinc-800/80 w-full">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-3">
+                <span className="h-5 w-1 rounded-full bg-[#7C3AED]" />
+                <span>Films Similaires & Recommandés</span>
+              </h2>
+              <span className="text-xs text-zinc-400 font-semibold">{similar.length} titres</span>
+            </div>
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-4 sm:gap-5 lg:gap-6 w-full">
               {similar.map((sim) => (
-                <div
+                <MovieCard
                   key={sim.id}
-                  onClick={() => router.push(`/media/${sim.id}?type=${sim.type}`)}
-                  className="group cursor-pointer space-y-2"
-                >
-                  <div className="aspect-[2/3] w-full rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800 relative">
-                    <Image
-                      src={sim.posterUrl}
-                      alt={sim.title}
-                      fill
-                      className="object-cover group-hover:scale-105 transition-transform duration-500"
-                      sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
-                      loading="lazy"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
-                      <IconPlayerPlay className="h-8 w-8 text-white mx-auto mb-2 opacity-90" />
-                    </div>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-white group-hover:text-[#D70466] transition-colors truncate">
-                      {sim.title}
-                    </h3>
-                    <div className="flex items-center gap-2 text-xs text-zinc-500 mt-0.5">
-                      <span>{sim.year}</span>
-                      <span>•</span>
-                      <div className="flex items-center gap-0.5 text-amber-400">
-                        <IconStar className="h-3 w-3" />
-                        <span>{sim.rating}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                  item={sim}
+                  variant="poster"
+                  onOpenDetails={(m) => router.push(`/media/${m.id}`)}
+                  onPlay={(m) => router.push(`/watch/${m.id}?type=movie`)}
+                />
               ))}
             </div>
           </section>
@@ -675,6 +719,8 @@ function MediaDetailPage() {
           title={item.title}
           id={id}
           type={isTV ? 'series' : 'movie'}
+          posterUrl={item.posterUrl}
+          backdropUrl={item.backdropUrl}
         />
       )}
 
@@ -910,6 +956,15 @@ function MediaListingPage() {
   }, [type, page, activeGenreId]);
 
   const handleOpenDetails = (item: MovieOrShow) => {
+    // Mobile: navigate directly instead of opening modal
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      if (item.type === "series" || item.type === "anime") {
+        router.push(`/tv/${item.id}`);
+      } else {
+        router.push(`/media/${item.id}`);
+      }
+      return;
+    }
     setSelectedMovie(item);
     setIsModalOpen(true);
   };

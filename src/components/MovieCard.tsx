@@ -86,6 +86,20 @@ function MovieCard({
   ];
   const gradientIndex = item.id.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0) % gradients.length;
 
+  const audioBadge = React.useMemo(() => {
+    if (item.langueAudio && item.langueAudio !== 'UNKNOWN') {
+      const isFr = item.langueAudio === 'VF' || item.langueAudio === 'VFF' || item.langueAudio === 'VFQ';
+      return {
+        label: item.langueAudio === 'VFF' ? 'VF' : item.langueAudio,
+        isFrench: isFr,
+      };
+    }
+    const title = (item.title || '').toUpperCase();
+    if (/\b(VOSTFR|VOST)\b/.test(title)) return { label: 'VOSTFR', isFrench: false };
+    if (/\b(VF|VFF|VFQ|FRENCH|TRUEFRENCH)\b/.test(title)) return { label: 'VF', isFrench: true };
+    return null;
+  }, [item.langueAudio, item.title]);
+
   // GSAP Smooth Hover Animations (Prime Video Cinematic Easing)
   const handleMouseEnter = useCallback(() => {
     if (cardRef.current) {
@@ -232,7 +246,7 @@ function MovieCard({
               src={posterSrc}
               alt={item.title}
               fill
-              className="object-cover object-center"
+              className="object-cover object-top"
               sizes="(max-width: 640px) 165px, (max-width: 768px) 195px, 255px"
               loading="lazy"
             />
@@ -255,18 +269,29 @@ function MovieCard({
               src={backdropSrc}
               alt={item.title}
               fill
-              className="object-cover object-center"
+              className="object-cover object-top"
               sizes="(max-width: 1024px) 440px, 500px"
               loading="lazy"
             />
           ) : null}
         </div>
 
-        {/* Top-right "NOUVEAU" or Type Badge & Bookmark */}
-        <div className="absolute top-3 right-3 z-20 flex flex-col items-end gap-2">
-          <span className="rounded-md glass-badge px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-zinc-200 shadow-lg">
-            {item.isTrending ? "NOUVEAU" : item.type === "series" ? "SÉRIE" : item.type === "anime" ? "ANIME" : "FILM"}
-          </span>
+        {/* Top-right "NOUVEAU" or Type Badge & Audio & Bookmark */}
+        <div className="absolute top-3 right-3 z-20 flex flex-col items-end gap-1.5">
+          <div className="flex items-center gap-1">
+            {audioBadge && (
+              <span className={`rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider shadow-lg ${
+                audioBadge.isFrench 
+                  ? 'bg-blue-600/90 text-white border border-blue-400/30' 
+                  : 'bg-amber-600/90 text-white border border-amber-400/30'
+              }`}>
+                {audioBadge.label}
+              </span>
+            )}
+            <span className="rounded-md glass-badge px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-zinc-200 shadow-lg">
+              {item.isTrending ? "NOUVEAU" : item.type === "series" ? "SÉRIE" : item.type === "anime" ? "ANIME" : "FILM"}
+            </span>
+          </div>
           {user && (
             <button 
               onClick={toggleFavorite}
@@ -383,7 +408,7 @@ function MovieCard({
               src={primarySrc}
               alt={item.title}
               fill
-              className="object-cover object-center"
+              className="object-cover object-top"
               loading="lazy"
               onError={() => {
                 if (!backdropFailed && item.posterUrl) {
@@ -414,8 +439,17 @@ function MovieCard({
           </div>
         )}
 
-        {/* Top-right type badge */}
-        <div className="absolute top-2 right-2 z-10">
+        {/* Top-right type & audio badge */}
+        <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
+          {audioBadge && (
+            <span className={`rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider shadow-sm ${
+              audioBadge.isFrench 
+                ? 'bg-blue-600/90 text-white border border-blue-400/30' 
+                : 'bg-amber-600/90 text-white border border-amber-400/30'
+            }`}>
+              {audioBadge.label}
+            </span>
+          )}
           <span className="rounded-md glass-badge px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-zinc-200">
             {item.type === "series" ? "SÉRIE" : item.type === "anime" ? "ANIME" : "FILM"}
           </span>

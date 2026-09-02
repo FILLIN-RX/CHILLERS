@@ -5,8 +5,19 @@ import Link from "next/link";
 import { IconHeart, IconCamera, IconInfoCircle, IconMail, IconShieldCheck, IconPlayerPlay } from '@tabler/icons-react';
 
 export default function Footer() {
+  const [isStandalone, setIsStandalone] = React.useState(false);
+
+  React.useEffect(() => {
+    const check =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (window.navigator as any).standalone === true;
+    setIsStandalone(check);
+  }, []);
+
+  if (isStandalone) return null;
+
   return (
-    <footer className="w-full bg-brand-dark border-t border-brand-border mt-auto transition-colors duration-300">
+    <footer className="w-full bg-brand-dark border-t border-brand-border mt-auto transition-colors duration-300 [@media(display-mode:standalone)]:hidden">
       <div className="mx-auto px-4 sm:px-8 md:px-12 lg:px-[4%] py-12 space-y-12">
         
         {/* Top Info Grid */}

@@ -43,24 +43,49 @@ export interface StreamDownloadOptions {
   throttleMs?: number;
 }
 
+export function isIOS(): boolean {
+  if (typeof window === "undefined" || typeof navigator === "undefined") return false;
+  return (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+  );
+}
+
+export interface StreamDownloadResult {
+  totalBytes: number | null;
+  blob?: Blob;
+}
+
 /**
- * Streams a remote URL to disk via StreamSaver.
- *
- * Returns a promise that resolves when the file is fully written or rejects
- * on abort / network failure. The caller is expected to wrap this in a try
- * and update the downloads store on settle.
+ * Streams a remote URL to disk via StreamSaver on desktop / Chrome / Android,
+ * and routes through native iOS Safari download manager on iPhone/iPad.
  */
 export async function streamDownloadToDisk(
   url: string,
   opts: StreamDownloadOptions,
-): Promise<{ totalBytes: number | null }> {
+): Promise<StreamDownloadResult> {
   if (typeof window === "undefined") {
     throw new Error("streamDownloadToDisk is browser-only");
   }
+
+  const { filename, signal, onProgress, throttleMs = 200 } = opts;
+
+  if (isIOS()) {
+    // iOS Safari doesn't support WritableStream / StreamSaver MITM iframe.
+    // Trigger native iOS download dialog directly through backend proxy.
+    const href = url.startsWith('/api/') ? url : `/api/download/file?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`;
+    const a = document.createElement("a");
+    a.href = href;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    return { totalBytes: null };
+  }
+
   await ensureStreamSaverReady();
   const ss = await getStreamSaver();
 
-  const { filename, signal, onProgress, throttleMs = 200 } = opts;
   const fileStream = (ss as any).createWriteStream(filename);
   const writer = fileStream.getWriter();
 
@@ -80,13 +105,15 @@ export async function streamDownloadToDisk(
 
     const totalBytes = parseContentLength(res.headers.get("content-length"));
 
-    // Throttled progress reporting. We still consume every chunk regardless.
+    // Throttled progress reporting & chunk accumulation for offline playback
     let lastEmit = 0;
     let bytes = 0;
+    const chunks: Uint8Array[] = [];
 
     const pipe = new WritableStream<Uint8Array>({
       async write(chunk) {
         bytes += chunk.byteLength;
+        chunks.push(chunk);
         const now = Date.now();
         if (onProgress && now - lastEmit >= throttleMs) {
           lastEmit = now;
@@ -95,28 +122,23 @@ export async function streamDownloadToDisk(
         await writer.write(chunk);
       },
       abort(reason) {
-        // When the pipe aborts, the writer must be aborted too so the
-        // browser doesn't leave a half-written file on disk.
         try {
           writer.abort(reason);
-        } catch {
-          /* writer already closed */
-        }
+        } catch {}
       },
     });
 
     await res.body.pipeTo(pipe, { signal: timeoutCtrl.signal });
 
-    if (onProgress) onProgress(bytes, totalBytes);
-    return { totalBytes };
+    try {
+      await writer.close();
+    } catch {}
+
+    const fullBlob = new Blob(chunks as BlobPart[], { type: "video/mp4" });
+    return { totalBytes, blob: fullBlob };
   } finally {
     clearTimeout(timeoutTimer);
     signal.removeEventListener("abort", onExternalAbort);
-    try {
-      await writer.close();
-    } catch {
-      /* writer may already be closed if the user aborted */
-    }
   }
 }
 

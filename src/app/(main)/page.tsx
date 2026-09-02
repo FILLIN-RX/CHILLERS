@@ -27,8 +27,8 @@ import {
   AFRICAN_COUNTRIES,
   getUpcomingMovies,
   getRecommendedForYou,
+  enrichHeroSlidesWithTrailers,
 } from "../api";
-import { MediaRow } from "@/features/home/MediaRow";
 import UpgradeModal from "@/components/UpgradeModal";
 import { useAuthStore } from "@/stores/useAuthStore";
 
@@ -89,12 +89,40 @@ export default function HomePage() {
 }
 
 function HomeFallback() {
-  const { translate: _ } = useLanguage();
   return (
-    <div className="min-h-screen bg-brand-dark flex items-center justify-center">
-      <div className="flex flex-col items-center gap-4">
-        <div className="h-12 w-12 border-4 border-zinc-700 border-t-brand-primary rounded-full animate-spin" />
-        <p className="text-zinc-500 font-bold tracking-widest uppercase text-sm">{_("common.loading")}</p>
+    <div className="min-h-screen bg-brand-dark text-white pb-24">
+      {/* 1. HERO CAROUSEL SKELETON */}
+      <div className="relative w-full aspect-[21/9] sm:aspect-[2.4/1] min-h-[420px] max-h-[680px] bg-zinc-900 animate-pulse overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-t from-brand-dark via-brand-dark/40 to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 px-4 sm:px-8 md:px-12 lg:px-16 pb-12 space-y-4">
+          <div className="flex gap-2">
+            <div className="h-6 w-20 rounded-full bg-zinc-800" />
+            <div className="h-6 w-28 rounded-full bg-zinc-800" />
+          </div>
+          <div className="h-10 sm:h-14 w-2/3 max-w-xl bg-zinc-800 rounded-2xl" />
+          <div className="h-4 w-1/2 max-w-md bg-zinc-800 rounded-lg" />
+          <div className="flex gap-3 pt-2">
+            <div className="h-11 w-36 rounded-full bg-zinc-800" />
+            <div className="h-11 w-32 rounded-full bg-zinc-800" />
+          </div>
+        </div>
+      </div>
+
+      {/* 2. CATEGORY ROWS SKELETONS */}
+      <div className="px-4 sm:px-8 md:px-12 lg:px-16 space-y-10 mt-8">
+        {Array.from({ length: 2 }).map((_, rowIdx) => (
+          <div key={rowIdx} className="space-y-4 animate-pulse">
+            <div className="flex justify-between items-center">
+              <div className="h-7 w-48 bg-zinc-800 rounded-lg" />
+              <div className="h-4 w-20 bg-zinc-800 rounded" />
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 overflow-hidden">
+              {Array.from({ length: 6 }).map((_, colIdx) => (
+                <div key={colIdx} className="aspect-[2/3] rounded-2xl bg-zinc-800/80 border border-zinc-800" />
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -335,7 +363,13 @@ function Home() {
       if (allTrending.length > 0) setTrendingAll(allTrending);
       if (popular.length > 0) {
         setMoviesData(popular);
-        setHeroSlides(popular.slice(0, 10));
+        const heroBase = popular.slice(0, 10);
+        setHeroSlides(heroBase);
+
+        // Enrichir les slides avec les bandes-annonces en background (non bloquant)
+        enrichHeroSlidesWithTrailers(heroBase, signal)
+          .then((enriched) => setHeroSlides(enriched))
+          .catch(() => {}); // fallback : images seules
       }
       if (popularTV.length > 0) setSeriesData(popularTV);
       if (anime.length > 0) setAnimeData(anime);
@@ -556,8 +590,11 @@ function Home() {
   const handleOpenDetails = (item: MovieOrShow) => {
     // Mobile: navigate directly instead of opening modal
     if (typeof window !== "undefined" && window.innerWidth < 768) {
-      const typeParam = item.type === "series" || item.type === "anime" ? "tv" : item.type;
-      router.push(`/media/${item.id}?type=${typeParam}`);
+      if (item.type === "series" || item.type === "anime") {
+        router.push(`/tv/${item.id}`);
+      } else {
+        router.push(`/media/${item.id}`);
+      }
       return;
     }
     // Desktop : ouvre la modale immédiatement avec les données partielles du card.

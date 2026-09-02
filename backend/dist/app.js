@@ -8,6 +8,7 @@ const helmet_1 = __importDefault(require("helmet"));
 const cors_1 = __importDefault(require("cors"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const error_middleware_1 = require("./middleware/error.middleware");
+const antibot_middleware_1 = require("./middleware/antibot.middleware");
 const tmdb_1 = require("./config/tmdb");
 const movies_routes_1 = __importDefault(require("./modules/movies/movies.routes"));
 const tv_routes_1 = __importDefault(require("./modules/tv/tv.routes"));
@@ -18,6 +19,7 @@ const nexstream_routes_1 = __importDefault(require("./streaming/nexstream.routes
 const download_routes_1 = __importDefault(require("./modules/download/download.routes"));
 const doodstream_routes_1 = __importDefault(require("./modules/doodstream/doodstream.routes"));
 const otaku_routes_1 = __importDefault(require("./modules/otaku/otaku.routes"));
+const frenchstream_routes_1 = __importDefault(require("./modules/frenchstream/frenchstream.routes"));
 const admin_routes_1 = __importDefault(require("./modules/admin/admin.routes"));
 const availability_routes_1 = __importDefault(require("./modules/availability/availability.routes"));
 const affiches_routes_1 = __importDefault(require("./modules/affiches/affiches.routes"));
@@ -25,6 +27,9 @@ const live_routes_1 = __importDefault(require("./modules/live/live.routes"));
 const subtitles_routes_1 = __importDefault(require("./modules/subtitles/subtitles.routes"));
 const torrents_routes_1 = __importDefault(require("./streaming/torrents/torrents.routes"));
 const ai_routes_1 = __importDefault(require("./modules/ai/ai.routes"));
+const auth_routes_1 = __importDefault(require("./modules/auth/auth.routes"));
+const user_routes_1 = __importDefault(require("./modules/user/user.routes"));
+const omnisave_routes_1 = __importDefault(require("./modules/omnisave/omnisave.routes"));
 const compression_1 = __importDefault(require("compression"));
 const path_1 = __importDefault(require("path"));
 dotenv_1.default.config({ path: path_1.default.join(__dirname, '../.env') });
@@ -66,6 +71,8 @@ app.post('/api/clear-cache', (_req, res) => {
     (0, tmdb_1.clearCache)();
     res.json({ success: true, data: null, message: 'TMDB cache cleared' });
 });
+// Protection anti-bot & anti-scraping sur les routes publiques et médias
+app.use('/api', antibot_middleware_1.antiBotMiddleware);
 app.use('/api/movies', movies_routes_1.default);
 app.use('/api/tv', tv_routes_1.default);
 app.use('/api/search', search_routes_1.default);
@@ -75,6 +82,7 @@ app.use('/api/nexstream', nexstream_routes_1.default);
 app.use('/api/download', download_routes_1.default);
 app.use('/api/doodstream', doodstream_routes_1.default);
 app.use('/api/otaku', otaku_routes_1.default);
+app.use('/api/frenchstream', frenchstream_routes_1.default);
 app.use('/api/admin', admin_routes_1.default);
 app.use('/api/admin/ai', ai_routes_1.default);
 app.use('/api/availability', availability_routes_1.default);
@@ -82,6 +90,9 @@ app.use('/api/affiches', affiches_routes_1.default);
 app.use('/api/live', live_routes_1.default);
 app.use('/api/subtitles', subtitles_routes_1.default);
 app.use('/api/torrents', torrents_routes_1.default);
+app.use('/api/auth', auth_routes_1.default);
+app.use('/api/user', user_routes_1.default);
+app.use('/api/omnisave', omnisave_routes_1.default);
 app.use((_req, res) => {
     res.status(404).json({
         success: false,

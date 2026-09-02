@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { resolveDownloadUrl } from "@/services/downloads";
 import { streamDownloadToDisk } from "@/services/streamSaver";
+import { saveOfflineVideoBlob } from "@/services/offlineStorage";
 import { buildEpisodeFilename, downloadTaskId } from "@/lib/format";
 import type { DownloadTask, DownloadStatus } from "@/types/download";
 import { useDownloadsStore } from "@/store/downloads";
@@ -25,6 +26,8 @@ export interface UseDownloadArgs {
   title: string;
   season?: number;
   episodeNumber?: number;
+  posterUrl?: string;
+  backdropUrl?: string;
 }
 
 export interface UseDownloadReturn {
@@ -43,7 +46,7 @@ export interface UseDownloadReturn {
 }
 
 export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
-  const { tmdbId, type, title, season, episodeNumber } = args;
+  const { tmdbId, type, title, season, episodeNumber, posterUrl, backdropUrl } = args;
   const id = downloadTaskId({ tmdbId, season, episodeNumber });
 
   const addMany = useDownloadsStore((s) => s.addMany);
@@ -68,41 +71,37 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
     taskRef.current = task;
   }, [task]);
 
-  // Ensure the task row exists in the store before we drive it.
-  useEffect(() => {
-    if (task) {
-      if (task.status === "canceled") {
-        clearCancelRequest(id);
-        resetTasks([id]);
-      }
-      return;
-    }
-    const filename = buildEpisodeFilename({
-      title,
-      season,
-      episodeNumber,
-      extension: "mp4",
-    });
-    addMany([
-      {
-        id,
-        tmdbId: String(tmdbId),
+  // Helper to ensure the task row exists only when a download is requested
+  const ensureTaskExists = useCallback(() => {
+    const existing = useDownloadsStore.getState().tasks.find((t) => t.id === id);
+    if (!existing) {
+      const filename = buildEpisodeFilename({
         title,
-        type,
-        filename,
         season,
         episodeNumber,
-        resolvedUrl: null,
-        bytesDownloaded: 0,
-        totalBytes: null,
-        status: "queued",
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      },
-    ]);
-    // We only want this on mount — the row is keyed by id, which is stable.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+        extension: "mp4",
+      });
+      addMany([
+        {
+          id,
+          tmdbId: String(tmdbId),
+          title,
+          type,
+          posterUrl,
+          backdropUrl,
+          filename,
+          season,
+          episodeNumber,
+          resolvedUrl: null,
+          bytesDownloaded: 0,
+          totalBytes: null,
+          status: "queued",
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        },
+      ]);
+    }
+  }, [id, title, season, episodeNumber, addMany, tmdbId, type, posterUrl, backdropUrl]);
 
   const cancel = useCallback(() => {
     requestCancel(id);
@@ -112,6 +111,7 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
 
   const resolve = useCallback(async () => {
     if (isRunning) return;
+    ensureTaskExists();
     clearCancelRequest(id);
     setIsRunning(true);
 
@@ -162,7 +162,7 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
     try {
       setStatus(id, "downloading");
 
-      await streamDownloadToDisk(url, {
+      const streamRes = await streamDownloadToDisk(url, {
         filename: taskRef.current?.filename ?? `download-${id}.mp4`,
         signal: ctrl.signal,
         onProgress: (bytes, total) => {
@@ -176,6 +176,17 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
           });
         },
       });
+
+      // Sauvegarde automatique dans IndexedDB pour la lecture hors-ligne sans sélection de fichier
+      if (streamRes?.blob) {
+        const filename = taskRef.current?.filename ?? `download-${id}.mp4`;
+        const titleStr = taskRef.current?.title ?? title;
+        try {
+          await saveOfflineVideoBlob(id, streamRes.blob, filename, titleStr);
+        } catch (e) {
+          console.warn("[useDownload] IndexedDB save failed:", e);
+        }
+      }
 
       if (ctrl.signal.aborted) {
         setStatus(id, "canceled");
@@ -193,7 +204,7 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
       removeController(id);
       setIsRunning(false);
     }
-  }, [id, isCancelRequested, setProgress, setStatus, setController, removeController]);
+  }, [id, title, isCancelRequested, setProgress, setStatus, setController, removeController]);
 
   const start = useCallback(async () => {
     if (isRunning) return;

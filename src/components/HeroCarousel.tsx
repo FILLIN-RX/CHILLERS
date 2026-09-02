@@ -22,8 +22,27 @@ export default function HeroCarousel({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [videoExpired, setVideoExpired] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const { translate: _ } = useLanguage();
+
+  // Detect mobile to disable hero video (save bandwidth)
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  // Auto-pause video after 15 seconds per slide
+  useEffect(() => {
+    setVideoExpired(false);
+    const slide = slides[currentIndex];
+    if (!slide?.videoUrl || isPaused || isMobile) return;
+    const timer = setTimeout(() => setVideoExpired(true), 15_000);
+    return () => clearTimeout(timer);
+  }, [currentIndex, isPaused, isMobile, slides]);
 
   useEffect(() => {
     if (slides.length > 0) return;
@@ -140,32 +159,35 @@ export default function HeroCarousel({
                   loading={index === 0 ? "eager" : "lazy"}
                 />
 
-                {isActive && slide.videoUrl && !isPaused && (
-                  slide.videoUrl.startsWith("https://www.youtube.com/embed/") ? (
-                    <iframe
-                      data-hero-video
-                      src={`${slide.videoUrl}?autoplay=1&controls=0&mute=1&loop=1&playlist=${slide.videoUrl.split('/').pop()}&enablejsapi=1`}
-                      className="absolute inset-0 w-full h-full border-none pointer-events-none"
-                      allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-                      allowFullScreen
-                      title={slide.title}
-                    />
-                  ) : (
-                    <video
-                      ref={videoRef}
-                      src={slide.videoUrl}
-                      autoPlay
-                      muted
-                      loop
-                      playsInline
-                      preload="auto"
-                      className="absolute inset-0 w-full h-full object-cover"
-                    />
-                  )
+                {isActive && slide.videoUrl && !isPaused && !isMobile && !videoExpired && (
+                  <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none z-[1]">
+                    {slide.videoUrl.startsWith("https://www.youtube.com/embed/") ? (
+                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[100vw] min-w-[177.78vh] h-[56.25vw] min-h-full scale-125 sm:scale-115">
+                        <iframe
+                          data-hero-video
+                          src={`${slide.videoUrl}?autoplay=1&controls=0&mute=1&loop=0&enablejsapi=1&rel=0&showinfo=0&iv_load_policy=3&modestbranding=1&playsinline=1`}
+                          className="w-full h-full border-none pointer-events-none"
+                          allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+                          allowFullScreen
+                          title={slide.title}
+                        />
+                      </div>
+                    ) : (
+                      <video
+                        ref={videoRef}
+                        src={slide.videoUrl}
+                        autoPlay
+                        muted
+                        playsInline
+                        preload="auto"
+                        className="absolute inset-0 w-full h-full object-cover"
+                      />
+                    )}
+                  </div>
                 )}
 
-                <div className="absolute inset-0 banner-overlay" />
-                <div className="absolute inset-x-0 top-0 h-32 banner-overlay-top" />
+                <div className="absolute inset-0 banner-overlay pointer-events-none z-[2]" />
+                <div className="absolute inset-x-0 top-0 h-36 banner-overlay-top pointer-events-none z-[2]" />
               </div>
 
               {/* P3-B: was `hidden md:block` which made the play button invisible

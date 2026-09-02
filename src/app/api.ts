@@ -49,6 +49,7 @@ export {
   getDisponible,
   clearTmdbCache,
   mapTMDBToMovieOrShow,
+  enrichHeroSlidesWithTrailers,
 } from "@/services/media";
 
 export type { TmdbRawItem } from "@/services/media";

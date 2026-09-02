@@ -34,14 +34,14 @@ export default function MultiDownloadModal({
   episodes,
 }: Props) {
   const { translate: _ } = useLanguage();
-  const [started, setStarted] = useState(false);
+  const [started, setStarted] = useState(true);
 
   const batch = useDownloadsBatch({
     tmdbId,
     seriesTitle,
     type: "series",
     episodes,
-    gated: !started,
+    gated: false,
   });
 
   // Scroll lock + ESC.

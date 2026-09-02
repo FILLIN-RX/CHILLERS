@@ -7,6 +7,8 @@ import { DoodStreamProvider } from './providers/doodstream.provider';
 import { DirectProvider } from './providers/direct.provider';
 import { OtakuProvider } from './providers/otaku.provider';
 import { FrenchStreamProvider } from './providers/frenchstream.provider';
+import { OmniSaveProvider } from './providers/omnisave.provider';
+import { persistDiscoveredStream } from './services/stream-persistence.service';
 import { CachedStream, streamCache, getCacheKey } from '../utils/stream-cache';
 
 const VALIDATION_TIMEOUT = 5000;
@@ -41,6 +43,7 @@ export class ProviderManager {
     return [
       new DirectProvider(),
       new FrenchStreamProvider(),
+      new OmniSaveProvider(),
       new MongoDBProvider(),
       new DoodStreamProvider(),
       new OtakuProvider(),
@@ -184,12 +187,16 @@ export class ProviderManager {
         };
       }
 
-      // Skip validation for MongoDB — URLs already stored in our DB,
-      // the provider itself checks signed-link expiry internally.
-      const valid = provider.name === 'mongodb' || await this.validateUrl(result.embedUrl);
+      const valid = await this.validateUrl(result.embedUrl);
       
       if (valid) {
         this.recordSuccess(provider.name);
+        if (provider.name !== 'mongodb') {
+          persistDiscoveredStream(query, result, {
+            quality: provider.name === 'frenchstream' ? '1080p' : '720p',
+            isPremium: query.isPremium || provider.name === 'frenchstream',
+          });
+        }
         return {
           provider: provider.name,
           status: 'success',
@@ -288,8 +295,8 @@ export class ProviderManager {
   }
 
   private async validateUrl(url: string): Promise<boolean> {
-    // Skip validation for iframe embeds since they are protected by Cloudflare/DDOS-GUARD
-    if (this.isIframeEmbedUrl(url)) {
+    // Skip validation for internal proxy and iframe embeds
+    if (url.startsWith('/api/') || this.isIframeEmbedUrl(url)) {
       return true;
     }
 

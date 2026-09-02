@@ -64,14 +64,20 @@ export const getAfrican = async (page: number = 1, language?: string, country?: 
 export const getDetails = async (id: string, language?: string) => {
   try {
     const { data } = await tmdbClient.get(`/tv/${id}`, {
-      params: { append_to_response: 'credits,videos', language: toTMDBLanguage(language) },
+      params: { 
+        append_to_response: 'credits,videos,content_ratings,external_ids,recommendations,similar,aggregate_credits,keywords', 
+        language: toTMDBLanguage(language) 
+      },
     });
     return data;
   } catch (err: any) {
     if (err?.response?.status === 404) {
       try {
         const { data } = await tmdbClient.get(`/movie/${id}`, {
-          params: { append_to_response: 'credits,videos', language: toTMDBLanguage(language) },
+          params: { 
+            append_to_response: 'credits,videos,release_dates,recommendations,similar', 
+            language: toTMDBLanguage(language) 
+          },
         });
         return data;
       } catch (_) {}
@@ -82,7 +88,10 @@ export const getDetails = async (id: string, language?: string) => {
 
 export const getSeasonDetails = async (id: string, seasonNumber: string, language?: string) => {
   const { data } = await tmdbClient.get(`/tv/${id}/season/${seasonNumber}`, {
-    params: { language: toTMDBLanguage(language) },
+    params: { 
+      append_to_response: 'credits,videos,images',
+      language: toTMDBLanguage(language) 
+    },
   });
   return data;
 };

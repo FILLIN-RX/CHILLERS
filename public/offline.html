@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Mode Hors-Ligne · CHILLERS</title>
+  <meta name="theme-color" content="#0a0a0a">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #0a0a0a;
+      color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 24px;
+      text-align: center;
+    }
+    .icon-container {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: rgba(229, 9, 20, 0.12);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+      border: 1px solid rgba(229, 9, 20, 0.25);
+    }
+    .icon-container svg {
+      width: 40px;
+      height: 40px;
+      color: #e50914;
+    }
+    h1 {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 12px;
+    }
+    p {
+      font-size: 15px;
+      color: #a1a1aa;
+      max-width: 380px;
+      line-height: 1.5;
+      margin-bottom: 32px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 14px 28px;
+      border-radius: 12px;
+      background: #ffffff;
+      color: #000000;
+      font-size: 14px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: background 0.2s, transform 0.1s;
+      cursor: pointer;
+      border: none;
+    }
+    .btn:active {
+      transform: scale(0.97);
+    }
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.08);
+      color: #ffffff;
+      margin-top: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="icon-container">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="1" y1="1" x2="23" y2="23"></line>
+      <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
+      <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
+      <path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path>
+      <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path>
+      <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+      <line x1="12" y1="20" x2="12.01" y2="20"></line>
+    </svg>
+  </div>
+  <h1>Vous êtes hors-ligne</h1>
+  <p>Vérifiez votre connexion internet. Vous pouvez toujours visionner les vidéos déjà téléchargées sur votre appareil.</p>
+  <a href="/downloads" class="btn">
+    Accéder aux Téléchargements
+  </a>
+  <button onclick="window.location.reload()" class="btn btn-secondary">
+    Réessayer la connexion
+  </button>
+</body>
+</html>

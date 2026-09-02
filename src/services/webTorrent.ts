@@ -21,6 +21,12 @@ export interface TorrentSource {
   size: number;
 }
 
+export interface TorrentMagnet extends TorrentSource {
+  title?: string;
+  seeders?: number;
+  indexer?: string;
+}
+
 interface MagnetEnvelope {
   success: boolean;
   data?: TorrentSource[] | null;

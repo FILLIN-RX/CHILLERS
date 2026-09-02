@@ -22,6 +22,10 @@ export interface DownloadTask {
   title: string;
   /** Media type — "movie", "series" or "anime". */
   type: "movie" | "series" | "anime";
+  /** Poster image URL for movies/series. */
+  posterUrl?: string;
+  /** Backdrop image URL for wide preview. */
+  backdropUrl?: string;
   /** Filename suggested to the browser's save dialog. */
   filename: string;
   /** For series: the targeted episode (undefined for movies). */

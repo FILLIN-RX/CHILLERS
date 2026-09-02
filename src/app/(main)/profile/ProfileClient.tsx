@@ -4,11 +4,12 @@ import { useEffect, useState } from "react";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useRouter, useSearchParams } from "next/navigation";
-import { IconBookmark, IconHistory, IconSettings, IconUser, IconPlayerPlay, IconCrown, IconDeviceDesktop } from "@tabler/icons-react";
+import { IconBookmark, IconHistory, IconSettings, IconUser, IconPlayerPlay, IconCrown, IconDeviceDesktop, IconDownload } from "@tabler/icons-react";
 import Link from "next/link";
 import { userService } from "@/services/user";
 import { authService } from "@/services/auth";
 import UserAvatar from "@/components/UserAvatar";
+import DownloadsView from "@/features/downloads/DownloadsView";
 
 export default function ProfileClient() {
   const { user, token, updateUser } = useAuthStore();
@@ -38,6 +39,7 @@ export default function ProfileClient() {
 
   const tabs = [
     { id: "watchlist", label: lang === 'fr' ? 'Ma Liste' : 'Watchlist', icon: IconBookmark },
+    { id: "downloads", label: lang === 'fr' ? 'Téléchargements' : 'Downloads', icon: IconDownload },
     { id: "history", label: lang === 'fr' ? 'Historique' : 'History', icon: IconHistory },
     { id: "subscription", label: lang === 'fr' ? 'Abonnement' : 'Subscription', icon: IconCrown },
     { id: "settings", label: lang === 'fr' ? 'Paramètres' : 'Settings', icon: IconSettings },
@@ -251,6 +253,12 @@ export default function ProfileClient() {
             </div>
           )}
 
+          {tab === "downloads" && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 w-full">
+              <DownloadsView isEmbeddedInProfile={true} />
+            </div>
+          )}
+
           {tab === "subscription" && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
               <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-8">
@@ -259,48 +267,70 @@ export default function ProfileClient() {
               <div className="max-w-2xl space-y-6">
                 
                 {/* Plan Info */}
-                <div className="bg-zinc-900/50 backdrop-blur-md border border-white/5 rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-[#D70466]/20 blur-[50px] -z-10" />
+                <div className={`backdrop-blur-md rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden transition-all ${
+                  user.subscription?.plan === 'premium' || user.role === 'admin'
+                    ? 'bg-gradient-to-br from-zinc-900/90 via-amber-950/20 to-zinc-900/90 border border-amber-500/30 shadow-[0_0_30px_rgba(245,158,11,0.15)]'
+                    : 'bg-zinc-900/50 border border-white/5'
+                }`}>
+                  <div className={`absolute top-0 right-0 w-40 h-40 blur-[60px] -z-10 ${
+                    user.subscription?.plan === 'premium' || user.role === 'admin'
+                      ? 'bg-amber-500/25'
+                      : 'bg-[#D70466]/20'
+                  }`} />
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                     <div>
-                      <p className="text-zinc-400 font-medium mb-1">{lang === 'fr' ? 'Plan Actuel' : 'Current Plan'}</p>
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="text-zinc-400 font-medium">{lang === 'fr' ? 'Plan Actuel' : 'Current Plan'}</p>
+                        {user.subscription?.plan === 'premium' || user.role === 'admin' ? (
+                          <span className="px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 text-black text-[10px] font-black tracking-wider uppercase">
+                            VIP ACTIF
+                          </span>
+                        ) : null}
+                      </div>
                       <h3 className="text-3xl font-extrabold text-white capitalize flex items-center gap-3">
-                        {user.subscription?.plan || 'Free'}
-                        {user.subscription?.plan === 'premium' && <IconCrown className="w-8 h-8 text-yellow-500" />}
+                        {user.subscription?.plan || (user.role === 'admin' ? 'Admin VIP' : 'Free')}
+                        {(user.subscription?.plan === 'premium' || user.role === 'admin') && (
+                          <IconCrown className="w-8 h-8 text-amber-400 drop-shadow-[0_0_12px_rgba(245,158,11,0.6)]" />
+                        )}
                       </h3>
-                      <p className="text-sm text-zinc-500 mt-2">
-                        {user.subscription?.status === 'active' 
-                          ? (lang === 'fr' ? 'Actif' : 'Active')
+                      <p className="text-sm text-zinc-400 mt-2 flex items-center gap-1.5">
+                        <span className={`w-2 h-2 rounded-full ${user.subscription?.status === 'active' || user.role === 'admin' ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'bg-zinc-600'}`} />
+                        {user.subscription?.status === 'active' || user.role === 'admin'
+                          ? (lang === 'fr' ? 'Abonnement Actif' : 'Active Subscription')
                           : (lang === 'fr' ? 'Inactif' : 'Inactive')}
                       </p>
                     </div>
                     <div>
                       <Link 
                         href="/subscribe"
-                        className="inline-flex items-center justify-center px-6 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold transition-all border border-white/5"
+                        className={`inline-flex items-center justify-center px-6 py-3 rounded-xl font-bold transition-all shadow-md ${
+                          user.subscription?.plan === 'premium' || user.role === 'admin'
+                            ? 'bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-black shadow-amber-500/20'
+                            : 'bg-white/10 hover:bg-white/20 text-white border border-white/5'
+                        }`}
                       >
-                        {lang === 'fr' ? 'Changer de plan' : 'Change Plan'}
+                        {lang === 'fr' ? 'Gérer mon abonnement' : 'Manage Subscription'}
                       </Link>
                     </div>
                   </div>
 
                   {user.subscription?.features && (
-                    <div className="mt-8 pt-8 border-t border-white/10 grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-zinc-500 text-xs mb-1">Résolution Max</p>
-                        <p className="text-white font-bold">{user.subscription.features.maxResolution}</p>
+                    <div className="mt-8 pt-8 border-t border-white/10 grid grid-cols-2 sm:grid-cols-4 gap-4">
+                      <div className="bg-black/20 p-3 rounded-xl border border-white/5">
+                        <p className="text-zinc-400 text-xs mb-1">Résolution Max</p>
+                        <p className="text-white font-bold text-base">{user.subscription.features.maxResolution}</p>
                       </div>
-                      <div>
-                        <p className="text-zinc-500 text-xs mb-1">Appareils Simultanés</p>
-                        <p className="text-white font-bold">{user.subscription.features.maxDevices}</p>
+                      <div className="bg-black/20 p-3 rounded-xl border border-white/5">
+                        <p className="text-zinc-400 text-xs mb-1">Appareils</p>
+                        <p className="text-white font-bold text-base">{user.subscription.features.maxDevices}</p>
                       </div>
-                      <div>
-                        <p className="text-zinc-500 text-xs mb-1">Reprise de Lecture</p>
-                        <p className="text-white font-bold">{user.subscription.features.hasContinueWatching ? 'Oui' : 'Non'}</p>
+                      <div className="bg-black/20 p-3 rounded-xl border border-white/5">
+                        <p className="text-zinc-400 text-xs mb-1">Reprise de Lecture</p>
+                        <p className="text-emerald-400 font-bold text-base">{user.subscription.features.hasContinueWatching ? 'Illimitée' : 'Non'}</p>
                       </div>
-                      <div>
-                        <p className="text-zinc-500 text-xs mb-1">Téléchargements</p>
-                        <p className="text-white font-bold">{user.subscription.features.hasDownloads ? 'Oui' : 'Non'}</p>
+                      <div className="bg-black/20 p-3 rounded-xl border border-white/5">
+                        <p className="text-zinc-400 text-xs mb-1">Téléchargements</p>
+                        <p className="text-emerald-400 font-bold text-base">{user.subscription.features.hasDownloads ? 'Illimités' : 'Non'}</p>
                       </div>
                     </div>
                   )}

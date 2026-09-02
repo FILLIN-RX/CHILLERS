@@ -2,10 +2,11 @@
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import gsap from "gsap";
 import type { MovieOrShow, Season, Episode } from "@/types/media";
 import { getSeasonDetails, getMediaDetails } from "@/services/media";
-import { IconX, IconPlayerPlay, IconStar } from '@tabler/icons-react';
+import { IconX, IconPlayerPlay, IconStar, IconInfoCircle } from '@tabler/icons-react';
 import { useLanguage } from "@/i18n/LanguageContext";
 import { acquireModalScrollLock, releaseModalScrollLock } from "@/lib/modalScrollLock";
 
@@ -24,6 +25,7 @@ export default function MovieModal({
   onWatch,
   onOpenDetails: _onOpenDetails,
 }: MovieModalProps) {
+  const router = useRouter();
   const backdropRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const heroImageRef = useRef<HTMLDivElement>(null);
@@ -80,7 +82,7 @@ export default function MovieModal({
               duration: `${ep.runtime || 24}m`,
               number: ep.episode_number,
               thumbnail: ep.still_path
-                ? `https://image.tmdb.org/t/p/w185${ep.still_path}`
+                ? `https://image.tmdb.org/t/p/w500${ep.still_path}`
                 : "",
               synopsis: ep.overview,
             })),
@@ -217,7 +219,7 @@ export default function MovieModal({
                 src={heroSrc}
                 alt={effective.title}
                 fill
-                className="object-cover object-center"
+                className="object-cover object-top"
                 sizes="(max-width: 768px) 100vw, 900px"
                 priority
               />
@@ -257,13 +259,25 @@ export default function MovieModal({
 
           {/* Buttons + synopsis */}
           <div className="space-y-4">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <button
                 onClick={() => onWatch(item)}
                 className="flex items-center gap-2 rounded-xl bg-brand-primary hover:bg-brand-primary/90 text-white px-6 py-2.5 font-bold text-sm transition-all shadow-lg shadow-brand-primary/25 cursor-pointer hover:scale-105 active:scale-95"
               >
                 <IconPlayerPlay className="h-4 w-4 fill-white" />
                 {_("media.watch")}
+              </button>
+
+              <button
+                onClick={() => {
+                  handleClose();
+                  const isTV = effective.type === "series" || effective.type === "anime";
+                  router.push(isTV ? `/tv/${effective.id}` : `/media/${effective.id}`);
+                }}
+                className="flex items-center gap-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white px-4 py-2.5 font-bold text-sm transition-all cursor-pointer hover:scale-105 active:scale-95 backdrop-blur-md"
+              >
+                <IconInfoCircle className="h-4 w-4" />
+                <span>Voir la fiche</span>
               </button>
             </div>
 

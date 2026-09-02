@@ -11,6 +11,9 @@ const mongodb_provider_1 = require("./providers/mongodb.provider");
 const doodstream_provider_1 = require("./providers/doodstream.provider");
 const direct_provider_1 = require("./providers/direct.provider");
 const otaku_provider_1 = require("./providers/otaku.provider");
+const frenchstream_provider_1 = require("./providers/frenchstream.provider");
+const omnisave_provider_1 = require("./providers/omnisave.provider");
+const stream_persistence_service_1 = require("./services/stream-persistence.service");
 const stream_cache_1 = require("../utils/stream-cache");
 const VALIDATION_TIMEOUT = 5000;
 const PROVIDER_TIMEOUT = 10000;
@@ -27,6 +30,8 @@ class ProviderManager {
     buildProviders() {
         return [
             new direct_provider_1.DirectProvider(),
+            new frenchstream_provider_1.FrenchStreamProvider(),
+            new omnisave_provider_1.OmniSaveProvider(),
             new mongodb_provider_1.MongoDBProvider(),
             new doodstream_provider_1.DoodStreamProvider(),
             new otaku_provider_1.OtakuProvider(),
@@ -34,10 +39,10 @@ class ProviderManager {
     }
     async getMovieStream(query) {
         // ── Cache LRU ───────────────────────────────────────────────────────────
-        const cacheKey = (0, stream_cache_1.getCacheKey)('movie', query.tmdbId);
+        const cacheKey = (0, stream_cache_1.getCacheKey)('movie', query.tmdbId, undefined, undefined, query.isPremium);
         const cached = stream_cache_1.streamCache.get(cacheKey);
         if (cached) {
-            console.log(`[Stream] Cache hit for movie ${query.tmdbId}`);
+            console.log(`[Stream] Cache hit for movie ${query.tmdbId} (premium=${!!query.isPremium})`);
             return cached;
         }
         const attempts = [];
@@ -57,10 +62,10 @@ class ProviderManager {
     }
     async getEpisodeStream(query) {
         // ── Cache LRU ───────────────────────────────────────────────────────────
-        const cacheKey = (0, stream_cache_1.getCacheKey)('episode', query.tmdbId, query.season, query.episode);
+        const cacheKey = (0, stream_cache_1.getCacheKey)('episode', query.tmdbId, query.season, query.episode, query.isPremium);
         const cached = stream_cache_1.streamCache.get(cacheKey);
         if (cached) {
-            console.log(`[Stream] Cache hit for episode ${query.tmdbId} S${query.season}E${query.episode}`);
+            console.log(`[Stream] Cache hit for episode ${query.tmdbId} S${query.season}E${query.episode} (premium=${!!query.isPremium})`);
             return cached;
         }
         const attempts = [];
@@ -140,11 +145,15 @@ class ProviderManager {
                     reason: 'no result returned',
                 };
             }
-            // Skip validation for MongoDB — URLs already stored in our DB,
-            // the provider itself checks signed-link expiry internally.
-            const valid = provider.name === 'mongodb' || await this.validateUrl(result.embedUrl);
+            const valid = await this.validateUrl(result.embedUrl);
             if (valid) {
                 this.recordSuccess(provider.name);
+                if (provider.name !== 'mongodb') {
+                    (0, stream_persistence_service_1.persistDiscoveredStream)(query, result, {
+                        quality: provider.name === 'frenchstream' ? '1080p' : '720p',
+                        isPremium: query.isPremium || provider.name === 'frenchstream',
+                    });
+                }
                 return {
                     provider: provider.name,
                     status: 'success',
@@ -177,17 +186,17 @@ class ProviderManager {
         }
     }
     sortProviders(query) {
-        const supports = [];
-        const fallback = [];
-        for (const p of this.providers) {
-            if (p.supports(query)) {
-                supports.push(p);
-            }
-            else {
-                fallback.push(p);
-            }
+        const isPremium = !!query.isPremium;
+        if (isPremium) {
+            // Pour les utilisateurs Premium : FrenchStream (1080p Full HD) en priorité #1
+            const premiumProviders = this.providers.filter(p => p.name === 'frenchstream' && p.supports(query));
+            const otherProviders = this.providers.filter(p => p.name !== 'frenchstream');
+            return [...premiumProviders, ...otherProviders];
         }
-        return [...supports, ...fallback];
+        else {
+            // Pour les utilisateurs Standards/Gratuits : flux normaux (Direct, MongoDB, Doodstream, Otaku)
+            return this.providers.filter(p => p.name !== 'frenchstream');
+        }
     }
     async filterProviders(query) {
         return this.sortProviders(query);
@@ -230,8 +239,8 @@ class ProviderManager {
             url.includes('embed'));
     }
     async validateUrl(url) {
-        // Skip validation for iframe embeds since they are protected by Cloudflare/DDOS-GUARD
-        if (this.isIframeEmbedUrl(url)) {
+        // Skip validation for internal proxy and iframe embeds
+        if (url.startsWith('/api/') || this.isIframeEmbedUrl(url)) {
             return true;
         }
         try {

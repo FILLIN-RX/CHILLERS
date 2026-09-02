@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getByGenre = exports.getTrailer = exports.getRecommendations = exports.getDetails = exports.getTopRated = exports.getUpcoming = exports.getTrending = exports.getPopular = void 0;
+exports.getAfrican = exports.getByGenre = exports.getTrailer = exports.getRecommendations = exports.getDetails = exports.getTopRated = exports.getUpcoming = exports.getTrending = exports.getPopular = void 0;
 const moviesService = __importStar(require("./movies.service"));
 const types_1 = require("../../types");
 function getLang(req) {
@@ -135,3 +135,15 @@ const getByGenre = async (req, res, next) => {
     }
 };
 exports.getByGenre = getByGenre;
+const getAfrican = async (req, res, next) => {
+    try {
+        const page = Number(req.query.page) || 1;
+        const country = req.query.country;
+        const data = await moviesService.getAfrican(page, getLang(req), country);
+        res.json({ success: true, data, message: null });
+    }
+    catch (error) {
+        next(error);
+    }
+};
+exports.getAfrican = getAfrican;

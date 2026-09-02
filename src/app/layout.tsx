@@ -4,6 +4,9 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { LanguageProvider } from "@/i18n/LanguageContext";
 import { type Language, defaultLanguage } from "@/i18n";
 import AdminShortcut from "@/components/AdminShortcut";
+import PWARegister from "@/components/pwa/PWARegister";
+import SplashScreen from "@/components/pwa/SplashScreen";
+import PWAInstallBanner from "@/components/pwa/PWAInstallBanner";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -30,7 +33,7 @@ const defaultOgImage = {
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "CHILLERS — Films et séries en streaming gratuit",
+    default: "CHILLERS",
     template: "%s · CHILLERS",
   },
   description:
@@ -78,8 +81,23 @@ export const metadata: Metadata = {
       { url: "/favicon.ico", sizes: "any" },
       { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
       { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/android-chrome-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/android-chrome-512x512.png", sizes: "512x512", type: "image/png" },
     ],
-    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    shortcut: ["/android-chrome-192x192.png"],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+      { url: "/android-chrome-512x512.png", sizes: "512x512", type: "image/png" },
+    ],
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "CHILLERS",
+  },
+  other: {
+    "mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-capable": "yes",
   },
   manifest: "/site.webmanifest",
 };
@@ -90,7 +108,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#18181B",
+  themeColor: "#0a0a0a",
 };
 
 // P2-#30: resolve the language from the cookie on the server so the first
@@ -120,6 +138,9 @@ export default async function RootLayout({
     >
       <body suppressHydrationWarning className="min-h-screen flex flex-col bg-brand-dark text-foreground selection:bg-brand-primary selection:text-white">
         <LanguageProvider initialLang={initialLang}>
+          <PWARegister />
+          <SplashScreen />
+          <PWAInstallBanner />
           <AdminShortcut />
           {children}
         </LanguageProvider>

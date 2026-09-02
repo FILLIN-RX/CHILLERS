@@ -10,6 +10,8 @@ import {
   IconPlayerPlay,
   IconPlayerTrackNext,
   IconX,
+  IconCheck,
+  IconArrowLeft,
 } from "@tabler/icons-react";
 import { getLiveChannels, FALLBACK_CHANNELS } from "@/services/live";
 import type { LiveChannel } from "@/types/live";
@@ -126,6 +128,24 @@ export default function LivePageContent() {
   const [search, setSearch] = useState("");
   const [favorites, setFavorites] = useState<string[]>([]);
   const [isMultiLiveOpen, setIsMultiLiveOpen] = useState(false);
+  const [selectedMultiSlugs, setSelectedMultiSlugs] = useState<string[]>([]);
+
+  const { data: channels = FALLBACK_CHANNELS, isLoading } = useQuery({
+    queryKey: ["live", "channels"],
+    queryFn: () => getLiveChannels(),
+    staleTime: 60_000,
+  });
+
+  useEffect(() => {
+    if (channels.length > 0 && selectedMultiSlugs.length === 0) {
+      setSelectedMultiSlugs([
+        channels[0]?.slug || "",
+        channels[1]?.slug || "",
+        channels[2]?.slug || "",
+        channels[3]?.slug || "",
+      ]);
+    }
+  }, [channels, selectedMultiSlugs.length]);
 
   useEffect(() => {
     try {
@@ -145,12 +165,6 @@ export default function LivePageContent() {
       return next;
     });
   };
-
-  const { data: channels = FALLBACK_CHANNELS, isLoading } = useQuery({
-    queryKey: ["live", "channels"],
-    queryFn: () => getLiveChannels(),
-    staleTime: 60_000,
-  });
 
   const filteredChannels = useMemo(() => {
     let list = channels;
@@ -373,12 +387,12 @@ export default function LivePageContent() {
 
       {/* ── Multi-Live Modal Split View ──────────────────────────── */}
       {isMultiLiveOpen && (
-        <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col p-4 sm:p-6 animate-fade-in">
-          <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
+        <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col p-3 sm:p-6 animate-fade-in">
+          <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
             <div className="flex items-center gap-3">
-              <h2 className="text-lg font-black text-white uppercase tracking-wider flex items-center gap-2">
+              <h2 className="text-base sm:text-lg font-black text-white uppercase tracking-wider flex items-center gap-2">
                 <span className="h-2 w-2 rounded-full bg-red-600 animate-pulse" />
-                Multi-Live (4 Écrans en Direct)
+                Multi-Live (4 Écrans)
               </h2>
             </div>
             <button
@@ -389,20 +403,53 @@ export default function LivePageContent() {
             </button>
           </div>
 
-          <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3 min-h-0 overflow-hidden">
-            {channels.slice(0, 4).map((ch, idx) => (
-              <div
-                key={ch.slug}
-                className="relative bg-black rounded-xl overflow-hidden border border-white/10 flex flex-col"
-              >
-                <div className="absolute top-2 left-2 z-20 px-2.5 py-1 rounded bg-black/70 backdrop-blur-md border border-white/10 text-xs font-black text-white">
-                  Écran {idx + 1} : {ch.name}
+          <div className="flex-1 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-3 min-h-0 py-1">
+            {[0, 1, 2, 3].map((idx) => {
+              const currentSlug = selectedMultiSlugs[idx] || channels[idx % channels.length]?.slug;
+              const ch = channels.find((c) => c.slug === currentSlug) || channels[idx % channels.length];
+
+              return (
+                <div
+                  key={idx}
+                  className="relative bg-black rounded-xl overflow-hidden border border-white/10 flex flex-col min-h-[220px] sm:min-h-0"
+                >
+                  {/* Selector Dropdown Header */}
+                  <div className="absolute top-2 left-2 z-20 flex items-center gap-2 max-w-[calc(100%-1rem)]">
+                    <span className="px-2 py-1 rounded bg-red-600 text-[10px] sm:text-xs font-black text-white shrink-0">
+                      Écran {idx + 1}
+                    </span>
+                    <select
+                      value={ch?.slug || ""}
+                      onChange={(e) => {
+                        const newSlug = e.target.value;
+                        setSelectedMultiSlugs((prev) => {
+                          const copy = [...prev];
+                          copy[idx] = newSlug;
+                          return copy;
+                        });
+                      }}
+                      className="bg-black/80 backdrop-blur-md border border-white/20 text-white text-xs font-bold rounded-lg px-2.5 py-1 focus:outline-none focus:border-red-600 max-w-[160px] sm:max-w-[200px] truncate cursor-pointer"
+                    >
+                      {channels.map((c) => (
+                        <option key={c.slug} value={c.slug} className="bg-zinc-900 text-white">
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex-1 relative w-full h-full">
+                    {ch && (
+                      <LivePlayer
+                        channel={ch}
+                        allChannels={channels}
+                        onBack={() => setIsMultiLiveOpen(false)}
+                      />
+                    )}
+                  </div>
                 </div>
-                <div className="flex-1 relative w-full h-full">
-                  <LivePlayer channel={ch} onBack={() => setIsMultiLiveOpen(false)} />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

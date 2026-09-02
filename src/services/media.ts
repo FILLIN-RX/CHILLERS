@@ -7,7 +7,21 @@
 //   Most callers should use react-query so they don't have to handle throws explicitly.
 
 import { httpJson, HttpError, API_BASE_PATH } from "./http";
-import type { MovieOrShow, Genre, MediaType } from "@/types/media";
+import type { MovieOrShow, Genre, MediaType, CastMember, Network } from "@/types/media";
+
+/* ─── in-memory client cache (5 min TTL) ─────────────────────────────────── */
+const clientCache = new Map<string, { data: any; expiry: number }>();
+const CLIENT_CACHE_TTL = 5 * 60 * 1000;
+
+function getCached<T>(key: string): T | null {
+  const entry = clientCache.get(key);
+  if (entry && entry.expiry > Date.now()) return entry.data as T;
+  return null;
+}
+
+function setCached<T>(key: string, data: T, ttl = CLIENT_CACHE_TTL): void {
+  clientCache.set(key, { data, expiry: Date.now() + ttl });
+}
 
 /* ─── helpers ─────────────────────────────────────────────────────────────── */
 
@@ -101,15 +115,21 @@ export interface TmdbRawItem {
   title?: string;
   name?: string;
   overview?: string;
+  tagline?: string;
   poster_path?: string | null;
   backdrop_path?: string | null;
   vote_average?: number;
+  vote_count?: number;
   genre_ids?: number[];
   genres?: { id: number; name: string }[];
   release_date?: string;
   first_air_date?: string;
   runtime?: number;
+  status?: string;
   number_of_seasons?: number;
+  number_of_episodes?: number;
+  networks?: Array<{ id: number; name: string; logo_path?: string | null }>;
+  created_by?: Array<{ id: number; name: string }>;
   seasons?: Array<{
     id: number;
     name: string;
@@ -117,9 +137,33 @@ export interface TmdbRawItem {
     poster_path?: string | null;
     episode_count?: number;
     air_date?: string | null;
+    overview?: string;
   }>;
-  credits?: { cast?: Array<{ name: string }> };
+  credits?: {
+    cast?: Array<{
+      id: number;
+      name: string;
+      character?: string;
+      profile_path?: string | null;
+    }>;
+    crew?: Array<{
+      id: number;
+      name: string;
+      job?: string;
+    }>;
+  };
+  content_ratings?: {
+    results?: Array<{ iso_3166_1: string; rating: string }>;
+  };
+  release_dates?: {
+    results?: Array<{
+      iso_3166_1: string;
+      release_dates?: Array<{ certification: string }>;
+    }>;
+  };
   videos?: { results?: Array<{ site?: string; type?: string; key?: string; official?: boolean }> };
+  recommendations?: { results?: TmdbRawItem[] };
+  similar?: { results?: TmdbRawItem[] };
 }
 
 export function mapTMDBToMovieOrShow(
@@ -163,20 +207,83 @@ export function mapTMDBToMovieOrShow(
 
   let seasons: MovieOrShow["seasons"] = [];
   if (Array.isArray(item.seasons)) {
-    seasons = item.seasons.map((s) => ({
-      id: String(s.id),
-      name: s.name,
-      seasonNumber: s.season_number,
-      posterUrl: getTmdbImageUrl(s.poster_path, "poster"),
-      episodeCount: s.episode_count ?? 0,
-      airDate: s.air_date || undefined,
-      episodes: [],
-    }));
+    seasons = item.seasons
+      .filter((s) => s.season_number > 0 || item.seasons!.length === 1)
+      .map((s) => ({
+        id: String(s.id),
+        name: s.name,
+        seasonNumber: s.season_number,
+        posterUrl: getTmdbImageUrl(s.poster_path, "poster"),
+        episodeCount: s.episode_count ?? 0,
+        airDate: s.air_date || undefined,
+        overview: s.overview,
+        episodes: [],
+      }));
   }
 
   let cast: string[] = [];
+  let castDetails: CastMember[] = [];
   if (item.credits?.cast) {
-    cast = item.credits.cast.slice(0, 5).map((actor) => actor.name);
+    cast = item.credits.cast.slice(0, 8).map((actor) => actor.name);
+    castDetails = item.credits.cast.slice(0, 15).map((actor) => ({
+      id: actor.id,
+      name: actor.name,
+      character: actor.character || "Rôle non spécifié",
+      profileUrl: actor.profile_path ? getTmdbImageUrl(actor.profile_path, "still") : "",
+    }));
+  }
+
+  const directors: string[] = [];
+  if (item.credits?.crew) {
+    const direct = item.credits.crew.filter((c) => c.job === "Director");
+    for (const d of direct.slice(0, 3)) {
+      directors.push(d.name);
+    }
+  }
+
+  const creators: string[] = [];
+  if (item.created_by) {
+    for (const c of item.created_by) {
+      creators.push(c.name);
+    }
+  }
+
+  const networks: Network[] = [];
+  if (Array.isArray(item.networks)) {
+    for (const n of item.networks) {
+      if (n.name) {
+        networks.push({
+          id: n.id,
+          name: n.name,
+          logoUrl: n.logo_path ? `https://image.tmdb.org/t/p/w300${n.logo_path}` : "",
+        });
+      }
+    }
+  }
+
+  // Statut traduit
+  let statusLabel = "";
+  if (item.status) {
+    const s = item.status.toLowerCase();
+    if (s.includes("returning")) statusLabel = "En cours";
+    else if (s.includes("ended")) statusLabel = "Terminée";
+    else if (s.includes("canceled") || s.includes("cancelled")) statusLabel = "Annulée";
+    else if (s.includes("production")) statusLabel = "En production";
+    else if (s.includes("released")) statusLabel = "Disponible";
+    else statusLabel = item.status;
+  }
+
+  // Classification d'âge
+  let contentRating = "";
+  if (item.content_ratings?.results) {
+    const fr = item.content_ratings.results.find((r) => r.iso_3166_1 === "FR");
+    const us = item.content_ratings.results.find((r) => r.iso_3166_1 === "US");
+    contentRating = fr?.rating || us?.rating || "";
+  } else if (item.release_dates?.results) {
+    const fr = item.release_dates.results.find((r) => r.iso_3166_1 === "FR");
+    const us = item.release_dates.results.find((r) => r.iso_3166_1 === "US");
+    contentRating =
+      fr?.release_dates?.[0]?.certification || us?.release_dates?.[0]?.certification || "";
   }
 
   let trailerUrl = "";
@@ -185,8 +292,15 @@ export function mapTMDBToMovieOrShow(
     const trailer =
       results.find((v) => v.site === "YouTube" && v.type === "Trailer" && v.official === true) ||
       results.find((v) => v.site === "YouTube" && v.type === "Trailer") ||
+      results.find((v) => v.site === "YouTube" && v.type === "Teaser") ||
       results[0];
     if (trailer?.key) trailerUrl = `https://www.youtube.com/embed/${trailer.key}`;
+  }
+
+  let similar: MovieOrShow[] = [];
+  const recs = item.recommendations?.results || item.similar?.results;
+  if (Array.isArray(recs)) {
+    similar = recs.slice(0, 10).map((r) => mapTMDBToMovieOrShow(r, type));
   }
 
   const backdropUrl = getTmdbImageUrl(item.backdrop_path, "backdrop");
@@ -197,27 +311,146 @@ export function mapTMDBToMovieOrShow(
     id: String(item.id),
     title: item.title || item.name || "Untitled",
     type,
-    description: item.overview || "No description available.",
-    synopsis: item.overview || "No synopsis available.",
+    description: item.overview || "Aucune description disponible pour le moment.",
+    synopsis: item.overview || "Aucun résumé disponible.",
+    tagline: item.tagline || "",
     backdropUrl,
     backdropOriginalUrl,
     posterUrl,
     rating: item.vote_average ? parseFloat(item.vote_average.toFixed(1)) : 7.0,
+    voteCount: item.vote_count,
     year,
     duration: isTV
-      ? `${item.number_of_seasons || 1} Season${(item.number_of_seasons || 1) > 1 ? "s" : ""}`
+      ? `${item.number_of_seasons || seasons.length || 1} Saison${(item.number_of_seasons || seasons.length || 1) > 1 ? "s" : ""}`
       : item.runtime
         ? `${Math.floor(item.runtime / 60)}h ${item.runtime % 60}m`
         : "2h 05m",
     genres,
-    cast: cast.length > 0 ? cast : ["Cast Info Unavailable"],
+    cast: cast.length > 0 ? cast : ["Casting non renseigné"],
+    castDetails: castDetails.length > 0 ? castDetails : undefined,
+    directors: directors.length > 0 ? directors : undefined,
+    creators: creators.length > 0 ? creators : undefined,
+    networks: networks.length > 0 ? networks : undefined,
+    status: item.status,
+    statusLabel,
+    contentRating: contentRating || (type === "anime" ? "12+" : "16+"),
+    numberOfSeasons: item.number_of_seasons || seasons.length,
+    numberOfEpisodes: item.number_of_episodes,
     trailerUrl,
     videoUrl: "",
     seasons: seasons.length > 0 ? seasons : undefined,
+    similar: similar.length > 0 ? similar : undefined,
   };
 }
 
 /* ─── typed API ───────────────────────────────────────────────────────────── */
+
+const DEFAULT_TMDB_TOKEN =
+  "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI1ODY4ZjBmM2NmZTg1MTZmYmQ1NmE2YjNiNzJmOGYwZiIsIm5iZiI6MTc4Mzk0MDMzNi42ODMsInN1YiI6IjZhNTRjNGYwY2M4ZTIzNDZhNWI1MmUxYiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.33Zn39ASeHdHwv7jxe5-qaPhi-5uSvGqfAOPCSW8ddM";
+
+async function fetchDirectTMDB<T>(
+  tmdbPath: string,
+  params: Record<string, string | number | undefined | null> = {},
+  signal?: AbortSignal,
+): Promise<T | null> {
+  const url = new URL(`https://api.themoviedb.org/3${tmdbPath.startsWith("/") ? tmdbPath : `/${tmdbPath}`}`);
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== null && v !== "") {
+      url.searchParams.set(k, String(v));
+    }
+  }
+  const token =
+    process.env.NEXT_PUBLIC_TMDB_TOKEN ||
+    process.env.TMDB_TOKEN ||
+    DEFAULT_TMDB_TOKEN;
+
+  try {
+    const res = await fetch(url.toString(), {
+      signal,
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as T;
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") throw err;
+    console.warn(`[TMDB Direct Fallback] Failed for ${tmdbPath}:`, err);
+    return null;
+  }
+}
+
+async function fetchFallbackPage(
+  endpoint: string,
+  page: number,
+  signal?: AbortSignal,
+): Promise<PaginatedRaw | null> {
+  const lang = clientLang() === "fr" ? "fr-FR" : "en-US";
+  const clean = endpoint.split("?")[0];
+  const qs = new URLSearchParams(endpoint.includes("?") ? endpoint.split("?")[1] : "");
+  const country = qs.get("country") || "NG|GH|CM|CI|SN";
+
+  if (clean === "/movies/trending") {
+    return fetchDirectTMDB<PaginatedRaw>("/trending/movie/week", { page, language: lang }, signal);
+  }
+  if (clean === "/tv/trending") {
+    return fetchDirectTMDB<PaginatedRaw>("/trending/tv/week", { page, language: lang }, signal);
+  }
+  if (clean === "/movies/popular") {
+    return fetchDirectTMDB<PaginatedRaw>("/movie/popular", { page, language: lang }, signal);
+  }
+  if (clean === "/tv/popular") {
+    return fetchDirectTMDB<PaginatedRaw>("/tv/popular", { page, language: lang }, signal);
+  }
+  if (clean === "/tv/top-rated") {
+    return fetchDirectTMDB<PaginatedRaw>("/tv/top_rated", { page, language: lang }, signal);
+  }
+  if (clean === "/movies/top-rated") {
+    return fetchDirectTMDB<PaginatedRaw>("/movie/top_rated", { page, language: lang }, signal);
+  }
+  if (clean === "/movies/upcoming") {
+    return fetchDirectTMDB<PaginatedRaw>("/movie/upcoming", { page, language: lang }, signal);
+  }
+  if (clean === "/tv/anime") {
+    return fetchDirectTMDB<PaginatedRaw>(
+      "/discover/tv",
+      { with_genres: "16", with_original_language: "ja", sort_by: "popularity.desc", page, language: lang },
+      signal,
+    );
+  }
+  if (clean === "/movies/african") {
+    return fetchDirectTMDB<PaginatedRaw>(
+      "/discover/movie",
+      { with_origin_country: country, sort_by: "popularity.desc", page, language: lang },
+      signal,
+    );
+  }
+  if (clean === "/tv/african") {
+    return fetchDirectTMDB<PaginatedRaw>(
+      "/discover/tv",
+      { with_origin_country: country, sort_by: "popularity.desc", page, language: lang },
+      signal,
+    );
+  }
+  const genreMovieMatch = clean.match(/^\/movies\/genre\/(\d+)$/);
+  if (genreMovieMatch) {
+    return fetchDirectTMDB<PaginatedRaw>(
+      "/discover/movie",
+      { with_genres: genreMovieMatch[1], sort_by: "popularity.desc", page, language: lang },
+      signal,
+    );
+  }
+  const genreTvMatch = clean.match(/^\/tv\/genre\/(\d+)$/);
+  if (genreTvMatch) {
+    return fetchDirectTMDB<PaginatedRaw>(
+      "/discover/tv",
+      { with_genres: genreTvMatch[1], sort_by: "popularity.desc", page, language: lang },
+      signal,
+    );
+  }
+  return null;
+}
 
 interface PaginatedRaw {
   page: number;
@@ -226,13 +459,24 @@ interface PaginatedRaw {
 }
 
 async function getPage(endpoint: string, page: number, signal?: AbortSignal): Promise<MovieOrShow[]> {
-  const env = await httpJson<ApiEnvelope<PaginatedRaw>>(endpoint, {
-    query: { page, language: clientLang() },
-    signal,
-    timeoutMs: 20_000,
-  });
-  if (!env.success || !env.data) return [];
-  return env.data.results.map((r) => mapTMDBToMovieOrShow(r));
+  try {
+    const env = await httpJson<ApiEnvelope<PaginatedRaw>>(endpoint, {
+      query: { page, language: clientLang() },
+      signal,
+      timeoutMs: 8_000,
+    });
+    if (env.success && env.data?.results) {
+      return env.data.results.map((r) => mapTMDBToMovieOrShow(r));
+    }
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") throw err;
+  }
+
+  const fallback = await fetchFallbackPage(endpoint, page, signal);
+  if (fallback?.results) {
+    return fallback.results.map((r) => mapTMDBToMovieOrShow(r));
+  }
+  return [];
 }
 
 async function getPageWithTotal(
@@ -240,16 +484,30 @@ async function getPageWithTotal(
   page: number,
   signal?: AbortSignal,
 ): Promise<{ results: MovieOrShow[]; totalPages: number }> {
-  const env = await httpJson<ApiEnvelope<PaginatedRaw>>(endpoint, {
-    query: { page, language: clientLang() },
-    signal,
-    timeoutMs: 20_000,
-  });
-  if (!env.success || !env.data) return { results: [], totalPages: 1 };
-  return {
-    results: env.data.results.map((r) => mapTMDBToMovieOrShow(r)),
-    totalPages: env.data.total_pages || 1,
-  };
+  try {
+    const env = await httpJson<ApiEnvelope<PaginatedRaw>>(endpoint, {
+      query: { page, language: clientLang() },
+      signal,
+      timeoutMs: 8_000,
+    });
+    if (env.success && env.data?.results) {
+      return {
+        results: env.data.results.map((r) => mapTMDBToMovieOrShow(r)),
+        totalPages: env.data.total_pages || 1,
+      };
+    }
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") throw err;
+  }
+
+  const fallback = await fetchFallbackPage(endpoint, page, signal);
+  if (fallback?.results) {
+    return {
+      results: fallback.results.map((r) => mapTMDBToMovieOrShow(r)),
+      totalPages: fallback.total_pages || 1,
+    };
+  }
+  return { results: [], totalPages: 1 };
 }
 
 /* Trending / Popular lists */
@@ -331,6 +589,34 @@ export async function getAllMovies(page = 1, signal?: AbortSignal): Promise<Movi
   });
 }
 
+/* ─── Hero trailer enrichment ────────────────────────────────────────────── */
+
+/**
+ * Enrichit les slides du hero avec les bandes-annonces YouTube.
+ * Les appels sont faits en parallèle via Promise.allSettled pour ne pas
+ * bloquer si un appel échoue. Résultat : chaque slide reçoit un videoUrl
+ * pointant vers l'embed YouTube du trailer (si disponible).
+ */
+export async function enrichHeroSlidesWithTrailers(
+  slides: MovieOrShow[],
+  signal?: AbortSignal,
+): Promise<MovieOrShow[]> {
+  const results = await Promise.allSettled(
+    slides.map((s) =>
+      getMediaDetails(s.id, s.type === "series" || s.type === "anime", signal),
+    ),
+  );
+  return slides.map((slide, i) => {
+    const result = results[i];
+    if (result.status === "fulfilled" && result.value?.trailerUrl) {
+      return { ...slide, videoUrl: result.value.trailerUrl };
+    }
+    return slide;
+  });
+}
+
+/* ─── catalogue endpoints (delegating to getPage/getPageWithTotal) ────────── */
+
 /* Media details (single movie or series). */
 
 export async function getMediaDetails(
@@ -338,21 +624,43 @@ export async function getMediaDetails(
   isTV = false,
   signal?: AbortSignal,
 ): Promise<MovieOrShow | null> {
+  const cacheKey = `media_details:${isTV ? 'tv' : 'movie'}:${id}:${clientLang()}`;
+  const cached = getCached<MovieOrShow>(cacheKey);
+  if (cached) return cached;
+
   const endpoint = isTV ? `/tv/${id}` : `/movies/${id}`;
   try {
     const env = await httpJson<ApiEnvelope<TmdbRawItem>>(endpoint, {
       query: { language: clientLang() },
       signal,
-      timeoutMs: 20_000,
+      timeoutMs: 10_000,
     });
     if (env.success && env.data) {
-      return mapTMDBToMovieOrShow(env.data, isTV ? "series" : "movie");
+      const mapped = mapTMDBToMovieOrShow(env.data, isTV ? "series" : "movie");
+      setCached(cacheKey, mapped, 10 * 60 * 1000);
+      return mapped;
     }
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") throw err;
-    if (err instanceof HttpError) return null;
-    console.error("Error fetching media details:", err);
+    if (err instanceof HttpError && err.status === 404) return null;
   }
+
+  // Direct TMDB fallback
+  const lang = clientLang() === "fr" ? "fr-FR" : "en-US";
+  const append = isTV
+    ? "credits,videos,content_ratings,external_ids,recommendations,similar,aggregate_credits,keywords"
+    : "credits,videos,release_dates,recommendations,similar,content_ratings";
+  const directData = await fetchDirectTMDB<TmdbRawItem>(
+    `/${isTV ? "tv" : "movie"}/${id}`,
+    { append_to_response: append, language: lang },
+    signal,
+  );
+  if (directData) {
+    const mapped = mapTMDBToMovieOrShow(directData, isTV ? "series" : "movie");
+    setCached(cacheKey, mapped, 10 * 60 * 1000);
+    return mapped;
+  }
+
   return null;
 }
 
@@ -377,17 +685,36 @@ export async function getSeasonDetails(
   seasonNumber: string,
   signal?: AbortSignal,
 ): Promise<SeasonDetails | null> {
+  const cacheKey = `season_details:${id}:${seasonNumber}:${clientLang()}`;
+  const cached = getCached<SeasonDetails>(cacheKey);
+  if (cached) return cached;
+
   try {
     const env = await httpJson<ApiEnvelope<SeasonDetails>>(
       `/tv/${id}/season/${seasonNumber}`,
-      { query: { language: clientLang() }, signal, timeoutMs: 20_000 },
+      { query: { language: clientLang() }, signal, timeoutMs: 10_000 },
     );
-    if (env.success && env.data) return env.data;
+    if (env.success && env.data) {
+      setCached(cacheKey, env.data, 10 * 60 * 1000);
+      return env.data;
+    }
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") throw err;
-    if (err instanceof HttpError) return null;
-    console.error("Error fetching season details:", err);
+    if (err instanceof HttpError && err.status === 404) return null;
   }
+
+  // Direct TMDB fallback
+  const lang = clientLang() === "fr" ? "fr-FR" : "en-US";
+  const directData = await fetchDirectTMDB<SeasonDetails>(
+    `/tv/${id}/season/${seasonNumber}`,
+    { append_to_response: "credits,videos,images", language: lang },
+    signal,
+  );
+  if (directData) {
+    setCached(cacheKey, directData, 10 * 60 * 1000);
+    return directData;
+  }
+
   return null;
 }
 
@@ -400,19 +727,32 @@ export async function getMovieRecommendations(
   try {
     const env = await httpJson<ApiEnvelope<PaginatedRaw>>(
       `/movies/${id}/recommendations`,
-      { query: { language: clientLang() }, signal, timeoutMs: 20_000 },
+      { query: { language: clientLang() }, signal, timeoutMs: 10_000 },
     );
-    if (!env.success || !env.data) return [];
-    return env.data.results
-      .filter((r) => r.media_type === "movie" || r.media_type === "tv")
-      .slice(0, 20)
-      .map((r) => mapTMDBToMovieOrShow(r, r.media_type === "tv" ? "series" : "movie"));
+    if (env.success && env.data?.results) {
+      return env.data.results
+        .filter((r) => r.media_type === "movie" || r.media_type === "tv" || !r.media_type)
+        .slice(0, 20)
+        .map((r) => mapTMDBToMovieOrShow(r, r.media_type === "tv" ? "series" : "movie"));
+    }
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") throw err;
-    if (err instanceof HttpError) return [];
-    console.error("Error fetching recommendations:", err);
-    return [];
   }
+
+  // Direct TMDB fallback
+  const lang = clientLang() === "fr" ? "fr-FR" : "en-US";
+  const directData = await fetchDirectTMDB<PaginatedRaw>(
+    `/movie/${id}/recommendations`,
+    { language: lang },
+    signal,
+  );
+  if (directData?.results) {
+    return directData.results
+      .filter((r) => r.media_type === "movie" || r.media_type === "tv" || !r.media_type)
+      .slice(0, 20)
+      .map((r) => mapTMDBToMovieOrShow(r, r.media_type === "tv" ? "series" : "movie"));
+  }
+  return [];
 }
 
 export async function getRecommendedForYou(): Promise<MovieOrShow[]> {
@@ -450,18 +790,30 @@ export async function searchMedia(
     const env = await httpJson<ApiEnvelope<SearchRaw>>("/search", {
       query: { q: query, page, language: clientLang() },
       signal,
-      timeoutMs: 15_000,
+      timeoutMs: 10_000,
     });
-    if (!env.success || !env.data?.tmdbResults?.results) return [];
-    return env.data.tmdbResults.results
-      .filter((r) => r.media_type === "movie" || r.media_type === "tv")
-      .map((r) => mapTMDBToMovieOrShow(r, r.media_type === "tv" ? "series" : "movie"));
+    if (env.success && env.data?.tmdbResults?.results) {
+      return env.data.tmdbResults.results
+        .filter((r) => r.media_type === "movie" || r.media_type === "tv" || !r.media_type)
+        .map((r) => mapTMDBToMovieOrShow(r, r.media_type === "tv" ? "series" : "movie"));
+    }
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") throw err;
-    if (err instanceof HttpError) return [];
-    console.error("Error searching media:", err);
-    return [];
   }
+
+  // Direct TMDB fallback
+  const lang = clientLang() === "fr" ? "fr-FR" : "en-US";
+  const directData = await fetchDirectTMDB<PaginatedRaw>(
+    "/search/multi",
+    { query, page, language: lang },
+    signal,
+  );
+  if (directData?.results) {
+    return directData.results
+      .filter((r) => r.media_type === "movie" || r.media_type === "tv" || !r.media_type)
+      .map((r) => mapTMDBToMovieOrShow(r, r.media_type === "tv" ? "series" : "movie"));
+  }
+  return [];
 }
 
 /* Stream resolution. */
@@ -546,15 +898,21 @@ export async function getMovieGenres(signal?: AbortSignal): Promise<Genre[]> {
     const env = await httpJson<ApiEnvelope<Genre[]>>("/genres/movie", {
       query: { language: clientLang() },
       signal,
-      timeoutMs: 15_000,
+      timeoutMs: 10_000,
     });
     if (env.success && Array.isArray(env.data)) return env.data;
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") throw err;
-    if (err instanceof HttpError) return [];
-    console.error("Error fetching movie genres:", err);
   }
-  return [];
+
+  // Direct TMDB fallback
+  const lang = clientLang() === "fr" ? "fr-FR" : "en-US";
+  const directData = await fetchDirectTMDB<{ genres: Genre[] }>(
+    "/genre/movie/list",
+    { language: lang },
+    signal,
+  );
+  return directData?.genres || [];
 }
 
 export async function getTVGenres(signal?: AbortSignal): Promise<Genre[]> {
@@ -562,15 +920,21 @@ export async function getTVGenres(signal?: AbortSignal): Promise<Genre[]> {
     const env = await httpJson<ApiEnvelope<Genre[]>>("/genres/tv", {
       query: { language: clientLang() },
       signal,
-      timeoutMs: 15_000,
+      timeoutMs: 10_000,
     });
     if (env.success && Array.isArray(env.data)) return env.data;
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") throw err;
-    if (err instanceof HttpError) return [];
-    console.error("Error fetching TV genres:", err);
   }
-  return [];
+
+  // Direct TMDB fallback
+  const lang = clientLang() === "fr" ? "fr-FR" : "en-US";
+  const directData = await fetchDirectTMDB<{ genres: Genre[] }>(
+    "/genre/tv/list",
+    { language: lang },
+    signal,
+  );
+  return directData?.genres || [];
 }
 
 /* Genres multi-page fan-out used by /media/[slug]. */
@@ -616,12 +980,18 @@ export interface AvailabilityEntry {
   disponible: boolean;
   streaming: boolean;
   download: boolean;
+  langueAudio?: string;
+  isFrenchAudio?: boolean;
 }
 
 export async function getDisponible(
   tmdbId: string,
   type: "movie" | "series",
 ): Promise<AvailabilityEntry | null> {
+  const cacheKey = `dispo:${type}:${tmdbId}`;
+  const cached = getCached<AvailabilityEntry>(cacheKey);
+  if (cached) return cached;
+
   try {
     const batchType = type === "series" ? "tv" : "movie";
     const env = await httpJson<ApiEnvelope<Record<string, AvailabilityEntry>>>(
@@ -629,7 +999,9 @@ export async function getDisponible(
       { query: { type: batchType, ids: tmdbId }, timeoutMs: 8_000 },
     );
     if (env.success && env.data) {
-      return env.data[tmdbId] ?? null;
+      const entry = env.data[tmdbId] ?? null;
+      if (entry) setCached(cacheKey, entry, 5 * 60 * 1000);
+      return entry;
     }
   } catch (err) {
     if (err instanceof HttpError) return null;

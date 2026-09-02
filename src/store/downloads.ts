@@ -47,6 +47,8 @@ const partialize = (state: DownloadsState) => ({
     tmdbId: t.tmdbId,
     title: t.title,
     type: t.type,
+    posterUrl: t.posterUrl,
+    backdropUrl: t.backdropUrl,
     filename: t.filename,
     season: t.season,
     episodeNumber: t.episodeNumber,

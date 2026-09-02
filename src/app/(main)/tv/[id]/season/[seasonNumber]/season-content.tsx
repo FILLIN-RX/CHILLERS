@@ -2,66 +2,110 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
-import { useParams, useRouter } from "next/navigation";
-import { getSeasonDetails, getMediaDetails, getStreamUrl } from "@/services/media";
-import type { Episode } from "@/types/media";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { getSeasonDetails, getMediaDetails, getStreamUrl, getPopularTV } from "@/services/media";
+import type { Episode, MovieOrShow } from "@/types/media";
 import VideoPlayer from "@/components/VideoPlayer";
+import MovieCard from "@/components/MovieCard";
 import SeriesDownloadModal from "@/features/downloads/SeriesDownloadModal";
 import DownloadModal from "@/features/downloads/DownloadModal";
 import { useLanguage } from "@/i18n/LanguageContext";
-import { IconArrowLeft, IconPlayerPlay, IconChevronLeft, IconChevronRight, IconMovie, IconDownload } from '@tabler/icons-react';
+import { useAuthStore } from "@/stores/useAuthStore";
+import { userService } from "@/services/user";
+import {
+  IconArrowLeft,
+  IconPlayerPlay,
+  IconPlayerTrackPrev,
+  IconPlayerTrackNext,
+  IconMovie,
+  IconDownload,
+  IconShare,
+  IconBookmark,
+  IconBookmarkFilled,
+  IconCheck,
+  IconSparkles,
+  IconLayersLinked,
+} from "@tabler/icons-react";
 
 export default function SeasonContent() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const router = useRouter();
+  const { user, token, updateUser } = useAuthStore();
   const { id, seasonNumber } = params;
+  const targetEpNumber = searchParams?.get("ep") ? Number(searchParams.get("ep")) : null;
   const { translate: _ } = useLanguage();
 
+  const [detailItem, setDetailItem] = useState<MovieOrShow | null>(null);
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [showTitle, setShowTitle] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [streamUrl, setStreamUrl] = useState("");
   const [streamLoading, setStreamLoading] = useState(false);
+  const [similar, setSimilar] = useState<MovieOrShow[]>([]);
   const [showSingleDownload, setShowSingleDownload] = useState(false);
-  const [showDownloadModal, setShowDownloadModal] = useState(false);
-  const playerRef = useRef<HTMLDivElement>(null);
+  const [showBatchDownload, setShowBatchDownload] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
 
+  const playerRef = useRef<HTMLDivElement>(null);
+  const activeEpisodeRef = useRef<HTMLDivElement>(null);
+
+  const isFavorite = user?.favorites?.some(
+    (f) => f.tmdbId === String(id) && (f.mediaType === "series" || f.mediaType === "anime")
+  );
+
+  // Initialisation de la saison et des métadonnées
   useEffect(() => {
     async function fetchSeason() {
       setIsLoading(true);
       try {
-        // Fetch title AND season in parallel
-        const [data, detail] = await Promise.all([
+        const [data, detail, popularList] = await Promise.all([
           getSeasonDetails(id as string, seasonNumber as string),
           getMediaDetails(id as string, true),
+          getPopularTV(1).catch(() => []),
         ]);
 
-        const title = detail?.title || "";
-        if (title) setShowTitle(title);
+        if (detail) {
+          setDetailItem(detail);
+          setShowTitle(detail.title);
+        }
+
+        if (popularList && popularList.length > 0) {
+          setSimilar(popularList.filter((m) => m.id !== id).slice(0, 14));
+        }
 
         if (data && data.episodes && data.episodes.length > 0) {
-          const mapped = data.episodes.map((ep: any) => ({
+          const mapped: Episode[] = data.episodes.map((ep: any) => ({
             id: String(ep.id),
             title: ep.name,
             duration: `${ep.runtime || 24}m`,
             number: ep.episode_number,
             season: Number(seasonNumber),
-            thumbnail: ep.still_path ? `https://image.tmdb.org/t/p/w185${ep.still_path}` : "",
+            thumbnail: ep.still_path ? `https://image.tmdb.org/t/p/w500${ep.still_path}` : detail?.backdropUrl || "",
             synopsis: ep.overview,
           }));
           setEpisodes(mapped);
 
-          // Load stream for first episode with the resolved title immediately
+          let initialIndex = 0;
+          if (targetEpNumber) {
+            const foundIdx = mapped.findIndex((e) => e.number === targetEpNumber);
+            if (foundIdx !== -1) initialIndex = foundIdx;
+          }
+          setCurrentIndex(initialIndex);
+
+          // Charger le stream initial
           if (mapped.length > 0) {
             setStreamLoading(true);
             try {
               const stream = await getStreamUrl(
                 id as string,
-                'series',
+                "series",
                 Number(seasonNumber),
-                mapped[0].number,
-                title || id as string
+                mapped[initialIndex].number,
+                detail?.title || (id as string)
               );
               setStreamUrl(stream?.embedUrl || "");
             } catch (err) {
@@ -71,7 +115,7 @@ export default function SeasonContent() {
             }
           }
         } else {
-          // Si aucune saison n'est trouvée, vérifier s'il s'agit d'un film et rediriger proprement
+          // Si pas d'épisodes, vérifier si c'est un film
           const movieDetail = await getMediaDetails(id as string, false);
           if (movieDetail && movieDetail.id) {
             router.replace(`/watch/${id}?type=movie`);
@@ -85,261 +129,428 @@ export default function SeasonContent() {
       }
     }
     fetchSeason();
-  }, [id, seasonNumber]);
+  }, [id, seasonNumber, targetEpNumber, router]);
 
   const currentEpisode = episodes[currentIndex];
 
-  const loadStream = useCallback(async (ep: Episode, titleOverride?: string) => {
-    if (!ep) return;
-    const title = titleOverride ?? (showTitle || id as string);
-    setStreamLoading(true);
-    try {
-      const stream = await getStreamUrl(id as string, 'series', Number(seasonNumber), ep.number, title);
-      console.log("Stream URL loaded:", stream?.embedUrl);
-      setStreamUrl(stream?.embedUrl || "");
-    } catch (err) {
-      console.error("Stream error", err);
-    } finally {
-      setStreamLoading(false);
-    }
-  }, [id, seasonNumber, showTitle]);
+  // Chargement du flux vidéo
+  const loadStream = useCallback(
+    async (ep: Episode) => {
+      if (!ep) return;
+      const title = showTitle || (id as string);
+      setStreamLoading(true);
+      try {
+        const stream = await getStreamUrl(id as string, "series", Number(seasonNumber), ep.number, title);
+        setStreamUrl(stream?.embedUrl || "");
+      } catch (err) {
+        console.error("Stream error", err);
+      } finally {
+        setStreamLoading(false);
+      }
+    },
+    [id, seasonNumber, showTitle]
+  );
 
-  // Load stream when current episode changes
-  useEffect(() => {
-    if (currentEpisode) {
-      loadStream(currentEpisode);
+  // Navigation Épisodes
+  const playEpisode = (index: number) => {
+    setCurrentIndex(index);
+    const ep = episodes[index];
+    if (ep) {
+      loadStream(ep);
+      window.history.replaceState(null, "", `/tv/${id}/season/${seasonNumber}?ep=${ep.number}`);
     }
-  }, [currentIndex, loadStream, currentEpisode]);
+    playerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   const goNext = () => {
     if (currentIndex < episodes.length - 1) {
-      setCurrentIndex(prev => prev + 1);
-      playerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      playEpisode(currentIndex + 1);
     }
   };
 
   const goPrev = () => {
     if (currentIndex > 0) {
-      setCurrentIndex(prev => prev - 1);
-      playerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      playEpisode(currentIndex - 1);
     }
   };
 
-  const playEpisode = (index: number) => {
-    setCurrentIndex(index);
-    playerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // Toggle Favoris
+  const toggleFavorite = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!token || !user || !detailItem) return;
+    setFavoriteLoading(true);
+    try {
+      const res = await userService.toggleFavorite(token, {
+        mediaType: detailItem.type === "anime" ? "anime" : "series",
+        tmdbId: String(detailItem.id),
+        title: detailItem.title,
+        posterPath: detailItem.posterUrl,
+      });
+      if (res.success) {
+        updateUser({ favorites: res.favorites });
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setFavoriteLoading(false);
+    }
+  };
+
+  // Partage
+  const handleShare = async () => {
+    const url = window.location.href;
+    const title = showTitle ? `Regardez ${showTitle} sur CHILLERS` : "CHILLERS";
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, url });
+        return;
+      } catch {}
+    }
+    setShareOpen(!shareOpen);
+  };
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(window.location.href);
+    setCopiedLink(true);
+    setTimeout(() => {
+      setCopiedLink(false);
+      setShareOpen(false);
+    }, 2000);
   };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#09090B] text-white flex items-center justify-center">
-        <div className="animate-pulse space-y-4">
-          <div className="w-96 h-8 bg-zinc-800 rounded-lg" />
-          <div className="w-80 h-4 bg-zinc-800 rounded" />
+      <div className="min-h-screen bg-[#09090B] text-white">
+        <div className="pt-[72px] pb-16 px-4 sm:px-6 md:px-12 lg:px-16 space-y-6">
+          <div className="w-full aspect-video bg-zinc-900 rounded-3xl animate-pulse max-h-[70vh]" />
+          <div className="space-y-3">
+            <div className="h-6 w-32 bg-zinc-800 rounded-full animate-pulse" />
+            <div className="h-10 w-2/3 bg-zinc-800 rounded-2xl animate-pulse" />
+            <div className="h-4 w-1/3 bg-zinc-800 rounded animate-pulse" />
+          </div>
         </div>
       </div>
     );
   }
 
-  const mockItem = currentEpisode ? {
-    id: id as string,
-    title: `${showTitle || `S${seasonNumber}`} · E${currentEpisode.number}`,
-    type: 'series' as const,
-    description: currentEpisode.synopsis,
-    synopsis: currentEpisode.synopsis,
-    backdropUrl: currentEpisode.thumbnail,
-    posterUrl: "",
-    rating: 0,
-    year: 0,
-    duration: currentEpisode.duration,
-    genres: [],
-    cast: [],
-    videoUrl: streamUrl,
-  } : null;
+  const mockItem: MovieOrShow | null = currentEpisode
+    ? {
+        id: id as string,
+        title: `${showTitle || `S${seasonNumber}`} · E${currentEpisode.number}`,
+        type: "series",
+        description: currentEpisode.synopsis || "",
+        synopsis: currentEpisode.synopsis || "",
+        backdropUrl: currentEpisode.thumbnail || detailItem?.backdropUrl || "",
+        posterUrl: detailItem?.posterUrl || "",
+        rating: detailItem?.rating || 0,
+        year: detailItem?.year || 0,
+        duration: currentEpisode.duration,
+        genres: detailItem?.genres || [],
+        cast: detailItem?.cast || [],
+        videoUrl: streamUrl,
+      }
+    : null;
+
+  const validSeasons = detailItem?.seasons?.filter((s) => s.seasonNumber > 0) || [];
 
   return (
-    <div className="flex-1 flex flex-col bg-[#09090B] text-white">
-      {/* Back button — positioned just below the navbar */}
-      <div className="fixed top-0 left-0 z-40 p-4">
-        <button
-          onClick={() => { window.scrollTo(0, 0); router.back(); }}
-          aria-label="Retour"
-          className="flex items-center justify-center w-10 h-10 rounded-full bg-black/70 backdrop-blur-sm border border-white/10 text-white hover:bg-white/10 transition-all"
-        >
-          <IconArrowLeft className="h-5 w-5" />
-        </button>
-      </div>
-
-      <div className="w-full px-4 sm:px-6 md:px-12 lg:px-[4%] pt-[72px] pb-12 flex-1">
-        <div className="flex flex-col lg:flex-row gap-6">
-          <div className="flex-1 min-w-0 space-y-4" ref={playerRef}>
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-black">{showTitle || `Saison ${seasonNumber}`}</h1>
-                <p className="text-zinc-400 text-sm">
-                  S{seasonNumber} · E{currentEpisode?.number} — {currentEpisode?.title}
+    <div className="min-h-screen bg-[#09090B] text-white select-none">
+      
+      {/* 2. SECTION CENTRALE DU LECTEUR VIDÉO (PLEIN ÉCRAN STREAMING) */}
+      <div className="pt-[68px] pb-16 w-full">
+        
+        {/* Lecteur Vidéo Plein Écran */}
+        <div ref={playerRef} className="w-full bg-black relative scroll-mt-20">
+          <div className="w-full max-h-[60vh] sm:max-h-[75vh] aspect-video bg-black relative mx-auto overflow-hidden">
+            {streamLoading || !mockItem ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-zinc-500 bg-zinc-950">
+                <div className="animate-spin h-10 w-10 border-4 border-[#D70466] border-t-transparent rounded-full" />
+                <p className="text-xs uppercase tracking-widest font-bold text-zinc-400">
+                  Chargement de l&apos;épisode {currentEpisode?.number}…
                 </p>
               </div>
-              <div className="flex items-center gap-2">
-        <button
-          onClick={goPrev}
-          disabled={currentIndex === 0}
-          aria-label={_("common.previous")}
-          className="p-3 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-300 hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-        >
-          <IconChevronLeft className="h-5 w-5" />
-        </button>
-        <button
-          onClick={goNext}
-          disabled={currentIndex >= episodes.length - 1}
-          aria-label={_("common.next")}
-          className="p-3 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-300 hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-        >
-          <IconChevronRight className="h-5 w-5" />
-        </button>
-              </div>
-            </div>
+            ) : (
+              <VideoPlayer
+                key={`${currentEpisode?.id ?? "ep"}-${streamUrl}`}
+                item={mockItem}
+                episode={currentEpisode}
+                onBack={() => router.push(`/tv/${id}`)}
+                onOpenDetails={() => router.push(`/tv/${id}`)}
+              />
+            )}
+          </div>
+        </div>
 
-            <div className="w-full aspect-video rounded-3xl overflow-hidden border border-zinc-800 shadow-2xl bg-black relative">
-              {streamLoading || !mockItem ? (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-zinc-500">
-                  <div className="animate-spin h-10 w-10 border-4 border-[#D70466] border-t-transparent rounded-full" />
-                  <p className="text-xs uppercase tracking-widest font-bold">Chargement du flux…</p>
-                </div>
-              ) : (
-                <VideoPlayer
-                  key={`${currentEpisode?.id ?? 'ep'}-${streamUrl}`}
-                  item={mockItem}
-                  onBack={() => {}}
-                  onOpenDetails={() => {}}
-                />
-              )}
-            </div>
-
-            <div className="space-y-3 p-1">
-              <h2 className="text-lg font-bold">Synopsis</h2>
-              <p className="text-zinc-400 text-sm leading-relaxed">
-                {currentEpisode?.synopsis || "Aucun synopsis disponible."}
-              </p>
-            </div>
-
-            <div className="flex gap-3 pt-2 flex-wrap">
+        {/* 3. CONTENU DÉTAILS DE L'ÉPISODE + TIROIR DE NAVIGATION DES ÉPISODES */}
+        <div className="w-full px-4 sm:px-8 md:px-12 lg:px-16 pt-6 sm:pt-8 space-y-10">
+          
+          {/* Barre Rapide Précédent / Épisode Actuel / Suivant */}
+          {episodes.length > 0 && (
+            <div className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-zinc-900/70 border border-white/5 backdrop-blur-xl">
               <button
                 onClick={goPrev}
                 disabled={currentIndex === 0}
-                className="flex items-center gap-2 px-6 py-3 rounded-full bg-zinc-900 border border-zinc-800 text-white font-bold text-sm hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/5 text-xs font-semibold text-zinc-300 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer"
               >
-                <IconChevronLeft className="h-4 w-4" />
-                Précédent
+                <IconPlayerTrackPrev className="h-4 w-4" />
+                <span className="hidden sm:inline">Épisode Précédent</span>
               </button>
+
+              <div className="text-center truncate px-2 flex-1 min-w-0">
+                <span className="text-[11px] font-black text-[#D70466] uppercase tracking-widest">
+                  Saison {seasonNumber} · Épisode {currentEpisode?.number || 1}
+                </span>
+                <p className="text-xs sm:text-sm font-bold text-white truncate max-w-md mx-auto">
+                  {currentEpisode?.title || `Épisode ${currentEpisode?.number}`}
+                </p>
+              </div>
+
               <button
                 onClick={goNext}
                 disabled={currentIndex >= episodes.length - 1}
-                className="flex items-center gap-2 px-6 py-3 rounded-full bg-[#D70466] text-white font-bold text-sm hover:bg-[#b5034f] disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-lg shadow-[#D70466]/30"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/5 text-xs font-semibold text-zinc-300 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer"
               >
-                Suivant
-                <IconChevronRight className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => {
-                  if (!currentEpisode) return;
-                  setShowSingleDownload(true);
-                }}
-                disabled={!currentEpisode}
-                className={`flex items-center gap-2 px-6 py-3 rounded-full font-bold text-sm transition-all ${
-                  !currentEpisode
-                    ? "bg-zinc-800 text-zinc-500 cursor-not-allowed"
-                    : "bg-zinc-900 border border-zinc-800 text-white hover:bg-zinc-800"
-                }`}
-              >
-                <IconDownload className="h-4 w-4" />
-                Télécharger
-              </button>
-              <button
-                onClick={() => setShowDownloadModal(true)}
-                className="flex items-center gap-2 px-6 py-3 rounded-full bg-emerald-600/90 text-white font-bold text-sm hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-900/30"
-              >
-                <IconDownload className="h-4 w-4" />
-                Télécharger plusieurs épisodes
+                <span className="hidden sm:inline">Épisode Suivant</span>
+                <IconPlayerTrackNext className="h-4 w-4" />
               </button>
             </div>
+          )}
 
-          </div>
-
-          <div className="w-full lg:w-80 xl:w-96 flex-none space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest">
-                Épisodes · {episodes.length}
-              </h3>
-              <button
-                onClick={() => setShowDownloadModal(true)}
-                className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs font-bold hover:bg-emerald-500/30 transition-all"
-              >
-                <IconDownload className="h-3.5 w-3.5" />
-                Télécharger plusieurs
-              </button>
-            </div>
-            <div className="space-y-2 max-h-[70vh] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-zinc-800">
-              {episodes.map((ep, idx) => (
-                <div
-                  key={ep.id}
-                  onClick={() => playEpisode(idx)}
-                  className={`flex items-start gap-3 p-3 rounded-2xl cursor-pointer transition-all ${
-                    idx === currentIndex
-                      ? "bg-[#D70466]/10 border border-[#D70466]/30"
-                      : "bg-zinc-900/60 border border-zinc-800/40 hover:bg-zinc-800/60"
-                  }`}
-                >
-                  <div className="flex-none w-24 aspect-video rounded-lg overflow-hidden bg-zinc-800 relative">
-                    {ep.thumbnail ? (
-                      <Image src={ep.thumbnail} alt={ep.title} fill className="object-cover" sizes="96px" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <IconMovie className="h-5 w-5 text-zinc-600" />
-                      </div>
-                    )}
-                    {idx === currentIndex && (
-                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                        <IconPlayerPlay className="h-6 w-6 text-white" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs text-zinc-500 font-bold">{ep.number}.</span>
-                      <h4 className={`text-sm font-bold truncate ${idx === currentIndex ? "text-[#D70466]" : "text-white"}`}>
-                        {ep.title}
-                      </h4>
-                    </div>
-                    <p className="text-xs text-zinc-500 mt-0.5 line-clamp-2">{ep.synopsis}</p>
-                    <span className="text-[10px] text-zinc-600 mt-0.5 block">{ep.duration}</span>
-                  </div>
+          {/* Grille Principale 2 Colonnes : Détails Épisode à gauche & Liste des Épisodes à droite */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start w-full">
+            
+            {/* Colonne Gauche : Titre, Synopsis & Actions */}
+            <div className="lg:col-span-7 xl:col-span-8 space-y-6">
+              
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-[#D70466] font-black tracking-widest text-xs uppercase flex items-center gap-1 bg-[#D70466]/10 border border-[#D70466]/20 px-2.5 py-0.5 rounded-full">
+                    <IconSparkles className="w-3 h-3" />
+                    CHILLERS SÉRIE
+                  </span>
+                  <span className="text-xs text-zinc-400 font-mono">
+                    {currentEpisode?.duration}
+                  </span>
                 </div>
-              ))}
+
+                <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
+                  {showTitle}
+                </h1>
+                
+                <h2 className="text-lg sm:text-xl font-bold text-zinc-300">
+                  Saison {seasonNumber} · Épisode {currentEpisode?.number} : {currentEpisode?.title}
+                </h2>
+              </div>
+
+              {/* Boutons d'Action */}
+              <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 pt-1">
+                <button
+                  onClick={() => setShowSingleDownload(true)}
+                  disabled={!currentEpisode}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-black hover:bg-[#E5E5EA] font-bold text-xs sm:text-sm transition-all shadow-lg cursor-pointer"
+                >
+                  <IconDownload className="h-4 w-4" />
+                  <span>Télécharger l&apos;épisode</span>
+                </button>
+
+                <button
+                  onClick={() => setShowBatchDownload(true)}
+                  className="flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-white font-bold text-xs sm:text-sm transition-all cursor-pointer"
+                >
+                  <IconLayersLinked className="h-4 w-4" />
+                  <span>Télécharger la saison</span>
+                </button>
+
+                {user && (
+                  <button
+                    onClick={toggleFavorite}
+                    disabled={favoriteLoading}
+                    aria-label="Favoris"
+                    className={`p-2.5 rounded-full border transition-all hover:scale-105 backdrop-blur-md cursor-pointer ${
+                      isFavorite
+                        ? "bg-[#D70466]/90 border-[#D70466] text-white shadow-lg shadow-[#D70466]/40"
+                        : "bg-zinc-900 border-zinc-700 text-white hover:bg-zinc-800"
+                    }`}
+                  >
+                    {isFavorite ? (
+                      <IconBookmarkFilled className="w-4 h-4" />
+                    ) : (
+                      <IconBookmark className="w-4 h-4" />
+                    )}
+                  </button>
+                )}
+
+                <div className="relative">
+                  <button
+                    onClick={handleShare}
+                    aria-label="Partager"
+                    className="p-2.5 rounded-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-white transition-all hover:scale-105 cursor-pointer"
+                  >
+                    <IconShare className="w-4 h-4" />
+                  </button>
+
+                  {shareOpen && (
+                    <div className="absolute left-0 bottom-full mb-2 w-48 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl p-1 z-50 overflow-hidden">
+                      <a
+                        href={`https://wa.me/?text=${encodeURIComponent((showTitle || "Chillers") + " " + window.location.href)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2.5 px-3 py-2 text-xs text-white hover:bg-zinc-800 rounded-lg transition-colors"
+                      >
+                        <span>WhatsApp</span>
+                      </a>
+                      <button
+                        onClick={copyToClipboard}
+                        className="w-full text-left flex items-center justify-between px-3 py-2 text-xs text-white hover:bg-zinc-800 rounded-lg transition-colors"
+                      >
+                        <span>{copiedLink ? "Lien copié !" : "Copier le lien"}</span>
+                        {copiedLink && <IconCheck className="w-3.5 h-3.5 text-emerald-400" />}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Synopsis de l'Épisode */}
+              <div className="space-y-2 pt-2 border-t border-zinc-800/80">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-400">
+                  Résumé de l&apos;épisode
+                </h3>
+                <p className="text-zinc-300 text-sm sm:text-base leading-relaxed font-normal">
+                  {currentEpisode?.synopsis || "Aucun résumé disponible pour cet épisode."}
+                </p>
+              </div>
+
             </div>
+
+            {/* Colonne Droite : Tiroir / Liste Complète des Épisodes de la Saison */}
+            <div className="lg:col-span-5 xl:col-span-4 space-y-4">
+              
+              <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3">
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <span>Épisodes de la Saison {seasonNumber}</span>
+                  <span className="text-xs text-zinc-500 font-normal">({episodes.length})</span>
+                </h3>
+
+                {/* Sélecteur de Saisons Dropdown */}
+                {validSeasons.length > 1 && (
+                  <select
+                    value={seasonNumber}
+                    onChange={(e) => router.push(`/tv/${id}/season/${e.target.value}`)}
+                    className="bg-zinc-900 border border-zinc-700 text-xs text-white rounded-lg px-2.5 py-1 font-semibold focus:outline-none focus:border-[#D70466]"
+                  >
+                    {validSeasons.map((s) => (
+                      <option key={s.id} value={s.seasonNumber}>
+                        {s.name || `Saison ${s.seasonNumber}`}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              {/* Liste Déroulante des Épisodes avec Cartes 16:9 et Indicateur de Lecture */}
+              <div className="space-y-2.5 max-h-[650px] overflow-y-auto no-scrollbar pr-1">
+                {episodes.map((ep, idx) => {
+                  const isActive = idx === currentIndex;
+                  return (
+                    <div
+                      key={ep.id}
+                      onClick={() => playEpisode(idx)}
+                      className={`flex items-start gap-3.5 p-3 rounded-2xl cursor-pointer transition-all ${
+                        isActive
+                          ? "bg-white/10 border border-[#D70466] shadow-lg"
+                          : "bg-zinc-900/50 hover:bg-zinc-800/60 border border-zinc-800/60"
+                      }`}
+                    >
+                      {/* Thumbnail 16:9 */}
+                      <div className="relative flex-none w-28 aspect-video rounded-xl overflow-hidden bg-zinc-950">
+                        {ep.thumbnail ? (
+                          <Image
+                            src={ep.thumbnail}
+                            alt={ep.title}
+                            fill
+                            className="object-cover object-top"
+                            sizes="112px"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-zinc-600">
+                            <IconMovie className="w-6 h-6" />
+                          </div>
+                        )}
+
+                        {/* Overlay sombre */}
+                        <div className="absolute inset-0 bg-black/30" />
+
+                        {/* Badge Numéro d'épisode */}
+                        <div className="absolute top-1.5 left-1.5">
+                          <span className="px-1.5 py-0.5 rounded bg-black/80 text-[10px] font-bold text-white">
+                            EP {ep.number}
+                          </span>
+                        </div>
+
+                        {/* Indicateur de lecture en cours */}
+                        {isActive && (
+                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                            <div className="w-7 h-7 rounded-full bg-[#D70466] flex items-center justify-center">
+                              <IconPlayerPlay className="w-4 h-4 fill-white translate-x-0.5" />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Détails de l'épisode */}
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex items-center justify-between gap-1">
+                          <h4 className={`text-xs sm:text-sm font-bold truncate ${isActive ? "text-[#D70466]" : "text-white"}`}>
+                            {ep.number}. {ep.title}
+                          </h4>
+                          <span className="text-[10px] text-zinc-400 font-mono shrink-0">
+                            {ep.duration}
+                          </span>
+                        </div>
+
+                        <p className="text-xs text-zinc-400 line-clamp-2 leading-relaxed font-normal">
+                          {ep.synopsis || "Aucun résumé pour cet épisode."}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+            </div>
+
           </div>
+
         </div>
       </div>
 
-      <SeriesDownloadModal
-        isOpen={showDownloadModal}
-        onClose={() => setShowDownloadModal(false)}
-        seriesTitle={showTitle || `Saison ${seasonNumber}`}
-        tmdbId={id as string}
-        episodes={episodes}
-      />
+      {/* MODALE TÉLÉCHARGEMENT BATCH DE LA SAISON */}
+      {episodes.length > 0 && (
+        <SeriesDownloadModal
+          isOpen={showBatchDownload}
+          onClose={() => setShowBatchDownload(false)}
+          seriesTitle={showTitle || `Saison ${seasonNumber}`}
+          tmdbId={id as string}
+          episodes={episodes}
+        />
+      )}
 
+      {/* MODALE TÉLÉCHARGEMENT SINGLE ÉPISODE */}
       {currentEpisode && (
         <DownloadModal
           isOpen={showSingleDownload}
           onClose={() => setShowSingleDownload(false)}
-          title={showTitle || `Saison ${seasonNumber}`}
+          title={`${showTitle || `Saison ${seasonNumber}`} · S${seasonNumber}E${currentEpisode.number}`}
           id={id as string}
           type="series"
           season={Number(seasonNumber)}
           episode={currentEpisode.number}
+          posterUrl={currentEpisode.thumbnail || detailItem?.posterUrl}
+          backdropUrl={currentEpisode.thumbnail || detailItem?.backdropUrl}
         />
       )}
+
     </div>
   );
 }
