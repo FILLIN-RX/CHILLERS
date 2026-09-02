@@ -102,7 +102,7 @@ function MovieCard({
 
   // GSAP Smooth Hover Animations (Prime Video Cinematic Easing)
   const handleMouseEnter = useCallback(() => {
-    if (cardRef.current) {
+    if (cardRef.current && document.contains(cardRef.current)) {
       gsap.to(cardRef.current, {
         y: -6,
         scale: 1.02,
@@ -115,7 +115,7 @@ function MovieCard({
 
     if (isPoster) {
       // Crossfade from vertical poster to wide backdrop
-      if (backdropRef.current) {
+      if (backdropRef.current && document.contains(backdropRef.current)) {
         gsap.to(backdropRef.current, {
           opacity: 1,
           scale: 1.05,
@@ -124,7 +124,7 @@ function MovieCard({
           overwrite: "auto",
         });
       }
-      if (posterRef.current) {
+      if (posterRef.current && document.contains(posterRef.current)) {
         gsap.to(posterRef.current, {
           opacity: 0,
           duration: 0.35,
@@ -133,7 +133,7 @@ function MovieCard({
         });
       }
     } else {
-      if (posterRef.current) {
+      if (posterRef.current && document.contains(posterRef.current)) {
         gsap.to(posterRef.current, {
           scale: 1.06,
           duration: 0.5,
@@ -143,7 +143,7 @@ function MovieCard({
       }
     }
 
-    if (overlayRef.current) {
+    if (overlayRef.current && document.contains(overlayRef.current)) {
       gsap.fromTo(
         overlayRef.current,
         { opacity: 0, y: 12 },
@@ -157,7 +157,7 @@ function MovieCard({
       );
     }
 
-    if (buttonsRef.current) {
+    if (buttonsRef.current && document.contains(buttonsRef.current)) {
       gsap.fromTo(
         buttonsRef.current.children,
         { scale: 0.9, opacity: 0 },
@@ -174,7 +174,7 @@ function MovieCard({
   }, [isPoster]);
 
   const handleMouseLeave = useCallback(() => {
-    if (cardRef.current) {
+    if (cardRef.current && document.contains(cardRef.current)) {
       gsap.to(cardRef.current, {
         y: 0,
         scale: 1,
@@ -186,7 +186,7 @@ function MovieCard({
     }
 
     if (isPoster) {
-      if (backdropRef.current) {
+      if (backdropRef.current && document.contains(backdropRef.current)) {
         gsap.to(backdropRef.current, {
           opacity: 0,
           scale: 1,
@@ -195,7 +195,7 @@ function MovieCard({
           overwrite: "auto",
         });
       }
-      if (posterRef.current) {
+      if (posterRef.current && document.contains(posterRef.current)) {
         gsap.to(posterRef.current, {
           opacity: 1,
           duration: 0.35,
@@ -204,7 +204,7 @@ function MovieCard({
         });
       }
     } else {
-      if (posterRef.current) {
+      if (posterRef.current && document.contains(posterRef.current)) {
         gsap.to(posterRef.current, {
           scale: 1,
           duration: 0.35,
@@ -214,7 +214,7 @@ function MovieCard({
       }
     }
 
-    if (overlayRef.current) {
+    if (overlayRef.current && document.contains(overlayRef.current)) {
       gsap.to(overlayRef.current, {
         opacity: 0,
         y: 8,

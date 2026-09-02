@@ -5,6 +5,7 @@ import Image from "next/image";
 import type { MovieOrShow } from "@/types/media";
 import { IconPlayerPlay, IconPlayerPause, IconChevronLeft, IconChevronRight, IconStar } from '@tabler/icons-react';
 import { useLanguage } from "@/i18n/LanguageContext";
+import { useHydrated } from "@/hooks/useHydrated";
 
 interface HeroCarouselProps {
   slides: MovieOrShow[];
@@ -19,6 +20,7 @@ export default function HeroCarousel({
   onOpenDetails,
   slideTimings,
 }: HeroCarouselProps) {
+  const hydrated = useHydrated();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
@@ -81,15 +83,19 @@ export default function HeroCarousel({
     const iframe = document.querySelector(
       'iframe[data-hero-video]',
     ) as HTMLIFrameElement | null;
-    if (iframe?.contentWindow) {
-      iframe.contentWindow.postMessage(
-        JSON.stringify({
-          event: 'command',
-          func: isPaused ? 'pauseVideo' : 'playVideo',
-          args: '',
-        }),
-        '*',
-      );
+    if (iframe?.contentWindow && document.contains(iframe)) {
+      try {
+        iframe.contentWindow.postMessage(
+          JSON.stringify({
+            event: 'command',
+            func: isPaused ? 'pauseVideo' : 'playVideo',
+            args: '',
+          }),
+          '*',
+        );
+      } catch (e) {
+        // Silently ignore postMessage errors when iframe is being removed
+      }
     }
   }, [isPaused, currentIndex]);
 
@@ -102,6 +108,15 @@ export default function HeroCarousel({
     setCurrentIndex((prev) => (prev === slides.length - 1 ? 0 : prev + 1));
     setIsPaused(false);
   };
+
+  // Don't render until hydrated to avoid SSR/client mismatch on isMobile state
+  if (!hydrated) {
+    return (
+      <section className="relative w-full h-[75vh] sm:h-screen bg-black">
+        <div className="absolute inset-0 bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-900 animate-pulse" />
+      </section>
+    );
+  }
 
   if (!slides || slides.length === 0) {
     if (!timedOut) {

@@ -323,7 +323,7 @@ export default function Header({ onSearchClick }: HeaderProps) {
               </Link>
               <button
                 onClick={() => {
-                  if (typeof window !== "undefined" && window.innerWidth < 768) {
+                  if (window.innerWidth < 768) {
                     router.push("/login");
                   } else {
                     setIsAuthModalOpen(true);

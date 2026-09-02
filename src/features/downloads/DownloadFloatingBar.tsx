@@ -12,6 +12,7 @@ import {
 import { useDownloadsStore } from "@/store/downloads";
 import { streamDownloadToDisk } from "@/services/streamSaver";
 import { formatBytes } from "@/lib/format";
+import { useHydrated } from "@/hooks/useHydrated";
 import DownloadProgressBar from "./DownloadProgressBar";
 
 /**
@@ -22,6 +23,7 @@ import DownloadProgressBar from "./DownloadProgressBar";
  * Also shows paused tasks (e.g. after page reload) with a resume button.
  */
 export default function DownloadFloatingBar() {
+  const hydrated = useHydrated();
   const tasks = useDownloadsStore((s) => s.tasks);
   const requestCancel = useDownloadsStore((s) => s.requestCancel);
   const getController = useDownloadsStore((s) => s.getController);
@@ -153,6 +155,11 @@ export default function DownloadFloatingBar() {
     if (dragRef.current.moved) return;
     setExpanded(true);
   };
+
+  // Don't render until hydrated to avoid SSR/client mismatch on isMobile state
+  if (!hydrated) {
+    return null;
+  }
 
   // --- MOBILE BUBBLE ---
   if (isMobile && !expanded) {

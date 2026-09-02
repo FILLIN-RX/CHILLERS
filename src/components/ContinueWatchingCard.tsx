@@ -32,7 +32,7 @@ export default function ContinueWatchingCard({
   const imgSrc = item.backdropUrl || item.posterUrl || PLACEHOLDER_POSTER;
 
   const handleMouseEnter = useCallback(() => {
-    if (cardRef.current) {
+    if (cardRef.current && document.contains(cardRef.current)) {
       gsap.to(cardRef.current, {
         y: -4,
         scale: 1.03,
@@ -41,7 +41,7 @@ export default function ContinueWatchingCard({
         overwrite: "auto",
       });
     }
-    if (imgRef.current) {
+    if (imgRef.current && document.contains(imgRef.current)) {
       gsap.to(imgRef.current, {
         scale: 1.08,
         duration: 0.5,
@@ -49,7 +49,7 @@ export default function ContinueWatchingCard({
         overwrite: "auto",
       });
     }
-    if (playBtnRef.current) {
+    if (playBtnRef.current && document.contains(playBtnRef.current)) {
       gsap.to(playBtnRef.current, {
         opacity: 1,
         scale: 1,
@@ -61,7 +61,7 @@ export default function ContinueWatchingCard({
   }, []);
 
   const handleMouseLeave = useCallback(() => {
-    if (cardRef.current) {
+    if (cardRef.current && document.contains(cardRef.current)) {
       gsap.to(cardRef.current, {
         y: 0,
         scale: 1,
@@ -70,7 +70,7 @@ export default function ContinueWatchingCard({
         overwrite: "auto",
       });
     }
-    if (imgRef.current) {
+    if (imgRef.current && document.contains(imgRef.current)) {
       gsap.to(imgRef.current, {
         scale: 1,
         duration: 0.4,
@@ -78,7 +78,7 @@ export default function ContinueWatchingCard({
         overwrite: "auto",
       });
     }
-    if (playBtnRef.current) {
+    if (playBtnRef.current && document.contains(playBtnRef.current)) {
       gsap.to(playBtnRef.current, {
         opacity: 0,
         scale: 0.8,

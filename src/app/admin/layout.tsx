@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { adminVerify, adminLogout, adminScrapperHealth } from '@/services/admin';
 import { ConfigProvider, Layout, Menu, Button, Drawer, Badge, Typography, type MenuProps } from 'antd';
+import { useHydrated } from '@/hooks/useHydrated';
 import {
   DashboardOutlined,
   PlusOutlined,
@@ -120,6 +121,7 @@ function SidebarContent({ onNav }: { onNav?: () => void }) {
 }
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const hydrated = useHydrated();
   const [authed, setAuthed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -179,6 +181,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   if (!authed) return null;
+
+  // Don't render until hydrated to avoid SSR/client mismatch on isMobile state
+  if (!hydrated) {
+    return null;
+  }
 
   const sidebarContent = <SidebarContent />;
 

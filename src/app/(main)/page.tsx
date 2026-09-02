@@ -589,7 +589,8 @@ function Home() {
 
   const handleOpenDetails = (item: MovieOrShow) => {
     // Mobile: navigate directly instead of opening modal
-    if (typeof window !== "undefined" && window.innerWidth < 768) {
+    // Use window.innerWidth safely - this is in a click handler, so it's safe for client-only logic
+    if (window.innerWidth < 768) {
       if (item.type === "series" || item.type === "anime") {
         router.push(`/tv/${item.id}`);
       } else {
@@ -893,7 +894,7 @@ function Home() {
                       <h2 className="text-xl sm:text-3xl font-extrabold text-white">{_("home.blockbusterMovies")}</h2>
                       <p className="text-zinc-500 text-xs sm:text-sm mt-0.5">{_("home.blockbusterSubtitle")}</p>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
+                    <div className="hidden sm:grid grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
                     {getFilteredMedia("movie").map((item) => (
                       <MovieCard
                         key={item.id}
@@ -903,6 +904,19 @@ function Home() {
                         onOpenDetails={handleOpenDetails}
                       />
                     ))}
+                  </div>
+                  <div className="sm:hidden">
+                    <ScrollRow title="" accentColor="primary" className="space-y-0">
+                      {getFilteredMedia("movie").map((item) => (
+                        <MovieCard
+                          key={item.id}
+                          item={item}
+                          variant="grid"
+                          onPlay={handleWatchNow}
+                          onOpenDetails={handleOpenDetails}
+                        />
+                      ))}
+                    </ScrollRow>
                   </div>
                 </div>
               </div>
@@ -954,7 +968,7 @@ function Home() {
                       <h2 className="text-xl sm:text-3xl font-extrabold text-white">{_("home.featuredSeries")}</h2>
                       <p className="text-zinc-500 text-xs sm:text-sm mt-0.5">{_("home.featuredSeriesSubtitle")}</p>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
+                    <div className="hidden sm:grid grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
                     {getFilteredMedia("series").map((item) => (
                       <MovieCard
                         key={item.id}
@@ -964,6 +978,19 @@ function Home() {
                         onOpenDetails={handleOpenDetails}
                       />
                     ))}
+                  </div>
+                  <div className="sm:hidden">
+                    <ScrollRow title="" accentColor="primary" className="space-y-0">
+                      {getFilteredMedia("series").map((item) => (
+                        <MovieCard
+                          key={item.id}
+                          item={item}
+                          variant="grid"
+                          onPlay={handleWatchNow}
+                          onOpenDetails={handleOpenDetails}
+                        />
+                      ))}
+                    </ScrollRow>
                   </div>
                 </div>
               </div>
@@ -975,7 +1002,7 @@ function Home() {
                     <h2 className="text-xl sm:text-3xl font-extrabold text-white">{_("home.globalAnime")}</h2>
                     <p className="text-zinc-500 text-xs sm:text-sm mt-0.5">{_("home.globalAnimeSubtitle")}</p>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
+                  <div className="hidden sm:grid grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
                     {getFilteredMedia("anime").map((item) => (
                       <MovieCard
                         key={item.id}
@@ -986,6 +1013,19 @@ function Home() {
                       />
                     ))}
                   </div>
+                  <div className="sm:hidden">
+                    <ScrollRow title="" accentColor="primary" className="space-y-0">
+                      {getFilteredMedia("anime").map((item) => (
+                        <MovieCard
+                          key={item.id}
+                          item={item}
+                          variant="grid"
+                          onPlay={handleWatchNow}
+                          onOpenDetails={handleOpenDetails}
+                        />
+                      ))}
+                    </ScrollRow>
+                  </div>
                 </div>
               )}
 
@@ -995,7 +1035,7 @@ function Home() {
                     <h2 className="text-xl sm:text-3xl font-extrabold text-white">{_("home.trendingThisWeek")}</h2>
                     <p className="text-zinc-500 text-xs sm:text-sm mt-0.5">{_("home.trendingSubtitle")}</p>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
+                  <div className="hidden sm:grid grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
                     {trendingAll.map((item) => (
                       <MovieCard
                         key={item.id}
@@ -1005,6 +1045,19 @@ function Home() {
                         onOpenDetails={handleOpenDetails}
                       />
                     ))}
+                  </div>
+                  <div className="sm:hidden">
+                    <ScrollRow title="" accentColor="primary" className="space-y-0">
+                      {trendingAll.map((item) => (
+                        <MovieCard
+                          key={item.id}
+                          item={item}
+                          variant="grid"
+                          onPlay={handleWatchNow}
+                          onOpenDetails={handleOpenDetails}
+                        />
+                      ))}
+                    </ScrollRow>
                   </div>
                 </div>
               )}

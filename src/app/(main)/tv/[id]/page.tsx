@@ -15,6 +15,7 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { userService } from "@/services/user";
 import MovieCard from "@/components/MovieCard";
+import ScrollRow from "@/components/ScrollRow";
 import SeriesDownloadModal from "@/features/downloads/SeriesDownloadModal";
 import {
   IconArrowLeft,
@@ -431,7 +432,7 @@ export default function TVDetailPage() {
             </h2>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4 sm:gap-6 w-full">
+          <div className="hidden sm:grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-6 w-full">
             {validSeasons.map((season) => {
               const poster = season.posterUrl || item.posterUrl;
 
@@ -487,6 +488,63 @@ export default function TVDetailPage() {
                 </div>
               );
             })}
+          </div>
+
+          {/* Mobile: Horizontal Scroll */}
+          <div className="sm:hidden">
+            <ScrollRow title="" accentColor="primary" className="space-y-0">
+              {validSeasons.map((season) => {
+                const poster = season.posterUrl || item.posterUrl;
+
+                return (
+                  <div
+                    key={season.id}
+                    onClick={() => router.push(`/tv/${id}/season/${season.seasonNumber}`)}
+                    className="group cursor-pointer space-y-2 transition-transform duration-300 hover:scale-[1.03] flex-shrink-0"
+                  >
+                    {/* Image Poster de la saison */}
+                    <div className="relative aspect-[2/3] w-32 rounded-2xl overflow-hidden bg-zinc-900 shadow-xl">
+                      {poster ? (
+                        <Image
+                          src={poster}
+                          alt={season.name}
+                          fill
+                          className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-300"
+                          sizes="(max-width: 768px) 128px"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
+                          <IconMovie className="w-8 h-8 text-zinc-600" />
+                        </div>
+                      )}
+
+                      {/* Gradient Overlay sombre */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60 group-hover:opacity-30 transition-opacity" />
+
+                      {/* Badge Épisodes */}
+                      <div className="absolute top-2.5 right-2.5">
+                        <span className="px-2 py-0.5 rounded-md bg-black/80 backdrop-blur-md text-white font-bold text-[10px]">
+                          {season.episodeCount}
+                        </span>
+                      </div>
+
+                      {/* Bouton Play au survol */}
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40">
+                        <div className="w-10 h-10 rounded-full bg-[#D70466] flex items-center justify-center text-white shadow-xl">
+                          <IconPlayerPlay className="w-4 h-4 fill-white translate-x-0.5" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Titre */}
+                    <div className="space-y-0.5 pt-1 w-32">
+                      <h3 className="text-xs font-bold text-white truncate">{season.name}</h3>
+                      <p className="text-[10px] text-zinc-400 truncate">{season.episodeCount} épisodes</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </ScrollRow>
           </div>
         </section>
 

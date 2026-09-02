@@ -17,6 +17,7 @@ import NotificationModal from "@/components/NotificationModal";
 import SeriesDownloadModal from "@/features/downloads/SeriesDownloadModal";
 import DownloadModal from "@/features/downloads/DownloadModal";
 import MovieCard from "@/components/MovieCard";
+import ScrollRow from "@/components/ScrollRow";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { userService } from "@/services/user";
@@ -731,7 +732,7 @@ function WatchContent() {
               <span className="h-4 sm:h-5 w-1 rounded-full bg-brand-primary" />
               {_("media.youMightAlsoLike")}
             </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1.5 sm:gap-3">
+            <div className="hidden sm:grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
               {similar.map((sim) => (
                 <MovieCard
                   key={sim.id}
@@ -753,6 +754,31 @@ function WatchContent() {
                   }
                 />
               ))}
+            </div>
+            <div className="sm:hidden">
+              <ScrollRow title="" accentColor="primary" className="space-y-0">
+                {similar.map((sim) => (
+                  <MovieCard
+                    key={sim.id}
+                    item={sim}
+                    variant="grid"
+                    onPlay={(i) =>
+                      router.push(
+                        `/watch/${i.id}?type=${
+                          i.type === "series" || i.type === "anime" ? "tv" : "movie"
+                        }`
+                      )
+                    }
+                    onOpenDetails={(i) =>
+                      router.push(
+                        `/media/${i.id}?type=${
+                          i.type === "series" || i.type === "anime" ? "tv" : "movie"
+                        }`
+                      )
+                    }
+                  />
+                ))}
+              </ScrollRow>
             </div>
           </section>
         )}

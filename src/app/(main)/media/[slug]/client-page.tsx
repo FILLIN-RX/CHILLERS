@@ -651,7 +651,7 @@ function MediaDetailPage() {
               </h2>
               <span className="text-xs text-zinc-400 font-semibold">{similar.length} titres</span>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 lg:gap-6 w-full">
+            <div className="hidden sm:grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 lg:gap-6 w-full">
               {similar.map((sim) => (
                 <MovieCard
                   key={sim.id}
@@ -661,6 +661,19 @@ function MediaDetailPage() {
                   onPlay={(m) => router.push(`/watch/${m.id}?type=movie`)}
                 />
               ))}
+            </div>
+            <div className="sm:hidden">
+              <ScrollRow title="" accentColor="primary" className="space-y-0">
+                {similar.map((sim) => (
+                  <MovieCard
+                    key={sim.id}
+                    item={sim}
+                    variant="poster"
+                    onOpenDetails={(m) => router.push(`/media/${m.id}`)}
+                    onPlay={(m) => router.push(`/watch/${m.id}?type=movie`)}
+                  />
+                ))}
+              </ScrollRow>
             </div>
           </section>
         )}
@@ -941,7 +954,7 @@ function MediaListingPage() {
 
   const handleOpenDetails = (item: MovieOrShow) => {
     // Mobile: navigate directly instead of opening modal
-    if (typeof window !== "undefined" && window.innerWidth < 768) {
+    if (window.innerWidth < 768) {
       if (item.type === "series" || item.type === "anime") {
         router.push(`/tv/${item.id}`);
       } else {
@@ -1085,7 +1098,7 @@ function MediaListingPage() {
           </div>
 
           {/* Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
+          <div className="hidden sm:grid grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
             {isLoadingGrid
               ? Array.from({ length: 20 }).map((_, i) => (
                   <div key={i} className="aspect-video rounded-md bg-zinc-900 skeleton-loading" />
@@ -1099,6 +1112,25 @@ function MediaListingPage() {
                     onOpenDetails={handleOpenDetails}
                   />
                 ))}
+          </div>
+
+          {/* Mobile Horizontal Scroll */}
+          <div className="sm:hidden">
+            <ScrollRow title="" accentColor="primary" className="space-y-0">
+              {isLoadingGrid
+                ? Array.from({ length: 20 }).map((_, i) => (
+                    <div key={i} className="aspect-video rounded-md bg-zinc-900 skeleton-loading w-[40vw] flex-shrink-0" />
+                  ))
+                : gridItems.map((item) => (
+                    <MovieCard
+                      key={item.id}
+                      item={item}
+                      variant="grid"
+                      onPlay={handlePlay}
+                      onOpenDetails={handleOpenDetails}
+                    />
+                  ))}
+            </ScrollRow>
           </div>
 
           {/* Pagination */}

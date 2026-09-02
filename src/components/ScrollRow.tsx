@@ -56,9 +56,23 @@ export default function ScrollRow({
     };
   }, [updateScrollState]);
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (scrollTween.current) {
+        scrollTween.current.kill();
+        scrollTween.current = null;
+      }
+      if (autoTween.current) {
+        autoTween.current.kill();
+        autoTween.current = null;
+      }
+    };
+  }, []);
+
   const scroll = (direction: "left" | "right") => {
     const el = scrollRef.current;
-    if (!el) return;
+    if (!el || !document.contains(el)) return;
     if (scrollTween.current) scrollTween.current.kill();
 
     const amount = el.clientWidth * 0.75;
@@ -69,6 +83,9 @@ export default function ScrollRow({
       duration: 0.6,
       ease: "power3.out",
       onUpdate: updateScrollState,
+      onInterrupt: () => {
+        scrollTween.current = null;
+      },
     });
   };
 
@@ -76,7 +93,7 @@ export default function ScrollRow({
     if (!autoScroll) return;
     if (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const el = scrollRef.current;
-    if (!el) return;
+    if (!el || !document.contains(el)) return;
 
     const maxScroll = el.scrollWidth - el.clientWidth;
     if (maxScroll <= 0) return;
@@ -91,16 +108,22 @@ export default function ScrollRow({
       repeat: -1,
       yoyo: false,
       onRepeat: () => {
-        gsap.set(el, { scrollLeft: 0 });
+        if (document.contains(el)) {
+          gsap.set(el, { scrollLeft: 0 });
+        }
       },
       repeatDelay: 0.8,
       onUpdate: updateScrollState,
+      onInterrupt: () => {
+        autoTween.current = null;
+      },
     });
 
     autoTween.current = tween;
 
     return () => {
-      tween.kill();
+      if (tween) tween.kill();
+      autoTween.current = null;
     };
   }, [autoScroll, autoScrollSpeed, isHovered, updateScrollState]);
 

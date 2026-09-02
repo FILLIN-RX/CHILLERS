@@ -15,6 +15,7 @@ import { getActiveNavTab } from "@/lib/navActive";
 import { useAuthStore } from "@/stores/useAuthStore";
 import UserAvatar from "@/components/UserAvatar";
 import AuthModal from "@/components/AuthModal";
+import { useHydrated } from "@/hooks/useHydrated";
 
 interface BottomNavProps {
   onSearchClick: () => void;
@@ -26,14 +27,9 @@ export default function BottomNav({ onSearchClick }: BottomNavProps) {
   const { translate: _, lang } = useLanguage();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [hydrated, setHydrated] = useState(false);
+  const hydrated = useHydrated();
 
   const { user } = useAuthStore();
-
-  // Defer conditional rendering until after hydration to avoid mismatch
-  useEffect(() => {
-    setHydrated(true);
-  }, []);
 
   const items = [
     { id: "home", label: _("bottomNav.home"), icon: IconHome, href: "/" },
