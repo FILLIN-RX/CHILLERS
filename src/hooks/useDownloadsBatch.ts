@@ -111,10 +111,10 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
     });
     addMany(newRows);
 
-    // If any of the requested episodes were canceled or paused, reset them fresh
+    // If any of the requested episodes were previously done, canceled, paused or in error, reset them fresh
     const currentTasks = tasksRef.current;
     const toReset = currentTasks
-      .filter((t) => ids.includes(t.id) && (t.status === "canceled" || t.status === "paused"))
+      .filter((t) => ids.includes(t.id) && t.status !== "downloading" && t.status !== "resolving")
       .map((t) => t.id);
     if (toReset.length > 0) {
       resetTasks(toReset);

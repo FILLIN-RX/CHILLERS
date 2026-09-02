@@ -68,11 +68,11 @@ export default function DownloadModal({
     };
   }, [isOpen, onClose]);
 
-  // Auto-resolve: as soon as the modal opens, resolve the link.
+  // Auto-resolve: as soon as the modal opens, always resolve fresh if not actively downloading
   useEffect(() => {
     if (!isOpen) return;
-    if (dl.status === "queued") {
-      dl.resolve();
+    if (dl.status !== "downloading" && dl.status !== "resolving") {
+      dl.retry();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
@@ -153,10 +153,28 @@ export default function DownloadModal({
           </button>
         )}
 
-        {(showSuccess || showError) && (
+        {showSuccess && (
+          <div className="space-y-2.5">
+            <button
+              onClick={() => dl.retry()}
+              className="w-full px-8 py-3 rounded bg-white text-black font-bold text-sm hover:bg-zinc-200 transition-all flex items-center justify-center gap-2"
+            >
+              <IconDownload className="h-5 w-5" />
+              Télécharger à nouveau
+            </button>
+            <button
+              onClick={onClose}
+              className="w-full px-8 py-3 rounded bg-zinc-800 text-white font-bold text-sm hover:bg-zinc-700 transition-all"
+            >
+              Fermer
+            </button>
+          </div>
+        )}
+
+        {showError && (
           <button
             onClick={onClose}
-            className="w-full px-8 py-3 rounded bg-zinc-800 text-white font-bold text-sm hover:bg-zinc-700 transition-all"
+            className="w-full px-8 py-3 rounded bg-zinc-800 text-white font-bold text-sm hover:bg-zinc-700 transition-all mt-2.5"
           >
             Fermer
           </button>
