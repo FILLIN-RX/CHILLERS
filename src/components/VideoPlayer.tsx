@@ -839,8 +839,8 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
                     </span>
                   </button>
 
-                  {/* Volume with Smooth Hover Expand Slider */}
-                  <div className="flex items-center group/vol relative">
+                  {/* Volume with Smooth Hover Expand Slider - hidden on mobile */}
+                  <div className="hidden sm:flex items-center group/vol relative">
                     <button
                       type="button"
                       onClick={toggleMute}
@@ -879,18 +879,18 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
                   </div>
 
                   {/* Real-time Time Display (YouTube Format) */}
-                  <span className="text-[12px] sm:text-[13px] font-sans text-white/90 select-none ml-1 tabular-nums">
+                  <span className="text-[11px] sm:text-[13px] font-sans text-white/90 select-none ml-1 tabular-nums whitespace-nowrap">
                     {formatTime(currentTime)} / {formatTime(duration)}
                   </span>
                 </div>
 
                 {/* ── Right Controls: Autoplay, CC, Settings, PiP, Theater, Fullscreen ── */}
                 <div className="flex items-center gap-0.5 sm:gap-1">
-                  {/* Autoplay Pill Switch (as in YouTube screenshot) */}
+                  {/* Autoplay Pill Switch - hidden on mobile */}
                   <button
                     type="button"
                     onClick={() => setAutoplay(!autoplay)}
-                    className="group/btn relative p-2 flex items-center"
+                    className="hidden sm:flex group/btn relative p-2 items-center"
                   >
                     <div className={`w-9 h-4 rounded-full p-0.5 transition-colors relative flex items-center ${autoplay ? "bg-white/40" : "bg-white/20"}`}>
                       <div className={`w-3.5 h-3.5 rounded-full bg-white transition-transform flex items-center justify-center shadow ${autoplay ? "translate-x-4 bg-white text-zinc-900" : "translate-x-0 bg-white/70 text-zinc-800"}`}>
@@ -906,7 +906,7 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
                     </span>
                   </button>
 
-                  {/* Closed Captions [CC] */}
+                  {/* Closed Captions [CC] - hidden on mobile (accessible via Settings) */}
                   {subtitles.length > 0 && (
                     <button
                       type="button"
@@ -914,12 +914,11 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
                         if (activeSubId !== null) setActiveSubId(null);
                         else setActiveSubId(subtitles[0].fileId);
                       }}
-                      className="group/btn relative p-2 text-white hover:text-white transition-opacity flex flex-col items-center justify-center"
+                      className="hidden sm:flex group/btn relative p-2 text-white hover:text-white transition-opacity flex-col items-center justify-center"
                     >
                       <svg viewBox="0 0 24 24" className="w-6 h-6 fill-white">
                         <path d="M19 4H5c-1.11 0-2 .9-2 2v12c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-8 7H9.5v-.5h-2v3h2V13H11v1c0 .55-.45 1-1 1H7c-.55 0-1-.45-1-1v-4c0-.55.45-1 1-1h3c.55 0 1 .45 1 1v1zm7 0h-1.5v-.5h-2v3h2V13H18v1c0 .55-.45 1-1 1h-3c-.55 0-1-.45-1-1v-4c0-.55.45-1 1-1h3c.55 0 1 .45 1 1v1z" />
                       </svg>
-                      {/* Active Red Highlight Bar */}
                       {activeSubId !== null && (
                         <div className="w-5 h-0.5 bg-[#ff0000] -mt-0.5 rounded-full" />
                       )}
@@ -951,13 +950,24 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
 
                     {/* YouTube Settings Popover */}
                     {showSpeedMenu && (
-                      <div className="absolute bottom-full right-0 mb-3 w-56 py-1.5 bg-[#1f1f1f]/95 backdrop-blur-md rounded-xl shadow-2xl text-white text-xs z-50 animate-in fade-in zoom-in-95 duration-100 border border-white/10">
+                      <div className="absolute bottom-full right-0 mb-3 w-60 sm:w-56 max-w-[calc(100vw-24px)] py-1.5 bg-[#1f1f1f]/95 backdrop-blur-md rounded-xl shadow-2xl text-white text-xs z-50 animate-in fade-in zoom-in-95 duration-100 border border-white/10">
                         {settingsTab === "main" && (
                           <div className="flex flex-col">
+                            {/* Autoplay inside settings for mobile */}
+                            <button
+                              onClick={() => setAutoplay(!autoplay)}
+                              className="px-4 py-2.5 flex items-center justify-between hover:bg-white/10 transition-colors text-left"
+                            >
+                              <span className="text-zinc-300">Lecture auto</span>
+                              <span className={`font-semibold ${autoplay ? "text-[#D70466]" : "text-zinc-400"}`}>
+                                {autoplay ? "Activée" : "Désactivée"}
+                              </span>
+                            </button>
+
                             {/* Speed */}
                             <button
                               onClick={() => setSettingsTab("speed")}
-                              className="px-4 py-2.5 flex items-center justify-between hover:bg-white/10 transition-colors text-left"
+                              className="px-4 py-2.5 flex items-center justify-between hover:bg-white/10 transition-colors text-left border-t border-white/5"
                             >
                               <span className="text-zinc-300">Vitesse de lecture</span>
                               <span className="text-zinc-400 font-medium">{playbackRate === 1 ? "Normale" : `${playbackRate}x`} ›</span>
@@ -970,8 +980,8 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
                                 className="px-4 py-2.5 flex items-center justify-between hover:bg-white/10 transition-colors text-left border-t border-white/5"
                               >
                                 <span className="text-zinc-300">Qualité</span>
-                                <span className="text-zinc-400 font-medium">
-                                  {currentQuality === -1 ? "Automatique" : qualityLevels.find((q) => q.index === currentQuality)?.label || "HD"} ›
+                                <span className="text-zinc-400 font-medium truncate max-w-[100px] text-right">
+                                  {currentQuality === -1 ? "Auto" : qualityLevels.find((q) => q.index === currentQuality)?.label || "HD"} ›
                                 </span>
                               </button>
                             )}
@@ -983,11 +993,20 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
                                 className="px-4 py-2.5 flex items-center justify-between hover:bg-white/10 transition-colors text-left border-t border-white/5"
                               >
                                 <span className="text-zinc-300">Sous-titres</span>
-                                <span className="text-zinc-400 font-medium">
+                                <span className="text-zinc-400 font-medium truncate max-w-[100px] text-right">
                                   {activeSubId === null ? "Désactivés" : subtitles.find((s) => s.fileId === activeSubId)?.langName || "Actifs"} ›
                                 </span>
                               </button>
                             )}
+
+                            {/* Picture-in-Picture on mobile */}
+                            <button
+                              onClick={() => { togglePiP(); setShowSpeedMenu(false); }}
+                              className="px-4 py-2.5 flex items-center justify-between hover:bg-white/10 transition-colors text-left border-t border-white/5 sm:hidden"
+                            >
+                              <span className="text-zinc-300">Lecteur réduit (PiP)</span>
+                              <span className="text-zinc-400 font-medium">Activer</span>
+                            </button>
                           </div>
                         )}
 
@@ -1096,11 +1115,11 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
                     )}
                   </div>
 
-                  {/* Miniplayer (Picture-in-Picture) */}
+                  {/* Miniplayer (Picture-in-Picture) - visible on md: */}
                   <button
                     type="button"
                     onClick={togglePiP}
-                    className="group/btn relative p-2 text-white hover:text-white transition-opacity flex items-center justify-center"
+                    className="hidden md:flex group/btn relative p-2 text-white hover:text-white transition-opacity items-center justify-center"
                   >
                     <svg viewBox="0 0 24 24" className="w-6 h-6 fill-white">
                       <path d="M19 7h-8v6h8V7zm2-4H3c-1.1 0-2 .9-2 2v14c0 1.1.9 1.98 2 1.98h18c1.1 0 2-.88 2-1.98V5c0-1.1-.9-2-2-2zm0 16.01H3V4.98h18v14.03z" />
@@ -1110,11 +1129,11 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
                     </span>
                   </button>
 
-                  {/* Theater Mode */}
+                  {/* Theater Mode - visible on lg: */}
                   <button
                     type="button"
                     onClick={() => setIsTheater(!isTheater)}
-                    className="group/btn relative p-2 text-white hover:text-white transition-opacity flex items-center justify-center"
+                    className="hidden lg:flex group/btn relative p-2 text-white hover:text-white transition-opacity items-center justify-center"
                   >
                     <svg viewBox="0 0 24 24" className="w-6 h-6 fill-white">
                       <path d="M19 6H5c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 10H5V8h14v8z" />
