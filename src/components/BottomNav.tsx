@@ -56,7 +56,7 @@ export default function BottomNav({ onSearchClick }: BottomNavProps) {
 
   const activeTab = getActiveNavTab(pathname);
 
-  if (isFullscreen) return null;
+  if (isFullscreen || pathname?.startsWith("/watch")) return null;
 
   return (
     <>

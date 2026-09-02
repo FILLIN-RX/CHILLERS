@@ -84,6 +84,8 @@ export default function Header({ onSearchClick }: HeaderProps) {
     return () => window.removeEventListener("scroll", handleScroll);
   }, [isListingPage]);
 
+  if (pathname?.startsWith("/watch")) return null;
+
   return (
     <header
       className={`fixed top-0 left-0 w-full z-40 transition-all duration-300 select-none [app-region:drag] ${

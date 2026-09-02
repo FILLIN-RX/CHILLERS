@@ -480,13 +480,13 @@ function WatchContent() {
 
 
       <div
-        className={`pt-[60px] sm:pt-[72px] pb-20 lg:pb-24 ${
+        className={`pt-0 pb-20 lg:pb-24 ${
           hasEpisodes ? "lg:pr-[26rem] xl:pr-[28rem]" : ""
         }`}
       >
         {/* Main Video Player Section */}
-        <div ref={playerRef} className="scroll-mt-20 w-full">
-          <div className="w-full max-h-[60vh] sm:max-h-[75vh] aspect-video bg-black relative mx-auto">
+        <div ref={playerRef} className="w-full">
+          <div className="w-full aspect-video max-h-[85vh] bg-black relative mx-auto">
             {streamUnavailable ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-6 bg-zinc-950/90">
                 <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-zinc-800/80 flex items-center justify-center border border-zinc-700/50">
