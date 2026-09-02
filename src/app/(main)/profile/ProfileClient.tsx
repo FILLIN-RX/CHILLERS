@@ -35,7 +35,41 @@ export default function ProfileClient() {
     }
   }, [token, router, updateUser]);
 
-  if (!user) return null;
+  if (!user) {
+    return (
+      <div className="min-h-[80vh] flex flex-col items-center justify-center px-4 py-20 text-center">
+        <div className="max-w-md w-full bg-zinc-900 border border-white/10 rounded-3xl p-8 shadow-2xl space-y-6">
+          <div className="w-16 h-16 rounded-2xl bg-[#D70466]/10 border border-[#D70466]/20 flex items-center justify-center mx-auto text-[#D70466]">
+            <IconUser className="w-8 h-8" />
+          </div>
+          <div className="space-y-2">
+            <h1 className="text-2xl font-bold text-white">
+              {lang === "fr" ? "Connectez-vous à Chillers" : "Sign in to Chillers"}
+            </h1>
+            <p className="text-xs sm:text-sm text-zinc-400">
+              {lang === "fr"
+                ? "Retrouvez vos favoris, votre historique de visionnage et vos téléchargements."
+                : "Access your watchlist, watch history, and offline downloads."}
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3 pt-2">
+            <Link
+              href="/login?redirect=/profile"
+              className="flex-1 py-3 px-4 rounded-xl bg-[#D70466] hover:bg-[#b5034f] text-white text-sm font-bold shadow-lg transition-all"
+            >
+              {lang === "fr" ? "Connexion" : "Log In"}
+            </Link>
+            <Link
+              href="/register?redirect=/profile"
+              className="flex-1 py-3 px-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-white/10 text-white text-sm font-bold transition-all"
+            >
+              {lang === "fr" ? "S'inscrire" : "Sign Up"}
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const tabs = [
     { id: "watchlist", label: lang === 'fr' ? 'Ma Liste' : 'Watchlist', icon: IconBookmark },
@@ -65,8 +99,7 @@ export default function ProfileClient() {
         {/* Sidebar / User Info & Tabs */}
         <div className="w-full lg:w-80 flex-shrink-0 space-y-6">
           {/* User Profile Card */}
-          <div className="relative overflow-hidden rounded-3xl bg-zinc-900/50 backdrop-blur-xl border border-white/5 p-6 shadow-2xl">
-            <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-br from-[#D70466]/40 to-[#7C3AED]/40 blur-3xl -z-10" />
+          <div className="relative overflow-hidden rounded-3xl bg-zinc-900 border border-white/10 p-6 shadow-2xl">
             <div className="flex items-center gap-5">
               <UserAvatar user={user} size="lg" showBadge={true} />
               <div className="flex-1 min-w-0">
@@ -245,7 +278,7 @@ export default function ProfileClient() {
 
                 <button
                   onClick={handleSaveSettings}
-                  className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-gradient-to-r from-[#D70466] to-[#7C3AED] text-white font-bold tracking-wide hover:shadow-[0_0_20px_rgba(215,4,102,0.4)] transition-all active:scale-[0.98]"
+                  className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-[#D70466] hover:bg-[#b5034f] text-white font-bold tracking-wide transition-all active:scale-[0.98]"
                 >
                   {lang === 'fr' ? 'Enregistrer les modifications' : 'Save Changes'}
                 </button>
@@ -267,22 +300,17 @@ export default function ProfileClient() {
               <div className="max-w-2xl space-y-6">
                 
                 {/* Plan Info */}
-                <div className={`backdrop-blur-md rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden transition-all ${
+                <div className={`rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden transition-all ${
                   user.subscription?.plan === 'premium' || user.role === 'admin'
-                    ? 'bg-gradient-to-br from-zinc-900/90 via-amber-950/20 to-zinc-900/90 border border-amber-500/30 shadow-[0_0_30px_rgba(245,158,11,0.15)]'
-                    : 'bg-zinc-900/50 border border-white/5'
+                    ? 'bg-zinc-900 border border-amber-500/40 shadow-[0_0_30px_rgba(245,158,11,0.1)]'
+                    : 'bg-zinc-900 border border-white/10'
                 }`}>
-                  <div className={`absolute top-0 right-0 w-40 h-40 blur-[60px] -z-10 ${
-                    user.subscription?.plan === 'premium' || user.role === 'admin'
-                      ? 'bg-amber-500/25'
-                      : 'bg-[#D70466]/20'
-                  }`} />
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                     <div>
                       <div className="flex items-center gap-2 mb-1">
                         <p className="text-zinc-400 font-medium">{lang === 'fr' ? 'Plan Actuel' : 'Current Plan'}</p>
                         {user.subscription?.plan === 'premium' || user.role === 'admin' ? (
-                          <span className="px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 text-black text-[10px] font-black tracking-wider uppercase">
+                          <span className="px-2.5 py-0.5 rounded-full bg-amber-500 text-black text-[10px] font-black tracking-wider uppercase">
                             VIP ACTIF
                           </span>
                         ) : null}
@@ -290,7 +318,7 @@ export default function ProfileClient() {
                       <h3 className="text-3xl font-extrabold text-white capitalize flex items-center gap-3">
                         {user.subscription?.plan || (user.role === 'admin' ? 'Admin VIP' : 'Free')}
                         {(user.subscription?.plan === 'premium' || user.role === 'admin') && (
-                          <IconCrown className="w-8 h-8 text-amber-400 drop-shadow-[0_0_12px_rgba(245,158,11,0.6)]" />
+                          <IconCrown className="w-8 h-8 text-amber-400" />
                         )}
                       </h3>
                       <p className="text-sm text-zinc-400 mt-2 flex items-center gap-1.5">
@@ -305,7 +333,7 @@ export default function ProfileClient() {
                         href="/subscribe"
                         className={`inline-flex items-center justify-center px-6 py-3 rounded-xl font-bold transition-all shadow-md ${
                           user.subscription?.plan === 'premium' || user.role === 'admin'
-                            ? 'bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-black shadow-amber-500/20'
+                            ? 'bg-amber-500 hover:bg-amber-400 text-black'
                             : 'bg-white/10 hover:bg-white/20 text-white border border-white/5'
                         }`}
                       >

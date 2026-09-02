@@ -353,7 +353,7 @@ export default function DownloadsView({
                         unoptimized
                       />
                     ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center text-zinc-500 gap-1 bg-gradient-to-br from-zinc-800 to-zinc-900">
+                      <div className="w-full h-full flex flex-col items-center justify-center text-zinc-500 gap-1 bg-zinc-800">
                         {task.type === "series" || task.type === "anime" ? (
                           <IconDeviceTv className="w-8 h-8 text-zinc-500" />
                         ) : (

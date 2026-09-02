@@ -322,7 +322,13 @@ export default function Header({ onSearchClick }: HeaderProps) {
                 <span>PRO</span>
               </Link>
               <button
-                onClick={() => setIsAuthModalOpen(true)}
+                onClick={() => {
+                  if (typeof window !== "undefined" && window.innerWidth < 768) {
+                    router.push("/login");
+                  } else {
+                    setIsAuthModalOpen(true);
+                  }
+                }}
                 className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white text-black hover:bg-zinc-200 text-xs font-bold transition-colors focus:outline-none cursor-pointer shadow-sm active:scale-95"
               >
                 <IconUser className="w-3.5 h-3.5" />

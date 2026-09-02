@@ -43,7 +43,7 @@ export default function BottomNav({ onSearchClick }: BottomNavProps) {
       id: "profile",
       label: user ? (lang === "fr" ? "Profil" : "Profile") : (lang === "fr" ? "Connexion" : "Login"),
       icon: IconUser,
-      href: "/profile",
+      href: user ? "/profile" : "/login",
     },
   ] as const;
 
