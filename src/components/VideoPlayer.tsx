@@ -85,6 +85,7 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
   const [isTheater, setIsTheater] = useState(false);
   const [autoplay, setAutoplay] = useState(true);
   const [settingsTab, setSettingsTab] = useState<"main" | "speed" | "quality" | "subtitles">("main");
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const currentEpisode = episode;
 
@@ -95,14 +96,55 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
     }, 600);
   }, []);
 
-  /* ───────── Orientation check ───────── */
+  /* ───────── Native Fullscreen event listeners ───────── */
   useEffect(() => {
-    const mq = window.matchMedia("(orientation: portrait)");
-    const handler = (e: MediaQueryListEvent | MediaQueryList) => setIsPortrait(e.matches);
-    handler(mq);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
+    const onFsChange = () => {
+      const isFs = Boolean(
+        document.fullscreenElement ||
+        (document as any).webkitFullscreenElement ||
+        (document as any).mozFullScreenElement ||
+        (document as any).msFullscreenElement
+      );
+      setIsFullscreen(isFs);
+    };
+    document.addEventListener("fullscreenchange", onFsChange);
+    document.addEventListener("webkitfullscreenchange", onFsChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", onFsChange);
+      document.removeEventListener("webkitfullscreenchange", onFsChange);
+    };
   }, []);
+
+  /* ───────── Orientation check & Auto Fullscreen ───────── */
+  useEffect(() => {
+    const checkOrientation = () => {
+      const isLandscape = window.matchMedia("(orientation: landscape)").matches;
+      const isMobileDevice =
+        window.innerWidth < 1024 ||
+        (typeof navigator !== "undefined" && navigator.maxTouchPoints > 0);
+
+      setIsPortrait(!isLandscape);
+
+      // Auto-fullscreen on rotation
+      if (isLandscape && isMobileDevice && hasStarted && !isFullscreen) {
+        enterFullscreen();
+      } else if (!isLandscape && isMobileDevice && isFullscreen) {
+        exitFullscreen();
+      }
+    };
+
+    const mq = window.matchMedia("(orientation: portrait)");
+    const mqHandler = () => checkOrientation();
+    mq.addEventListener("change", mqHandler);
+    window.addEventListener("orientationchange", checkOrientation);
+    window.addEventListener("resize", checkOrientation);
+
+    return () => {
+      mq.removeEventListener("change", mqHandler);
+      window.removeEventListener("orientationchange", checkOrientation);
+      window.removeEventListener("resize", checkOrientation);
+    };
+  }, [hasStarted, isFullscreen]);
 
   /* ───────── VidLink progress bridge ───────── */
   const allowedMessageOrigins = useMemo(() => new Set(["https://vidlink.pro"]), []);
@@ -463,15 +505,75 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
     setCurrentTime(time);
   }, []);
 
-  const toggleFullscreen = useCallback(() => {
+  const enterFullscreen = useCallback(async () => {
     const container = containerRef.current;
-    if (!container) return;
-    if (!document.fullscreenElement) {
-      container.requestFullscreen().catch(() => {});
-    } else {
-      document.exitFullscreen().catch(() => {});
+    const video = videoRef.current;
+
+    // 1. Standard HTML5 Fullscreen API (Desktop, Android, tablets)
+    if (container && container.requestFullscreen) {
+      try {
+        await container.requestFullscreen();
+        setIsFullscreen(true);
+        try {
+          await (screen.orientation as any)?.lock?.("landscape");
+        } catch (_) {}
+        return;
+      } catch (_) {}
+    } else if (container && (container as any).webkitRequestFullscreen) {
+      try {
+        (container as any).webkitRequestFullscreen();
+        setIsFullscreen(true);
+        return;
+      } catch (_) {}
     }
+
+    // 2. Native Video Fullscreen on iOS (iPhone Safari for direct video streams)
+    if (video && (video as any).webkitEnterFullscreen && !isIframe) {
+      try {
+        (video as any).webkitEnterFullscreen();
+        setIsFullscreen(true);
+        return;
+      } catch (_) {}
+    }
+
+    // 3. Fallback CSS pseudo-fullscreen on iOS / mobile (covers 100% of iPhone screen)
+    setIsFullscreen(true);
+    try {
+      await (screen.orientation as any)?.lock?.("landscape");
+    } catch (_) {}
+  }, [isIframe]);
+
+  const exitFullscreen = useCallback(async () => {
+    if (document.fullscreenElement || (document as any).webkitFullscreenElement) {
+      try {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if ((document as any).webkitExitFullscreen) {
+          (document as any).webkitExitFullscreen();
+        }
+      } catch (_) {}
+    }
+
+    const video = videoRef.current;
+    if (video && (video as any).webkitExitFullscreen) {
+      try {
+        (video as any).webkitExitFullscreen();
+      } catch (_) {}
+    }
+
+    setIsFullscreen(false);
+    try {
+      (screen.orientation as any)?.unlock?.();
+    } catch (_) {}
   }, []);
+
+  const toggleFullscreen = useCallback(() => {
+    if (isFullscreen || document.fullscreenElement || (document as any).webkitFullscreenElement) {
+      exitFullscreen();
+    } else {
+      enterFullscreen();
+    }
+  }, [isFullscreen, enterFullscreen, exitFullscreen]);
 
   const togglePiP = useCallback(() => {
     const video = videoRef.current;
@@ -573,7 +675,11 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
   return (
     <div
       ref={containerRef}
-      className={`relative w-full aspect-video ${isTheater ? "max-h-[88vh]" : "max-h-[76vh]"} bg-black rounded-lg overflow-hidden select-none transition-all duration-500 ${
+      className={`${
+        isFullscreen
+          ? "fixed inset-0 z-[99999] w-screen h-[100dvh] max-h-none rounded-none aspect-auto bg-black"
+          : `relative w-full aspect-video ${isTheater ? "max-h-[88vh]" : "max-h-[76vh]"} bg-black rounded-lg`
+      } overflow-hidden select-none transition-all duration-300 ${
         isPro ? "shadow-[0_0_50px_rgba(245,158,11,0.18)] ring-1 ring-amber-500/30" : "shadow-[0_20px_70px_rgba(0,0,0,0.95)]"
       } group/container ${
         !controlsVisible && isPlaying ? "cursor-none" : "cursor-default"
@@ -1148,12 +1254,19 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
                     type="button"
                     onClick={toggleFullscreen}
                     className="group/btn relative p-2 text-white hover:text-white transition-opacity flex items-center justify-center"
+                    aria-label={isFullscreen ? "Quitter le plein écran" : "Plein écran"}
                   >
-                    <svg viewBox="0 0 24 24" className="w-6 h-6 fill-white">
-                      <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" />
-                    </svg>
+                    {isFullscreen ? (
+                      <svg viewBox="0 0 24 24" className="w-6 h-6 fill-white">
+                        <path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-14v3h3v2h-5V5h2z" />
+                      </svg>
+                    ) : (
+                      <svg viewBox="0 0 24 24" className="w-6 h-6 fill-white">
+                        <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" />
+                      </svg>
+                    )}
                     <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-black/80 text-white text-[11px] font-medium rounded whitespace-nowrap opacity-0 group-hover/btn:opacity-100 transition-opacity z-30">
-                      Plein écran (f)
+                      {isFullscreen ? "Quitter le plein écran (f)" : "Plein écran (f)"}
                     </span>
                   </button>
                 </div>
