@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef, useMemo, Suspense } from "react";
-import { createPortal } from "react-dom";
 import Image from "next/image";
 import dynamic from "next/dynamic";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
