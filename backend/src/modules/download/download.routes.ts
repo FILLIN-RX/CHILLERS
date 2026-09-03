@@ -36,10 +36,13 @@ router.get('/resolve', async (req: Request, res: Response) => {
     const tmdbIdNum = tmdb_id && /^\d+$/.test(tmdb_id) ? parseInt(tmdb_id, 10) : 0;
     const isPrem = isPremium === 'true' || isPremium === '1';
     const isTv = type === 'series' || type === 'anime' || season !== undefined || episode !== undefined;
+    const cleanTitle = title
+      ? title.replace(/\s*·\s*(?:S\d+)?E\d+.*$/i, '').trim()
+      : undefined;
 
     const query: StreamQuery = {
       tmdbId: tmdbIdNum,
-      title: title || undefined,
+      title: cleanTitle,
       type: isTv ? 'tv' : 'movie',
       season: season !== undefined ? parseInt(season, 10) : undefined,
       episode: episode !== undefined ? parseInt(episode, 10) : undefined,
@@ -47,7 +50,7 @@ router.get('/resolve', async (req: Request, res: Response) => {
       language
     };
 
-    console.log(`[Download Resolve] Résolution: "${title || tmdb_id}" (type=${type}, S${season || 1}E${episode || 1}, premium=${isPrem})`);
+    console.log(`[Download Resolve] Résolution: "${cleanTitle || tmdb_id}" (type=${type}, S${season || 1}E${episode || 1}, premium=${isPrem})`);
 
     const streamResult = isTv
       ? await providerManager.getEpisodeStream(query)

@@ -1407,7 +1407,7 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
         <DownloadModal
           isOpen={showSingleDownload}
           onClose={() => setShowSingleDownload(false)}
-          title={item.title}
+          title={item.title.replace(/\s*·\s*(?:S\d+)?E\d+.*$/i, '').trim()}
           id={String(item.id)}
           type={streamType}
           season={currentEpisode?.season}

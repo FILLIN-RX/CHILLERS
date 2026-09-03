@@ -83,19 +83,29 @@ export class ProviderManager {
   }
 
   async getEpisodeStream(query: StreamQuery): Promise<CachedStream | null> {
+    // Nettoyer les suffixes d'épisode polluant le titre de la série (ex: "Lanterns: The Official Podcast · E1" → "Lanterns: The Official Podcast")
+    const cleanTitle = query.title
+      ? query.title.replace(/\s*·\s*(?:S\d+)?E\d+.*$/i, '').trim()
+      : undefined;
+
+    const normalizedQuery: StreamQuery = {
+      ...query,
+      title: cleanTitle,
+    };
+
     // ── Cache LRU ───────────────────────────────────────────────────────────
-    const cacheKey = getCacheKey('episode', query.tmdbId, query.season, query.episode, query.isPremium);
+    const cacheKey = getCacheKey('episode', normalizedQuery.tmdbId, normalizedQuery.season, normalizedQuery.episode, normalizedQuery.isPremium);
     const cached = streamCache.get(cacheKey);
     if (cached) {
-      console.log(`[Stream] Cache hit for episode ${query.tmdbId} S${query.season}E${query.episode} (premium=${!!query.isPremium})`);
+      console.log(`[Stream] Cache hit for episode ${normalizedQuery.tmdbId} S${normalizedQuery.season}E${normalizedQuery.episode} (premium=${!!normalizedQuery.isPremium})`);
       return cached;
     }
 
     const attempts: ProviderAttempt[] = [];
-    const activeProviders = await this.filterProviders(query);
+    const activeProviders = await this.filterProviders(normalizedQuery);
 
     for (const provider of activeProviders) {
-      const attempt = await this.tryProvider(provider, 'episode', query);
+      const attempt = await this.tryProvider(provider, 'episode', normalizedQuery);
       attempts.push(attempt);
       if (attempt.status === 'success') {
         console.log(
