@@ -22,19 +22,23 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, password, deviceId, deviceName } = req.body;
+    const { email, password, deviceId, deviceName, forceDisconnectOthers } = req.body;
 
     if (!email || !password) {
       res.status(400).json({ success: false, message: 'L\'email et le mot de passe sont requis' });
       return;
     }
 
-    const result = await authService.login(email, password, deviceId, deviceName);
+    const result = await authService.login(email, password, deviceId, deviceName, !!forceDisconnectOthers);
     res.json({ success: true, ...result });
   } catch (error: any) {
     console.error('[Auth] Erreur lors de la connexion:', error);
     if (error.message === 'LIMITE_CONNEXIONS_ATTEINTE') {
-      res.status(403).json({ success: false, message: 'Limite d\'appareils connectés atteinte pour votre abonnement. Veuillez vous déconnecter d\'un autre appareil.' });
+      res.status(403).json({
+        success: false,
+        code: 'DEVICE_LIMIT_REACHED',
+        message: 'Limite d\'appareils connectés atteinte pour votre abonnement.',
+      });
       return;
     }
     const message = error.message === 'Identifiants invalides' ? error.message : 'Erreur serveur lors de la connexion';
@@ -76,6 +80,18 @@ export const revokeSession = async (req: Request, res: Response): Promise<void> 
     res.json({ success: true, message: 'Session révoquée avec succès' });
   } catch (error: any) {
     console.error('[Auth] Erreur lors de la révocation:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+};
+
+export const revokeOtherSessions = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req as any).user.id;
+    const currentDeviceId = (req as any).user.deviceId;
+    await authService.revokeAllOtherSessions(userId, currentDeviceId);
+    res.json({ success: true, message: 'Toutes les autres sessions ont été déconnectées avec succès' });
+  } catch (error: any) {
+    console.error('[Auth] Erreur lors de la déconnexion des autres sessions:', error);
     res.status(500).json({ success: false, message: 'Erreur serveur' });
   }
 };

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, Suspense } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { IconMail, IconLock, IconUser, IconLoader2, IconSparkles, IconChevronLeft } from "@tabler/icons-react";
@@ -64,8 +65,16 @@ function RegisterForm() {
       </div>
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="text-center space-y-2">
-          <Link href="/" className="inline-block">
+        <div className="text-center space-y-3">
+          <Link href="/" className="inline-flex flex-col items-center gap-2 group transition-transform hover:scale-105">
+            <Image
+              src="/android-chrome-512x512.png"
+              alt="CHILLERS"
+              width={56}
+              height={56}
+              className="w-12 h-12 sm:w-14 sm:h-14 object-contain drop-shadow-[0_0_20px_rgba(215,4,102,0.4)]"
+              priority
+            />
             <span className="text-2xl sm:text-3xl font-black tracking-wider uppercase bg-gradient-to-r from-[#D70466] to-[#7C3AED] bg-clip-text text-transparent">
               CHILLERS
             </span>

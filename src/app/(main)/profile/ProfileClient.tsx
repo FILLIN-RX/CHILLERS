@@ -1164,16 +1164,39 @@ export default function ProfileClient() {
 
                 {/* Devices Info */}
                 <div className="bg-zinc-900/50 backdrop-blur-md border border-white/5 rounded-3xl p-6 sm:p-8 shadow-xl">
-                  <div className="flex items-center gap-4 mb-6">
-                    <div className="w-10 h-10 rounded-full bg-blue-500/20 text-blue-500 flex items-center justify-center">
-                      <IconDeviceDesktop className="w-5 h-5" />
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-full bg-blue-500/20 text-blue-500 flex items-center justify-center flex-shrink-0">
+                        <IconDeviceDesktop className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-lg text-white">{lang === 'fr' ? 'Appareils Connectés' : 'Connected Devices'}</h3>
+                        <p className="text-sm text-zinc-400">
+                          {user.activeSessions?.length || 0} / {user.subscription?.features?.maxDevices || 1} {lang === 'fr' ? 'appareils autorisés' : 'devices allowed'}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-bold text-lg text-white">{lang === 'fr' ? 'Appareils Connectés' : 'Connected Devices'}</h3>
-                      <p className="text-sm text-zinc-400">
-                        {user.activeSessions?.length || 0} / {user.subscription?.features?.maxDevices || 1} {lang === 'fr' ? 'appareils autorisés' : 'devices allowed'}
-                      </p>
-                    </div>
+
+                    {user.activeSessions && user.activeSessions.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!token) return;
+                          if (confirm(lang === 'fr' ? 'Déconnecter tous les autres appareils connectés ?' : 'Disconnect all other connected devices?')) {
+                            const res = await authService.revokeOtherSessions(token);
+                            if (res.success) {
+                              const currentDeviceId = typeof window !== 'undefined' ? getStableDeviceFingerprint().deviceId : '';
+                              updateUser({
+                                activeSessions: (user.activeSessions || []).filter((s: any) => s.deviceId === currentDeviceId)
+                              });
+                            }
+                          }
+                        }}
+                        className="px-4 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 hover:text-red-300 font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer self-start sm:self-auto"
+                      >
+                        {lang === 'fr' ? 'Déconnecter tous les autres appareils' : 'Disconnect all other devices'}
+                      </button>
+                    )}
                   </div>
 
                   {user.activeSessions && user.activeSessions.length > 0 ? (

@@ -58,8 +58,10 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
 
   if (!isOpen) return null;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const [deviceLimitReached, setDeviceLimitReached] = useState(false);
+
+  const handleSubmit = async (e?: React.FormEvent, forceDisconnect = false) => {
+    if (e) e.preventDefault();
     setError(null);
     setLoading(true);
 
@@ -67,11 +69,19 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
       const { deviceId, deviceName } = getStableDeviceFingerprint();
 
       if (mode === "login") {
-        const res = await authService.login(email, password, deviceId, deviceName);
+        const res = await authService.login(email, password, deviceId, deviceName, forceDisconnect);
         if (res.success && res.token && res.user) {
           setAuth(res.token, res.user);
           onClose();
+        } else if (res.code === "DEVICE_LIMIT_REACHED") {
+          setDeviceLimitReached(true);
+          setError(
+            lang === "fr"
+              ? "Limite d'appareils connectés atteinte pour votre compte."
+              : "Device limit reached for your account."
+          );
         } else {
+          setDeviceLimitReached(false);
           setError(res.message || "Erreur de connexion");
         }
       } else {
@@ -123,8 +133,20 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
           </p>
 
           {error && (
-            <div className="mb-6 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
-              {error}
+            <div className="mb-6 p-3.5 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs sm:text-sm space-y-2.5">
+              <p>{error}</p>
+              {deviceLimitReached && mode === "login" && (
+                <button
+                  type="button"
+                  onClick={() => handleSubmit(undefined, true)}
+                  disabled={loading}
+                  className="w-full py-2 px-3 rounded-lg bg-gradient-to-r from-red-600 to-amber-600 hover:opacity-95 text-white font-bold text-xs shadow transition-all active:scale-95 cursor-pointer"
+                >
+                  {lang === "fr"
+                    ? "Déconnecter tous les autres appareils et continuer"
+                    : "Disconnect all other devices and continue"}
+                </button>
+              )}
             </div>
           )}
 

@@ -79,7 +79,7 @@ export default function BottomNav({ onSearchClick }: BottomNavProps) {
               return (
                 <button
                   key={item.id}
-                  onClick={() => setIsAuthModalOpen(true)}
+                  onClick={() => router.push("/login")}
                   aria-label={item.label}
                   className={`relative flex flex-col items-center gap-0.5 py-1 px-2 min-w-[56px] rounded-xl transition-all duration-200 focus:outline-none active:scale-90 ${
                     isActive ? "text-brand-primary" : "text-zinc-400"

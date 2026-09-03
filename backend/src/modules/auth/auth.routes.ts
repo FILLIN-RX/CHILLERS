@@ -10,6 +10,7 @@ router.post('/register', authController.register);
 router.post('/login', authController.login);
 router.get('/me', requireAuth, authController.getProfile);
 router.post('/revoke-session', requireAuth, authController.revokeSession);
+router.post('/revoke-other-sessions', requireAuth, authController.revokeOtherSessions);
 router.get('/plans', authController.getPlans);
 
 // Upload capture d'écran de preuve de paiement

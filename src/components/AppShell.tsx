@@ -90,6 +90,8 @@ export default function AppShell({ children, showBottomNav }: AppShellProps) {
     };
   }, [pathname]);
 
+  const isAuthPage = pathname === "/login" || pathname === "/register";
+
   return (
     <MantineProvider theme={theme} forceColorScheme="dark">
       <SearchOverlay
@@ -101,14 +103,14 @@ export default function AppShell({ children, showBottomNav }: AppShellProps) {
         isOpen={isDonationOpen}
         onClose={() => setIsDonationOpen(false)}
       />
-      <Header onSearchClick={() => setIsSearchOpen(true)} />
+      {!isAuthPage && <Header onSearchClick={() => setIsSearchOpen(true)} />}
       <main className="flex-1 flex flex-col">{children}</main>
-      {!pathname?.startsWith("/profile") && <Footer />}
+      {!isAuthPage && !pathname?.startsWith("/profile") && <Footer />}
       <NetworkStatusBanner />
       <Suspense>
         <DownloadFloatingBar />
       </Suspense>
-      {shouldShowBottomNav && <BottomNav onSearchClick={() => setIsSearchOpen(true)} />}
+      {shouldShowBottomNav && !isAuthPage && <BottomNav onSearchClick={() => setIsSearchOpen(true)} />}
     </MantineProvider>
   );
 }

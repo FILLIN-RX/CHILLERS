@@ -80,7 +80,13 @@ export class AuthService {
     return { token, user: this.formatUserPayload(user, freePlan?.features) };
   }
 
-  async login(email: string, password: string, deviceId?: string, deviceName?: string): Promise<AuthResult> {
+  async login(
+    email: string,
+    password: string,
+    deviceId?: string,
+    deviceName?: string,
+    forceDisconnectOthers?: boolean
+  ): Promise<AuthResult> {
     const user = await userRepository.findByEmail(email.toLowerCase());
     if (!user) {
       throw new Error('Identifiants invalides');
@@ -104,9 +110,16 @@ export class AuthService {
         if (deviceName) sessions[existingSessionIndex].deviceName = deviceName;
       } else {
         if (sessions.length >= limit) {
-          throw new Error('LIMITE_CONNEXIONS_ATTEINTE');
+          if (forceDisconnectOthers) {
+            // Déconnecter tous les autres appareils pour laisser la place à ce nouvel appareil
+            console.log(`[Auth] 🔄 Déconnexion forcée des autres sessions pour ${user.email} (Limite: ${limit})`);
+            sessions = [{ deviceId, lastLogin: new Date(), deviceName }];
+          } else {
+            throw new Error('LIMITE_CONNEXIONS_ATTEINTE');
+          }
+        } else {
+          sessions.push({ deviceId, lastLogin: new Date(), deviceName });
         }
-        sessions.push({ deviceId, lastLogin: new Date(), deviceName });
       }
       user.activeSessions = sessions;
       await user.save();
@@ -114,6 +127,15 @@ export class AuthService {
 
     const token = this.generateToken(user, deviceId);
     return { token, user: this.formatUserPayload(user, planDoc?.features) };
+  }
+
+  async revokeAllOtherSessions(userId: string, currentDeviceId: string): Promise<any> {
+    const user = await userRepository.findById(userId);
+    if (!user) throw new Error('Utilisateur non trouvé');
+
+    user.activeSessions = (user.activeSessions || []).filter(s => s.deviceId === currentDeviceId);
+    await user.save();
+    return { success: true };
   }
 
   async revokeSession(userId: string, targetDeviceId: string): Promise<any> {

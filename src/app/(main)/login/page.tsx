@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, Suspense } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { IconMail, IconLock, IconLoader2, IconSparkles, IconChevronLeft } from "@tabler/icons-react";
@@ -20,20 +21,29 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deviceLimitReached, setDeviceLimitReached] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent, forceDisconnect = false) => {
+    if (e) e.preventDefault();
     setError(null);
     setLoading(true);
 
     try {
       const { deviceId, deviceName } = getStableDeviceFingerprint();
 
-      const res = await authService.login(email.trim(), password, deviceId, deviceName);
+      const res = await authService.login(email.trim(), password, deviceId, deviceName, forceDisconnect);
       if (res.success && res.token && res.user) {
         setAuth(res.token, res.user);
         router.push(redirectUrl);
+      } else if (res.code === "DEVICE_LIMIT_REACHED") {
+        setDeviceLimitReached(true);
+        setError(
+          lang === "fr"
+            ? "Limite d'appareils connectés atteinte pour votre abonnement."
+            : "Device limit reached for your subscription plan."
+        );
       } else {
+        setDeviceLimitReached(false);
         setError(res.message || (lang === "fr" ? "Identifiants invalides." : "Invalid credentials."));
       }
     } catch (err: any) {
@@ -57,8 +67,16 @@ function LoginForm() {
       </div>
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="text-center space-y-2">
-          <Link href="/" className="inline-block">
+        <div className="text-center space-y-3">
+          <Link href="/" className="inline-flex flex-col items-center gap-2 group transition-transform hover:scale-105">
+            <Image
+              src="/android-chrome-512x512.png"
+              alt="CHILLERS"
+              width={56}
+              height={56}
+              className="w-12 h-12 sm:w-14 sm:h-14 object-contain drop-shadow-[0_0_20px_rgba(215,4,102,0.4)]"
+              priority
+            />
             <span className="text-2xl sm:text-3xl font-black tracking-wider uppercase bg-gradient-to-r from-[#D70466] to-[#7C3AED] bg-clip-text text-transparent">
               CHILLERS
             </span>
@@ -74,8 +92,25 @@ function LoginForm() {
         </div>
 
         {error && (
-          <div className="mt-6 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs sm:text-sm font-medium">
-            {error}
+          <div className="mt-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-xs sm:text-sm font-medium space-y-3">
+            <p className="text-red-400">{error}</p>
+            {deviceLimitReached && (
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={() => handleSubmit(undefined, true)}
+                  disabled={loading}
+                  className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-red-600 to-amber-600 hover:opacity-95 text-white font-bold text-xs transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {loading && <IconLoader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>
+                    {lang === "fr"
+                      ? "Déconnecter tous les autres appareils et se connecter"
+                      : "Disconnect all other devices and log in"}
+                  </span>
+                </button>
+              </div>
+            )}
           </div>
         )}
 

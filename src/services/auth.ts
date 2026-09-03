@@ -27,21 +27,29 @@ export const authService = {
     }
   },
 
-  async login(email: string, password: string, deviceId?: string, deviceName?: string): Promise<AuthResponse> {
+  async login(
+    email: string,
+    password: string,
+    deviceId?: string,
+    deviceName?: string,
+    forceDisconnectOthers?: boolean
+  ): Promise<AuthResponse & { code?: string }> {
     try {
-      return await httpJson<AuthResponse>('/auth/login', {
+      return await httpJson<AuthResponse & { code?: string }>('/auth/login', {
         method: 'POST',
-        body: { email, password, deviceId, deviceName },
+        body: { email, password, deviceId, deviceName, forceDisconnectOthers },
       });
     } catch (error: any) {
       let message = 'Identifiants invalides';
+      let code: string | undefined;
       if (error.body) {
         try {
           const parsed = JSON.parse(error.body);
           if (parsed.message) message = parsed.message;
+          if (parsed.code) code = parsed.code;
         } catch { }
       }
-      return { success: false, message };
+      return { success: false, message, code };
     }
   },
 
@@ -72,6 +80,17 @@ export const authService = {
       });
     } catch (error: any) {
       return { success: false, message: 'Erreur lors de la déconnexion de l\'appareil' };
+    }
+  },
+
+  async revokeOtherSessions(token: string): Promise<{ success: boolean; message?: string }> {
+    try {
+      return await httpJson<{ success: boolean; message?: string }>('/auth/revoke-other-sessions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+    } catch (error: any) {
+      return { success: false, message: 'Erreur lors de la déconnexion des autres appareils' };
     }
   }
 };

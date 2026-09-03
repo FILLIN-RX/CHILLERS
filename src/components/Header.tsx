@@ -214,7 +214,7 @@ export default function Header({ onSearchClick }: HeaderProps) {
           <LanguageSwitcher />
 
           {user ? (
-            <div className="hidden md:flex items-center gap-2">
+            <div className="flex items-center gap-2">
               {user.subscription?.plan !== "premium" && user.role !== "admin" && (
                 <Link
                   href="/subscribe"
@@ -229,10 +229,10 @@ export default function Header({ onSearchClick }: HeaderProps) {
                 {user.subscription?.plan === "premium" || user.role === "admin" ? (
                   <button
                     onClick={() => router.push("/profile")}
-                    className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-gradient-to-r from-amber-500/20 to-yellow-500/15 hover:from-amber-500/30 hover:to-yellow-500/25 border border-amber-500/40 text-amber-300 transition-all focus:outline-none cursor-pointer"
+                    className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1 rounded-full bg-gradient-to-r from-amber-500/20 to-yellow-500/15 hover:from-amber-500/30 hover:to-yellow-500/25 border border-amber-500/40 text-amber-300 transition-all focus:outline-none cursor-pointer"
                   >
                     <UserAvatar user={user} size="xs" showBadge={false} />
-                    <span className="text-xs font-bold uppercase tracking-wider truncate max-w-[80px] text-amber-200">
+                    <span className="hidden sm:inline text-xs font-bold uppercase tracking-wider truncate max-w-[80px] text-amber-200">
                       {user.username || user.email.split("@")[0]}
                     </span>
                     <span className="flex items-center px-1.5 py-0.2 rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 text-black text-[9px] font-black tracking-widest shadow-sm">
@@ -242,10 +242,10 @@ export default function Header({ onSearchClick }: HeaderProps) {
                 ) : (
                   <button
                     onClick={() => router.push("/profile")}
-                    className="flex items-center gap-2 px-2 py-1 rounded-full bg-white/8 hover:bg-white/15 border border-white/10 text-white transition-all focus:outline-none cursor-pointer"
+                    className="flex items-center gap-1.5 sm:gap-2 px-1.5 sm:px-2 py-1 rounded-full bg-white/8 hover:bg-white/15 border border-white/10 text-white transition-all focus:outline-none cursor-pointer"
                   >
                     <UserAvatar user={user} size="xs" showBadge={false} />
-                    <span className="text-xs font-semibold uppercase tracking-wider truncate max-w-[80px]">
+                    <span className="hidden sm:inline text-xs font-semibold uppercase tracking-wider truncate max-w-[80px]">
                       {user.username || user.email.split("@")[0]}
                     </span>
                   </button>
@@ -313,12 +313,12 @@ export default function Header({ onSearchClick }: HeaderProps) {
               </div>
             </div>
           ) : (
-            <div className="hidden md:flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <Link
                 href="/subscribe"
                 className="hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border border-amber-500/40 text-amber-300 hover:text-amber-200 text-xs font-bold transition-all shadow-sm"
               >
-                <IconCrown className="w-3.5 h-3.5 text-amber-400" />
+                <IconCrown className="w-3.5 h-3.5 text-yellow-400" />
                 <span>PRO</span>
               </Link>
               <button
@@ -329,7 +329,7 @@ export default function Header({ onSearchClick }: HeaderProps) {
                     setIsAuthModalOpen(true);
                   }
                 }}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white text-black hover:bg-zinc-200 text-xs font-bold transition-colors focus:outline-none cursor-pointer shadow-sm active:scale-95"
+                className="flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-full bg-white text-black hover:bg-zinc-200 text-xs font-bold transition-colors focus:outline-none cursor-pointer shadow-sm active:scale-95"
               >
                 <IconUser className="w-3.5 h-3.5" />
                 <span>{lang === "fr" ? "Connexion" : "Log in"}</span>
