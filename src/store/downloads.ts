@@ -54,6 +54,7 @@ const partialize = (state: DownloadsState) => ({
     episodeNumber: t.episodeNumber,
     resolvedUrl: t.resolvedUrl,
     resolvedUrlAt: t.resolvedUrlAt,
+    bytesDownloaded: t.bytesDownloaded,
     totalBytes: t.totalBytes,
     status: t.status,
     error: t.error,
@@ -202,7 +203,7 @@ export const useDownloadsStore = create<DownloadsState>()(
             return {
               ...base,
               status: "paused" as DownloadStatus,
-              bytesDownloaded: 0,
+              bytesDownloaded: t.bytesDownloaded || 0,
               error: isUrlExpired
                 ? "Lien expiré, nouvelle résolution nécessaire"
                 : (t.error ?? "Reprise après actualisation"),
@@ -214,7 +215,7 @@ export const useDownloadsStore = create<DownloadsState>()(
               status: "queued" as DownloadStatus,
             };
           }
-          return { ...base, bytesDownloaded: 0 };
+          return { ...base, bytesDownloaded: t.bytesDownloaded || 0 };
         });
       },
     },
