@@ -829,17 +829,9 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
               <div className="flex items-center gap-2">
 
                 <div className="flex flex-col">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm sm:text-base font-bold text-white drop-shadow truncate max-w-xs sm:max-w-md">
-                      {item.title}
-                    </span>
-                    {isPro && (
-                      <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border border-amber-500/40 text-amber-300 text-[10px] font-black uppercase tracking-wider shadow-[0_0_10px_rgba(245,158,11,0.25)]">
-                        <IconCrown className="w-2.5 h-2.5 text-amber-400" />
-                        VIP 4K Ultra
-                      </span>
-                    )}
-                  </div>
+                  <span className="text-sm sm:text-base font-bold text-white drop-shadow truncate max-w-xs sm:max-w-md">
+                    {item.title}
+                  </span>
                   {currentEpisode && (
                     <span className="text-xs text-white/70 font-medium">
                       S{String(currentEpisode.season ?? 1).padStart(2, "0")}E{String(currentEpisode.number).padStart(2, "0")} · {currentEpisode.title}
@@ -849,6 +841,17 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
               </div>
 
               <div className="flex items-center gap-2">
+                {/* Bouton Lecteur Réduit / Navigation flottante comme YouTube (PiP) */}
+                <button
+                  type="button"
+                  onClick={togglePiP}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-black/60 hover:bg-black/80 border border-white/15 text-white text-xs font-semibold backdrop-blur-md transition-all active:scale-95 cursor-pointer shadow-lg"
+                  title="Lecteur réduit / Naviguer en regardant (PiP)"
+                >
+                  <IconPictureInPicture className="w-4 h-4 text-[#D70466]" />
+                  <span className="text-[11px] font-medium hidden sm:inline">Lecteur réduit</span>
+                </button>
+
                 {canP2P && hasStarted && ["fetching", "scanning", "connecting"].includes(p2p.status) && (
                   <span className="flex items-center gap-1.5 text-[11px] font-bold text-[#22d3ee] bg-black/60 border border-[#22d3ee]/30 rounded-full px-2.5 py-1">
                     <IconLoader2 className="h-3 w-3 animate-spin" />
@@ -1224,11 +1227,12 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
                     )}
                   </div>
 
-                  {/* Miniplayer (Picture-in-Picture) - visible on md: */}
+                  {/* Miniplayer (Picture-in-Picture) */}
                   <button
                     type="button"
                     onClick={togglePiP}
-                    className="hidden md:flex group/btn relative p-2 text-white hover:text-white transition-opacity items-center justify-center"
+                    className="flex group/btn relative p-2 text-white hover:text-white transition-opacity items-center justify-center cursor-pointer"
+                    title="Lecteur réduit (PiP)"
                   >
                     <svg viewBox="0 0 24 24" className="w-6 h-6 fill-white">
                       <path d="M19 7h-8v6h8V7zm2-4H3c-1.1 0-2 .9-2 2v14c0 1.1.9 1.98 2 1.98h18c1.1 0 2-.88 2-1.98V5c0-1.1-.9-2-2-2zm0 16.01H3V4.98h18v14.03z" />
@@ -1335,25 +1339,13 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
           </div>
 
           <div className="relative z-10 h-full w-full flex flex-col items-center justify-center px-6 text-center">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="px-3 py-1 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest bg-gradient-to-r from-[#D70466] to-[#7C3AED] text-white shadow-lg">
-                Chillers
-              </span>
-              {isPro ? (
-                <span className="flex items-center gap-1 px-3 py-1 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-600 text-black shadow-[0_0_15px_rgba(245,158,11,0.5)]">
-                  <IconCrown className="w-3 h-3 text-black" />
-                  VIP 4K HDR
+            {item.type && (
+              <div className="flex items-center gap-2 mb-3">
+                <span className="px-3 py-1 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest bg-white/10 text-white/90 border border-white/15 backdrop-blur-md">
+                  {item.type === "series" ? "Série" : item.type === "anime" ? "Anime" : "Film"}
                 </span>
-              ) : null}
-              {item.type && (
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wider border border-white/20 bg-white/10 text-white/90 backdrop-blur-md">
-                  {item.type}
-                </span>
-              )}
-              <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-white/10 text-white/80 border border-white/10">
-                4K Ultra HD
-              </span>
-            </div>
+              </div>
+            )}
 
             <h2 className="block max-w-3xl text-2xl sm:text-4xl lg:text-5xl font-black text-white leading-tight drop-shadow-[0_10px_30px_rgba(0,0,0,0.9)] [overflow-wrap:anywhere]">
               {item.title}

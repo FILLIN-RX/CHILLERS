@@ -39,6 +39,8 @@ export class AuthService {
       favorites: user.favorites || [],
       watchHistory: user.watchHistory || [],
       continueWatching: user.continueWatching || [],
+      watchLater: user.watchLater || [],
+      playlists: user.playlists || [],
       preferences: user.preferences || {},
       subscription: {
         ...user.subscription,

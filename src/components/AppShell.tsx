@@ -103,7 +103,7 @@ export default function AppShell({ children, showBottomNav }: AppShellProps) {
       />
       <Header onSearchClick={() => setIsSearchOpen(true)} />
       <main className="flex-1 flex flex-col">{children}</main>
-      <Footer />
+      {!pathname?.startsWith("/profile") && <Footer />}
       <NetworkStatusBanner />
       <Suspense>
         <DownloadFloatingBar />

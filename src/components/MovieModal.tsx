@@ -6,9 +6,11 @@ import { useRouter } from "next/navigation";
 import gsap from "gsap";
 import type { MovieOrShow, Season, Episode } from "@/types/media";
 import { getSeasonDetails, getMediaDetails } from "@/services/media";
-import { IconX, IconPlayerPlay, IconStar, IconInfoCircle } from '@tabler/icons-react';
+import { IconX, IconPlayerPlay, IconStar, IconInfoCircle, IconPlaylist } from '@tabler/icons-react';
 import { useLanguage } from "@/i18n/LanguageContext";
 import { acquireModalScrollLock, releaseModalScrollLock } from "@/lib/modalScrollLock";
+import { useAuthStore } from "@/stores/useAuthStore";
+import AddToPlaylistModal from "@/components/AddToPlaylistModal";
 
 interface MovieModalProps {
   item: MovieOrShow | null;
@@ -35,6 +37,8 @@ export default function MovieModal({
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [seasonLoading, setSeasonLoading] = useState(false);
   const [enhanced, setEnhanced] = useState<MovieOrShow | null>(null);
+  const [showPlaylistModal, setShowPlaylistModal] = useState(false);
+  const { user } = useAuthStore();
   const { translate: _ } = useLanguage();
 
   // Lock body scroll while open
@@ -279,6 +283,17 @@ export default function MovieModal({
                 <IconInfoCircle className="h-4 w-4" />
                 <span>Voir la fiche</span>
               </button>
+
+              {user && (
+                <button
+                  onClick={() => setShowPlaylistModal(true)}
+                  title="Enregistrer dans une playlist ou À regarder plus tard"
+                  className="flex items-center gap-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-cyan-400 hover:text-white px-4 py-2.5 font-bold text-sm transition-all cursor-pointer hover:scale-105 active:scale-95 backdrop-blur-md"
+                >
+                  <IconPlaylist className="h-4 w-4" />
+                  <span>Enregistrer</span>
+                </button>
+              )}
             </div>
 
             {effective.synopsis ? (
@@ -372,6 +387,20 @@ export default function MovieModal({
         </div>
 
       </div>
+
+      {showPlaylistModal && effective && (
+        <AddToPlaylistModal
+          isOpen={showPlaylistModal}
+          onClose={() => setShowPlaylistModal(false)}
+          media={{
+            tmdbId: String(effective.id),
+            mediaType: effective.type === "series" ? "series" : effective.type === "anime" ? "anime" : "movie",
+            title: effective.title,
+            posterPath: effective.posterUrl,
+            backdropPath: effective.backdropUrl,
+          }}
+        />
+      )}
     </div>
   );
 }

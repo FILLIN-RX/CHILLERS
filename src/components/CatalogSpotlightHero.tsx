@@ -3,8 +3,10 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import type { MovieOrShow } from "@/types/media";
-import { IconPlayerPlay, IconInfoCircle, IconStar, IconChevronLeft, IconChevronRight, IconSparkles } from "@tabler/icons-react";
+import { IconPlayerPlay, IconInfoCircle, IconStar, IconChevronLeft, IconChevronRight, IconSparkles, IconPlaylist } from "@tabler/icons-react";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { useAuthStore } from "@/stores/useAuthStore";
+import AddToPlaylistModal from "@/components/AddToPlaylistModal";
 
 interface CatalogSpotlightHeroProps {
   items: MovieOrShow[];
@@ -20,6 +22,8 @@ export default function CatalogSpotlightHero({
   onOpenDetails,
 }: CatalogSpotlightHeroProps) {
   const { translate: _ } = useLanguage();
+  const { user } = useAuthStore();
+  const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFading, setIsFading] = useState(false);
 
@@ -148,6 +152,17 @@ export default function CatalogSpotlightHero({
                 <IconInfoCircle className="h-4 w-4" />
                 <span>Détails</span>
               </button>
+
+              {user && (
+                <button
+                  onClick={() => setShowPlaylistModal(true)}
+                  title="Enregistrer dans une playlist ou À regarder plus tard"
+                  className="flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl bg-black/40 hover:bg-black/60 text-cyan-400 hover:text-white font-bold text-xs sm:text-sm backdrop-blur-md border border-white/15 transition-all cursor-pointer"
+                >
+                  <IconPlaylist className="h-4 w-4" />
+                  <span>Enregistrer</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -193,6 +208,20 @@ export default function CatalogSpotlightHero({
 
         </div>
       </div>
+
+      {showPlaylistModal && current && (
+        <AddToPlaylistModal
+          isOpen={showPlaylistModal}
+          onClose={() => setShowPlaylistModal(false)}
+          media={{
+            tmdbId: String(current.id),
+            mediaType: current.type === "series" ? "series" : current.type === "anime" ? "anime" : "movie",
+            title: current.title,
+            posterPath: current.posterUrl,
+            backdropPath: current.backdropUrl,
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -10,6 +10,23 @@ export interface UserProfile {
   favorites?: any[];
   continueWatching?: any[];
   watchHistory?: any[];
+  watchLater?: any[];
+  playlists?: {
+    id: string;
+    title: string;
+    description?: string;
+    isPublic?: boolean;
+    createdAt: string | Date;
+    updatedAt: string | Date;
+    items: {
+      mediaType: 'movie' | 'series' | 'anime' | 'tv';
+      tmdbId: string;
+      title: string;
+      posterPath?: string;
+      backdropPath?: string;
+      addedAt: string | Date;
+    }[];
+  }[];
   preferences?: any;
   subscription?: {
     plan: 'free' | 'standard' | 'premium';

@@ -37,7 +37,7 @@ export class StreamtapeProvider implements StreamingProvider {
         $or: [
           ...(query.tmdbId ? [{ tmdbId: query.tmdbId }] : []),
           ...(query.title
-            ? [{ titre: { $regex: new RegExp(query.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } }]
+            ? [{ titre: { $regex: new RegExp(`^${query.title.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } }]
             : []),
         ],
       }).exec();

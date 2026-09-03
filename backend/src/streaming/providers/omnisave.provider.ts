@@ -30,7 +30,21 @@ export class OmniSaveProvider implements StreamingProvider {
       const searchRes = await searchOmniSave(title, 1, 5);
       if (!searchRes.items || searchRes.items.length === 0) return null;
 
-      const item = searchRes.items[0];
+      // Normalisation stricte pour éviter de servir un faux film (ex: "2001 : L'Odyssée de l'espace" pour "L'Odyssée")
+      const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const cleanTarget = normalize(title);
+
+      const matchedItem = searchRes.items.find(it => {
+        const itemClean = normalize(it.title);
+        return itemClean === cleanTarget;
+      });
+
+      if (!matchedItem) {
+        console.log(`[OmniSave Provider] Aucun titre correspondant exactement à "${title}" (trouvés: ${searchRes.items.map(i => i.title).join(', ')})`);
+        return null;
+      }
+
+      const item = matchedItem;
       const dlRes = await getOmniSaveDownloads(item.subjectId, item.detailPath, 1, 1);
 
       const available = dlRes.downloads
@@ -64,7 +78,20 @@ export class OmniSaveProvider implements StreamingProvider {
       const searchRes = await searchOmniSave(title, 1, 5);
       if (!searchRes.items || searchRes.items.length === 0) return null;
 
-      const item = searchRes.items[0];
+      const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const cleanTarget = normalize(title);
+
+      const matchedItem = searchRes.items.find(it => {
+        const itemClean = normalize(it.title);
+        return itemClean === cleanTarget;
+      });
+
+      if (!matchedItem) {
+        console.log(`[OmniSave Provider] Aucun titre correspondant exactement pour série "${title}"`);
+        return null;
+      }
+
+      const item = matchedItem;
       const dlRes = await getOmniSaveDownloads(item.subjectId, item.detailPath, season, episode);
 
       const available = dlRes.downloads

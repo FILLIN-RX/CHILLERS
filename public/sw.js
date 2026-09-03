@@ -1,6 +1,6 @@
 /* global self ReadableStream Response Headers fetch caches */
 
-const CACHE_NAME = 'chillers-cache-v3';
+const CACHE_NAME = 'chillers-cache-v4';
 const isDev = self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1';
 
 // ── StreamSaver map pour le streaming de téléchargement ────────
@@ -19,6 +19,7 @@ const PRECACHE_ASSETS = [
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
+      // Forcer la mise en cache de offline.html et /downloads en priorité
       return cache.addAll(PRECACHE_ASSETS).catch(err => {
         console.warn('[SW] Precache failed partially:', err);
       });
@@ -184,4 +185,69 @@ self.addEventListener('fetch', event => {
         })
     );
   }
+});
+
+// ── Background Fetch API (YouTube-style background download) ─────
+self.addEventListener('backgroundfetchsuccess', event => {
+  const bgFetch = event.registration;
+  event.waitUntil(
+    (async () => {
+      try {
+        const cache = await caches.open(CACHE_NAME);
+        const records = await bgFetch.matchAll();
+        for (const record of records) {
+          const response = await record.responseReady;
+          await cache.put(record.request, response);
+        }
+        await event.updateUI({ title: 'Téléchargement terminé · CHILLERS' });
+
+        // Notifier tous les clients ouverts
+        const clients = await self.clients.matchAll({ type: 'window' });
+        for (const client of clients) {
+          client.postMessage({
+            type: 'BG_FETCH_SUCCESS',
+            id: bgFetch.id,
+          });
+        }
+      } catch (err) {
+        console.error('[SW] Background Fetch success handling error:', err);
+      }
+    })()
+  );
+});
+
+self.addEventListener('backgroundfetchfail', event => {
+  const bgFetch = event.registration;
+  event.waitUntil(
+    (async () => {
+      const clients = await self.clients.matchAll({ type: 'window' });
+      for (const client of clients) {
+        client.postMessage({
+          type: 'BG_FETCH_FAIL',
+          id: bgFetch.id,
+        });
+      }
+    })()
+  );
+});
+
+self.addEventListener('backgroundfetchabort', event => {
+  const bgFetch = event.registration;
+  event.waitUntil(
+    (async () => {
+      const clients = await self.clients.matchAll({ type: 'window' });
+      for (const client of clients) {
+        client.postMessage({
+          type: 'BG_FETCH_ABORT',
+          id: bgFetch.id,
+        });
+      }
+    })()
+  );
+});
+
+self.addEventListener('backgroundfetchclick', event => {
+  event.waitUntil(
+    self.clients.openWindow('/downloads')
+  );
 });

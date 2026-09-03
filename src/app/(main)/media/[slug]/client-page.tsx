@@ -32,8 +32,9 @@ import DownloadModal from "@/features/downloads/DownloadModal";
 import UpgradeModal from "@/components/UpgradeModal";
 import ScrollRow from "@/components/ScrollRow";
 import MovieCard from "@/components/MovieCard";
+import AddToPlaylistModal from "@/components/AddToPlaylistModal";
 import { useLanguage } from "@/i18n/LanguageContext";
-import { IconArrowLeft, IconPlayerPlay, IconStar, IconClock, IconCalendar, IconMovie, IconChevronLeft, IconChevronRight, IconDownload, IconShare, IconSparkles, IconBookmark, IconBookmarkFilled } from '@tabler/icons-react';
+import { IconArrowLeft, IconPlayerPlay, IconStar, IconClock, IconCalendar, IconMovie, IconChevronLeft, IconChevronRight, IconDownload, IconShare, IconSparkles, IconBookmark, IconBookmarkFilled, IconPlaylist } from '@tabler/icons-react';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { userService } from '@/services/user';
 
@@ -117,6 +118,7 @@ function MediaDetailPage() {
 
   const [showSingleDownload, setShowSingleDownload] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [showPlaylistModal, setShowPlaylistModal] = useState(false);
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -489,6 +491,17 @@ function MediaDetailPage() {
 
                 {user && (
                   <button
+                    onClick={() => setShowPlaylistModal(true)}
+                    aria-label={lang === 'fr' ? 'Enregistrer dans une playlist ou À regarder plus tard' : 'Save to playlist or watch later'}
+                    title={lang === 'fr' ? 'Enregistrer dans...' : 'Save to...'}
+                    className="p-3 rounded-full bg-black/50 hover:bg-black/80 border border-white/20 text-white transition-all hover:scale-105 backdrop-blur-md cursor-pointer"
+                  >
+                    <IconPlaylist className="h-4 w-4 text-cyan-400" />
+                  </button>
+                )}
+
+                {user && (
+                  <button
                     onClick={toggleFavorite}
                     disabled={favoriteLoading || !item}
                     className={`p-3 rounded-full border transition-all hover:scale-105 backdrop-blur-md ${
@@ -725,6 +738,20 @@ function MediaDetailPage() {
           isOpen={showUpgradeModal}
           onClose={() => setShowUpgradeModal(false)}
           featureName="Le téléchargement de films et séries"
+        />
+      )}
+
+      {item && (
+        <AddToPlaylistModal
+          isOpen={showPlaylistModal}
+          onClose={() => setShowPlaylistModal(false)}
+          media={{
+            tmdbId: String(item.id),
+            mediaType: isTV ? 'series' : 'movie',
+            title: item.title,
+            posterPath: item.posterUrl,
+            backdropPath: item.backdropUrl,
+          }}
         />
       )}
     </div>

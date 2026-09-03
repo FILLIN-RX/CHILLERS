@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useRef, useCallback } from "react";
+import React, { useRef, useCallback, useState } from "react";
 import Image from "next/image";
 import gsap from "gsap";
 import type { MovieOrShow } from "@/types/media";
-import { IconPlayerPlay } from '@tabler/icons-react';
+import { IconPlayerPlay, IconPlaylist } from '@tabler/icons-react';
+import { useAuthStore } from "@/stores/useAuthStore";
+import AddToPlaylistModal from "@/components/AddToPlaylistModal";
 
 interface ContinueWatchingCardProps {
   item: MovieOrShow;
@@ -28,6 +30,9 @@ export default function ContinueWatchingCard({
   const cardRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLDivElement>(null);
   const playBtnRef = useRef<HTMLDivElement>(null);
+
+  const { user } = useAuthStore();
+  const [showPlaylistModal, setShowPlaylistModal] = useState(false);
 
   const imgSrc = item.backdropUrl || item.posterUrl || PLACEHOLDER_POSTER;
 
@@ -114,6 +119,22 @@ export default function ContinueWatchingCard({
         {/* Subtle glass dark overlay */}
         <div className="absolute inset-0 bg-black/35 group-hover:bg-black/15 transition-colors duration-300" />
 
+        {/* Top-right Save to Playlist / Watch Later button */}
+        {user && (
+          <div className="absolute top-2 right-2 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowPlaylistModal(true);
+              }}
+              title="Enregistrer dans..."
+              className="p-1.5 rounded-full bg-black/60 hover:bg-black/85 text-cyan-400 hover:text-white border border-white/20 transition-all hover:scale-110 shadow-lg cursor-pointer"
+            >
+              <IconPlaylist className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
         {/* Bottom title glass gradient */}
         <div className="absolute inset-x-0 bottom-0 h-3/4 bg-gradient-to-t from-black/95 via-black/50 to-transparent pointer-events-none" />
 
@@ -151,6 +172,20 @@ export default function ContinueWatchingCard({
           />
         </div>
       </div>
+
+      {showPlaylistModal && (
+        <AddToPlaylistModal
+          isOpen={showPlaylistModal}
+          onClose={() => setShowPlaylistModal(false)}
+          media={{
+            tmdbId: String(item.id),
+            mediaType: item.type === "series" ? "series" : item.type === "anime" ? "anime" : "movie",
+            title: item.title,
+            posterPath: item.posterUrl,
+            backdropPath: item.backdropUrl,
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -9,6 +9,16 @@ export interface IUser extends Document {
   favorites: { mediaType: 'movie' | 'series' | 'anime' | 'tv'; tmdbId: string; title: string; posterPath?: string }[];
   continueWatching: { tmdbId: string; mediaType: 'movie' | 'series' | 'anime' | 'tv'; season?: number; episode?: number; progress: number; duration: number; updatedAt: Date; title: string; posterPath?: string; backdropPath?: string }[];
   watchHistory: { tmdbId: string; mediaType: 'movie' | 'series' | 'anime' | 'tv'; season?: number; episode?: number; title: string; watchedAt: Date; posterPath?: string }[];
+  watchLater?: { mediaType: 'movie' | 'series' | 'anime' | 'tv'; tmdbId: string; title: string; posterPath?: string; addedAt: Date }[];
+  playlists?: {
+    id: string;
+    title: string;
+    description?: string;
+    isPublic?: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+    items: { mediaType: 'movie' | 'series' | 'anime' | 'tv'; tmdbId: string; title: string; posterPath?: string; backdropPath?: string; addedAt: Date }[];
+  }[];
   preferences: {
     defaultQuality?: string;
     defaultSubtitle?: string;
@@ -83,6 +93,35 @@ const UserSchema: Schema = new Schema(
         title: { type: String, required: true },
         watchedAt: { type: Date, default: Date.now },
         posterPath: { type: String },
+      },
+    ],
+    watchLater: [
+      {
+        tmdbId: { type: String, required: true },
+        mediaType: { type: String, enum: ['movie', 'series', 'anime', 'tv'], required: true },
+        title: { type: String, required: true },
+        posterPath: { type: String },
+        addedAt: { type: Date, default: Date.now },
+      },
+    ],
+    playlists: [
+      {
+        id: { type: String, required: true },
+        title: { type: String, required: true },
+        description: { type: String },
+        isPublic: { type: Boolean, default: false },
+        createdAt: { type: Date, default: Date.now },
+        updatedAt: { type: Date, default: Date.now },
+        items: [
+          {
+            tmdbId: { type: String, required: true },
+            mediaType: { type: String, enum: ['movie', 'series', 'anime', 'tv'], required: true },
+            title: { type: String, required: true },
+            posterPath: { type: String },
+            backdropPath: { type: String },
+            addedAt: { type: Date, default: Date.now },
+          },
+        ],
       },
     ],
     preferences: {

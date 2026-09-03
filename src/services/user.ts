@@ -65,5 +65,43 @@ export const userService = {
       body: preferences,
       headers: { Authorization: `Bearer ${token}` }
     });
+  },
+
+  async toggleWatchLater(token: string, data: { mediaType: string; tmdbId: string; title: string; posterPath?: string }) {
+    return await httpJson<{ success: boolean; watchLater: any[] }>('/user/watch-later', {
+      method: 'POST',
+      body: data,
+      headers: { Authorization: `Bearer ${token}` }
+    });
+  },
+
+  async createPlaylist(token: string, data: { title: string; description?: string; isPublic?: boolean }) {
+    return await httpJson<{ success: boolean; playlist: any; playlists: any[] }>('/user/playlists', {
+      method: 'POST',
+      body: data,
+      headers: { Authorization: `Bearer ${token}` }
+    });
+  },
+
+  async addMediaToPlaylist(token: string, playlistId: string, data: { mediaType: string; tmdbId: string; title: string; posterPath?: string; backdropPath?: string }) {
+    return await httpJson<{ success: boolean; playlist: any; playlists: any[] }>(`/user/playlists/${playlistId}/items`, {
+      method: 'POST',
+      body: data,
+      headers: { Authorization: `Bearer ${token}` }
+    });
+  },
+
+  async removeMediaFromPlaylist(token: string, playlistId: string, tmdbId: string) {
+    return await httpJson<{ success: boolean; playlist: any; playlists: any[] }>(`/user/playlists/${playlistId}/items/${tmdbId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` }
+    });
+  },
+
+  async deletePlaylist(token: string, playlistId: string) {
+    return await httpJson<{ success: boolean; playlists: any[] }>(`/user/playlists/${playlistId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` }
+    });
   }
 };

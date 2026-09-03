@@ -26,7 +26,9 @@ export interface FrenchStreamDirectResult {
 }
 
 function normalize(str: string): string {
-  return str.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20);
+  // Supprime l'année entre parenthèses comme (2026), (2025), etc.
+  const withoutYear = str.replace(/\s*\(\s*\d{4}\s*\)\s*$/i, '');
+  return withoutYear.toLowerCase().replace(/[^a-z0-9]/g, '').trim();
 }
 
 /**
@@ -174,16 +176,15 @@ export async function getFrenchStreamMovie(title: string): Promise<FrenchStreamD
     const searchResults = await searchFrenchStream(title);
     if (searchResults.length === 0) return null;
 
-    // Trouver la meilleure correspondance de titre
-    let best = searchResults[0];
+    // Trouver la meilleure correspondance de titre (exacte en priorité)
     const searchNorm = normalize(title);
+    const exactMatch = searchResults.find(item => normalize(item.title) === searchNorm);
+    const best = exactMatch || searchResults[0];
 
-    for (const item of searchResults) {
-      const itemNorm = normalize(item.title);
-      if (itemNorm === searchNorm || itemNorm.includes(searchNorm)) {
-        best = item;
-        break;
-      }
+    // Si aucun titre n'est proche du film demandé, rejeter pour éviter les faux films
+    if (normalize(best.title) !== searchNorm && !normalize(best.title).startsWith(searchNorm)) {
+      console.log(`[FrenchStream HQ] Correspondance trop éloignée pour "${title}" (trouvé: "${best.title}"), skip.`);
+      return null;
     }
 
     console.log(`[FrenchStream HQ] Page trouvée: ${best.url} (${best.title})`);

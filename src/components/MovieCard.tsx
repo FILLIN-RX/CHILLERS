@@ -4,10 +4,11 @@ import React, { useState, useRef, useCallback } from "react";
 import Image from "next/image";
 import gsap from "gsap";
 import type { MovieOrShow } from "@/types/media";
-import { IconPlayerPlay, IconStar, IconInfoCircle, IconMovie, IconBookmark, IconBookmarkFilled } from '@tabler/icons-react';
+import { IconPlayerPlay, IconStar, IconInfoCircle, IconMovie, IconBookmark, IconBookmarkFilled, IconPlaylist } from '@tabler/icons-react';
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { userService } from "@/services/user";
+import AddToPlaylistModal from "@/components/AddToPlaylistModal";
 
 interface MovieCardProps {
   item: MovieOrShow;
@@ -27,6 +28,7 @@ function MovieCard({
   const [imgError, setImgError] = useState(false);
   const [backdropFailed, setBackdropFailed] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
+  const [showPlaylistModal, setShowPlaylistModal] = useState(false);
 
   const isFavorite = user?.favorites?.some((f) => f.tmdbId === String(item?.id) && f.mediaType === (item.type === 'series' ? 'series' : item.type === 'anime' ? 'anime' : 'movie'));
 
@@ -293,19 +295,32 @@ function MovieCard({
             </span>
           </div>
           {user && (
-            <button 
-              onClick={toggleFavorite}
-              disabled={favoriteLoading}
-              className={`rounded-full p-1.5 shadow-lg backdrop-blur-md transition-all ${
-                isFavorite ? 'bg-[#D70466]/90 text-white' : 'bg-black/40 text-white hover:bg-black/60 border border-white/20'
-              }`}
-            >
-              {isFavorite ? (
-                <IconBookmarkFilled className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              ) : (
-                <IconBookmark className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              )}
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowPlaylistModal(true);
+                }}
+                title="Enregistrer dans..."
+                className="rounded-full p-1.5 shadow-lg backdrop-blur-md transition-all bg-black/40 text-cyan-400 hover:bg-black/70 border border-white/20 hover:scale-105"
+              >
+                <IconPlaylist className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              </button>
+
+              <button 
+                onClick={toggleFavorite}
+                disabled={favoriteLoading}
+                className={`rounded-full p-1.5 shadow-lg backdrop-blur-md transition-all ${
+                  isFavorite ? 'bg-[#D70466]/90 text-white' : 'bg-black/40 text-white hover:bg-black/60 border border-white/20'
+                }`}
+              >
+                {isFavorite ? (
+                  <IconBookmarkFilled className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                ) : (
+                  <IconBookmark className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                )}
+              </button>
+            </div>
           )}
         </div>
 
@@ -484,6 +499,19 @@ function MovieCard({
               {item.title}
             </h3>
             <div ref={buttonsRef} className="flex items-center gap-1.5 shrink-0">
+              {user && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowPlaylistModal(true);
+                  }}
+                  title="Enregistrer dans..."
+                  className="pointer-events-auto flex h-7 w-7 items-center justify-center rounded-full glass-button text-cyan-400 hover:text-white cursor-pointer"
+                >
+                  <IconPlaylist className="h-3.5 w-3.5" />
+                </button>
+              )}
+
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -521,6 +549,20 @@ function MovieCard({
           </div>
         </div>
       </div>
+
+      {showPlaylistModal && (
+        <AddToPlaylistModal
+          isOpen={showPlaylistModal}
+          onClose={() => setShowPlaylistModal(false)}
+          media={{
+            tmdbId: String(item.id),
+            mediaType: item.type === "series" ? "series" : item.type === "anime" ? "anime" : "movie",
+            title: item.title,
+            posterPath: item.posterUrl,
+            backdropPath: item.backdropUrl,
+          }}
+        />
+      )}
     </div>
   );
 }

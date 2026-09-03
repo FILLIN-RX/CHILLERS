@@ -92,10 +92,10 @@ export class MongoDBProvider implements StreamingProvider {
     try {
       // Priority 1: exact tmdbId match
       let movie = query.tmdbId ? await Movie.findOne({ tmdbId: query.tmdbId }).exec() : null;
-      // Priority 2: title regex fallback
+      // Priority 2: exact title match fallback (anchored ^...$)
       if (!movie && query.title) {
-        const escaped = query.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        movie = await Movie.findOne({ titre: { $regex: new RegExp(escaped, 'i') } }).exec();
+        const escaped = query.title.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        movie = await Movie.findOne({ titre: { $regex: new RegExp(`^${escaped}$`, 'i') } }).exec();
       }
       if (!movie) return null;
 

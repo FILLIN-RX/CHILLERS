@@ -22,13 +22,14 @@ import {
 } from "@tabler/icons-react";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { streamDownloadToDisk } from "@/services/streamSaver";
-import { getStorageQuota, type StorageQuotaInfo } from "@/services/offlineStorage";
+import { streamVideoToIndexedDB, getStorageQuota, type StorageQuotaInfo } from "@/services/offlineStorage";
 import { useDownloadsStore } from "@/store/downloads";
 import DownloadProgressBar from "@/features/downloads/DownloadProgressBar";
 import OfflinePlayerModal from "@/features/downloads/OfflinePlayerModal";
 import type { DownloadTask } from "@/types/download";
 import { formatBytes } from "@/lib/format";
-import { proxyDownloadHref } from "@/services/downloads";
+import { resolveDownloadUrl, proxyDownloadHref } from "@/services/downloads";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 function getPosterUrl(task: DownloadTask): string | null {
   const url = task.posterUrl || task.backdropUrl || task.episode?.thumbnail;
@@ -57,6 +58,7 @@ export default function DownloadsView({
   const clearAll = useDownloadsStore((s) => s.clear);
   const setStatus = useDownloadsStore((s) => s.setStatus);
   const setProgress = useDownloadsStore((s) => s.setProgress);
+  const updateTask = useDownloadsStore((s) => s.update);
   const requestCancel = useDownloadsStore((s) => s.requestCancel);
   const isCancelRequested = useDownloadsStore((s) => s.isCancelRequested);
   const getController = useDownloadsStore((s) => s.getController);
@@ -123,44 +125,98 @@ export default function DownloadsView({
     setStatus(id, "paused");
   };
 
-  const handleResumeOne = async (task: DownloadTask) => {
-    if (!task.resolvedUrl) {
-      resetTasks([task.id]);
-      return;
-    }
-    const ctrl = new AbortController();
-    setController(task.id, ctrl);
-    setStatus(task.id, "downloading");
-    try {
-      await streamDownloadToDisk(task.resolvedUrl, {
-        filename: task.filename,
+  const { user } = useAuthStore();
+  const isSubscriber =
+    user?.role === "admin" ||
+    (user?.subscription?.status === "active" &&
+      (user.subscription.plan === "standard" || user.subscription.plan === "premium"));
+
+  const startStreamForTask = async (taskToRun: DownloadTask, url: string, ctrl: AbortController) => {
+    if (isSubscriber) {
+      await streamDownloadToDisk(url, {
+        filename: taskToRun.filename,
         signal: ctrl.signal,
+        saveBlob: false,
         onProgress: (bytes, total) => {
-          setProgress(task.id, {
+          setProgress(taskToRun.id, {
             bytesDownloaded: bytes,
             totalBytes: total,
             percent: total && total > 0 ? Math.min(100, Math.round((bytes / total) * 100)) : null,
           });
         },
       });
-      if (ctrl.signal.aborted || isCancelRequested(task.id)) {
-        setStatus(task.id, "canceled");
-      } else {
-        setStatus(task.id, "done");
-      }
-    } catch {
-      if (ctrl.signal.aborted || isCancelRequested(task.id)) {
-        setStatus(task.id, "paused");
-      } else {
-        setStatus(task.id, "error", "Erreur de reprise");
-      }
-    } finally {
-      removeController(task.id);
+    } else {
+      await streamVideoToIndexedDB(url, {
+        id: taskToRun.id,
+        filename: taskToRun.filename,
+        title: taskToRun.title,
+        signal: ctrl.signal,
+        onProgress: (bytes, total) => {
+          setProgress(taskToRun.id, {
+            bytesDownloaded: bytes,
+            totalBytes: total,
+            percent: total && total > 0 ? Math.min(100, Math.round((bytes / total) * 100)) : null,
+          });
+        },
+      });
     }
   };
 
-  const handleRetryOne = (id: string) => {
+  const handleResumeOne = async (targetTask: DownloadTask) => {
+    let activeUrl = targetTask.resolvedUrl;
+    const isUrlFresh =
+      activeUrl &&
+      targetTask.resolvedUrlAt &&
+      Date.now() - targetTask.resolvedUrlAt < 6 * 60 * 60 * 1000;
+
+    const ctrl = new AbortController();
+    setController(targetTask.id, ctrl);
+
+    try {
+      if (!activeUrl || !isUrlFresh) {
+        setStatus(targetTask.id, "resolving");
+        const res = await resolveDownloadUrl(
+          targetTask.tmdbId,
+          targetTask.type,
+          targetTask.title,
+          targetTask.season,
+          targetTask.episodeNumber
+        );
+        if (!res?.downloadUrl) {
+          throw new Error("Impossible de résoudre le lien de téléchargement");
+        }
+        activeUrl = res.downloadUrl;
+        updateTask(targetTask.id, {
+          resolvedUrl: activeUrl,
+          resolvedUrlAt: Date.now(),
+        });
+      }
+
+      setStatus(targetTask.id, "downloading");
+      await startStreamForTask(targetTask, activeUrl, ctrl);
+
+      if (ctrl.signal.aborted || isCancelRequested(targetTask.id)) {
+        setStatus(targetTask.id, "canceled");
+      } else {
+        setStatus(targetTask.id, "done");
+      }
+    } catch (err) {
+      if (ctrl.signal.aborted || isCancelRequested(targetTask.id)) {
+        setStatus(targetTask.id, "paused");
+      } else {
+        const msg = err instanceof Error ? err.message : "Erreur de reprise";
+        setStatus(targetTask.id, "error", msg);
+      }
+    } finally {
+      removeController(targetTask.id);
+    }
+  };
+
+  const handleRetryOne = async (id: string) => {
+    const targetTask = tasks.find((t) => t.id === id);
+    if (!targetTask) return;
     resetTasks([id]);
+    await handleResumeOne(targetTask);
   };
 
   const handleDeleteOne = (id: string) => {
@@ -368,11 +424,16 @@ export default function DownloadsView({
             return (
               <div
                 key={task.id}
-                className="bg-zinc-900/60 backdrop-blur-xl border-0 rounded-2xl p-4 flex flex-col justify-between gap-3 transition-all group shadow-xl hover:bg-zinc-900/80"
+                className="bg-zinc-900/50 hover:bg-zinc-900/80 border border-white/5 hover:border-white/10 rounded-2xl overflow-hidden transition-all duration-300 flex flex-col justify-between group shadow-lg hover:shadow-2xl"
               >
                 <div>
-                  {/* Image Poster 16:9 */}
-                  <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-zinc-800/80 mb-3 border-0">
+                  {/* YouTube style 16:9 Thumbnail with Overlay badges */}
+                  <div
+                    onClick={() => isDone && handleWatch(task)}
+                    className={`relative aspect-video w-full overflow-hidden bg-zinc-950 ${
+                      isDone ? "cursor-pointer" : ""
+                    }`}
+                  >
                     {poster ? (
                       <Image
                         src={poster}
@@ -383,13 +444,13 @@ export default function DownloadsView({
                         unoptimized
                       />
                     ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center text-zinc-500 gap-1 bg-zinc-800">
+                      <div className="w-full h-full flex flex-col items-center justify-center text-zinc-600 gap-2 bg-gradient-to-br from-zinc-900 to-zinc-950">
                         {task.type === "series" || task.type === "anime" ? (
-                          <IconDeviceTv className="w-8 h-8 text-zinc-500" />
+                          <IconDeviceTv className="w-10 h-10 text-zinc-500" />
                         ) : (
-                          <IconMovie className="w-8 h-8 text-zinc-500" />
+                          <IconMovie className="w-10 h-10 text-zinc-500" />
                         )}
-                        <span className="text-[10px] font-bold tracking-wider uppercase text-zinc-500">
+                        <span className="text-[11px] font-bold tracking-wider uppercase text-zinc-400">
                           {task.type === "series"
                             ? "Série"
                             : task.type === "anime"
@@ -399,42 +460,106 @@ export default function DownloadsView({
                       </div>
                     )}
 
-                    {/* Statut Badge en haut à droite */}
+                    {/* Gradient overlay for bottom shadow */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20 pointer-events-none" />
+
+                    {/* Play button overlay on hover (YouTube style) */}
+                    {isDone && (
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/40">
+                        <div className="w-12 h-12 rounded-full bg-white/95 text-black flex items-center justify-center shadow-2xl transform scale-90 group-hover:scale-100 transition-transform">
+                          <IconPlayerPlay className="w-6 h-6 fill-black ml-0.5" />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* YouTube Badges: Bottom-right duration / size badge */}
+                    <div className="absolute bottom-2 right-2 flex items-center gap-1.5">
+                      {task.totalBytes || task.bytesDownloaded ? (
+                        <span className="px-1.5 py-0.5 rounded bg-black/80 backdrop-blur-md text-white text-[10px] font-semibold tracking-tight shadow">
+                          {formatBytes(task.totalBytes || task.bytesDownloaded || 0)}
+                        </span>
+                      ) : null}
+                    </div>
+
+                    {/* Top-right Status Pill */}
                     <div className="absolute top-2 right-2">
                       {isDone ? (
-                        <span className="px-2 py-0.5 rounded-md bg-emerald-500/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider shadow">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/90 text-white text-[10px] font-black uppercase tracking-wider shadow">
+                          <IconCheck className="w-3 h-3 stroke-[3]" />
                           Prêt
                         </span>
                       ) : isRunning ? (
-                        <span className="px-2 py-0.5 rounded-md bg-brand-primary/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider shadow animate-pulse">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#D70466]/90 text-white text-[10px] font-black uppercase tracking-wider shadow animate-pulse">
                           En cours
                         </span>
                       ) : isPaused ? (
-                        <span className="px-2 py-0.5 rounded-md bg-amber-500/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider shadow">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/90 text-white text-[10px] font-black uppercase tracking-wider shadow">
                           En pause
                         </span>
                       ) : (
-                        <span className="px-2 py-0.5 rounded-md bg-zinc-700/90 backdrop-blur-md text-zinc-200 text-[10px] font-black uppercase tracking-wider shadow">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-700/90 text-zinc-200 text-[10px] font-black uppercase tracking-wider shadow">
                           Arrêté
                         </span>
                       )}
                     </div>
+
+                    {/* Top-left Type Tag */}
+                    <div className="absolute top-2 left-2">
+                      <span className="px-2 py-0.5 rounded bg-black/60 backdrop-blur-md text-zinc-300 text-[9px] font-bold uppercase tracking-wider">
+                        {task.type === "series" ? "Série" : task.type === "anime" ? "Anime" : "Film"}
+                      </span>
+                    </div>
                   </div>
 
-                  {/* Titre & Détails */}
-                  <div>
-                    <h3 className="text-sm font-bold text-white truncate group-hover:text-brand-primary transition-colors">
-                      {task.title}
-                    </h3>
-                    <p className="text-xs text-zinc-400 truncate mt-0.5">
-                      {subtitle || (task.type === "movie" ? "Film complet" : task.filename)}
-                    </p>
+                  {/* YouTube Video Info Block */}
+                  <div className="p-3.5 pb-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <h3
+                          onClick={() => isDone && handleWatch(task)}
+                          title={task.title}
+                          className={`text-sm font-bold text-white line-clamp-1 group-hover:text-[#D70466] transition-colors ${
+                            isDone ? "cursor-pointer" : ""
+                          }`}
+                        >
+                          {task.title}
+                        </h3>
+                        <p className="text-xs text-zinc-400 line-clamp-1 mt-0.5">
+                          {subtitle || (task.type === "movie" ? "Film complet" : task.filename)}
+                        </p>
+                      </div>
+
+                      {/* Delete button or confirmation */}
+                      {deleteConfirmId === task.id ? (
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <button
+                            onClick={() => handleDeleteOne(task.id)}
+                            className="px-2 py-1 rounded-lg bg-red-500/20 hover:bg-red-500 text-red-300 hover:text-white text-[10px] font-bold transition-all cursor-pointer"
+                          >
+                            Supprimer
+                          </button>
+                          <button
+                            onClick={() => setDeleteConfirmId(null)}
+                            className="p-1 rounded-lg bg-zinc-800 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                          >
+                            <IconX className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setDeleteConfirmId(task.id)}
+                          className="p-1.5 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-white/5 transition-colors cursor-pointer flex-shrink-0"
+                          title="Supprimer"
+                        >
+                          <IconTrash className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                {/* Progression & Actions */}
-                <div className="space-y-3 pt-2 border-t border-white/5">
-                  {/* Barre de progression si en cours ou en pause */}
+                {/* Progress bar and Action Buttons */}
+                <div className="p-3.5 pt-0 space-y-2.5">
                   {(isRunning || isPaused) && (
                     <div className="space-y-1">
                       <DownloadProgressBar
@@ -445,21 +570,20 @@ export default function DownloadsView({
                     </div>
                   )}
 
-                  {/* Boutons d'action */}
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
                     {isDone ? (
                       <button
                         onClick={() => handleWatch(task)}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-white text-black font-bold text-xs hover:bg-zinc-200 transition-all cursor-pointer shadow active:scale-95"
+                        className="flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-xl bg-white hover:bg-zinc-200 text-black font-extrabold text-xs transition-all cursor-pointer shadow active:scale-[0.98]"
                       >
                         <IconPlayerPlay className="w-3.5 h-3.5 fill-black" />
-                        <span>Visionner</span>
+                        <span>Regarder hors-connexion</span>
                       </button>
                     ) : isRunning ? (
-                      <div className="flex items-center gap-2 flex-1">
+                      <>
                         <button
                           onClick={() => handlePauseOne(task.id)}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-semibold transition-colors cursor-pointer"
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-semibold transition-colors cursor-pointer"
                         >
                           <IconPlayerPause className="w-3.5 h-3.5" />
                           <span>Pause</span>
@@ -471,12 +595,12 @@ export default function DownloadsView({
                           <IconX className="w-3.5 h-3.5" />
                           <span>Annuler</span>
                         </button>
-                      </div>
+                      </>
                     ) : isPaused ? (
-                      <div className="flex items-center gap-2 flex-1">
+                      <>
                         <button
                           onClick={() => handleResumeOne(task)}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-brand-primary hover:bg-brand-primary/90 text-white text-xs font-bold transition-colors cursor-pointer"
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-[#D70466] hover:bg-[#b5034f] text-white text-xs font-bold transition-colors cursor-pointer shadow"
                         >
                           <IconPlayerPlay className="w-3.5 h-3.5 fill-white" />
                           <span>Reprendre</span>
@@ -488,40 +612,14 @@ export default function DownloadsView({
                           <IconX className="w-3.5 h-3.5" />
                           <span>Annuler</span>
                         </button>
-                      </div>
+                      </>
                     ) : (
                       <button
                         onClick={() => handleRetryOne(task.id)}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-brand-primary hover:bg-brand-primary/90 text-white text-xs font-bold transition-colors cursor-pointer"
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-[#D70466] hover:bg-[#b5034f] text-white text-xs font-bold transition-colors cursor-pointer shadow"
                       >
                         <IconRefresh className="w-3.5 h-3.5" />
                         <span>Relancer</span>
-                      </button>
-                    )}
-
-                    {/* Bouton Supprimer */}
-                    {deleteConfirmId === task.id ? (
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => handleDeleteOne(task.id)}
-                          className="p-2 rounded-xl bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white text-xs font-bold transition-all cursor-pointer"
-                        >
-                          Confirmer
-                        </button>
-                        <button
-                          onClick={() => setDeleteConfirmId(null)}
-                          className="p-2 rounded-xl bg-zinc-800 text-zinc-400 hover:text-white text-xs transition-colors cursor-pointer"
-                        >
-                          <IconX className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => setDeleteConfirmId(task.id)}
-                        className="p-2 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-red-400 transition-colors cursor-pointer"
-                        title="Supprimer"
-                      >
-                        <IconTrash className="w-4 h-4" />
                       </button>
                     )}
                   </div>

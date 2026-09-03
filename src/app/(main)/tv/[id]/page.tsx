@@ -17,6 +17,7 @@ import { userService } from "@/services/user";
 import MovieCard from "@/components/MovieCard";
 import ScrollRow from "@/components/ScrollRow";
 import SeriesDownloadModal from "@/features/downloads/SeriesDownloadModal";
+import AddToPlaylistModal from "@/components/AddToPlaylistModal";
 import {
   IconArrowLeft,
   IconPlayerPlay,
@@ -31,6 +32,7 @@ import {
   IconCheck,
   IconSparkles,
   IconLayersLinked,
+  IconPlaylist,
 } from "@tabler/icons-react";
 
 export default function TVDetailPage() {
@@ -50,6 +52,7 @@ export default function TVDetailPage() {
   const [copiedLink, setCopiedLink] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [showSeriesDownloadModal, setShowSeriesDownloadModal] = useState(false);
+  const [showPlaylistModal, setShowPlaylistModal] = useState(false);
 
   const isFavorite = user?.favorites?.some(
     (f) => f.tmdbId === String(item?.id) && (f.mediaType === "series" || f.mediaType === "anime")
@@ -368,6 +371,17 @@ export default function TVDetailPage() {
 
               {user && (
                 <button
+                  onClick={() => setShowPlaylistModal(true)}
+                  title="Enregistrer dans une playlist ou À regarder plus tard"
+                  aria-label="Enregistrer dans..."
+                  className="p-3 rounded-full bg-black/50 hover:bg-black/80 border border-white/20 text-cyan-400 hover:text-white transition-all hover:scale-105 backdrop-blur-md cursor-pointer"
+                >
+                  <IconPlaylist className="w-4 h-4" />
+                </button>
+              )}
+
+              {user && (
+                <button
                   onClick={toggleFavorite}
                   disabled={favoriteLoading}
                   aria-label="Favoris"
@@ -648,6 +662,20 @@ export default function TVDetailPage() {
         </div>
       )}
 
+      {/* MODALE ENREGISTRER DANS... (PLAYLIST / WATCH LATER) */}
+      {showPlaylistModal && item && (
+        <AddToPlaylistModal
+          isOpen={showPlaylistModal}
+          onClose={() => setShowPlaylistModal(false)}
+          media={{
+            tmdbId: String(item.id),
+            mediaType: item.type === "anime" ? "anime" : "series",
+            title: item.title,
+            posterPath: item.posterUrl,
+            backdropPath: item.backdropUrl,
+          }}
+        />
+      )}
     </div>
   );
 }

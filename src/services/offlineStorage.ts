@@ -152,6 +152,48 @@ export async function streamVideoToIndexedDB(
 
   const { id, filename, title, signal, onProgress, throttleMs = 200 } = opts;
 
+  // 2. Si le navigateur supporte la Background Fetch API (Android Chrome, Edge, PWA installée)
+  // le téléchargement continue même si l'utilisateur quitte le navigateur ou verrouille l'écran !
+  if (
+    typeof window !== "undefined" &&
+    "serviceWorker" in navigator &&
+    "BackgroundFetchManager" in window
+  ) {
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      if (reg && "backgroundFetch" in reg) {
+        // Enregistrer la tâche de fond
+        const bgFetch = await (reg as any).backgroundFetch.fetch(id, [url], {
+          title: `Téléchargement: ${title}`,
+          icons: [{ sizes: "192x192", src: "/android-chrome-192x192.png", type: "image/png" }],
+        });
+
+        // Suivre la progression en direct depuis le SW
+        bgFetch.addEventListener("progress", () => {
+          if (onProgress && bgFetch.downloadTotal > 0) {
+            onProgress(bgFetch.downloaded, bgFetch.downloadTotal);
+          }
+        });
+
+        const record = await bgFetch.match(url);
+        if (record) {
+          const response = await record.responseReady;
+          if (response && response.ok) {
+            const blob = await response.blob();
+            await saveOfflineVideoBlob(id, blob, filename, title);
+            if (onProgress) {
+              onProgress(blob.size, blob.size);
+            }
+            return { success: true, totalBytes: blob.size };
+          }
+        }
+      }
+    } catch (bgErr) {
+      console.log("[OfflineStorage] Background Fetch fallback vers flux normal:", bgErr);
+    }
+  }
+
+  // 3. Mode standard (fetch stream avec support d'arrière-plan de l'onglet)
   const res = await fetch(url, { signal });
   if (!res.ok || !res.body) {
     throw new Error(`HTTP ${res.status} lors du téléchargement hors-ligne`);

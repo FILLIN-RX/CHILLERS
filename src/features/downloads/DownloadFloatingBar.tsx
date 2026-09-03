@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   IconX,
   IconCheck,
@@ -23,6 +24,7 @@ import DownloadProgressBar from "./DownloadProgressBar";
  * Also shows paused tasks (e.g. after page reload) with a resume button.
  */
 export default function DownloadFloatingBar() {
+  const router = useRouter();
   const hydrated = useHydrated();
   const tasks = useDownloadsStore((s) => s.tasks);
   const requestCancel = useDownloadsStore((s) => s.requestCancel);
@@ -151,9 +153,10 @@ export default function DownloadFloatingBar() {
     setExpanded((v) => !v);
   };
 
-  const handleBubbleClick = () => {
+  const handleBubbleClick = (e: React.MouseEvent) => {
     if (dragRef.current.moved) return;
-    setExpanded(true);
+    e.stopPropagation();
+    router.push("/downloads");
   };
 
   // Don't render until hydrated to avoid SSR/client mismatch on isMobile state
@@ -161,19 +164,25 @@ export default function DownloadFloatingBar() {
     return null;
   }
 
-  // --- MOBILE BUBBLE ---
+  // --- MOBILE YOUTUBE-STYLE PILL INDICATOR ---
   if (isMobile && !expanded) {
     const bubblePos: React.CSSProperties = position
       ? { top: position.y, left: position.x, right: "auto", bottom: "auto" }
-      : { bottom: 80, right: 16 };
+      : { bottom: 74, right: 12 };
 
     const doneCount = recentDone.length;
     const totalActive = active.length + paused.length;
+    const currentTask = active[0] || paused[0] || recentDone[0];
+
+    const percent =
+      currentTask?.totalBytes && currentTask.totalBytes > 0
+        ? Math.min(100, Math.round((currentTask.bytesDownloaded / currentTask.totalBytes) * 100))
+        : null;
 
     return (
       <div
         ref={barRef}
-        className="fixed z-[9998] animate-slide-up"
+        className="fixed z-[9998] animate-slide-up select-none"
         style={bubblePos}
       >
         <div
@@ -181,40 +190,63 @@ export default function DownloadFloatingBar() {
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onClick={handleBubbleClick}
-          className="relative w-12 h-12 rounded-full bg-brand-primary shadow-lg shadow-brand-primary/30 flex items-center justify-center cursor-grab active:cursor-grabbing touch-none select-none"
+          className="group relative flex items-center gap-2.5 px-3 py-2 rounded-full bg-zinc-900/95 hover:bg-zinc-800/95 border border-white/15 backdrop-blur-xl shadow-2xl shadow-black/80 cursor-pointer active:scale-95 transition-all touch-none max-w-[220px]"
         >
-          <IconDownload className="h-5 w-5 text-white" />
-          {totalActive > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-white text-[10px] font-bold text-black flex items-center justify-center">
-              {totalActive}
-            </span>
-          )}
-          {totalActive === 0 && doneCount > 0 && (
-            <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 text-[10px] font-bold text-white flex items-center justify-center">
-              ✓
-            </span>
-          )}
-          {/* Mini progress ring */}
-          {active.length > 0 && active[0].totalBytes != null && (
-            <svg className="absolute inset-0 -rotate-90" viewBox="0 0 48 48">
-              <circle cx="24" cy="24" r="22" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="3" />
-              <circle
-                cx="24" cy="24" r="22" fill="none" stroke="white" strokeWidth="3"
-                strokeDasharray={`${2 * Math.PI * 22}`}
-                strokeDashoffset={`${2 * Math.PI * 22 * (1 - (active[0].bytesDownloaded / active[0].totalBytes))}`}
-                strokeLinecap="round"
-                className="transition-[stroke-dashoffset] duration-300"
+          {/* Animated Download Icon / Spinner */}
+          <div className="relative w-7 h-7 rounded-full bg-[#D70466]/20 border border-[#D70466]/40 flex items-center justify-center flex-shrink-0">
+            {totalActive > 0 ? (
+              <IconDownload className="h-4 w-4 text-[#D70466] animate-bounce" />
+            ) : (
+              <IconCheck className="h-4 w-4 text-emerald-400 stroke-[3]" />
+            )}
+
+            {/* Circular Progress Ring */}
+            {percent != null && (
+              <svg className="absolute inset-0 -rotate-90 w-7 h-7" viewBox="0 0 36 36">
+                <circle cx="18" cy="18" r="15" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="2.5" />
+                <circle
+                  cx="18" cy="18" r="15" fill="none" stroke="#D70466" strokeWidth="2.5"
+                  strokeDasharray={`${2 * Math.PI * 15}`}
+                  strokeDashoffset={`${2 * Math.PI * 15 * (1 - percent / 100)}`}
+                  strokeLinecap="round"
+                  className="transition-[stroke-dashoffset] duration-300"
+                />
+              </svg>
+            )}
+          </div>
+
+          {/* Details Pill info */}
+          <div className="flex-1 min-w-0 pr-1">
+            <div className="flex items-center justify-between gap-1.5">
+              <span className="text-[11px] font-extrabold text-white truncate max-w-[110px]">
+                {currentTask ? currentTask.title : "Téléchargements"}
+              </span>
+              <span className="text-[10px] font-bold text-[#D70466] flex-shrink-0">
+                {percent != null ? `${percent}%` : totalActive > 0 ? `${totalActive}` : "Prêt"}
+              </span>
+            </div>
+            {/* Slim YouTube progress bar */}
+            <div className="w-full bg-white/10 h-1 rounded-full overflow-hidden mt-1">
+              <div
+                className={`h-full transition-all duration-300 ${
+                  totalActive > 0 ? "bg-[#D70466]" : "bg-emerald-500"
+                }`}
+                style={{ width: `${percent ?? (totalActive > 0 ? 30 : 100)}%` }}
               />
-            </svg>
-          )}
+            </div>
+          </div>
+
           {/* Close button */}
           <button
-            onClick={(e) => { e.stopPropagation(); setDismissed(true); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setDismissed(true);
+            }}
             onPointerDown={(e) => e.stopPropagation()}
-            className="absolute -top-2 -left-2 w-5 h-5 rounded-full bg-zinc-700 hover:bg-zinc-600 flex items-center justify-center transition-colors"
+            className="w-5 h-5 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white flex items-center justify-center transition-colors flex-shrink-0"
             aria-label="Fermer"
           >
-            <IconX className="h-2.5 w-2.5 text-zinc-300" />
+            <IconX className="h-2.5 w-2.5" />
           </button>
         </div>
       </div>

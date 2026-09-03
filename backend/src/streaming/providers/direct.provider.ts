@@ -237,10 +237,10 @@ export class DirectProvider implements StreamingProvider {
         return byId[0];
       }
     }
-    // Priority 2: title regex fallback
+    // Priority 2: exact title match fallback (anchored ^...$)
     if (query.title) {
-      const escaped = query.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const byTitle = await Serie.find({ titre: { $regex: new RegExp(escaped, 'i') } }).exec();
+      const escaped = query.title.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const byTitle = await Serie.find({ titre: { $regex: new RegExp(`^${escaped}$`, 'i') } }).exec();
       if (byTitle.length) {
         if (query.season !== undefined) {
           const bySeason = byTitle.find(s => s.episodes?.some(
@@ -248,7 +248,7 @@ export class DirectProvider implements StreamingProvider {
           ));
           if (bySeason) return bySeason;
         }
-        console.log(`${TAG} findSerie: matched by title "${byTitle[0].titre}" (tmdbId=${byTitle[0].tmdbId}) for query tmdbId=${query.tmdbId}`);
+        console.log(`${TAG} findSerie: matched by exact title "${byTitle[0].titre}" (tmdbId=${byTitle[0].tmdbId}) for query tmdbId=${query.tmdbId}`);
         return byTitle[0];
       }
     }
@@ -261,12 +261,12 @@ export class DirectProvider implements StreamingProvider {
       const byId = await Movie.findOne({ tmdbId: query.tmdbId }).exec();
       if (byId) return byId;
     }
-    // Priority 2: title regex fallback
+    // Priority 2: exact title match fallback (anchored ^...$)
     if (query.title) {
-      const escaped = query.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const byTitle = await Movie.findOne({ titre: { $regex: new RegExp(escaped, 'i') } }).exec();
+      const escaped = query.title.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const byTitle = await Movie.findOne({ titre: { $regex: new RegExp(`^${escaped}$`, 'i') } }).exec();
       if (byTitle) {
-        console.log(`${TAG} findMovie: matched by title "${byTitle.titre}" (tmdbId=${byTitle.tmdbId}) for query tmdbId=${query.tmdbId}`);
+        console.log(`${TAG} findMovie: matched by exact title "${byTitle.titre}" (tmdbId=${byTitle.tmdbId}) for query tmdbId=${query.tmdbId}`);
         return byTitle;
       }
     }

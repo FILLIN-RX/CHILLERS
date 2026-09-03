@@ -68,8 +68,13 @@ async function persistMovieStream(
 
   if (!title) return;
 
-  const filter: any = query.tmdbId ? { tmdbId: query.tmdbId } : { titre: new RegExp(`^${escapeRegex(title)}$`, 'i') };
-  const existingMovie = await Movie.findOne(filter);
+  // Vérifier d'abord par tmdbId OU par titre exact pour ne jamais violer l'index unique de titre
+  const existingMovie = await Movie.findOne({
+    $or: [
+      ...(query.tmdbId ? [{ tmdbId: query.tmdbId }] : []),
+      { titre: new RegExp(`^${escapeRegex(title)}$`, 'i') },
+    ],
+  });
 
   const sourceEntry = {
     source: result.provider,

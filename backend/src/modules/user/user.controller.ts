@@ -202,3 +202,180 @@ export const updatePreferences = async (req: Request, res: Response): Promise<vo
     res.status(500).json({ success: false, message: 'Erreur serveur' });
   }
 };
+
+export const toggleWatchLater = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req as any).user.id;
+    const { mediaType, tmdbId, title, posterPath } = req.body;
+
+    if (!mediaType || !tmdbId || !title) {
+      res.status(400).json({ success: false, message: 'Données manquantes' });
+      return;
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+      return;
+    }
+
+    if (!user.watchLater) {
+      user.watchLater = [];
+    }
+
+    const index = user.watchLater.findIndex((wl) => wl.tmdbId === String(tmdbId) && wl.mediaType === mediaType);
+    if (index > -1) {
+      user.watchLater.splice(index, 1);
+    } else {
+      user.watchLater.unshift({
+        mediaType,
+        tmdbId: String(tmdbId),
+        title,
+        posterPath,
+        addedAt: new Date(),
+      });
+    }
+
+    await user.save();
+    res.json({ success: true, watchLater: user.watchLater });
+  } catch (error) {
+    console.error('[User] Erreur toggleWatchLater:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+};
+
+export const createPlaylist = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req as any).user.id;
+    const { title, description, isPublic } = req.body;
+
+    if (!title || !title.trim()) {
+      res.status(400).json({ success: false, message: 'Le titre de la playlist est requis' });
+      return;
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+      return;
+    }
+
+    if (!user.playlists) {
+      user.playlists = [];
+    }
+
+    const newPlaylist = {
+      id: 'pl_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6),
+      title: title.trim(),
+      description: description?.trim() || '',
+      isPublic: Boolean(isPublic),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      items: [],
+    };
+
+    user.playlists.unshift(newPlaylist);
+    await user.save();
+
+    res.status(201).json({ success: true, playlist: newPlaylist, playlists: user.playlists });
+  } catch (error) {
+    console.error('[User] Erreur createPlaylist:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+};
+
+export const addMediaToPlaylist = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req as any).user.id;
+    const { playlistId } = req.params;
+    const { mediaType, tmdbId, title, posterPath, backdropPath } = req.body;
+
+    if (!mediaType || !tmdbId || !title) {
+      res.status(400).json({ success: false, message: 'Données média manquantes' });
+      return;
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+      return;
+    }
+
+    if (!user.playlists) user.playlists = [];
+    const playlist = user.playlists.find((p) => p.id === playlistId);
+    if (!playlist) {
+      res.status(404).json({ success: false, message: 'Playlist introuvable' });
+      return;
+    }
+
+    const itemExists = playlist.items.some((it) => it.tmdbId === String(tmdbId) && it.mediaType === mediaType);
+    if (!itemExists) {
+      playlist.items.push({
+        mediaType,
+        tmdbId: String(tmdbId),
+        title,
+        posterPath,
+        backdropPath,
+        addedAt: new Date(),
+      });
+      playlist.updatedAt = new Date();
+      await user.save();
+    }
+
+    res.json({ success: true, playlist, playlists: user.playlists });
+  } catch (error) {
+    console.error('[User] Erreur addMediaToPlaylist:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+};
+
+export const removeMediaFromPlaylist = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req as any).user.id;
+    const { playlistId, tmdbId } = req.params;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+      return;
+    }
+
+    if (!user.playlists) user.playlists = [];
+    const playlist = user.playlists.find((p) => p.id === playlistId);
+    if (!playlist) {
+      res.status(404).json({ success: false, message: 'Playlist introuvable' });
+      return;
+    }
+
+    playlist.items = playlist.items.filter((it) => it.tmdbId !== String(tmdbId));
+    playlist.updatedAt = new Date();
+    await user.save();
+
+    res.json({ success: true, playlist, playlists: user.playlists });
+  } catch (error) {
+    console.error('[User] Erreur removeMediaFromPlaylist:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+};
+
+export const deletePlaylist = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req as any).user.id;
+    const { playlistId } = req.params;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+      return;
+    }
+
+    if (!user.playlists) user.playlists = [];
+    user.playlists = user.playlists.filter((p) => p.id !== playlistId);
+    await user.save();
+
+    res.json({ success: true, playlists: user.playlists });
+  } catch (error) {
+    console.error('[User] Erreur deletePlaylist:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+};

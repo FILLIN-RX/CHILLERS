@@ -18,6 +18,21 @@ export default function PWARegister() {
             console.warn("[PWA] Erreur Service Worker:", err);
           });
       });
+
+      // Écouter les messages du Service Worker pour le background download
+      navigator.serviceWorker.addEventListener("message", (event) => {
+        if (!event.data) return;
+        const { type, id } = event.data;
+        if (type === "BG_FETCH_SUCCESS") {
+          import("@/store/downloads").then(({ useDownloadsStore }) => {
+            useDownloadsStore.getState().setStatus(id, "done");
+          });
+        } else if (type === "BG_FETCH_FAIL") {
+          import("@/store/downloads").then(({ useDownloadsStore }) => {
+            useDownloadsStore.getState().setStatus(id, "error", "Échec du téléchargement en arrière-plan");
+          });
+        }
+      });
     }
   }, []);
 
