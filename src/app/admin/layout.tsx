@@ -16,6 +16,7 @@ import {
   BugOutlined,
   MenuOutlined,
   RobotOutlined,
+  UserOutlined,
 } from '@ant-design/icons';
 import Link from 'next/link';
 import { adminTheme } from './theme';
@@ -25,6 +26,7 @@ const { Text } = Typography;
 
 const NAV_ITEMS: MenuProps['items'] = [
   { key: '/admin', icon: <DashboardOutlined />, label: <Link href="/admin">Dashboard</Link> },
+  { key: '/admin/users', icon: <UserOutlined />, label: <Link href="/admin/users">Utilisateurs</Link> },
   { key: '/admin/add-media', icon: <PlusOutlined />, label: <Link href="/admin/add-media">Ajouter</Link> },
   { key: '/admin/movies', icon: <VideoCameraOutlined />, label: <Link href="/admin/movies">Films</Link> },
   { key: '/admin/series', icon: <VideoCameraOutlined />, label: <Link href="/admin/series">Séries</Link> },

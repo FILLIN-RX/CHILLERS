@@ -26,12 +26,12 @@ export default function SplashScreen() {
     }
   }, []);
 
-  /* Sécurité : disparaît au bout de 7s même si les données ne chargent jamais */
+  /* Sécurité : disparaît au bout de 3s même si le réseau est coupé ou si les données ne chargent pas */
   useEffect(() => {
     if (!mounted) return;
     timerRef.current = setTimeout(() => {
       fadeOutSplash();
-    }, 7000);
+    }, 3000);
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, [mounted]);
 

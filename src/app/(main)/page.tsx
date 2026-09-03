@@ -361,20 +361,33 @@ function Home() {
 
       const allTrending = [...trending, ...trendingTV];
       if (allTrending.length > 0) setTrendingAll(allTrending);
-      if (popular.length > 0) {
-        setMoviesData(popular);
-        const heroBase = popular.slice(0, 10);
-        setHeroSlides(heroBase);
-
-        // Enrichir les slides avec les bandes-annonces en background (non bloquant)
-        enrichHeroSlidesWithTrailers(heroBase, signal)
-          .then((enriched) => setHeroSlides(enriched))
-          .catch(() => {}); // fallback : images seules
-      }
+      if (popular.length > 0) setMoviesData(popular);
       if (popularTV.length > 0) setSeriesData(popularTV);
       if (anime.length > 0) setAnimeData(anime);
       if (africanM.length > 0) setAfricanMoviesData(africanM);
       if (africanS.length > 0) setAfricanSeriesData(africanS);
+
+      // Hero Carousel dynamique : mélange équilibré de films populaires, grandes séries et animes phares
+      const heroBase: MovieOrShow[] = [];
+      const mSlice = popular.slice(0, 5);
+      const sSlice = popularTV.slice(0, 4);
+      const aSlice = anime.slice(0, 3);
+      const maxLen = Math.max(mSlice.length, sSlice.length, aSlice.length);
+      for (let i = 0; i < maxLen; i++) {
+        if (mSlice[i]) heroBase.push(mSlice[i]);
+        if (sSlice[i]) heroBase.push(sSlice[i]);
+        if (aSlice[i]) heroBase.push(aSlice[i]);
+      }
+
+      if (heroBase.length > 0) {
+        const topHero = heroBase.slice(0, 10);
+        setHeroSlides(topHero);
+
+        // Enrichir les slides avec les bandes-annonces en background (non bloquant)
+        enrichHeroSlidesWithTrailers(topHero, signal)
+          .then((enriched) => setHeroSlides(enriched))
+          .catch(() => {}); // fallback : images seules
+      }
 
       await loadNewReleases();
 

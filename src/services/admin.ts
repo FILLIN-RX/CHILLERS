@@ -446,3 +446,47 @@ export async function adminAiContentGap() {
     { method: "GET", timeoutMs: 45_000 }
   );
 }
+
+/* Gestion Utilisateurs & Abonnements */
+
+export interface AdminUser {
+  _id: string;
+  username?: string;
+  email: string;
+  role: "user" | "admin";
+  avatarUrl?: string;
+  subscription: {
+    plan: "free" | "standard" | "premium";
+    status: "active" | "inactive" | "cancelled";
+    expiresAt?: string;
+  };
+  createdAt: string;
+}
+
+export async function adminGetUsers(params: { search?: string; page?: number; limit?: number } = {}) {
+  const query = new URLSearchParams();
+  if (params.search) query.set("search", params.search);
+  if (params.page) query.set("page", String(params.page));
+  if (params.limit) query.set("limit", String(params.limit));
+  return adminRequest<{ success: boolean; users: AdminUser[]; total: number; page: number }>(
+    `/users?${query.toString()}`
+  );
+}
+
+export async function adminUpdateUserSubscription(
+  userId: string,
+  payload: {
+    plan?: "free" | "standard" | "premium";
+    status?: "active" | "inactive" | "cancelled";
+    expiresAt?: string | null;
+    role?: "user" | "admin";
+  }
+) {
+  return adminRequest<{ success: boolean; user: AdminUser; message?: string }>(
+    `/users/${userId}/subscription`,
+    {
+      method: "PUT",
+      body: payload,
+    }
+  );
+}

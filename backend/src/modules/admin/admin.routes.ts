@@ -64,4 +64,8 @@ router.post('/subscriptions', adminMiddleware, subController.createPlan);
 router.put('/subscriptions/:id', adminMiddleware, subController.updatePlan);
 router.delete('/subscriptions/:id', adminMiddleware, subController.deletePlan);
 
+// User Management & Subscriptions
+router.get('/users', adminMiddleware, subController.getUsers);
+router.put('/users/:id/subscription', adminMiddleware, subController.updateUserSubscription);
+
 export default router;
