@@ -63,3 +63,19 @@ export const getPlans = async (req: Request, res: Response): Promise<void> => {
     res.status(500).json({ success: false, message: 'Erreur serveur' });
   }
 };
+
+export const revokeSession = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req as any).user.id;
+    const { deviceId } = req.body;
+    if (!deviceId) {
+      res.status(400).json({ success: false, message: 'deviceId requis' });
+      return;
+    }
+    await authService.revokeSession(userId, deviceId);
+    res.json({ success: true, message: 'Session révoquée avec succès' });
+  } catch (error: any) {
+    console.error('[Auth] Erreur lors de la révocation:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+};

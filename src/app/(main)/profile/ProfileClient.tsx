@@ -28,6 +28,7 @@ import {
 import Link from "next/link";
 import { userService } from "@/services/user";
 import { authService } from "@/services/auth";
+import { getStableDeviceFingerprint } from "@/lib/deviceFingerprint";
 import UserAvatar from "@/components/UserAvatar";
 import DownloadsView from "@/features/downloads/DownloadsView";
 import { useDownloadsStore } from "@/store/downloads";
@@ -1177,20 +1178,47 @@ export default function ProfileClient() {
 
                   {user.activeSessions && user.activeSessions.length > 0 ? (
                     <div className="space-y-3">
-                      {user.activeSessions.map((session: any, idx: number) => (
-                        <div key={idx} className="flex justify-between items-center bg-black/40 p-4 rounded-xl border border-white/5">
-                          <div className="flex items-center gap-3">
-                            <IconDeviceDesktop className="text-zinc-500 w-5 h-5" />
-                            <div>
-                              <p className="text-white text-sm font-medium">{session.deviceName || 'Appareil Inconnu'}</p>
-                              <p className="text-xs text-zinc-500">
-                                {lang === 'fr' ? 'Dernière connexion :' : 'Last login:'} {new Date(session.lastLogin).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute:'2-digit' })}
-                              </p>
+                      {user.activeSessions.map((session: any, idx: number) => {
+                        const isCurrent = session.deviceId === (typeof window !== 'undefined' ? getStableDeviceFingerprint().deviceId : '');
+                        return (
+                          <div key={idx} className="flex justify-between items-center bg-black/40 p-4 rounded-xl border border-white/5">
+                            <div className="flex items-center gap-3">
+                              <IconDeviceDesktop className="text-zinc-500 w-5 h-5 flex-shrink-0" />
+                              <div>
+                                <p className="text-white text-sm font-medium">{session.deviceName || 'Appareil Inconnu'}</p>
+                                <p className="text-xs text-zinc-500">
+                                  {lang === 'fr' ? 'Dernière connexion :' : 'Last login:'} {new Date(session.lastLogin).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute:'2-digit' })}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {isCurrent ? (
+                                <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
+                                  Cet appareil
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    if (!token) return;
+                                    if (confirm(lang === 'fr' ? "Déconnecter cet appareil ?" : "Disconnect this device?")) {
+                                      const res = await authService.revokeSession(token, session.deviceId);
+                                      if (res.success) {
+                                        updateUser({
+                                          activeSessions: (user.activeSessions || []).filter((s: any) => s.deviceId !== session.deviceId)
+                                        });
+                                      }
+                                    }
+                                  }}
+                                  className="text-xs font-semibold text-rose-400 hover:text-white bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 px-3 py-1 rounded-lg transition-colors cursor-pointer"
+                                >
+                                  {lang === 'fr' ? 'Déconnecter' : 'Disconnect'}
+                                </button>
+                              )}
                             </div>
                           </div>
-                          {idx === 0 && <span className="text-xs font-bold text-green-500 bg-green-500/10 px-2 py-1 rounded">Cet appareil</span>}
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
                     <p className="text-zinc-500 text-sm">Aucun appareil connecté détecté.</p>

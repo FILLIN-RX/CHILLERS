@@ -7,6 +7,7 @@ import { IconMail, IconLock, IconLoader2, IconSparkles, IconChevronLeft } from "
 import { useAuthStore } from "@/stores/useAuthStore";
 import { authService } from "@/services/auth";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { getStableDeviceFingerprint } from "@/lib/deviceFingerprint";
 
 function LoginForm() {
   const router = useRouter();
@@ -26,8 +27,7 @@ function LoginForm() {
     setLoading(true);
 
     try {
-      const deviceId = useAuthStore.getState().deviceId;
-      const deviceName = typeof window !== "undefined" ? navigator.userAgent : "Mobile Client";
+      const { deviceId, deviceName } = getStableDeviceFingerprint();
 
       const res = await authService.login(email.trim(), password, deviceId, deviceName);
       if (res.success && res.token && res.user) {

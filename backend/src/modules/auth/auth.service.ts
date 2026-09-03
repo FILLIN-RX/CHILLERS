@@ -116,6 +116,15 @@ export class AuthService {
     return { token, user: this.formatUserPayload(user, planDoc?.features) };
   }
 
+  async revokeSession(userId: string, targetDeviceId: string): Promise<any> {
+    const user = await userRepository.findById(userId);
+    if (!user) throw new Error('Utilisateur non trouvé');
+
+    user.activeSessions = (user.activeSessions || []).filter(s => s.deviceId !== targetDeviceId);
+    await user.save();
+    return { success: true };
+  }
+
   async getProfile(userId: string): Promise<any> {
     const user = await userRepository.findById(userId);
     if (!user) {

@@ -61,5 +61,17 @@ export const authService = {
       }
       return { success: false, message };
     }
+  },
+
+  async revokeSession(token: string, deviceId: string): Promise<{ success: boolean; message?: string }> {
+    try {
+      return await httpJson<{ success: boolean; message?: string }>('/auth/revoke-session', {
+        method: 'POST',
+        body: { deviceId },
+        headers: { Authorization: `Bearer ${token}` }
+      });
+    } catch (error: any) {
+      return { success: false, message: 'Erreur lors de la déconnexion de l\'appareil' };
+    }
   }
 };

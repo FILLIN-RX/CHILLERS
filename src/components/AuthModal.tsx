@@ -5,6 +5,7 @@ import { IconX, IconUser, IconMail, IconLock, IconLoader2 } from "@tabler/icons-
 import { useAuthStore } from "@/stores/useAuthStore";
 import { authService } from "@/services/auth";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { getStableDeviceFingerprint } from "@/lib/deviceFingerprint";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -55,8 +56,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
     setLoading(true);
 
     try {
-      const deviceId = useAuthStore.getState().deviceId;
-      const deviceName = typeof window !== 'undefined' ? navigator.userAgent : 'Unknown Device';
+      const { deviceId, deviceName } = getStableDeviceFingerprint();
 
       if (mode === "login") {
         const res = await authService.login(email, password, deviceId, deviceName);

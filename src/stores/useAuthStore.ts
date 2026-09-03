@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { getStableDeviceFingerprint } from '@/lib/deviceFingerprint';
 
 export interface UserProfile {
   id: string;
@@ -53,12 +54,13 @@ const generateDeviceId = () => {
   return 'device_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
 };
 
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
       token: null,
       user: null,
-      deviceId: generateDeviceId(),
+      deviceId: typeof window !== 'undefined' ? getStableDeviceFingerprint().deviceId : 'initial-device',
       setAuth: (token, user) => set({ token, user }),
       updateUser: (userUpdates) => set((state) => ({
         user: state.user ? { ...state.user, ...userUpdates } : null
