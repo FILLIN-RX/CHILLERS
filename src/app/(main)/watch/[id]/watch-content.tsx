@@ -478,16 +478,14 @@ function WatchContent() {
 
   return (
     <div className="min-h-screen bg-[#09090B] text-white">
-
-
       <div
-        className={`pt-0 pb-20 lg:pb-24 ${
-          hasEpisodes ? "lg:pr-[26rem] xl:pr-[28rem]" : ""
+        className={`pt-0 pb-16 sm:pb-20 lg:pb-24 ${
+          hasEpisodes ? "lg:pr-[24rem] xl:pr-[28rem]" : ""
         }`}
       >
         {/* Main Video Player Section */}
         <div ref={playerRef} className="w-full">
-          <div className="w-full min-h-[250px] xs:min-h-[270px] sm:min-h-[340px] aspect-video max-h-[85vh] bg-black relative mx-auto">
+          <div className="w-full min-h-[210px] xs:min-h-[240px] sm:min-h-[340px] md:min-h-[420px] aspect-video max-h-[85vh] bg-black relative mx-auto overflow-hidden">
             {streamUnavailable ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-6 bg-zinc-950/90">
                 <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-zinc-800/80 flex items-center justify-center border border-zinc-700/50">
@@ -549,24 +547,24 @@ function WatchContent() {
         </div>
 
         {/* Media Details & Controls */}
-        <div className="mt-3 sm:mt-6 space-y-3 sm:space-y-5 px-4 sm:px-6 md:px-10 lg:px-[3%]">
+        <div className="mt-3 sm:mt-6 space-y-3 sm:space-y-5 px-3 sm:px-6 md:px-10 lg:px-[3%]">
           {/* Series Episode Switcher Quick Bar */}
           {hasEpisodes && (
-            <div className="flex items-center justify-between gap-2 p-2.5 sm:p-3 rounded-xl bg-zinc-900/80 border border-white/5 backdrop-blur-md">
+            <div className="flex items-center justify-between gap-1.5 sm:gap-2 p-2 sm:p-3 rounded-xl bg-zinc-900/80 border border-white/5 backdrop-blur-md">
               <button
                 onClick={playPrevEpisode}
                 disabled={currentEpisodeIndex === 0}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 text-xs font-semibold text-zinc-300 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-white/5 text-xs font-semibold text-zinc-300 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all flex-shrink-0"
               >
                 <IconPlayerTrackPrev className="h-4 w-4" />
                 <span className="hidden sm:inline">{_("common.previous")}</span>
               </button>
 
-              <div className="text-center truncate px-2 flex-1 min-w-0">
-                <span className="text-[10px] sm:text-xs font-bold text-brand-primary uppercase tracking-wider">
+              <div className="text-center truncate px-1 flex-1 min-w-0">
+                <span className="text-[10px] sm:text-xs font-bold text-brand-primary uppercase tracking-wider block">
                   S{currentSeason} · E{currentEpisode?.number || 1}
                 </span>
-                <p className="text-xs sm:text-sm font-semibold text-white truncate max-w-[200px] sm:max-w-md mx-auto">
+                <p className="text-xs sm:text-sm font-semibold text-white truncate max-w-[180px] xs:max-w-[240px] sm:max-w-md mx-auto">
                   {currentEpisode?.title}
                 </p>
               </div>
@@ -574,7 +572,7 @@ function WatchContent() {
               <button
                 onClick={playNextEpisode}
                 disabled={currentEpisodeIndex >= episodes.length - 1}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 text-xs font-semibold text-zinc-300 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-white/5 text-xs font-semibold text-zinc-300 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all flex-shrink-0"
               >
                 <span className="hidden sm:inline">{_("common.next")}</span>
                 <IconPlayerTrackNext className="h-4 w-4" />
@@ -584,16 +582,16 @@ function WatchContent() {
 
           {/* Title Header */}
           <div className="space-y-1">
-            <span className="text-brand-primary font-black tracking-widest text-[10px] sm:text-xs uppercase">
+            <span className="text-brand-primary font-black tracking-widest text-[9px] sm:text-xs uppercase">
               CHILLERS {isTV ? "SÉRIE" : "FILM"}
             </span>
 
-            <h1 className="text-xl sm:text-3xl lg:text-4xl font-black text-white leading-tight">
+            <h1 className="text-lg sm:text-2xl md:text-3xl lg:text-4xl font-black text-white leading-tight break-words">
               {item.title}
             </h1>
 
             {currentEpisode && (
-              <p className="text-zinc-400 text-xs sm:text-sm font-medium flex items-center gap-1.5 flex-wrap">
+              <p className="text-zinc-400 text-[11px] sm:text-sm font-medium flex items-center gap-1.5 flex-wrap">
                 <span className="text-white font-bold">
                   S{currentSeason} · E{currentEpisode.number}
                 </span>
@@ -634,34 +632,34 @@ function WatchContent() {
           </div>
 
           {/* Action Download Buttons */}
-          <div className="grid grid-cols-2 gap-2 sm:gap-2.5 py-1">
+          <div className="flex items-center gap-2 sm:gap-2.5 py-1 flex-wrap sm:flex-nowrap">
             <button
               onClick={() => handleDownloadSingle(currentEpisode)}
               disabled={streamUnavailable}
-              className={`flex items-center justify-center gap-1.5 sm:gap-2 py-2 sm:py-2.5 px-3 sm:px-4 rounded-xl font-bold text-xs sm:text-sm transition-all ${
+              className={`flex-1 min-w-[140px] flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 px-3 sm:px-4 rounded-xl font-bold text-xs sm:text-sm transition-all ${
                 streamUnavailable
                   ? "bg-zinc-800/50 text-zinc-500 cursor-not-allowed"
-                  : "bg-zinc-800 text-white hover:bg-zinc-700 shadow-md"
+                  : "bg-zinc-800 text-white hover:bg-zinc-700 shadow-md active:scale-95"
               }`}
             >
-              <IconDownload className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <IconDownload className="h-4 w-4 text-zinc-300" />
               <span className="truncate">{_("download.single")}</span>
             </button>
 
             {isTV ? (
               <button
                 onClick={() => setShowBatchDownloadModal(true)}
-                className="flex items-center justify-center gap-1.5 sm:gap-2 py-2 sm:py-2.5 px-3 sm:px-4 rounded-xl font-bold text-xs sm:text-sm bg-brand-primary/20 border border-brand-primary/30 text-brand-primary hover:bg-brand-primary/30 transition-all"
+                className="flex-1 min-w-[140px] flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 px-3 sm:px-4 rounded-xl font-bold text-xs sm:text-sm bg-brand-primary/20 border border-brand-primary/30 text-brand-primary hover:bg-brand-primary/30 transition-all active:scale-95"
               >
-                <IconDownload className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <IconDownload className="h-4 w-4" />
                 <span className="truncate">{_("download.series")}</span>
               </button>
             ) : (
               <button
                 onClick={handleShare}
-                className="flex items-center justify-center gap-1.5 sm:gap-2 py-2 sm:py-2.5 px-3 sm:px-4 rounded-xl font-bold text-xs sm:text-sm bg-white/5 border border-white/10 text-zinc-300 hover:bg-white/10 hover:text-white transition-all"
+                className="flex-1 min-w-[120px] flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 px-3 sm:px-4 rounded-xl font-bold text-xs sm:text-sm bg-white/5 border border-white/10 text-zinc-300 hover:bg-white/10 hover:text-white transition-all active:scale-95"
               >
-                <IconShare className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <IconShare className="h-4 w-4" />
                 <span className="truncate">{_("media.share")}</span>
               </button>
             )}

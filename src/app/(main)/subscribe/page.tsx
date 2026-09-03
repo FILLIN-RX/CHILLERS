@@ -12,7 +12,8 @@ import {
   IconChecklist,
   IconSparkles,
   IconAlertCircle,
-  IconLoader2
+  IconLoader2,
+  IconPhoneCall,
 } from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
 
@@ -65,7 +66,7 @@ export default function SubscribePage() {
               _id: '1',
               code: 'standard',
               name: 'Standard HD',
-              price: 1500,
+              price: 500,
               durationMonths: 1,
               features: {
                 maxResolution: '720p HD',
@@ -79,7 +80,7 @@ export default function SubscribePage() {
               _id: '2',
               code: 'premium',
               name: 'Premium 1080p Ultra',
-              price: 2500,
+              price: 1000,
               durationMonths: 1,
               features: {
                 maxResolution: '1080p Full HD',
@@ -100,10 +101,26 @@ export default function SubscribePage() {
     fetchPlans();
   }, []);
 
-  const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedNumber(text);
-    setTimeout(() => setCopiedNumber(null), 2500);
+  // USSD Codes Cameroun :
+  // Orange Money : #150*1*1*NUMERO*MONTANT#
+  // MTN MoMo : *126*1*1*NUMERO*MONTANT#
+  const getUssdCode = (method: 'orange' | 'mtn', amount: number) => {
+    if (method === 'orange') {
+      return `#150*1*1*${ORANGE_NUMBER}*${amount}#`;
+    }
+    return `*126*1*1*${MTN_NUMBER}*${amount}#`;
+  };
+
+  const handleDialUssd = (method: 'orange' | 'mtn', amount: number) => {
+    const rawCode = getUssdCode(method, amount);
+    // Copier également dans le presse-papier pour sécurité
+    navigator.clipboard.writeText(rawCode);
+    setCopiedNumber(rawCode);
+    setTimeout(() => setCopiedNumber(null), 3000);
+
+    // Encodage propre du caractère # pour tel: (%23)
+    const encodedCode = rawCode.replace(/#/g, '%23');
+    window.location.href = `tel:${encodedCode}`;
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -368,27 +385,51 @@ export default function SubscribePage() {
                     </div>
                   </div>
 
-                  {/* Numéro de dépôt */}
-                  <div className="bg-[#1c1c22] border border-white/5 rounded-2xl p-4 mb-6">
-                    <p className="text-xs text-zinc-400 mb-1">2. Effectuez le dépôt de <strong className="text-white">{selectedPlan.price} FCFA</strong> au numéro suivant :</p>
-                    <div className="flex items-center justify-between bg-black/40 px-3.5 py-2.5 rounded-xl border border-white/10">
-                      <div>
-                        <span className="text-xs font-bold text-zinc-400">
-                          {paymentMethod === 'orange' ? 'Orange Money' : 'MTN Mobile Money'} :
-                        </span>
-                        <p className="text-lg font-black text-white tracking-wider">
-                          {paymentMethod === 'orange' ? ORANGE_NUMBER : MTN_NUMBER}
-                        </p>
+                  {/* Code USSD Direct & Numéro de dépôt */}
+                  <div className="bg-[#1c1c22] border border-white/5 rounded-2xl p-4 sm:p-5 mb-6 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-zinc-400">
+                        2. Code USSD automatique pour <strong className="text-white">{selectedPlan.price} FCFA</strong> :
+                      </p>
+                      <span className="text-[10px] font-bold text-brand-primary uppercase">1-Clic Mobile</span>
+                    </div>
+
+                    {/* Grand bouton d'action USSD */}
+                    <button
+                      type="button"
+                      onClick={() => handleDialUssd(paymentMethod, selectedPlan.price)}
+                      className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-sm flex items-center justify-center gap-2.5 shadow-lg active:scale-95 transition-all cursor-pointer"
+                    >
+                      <IconPhoneCall className="w-5 h-5 animate-pulse" />
+                      <span>Lancer le code USSD ({getUssdCode(paymentMethod, selectedPlan.price)})</span>
+                    </button>
+
+                    {/* Affichage du code et copie de secours */}
+                    <div className="flex items-center justify-between bg-black/40 px-3.5 py-2 rounded-xl border border-white/10 text-xs">
+                      <div className="truncate pr-2">
+                        <span className="text-zinc-500 text-[10px] block">Code complet :</span>
+                        <code className="text-amber-400 font-mono font-bold text-sm tracking-wider select-all">
+                          {getUssdCode(paymentMethod, selectedPlan.price)}
+                        </code>
                       </div>
                       <button
                         type="button"
-                        onClick={() => handleCopy(paymentMethod === 'orange' ? ORANGE_NUMBER : MTN_NUMBER)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-bold text-white transition-all active:scale-95"
+                        onClick={() => {
+                          const code = getUssdCode(paymentMethod, selectedPlan.price);
+                          navigator.clipboard.writeText(code);
+                          setCopiedNumber(code);
+                          setTimeout(() => setCopiedNumber(null), 2500);
+                        }}
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-[11px] font-bold transition-all active:scale-95 flex-shrink-0"
                       >
-                        <IconCopy className="w-4 h-4" />
-                        <span>{copiedNumber ? 'Copié !' : 'Copier'}</span>
+                        <IconCopy className="w-3.5 h-3.5" />
+                        <span>{copiedNumber ? 'Copié !' : 'Copier code'}</span>
                       </button>
                     </div>
+
+                    <p className="text-[11px] text-zinc-500 leading-snug">
+                      💡 Cliquez sur le bouton vert ci-dessus pour ouvrir automatiquement votre clavier téléphonique avec le code prêt à être validé avec votre code secret.
+                    </p>
                   </div>
 
                   {/* Formulaire de preuve */}
