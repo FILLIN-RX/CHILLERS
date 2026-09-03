@@ -152,10 +152,19 @@ export async function resolveVidzyDirectStream(embedUrl: string): Promise<{ stre
       timeout: 15000
     });
 
-    const directLinks = postRes.data.match(/https?:\/\/[^"'\s\)]+\.mp4[^"'\s\)]*/gi);
+    const directLinks = postRes.data.match(/https?:\/\/[^"'\s\)]+\.(?:mp4|m3u8)[^"'\s\)]*/gi);
     if (directLinks && directLinks[0]) {
       return {
         streamUrl: directLinks[0],
+        fileSize
+      };
+    }
+
+    // Recherche via href dans balise <a> ou window.open
+    const aMatch = postRes.data.match(/href="([^"]+\.mp4[^"]*)"/i);
+    if (aMatch && aMatch[1]) {
+      return {
+        streamUrl: aMatch[1],
         fileSize
       };
     }
@@ -206,6 +215,20 @@ export async function getFrenchStreamMovie(title: string): Promise<FrenchStreamD
         quality: '1080p',
         fileSize: directResult.fileSize,
         streamUrl: directResult.streamUrl,
+        embedUrl: chosenVersion.embedUrl,
+        source: 'frenchstream'
+      };
+    }
+
+    // Fallback robuste : si le scrape direct du fichier MP4 échoue (ex: token éphémère ou captcha),
+    // renvoyer directement le lecteur embed Vidzy haute qualité pour que le film joue sans faute !
+    if (chosenVersion.embedUrl) {
+      console.log(`[FrenchStream HQ] Fallback lecteur embed pour "${title}": ${chosenVersion.embedUrl}`);
+      return {
+        title: resolvedTitle || best.title,
+        quality: '1080p',
+        fileSize: '1080p Full HD',
+        streamUrl: chosenVersion.embedUrl,
         embedUrl: chosenVersion.embedUrl,
         source: 'frenchstream'
       };

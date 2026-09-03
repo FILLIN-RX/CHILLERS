@@ -761,7 +761,7 @@ function WatchContent() {
                   <MovieCard
                     key={sim.id}
                     item={sim}
-                    variant="grid"
+                    variant="poster"
                     onPlay={(i) =>
                       router.push(
                         `/watch/${i.id}?type=${

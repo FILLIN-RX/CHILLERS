@@ -221,9 +221,27 @@ body {
   scrollbar-width: none;
 }
 
-/* iPhone safe area support for bottom nav */
+/* iPhone & iOS safe area support for PWA (notch, dynamic island & home bar) */
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
 .pb-safe {
-  padding-bottom: env(safe-area-inset-bottom);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.pl-safe {
+  padding-left: env(safe-area-inset-left, 0px);
+}
+.pr-safe {
+  padding-right: env(safe-area-inset-right, 0px);
+}
+.p-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+.min-h-screen-safe {
+  min-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
 }
 
 /* Mobile touch tap highlight removal */
