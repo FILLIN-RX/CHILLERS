@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { resolveDownloadUrl } from "@/services/downloads";
 import { streamDownloadToDisk } from "@/services/streamSaver";
-import { saveOfflineVideoBlob } from "@/services/offlineStorage";
+import { streamVideoToIndexedDB } from "@/services/offlineStorage";
 import { buildEpisodeFilename, downloadTaskId } from "@/lib/format";
 import type { DownloadTask, DownloadStatus } from "@/types/download";
 import { useDownloadsStore } from "@/store/downloads";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 /**
  * useDownload — drives a single-file download lifecycle.
@@ -139,7 +140,10 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
         return;
       }
 
-      updateTask(id, { resolvedUrl: result.downloadUrl });
+      updateTask(id, {
+        resolvedUrl: result.downloadUrl,
+        resolvedUrlAt: Date.now(),
+      });
       setStatus(id, "ready");
     } catch (err) {
       if (ctrl.signal.aborted || isCancelRequested(id)) {
@@ -159,33 +163,51 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
     const ctrl = new AbortController();
     setController(id, ctrl);
 
+    const filename = taskRef.current?.filename ?? `download-${id}.mp4`;
+    const titleStr = taskRef.current?.title ?? title;
+    const user = useAuthStore.getState().user;
+    const isSubscriber =
+      user?.subscription?.status === "active" &&
+      (user.subscription.plan === "standard" || user.subscription.plan === "premium");
+
     try {
       setStatus(id, "downloading");
 
-      const streamRes = await streamDownloadToDisk(url, {
-        filename: taskRef.current?.filename ?? `download-${id}.mp4`,
-        signal: ctrl.signal,
-        onProgress: (bytes, total) => {
-          setProgress(id, {
-            bytesDownloaded: bytes,
-            totalBytes: total,
-            percent:
-              total && total > 0
-                ? Math.min(100, Math.round((bytes / total) * 100))
-                : null,
-          });
-        },
-      });
-
-      // Sauvegarde automatique dans IndexedDB pour la lecture hors-ligne sans sélection de fichier
-      if (streamRes?.blob) {
-        const filename = taskRef.current?.filename ?? `download-${id}.mp4`;
-        const titleStr = taskRef.current?.title ?? title;
-        try {
-          await saveOfflineVideoBlob(id, streamRes.blob, filename, titleStr);
-        } catch (e) {
-          console.warn("[useDownload] IndexedDB save failed:", e);
-        }
+      if (isSubscriber) {
+        // Utilisateur avec abonnement : Téléchargement direct sur le disque (dossier Téléchargements)
+        await streamDownloadToDisk(url, {
+          filename,
+          signal: ctrl.signal,
+          saveBlob: false, // Ne pas surcharger la RAM, écrit directement sur disque
+          onProgress: (bytes, total) => {
+            setProgress(id, {
+              bytesDownloaded: bytes,
+              totalBytes: total,
+              percent:
+                total && total > 0
+                  ? Math.min(100, Math.round((bytes / total) * 100))
+                  : null,
+            });
+          },
+        });
+      } else {
+        // Utilisateur standard / gratuit : Méthode YouTube (Stocké dans IndexedDB pour lecture dans l'app)
+        await streamVideoToIndexedDB(url, {
+          id,
+          filename,
+          title: titleStr,
+          signal: ctrl.signal,
+          onProgress: (bytes, total) => {
+            setProgress(id, {
+              bytesDownloaded: bytes,
+              totalBytes: total,
+              percent:
+                total && total > 0
+                  ? Math.min(100, Math.round((bytes / total) * 100))
+                  : null,
+            });
+          },
+        });
       }
 
       if (ctrl.signal.aborted) {
@@ -209,7 +231,12 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
   const start = useCallback(async () => {
     if (isRunning) return;
     const current = taskRef.current;
-    if (current?.status === "ready" && current.resolvedUrl) {
+    const isUrlFresh =
+      current?.resolvedUrl &&
+      current.resolvedUrlAt &&
+      Date.now() - current.resolvedUrlAt < 6 * 60 * 60 * 1000;
+
+    if (current?.status === "ready" && current.resolvedUrl && isUrlFresh) {
       await streamCurrent(current.resolvedUrl);
       return;
     }
@@ -235,6 +262,11 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
       ? Math.min(100, Math.round((task.bytesDownloaded / task.totalBytes) * 100))
       : null;
 
+  const effectiveIsRunning =
+    isRunning ||
+    task?.status === "downloading" ||
+    task?.status === "resolving";
+
   return {
     task,
     status: task?.status ?? "queued",
@@ -244,6 +276,6 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
     start,
     cancel,
     retry,
-    isRunning,
+    isRunning: effectiveIsRunning,
   };
 }

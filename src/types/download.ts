@@ -36,6 +36,8 @@ export interface DownloadTask {
   episodeNumber?: number;
   /** Resolved backend URL (after /api/doodstream/download). Null while resolving. */
   resolvedUrl: string | null;
+  /** Timestamp when the URL was resolved, for cache expiration (TTL 6-12h). */
+  resolvedUrlAt?: number;
   /** Bytes downloaded so far. */
   bytesDownloaded: number;
   /** Total bytes if known (Content-Length from upstream). */

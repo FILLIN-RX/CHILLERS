@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -17,8 +17,12 @@ import {
   IconX,
   IconDeviceTv,
   IconFolderOpen,
+  IconWifiOff,
+  IconWifi,
 } from "@tabler/icons-react";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { streamDownloadToDisk } from "@/services/streamSaver";
+import { getStorageQuota, type StorageQuotaInfo } from "@/services/offlineStorage";
 import { useDownloadsStore } from "@/store/downloads";
 import DownloadProgressBar from "@/features/downloads/DownloadProgressBar";
 import OfflinePlayerModal from "@/features/downloads/OfflinePlayerModal";
@@ -40,11 +44,13 @@ export default function DownloadsView({
   isEmbeddedInProfile?: boolean;
 }) {
   const router = useRouter();
+  const { isOnline } = useOnlineStatus();
   const [filter, setFilter] = useState<"all" | "running" | "done" | "error">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [showClearAllModal, setShowClearAllModal] = useState(false);
   const [offlinePlayerTask, setOfflinePlayerTask] = useState<DownloadTask | null>(null);
+  const [quotaInfo, setQuotaInfo] = useState<StorageQuotaInfo | null>(null);
 
   const tasks = useDownloadsStore((s) => s.tasks);
   const removeTask = useDownloadsStore((s) => s.remove);
@@ -57,6 +63,12 @@ export default function DownloadsView({
   const setController = useDownloadsStore((s) => s.setController);
   const removeController = useDownloadsStore((s) => s.removeController);
   const resetTasks = useDownloadsStore((s) => s.resetTasks);
+
+  useEffect(() => {
+    getStorageQuota().then((q) => {
+      if (q) setQuotaInfo(q);
+    });
+  }, [tasks]);
 
   // Groupes de statuts
   const doneTasks = tasks.filter((t) => t.status === "done");
@@ -199,15 +211,25 @@ export default function DownloadsView({
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-6 border-b border-white/5">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="px-2 py-0.5 rounded-full bg-brand-primary/20 border border-brand-primary/30 text-brand-primary text-[10px] font-black uppercase tracking-wider">
-                Hors-Ligne
-              </span>
+              {isOnline ? (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-black uppercase tracking-wider">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  Connecté
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-red-500/10 border border-red-500/30 text-red-400 text-[10px] font-black uppercase tracking-wider animate-pulse">
+                  <IconWifiOff className="w-3 h-3 text-red-400" />
+                  Mode Hors-Ligne
+                </span>
+              )}
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
               Téléchargements
             </h1>
             <p className="text-xs sm:text-sm text-zinc-400 mt-1">
-              Films et séries disponibles hors-ligne sur votre appareil
+              {isOnline
+                ? "Films et séries disponibles pour visionnage sans connexion"
+                : "Vous êtes hors-ligne. Vous pouvez regarder vos vidéos téléchargées."}
             </p>
           </div>
 
@@ -229,9 +251,17 @@ export default function DownloadsView({
               )}
 
               <div className="flex items-center gap-2 bg-zinc-900/80 border border-white/5 px-3 py-1.5 rounded-full text-xs text-zinc-400">
-                <span>Stockage :</span>
+                <span>Téléchargements :</span>
                 <span className="font-semibold text-white">{formatBytes(totalBytesDone)}</span>
               </div>
+
+              {quotaInfo && quotaInfo.quotaBytes > 0 && (
+                <div className="flex items-center gap-2 bg-zinc-900/80 border border-white/5 px-3 py-1.5 rounded-full text-xs text-zinc-400" title={`Espace appareil total alloué: ${formatBytes(quotaInfo.quotaBytes)}`}>
+                  <span className="w-2 h-2 rounded-full bg-cyan-400" />
+                  <span>Dispo appareil :</span>
+                  <span className="font-semibold text-cyan-300">{formatBytes(quotaInfo.availableBytes)}</span>
+                </div>
+              )}
             </div>
           )}
         </div>

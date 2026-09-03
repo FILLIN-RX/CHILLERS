@@ -41,6 +41,8 @@ export interface StreamDownloadOptions {
   onProgress?: (bytesDownloaded: number, totalBytes: number | null) => void;
   /** Minimum ms between progress emissions (default 200). */
   throttleMs?: number;
+  /** Whether to accumulate and return the full Blob in memory (defaults to false to save RAM). */
+  saveBlob?: boolean;
 }
 
 export function isIOS(): boolean {
@@ -68,7 +70,7 @@ export async function streamDownloadToDisk(
     throw new Error("streamDownloadToDisk is browser-only");
   }
 
-  const { filename, signal, onProgress, throttleMs = 200 } = opts;
+  const { filename, signal, onProgress, throttleMs = 200, saveBlob = false } = opts;
 
   if (isIOS()) {
     // iOS Safari doesn't support WritableStream / StreamSaver MITM iframe.
@@ -105,7 +107,7 @@ export async function streamDownloadToDisk(
 
     const totalBytes = parseContentLength(res.headers.get("content-length"));
 
-    // Throttled progress reporting & chunk accumulation for offline playback
+    // Throttled progress reporting & chunk accumulation if saveBlob requested
     let lastEmit = 0;
     let bytes = 0;
     const chunks: Uint8Array[] = [];
@@ -113,7 +115,9 @@ export async function streamDownloadToDisk(
     const pipe = new WritableStream<Uint8Array>({
       async write(chunk) {
         bytes += chunk.byteLength;
-        chunks.push(chunk);
+        if (saveBlob) {
+          chunks.push(chunk);
+        }
         const now = Date.now();
         if (onProgress && now - lastEmit >= throttleMs) {
           lastEmit = now;
@@ -134,7 +138,7 @@ export async function streamDownloadToDisk(
       await writer.close();
     } catch {}
 
-    const fullBlob = new Blob(chunks as BlobPart[], { type: "video/mp4" });
+    const fullBlob = saveBlob ? new Blob(chunks as BlobPart[], { type: "video/mp4" }) : undefined;
     return { totalBytes, blob: fullBlob };
   } finally {
     clearTimeout(timeoutTimer);

@@ -53,6 +53,7 @@ const partialize = (state: DownloadsState) => ({
     season: t.season,
     episodeNumber: t.episodeNumber,
     resolvedUrl: t.resolvedUrl,
+    resolvedUrlAt: t.resolvedUrlAt,
     totalBytes: t.totalBytes,
     status: t.status,
     error: t.error,
@@ -63,6 +64,9 @@ const partialize = (state: DownloadsState) => ({
     episode: t.episode,
   })),
 });
+
+// Liens DoodStream/StreamTape/Upstream expirent en moyenne en 6 à 12 heures
+const RESOLVED_URL_TTL_MS = 6 * 60 * 60 * 1000;
 
 export const useDownloadsStore = create<DownloadsState>()(
   persist(
@@ -149,6 +153,7 @@ export const useDownloadsStore = create<DownloadsState>()(
                   ...t,
                   status: "queued" as DownloadStatus,
                   resolvedUrl: null,
+                  resolvedUrlAt: undefined,
                   bytesDownloaded: 0,
                   totalBytes: null,
                   error: undefined,
@@ -180,16 +185,37 @@ export const useDownloadsStore = create<DownloadsState>()(
       // and zero out the partial byte counter that has no file backing it.
       onRehydrateStorage: () => (state) => {
         if (!state) return;
-        state.tasks = state.tasks.map((t) =>
-          t.status === "downloading" || t.status === "resolving"
-            ? {
-                ...t,
-                status: "paused" as DownloadStatus,
-                bytesDownloaded: 0,
-                error: t.error ?? "Reprise après actualisation",
-              }
-            : { ...t, bytesDownloaded: 0 },
-        );
+        const now = Date.now();
+        state.tasks = state.tasks.map((t) => {
+          const isUrlExpired =
+            t.resolvedUrl &&
+            t.resolvedUrlAt &&
+            now - t.resolvedUrlAt > RESOLVED_URL_TTL_MS;
+
+          const base = {
+            ...t,
+            resolvedUrl: isUrlExpired ? null : t.resolvedUrl,
+            resolvedUrlAt: isUrlExpired ? undefined : t.resolvedUrlAt,
+          };
+
+          if (t.status === "downloading" || t.status === "resolving") {
+            return {
+              ...base,
+              status: "paused" as DownloadStatus,
+              bytesDownloaded: 0,
+              error: isUrlExpired
+                ? "Lien expiré, nouvelle résolution nécessaire"
+                : (t.error ?? "Reprise après actualisation"),
+            };
+          }
+          if (t.status === "ready" && isUrlExpired) {
+            return {
+              ...base,
+              status: "queued" as DownloadStatus,
+            };
+          }
+          return { ...base, bytesDownloaded: 0 };
+        });
       },
     },
   ),

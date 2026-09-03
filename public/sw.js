@@ -6,8 +6,24 @@ const isDev = self.location.hostname === 'localhost' || self.location.hostname =
 // ── StreamSaver map pour le streaming de téléchargement ────────
 const map = new Map();
 
+const OFFLINE_URL = '/offline.html';
+const PRECACHE_ASSETS = [
+  '/',
+  '/downloads',
+  '/offline.html',
+  '/manifest.json',
+  '/favicon.ico',
+  '/android-chrome-192x192.png',
+];
+
 self.addEventListener('install', event => {
-  self.skipWaiting();
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(cache => {
+      return cache.addAll(PRECACHE_ASSETS).catch(err => {
+        console.warn('[SW] Precache failed partially:', err);
+      });
+    }).then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', event => {
@@ -112,10 +128,9 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // En mode DEV ou pour les requêtes Next.js internes / API / flux vidéo : ne jamais intercepter
+  // Ne jamais intercepter les chunks HMR ou appels Next internes en dev, ni les API dynamiques et médias
   if (
-    isDev ||
-    url.includes('/_next/') ||
+    url.includes('/_next/webpack-hmr') ||
     url.includes('/api/') ||
     url.includes('.mp4') ||
     url.includes('.m3u8') ||
@@ -125,7 +140,7 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // En production : Cache des images TMDB (Stale-While-Revalidate)
+  // En production/online : Cache des images TMDB (Stale-While-Revalidate)
   if (url.includes('image.tmdb.org')) {
     event.respondWith(
       caches.match(event.request).then(cached => {
@@ -139,6 +154,34 @@ self.addEventListener('fetch', event => {
 
         return cached || fetchPromise;
       })
+    );
+    return;
+  }
+
+  // Navigation HTML (Page loads) : Network-first avec fallback sur cache ou page offline
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          if (response && response.status === 200) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+          }
+          return response;
+        })
+        .catch(async () => {
+          // Si hors-ligne : tenter de servir la page depuis le cache
+          const cached = await caches.match(event.request);
+          if (cached) return cached;
+
+          // Si c'est une tentative d'aller sur /downloads, essayer /downloads en cache
+          const cachedDownloads = await caches.match('/downloads');
+          if (cachedDownloads) return cachedDownloads;
+
+          // Sinon afficher la page offline
+          const offlinePage = await caches.match(OFFLINE_URL);
+          return offlinePage || new Response('Hors ligne', { status: 503, headers: { 'Content-Type': 'text/plain' } });
+        })
     );
   }
 });

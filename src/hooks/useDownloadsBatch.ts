@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useRef } from "react";
 import { resolveDownloadUrl, proxyDownloadHref } from "@/services/downloads";
 import { streamDownloadToDisk } from "@/services/streamSaver";
-import { saveOfflineVideoBlob } from "@/services/offlineStorage";
+import { streamVideoToIndexedDB } from "@/services/offlineStorage";
 import { buildEpisodeFilename, downloadTaskId } from "@/lib/format";
 import type { DownloadTask } from "@/types/download";
 import type { Episode } from "@/types/media";
 import { useDownloadsStore } from "@/store/downloads";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 const MAX_CONCURRENT = 1;
 const MAX_RETRIES = 2;
@@ -170,32 +171,55 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
 
       setStatus(task.id, "downloading");
 
-      try {
-        const streamRes = await streamDownloadToDisk(result.downloadUrl, {
-          filename: task.filename,
-          signal: ctrl.signal,
-          onProgress: (bytes, total) => {
-            setProgress(task.id, {
-              bytesDownloaded: bytes,
-              totalBytes: total,
-              percent:
-                total && total > 0
-                  ? Math.min(100, Math.round((bytes / total) * 100))
-                  : null,
-            });
-          },
-        });
+      const user = useAuthStore.getState().user;
+      const isSubscriber =
+        user?.subscription?.status === "active" &&
+        (user.subscription.plan === "standard" || user.subscription.plan === "premium");
 
-        if (streamRes?.blob) {
-          await saveOfflineVideoBlob(task.id, streamRes.blob, task.filename, task.title);
+      try {
+        if (isSubscriber) {
+          // Utilisateur Abonné : téléchargement fichier direct sur disque
+          await streamDownloadToDisk(result.downloadUrl, {
+            filename: task.filename,
+            signal: ctrl.signal,
+            saveBlob: false,
+            onProgress: (bytes, total) => {
+              setProgress(task.id, {
+                bytesDownloaded: bytes,
+                totalBytes: total,
+                percent:
+                  total && total > 0
+                    ? Math.min(100, Math.round((bytes / total) * 100))
+                    : null,
+              });
+            },
+          });
+        } else {
+          // Utilisateur Gratuit : méthode YouTube dans IndexedDB
+          await streamVideoToIndexedDB(result.downloadUrl, {
+            id: task.id,
+            filename: task.filename,
+            title: task.title,
+            signal: ctrl.signal,
+            onProgress: (bytes, total) => {
+              setProgress(task.id, {
+                bytesDownloaded: bytes,
+                totalBytes: total,
+                percent:
+                  total && total > 0
+                    ? Math.min(100, Math.round((bytes / total) * 100))
+                    : null,
+              });
+            },
+          });
         }
       } catch (streamErr) {
         if (ctrl.signal.aborted || isCancelRequested(task.id)) {
           throw streamErr;
         }
-        console.warn(`[Download] StreamSaver secours pour ${task.filename}:`, streamErr);
-        // Fallback sécurisé : déclenchement du téléchargement direct navigateur
-        if (typeof window !== "undefined") {
+        console.warn(`[Download] Erreur stream pour ${task.filename}:`, streamErr);
+        // Fallback sécurisé pour les abonnés : déclenchement du téléchargement direct navigateur
+        if (isSubscriber && typeof window !== "undefined") {
           const href = proxyDownloadHref(result.downloadUrl, task.filename);
           const a = document.createElement("a");
           a.href = href;
@@ -203,6 +227,8 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
+        } else {
+          throw streamErr;
         }
       }
 
