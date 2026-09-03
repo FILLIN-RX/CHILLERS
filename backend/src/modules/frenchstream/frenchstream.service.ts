@@ -102,6 +102,60 @@ export async function extractEmbedVersions(pageUrl: string): Promise<{ title: st
       versions.push({ label, embedUrl });
     }
 
+    // Si aucune version trouvée en HTML statique, interroger l'API interne film_api.php
+    if (versions.length === 0) {
+      const newsIdMatch = pageUrl.match(/\/(\d+)-/i) || html.match(/dle_news_id\s*=\s*['"](\d+)['"]/i);
+      const isPageVostfr = /version-film[\/&amp;=]+VOSTFR/i.test(html) || /data-version="VOSTFR"/i.test(html);
+
+      if (newsIdMatch && newsIdMatch[1]) {
+        try {
+          const apiUrl = `${BASE_URL}/engine/ajax/film_api.php?id=${newsIdMatch[1]}`;
+          const { data: apiData } = await axios.get(apiUrl, {
+            headers: {
+              'User-Agent': USER_AGENT,
+              'Referer': pageUrl
+            },
+            timeout: 10000
+          });
+
+          if (apiData?.players && typeof apiData.players === 'object') {
+            const preferredHosts = ['vidzy', 'uqload', 'premium', 'dood', 'voe', 'filmoon'];
+            const allHosts = Object.keys(apiData.players).sort((a, b) => {
+              const idxA = preferredHosts.indexOf(a.toLowerCase());
+              const idxB = preferredHosts.indexOf(b.toLowerCase());
+              const scoreA = idxA === -1 ? 99 : idxA;
+              const scoreB = idxB === -1 ? 99 : idxB;
+              return scoreA - scoreB;
+            });
+
+            for (const host of allHosts) {
+              const playerData = apiData.players[host];
+              if (!playerData || typeof playerData !== 'object') continue;
+
+              const variants = [
+                { key: 'vff', label: `${host.toUpperCase()} (TRUEFRENCH)` },
+                { key: 'vf', label: `${host.toUpperCase()} (VF)` },
+                { key: 'vfq', label: `${host.toUpperCase()} (VFQ)` },
+                { key: 'default', label: isPageVostfr && !playerData.vf && !playerData.vff ? `${host.toUpperCase()} (VOSTFR)` : `${host.toUpperCase()} (FRENCH)` },
+                { key: 'vostfr', label: `${host.toUpperCase()} (VOSTFR)` },
+              ];
+
+              const addedUrls = new Set<string>();
+              for (const v of variants) {
+                const url = playerData[v.key];
+                if (url && typeof url === 'string' && !addedUrls.has(url)) {
+                  addedUrls.add(url);
+                  versions.push({ label: v.label, embedUrl: url });
+                }
+              }
+            }
+          }
+        } catch (apiErr: any) {
+          console.error(`[FrenchStream] Erreur appel film_api.php pour id=${newsIdMatch[1]}:`, apiErr.message);
+        }
+      }
+    }
+
     return { title: rawTitle, versions };
   } catch (error: any) {
     console.error(`[FrenchStream] Erreur extraction ${pageUrl}:`, error.message);
@@ -140,6 +194,12 @@ export async function resolveVidzyDirectStream(embedUrl: string): Promise<{ stre
       hash: hashMatch[1]
     };
 
+    let origin = 'https://vidzy.cc';
+    try {
+      const u = new URL(embedUrl);
+      origin = `${u.protocol}//${u.host}`;
+    } catch {}
+
     const postData = querystring.stringify(form);
     const postRes = await axios.post(dlPageUrl, postData, {
       headers: {
@@ -147,7 +207,7 @@ export async function resolveVidzyDirectStream(embedUrl: string): Promise<{ stre
         'Content-Length': Buffer.byteLength(postData),
         'User-Agent': USER_AGENT,
         'Referer': dlPageUrl,
-        'Origin': 'https://vidzy.cc'
+        'Origin': origin
       },
       timeout: 15000
     });
@@ -200,30 +260,56 @@ export async function getFrenchStreamMovie(title: string): Promise<FrenchStreamD
     const { title: resolvedTitle, versions } = await extractEmbedVersions(best.url);
     if (versions.length === 0) return null;
 
-    // Priorité aux versions : TRUEFRENCH > FRENCH > VOSTFR
-    const chosenVersion =
-      versions.find(v => v.label.toUpperCase().includes('TRUEFRENCH')) ||
-      versions.find(v => v.label.toUpperCase().includes('FRENCH')) ||
-      versions[0];
+    // 1. Tenter d'abord la résolution directe MP4 1080p sur les versions Vidzy
+    // Trier les versions Vidzy par priorité audio : TRUEFRENCH > FRENCH / VF > VFQ > VOSTFR
+    const langRank = (lbl: string) => {
+      const u = lbl.toUpperCase();
+      if (u.includes('TRUEFRENCH')) return 1;
+      if (u.includes('FRENCH')) return 2;
+      if (u.includes('VF')) return 3;
+      if (u.includes('VFQ')) return 4;
+      if (u.includes('VOSTFR')) return 5;
+      return 6;
+    };
 
-    console.log(`[FrenchStream HQ] Version sélectionnée: ${chosenVersion.label} (${chosenVersion.embedUrl})`);
-    const directResult = await resolveVidzyDirectStream(chosenVersion.embedUrl);
+    const vidzyVersions = versions
+      .filter(v => v.embedUrl.includes('vidzy'))
+      .sort((a, b) => langRank(a.label) - langRank(b.label));
 
-    if (directResult?.streamUrl) {
-      return {
-        title: resolvedTitle || best.title,
-        quality: '1080p',
-        fileSize: directResult.fileSize,
-        streamUrl: directResult.streamUrl,
-        embedUrl: chosenVersion.embedUrl,
-        source: 'frenchstream'
-      };
+    for (const v of vidzyVersions) {
+      const direct = await resolveVidzyDirectStream(v.embedUrl);
+      if (direct?.streamUrl) {
+        console.log(`[FrenchStream HQ] Flux direct 1080p résolu (${v.label}): ${direct.streamUrl.slice(0, 70)}...`);
+        return {
+          title: resolvedTitle || best.title,
+          quality: '1080p',
+          fileSize: direct.fileSize,
+          streamUrl: direct.streamUrl,
+          embedUrl: v.embedUrl,
+          source: 'frenchstream'
+        };
+      }
     }
 
-    // Fallback robuste : si le scrape direct du fichier MP4 échoue (ex: token éphémère ou captcha),
-    // renvoyer directement le lecteur embed Vidzy haute qualité pour que le film joue sans faute !
-    if (chosenVersion.embedUrl) {
-      console.log(`[FrenchStream HQ] Fallback lecteur embed pour "${title}": ${chosenVersion.embedUrl}`);
+    // 2. Si pas de direct Vidzy, trier toutes les versions disponibles :
+    // Priorité langue : TRUEFRENCH > FRENCH > VF > VFQ > VOSTFR
+    // Priorité hébergeur : Vidzy > Uqload > Premium > Dood > Voe > Filmoon
+    const sortedVersions = [...versions].sort((a, b) => {
+      const langRank = (lbl: string) => {
+        const u = lbl.toUpperCase();
+        if (u.includes('TRUEFRENCH')) return 1;
+        if (u.includes('FRENCH')) return 2;
+        if (u.includes('VFQ')) return 4;
+        if (u.includes('VF')) return 3;
+        if (u.includes('VOSTFR')) return 5;
+        return 6;
+      };
+      return langRank(a.label) - langRank(b.label);
+    });
+
+    const chosenVersion = sortedVersions[0];
+    if (chosenVersion?.embedUrl) {
+      console.log(`[FrenchStream HQ] Lecteur embed sélectionné (${chosenVersion.label}): ${chosenVersion.embedUrl}`);
       return {
         title: resolvedTitle || best.title,
         quality: '1080p',
