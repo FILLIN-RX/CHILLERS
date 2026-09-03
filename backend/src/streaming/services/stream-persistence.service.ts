@@ -2,6 +2,7 @@ import Movie, { IMovie } from '../../models/Movie';
 import Serie, { ISerie, IEpisode } from '../../models/Serie';
 import tmdbClient from '../../config/tmdb';
 import { StreamQuery, StreamResult } from '../providers/provider.interface';
+import { UqloadClient } from '../../modules/uqload/uqload.client';
 
 interface PersistOptions {
   quality?: string;
@@ -104,6 +105,11 @@ async function persistMovieStream(
     existingMovie.disponibleCheckedAt = new Date();
     await existingMovie.save();
     console.log(`[AutoPersist] Film mis à jour en MongoDB: "${existingMovie.titre}" [${result.provider} ${quality}]`);
+
+    // Upload en arrière-plan vers Uqload si aucun uqloadCode n'est présent
+    if (!existingMovie.uqloadCode && existingMovie.lien) {
+      triggerBackgroundUqloadUpload(existingMovie._id.toString(), existingMovie.lien, existingMovie.titre);
+    }
   } else {
     // Créer un nouveau film
     const newMovie = new Movie({
@@ -125,6 +131,11 @@ async function persistMovieStream(
 
     await newMovie.save();
     console.log(`[AutoPersist] Nouveau film créé en MongoDB: "${title}" [${result.provider} ${quality}]`);
+
+    // Upload en arrière-plan vers Uqload
+    if (newMovie.lien) {
+      triggerBackgroundUqloadUpload(newMovie._id.toString(), newMovie.lien, newMovie.titre);
+    }
   }
 }
 
@@ -225,6 +236,41 @@ async function persistEpisodeStream(
   serie.disponibleCheckedAt = new Date();
   await serie.save();
   console.log(`[AutoPersist] Épisode mis à jour en MongoDB: "${title}" ${episodeLabel} [${result.provider} ${quality}]`);
+}
+
+/**
+ * Upload asynchrone vers Uqload en tâche de fond pour pérenniser le contenu
+ */
+async function triggerBackgroundUqloadUpload(movieId: string, videoUrl: string, title: string): Promise<void> {
+  const apiKey = process.env.UQLOAD_API_KEY;
+  if (!apiKey || !videoUrl || !videoUrl.startsWith('http')) return;
+
+  // On ignore si ce n'est pas un lien direct téléchargeable (ex: MP4 ou Vidzy direct)
+  const isDirectDownloadable = /\.(mp4|mkv|webm)|u\d+\.vidzy\.cc/i.test(videoUrl);
+  if (!isDirectDownloadable) return;
+
+  setImmediate(async () => {
+    try {
+      console.log(`[AutoPersist -> Uqload] Démarrage upload Uqload pour "${title}"...`);
+      const client = new UqloadClient(apiKey);
+      const fileCode = await client.uploadByUrlAsync(videoUrl, title);
+      if (fileCode) {
+        await Movie.updateOne(
+          { _id: movieId },
+          {
+            $set: {
+              uqloadCode: fileCode,
+              uqloadLink: `https://uqload.is/embed-${fileCode}.html`,
+              uploadedAt: new Date()
+            }
+          }
+        );
+        console.log(`[AutoPersist -> Uqload] ✅ Film uploadé avec succès sur Uqload: "${title}" (fileCode=${fileCode})`);
+      }
+    } catch (err: any) {
+      console.warn(`[AutoPersist -> Uqload] ⚠️ Échec upload Uqload pour "${title}":`, err.message);
+    }
+  });
 }
 
 function escapeRegex(text: string): string {
