@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { httpJson } from '@/app/api';
-import { IconCheck, IconX } from '@tabler/icons-react';
+import { IconCheck, IconX, IconArrowLeft } from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
 
 export default function SubscribePage() {
@@ -45,6 +45,16 @@ export default function SubscribePage() {
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white py-20 px-4">
       <div className="max-w-6xl mx-auto">
+        {/* Bouton retour */}
+        <button
+          onClick={() => router.back()}
+          aria-label="Retour"
+          className="inline-flex items-center gap-2 px-4 py-2 mb-10 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white text-sm font-medium transition-all hover:scale-[1.02] active:scale-95"
+        >
+          <IconArrowLeft className="w-4 h-4" />
+          Retour
+        </button>
+
         <h1 className="text-4xl md:text-5xl font-bold text-center mb-4">Choisissez votre abonnement</h1>
         <p className="text-gray-400 text-center mb-12 text-lg">Débloquez toutes les fonctionnalités de Chiller.</p>
         

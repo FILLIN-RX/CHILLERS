@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { IconArrowLeft } from "@tabler/icons-react";
 import { useRouter } from "next/navigation";
 import CategoryCard from "@/components/CategoryCard";
 import { getMovieGenres } from "@/services/media";
@@ -30,6 +31,16 @@ export default function CategoriesPage() {
   return (
     <main className="min-h-screen bg-brand-dark pt-[72px] px-6 pb-28">
       <div className="space-y-6 pt-6">
+        {/* Bouton retour */}
+        <button
+          onClick={() => router.back()}
+          aria-label="Retour"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white text-sm font-medium transition-all hover:scale-[1.02] active:scale-95"
+        >
+          <IconArrowLeft className="w-4 h-4" />
+          Retour
+        </button>
+
         <div>
           <h1 className="text-3xl font-extrabold text-foreground">{_("categories.title")}</h1>
           <p className="text-brand-text-muted text-sm mt-1">{_("categories.subtitle")}</p>

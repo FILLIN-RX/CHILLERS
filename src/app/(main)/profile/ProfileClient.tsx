@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useRouter, useSearchParams } from "next/navigation";
-import { IconBookmark, IconHistory, IconSettings, IconUser, IconPlayerPlay, IconCrown, IconDeviceDesktop, IconDownload } from "@tabler/icons-react";
+import { IconBookmark, IconHistory, IconSettings, IconUser, IconPlayerPlay, IconCrown, IconDeviceDesktop, IconDownload, IconArrowLeft } from "@tabler/icons-react";
 import Link from "next/link";
 import { userService } from "@/services/user";
 import { authService } from "@/services/auth";
@@ -94,7 +94,19 @@ export default function ProfileClient() {
 
   return (
     <div className="min-h-screen pt-24 pb-24 px-4 sm:px-8 xl:px-12 max-w-[1600px] w-full mx-auto">
-      
+
+      {/* Bouton retour — mobile uniquement, le header gère la nav sur desktop */}
+      <div className="mb-6 lg:hidden">
+        <button
+          onClick={() => router.back()}
+          aria-label="Retour"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white text-sm font-medium transition-all hover:scale-[1.02] active:scale-95"
+        >
+          <IconArrowLeft className="w-4 h-4" />
+          Retour
+        </button>
+      </div>
+
       <div className="flex flex-col lg:flex-row gap-8 lg:gap-16 w-full">
         {/* Sidebar / User Info & Tabs */}
         <div className="w-full lg:w-80 flex-shrink-0 space-y-6">
