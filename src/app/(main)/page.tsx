@@ -31,6 +31,7 @@ import {
 } from "../api";
 import UpgradeModal from "@/components/UpgradeModal";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 
 const HOME_GENRES = [
   { id: '16', title: 'Animation' },
@@ -618,6 +619,19 @@ function Home() {
     setIsModalOpen(true);
   };
 
+  // Infinite Scroll fluide YouTube-style : charge progressivement plus de rangées
+  const [visibleRowsCount, setVisibleRowsCount] = useState(6);
+  const handleLoadMoreRows = useCallback(() => {
+    setVisibleRowsCount((prev) => Math.min(prev + 4, homeRows.length));
+  }, [homeRows.length]);
+
+  const { sentinelRef } = useInfiniteScroll({
+    onLoadMore: handleLoadMoreRows,
+    hasMore: visibleRowsCount < homeRows.length,
+    isLoading: false,
+    rootMargin: "500px",
+  });
+
   const handleWatchNow = (item: MovieOrShow, season?: number, episode?: number) => {
     setIsModalOpen(false);
     const typeParam =
@@ -817,7 +831,7 @@ function Home() {
                         />
                       )}
 
-                      {homeRows.slice(5, -3).map((row) => (
+                      {homeRows.slice(5, visibleRowsCount).map((row) => (
                         <ScrollRow
                           key={row.title}
                           title={row.title}
@@ -837,25 +851,8 @@ function Home() {
                         </ScrollRow>
                       ))}
 
-                      {homeRows.slice(-3).map((row) => (
-                        <ScrollRow
-                          key={row.title}
-                          title={row.title}
-                          accentColor={row.accent}
-                          autoScroll={row.autoScroll}
-                          autoScrollSpeed={row.autoScrollSpeed}
-                        >
-                          {row.items.map((item) => (
-                            <MovieCard
-                              key={item.id}
-                              item={item}
-                              variant={row.variant}
-                              onPlay={handleWatchNow}
-                              onOpenDetails={handleOpenDetails}
-                            />
-                          ))}
-                        </ScrollRow>
-                      ))}
+                      {/* Sentinelle d'Infinite Scroll invisible (modèle YouTube) */}
+                      <div ref={sentinelRef} className="h-10 w-full pointer-events-none" />
                     </>
                   )}
                 </>

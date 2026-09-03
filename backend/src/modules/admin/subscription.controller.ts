@@ -112,3 +112,90 @@ export const updateUserSubscription = async (req: Request, res: Response) => {
     res.status(500).json({ success: false, message: 'Erreur lors de la modification de l\'abonnement' });
   }
 };
+
+/* ───────── Preuves de Paiement (Orange Money / MTN Mobile Money) ───────── */
+
+export const submitPaymentProof = async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Non authentifié' });
+    }
+
+    const { planCode, planName, amount, paymentMethod, senderPhone, transactionRef, screenshotUrl } = req.body;
+
+    if (!planCode || !amount || !paymentMethod || !screenshotUrl) {
+      return res.status(400).json({ success: false, message: 'Données de paiement incomplètes' });
+    }
+
+    const { PaymentProof } = await import('../../models/PaymentProof');
+    const proof = new PaymentProof({
+      userId: user._id || user.id,
+      userEmail: user.email,
+      planCode,
+      planName: planName || planCode,
+      amount: Number(amount),
+      paymentMethod,
+      senderPhone,
+      transactionRef,
+      screenshotUrl,
+      status: 'pending',
+    });
+
+    await proof.save();
+    res.json({ success: true, proof, message: 'Preuve de paiement reçue ! Activation sous peu après vérification.' });
+  } catch (error: any) {
+    console.error('[PaymentProof] submit error:', error);
+    res.status(500).json({ success: false, message: 'Erreur enregistrement preuve' });
+  }
+};
+
+export const getPaymentProofs = async (req: Request, res: Response) => {
+  try {
+    const { PaymentProof } = await import('../../models/PaymentProof');
+    const proofs = await PaymentProof.find().sort({ createdAt: -1 }).limit(100).lean();
+    res.json({ success: true, proofs });
+  } catch (error: any) {
+    console.error('[PaymentProof] getProofs error:', error);
+    res.status(500).json({ success: false, message: 'Erreur récupération preuves' });
+  }
+};
+
+export const reviewPaymentProof = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { status, adminNotes } = req.body; // 'approved' | 'rejected'
+
+    const { PaymentProof } = await import('../../models/PaymentProof');
+    const proof = await PaymentProof.findById(id);
+    if (!proof) {
+      return res.status(404).json({ success: false, message: 'Preuve introuvable' });
+    }
+
+    proof.status = status;
+    if (adminNotes) proof.adminNotes = adminNotes;
+    proof.reviewedAt = new Date();
+    await proof.save();
+
+    // Si approuvé, activer automatiquement l'abonnement du user !
+    if (status === 'approved') {
+      const planDurationMonths = proof.planCode === 'premium' ? 1 : 1;
+      const expiresAt = new Date();
+      expiresAt.setMonth(expiresAt.getMonth() + planDurationMonths);
+
+      await User.findByIdAndUpdate(proof.userId, {
+        $set: {
+          'subscription.plan': proof.planCode === 'premium' ? 'premium' : 'standard',
+          'subscription.status': 'active',
+          'subscription.expiresAt': expiresAt,
+        }
+      });
+      console.log(`[PaymentProof] ✅ Abonnement activé pour ${proof.userEmail} (Plan: ${proof.planCode})`);
+    }
+
+    res.json({ success: true, proof, message: `Paiement ${status === 'approved' ? 'validé et abonnement activé' : 'rejeté'}` });
+  } catch (error: any) {
+    console.error('[PaymentProof] review error:', error);
+    res.status(500).json({ success: false, message: 'Erreur traitement preuve' });
+  }
+};

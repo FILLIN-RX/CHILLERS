@@ -16,6 +16,8 @@ import {
   message,
   Avatar,
   Badge,
+  Tabs,
+  Image,
 } from 'antd';
 import {
   SearchOutlined,
@@ -25,19 +27,34 @@ import {
   CrownOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
+  FileProtectOutlined,
+  CloseCircleOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { adminGetUsers, adminUpdateUserSubscription, AdminUser } from '@/services/admin';
+import {
+  adminGetUsers,
+  adminUpdateUserSubscription,
+  AdminUser,
+  adminGetPaymentProofs,
+  adminReviewPaymentProof,
+  AdminPaymentProof,
+} from '@/services/admin';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
 
 export default function AdminUsersPage() {
+  const [activeTab, setActiveTab] = useState<'users' | 'proofs'>('users');
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+
+  // Preuves de paiement
+  const [proofs, setProofs] = useState<AdminPaymentProof[]>([]);
+  const [loadingProofs, setLoadingProofs] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
@@ -65,9 +82,42 @@ export default function AdminUsersPage() {
     }
   }, []);
 
+  const fetchProofs = useCallback(async () => {
+    setLoadingProofs(true);
+    try {
+      const res = await adminGetPaymentProofs();
+      if (res?.success) {
+        setProofs(res.proofs || []);
+      }
+    } catch (err: any) {
+      message.error('Erreur chargement des preuves');
+    } finally {
+      setLoadingProofs(false);
+    }
+  }, []);
+
+  const handleReview = async (proofId: string, status: 'approved' | 'rejected') => {
+    setActionLoading(proofId);
+    try {
+      const res = await adminReviewPaymentProof(proofId, status);
+      if (res?.success) {
+        message.success(res.message);
+        fetchProofs();
+        fetchUsers(search, page);
+      } else {
+        message.error('Erreur lors du traitement de la preuve');
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Erreur');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   useEffect(() => {
     fetchUsers(search, page);
-  }, [fetchUsers, page]);
+    fetchProofs();
+  }, [fetchUsers, fetchProofs, page]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -244,35 +294,163 @@ export default function AdminUsersPage() {
         </Button>
       </div>
 
-      <Card style={{ background: '#141414', border: '1px solid #262626', marginBottom: '1.5rem' }}>
-        <form onSubmit={handleSearch} style={{ display: 'flex', gap: '0.75rem' }}>
-          <Input
-            placeholder="Rechercher par email ou nom d'utilisateur..."
-            prefix={<SearchOutlined />}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            allowClear
-            style={{ maxWidth: 400 }}
-          />
-          <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>
-            Rechercher
-          </Button>
-        </form>
-      </Card>
+      <Tabs
+        activeKey={activeTab}
+        onChange={(k) => setActiveTab(k as 'users' | 'proofs')}
+        style={{ marginBottom: '1.5rem' }}
+        items={[
+          {
+            key: 'users',
+            label: (
+              <span>
+                <UserOutlined /> Utilisateurs ({total})
+              </span>
+            ),
+            children: (
+              <>
+                <Card style={{ background: '#141414', border: '1px solid #262626', marginBottom: '1.5rem' }}>
+                  <form onSubmit={handleSearch} style={{ display: 'flex', gap: '0.75rem' }}>
+                    <Input
+                      placeholder="Rechercher par email ou nom d'utilisateur..."
+                      prefix={<SearchOutlined />}
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      allowClear
+                      style={{ maxWidth: 400 }}
+                    />
+                    <Button type="primary" htmlType="submit" icon={<SearchOutlined />}>
+                      Rechercher
+                    </Button>
+                  </form>
+                </Card>
 
-      <Table
-        dataSource={users}
-        columns={columns}
-        rowKey="_id"
-        loading={loading}
-        pagination={{
-          current: page,
-          pageSize: 25,
-          total,
-          onChange: (p) => setPage(p),
-          showTotal: (tot) => `${tot} utilisateurs au total`,
-        }}
-        style={{ background: '#141414', borderRadius: 8, overflow: 'hidden' }}
+                <Table
+                  dataSource={users}
+                  columns={columns}
+                  rowKey="_id"
+                  loading={loading}
+                  pagination={{
+                    current: page,
+                    pageSize: 25,
+                    total,
+                    onChange: (p) => setPage(p),
+                    showTotal: (tot) => `${tot} utilisateurs au total`,
+                  }}
+                  style={{ background: '#141414', borderRadius: 8, overflow: 'hidden' }}
+                />
+              </>
+            ),
+          },
+          {
+            key: 'proofs',
+            label: (
+              <span>
+                <FileProtectOutlined /> Preuves Mobile Money ({proofs.filter(p => p.status === 'pending').length} en attente)
+              </span>
+            ),
+            children: (
+              <Table
+                dataSource={proofs}
+                rowKey="_id"
+                loading={loadingProofs}
+                style={{ background: '#141414', borderRadius: 8, overflow: 'hidden' }}
+                columns={[
+                  {
+                    title: 'Utilisateur',
+                    key: 'user',
+                    render: (_: any, r: AdminPaymentProof) => (
+                      <div>
+                        <div style={{ fontWeight: 600, color: '#fff' }}>{r.userEmail}</div>
+                        {r.senderPhone && <Text type="secondary" style={{ fontSize: 11 }}>Tél: {r.senderPhone}</Text>}
+                        {r.transactionRef && <div style={{ fontSize: 11, color: '#888' }}>Réf: {r.transactionRef}</div>}
+                      </div>
+                    ),
+                  },
+                  {
+                    title: 'Formule & Montant',
+                    key: 'plan',
+                    render: (_: any, r: AdminPaymentProof) => (
+                      <div>
+                        <Tag color={r.planCode === 'premium' ? 'gold' : 'blue'}>{r.planName}</Tag>
+                        <div style={{ fontWeight: 700, color: '#fff', marginTop: 4 }}>{r.amount} FCFA</div>
+                      </div>
+                    ),
+                  },
+                  {
+                    title: 'Moyen de Dépôt',
+                    key: 'method',
+                    render: (_: any, r: AdminPaymentProof) => (
+                      <Tag color={r.paymentMethod === 'orange' ? 'orange' : 'gold'}>
+                        {r.paymentMethod === 'orange' ? 'Orange Money' : 'MTN MoMo'}
+                      </Tag>
+                    ),
+                  },
+                  {
+                    title: 'Capture d\'écran',
+                    key: 'screenshot',
+                    render: (_: any, r: AdminPaymentProof) => (
+                      <Image
+                        src={r.screenshotUrl}
+                        alt="Preuve"
+                        width={64}
+                        height={64}
+                        style={{ objectFit: 'cover', borderRadius: 8, border: '1px solid #333' }}
+                      />
+                    ),
+                  },
+                  {
+                    title: 'Statut',
+                    key: 'status',
+                    render: (_: any, r: AdminPaymentProof) => {
+                      if (r.status === 'approved') return <Tag color="green">VALIDÉ</Tag>;
+                      if (r.status === 'rejected') return <Tag color="red">REJETÉ</Tag>;
+                      return <Tag color="warning">EN ATTENTE</Tag>;
+                    },
+                  },
+                  {
+                    title: 'Date',
+                    key: 'createdAt',
+                    render: (_: any, r: AdminPaymentProof) =>
+                      r.createdAt ? dayjs(r.createdAt).format('DD/MM/YYYY HH:mm') : '—',
+                  },
+                  {
+                    title: 'Validation',
+                    key: 'actions',
+                    render: (_: any, r: AdminPaymentProof) => (
+                      <Space>
+                        {r.status === 'pending' ? (
+                          <>
+                            <Button
+                              type="primary"
+                              size="small"
+                              icon={<CheckCircleOutlined />}
+                              loading={actionLoading === r._id}
+                              onClick={() => handleReview(r._id, 'approved')}
+                              style={{ backgroundColor: '#52c41a' }}
+                            >
+                              Valider
+                            </Button>
+                            <Button
+                              danger
+                              size="small"
+                              icon={<CloseCircleOutlined />}
+                              loading={actionLoading === r._id}
+                              onClick={() => handleReview(r._id, 'rejected')}
+                            >
+                              Rejeter
+                            </Button>
+                          </>
+                        ) : (
+                          <Text type="secondary" style={{ fontSize: 12 }}>Traité</Text>
+                        )}
+                      </Space>
+                    ),
+                  },
+                ]}
+              />
+            ),
+          },
+        ]}
       />
 
       {/* Modal d'édition de l'abonnement */}

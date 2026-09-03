@@ -7,6 +7,8 @@ import { authService } from "@/services/auth";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { getStableDeviceFingerprint } from "@/lib/deviceFingerprint";
 
+import { useRouter } from "next/navigation";
+
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -14,6 +16,7 @@ interface AuthModalProps {
 }
 
 export default function AuthModal({ isOpen, onClose, initialMode = "login" }: AuthModalProps) {
+  const router = useRouter();
   const [mode, setMode] = useState<"login" | "register">(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -27,12 +30,17 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
   const { lang } = useLanguage();
 
   useEffect(() => {
+    if (isOpen && typeof window !== "undefined" && window.innerWidth < 768) {
+      onClose();
+      router.push(initialMode === "register" ? "/register" : "/login");
+      return;
+    }
     setMode(initialMode);
     setError(null);
     setEmail("");
     setPassword("");
     setUsername("");
-  }, [isOpen, initialMode]);
+  }, [isOpen, initialMode, onClose, router]);
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {

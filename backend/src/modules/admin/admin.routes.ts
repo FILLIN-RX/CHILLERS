@@ -68,4 +68,8 @@ router.delete('/subscriptions/:id', adminMiddleware, subController.deletePlan);
 router.get('/users', adminMiddleware, subController.getUsers);
 router.put('/users/:id/subscription', adminMiddleware, subController.updateUserSubscription);
 
+// Payment Proofs Admin Review
+router.get('/payment-proofs', adminMiddleware, subController.getPaymentProofs);
+router.put('/payment-proofs/:id/review', adminMiddleware, subController.reviewPaymentProof);
+
 export default router;

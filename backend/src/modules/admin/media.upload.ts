@@ -32,9 +32,37 @@ const fileFilter = (_req: any, file: Express.Multer.File, cb: multer.FileFilterC
 
 export const mediaUpload = multer({ storage, fileFilter, limits: { fileSize: MAX_FILE_SIZE, files: 200 } });
 
+/* Upload des captures d'écran de paiement */
+const PROOFS_DIR = path.join(__dirname, '../../../uploads/proofs');
+if (!fs.existsSync(PROOFS_DIR)) {
+  fs.mkdirSync(PROOFS_DIR, { recursive: true });
+}
+
+const proofStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, PROOFS_DIR),
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
+    cb(null, `proof-${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`);
+  },
+});
+
+export const proofUpload = multer({
+  storage: proofStorage,
+  limits: { fileSize: 15 * 1024 * 1024 }, // 15 Mo max pour capture
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) return cb(null, true);
+    cb(new Error('Format d\'image non supporté (JPEG/PNG requis)'));
+  }
+});
+
 export function publicFileUrl(filename: string): string {
   const base = process.env.UPLOADS_PUBLIC_BASE_URL || 'http://localhost:4000';
   return `${base.replace(/\/+$/, '')}/uploads/manual/${filename}`;
+}
+
+export function publicProofUrl(filename: string): string {
+  const base = process.env.UPLOADS_PUBLIC_BASE_URL || 'http://localhost:4000';
+  return `${base.replace(/\/+$/, '')}/uploads/proofs/${filename}`;
 }
 
 export function getUploadedFilePath(filename: string): string {

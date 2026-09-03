@@ -490,3 +490,38 @@ export async function adminUpdateUserSubscription(
     }
   );
 }
+
+export interface AdminPaymentProof {
+  _id: string;
+  userId: string;
+  userEmail: string;
+  planCode: string;
+  planName: string;
+  amount: number;
+  paymentMethod: "orange" | "mtn";
+  senderPhone?: string;
+  transactionRef?: string;
+  screenshotUrl: string;
+  status: "pending" | "approved" | "rejected";
+  adminNotes?: string;
+  reviewedAt?: string;
+  createdAt: string;
+}
+
+export async function adminGetPaymentProofs() {
+  return adminRequest<{ success: boolean; proofs: AdminPaymentProof[] }>("/payment-proofs");
+}
+
+export async function adminReviewPaymentProof(
+  proofId: string,
+  status: "approved" | "rejected",
+  adminNotes?: string
+) {
+  return adminRequest<{ success: boolean; proof: AdminPaymentProof; message: string }>(
+    `/payment-proofs/${proofId}/review`,
+    {
+      method: "PUT",
+      body: { status, adminNotes },
+    }
+  );
+}
