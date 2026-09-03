@@ -7,6 +7,7 @@ import AdminShortcut from "@/components/AdminShortcut";
 import PWARegister from "@/components/pwa/PWARegister";
 import SplashScreen from "@/components/pwa/SplashScreen";
 import PWAInstallBanner from "@/components/pwa/PWAInstallBanner";
+import AdSense from "@/components/AdSense";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -95,9 +96,8 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
     title: "CHILLERS",
   },
-  other: {
-    "mobile-web-app-capable": "yes",
-    "apple-mobile-web-app-capable": "yes",
+  verification: {
+    google: "google64be53e2bb2faf7b",
   },
   manifest: "/site.webmanifest",
 };
@@ -198,13 +198,9 @@ export default async function RootLayout({
           <SplashScreen />
           <PWAInstallBanner />
           <AdminShortcut />
+          <AdSense />
           {children}
         </LanguageProvider>
-        <script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8325042872748312"
-          crossOrigin="anonymous"
-        />
       </body>
     </html>
   );
