@@ -487,7 +487,7 @@ function WatchContent() {
       >
         {/* Main Video Player Section */}
         <div ref={playerRef} className="w-full">
-          <div className="w-full aspect-video max-h-[85vh] bg-black relative mx-auto">
+          <div className="w-full min-h-[250px] xs:min-h-[270px] sm:min-h-[340px] aspect-video max-h-[85vh] bg-black relative mx-auto">
             {streamUnavailable ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-6 bg-zinc-950/90">
                 <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-zinc-800/80 flex items-center justify-center border border-zinc-700/50">

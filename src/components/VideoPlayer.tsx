@@ -681,7 +681,7 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
       className={`${
         isFullscreen
           ? "fixed inset-0 z-[99999] w-screen h-[100dvh] max-h-none rounded-none aspect-auto bg-black"
-          : `relative w-full aspect-video ${isTheater ? "max-h-[88vh]" : "max-h-[76vh]"} bg-black rounded-lg`
+          : `relative w-full min-h-[250px] xs:min-h-[270px] sm:min-h-[340px] aspect-video ${isTheater ? "max-h-[88vh]" : "max-h-[76vh]"} bg-black rounded-none sm:rounded-lg`
       } overflow-hidden select-none transition-all duration-300 ${
         isPro ? "shadow-[0_0_50px_rgba(245,158,11,0.18)] ring-1 ring-amber-500/30" : "shadow-[0_20px_70px_rgba(0,0,0,0.95)]"
       } group/container ${

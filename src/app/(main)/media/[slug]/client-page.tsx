@@ -39,6 +39,7 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { userService } from '@/services/user';
 
 import CatalogSpotlightHero from "@/components/CatalogSpotlightHero";
+import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 
 const MovieModal = dynamic(() => import("@/components/MovieModal"), { ssr: false });
 
@@ -808,12 +809,28 @@ function MediaListingPage() {
   const [categoryRows, setCategoryRows] = useState<Array<{ id: string; title: string; genreId?: string; variant: 'scroll' | 'poster'; items: MovieOrShow[] }>>([]);
   const [isLoadingCatalog, setIsLoadingCatalog] = useState(true);
 
-  // Single Genre Paginated Grid state
+  // Single Genre Infinite Scroll Grid state (YouTube-style)
   const [gridItems, setGridItems] = useState<MovieOrShow[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [isLoadingGrid, setIsLoadingGrid] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [headerHidden, setHeaderHidden] = useState(false);
+
+  const hasMore = page < totalPages;
+
+  const loadMore = useCallback(() => {
+    if (!isLoadingGrid && !isLoadingMore && hasMore) {
+      setPage((prev) => prev + 1);
+    }
+  }, [isLoadingGrid, isLoadingMore, hasMore]);
+
+  const { sentinelRef } = useInfiniteScroll({
+    onLoadMore: loadMore,
+    hasMore,
+    isLoading: isLoadingGrid || isLoadingMore,
+    rootMargin: "500px",
+  });
 
   // Modal detail
   const [selectedMovie, setSelectedMovie] = useState<MovieOrShow | null>(null);
@@ -947,13 +964,18 @@ function MediaListingPage() {
     return () => { cancelled = true; };
   }, [type, activeGenreId]);
 
-  // ── 2. Fetch Single Genre Paginated Grid (when activeGenreId is set) ──
+  // ── 2. Fetch Single Genre Infinite Scroll Grid (when activeGenreId is set) ──
   useEffect(() => {
     if (!activeGenreId) return;
 
     let cancelled = false;
     async function fetchGridPage() {
-      setIsLoadingGrid(true);
+      if (page === 1) {
+        setIsLoadingGrid(true);
+      } else {
+        setIsLoadingMore(true);
+      }
+
       try {
         let result: { results: MovieOrShow[]; totalPages: number } = { results: [], totalPages: 1 };
         if (type === "movies") {
@@ -963,14 +985,24 @@ function MediaListingPage() {
         }
 
         if (!cancelled) {
-          setGridItems(result.results);
           setTotalPages(result.totalPages);
-          window.scrollTo({ top: 0, behavior: "smooth" });
+          if (page === 1) {
+            setGridItems(result.results);
+          } else {
+            setGridItems((prev) => {
+              const existingIds = new Set(prev.map((i) => i.id));
+              const newUnique = result.results.filter((i) => !existingIds.has(i.id));
+              return [...prev, ...newUnique];
+            });
+          }
         }
       } catch (err) {
         console.error("Failed to load genre grid", err);
       } finally {
-        if (!cancelled) setIsLoadingGrid(false);
+        if (!cancelled) {
+          setIsLoadingGrid(false);
+          setIsLoadingMore(false);
+        }
       }
     }
 
@@ -1123,80 +1155,38 @@ function MediaListingPage() {
             )}
           </div>
 
-          {/* Grid */}
-          <div className="hidden sm:grid grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
-            {isLoadingGrid
-              ? Array.from({ length: 20 }).map((_, i) => (
-                  <div key={i} className="aspect-video rounded-md bg-zinc-900 skeleton-loading" />
-                ))
-              : gridItems.map((item) => (
-                  <MovieCard
-                    key={item.id}
-                    item={item}
-                    variant="grid"
-                    onPlay={handlePlay}
-                    onOpenDetails={handleOpenDetails}
-                  />
-                ))}
+          {/* Infinite Responsive Grid (YouTube Style) */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
+            {gridItems.map((item) => (
+              <MovieCard
+                key={item.id}
+                item={item}
+                variant="grid"
+                onPlay={handlePlay}
+                onOpenDetails={handleOpenDetails}
+              />
+            ))}
+            {(isLoadingGrid || isLoadingMore) &&
+              Array.from({ length: isLoadingGrid ? 15 : 5 }).map((_, i) => (
+                <div
+                  key={`skeleton-${i}`}
+                  className="aspect-video rounded-xl bg-zinc-900/80 border border-white/5 skeleton-loading"
+                />
+              ))}
           </div>
 
-          {/* Mobile Horizontal Scroll */}
-          <div className="sm:hidden">
-            <ScrollRow title="" accentColor="primary" className="space-y-0">
-              {isLoadingGrid
-                ? Array.from({ length: 20 }).map((_, i) => (
-                    <div key={i} className="aspect-video rounded-md bg-zinc-900 skeleton-loading w-[40vw] flex-shrink-0" />
-                  ))
-                : gridItems.map((item) => (
-                    <MovieCard
-                      key={item.id}
-                      item={item}
-                      variant="grid"
-                      onPlay={handlePlay}
-                      onOpenDetails={handleOpenDetails}
-                    />
-                  ))}
-            </ScrollRow>
-          </div>
-
-          {/* Pagination */}
-          {!isLoadingGrid && totalPages > 1 && (
-            <div className="flex items-center justify-center gap-1.5 pt-6 flex-wrap">
-              <button
-                onClick={() => goToPage(page - 1)}
-                disabled={page === 1}
-                className="flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-semibold border transition-all focus:outline-none disabled:opacity-30 disabled:cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white cursor-pointer"
-              >
-                <IconChevronLeft className="h-4 w-4" />
-                <span className="hidden sm:inline">{_("common.previous")}</span>
-              </button>
-
-              {buildPages().map((p, idx) =>
-                p === "..." ? (
-                  <span key={`dots-${idx}`} className="px-2 py-2 text-zinc-600 text-sm select-none">…</span>
-                ) : (
-                  <button
-                    key={p}
-                    onClick={() => goToPage(p as number)}
-                    className={`min-w-[36px] px-3 py-2 rounded-xl text-sm font-bold border transition-all focus:outline-none cursor-pointer ${
-                      p === page
-                        ? "bg-brand-primary border-brand-primary text-white shadow-lg shadow-brand-primary/30"
-                        : "border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white"
-                    }`}
-                  >
-                    {p}
-                  </button>
-                )
+          {/* YouTube-style sentinel observer */}
+          {hasMore && (
+            <div
+              ref={sentinelRef}
+              className="w-full py-8 flex flex-col items-center justify-center gap-2"
+            >
+              {isLoadingMore && (
+                <div className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-zinc-900/80 border border-white/10 text-xs font-semibold text-zinc-400">
+                  <div className="w-4 h-4 rounded-full border-2 border-brand-primary border-t-transparent animate-spin" />
+                  <span>Chargement des vidéos suivantes…</span>
+                </div>
               )}
-
-              <button
-                onClick={() => goToPage(page + 1)}
-                disabled={page === totalPages}
-                className="flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-semibold border transition-all focus:outline-none disabled:opacity-30 disabled:cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white cursor-pointer"
-              >
-                <span className="hidden sm:inline">{_("common.next")}</span>
-                <IconChevronRight className="h-4 w-4" />
-              </button>
             </div>
           )}
         </div>
