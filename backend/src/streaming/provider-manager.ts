@@ -214,7 +214,7 @@ export class ProviderManager {
         };
       } else {
         this.recordFailure(provider.name);
-        this.triggerReScrape(query.title || String(query.tmdbId), type, query.episode);
+        this.triggerReScrape(query.title || String(query.tmdbId), type, query.episode, query.season);
         return {
           provider: provider.name,
           status: 'fail',
@@ -259,12 +259,12 @@ export class ProviderManager {
    * - Utilise spawn() au lieu de exec() → pas d'injection shell possible
    * - Debounce via pendingScrapes → évite les appels en boucle
    */
-  private triggerReScrape(title: string, type: 'movie' | 'episode', episode?: number): void {
+  private triggerReScrape(title: string, type: 'movie' | 'episode', episode?: number, season?: number): void {
     const typeArg = type === 'movie' ? 'movie' : 'series';
-    const debounceKey = `${typeArg}:${title}`;
+    const debounceKey = `${typeArg}:${title}:S${season || 1}E${episode || 1}`;
 
     if (this.pendingScrapes.has(debounceKey)) {
-      console.log(`[Self-Healing] Re-scrape déjà en cours pour "${title}", ignoré`);
+      console.log(`[Self-Healing] Re-scrape déjà en cours pour "${title}" (S${season || 1}E${episode || 1}), ignoré`);
       return;
     }
 
@@ -277,12 +277,12 @@ export class ProviderManager {
     // spawn() — arguments passés séparément, JAMAIS interpolés dans un shell
     const child = spawn(
       'npx',
-      ['tsx', scriptPath, title, typeArg, String(episode ?? '')],
+      ['tsx', scriptPath, title, typeArg, String(episode ?? ''), String(season ?? '')],
       { detached: true, stdio: 'ignore', env: process.env }
     );
     child.unref();
 
-    console.log(`[Self-Healing] Re-scrape lancé pour "${title}" (${typeArg}) pid=${child.pid}`);
+    console.log(`[Self-Healing] Re-scrape lancé pour "${title}" (${typeArg} S${season || 1}E${episode || 1}) pid=${child.pid}`);
   }
 
   private isIframeEmbedUrl(url: string): boolean {

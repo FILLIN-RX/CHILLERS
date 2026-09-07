@@ -62,14 +62,34 @@ export interface OtakuResult {
   source: 'otaku';
 }
 
-export async function searchOtaku(title: string, type: 'movie' | 'series' = 'movie'): Promise<OtakuResult | null> {
+export async function searchOtaku(
+  title: string,
+  type: 'movie' | 'series' = 'movie',
+  season?: number,
+  episode?: number
+): Promise<OtakuResult | null> {
   try {
-    console.log(`[Otaku Direct API] Searching "${title}" (type: ${type})`);
+    const targetSeason = season && season > 0 ? season : 1;
+    const targetEpisode = episode && episode > 0 ? episode : 1;
+    const labelSeasonEp = type === 'series' ? ` S${targetSeason}E${targetEpisode}` : '';
+    console.log(`[Otaku Direct API] Searching "${title}"${labelSeasonEp} (type: ${type})`);
     
     // 1. Recherche directe via l'API interne d'OpenOtaku
-    const data = await fetchWithRetry(`${BASE_URL}/api/fs-search`, { q: title });
+    // Si série avec saison > 1 et titre ne contenant pas "saison", tenter d'abord avec le libellé saison
+    let queryTitle = title;
+    if (type === 'series' && targetSeason > 1 && !/saison\s*\d+/i.test(title)) {
+      queryTitle = `${title} Saison ${targetSeason}`;
+    }
 
-    const results: Array<{ id: string; title: string; poster?: string }> = data?.results || [];
+    let data = await fetchWithRetry(`${BASE_URL}/api/fs-search`, { q: queryTitle });
+    let results: Array<{ id: string; title: string; poster?: string }> = data?.results || [];
+
+    // Fallback recherche avec titre brut si aucun résultat avec le suffixe saison
+    if (results.length === 0 && queryTitle !== title) {
+      data = await fetchWithRetry(`${BASE_URL}/api/fs-search`, { q: title });
+      results = data?.results || [];
+    }
+
     if (results.length === 0) {
       console.log(`[Otaku] Aucun résultat trouvé pour "${title}"`);
       return null;
@@ -78,16 +98,20 @@ export async function searchOtaku(title: string, type: 'movie' | 'series' = 'mov
     // 2. Trouver la meilleure correspondance de titre
     let bestItem = results[0];
     let bestScore = 0;
-    const searchNorm = normalize(title);
+    const searchNorm = normalize(queryTitle);
+    const rawSearchNorm = normalize(title);
 
     for (const item of results) {
       const itemNorm = normalize(item.title || '');
-      if (itemNorm === searchNorm || itemNorm.includes(searchNorm) || searchNorm.includes(itemNorm)) {
+      if (itemNorm === searchNorm || itemNorm === rawSearchNorm) {
         bestItem = item;
         bestScore = 1;
         break;
       }
-      if (itemNorm.slice(0, 10) === searchNorm.slice(0, 10)) {
+      if (itemNorm.includes(searchNorm) || searchNorm.includes(itemNorm) || itemNorm.includes(rawSearchNorm)) {
+        bestItem = item;
+        bestScore = 0.8;
+      } else if (itemNorm.slice(0, 10) === searchNorm.slice(0, 10) && bestScore < 0.5) {
         bestItem = item;
         bestScore = 0.5;
       }
@@ -107,15 +131,28 @@ export async function searchOtaku(title: string, type: 'movie' | 'series' = 'mov
       const vfMap = rawEps.vf || {};
       const vostfrMap = rawEps.vostfr || {};
       const version = Object.keys(vfMap).length > 0 ? vfMap : vostfrMap;
-      const firstEpKey = Object.keys(version)[0] || '1';
-      const players = version[firstEpKey] || {};
+      
+      // Chercher la clé de l'épisode correspondant (ex: "5", ou "05", ou premier disponible)
+      const epKey = String(targetEpisode);
+      const epPadded = String(targetEpisode).padStart(2, '0');
+      const matchedKey = Object.keys(version).find(k => k === epKey || k === epPadded || k.replace(/\D/g, '') === epKey) || Object.keys(version)[0];
+
+      if (!matchedKey) {
+        console.log(`[Otaku] Aucun épisode trouvé dans la liste pour "${title}" S${targetSeason}E${targetEpisode}`);
+        return null;
+      }
+
+      const players = version[matchedKey] || {};
       const embedUrl = players.vidzy || players.luluvid || (Object.values(players)[0] as string) || '';
       
       if (embedUrl) {
         const link = await getDirectLink(embedUrl);
         if (link) {
+          console.log(`[Otaku] Épisode S${targetSeason}E${targetEpisode} résolu (${matchedKey}): ${link.slice(0, 60)}...`);
           return { titre: detailTitle, lien: link, source: 'otaku' };
         }
+        // Si le lien direct n'a pas pu être extrait, renvoyer l'embedUrl
+        return { titre: detailTitle, lien: embedUrl, source: 'otaku' };
       }
     } else {
       const players = watch?.players || {};
@@ -133,6 +170,7 @@ export async function searchOtaku(title: string, type: 'movie' | 'series' = 'mov
         if (link) {
           return { titre: detailTitle, lien: link, source: 'otaku' };
         }
+        return { titre: detailTitle, lien: embedUrl, source: 'otaku' };
       }
     }
 

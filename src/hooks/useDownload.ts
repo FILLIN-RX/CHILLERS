@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { resolveDownloadUrl } from "@/services/downloads";
 import { streamDownloadToDisk } from "@/services/streamSaver";
 import { streamVideoToIndexedDB } from "@/services/offlineStorage";
@@ -50,6 +51,7 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
   const { tmdbId, type, title, season, episodeNumber, posterUrl, backdropUrl } = args;
   const id = downloadTaskId({ tmdbId, season, episodeNumber });
 
+  const queryClient = useQueryClient();
   const addMany = useDownloadsStore((s) => s.addMany);
   const updateTask = useDownloadsStore((s) => s.update);
   const setStatus = useDownloadsStore((s) => s.setStatus);
@@ -64,6 +66,31 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
   const task = useDownloadsStore((s) => s.tasks.find((t) => t.id === id));
 
   const [isRunning, setIsRunning] = useState(false);
+
+  // Helper pour trouver une URL de téléchargement déjà en cache TanStack Query
+  const getCachedDownloadUrl = useCallback((): string | null => {
+    const cachedByStr = queryClient.getQueryData<{ downloadUrl?: string | null }>([
+      "streamUrl",
+      String(tmdbId),
+      type,
+      season ?? "_",
+      episodeNumber ?? "_",
+    ]);
+    if (cachedByStr?.downloadUrl) return cachedByStr.downloadUrl;
+
+    const numId = Number(tmdbId);
+    if (!isNaN(numId)) {
+      const cachedByNum = queryClient.getQueryData<{ downloadUrl?: string | null }>([
+        "streamUrl",
+        numId as any,
+        type,
+        season ?? "_",
+        episodeNumber ?? "_",
+      ]);
+      if (cachedByNum?.downloadUrl) return cachedByNum.downloadUrl;
+    }
+    return null;
+  }, [queryClient, tmdbId, type, season, episodeNumber]);
 
   // Latest task ref so callbacks always read the freshest row without
   // re-creating on every store update (which would restart the download).
@@ -116,6 +143,18 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
     clearCancelRequest(id);
     setIsRunning(true);
 
+    // 1. Vérification préalable du cache de stream (Option C : 0ms latence)
+    const cachedUrl = getCachedDownloadUrl();
+    if (cachedUrl) {
+      updateTask(id, {
+        resolvedUrl: cachedUrl,
+        resolvedUrlAt: Date.now(),
+      });
+      setStatus(id, "ready");
+      setIsRunning(false);
+      return;
+    }
+
     const ctrl = new AbortController();
     setController(id, ctrl);
 
@@ -155,7 +194,7 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
     } finally {
       setIsRunning(false);
     }
-  }, [id, isRunning, isCancelRequested, setStatus, tmdbId, type, title, season, episodeNumber, updateTask, setController, clearCancelRequest]);
+  }, [id, isRunning, isCancelRequested, setStatus, tmdbId, type, title, season, episodeNumber, updateTask, setController, clearCancelRequest, ensureTaskExists, getCachedDownloadUrl]);
 
   const streamCurrent = useCallback(async (url: string) => {
     setIsRunning(true);
@@ -240,12 +279,25 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
       await streamCurrent(current.resolvedUrl);
       return;
     }
+
+    // Si l'URL de téléchargement est déjà en cache (stream déjà ouvert), démarrer immédiatement !
+    const cachedUrl = getCachedDownloadUrl();
+    if (cachedUrl) {
+      ensureTaskExists();
+      updateTask(id, {
+        resolvedUrl: cachedUrl,
+        resolvedUrlAt: Date.now(),
+      });
+      await streamCurrent(cachedUrl);
+      return;
+    }
+
     await resolve();
     const afterResolve = taskRef.current;
     if (afterResolve?.status === "ready" && afterResolve.resolvedUrl) {
       await streamCurrent(afterResolve.resolvedUrl);
     }
-  }, [isRunning, resolve, streamCurrent]);
+  }, [isRunning, resolve, streamCurrent, getCachedDownloadUrl, ensureTaskExists, updateTask, id]);
 
   const retry = useCallback(() => {
     if (isRunning) return;

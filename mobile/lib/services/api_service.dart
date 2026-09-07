@@ -64,4 +64,46 @@ class ApiService {
       return [];
     }
   }
+
+  Future<String?> getMovieStreamUrl(String id, String title) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$_base/api/stream/movie/$id?type=movie&title=${Uri.encodeComponent(title)}'),
+        headers: {'Accept': 'application/json'},
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        String? url = data['data']?['embedUrl'];
+        if (url != null && url.isNotEmpty) {
+          if (url.startsWith('/')) {
+            url = '$_base$url';
+          }
+          return url;
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<String?> getEpisodeStreamUrl(String id, int season, int episode, String title) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$_base/api/stream/tv/$id/$season/$episode?type=series&title=${Uri.encodeComponent(title)}'),
+        headers: {'Accept': 'application/json'},
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        String? url = data['data']?['embedUrl'];
+        if (url != null && url.isNotEmpty) {
+          if (url.startsWith('/')) {
+            url = '$_base$url';
+          }
+          return url;
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
 }

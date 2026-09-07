@@ -30,7 +30,7 @@ export class OtakuProvider implements StreamingProvider {
     if (!query.title) return null;
 
     console.log(`[Otaku] Searching series: "${query.title}" S${query.season}E${query.episode}`);
-    const result = await searchOtaku(query.title, 'series');
+    const result = await searchOtaku(query.title, 'series', query.season, query.episode);
 
     if (result?.lien) {
       console.log(`[Otaku] Found series link: ${result.lien.slice(0, 80)}...`);

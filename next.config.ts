@@ -20,6 +20,10 @@ const nextConfig: NextConfig = {
 
     return [
       {
+        source: '/api/auth/:path*',
+        destination: '/api/auth/:path*', // géré par Next-Auth, ne pas rediriger vers le backend
+      },
+      {
         source: '/api/:path*',
         destination: `${backendUrl}/api/:path*`,
       },

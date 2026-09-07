@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { signIn } from "next-auth/react";
 import { IconX, IconUser, IconMail, IconLock, IconLoader2 } from "@tabler/icons-react";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { authService } from "@/services/auth";
@@ -15,15 +16,17 @@ interface AuthModalProps {
   initialMode?: "login" | "register";
 }
 
+const GOOGLE_AUTH_ENABLED = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED === "true";
+
 export default function AuthModal({ isOpen, onClose, initialMode = "login" }: AuthModalProps) {
   const router = useRouter();
   const [mode, setMode] = useState<"login" | "register">(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
-  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deviceLimitReached, setDeviceLimitReached] = useState(false);
 
   const modalRef = useRef<HTMLDivElement>(null);
   const setAuth = useAuthStore((state) => state.setAuth);
@@ -57,8 +60,6 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
-
-  const [deviceLimitReached, setDeviceLimitReached] = useState(false);
 
   const handleSubmit = async (e?: React.FormEvent, forceDisconnect = false) => {
     if (e) e.preventDefault();
@@ -150,6 +151,43 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
             </div>
           )}
 
+          {GOOGLE_AUTH_ENABLED && (
+            <div className="mb-6">
+              <button
+                type="button"
+                disabled={loading}
+                onClick={async () => {
+                  setLoading(true);
+                  setError(null);
+                  try {
+                    await signIn("google", { callbackUrl: window.location.href });
+                  } catch (err: any) {
+                    setError(err?.message || "Erreur de connexion avec Google");
+                    setLoading(false);
+                  }
+                }}
+                className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-xl text-white font-medium text-sm transition-all active:scale-[0.98] cursor-pointer"
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24">
+                  <path fill="#EA4335" d="M12 5c1.56 0 2.98.54 4.09 1.58l3.07-3.07C17.29 1.7 14.83 1 12 1 7.42 1 3.53 3.61 1.63 7.39l3.73 2.89C6.27 7.23 8.89 5 12 5z" />
+                  <path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58l3.72 2.88c2.18-2.01 3.7-4.97 3.7-8.7z" />
+                  <path fill="#FBBC05" d="M5.36 14.72c-.24-.72-.36-1.48-.36-2.72s.12-2 .36-2.72L1.63 6.39C.59 8.47 0 10.66 0 12s.59 3.53 1.63 5.61l3.73-2.89z" />
+                  <path fill="#34A853" d="M12 23c3.24 0 5.95-1.08 7.93-2.91l-3.72-2.88c-1.07.72-2.45 1.16-4.21 1.16-3.11 0-5.73-2.23-6.64-5.28L1.63 15.98C3.53 19.76 7.42 23 12 23z" />
+                </svg>
+                <span>{lang === "fr" ? "Continuer avec Google" : "Continue with Google"}</span>
+              </button>
+
+              <div className="relative my-6 flex items-center justify-center">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-white/10" />
+                </div>
+                <span className="relative bg-zinc-900 px-4 text-xs uppercase tracking-wider text-zinc-500">
+                  {lang === "fr" ? "ou avec email" : "or with email"}
+                </span>
+              </div>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === "register" && (
               <div className="relative">
@@ -191,7 +229,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
             <button
               type="submit"
               disabled={loading}
-              className="relative w-full flex items-center justify-center py-3 rounded-xl bg-gradient-to-r from-[#D70466] to-[#7C3AED] text-white font-bold tracking-wide hover:shadow-[0_0_20px_rgba(215,4,102,0.4)] transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
+              className="relative w-full flex items-center justify-center py-3 rounded-xl bg-gradient-to-r from-[#D70466] to-[#7C3AED] text-white font-bold tracking-wide hover:shadow-[0_0_20px_rgba(215,4,102,0.4)] transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
             >
               {loading ? (
                 <IconLoader2 className="w-5 h-5 animate-spin" />

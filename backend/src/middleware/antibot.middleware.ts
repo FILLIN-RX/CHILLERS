@@ -29,6 +29,8 @@ export const antiBotMiddleware = (req: Request, res: Response, next: NextFunctio
   // et de fichiers multimédias initiées par le navigateur / PWA
   // (ex: balises <video>, <track>, <audio>, <a> download, window.open, streaming HLS)
   // ne peuvent pas envoyer d'en-têtes HTTP personnalisés.
+  // Les routes /auth/* sont gérées par Next-Auth (session, csrf, callback) et
+  // ne peuvent pas inclure de jeton client custom.
   const path = req.path || req.originalUrl || '';
   if (
     path.includes('/download') ||
@@ -42,7 +44,8 @@ export const antiBotMiddleware = (req: Request, res: Response, next: NextFunctio
     path.includes('/uploads') ||
     path.includes('/affiches') ||
     path.includes('/clear-cache') ||
-    path.includes('/og')
+    path.includes('/og') ||
+    path.includes('/auth/')
   ) {
     return next();
   }

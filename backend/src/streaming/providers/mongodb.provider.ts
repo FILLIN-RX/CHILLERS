@@ -165,8 +165,8 @@ export class MongoDBProvider implements StreamingProvider {
     try {
       let serie = query.tmdbId ? await this.findSerie(query) : null;
       if (!serie && query.title) {
-        const escaped = query.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const byTitle = await Serie.find({ titre: { $regex: new RegExp(escaped, 'i') } }).exec();
+        const escaped = query.title.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const byTitle = await Serie.find({ titre: { $regex: new RegExp(`^${escaped}$`, 'i') } }).exec();
         if (byTitle.length) {
           const bySeason = byTitle.find(s => s.episodes?.some(
             (e: any) => Number(e.season) === Number(query.season)

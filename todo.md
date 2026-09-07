@@ -1,1 +1,17 @@
-1.il me faut regardez la recherche dan mon app genre les vrai filme doivent aparaitre dabord on ne cherche plus en bd dabord et pas de fallback un splash(Regardez la ligne 484 de api.ts)
+### Tache avec prioriter elever
+1. [x] Regarde comme le lien sont trater pour le filme genre comment le forntend envoi la requette et comment le backend linterprete et comment ou avec quelle parametre il fait le scrapping on doit corriger xa (Corrigé : Otaku multi-épisodes, FrenchStream séries 1080p, Self-healing, Mobile Flutter)
+2. [x] On doit fait que le streaming renvoi aussi le lien de telechargement comme xa on evite deux requtte pour le telchargement quant le streaming est deja lancer (Option C implémentée : Streaming Controller + Cache TanStack Query + useDownload instantané 0ms)
+
+3. 
+
+
+
+
+
+### Tache avec prioriter moyenne et faible
+
+1. [x] Oui on doit utilise un librairie d'authentification de next pour gerer l'authentification (NextAuth.js / Auth.js v5 installé et configuré : Credentials, Google OAuth, SessionSyncProvider)
+2. corrige le probleme frontend elle doit meme se charger avec une connexion 2g
+3. Resoudre le probleme du hover sur mobile(Genre sur mobile xa doit etre click direct et pas hover meme pour le action comme les click etc xa doit reagir directement)
+4. Resoudre la mise en cache de mon app pwa optimiser lapp pour que xa donne meme sans connection (genre le css doit aussi charger,il doit aussi reagir genre detecter si il ya la connection ou pas et ensuite rediriger vers ou il faut comme le fait youtube)
+5. 

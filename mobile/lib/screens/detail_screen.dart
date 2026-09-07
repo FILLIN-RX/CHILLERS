@@ -86,36 +86,55 @@ class DetailScreen extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  if (item.streamUrl != null && item.streamUrl!.isNotEmpty)
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primary,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        onPressed: () {
+                      ),
+                      onPressed: () async {
+                        showDialog(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (_) => const Center(
+                            child: CircularProgressIndicator(color: AppTheme.primary),
+                          ),
+                        );
+
+                        String? videoUrl = await ApiService().getMovieStreamUrl(item.id, item.title);
+                        if (context.mounted) Navigator.pop(context); // fermer loader
+
+                        videoUrl ??= item.streamUrl;
+
+                        if (videoUrl != null && videoUrl.isNotEmpty && context.mounted) {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (_) => PlayerScreen(
                                 title: item.title,
-                                videoUrl: item.streamUrl!,
+                                videoUrl: videoUrl!,
                               ),
                             ),
                           );
-                        },
-                        icon: const Icon(Icons.play_arrow_rounded, size: 28),
-                        label: const Text(
-                          'REGARDER',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                        ),
+                        } else if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Aucun flux disponible pour le moment')),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.play_arrow_rounded, size: 28),
+                      label: const Text(
+                        'REGARDER',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                     ),
+                  ),
                   const SizedBox(height: 20),
                   const Text(
                     'Synopsis',
@@ -146,16 +165,38 @@ class DetailScreen extends StatelessWidget {
                           child: ListTile(
                             leading: const Icon(Icons.play_circle_fill, color: AppTheme.primary),
                             title: Text(ep.episode, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                            onTap: () {
-                              if (ep.streamUrl.isNotEmpty) {
+                            onTap: () async {
+                              showDialog(
+                                context: context,
+                                barrierDismissible: false,
+                                builder: (_) => const Center(
+                                  child: CircularProgressIndicator(color: AppTheme.primary),
+                                ),
+                              );
+
+                              String? videoUrl = await ApiService().getEpisodeStreamUrl(
+                                item.id,
+                                ep.season,
+                                ep.episodeNumber,
+                                item.title,
+                              );
+                              if (context.mounted) Navigator.pop(context); // fermer loader
+
+                              videoUrl ??= ep.streamUrl.isNotEmpty ? ep.streamUrl : null;
+
+                              if (videoUrl != null && videoUrl.isNotEmpty && context.mounted) {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                     builder: (_) => PlayerScreen(
                                       title: '${item.title} - ${ep.episode}',
-                                      videoUrl: ep.streamUrl,
+                                      videoUrl: videoUrl!,
                                     ),
                                   ),
+                                );
+                              } else if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Aucun flux disponible pour cet épisode')),
                                 );
                               }
                             },

@@ -8,6 +8,8 @@ import PWARegister from "@/components/pwa/PWARegister";
 import SplashScreen from "@/components/pwa/SplashScreen";
 import PWAInstallBanner from "@/components/pwa/PWAInstallBanner";
 import AdSense from "@/components/AdSense";
+import SessionSyncProvider from "@/components/providers/SessionSyncProvider";
+import { auth } from "@/auth";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -131,6 +133,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const initialLang = await resolveInitialLang();
+  const session = await auth().catch(() => null);
   return (
     <html
       lang={initialLang}
@@ -193,14 +196,16 @@ export default async function RootLayout({
             __html: `<div id="__chillers_splash" aria-hidden="true"><img src="/android-chrome-192x192.png" alt="" /><h1>CHILLERS</h1><div class="bar-track"><div class="bar-fill"></div></div><script>setTimeout(function(){var s=document.getElementById("__chillers_splash");if(s){s.style.transition="opacity 0.6s ease";s.style.opacity="0";setTimeout(function(){if(s&&s.parentNode)s.parentNode.removeChild(s);},600);}},3500);</script></div>`,
           }}
         />
-        <LanguageProvider initialLang={initialLang}>
-          <PWARegister />
-          <SplashScreen />
-          <PWAInstallBanner />
-          <AdminShortcut />
-          <AdSense />
-          {children}
-        </LanguageProvider>
+        <SessionSyncProvider session={session}>
+          <LanguageProvider initialLang={initialLang}>
+            <PWARegister />
+            <SplashScreen />
+            <PWAInstallBanner />
+            <AdminShortcut />
+            <AdSense />
+            {children}
+          </LanguageProvider>
+        </SessionSyncProvider>
       </body>
     </html>
   );
