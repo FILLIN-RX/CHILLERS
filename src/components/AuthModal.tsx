@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { signIn } from "next-auth/react";
 import { IconX, IconUser, IconMail, IconLock, IconLoader2 } from "@tabler/icons-react";
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -27,10 +28,15 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deviceLimitReached, setDeviceLimitReached] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   const modalRef = useRef<HTMLDivElement>(null);
   const setAuth = useAuthStore((state) => state.setAuth);
   const { lang } = useLanguage();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (isOpen && typeof window !== "undefined" && window.innerWidth < 768) {
@@ -59,7 +65,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
     };
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
   const handleSubmit = async (e?: React.FormEvent, forceDisconnect = false) => {
     if (e) e.preventDefault();
@@ -101,22 +107,22 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 overflow-y-auto">
       {/* Backdrop */}
       <div 
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-black/80 backdrop-blur-md transition-opacity"
         onClick={onClose}
       />
       
       {/* Modal */}
       <div 
         ref={modalRef}
-        className="relative w-full max-w-md bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+        className="relative z-10 w-full max-w-md my-auto bg-zinc-900/95 border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 backdrop-blur-xl"
       >
         <button 
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-white/50 hover:text-white rounded-full hover:bg-white/10 transition-colors"
+          className="absolute top-4 right-4 p-2 text-white/50 hover:text-white rounded-full hover:bg-white/10 transition-colors cursor-pointer"
         >
           <IconX className="w-5 h-5" />
         </button>
@@ -248,7 +254,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
             <button
               type="button"
               onClick={() => setMode(mode === "login" ? "register" : "login")}
-              className="ml-2 text-white hover:text-[#D70466] font-semibold transition-colors focus:outline-none"
+              className="ml-2 text-white hover:text-[#D70466] font-semibold transition-colors focus:outline-none cursor-pointer"
             >
               {mode === "login" 
                 ? (lang === 'fr' ? "S'inscrire" : "Sign up") 
@@ -257,6 +263,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -104,6 +104,11 @@ function MovieCard({
 
   // GSAP Smooth Hover Animations (Prime Video Cinematic Easing)
   const handleMouseEnter = useCallback(() => {
+    // Sur mobile / écran tactile (sans hover), on ne déclenche pas d'animation de survol
+    if (typeof window !== "undefined" && window.matchMedia && !window.matchMedia("(hover: hover)").matches) {
+      return;
+    }
+
     if (cardRef.current && document.contains(cardRef.current)) {
       gsap.to(cardRef.current, {
         y: -6,

@@ -12,6 +12,6 @@
 
 1. [x] Oui on doit utilise un librairie d'authentification de next pour gerer l'authentification (NextAuth.js / Auth.js v5 installé et configuré : Credentials, Google OAuth, SessionSyncProvider)
 2. corrige le probleme frontend elle doit meme se charger avec une connexion 2g
-3. Resoudre le probleme du hover sur mobile(Genre sur mobile xa doit etre click direct et pas hover meme pour le action comme les click etc xa doit reagir directement)
+3. [x] Resoudre le probleme du hover sur mobile (Suppression du sticky hover via @media(hover: none), ajout de touch-action: manipulation contre le délai de 300ms, désactivation des animations GSAP au survol sur écrans tactiles pour un clic direct et immédiat)
 4. Resoudre la mise en cache de mon app pwa optimiser lapp pour que xa donne meme sans connection (genre le css doit aussi charger,il doit aussi reagir genre detecter si il ya la connection ou pas et ensuite rediriger vers ou il faut comme le fait youtube)
 5. 

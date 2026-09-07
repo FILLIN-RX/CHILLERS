@@ -244,9 +244,21 @@ body {
   min-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
 }
 
-/* Mobile touch tap highlight removal */
+/* Mobile touch tap highlight removal & instant click response (eliminates 300ms delay) */
 * {
   -webkit-tap-highlight-color: transparent;
+}
+
+html, body, a, button, [role="button"], input, select, textarea {
+  touch-action: manipulation;
+}
+
+/* Sur mobile / écran tactile, élimine les effets de hover "collants" (sticky hover)
+   pour que le premier tap agisse comme un clic direct immédiat sans nécessiter un double tap */
+@media (hover: none) and (pointer: coarse) {
+  *:hover {
+    transform: none !important;
+  }
 }
 
 /* ── Accessibilité ──────────────────────────────────────────────────────── */

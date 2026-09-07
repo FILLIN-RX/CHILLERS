@@ -8,7 +8,19 @@
 import { getAntiBotHeaders } from "@/lib/antibot";
 
 export const API_BASE_PATH = "/api";
-const SERVER_TIMEOUT_MS = 12_000;
+const DEFAULT_TIMEOUT_MS = 12_000;
+const SLOW_CONNECTION_TIMEOUT_MS = 35_000;
+
+function getAdaptiveTimeout(): number {
+  if (typeof navigator === "undefined") return DEFAULT_TIMEOUT_MS;
+  const nav = navigator as any;
+  const conn = nav.connection || nav.mozConnection || nav.webkitConnection;
+  if (!conn) return DEFAULT_TIMEOUT_MS;
+  if (conn.saveData || conn.effectiveType === "slow-2g" || conn.effectiveType === "2g" || conn.effectiveType === "3g") {
+    return SLOW_CONNECTION_TIMEOUT_MS;
+  }
+  return DEFAULT_TIMEOUT_MS;
+}
 
 /** Read NEXT_PUBLIC_API_URL at runtime on the client to resolve the backend origin for /uploads and absolute image URLs. */
 export function getBackendOrigin(): string {
