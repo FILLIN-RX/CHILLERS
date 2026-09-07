@@ -26,6 +26,14 @@ function setCached<T>(key: string, data: T, ttl = CLIENT_CACHE_TTL): void {
 
 /* ─── helpers ─────────────────────────────────────────────────────────────── */
 
+export function isUltraLowBandwidth(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const nav = navigator as any;
+  const conn = nav.connection || nav.mozConnection || nav.webkitConnection;
+  if (!conn) return false;
+  return Boolean(conn.saveData || conn.effectiveType === "slow-2g" || conn.effectiveType === "2g");
+}
+
 export function isSlowConnection(): boolean {
   if (typeof navigator === "undefined") return true; // Faible résolution par défaut (SSR)
   const nav = navigator as any;
@@ -43,15 +51,21 @@ export function getTmdbImageUrl(
   original = false,
 ): string {
   if (!path) return "";
+  const ultraLow = isUltraLowBandwidth();
   const weak = isSlowConnection();
 
   // Si on force "original" mais que le réseau est faible, on rétrograde à une taille adaptée
-  if (original && !weak) {
+  if (original && !weak && !ultraLow) {
     return `https://image.tmdb.org/t/p/original${path}`;
   }
 
-  // TMDB ne génère pas toujours les très petites résolutions (w185/w300) pour toutes les images récentes,
-  // ce qui cause des erreurs 404. On utilise w500 et w780 comme fallback fiable "faible résolution".
+  // En 2G ultra-faible : w300 / w342 (images 5x à 10x plus légères, ~20-40Ko au lieu de 200Ko+)
+  if (ultraLow) {
+    if (type === "backdrop") return `https://image.tmdb.org/t/p/w300${path}`;
+    if (type === "still") return `https://image.tmdb.org/t/p/w300${path}`;
+    return `https://image.tmdb.org/t/p/w342${path}`;
+  }
+
   if (type === "backdrop") {
     return `https://image.tmdb.org/t/p/${weak ? "w780" : "original"}${path}`;
   }

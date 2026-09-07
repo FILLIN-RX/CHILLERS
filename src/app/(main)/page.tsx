@@ -350,44 +350,93 @@ function Home() {
         }
       };
 
-      const [trending, trendingTV, popular, popularTV, anime, africanM, africanS] = await Promise.all([
-        fetchWithCatch(getTrendingMovies(signal), []),
-        fetchWithCatch(getTrendingTV(signal), []),
-        fetchWithCatch(getPopularMovies(1, signal), []),
-        fetchWithCatch(getPopularTV(1, signal), []),
-        fetchWithCatch(getAnimeSeries(1, signal), []),
-        fetchWithCatch(getAfricanMovies(1, undefined, signal), []),
-        fetchWithCatch(getAfricanTV(1, undefined, signal), []),
-      ]);
+      const is2G = typeof navigator !== "undefined" && Boolean(
+        (navigator as any).connection?.saveData ||
+        (navigator as any).connection?.effectiveType === "slow-2g" ||
+        (navigator as any).connection?.effectiveType === "2g"
+      );
 
-      const allTrending = [...trending, ...trendingTV];
-      if (allTrending.length > 0) setTrendingAll(allTrending);
-      if (popular.length > 0) setMoviesData(popular);
-      if (popularTV.length > 0) setSeriesData(popularTV);
-      if (anime.length > 0) setAnimeData(anime);
-      if (africanM.length > 0) setAfricanMoviesData(africanM);
-      if (africanS.length > 0) setAfricanSeriesData(africanS);
+      // ── En 2G : Chargement progressif séquentiel pour ne pas saturer les sockets réseau ──
+      let trending: MovieOrShow[] = [];
+      let trendingTV: MovieOrShow[] = [];
+      let popular: MovieOrShow[] = [];
+      let popularTV: MovieOrShow[] = [];
+      let anime: MovieOrShow[] = [];
+      let africanM: MovieOrShow[] = [];
+      let africanS: MovieOrShow[] = [];
 
-      // Hero Carousel dynamique : mélange équilibré de films populaires, grandes séries et animes phares
-      const heroBase: MovieOrShow[] = [];
-      const mSlice = popular.slice(0, 5);
-      const sSlice = popularTV.slice(0, 4);
-      const aSlice = anime.slice(0, 3);
-      const maxLen = Math.max(mSlice.length, sSlice.length, aSlice.length);
-      for (let i = 0; i < maxLen; i++) {
-        if (mSlice[i]) heroBase.push(mSlice[i]);
-        if (sSlice[i]) heroBase.push(sSlice[i]);
-        if (aSlice[i]) heroBase.push(aSlice[i]);
-      }
+      if (is2G) {
+        // Priorité 1 : Le haut de page (Tendances + Populaires) pour afficher immédiatement l'écran
+        [trending, popular] = await Promise.all([
+          fetchWithCatch(getTrendingMovies(signal), []),
+          fetchWithCatch(getPopularMovies(1, signal), []),
+        ]);
 
-      if (heroBase.length > 0) {
-        const topHero = heroBase.slice(0, 10);
-        setHeroSlides(topHero);
+        if (trending.length > 0) setTrendingAll(trending);
+        if (popular.length > 0) {
+          setMoviesData(popular);
+          const topHero = popular.slice(0, 5);
+          setHeroSlides(topHero);
+        }
+        setIsLoadingData(false); // Libère immédiatement l'écran de chargement pour l'utilisateur
 
-        // Enrichir les slides avec les bandes-annonces en background (non bloquant)
-        enrichHeroSlidesWithTrailers(topHero, signal)
-          .then((enriched) => setHeroSlides(enriched))
-          .catch(() => {}); // fallback : images seules
+        // Priorité 2 : Séries, Animes et TV chargés en arrière-plan sans bloquer
+        fetchWithCatch(getTrendingTV(signal), []).then((tTv) => {
+          if (tTv.length > 0) setTrendingAll((prev) => [...prev, ...tTv]);
+        });
+        fetchWithCatch(getPopularTV(1, signal), []).then((pTv) => {
+          if (pTv.length > 0) setSeriesData(pTv);
+        });
+        fetchWithCatch(getAnimeSeries(1, signal), []).then((an) => {
+          if (an.length > 0) setAnimeData(an);
+        });
+        fetchWithCatch(getAfricanMovies(1, undefined, signal), []).then((afM) => {
+          if (afM.length > 0) setAfricanMoviesData(afM);
+        });
+        fetchWithCatch(getAfricanTV(1, undefined, signal), []).then((afS) => {
+          if (afS.length > 0) setAfricanSeriesData(afS);
+        });
+      } else {
+        // Mode 3G/4G/WiFi standard : tout en parallèle
+        [trending, trendingTV, popular, popularTV, anime, africanM, africanS] = await Promise.all([
+          fetchWithCatch(getTrendingMovies(signal), []),
+          fetchWithCatch(getTrendingTV(signal), []),
+          fetchWithCatch(getPopularMovies(1, signal), []),
+          fetchWithCatch(getPopularTV(1, signal), []),
+          fetchWithCatch(getAnimeSeries(1, signal), []),
+          fetchWithCatch(getAfricanMovies(1, undefined, signal), []),
+          fetchWithCatch(getAfricanTV(1, undefined, signal), []),
+        ]);
+
+        const allTrending = [...trending, ...trendingTV];
+        if (allTrending.length > 0) setTrendingAll(allTrending);
+        if (popular.length > 0) setMoviesData(popular);
+        if (popularTV.length > 0) setSeriesData(popularTV);
+        if (anime.length > 0) setAnimeData(anime);
+        if (africanM.length > 0) setAfricanMoviesData(africanM);
+        if (africanS.length > 0) setAfricanSeriesData(africanS);
+
+        // Hero Carousel dynamique : mélange équilibré de films populaires, grandes séries et animes phares
+        const heroBase: MovieOrShow[] = [];
+        const mSlice = popular.slice(0, 5);
+        const sSlice = popularTV.slice(0, 4);
+        const aSlice = anime.slice(0, 3);
+        const maxLen = Math.max(mSlice.length, sSlice.length, aSlice.length);
+        for (let i = 0; i < maxLen; i++) {
+          if (mSlice[i]) heroBase.push(mSlice[i]);
+          if (sSlice[i]) heroBase.push(sSlice[i]);
+          if (aSlice[i]) heroBase.push(aSlice[i]);
+        }
+
+        if (heroBase.length > 0) {
+          const topHero = heroBase.slice(0, 10);
+          setHeroSlides(topHero);
+
+          // Enrichir les slides avec les bandes-annonces en background (non bloquant, hors 2G)
+          enrichHeroSlidesWithTrailers(topHero, signal)
+            .then((enriched) => setHeroSlides(enriched))
+            .catch(() => {});
+        }
       }
 
       await loadNewReleases();
@@ -542,10 +591,19 @@ function Home() {
     if (activeTab !== "home") return;
     if (isLoadingData) return;
     if (genreRows.length > 0 || isLoadingGenreRows || hasTriedGenreRows) return;
+    
+    // En 2G : on temporise plus longtemps (2.5s) pour laisser la priorité aux images et flux critiques
+    const is2G = typeof navigator !== "undefined" && Boolean(
+      (navigator as any).connection?.saveData ||
+      (navigator as any).connection?.effectiveType === "slow-2g" ||
+      (navigator as any).connection?.effectiveType === "2g"
+    );
+    const delay = is2G ? 2500 : 350;
+
     const controller = new AbortController();
     const idleTimer = setTimeout(() => {
       loadGenreRows(controller.signal).catch(() => {});
-    }, 350);
+    }, delay);
     return () => {
       clearTimeout(idleTimer);
       controller.abort();
@@ -556,10 +614,18 @@ function Home() {
     if (activeTab !== "home") return;
     if (isLoadingData) return;
     if (animeGenreRows.length > 0 || isLoadingAnimeGenreRows || hasTriedAnimeGenreRows) return;
+
+    const is2G = typeof navigator !== "undefined" && Boolean(
+      (navigator as any).connection?.saveData ||
+      (navigator as any).connection?.effectiveType === "slow-2g" ||
+      (navigator as any).connection?.effectiveType === "2g"
+    );
+    const delay = is2G ? 4500 : 700;
+
     const controller = new AbortController();
     const idleTimer = setTimeout(() => {
       loadAnimeGenreRows(controller.signal).catch(() => {});
-    }, 700); // Slight delay to stagger
+    }, delay);
     return () => {
       clearTimeout(idleTimer);
       controller.abort();
@@ -570,10 +636,18 @@ function Home() {
     if (activeTab !== "home") return;
     if (isLoadingData) return;
     if (homeSectionRows.length > 0 || isLoadingHomeSections || hasTriedHomeSections) return;
+
+    const is2G = typeof navigator !== "undefined" && Boolean(
+      (navigator as any).connection?.saveData ||
+      (navigator as any).connection?.effectiveType === "slow-2g" ||
+      (navigator as any).connection?.effectiveType === "2g"
+    );
+    const delay = is2G ? 6000 : 500;
+
     const controller = new AbortController();
     const idleTimer = setTimeout(() => {
       loadHomeSections(controller.signal).catch(() => {});
-    }, 500);
+    }, delay);
     return () => {
       clearTimeout(idleTimer);
       controller.abort();

@@ -87,7 +87,7 @@ function getStoredAuthToken(): string | null {
 export async function httpJson<T>(path: string, options: HttpJsonOptions = {}): Promise<T> {
   const url = buildUrl(path, options.query);
   const ctrl = new AbortController();
-  const timeoutMs = options.timeoutMs ?? SERVER_TIMEOUT_MS;
+  const timeoutMs = options.timeoutMs ?? getAdaptiveTimeout();
   const timer = timeoutMs > 0 ? setTimeout(() => ctrl.abort(), timeoutMs) : null;
 
   // Propagate external aborts into the internal controller.
