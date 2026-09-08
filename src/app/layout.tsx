@@ -7,6 +7,7 @@ import AdminShortcut from "@/components/AdminShortcut";
 import PWARegister from "@/components/pwa/PWARegister";
 import SplashScreen from "@/components/pwa/SplashScreen";
 import PWAInstallBanner from "@/components/pwa/PWAInstallBanner";
+import NetworkStatusNotifier from "@/components/pwa/NetworkStatusNotifier";
 import AdSense from "@/components/AdSense";
 import SessionSyncProvider from "@/components/providers/SessionSyncProvider";
 import { auth } from "@/auth";
@@ -201,6 +202,7 @@ export default async function RootLayout({
             <PWARegister />
             <SplashScreen />
             <PWAInstallBanner />
+            <NetworkStatusNotifier />
             <AdminShortcut />
             <AdSense />
             {children}

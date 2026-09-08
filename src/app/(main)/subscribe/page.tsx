@@ -3,18 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { httpJson } from '@/app/api';
-import {
-  IconCheck,
-  IconX,
-  IconArrowLeft,
-  IconUpload,
-  IconCopy,
-  IconChecklist,
-  IconSparkles,
-  IconAlertCircle,
-  IconLoader2,
-  IconPhoneCall,
-} from '@tabler/icons-react';
+import { Check, X, ArrowLeft, UploadSimple, Copy, ListChecks, Sparkle, WarningCircle, Spinner, PhoneCall } from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
 
 interface Plan {
@@ -197,7 +186,7 @@ export default function SubscribePage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0a0a0c] flex items-center justify-center text-white">
-        <IconLoader2 className="w-8 h-8 animate-spin text-brand-primary" />
+        <Spinner className="w-8 h-8 animate-spin text-brand-primary" />
       </div>
     );
   }
@@ -211,13 +200,13 @@ export default function SubscribePage() {
           aria-label="Retour"
           className="inline-flex items-center gap-2 px-4 py-2 mb-8 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 hover:text-white text-xs font-semibold transition-all hover:scale-[1.02] active:scale-95"
         >
-          <IconArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="w-4 h-4" />
           Retour
         </button>
 
         <div className="text-center max-w-2xl mx-auto mb-12">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-brand-primary/10 border border-brand-primary/20 text-brand-primary text-xs font-bold mb-4">
-            <IconSparkles className="w-4 h-4" />
+            <Sparkle className="w-4 h-4" />
             <span>Formules VIP & Streaming Illimité</span>
           </div>
           <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white mb-3">
@@ -266,23 +255,23 @@ export default function SubscribePage() {
 
                   <ul className="space-y-3.5 mb-8 text-sm text-zinc-300">
                     <li className="flex items-center gap-3">
-                      <IconCheck className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+                      <Check className="w-5 h-5 text-emerald-400 flex-shrink-0" />
                       <span>Qualité maximale : <strong className="text-white">{plan.features.maxResolution}</strong></span>
                     </li>
                     <li className="flex items-center gap-3">
-                      <IconCheck className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+                      <Check className="w-5 h-5 text-emerald-400 flex-shrink-0" />
                       <span>Écrans simultanés : <strong className="text-white">{plan.features.maxDevices}</strong></span>
                     </li>
                     <li className="flex items-center gap-3">
-                      <IconCheck className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+                      <Check className="w-5 h-5 text-emerald-400 flex-shrink-0" />
                       <span>Reprise de lecture automatique</span>
                     </li>
                     <li className="flex items-center gap-3">
-                      <IconCheck className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+                      <Check className="w-5 h-5 text-emerald-400 flex-shrink-0" />
                       <span>Téléchargements illimités haute vitesse</span>
                     </li>
                     <li className="flex items-center gap-3">
-                      <IconCheck className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+                      <Check className="w-5 h-5 text-emerald-400 flex-shrink-0" />
                       <span>Accès prioritaire sans attente</span>
                     </li>
                   </ul>
@@ -322,13 +311,13 @@ export default function SubscribePage() {
                 onClick={() => setSelectedPlan(null)}
                 className="absolute top-5 right-5 text-zinc-400 hover:text-white p-1 rounded-full hover:bg-white/10 transition-all"
               >
-                <IconX className="w-5 h-5" />
+                <X className="w-5 h-5" />
               </button>
 
               {successMessage ? (
                 <div className="text-center py-6 space-y-4">
                   <div className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto">
-                    <IconChecklist className="w-8 h-8" />
+                    <ListChecks className="w-8 h-8" />
                   </div>
                   <h3 className="text-2xl font-bold text-white">Preuve bien transmise !</h3>
                   <p className="text-zinc-300 text-sm leading-relaxed">{successMessage}</p>
@@ -400,7 +389,7 @@ export default function SubscribePage() {
                       onClick={() => handleDialUssd(paymentMethod, selectedPlan.price)}
                       className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-sm flex items-center justify-center gap-2.5 shadow-lg active:scale-95 transition-all cursor-pointer"
                     >
-                      <IconPhoneCall className="w-5 h-5 animate-pulse" />
+                      <PhoneCall className="w-5 h-5 animate-pulse" />
                       <span>Lancer le code USSD ({getUssdCode(paymentMethod, selectedPlan.price)})</span>
                     </button>
 
@@ -422,7 +411,7 @@ export default function SubscribePage() {
                         }}
                         className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-[11px] font-bold transition-all active:scale-95 flex-shrink-0"
                       >
-                        <IconCopy className="w-3.5 h-3.5" />
+                        <Copy className="w-3.5 h-3.5" />
                         <span>{copiedNumber ? 'Copié !' : 'Copier code'}</span>
                       </button>
                     </div>
@@ -476,7 +465,7 @@ export default function SubscribePage() {
                           </div>
                         ) : (
                           <div className="flex flex-col items-center gap-2 text-zinc-400">
-                            <IconUpload className="w-6 h-6 text-brand-primary" />
+                            <UploadSimple className="w-6 h-6 text-brand-primary" />
                             <span className="text-xs font-semibold text-zinc-300">
                               Cliquez pour choisir votre capture d&apos;écran
                             </span>
@@ -495,7 +484,7 @@ export default function SubscribePage() {
 
                     {errorMessage && (
                       <div className="flex items-center gap-2 p-3 rounded-xl bg-red-500/15 border border-red-500/30 text-red-400 text-xs">
-                        <IconAlertCircle className="w-4 h-4 flex-shrink-0" />
+                        <WarningCircle className="w-4 h-4 flex-shrink-0" />
                         <span>{errorMessage}</span>
                       </div>
                     )}
@@ -507,7 +496,7 @@ export default function SubscribePage() {
                     >
                       {submitting ? (
                         <>
-                          <IconLoader2 className="w-4 h-4 animate-spin" />
+                          <Spinner className="w-4 h-4 animate-spin" />
                           <span>Envoi en cours...</span>
                         </>
                       ) : (

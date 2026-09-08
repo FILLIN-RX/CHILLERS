@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { IconX, IconDownload, IconShare, IconPlus, IconDeviceMobile } from "@tabler/icons-react";
+import { X, DownloadSimple, ShareNetwork, Plus, DeviceMobile } from "@phosphor-icons/react";
 
 export default function PWAInstallBanner() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -95,7 +95,7 @@ export default function PWAInstallBanner() {
             onClick={handleInstallClick}
             className="flex-shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-white text-black hover:bg-zinc-200 active:scale-95 transition-all cursor-pointer shadow-md"
           >
-            <IconDownload className="w-3.5 h-3.5" />
+            <DownloadSimple className="w-3.5 h-3.5" />
             Installer
           </button>
 
@@ -104,7 +104,7 @@ export default function PWAInstallBanner() {
             className="flex-shrink-0 p-1 text-white/40 hover:text-white transition-colors"
             aria-label="Fermer"
           >
-            <IconX className="w-4 h-4" />
+            <X className="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -122,11 +122,11 @@ export default function PWAInstallBanner() {
               onClick={() => setShowIosGuide(false)}
               className="absolute top-4 right-4 p-1.5 rounded-full bg-white/10 text-white/70 hover:text-white"
             >
-              <IconX className="w-4 h-4" />
+              <X className="w-4 h-4" />
             </button>
 
             <div className="w-14 h-14 rounded-2xl bg-brand-primary/10 border border-brand-primary/25 text-brand-primary flex items-center justify-center mx-auto mb-4">
-              <IconDeviceMobile className="w-7 h-7" />
+              <DeviceMobile className="w-7 h-7" />
             </div>
 
             <h3 className="text-lg font-black text-white mb-1">Installer sur iPhone</h3>
@@ -140,7 +140,7 @@ export default function PWAInstallBanner() {
                   1
                 </span>
                 <p className="text-xs text-white/80">
-                  Appuyez sur le bouton <span className="font-bold text-white inline-flex items-center gap-1 mx-1"><IconShare className="w-3.5 h-3.5 text-blue-400" /> Partager</span> dans Safari
+                  Appuyez sur le bouton <span className="font-bold text-white inline-flex items-center gap-1 mx-1"><ShareNetwork className="w-3.5 h-3.5 text-blue-400" /> Partager</span> dans Safari
                 </p>
               </div>
 
@@ -149,7 +149,7 @@ export default function PWAInstallBanner() {
                   2
                 </span>
                 <p className="text-xs text-white/80">
-                  Faites défiler et choisissez <span className="font-bold text-white inline-flex items-center gap-1 mx-1"><IconPlus className="w-3.5 h-3.5" /> Sur l'écran d'accueil</span>
+                  Faites défiler et choisissez <span className="font-bold text-white inline-flex items-center gap-1 mx-1"><Plus className="w-3.5 h-3.5" /> Sur l'écran d'accueil</span>
                 </p>
               </div>
 

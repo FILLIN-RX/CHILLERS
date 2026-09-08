@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { IconWifiOff, IconWifi, IconAntennaBars3, IconX, IconDownload } from "@tabler/icons-react";
+import { WifiSlash, WifiHigh, CellSignalHigh, X, DownloadSimple } from "@phosphor-icons/react";
 
 export default function NetworkStatusBanner() {
   const [isOffline, setIsOffline] = useState(false);
@@ -76,13 +76,13 @@ export default function NetworkStatusBanner() {
     >
       {isOffline ? (
         <div className="flex items-center gap-2.5 pl-3.5 pr-2 py-2 rounded-full bg-zinc-900/95 border border-red-500/40 text-white text-xs font-semibold shadow-2xl backdrop-blur-md">
-          <IconWifiOff className="h-4 w-4 text-red-400 animate-pulse shrink-0" />
+          <WifiSlash className="h-4 w-4 text-red-400 animate-pulse shrink-0" />
           <span className="truncate">Hors-ligne</span>
           <Link
             href="/downloads"
             className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-brand-primary hover:bg-brand-primary/90 text-white text-[11px] font-bold shadow transition-transform active:scale-95 shrink-0"
           >
-            <IconDownload className="w-3 h-3" />
+            <DownloadSimple className="w-3 h-3" />
             <span>Mes Téléchargements</span>
           </Link>
           <button
@@ -90,31 +90,31 @@ export default function NetworkStatusBanner() {
             className="p-1 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-colors ml-1 cursor-pointer shrink-0"
             aria-label="Fermer"
           >
-            <IconX className="h-3.5 w-3.5" />
+            <X className="h-3.5 w-3.5" />
           </button>
         </div>
       ) : showRestored ? (
         <div className="flex items-center gap-2.5 pl-3.5 pr-2 py-1.5 rounded-full bg-emerald-950/90 border border-emerald-500/40 text-emerald-200 text-xs font-semibold shadow-2xl backdrop-blur-md">
-          <IconWifi className="h-4 w-4 text-emerald-400 shrink-0" />
+          <WifiHigh className="h-4 w-4 text-emerald-400 shrink-0" />
           <span>Connexion rétablie</span>
           <button
             onClick={() => setDismissed(true)}
             className="p-1 rounded-full text-emerald-300 hover:text-white hover:bg-emerald-900/60 transition-colors ml-1 cursor-pointer"
             aria-label="Fermer"
           >
-            <IconX className="h-3.5 w-3.5" />
+            <X className="h-3.5 w-3.5" />
           </button>
         </div>
       ) : isLowBandwidth ? (
         <div className="flex items-center gap-2.5 pl-3.5 pr-2 py-1.5 rounded-full bg-amber-950/90 border border-amber-500/40 text-amber-200 text-xs font-semibold shadow-2xl backdrop-blur-md">
-          <IconAntennaBars3 className="h-4 w-4 text-amber-400 shrink-0" />
+          <CellSignalHigh className="h-4 w-4 text-amber-400 shrink-0" />
           <span>Réseau faible · Streaming optimisé</span>
           <button
             onClick={() => setDismissed(true)}
             className="p-1 rounded-full text-amber-300 hover:text-white hover:bg-amber-900/60 transition-colors ml-1 cursor-pointer"
             aria-label="Fermer"
           >
-            <IconX className="h-3.5 w-3.5" />
+            <X className="h-3.5 w-3.5" />
           </button>
         </div>
       ) : null}

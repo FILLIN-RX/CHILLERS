@@ -4,7 +4,7 @@ import React, { useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import gsap from "gsap";
-import { IconHome, IconMovie, IconDeviceTv, IconSearch, IconSparkles, IconChevronRight } from "@tabler/icons-react";
+import { House, FilmSlate, Television, MagnifyingGlass, Sparkle, CaretRight } from "@phosphor-icons/react";
 
 // Rich cinematic poster mosaic backdrop (Paramount+ style)
 const POSTER_WALL = [
@@ -134,7 +134,7 @@ export default function NotFound() {
           href="/"
           className="hidden sm:flex items-center gap-2 px-5 py-2.5 rounded-full glass-button text-xs font-bold text-white hover:text-white transition-all shadow-lg"
         >
-          <IconHome className="h-4 w-4" />
+          <House className="h-4 w-4" />
           <span>Accueil</span>
         </Link>
       </header>
@@ -145,7 +145,7 @@ export default function NotFound() {
           
           {/* 404 Glitch Badge */}
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-brand-primary/15 border border-brand-primary/30 backdrop-blur-md">
-            <IconSparkles className="h-3.5 w-3.5 text-brand-primary animate-pulse" />
+            <Sparkle className="h-3.5 w-3.5 text-brand-primary animate-pulse" />
             <span className="text-xs font-black uppercase tracking-widest text-brand-primary">
               Erreur 404 · Page introuvable
             </span>
@@ -176,7 +176,7 @@ export default function NotFound() {
               href="/"
               className="px-7 py-4 rounded-2xl bg-white text-black font-black text-sm hover:bg-zinc-200 hover:scale-105 active:scale-95 transition-all flex items-center gap-2.5 shadow-[0_8px_30px_rgba(255,255,255,0.25)]"
             >
-              <IconHome className="h-4 w-4" />
+              <House className="h-4 w-4" />
               <span>Retour à l&apos;accueil</span>
             </Link>
 
@@ -184,7 +184,7 @@ export default function NotFound() {
               href="/media/movies"
               className="px-6 py-4 rounded-2xl glass-button text-white font-extrabold text-sm hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
             >
-              <IconMovie className="h-4 w-4 text-brand-primary" />
+              <FilmSlate className="h-4 w-4 text-brand-primary" />
               <span>Explorer les Films</span>
             </Link>
 
@@ -192,7 +192,7 @@ export default function NotFound() {
               href="/media/series"
               className="px-6 py-4 rounded-2xl glass-button text-white font-extrabold text-sm hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
             >
-              <IconDeviceTv className="h-4 w-4 text-brand-secondary" />
+              <Television className="h-4 w-4 text-brand-secondary" />
               <span>Explorer les Séries</span>
             </Link>
           </div>

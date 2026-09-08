@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useRef, useEffect, useCallback } from "react";
+import React, { useRef, useCallback } from "react";
 import type { Genre } from "@/types/media";
+import gsap from "gsap";
 
 interface GenreFilterBarProps {
   genres: Genre[];
@@ -31,13 +32,18 @@ export default function GenreFilterBar({
     return a.name.localeCompare(b.name);
   });
 
-  // Scroll active pill into view when it changes
+  // Scroll active pill into view with GSAP
   const activeRef = useCallback(
     (node: HTMLButtonElement | null) => {
       if (node && scrollRef.current) {
         const container = scrollRef.current;
         const left = node.offsetLeft - container.clientWidth / 2 + node.clientWidth / 2;
-        container.scrollTo({ left, behavior: "smooth" });
+        gsap.to(container, {
+          scrollLeft: left,
+          duration: 0.4,
+          ease: "power2.out",
+          overwrite: "auto",
+        });
       }
     },
     [activeGenreId] // eslint-disable-line react-hooks/exhaustive-deps

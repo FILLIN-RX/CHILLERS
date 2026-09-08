@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { IconArrowLeft } from "@tabler/icons-react";
+import { ArrowLeft } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import CategoryCard from "@/components/CategoryCard";
 import { getMovieGenres } from "@/services/media";
@@ -37,7 +37,7 @@ export default function CategoriesPage() {
           aria-label="Retour"
           className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white text-sm font-medium transition-all hover:scale-[1.02] active:scale-95"
         >
-          <IconArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="w-4 h-4" />
           Retour
         </button>
 

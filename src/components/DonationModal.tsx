@@ -1,12 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import {
-  IconHeart,
-  IconCopy,
-  IconCheck,
-  IconX,
-} from "@tabler/icons-react";
+import { Heart, Copy, Check, X } from "@phosphor-icons/react";
 import { acquireModalScrollLock, releaseModalScrollLock } from "@/lib/modalScrollLock";
 
 interface DonationModalProps {
@@ -77,12 +72,12 @@ export default function DonationModal({ isOpen, onClose }: DonationModalProps) {
           aria-label="Fermer"
           className="absolute top-3 right-3 p-1.5 rounded-full hover:bg-zinc-800 text-zinc-500 hover:text-white transition-colors"
         >
-          <IconX className="h-4 w-4" />
+          <X className="h-4 w-4" />
         </button>
 
         <div className="text-center space-y-2 mb-5">
           <div className="w-12 h-12 rounded-xl bg-brand-primary/10 border border-brand-primary/20 flex items-center justify-center mx-auto">
-            <IconHeart className="h-6 w-6 text-brand-primary" fill="currentColor" />
+            <Heart className="h-6 w-6 text-brand-primary" fill="currentColor" />
           </div>
           <div>
             <h3 className="text-lg font-bold text-white">
@@ -110,7 +105,7 @@ export default function DonationModal({ isOpen, onClose }: DonationModalProps) {
                     : "bg-zinc-700 hover:bg-zinc-600 text-zinc-200"
                 }`}
               >
-                {copiedType === "om" ? <IconCheck className="h-3.5 w-3.5" /> : <IconCopy className="h-3.5 w-3.5" />}
+                {copiedType === "om" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                 {copiedType === "om" ? "Copié" : "Copier"}
               </button>
             </div>
@@ -131,7 +126,7 @@ export default function DonationModal({ isOpen, onClose }: DonationModalProps) {
                     : "bg-zinc-700 hover:bg-zinc-600 text-zinc-200"
                 }`}
               >
-                {copiedType === "momo" ? <IconCheck className="h-3.5 w-3.5" /> : <IconCopy className="h-3.5 w-3.5" />}
+                {copiedType === "momo" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                 {copiedType === "momo" ? "Copié" : "Copier"}
               </button>
             </div>

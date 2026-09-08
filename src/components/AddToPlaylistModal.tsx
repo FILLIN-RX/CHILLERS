@@ -1,15 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import {
-  IconClock,
-  IconPlaylist,
-  IconPlus,
-  IconCheck,
-  IconX,
-  IconBookmark,
-  IconBookmarkFilled,
-} from "@tabler/icons-react";
+import { Clock, ListNumbers, Plus, Check, X, BookmarkSimple } from "@phosphor-icons/react";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { userService } from "@/services/user";
 import { useLanguage } from "@/i18n/LanguageContext";
@@ -217,14 +209,14 @@ export default function AddToPlaylistModal({
             onClick={onClose}
             className="p-1.5 rounded-full text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
           >
-            <IconX className="w-5 h-5" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Feedback Alert */}
         {actionSuccess && (
           <div className="py-2 px-3 rounded-xl bg-[#D70466]/20 border border-[#D70466]/30 text-white text-xs font-bold flex items-center gap-2 animate-in fade-in duration-150">
-            <IconCheck className="w-4 h-4 text-[#D70466]" />
+            <Check className="w-4 h-4 text-[#D70466]" />
             <span>{actionSuccess}</span>
           </div>
         )}
@@ -239,7 +231,7 @@ export default function AddToPlaylistModal({
           >
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center">
-                <IconClock className="w-4 h-4" />
+                <Clock className="w-4 h-4" />
               </div>
               <div>
                 <span className="text-sm font-bold text-white group-hover:text-amber-400 transition-colors">
@@ -257,7 +249,7 @@ export default function AddToPlaylistModal({
                   : "border-zinc-700 group-hover:border-zinc-500"
               }`}
             >
-              {isWatchLater && <IconCheck className="w-3.5 h-3.5 stroke-[3]" />}
+              {isWatchLater && <Check className="w-3.5 h-3.5 stroke-[3]" />}
             </div>
           </button>
 
@@ -270,9 +262,9 @@ export default function AddToPlaylistModal({
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-xl bg-[#D70466]/10 text-[#D70466] flex items-center justify-center">
                 {isFavorite ? (
-                  <IconBookmarkFilled className="w-4 h-4" />
+                  <BookmarkSimple className="w-4 h-4" />
                 ) : (
-                  <IconBookmark className="w-4 h-4" />
+                  <BookmarkSimple className="w-4 h-4" />
                 )}
               </div>
               <div>
@@ -291,7 +283,7 @@ export default function AddToPlaylistModal({
                   : "border-zinc-700 group-hover:border-zinc-500"
               }`}
             >
-              {isFavorite && <IconCheck className="w-3.5 h-3.5 stroke-[3]" />}
+              {isFavorite && <Check className="w-3.5 h-3.5 stroke-[3]" />}
             </div>
           </button>
         </div>
@@ -318,7 +310,7 @@ export default function AddToPlaylistModal({
                     className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-white/5 transition-all text-left group"
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <IconPlaylist className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+                      <ListNumbers className="w-4 h-4 text-cyan-400 flex-shrink-0" />
                       <span className="text-xs sm:text-sm font-semibold text-white group-hover:text-cyan-400 truncate">
                         {pl.title}
                       </span>
@@ -330,7 +322,7 @@ export default function AddToPlaylistModal({
                           : "border-zinc-700 group-hover:border-zinc-500"
                       }`}
                     >
-                      {isInPl && <IconCheck className="w-3 h-3 stroke-[3]" />}
+                      {isInPl && <Check className="w-3 h-3 stroke-[3]" />}
                     </div>
                   </button>
                 );
@@ -350,7 +342,7 @@ export default function AddToPlaylistModal({
               onClick={() => setShowCreateInput(true)}
               className="w-full py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/10 text-white text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer"
             >
-              <IconPlus className="w-4 h-4" />
+              <Plus className="w-4 h-4" />
               <span>
                 {lang === "fr" ? "Créer une nouvelle playlist" : "New Playlist"}
               </span>

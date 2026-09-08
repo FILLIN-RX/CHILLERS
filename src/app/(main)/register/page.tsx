@@ -4,11 +4,14 @@ import React, { useState, Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { IconMail, IconLock, IconUser, IconLoader2, IconSparkles, IconChevronLeft } from "@tabler/icons-react";
+import { signIn } from "next-auth/react";
+import { Envelope, Lock, User, Spinner, Sparkle, CaretLeft } from "@phosphor-icons/react";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { authService } from "@/services/auth";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { getStableDeviceFingerprint } from "@/lib/deviceFingerprint";
+
+const GOOGLE_AUTH_ENABLED = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED === "true";
 
 function RegisterForm() {
   const router = useRouter();
@@ -59,7 +62,7 @@ function RegisterForm() {
           href="/"
           className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-zinc-900 border border-white/10 text-xs font-semibold text-zinc-300 hover:text-white transition-all"
         >
-          <IconChevronLeft className="w-4 h-4" />
+          <CaretLeft className="w-4 h-4" />
           <span>{lang === "fr" ? "Accueil" : "Home"}</span>
         </Link>
       </div>
@@ -96,13 +99,50 @@ function RegisterForm() {
         )}
 
         <div className="mt-6 bg-zinc-900 border border-white/10 rounded-2xl p-6 sm:p-8 shadow-2xl">
+          {GOOGLE_AUTH_ENABLED && (
+            <>
+              <button
+                type="button"
+                disabled={loading}
+                onClick={async () => {
+                  setLoading(true);
+                  setError(null);
+                  try {
+                    await signIn("google", { callbackUrl: redirectUrl });
+                  } catch (err: any) {
+                    setError(err?.message || (lang === "fr" ? "Erreur de connexion avec Google" : "Google sign-in error"));
+                    setLoading(false);
+                  }
+                }}
+                className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-xl text-white font-medium text-sm transition-all active:scale-[0.98] cursor-pointer"
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24">
+                  <path fill="#EA4335" d="M12 5c1.56 0 2.98.54 4.09 1.58l3.07-3.07C17.29 1.7 14.83 1 12 1 7.42 1 3.53 3.61 1.63 7.39l3.73 2.89C6.27 7.23 8.89 5 12 5z" />
+                  <path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58l3.72 2.88c2.18-2.01 3.7-4.97 3.7-8.7z" />
+                  <path fill="#FBBC05" d="M5.36 14.72c-.24-.72-.36-1.48-.36-2.72s.12-2 .36-2.72L1.63 6.39C.59 8.47 0 10.66 0 12s.59 3.53 1.63 5.61l3.73-2.89z" />
+                  <path fill="#34A853" d="M12 23c3.24 0 5.95-1.08 7.93-2.91l-3.72-2.88c-1.07.72-2.45 1.16-4.21 1.16-3.11 0-5.73-2.23-6.64-5.28L1.63 15.98C3.53 19.76 7.42 23 12 23z" />
+                </svg>
+                <span>{lang === "fr" ? "Continuer avec Google" : "Continue with Google"}</span>
+              </button>
+
+              <div className="relative my-6 flex items-center justify-center">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-white/10" />
+                </div>
+                <span className="relative bg-zinc-900 px-4 text-xs uppercase tracking-wider text-zinc-500">
+                  {lang === "fr" ? "ou avec email" : "or with email"}
+                </span>
+              </div>
+            </>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-zinc-300 mb-1.5">
                 {lang === "fr" ? "Pseudo / Nom d'utilisateur" : "Username"}
               </label>
               <div className="relative">
-                <IconUser className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
                 <input
                   type="text"
                   required
@@ -119,7 +159,7 @@ function RegisterForm() {
                 {lang === "fr" ? "Adresse email" : "Email address"}
               </label>
               <div className="relative">
-                <IconMail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                <Envelope className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
                 <input
                   type="email"
                   required
@@ -137,7 +177,7 @@ function RegisterForm() {
                 {lang === "fr" ? "Mot de passe" : "Password"}
               </label>
               <div className="relative">
-                <IconLock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
                 <input
                   type="password"
                   required
@@ -155,7 +195,7 @@ function RegisterForm() {
               disabled={loading}
               className="w-full py-3.5 px-4 rounded-xl bg-[#D70466] hover:bg-[#b5034f] text-white text-sm font-bold shadow-lg transition-all active:scale-[0.98] disabled:opacity-60 flex items-center justify-center gap-2 mt-2"
             >
-              {loading && <IconLoader2 className="w-4 h-4 animate-spin" />}
+              {loading && <Spinner className="w-4 h-4 animate-spin" />}
               <span>{lang === "fr" ? "S'inscrire gratuitement" : "Create Account"}</span>
             </button>
           </form>

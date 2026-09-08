@@ -22,19 +22,7 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { userService } from "@/services/user";
 import { PopupFirewall } from "@/lib/PopupFirewall";
-import {
-  IconArrowLeft,
-  IconPlayerPlay,
-  IconStar,
-  IconClock,
-  IconCalendar,
-  IconMovie,
-  IconDownload,
-  IconShare,
-  IconChevronDown,
-  IconPlayerTrackNext,
-  IconPlayerTrackPrev,
-} from "@tabler/icons-react";
+import { ArrowLeft, Play, Star, Clock, CalendarBlank, FilmSlate, DownloadSimple, ShareNetwork, CaretDown, CaretCircleRight, CaretCircleLeft } from "@phosphor-icons/react";
 
 function WatchContent() {
   const params = useParams();
@@ -458,7 +446,7 @@ function WatchContent() {
     return (
       <div className="min-h-screen bg-[#09090B] text-white flex items-center justify-center px-4">
         <div className="text-center space-y-4 max-w-md">
-          <IconMovie className="h-16 w-16 text-zinc-700 mx-auto" />
+          <FilmSlate className="h-16 w-16 text-zinc-700 mx-auto" />
           <h1 className="text-xl font-bold text-white">{_("watch.contentNotFound")}</h1>
           <p className="text-zinc-400 text-sm">
             {_("watch.contentNotFoundDesc")}
@@ -485,11 +473,11 @@ function WatchContent() {
       >
         {/* Main Video Player Section */}
         <div ref={playerRef} className="w-full">
-          <div className="w-full min-h-[210px] xs:min-h-[240px] sm:min-h-[340px] md:min-h-[420px] aspect-video max-h-[85vh] bg-black relative mx-auto overflow-hidden">
+          <div className="w-full min-h-[200px] sm:min-h-[340px] md:min-h-[420px] aspect-video bg-black relative mx-auto overflow-hidden">
             {streamUnavailable ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-6 bg-zinc-950/90">
                 <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-zinc-800/80 flex items-center justify-center border border-zinc-700/50">
-                  <IconMovie className="h-8 w-8 sm:h-10 sm:w-10 text-zinc-500" />
+                  <FilmSlate className="h-8 w-8 sm:h-10 sm:w-10 text-zinc-500" />
                 </div>
                 <div className="text-center max-w-md space-y-2">
                   <h3 className="text-base sm:text-xl font-bold text-white">
@@ -556,7 +544,7 @@ function WatchContent() {
                 disabled={currentEpisodeIndex === 0}
                 className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-white/5 text-xs font-semibold text-zinc-300 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all flex-shrink-0"
               >
-                <IconPlayerTrackPrev className="h-4 w-4" />
+                <CaretCircleLeft className="h-4 w-4" />
                 <span className="hidden sm:inline">{_("common.previous")}</span>
               </button>
 
@@ -575,7 +563,7 @@ function WatchContent() {
                 className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-white/5 text-xs font-semibold text-zinc-300 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all flex-shrink-0"
               >
                 <span className="hidden sm:inline">{_("common.next")}</span>
-                <IconPlayerTrackNext className="h-4 w-4" />
+                <CaretCircleRight className="h-4 w-4" />
               </button>
             </div>
           )}
@@ -607,13 +595,13 @@ function WatchContent() {
           <div className="flex flex-wrap items-center gap-1.5 sm:gap-3 text-[11px] sm:text-sm text-zinc-400 font-medium">
             {item.rating > 0 && (
               <span className="text-brand-primary font-bold flex items-center gap-1">
-                <IconStar className="h-3.5 w-3.5 sm:h-4 sm:w-4 fill-brand-primary" />
+                <Star className="h-3.5 w-3.5 sm:h-4 sm:w-4 fill-brand-primary" />
                 {Math.round(item.rating * 10)}%
               </span>
             )}
             {item.year > 0 && (
               <span className="flex items-center gap-1">
-                <IconCalendar className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-zinc-500" />
+                <CalendarBlank className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-zinc-500" />
                 {item.year}
               </span>
             )}
@@ -621,7 +609,7 @@ function WatchContent() {
               HD
             </span>
             <span className="flex items-center gap-1">
-              <IconClock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-zinc-500" />
+              <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-zinc-500" />
               {currentEpisode ? currentEpisode.duration : item.duration}
             </span>
             {isTV && availableSeasons.length > 0 && (
@@ -642,7 +630,7 @@ function WatchContent() {
                   : "bg-zinc-800 text-white hover:bg-zinc-700 shadow-md active:scale-95"
               }`}
             >
-              <IconDownload className="h-4 w-4 text-zinc-300" />
+              <DownloadSimple className="h-4 w-4 text-zinc-300" />
               <span className="truncate">{_("download.single")}</span>
             </button>
 
@@ -651,7 +639,7 @@ function WatchContent() {
                 onClick={() => setShowBatchDownloadModal(true)}
                 className="flex-1 min-w-[140px] flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 px-3 sm:px-4 rounded-xl font-bold text-xs sm:text-sm bg-brand-primary/20 border border-brand-primary/30 text-brand-primary hover:bg-brand-primary/30 transition-all active:scale-95"
               >
-                <IconDownload className="h-4 w-4" />
+                <DownloadSimple className="h-4 w-4" />
                 <span className="truncate">{_("download.series")}</span>
               </button>
             ) : (
@@ -659,7 +647,7 @@ function WatchContent() {
                 onClick={handleShare}
                 className="flex-1 min-w-[120px] flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 px-3 sm:px-4 rounded-xl font-bold text-xs sm:text-sm bg-white/5 border border-white/10 text-zinc-300 hover:bg-white/10 hover:text-white transition-all active:scale-95"
               >
-                <IconShare className="h-4 w-4" />
+                <ShareNetwork className="h-4 w-4" />
                 <span className="truncate">{_("media.share")}</span>
               </button>
             )}
@@ -704,7 +692,7 @@ function WatchContent() {
                       </option>
                     ))}
                   </select>
-                  <IconChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400 pointer-events-none" />
+                  <CaretDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400 pointer-events-none" />
                 </div>
               )}
             </div>
@@ -784,7 +772,7 @@ function WatchContent() {
 
       {/* Desktop Persistent Sidebar with Season Selector & Episode List */}
       {hasEpisodes && (
-        <aside className="hidden lg:block fixed top-[72px] right-0 w-[26rem] xl:w-[28rem] h-[calc(100vh-72px)] bg-[#0c0c0e]/95 backdrop-blur-xl border-l border-white/5 overflow-y-auto p-4 z-30 space-y-3">
+        <aside className="hidden lg:block fixed top-[72px] right-0 w-[26rem] xl:w-[28rem] h-[calc(100dvh-72px)] bg-[#0c0c0e]/95 backdrop-blur-xl border-l border-white/5 overflow-y-auto p-4 z-30 space-y-3">
           {/* Season Selector Dropdown */}
           <div className="sticky top-0 bg-[#0c0c0e]/95 backdrop-blur-md pb-3 pt-1 z-10 border-b border-white/5 space-y-2">
             <div className="flex items-center justify-between">
@@ -807,7 +795,7 @@ function WatchContent() {
                     </option>
                   ))}
                 </select>
-                <IconChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-400 pointer-events-none" />
+                <CaretDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-400 pointer-events-none" />
               </div>
             )}
           </div>
@@ -897,13 +885,13 @@ function EpisodeCard({
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <IconMovie className="h-5 w-5 text-zinc-600" />
+            <FilmSlate className="h-5 w-5 text-zinc-600" />
           </div>
         )}
         {active && (
           <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
             <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-brand-primary flex items-center justify-center shadow-lg">
-              <IconPlayerPlay className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white fill-white ml-0.5" />
+              <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white fill-white ml-0.5" />
             </div>
           </div>
         )}
@@ -928,7 +916,7 @@ function EpisodeCard({
               aria-label={`Download ${ep.title}`}
               className="p-1 rounded-md text-zinc-500 hover:text-white hover:bg-white/10 transition-colors flex-none"
             >
-              <IconDownload className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <DownloadSimple className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </button>
           )}
         </div>

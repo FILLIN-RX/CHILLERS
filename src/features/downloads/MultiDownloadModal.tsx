@@ -2,13 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import {
-  IconX,
-  IconDownload,
-  IconMovie,
-  IconAlertTriangle,
-  IconCheck,
-} from "@tabler/icons-react";
+import { X, DownloadSimple, FilmSlate, Warning, Check } from "@phosphor-icons/react";
 import { acquireModalScrollLock, releaseModalScrollLock } from "@/lib/modalScrollLock";
 import { useDownloadsBatch } from "@/hooks/useDownloadsBatch";
 import { useLanguage } from "@/i18n/LanguageContext";
@@ -123,7 +117,7 @@ export default function MultiDownloadModal({
               className="flex-none w-8 h-8 flex items-center justify-center rounded-full bg-white/8 hover:bg-white/15 transition-colors"
               aria-label="Fermer"
             >
-              <IconX className="h-4 w-4 text-white" />
+              <X className="h-4 w-4 text-white" />
             </button>
           </div>
         </div>
@@ -162,7 +156,7 @@ export default function MultiDownloadModal({
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <IconMovie className="h-4 w-4 text-zinc-600" />
+                        <FilmSlate className="h-4 w-4 text-zinc-600" />
                       </div>
                     )}
                   </div>
@@ -206,13 +200,13 @@ export default function MultiDownloadModal({
                     )}
                     {status === "ready" && (
                       <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 rounded-full px-3 py-1">
-                        <IconCheck className="h-3 w-3" />Prêt
+                        <Check className="h-3 w-3" />Prêt
                       </span>
                     )}
                     {status === "done" && (
                       <div className="flex items-center gap-2">
                         <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-400 bg-emerald-500/15 rounded-full px-2.5 py-1">
-                          <IconCheck className="h-3 w-3" />Terminé
+                          <Check className="h-3 w-3" />Terminé
                         </span>
                         <button
                           onClick={() => batch.retryOne(id)}
@@ -227,7 +221,7 @@ export default function MultiDownloadModal({
                         onClick={() => batch.retryOne(id)}
                         className="flex items-center gap-1 text-xs font-bold text-zinc-300 bg-white/10 hover:bg-white/20 rounded-full px-3 py-1 transition-colors cursor-pointer"
                       >
-                        <IconDownload className="h-3 w-3" />Relancer
+                        <DownloadSimple className="h-3 w-3" />Relancer
                       </button>
                     )}
                     {status === "error" && (
@@ -235,7 +229,7 @@ export default function MultiDownloadModal({
                         onClick={() => batch.retryOne(id)}
                         className="flex items-center gap-1.5 text-xs font-bold text-rose-400 bg-rose-500/10 rounded-full px-3 py-1 hover:bg-rose-500/15 cursor-pointer"
                       >
-                        <IconAlertTriangle className="h-3 w-3" />Réessayer
+                        <Warning className="h-3 w-3" />Réessayer
                       </button>
                     )}
                     {(status === "downloading" || status === "queued" || status === "resolving") && (
@@ -272,7 +266,7 @@ export default function MultiDownloadModal({
                 disabled={totals.ready === 0 && totals.queued === 0}
                 className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-sm bg-white text-black hover:bg-zinc-200 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg cursor-pointer"
               >
-                <IconDownload className="h-4 w-4" />
+                <DownloadSimple className="h-4 w-4" />
                 {totals.ready > 0
                   ? `Télécharger ${totals.ready} épisode${totals.ready > 1 ? "s" : ""}`
                   : totals.queued > 0
@@ -310,7 +304,7 @@ export default function MultiDownloadModal({
                 onClick={onClose}
                 className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-sm bg-white text-black hover:bg-zinc-200 transition-all shadow-lg cursor-pointer"
               >
-                <IconCheck className="h-4 w-4" />
+                <Check className="h-4 w-4" />
                 {totals.done === totals.total && totals.total > 0
                   ? "Terminé"
                   : totals.running > 0

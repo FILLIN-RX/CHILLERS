@@ -1,6 +1,6 @@
 "use client";
 
-import { IconDownload, IconPlayerPlay, IconReload, IconX } from "@tabler/icons-react";
+import { DownloadSimple, Play, ArrowsClockwise, X } from "@phosphor-icons/react";
 import type { DownloadTask } from "@/types/download";
 import DownloadProgressBar from "./DownloadProgressBar";
 
@@ -57,7 +57,7 @@ export default function DownloadListItem({
                 title="Annuler"
                 aria-label="Annuler"
               >
-                <IconX className="h-4 w-4" />
+                <X className="h-4 w-4" />
               </button>
             )}
             {task.status === "error" && onRetry && (
@@ -67,7 +67,7 @@ export default function DownloadListItem({
                 title="Réessayer"
                 aria-label="Réessayer"
               >
-                <IconReload className="h-4 w-4" />
+                <ArrowsClockwise className="h-4 w-4" />
               </button>
             )}
             {(task.status === "queued" || task.status === "paused") && onStart && (
@@ -77,11 +77,11 @@ export default function DownloadListItem({
                 title="Démarrer"
                 aria-label="Démarrer"
               >
-                <IconPlayerPlay className="h-4 w-4" />
+                <Play className="h-4 w-4" />
               </button>
             )}
             {task.status === "done" && (
-              <IconDownload className="h-4 w-4 text-emerald-400" />
+              <DownloadSimple className="h-4 w-4 text-emerald-400" />
             )}
           </div>
         )}

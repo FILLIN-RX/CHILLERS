@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { IconChevronLeft } from "@tabler/icons-react";
+import { CaretLeft } from "@phosphor-icons/react";
 import DownloadsView from "@/features/downloads/DownloadsView";
 
 export default function DownloadsPage() {
@@ -12,7 +12,7 @@ export default function DownloadsPage() {
           href="/"
           className="inline-flex items-center gap-1 text-xs font-semibold text-zinc-400 hover:text-white transition-colors cursor-pointer"
         >
-          <IconChevronLeft className="w-4 h-4" />
+          <CaretLeft className="w-4 h-4" />
           <span>Accueil</span>
         </Link>
       </div>

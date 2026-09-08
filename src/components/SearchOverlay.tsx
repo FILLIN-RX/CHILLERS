@@ -8,7 +8,7 @@ import type { MovieOrShow } from "@/types/media";
 import { useTrendingMovies } from "@/hooks/useTrendingMovies";
 import { useMovieGenres } from "@/hooks/useMovieGenres";
 import { useSearchSuggestions } from "@/hooks/useSearchSuggestions";
-import { IconX, IconSearch, IconArrowLeft } from '@tabler/icons-react';
+import { X, MagnifyingGlass, ArrowLeft } from '@phosphor-icons/react';
 import { useLanguage } from "@/i18n/LanguageContext";
 import { acquireModalScrollLock, releaseModalScrollLock } from "@/lib/modalScrollLock";
 import MovieCard from "./MovieCard";
@@ -111,7 +111,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
           onClick={onClose}
           className="p-1 text-zinc-400 hover:text-white transition-colors"
         >
-          <IconArrowLeft className="h-6 w-6" />
+          <ArrowLeft className="h-6 w-6" />
         </button>
 
         <div className="flex-1 max-w-3xl">
@@ -122,10 +122,10 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
             onOptionSubmit={handleAutocompleteSubmit}
             data={search.query.trim().length > 1 ? suggestionNames : []}
             placeholder={_("search.placeholder")}
-            leftSection={<IconSearch className="h-5 w-5 text-zinc-500" />}
+            leftSection={<MagnifyingGlass className="h-5 w-5 text-zinc-500" />}
             rightSection={search.query ? (
               <button onClick={() => search.setQuery("")} className="text-zinc-500 hover:text-white">
-                <IconX className="h-4 w-4" />
+                <X className="h-4 w-4" />
               </button>
             ) : undefined}
             onKeyDown={(e) => {
@@ -254,7 +254,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
-            <IconSearch className="h-12 w-12 text-zinc-700" />
+            <MagnifyingGlass className="h-12 w-12 text-zinc-700" />
             <div className="space-y-1">
               <h3 className="text-lg font-bold text-white">{_("search.noResults")}</h3>
             </div>

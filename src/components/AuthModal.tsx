@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { signIn } from "next-auth/react";
-import { IconX, IconUser, IconMail, IconLock, IconLoader2 } from "@tabler/icons-react";
+import { X, User, Envelope, Lock, Spinner } from "@phosphor-icons/react";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { authService } from "@/services/auth";
 import { useLanguage } from "@/i18n/LanguageContext";
@@ -124,7 +124,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
           onClick={onClose}
           className="absolute top-4 right-4 p-2 text-white/50 hover:text-white rounded-full hover:bg-white/10 transition-colors cursor-pointer"
         >
-          <IconX className="w-5 h-5" />
+          <X className="w-5 h-5" />
         </button>
 
         <div className="p-8">
@@ -197,7 +197,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === "register" && (
               <div className="relative">
-                <IconUser className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
                 <input
                   type="text"
                   placeholder={lang === 'fr' ? "Pseudo" : "Username"}
@@ -209,7 +209,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
             )}
             
             <div className="relative">
-              <IconMail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
+              <Envelope className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
               <input
                 type="email"
                 required
@@ -221,7 +221,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
             </div>
 
             <div className="relative">
-              <IconLock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
               <input
                 type="password"
                 required
@@ -238,7 +238,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
               className="relative w-full flex items-center justify-center py-3 rounded-xl bg-gradient-to-r from-[#D70466] to-[#7C3AED] text-white font-bold tracking-wide hover:shadow-[0_0_20px_rgba(215,4,102,0.4)] transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
             >
               {loading ? (
-                <IconLoader2 className="w-5 h-5 animate-spin" />
+                <Spinner className="w-5 h-5 animate-spin" />
               ) : (
                 mode === "login" 
                   ? (lang === 'fr' ? "Se connecter" : "Log in") 

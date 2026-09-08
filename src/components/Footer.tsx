@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { IconHeart, IconCamera, IconInfoCircle, IconMail, IconShieldCheck, IconPlayerPlay } from '@tabler/icons-react';
+import { Heart, Camera, Info, Envelope, ShieldCheckered, Play } from '@phosphor-icons/react';
 
 export default function Footer() {
   const [isStandalone, setIsStandalone] = useState(false);
@@ -44,13 +44,13 @@ export default function Footer() {
             <ul className="space-y-2 text-xs text-brand-text-muted font-medium">
               <li>
                 <Link href="/about" className="flex items-center gap-2 hover:text-brand-primary transition-colors">
-                  <IconInfoCircle className="h-3.5 w-3.5" />
+                  <Info className="h-3.5 w-3.5" />
                   À Propos
                 </Link>
               </li>
               <li>
                 <Link href="/contact" className="flex items-center gap-2 hover:text-brand-primary transition-colors">
-                  <IconMail className="h-3.5 w-3.5" />
+                  <Envelope className="h-3.5 w-3.5" />
                   Contact
                 </Link>
               </li>
@@ -59,13 +59,13 @@ export default function Footer() {
                   onClick={() => window.dispatchEvent(new Event("open-donation"))}
                   className="flex items-center gap-2 hover:text-brand-primary transition-colors text-left"
                 >
-                  <IconHeart className="h-3.5 w-3.5 text-red-500 fill-red-500/20" />
+                  <Heart className="h-3.5 w-3.5 text-red-500 fill-red-500/20" />
                   Faire un don (Orange / MoMo)
                 </button>
               </li>
               <li>
                 <Link href="/privacy" className="flex items-center gap-2 hover:text-brand-primary transition-colors">
-                  <IconShieldCheck className="h-3.5 w-3.5" />
+                  <ShieldCheckered className="h-3.5 w-3.5" />
                   Politique de confidentialité
                 </Link>
               </li>
@@ -82,7 +82,7 @@ export default function Footer() {
                   href={{ pathname: "/categories", query: { genre: "Action & Adventure" } }}
                   className="flex items-center gap-2 hover:text-brand-primary transition-colors"
                 >
-                  <IconPlayerPlay className="h-3.5 w-3.5" />
+                  <Play className="h-3.5 w-3.5" />
                   Action &amp; Adventure
                 </Link>
               </li>
@@ -91,7 +91,7 @@ export default function Footer() {
                   href={{ pathname: "/categories", query: { genre: "Sci-Fi & Cyberpunk" } }}
                   className="flex items-center gap-2 hover:text-brand-primary transition-colors"
                 >
-                  <IconPlayerPlay className="h-3.5 w-3.5" />
+                  <Play className="h-3.5 w-3.5" />
                   Sci-Fi &amp; Cyberpunk
                 </Link>
               </li>
@@ -100,7 +100,7 @@ export default function Footer() {
                   href={{ pathname: "/categories", query: { genre: "Anime" } }}
                   className="flex items-center gap-2 hover:text-brand-primary transition-colors"
                 >
-                  <IconPlayerPlay className="h-3.5 w-3.5" />
+                  <Play className="h-3.5 w-3.5" />
                   Anime Blockbusters
                 </Link>
               </li>
@@ -109,7 +109,7 @@ export default function Footer() {
                   href={{ pathname: "/categories", query: { genre: "Documentary" } }}
                   className="flex items-center gap-2 hover:text-brand-primary transition-colors"
                 >
-                  <IconPlayerPlay className="h-3.5 w-3.5" />
+                  <Play className="h-3.5 w-3.5" />
                   Cultural Documentaries
                 </Link>
               </li>
@@ -126,7 +126,7 @@ export default function Footer() {
               href="/support"
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-brand-primary text-white text-xs font-bold hover:bg-brand-primary/90 transition-all shadow-lg shadow-brand-primary/30"
             >
-              <IconHeart className="h-4 w-4" />
+              <Heart className="h-4 w-4" />
               Nous soutenir
             </Link>
           </div>
@@ -158,7 +158,7 @@ export default function Footer() {
                 aria-label="Instagram"
                 className="h-8 w-8 rounded-full bg-brand-card border border-brand-border hover:border-brand-primary flex items-center justify-center text-brand-text-muted hover:text-brand-primary transition-all"
               >
-                <IconCamera className="h-4 w-4" />
+                <Camera className="h-4 w-4" />
               </button>
               <button
                 type="button"
@@ -177,17 +177,17 @@ export default function Footer() {
           <span>&copy; {new Date().getFullYear()} Chillers. No rights reserved.</span>
           <div className="flex items-center gap-4">
             <Link href="/about" className="flex items-center gap-1.5 hover:text-brand-primary transition-colors">
-              <IconInfoCircle className="h-3 w-3" />
+              <Info className="h-3 w-3" />
               À Propos
             </Link>
             <span>•</span>
             <Link href="/contact" className="flex items-center gap-1.5 hover:text-brand-primary transition-colors">
-              <IconMail className="h-3 w-3" />
+              <Envelope className="h-3 w-3" />
               Contact
             </Link>
             <span>•</span>
             <Link href="/privacy" className="flex items-center gap-1.5 hover:text-brand-primary transition-colors">
-              <IconShieldCheck className="h-3 w-3" />
+              <ShieldCheckered className="h-3 w-3" />
               Confidentialité
             </Link>
           </div>

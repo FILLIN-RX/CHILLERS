@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { IconArrowLeft } from "@tabler/icons-react";
+import { ArrowLeft } from "@phosphor-icons/react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 
@@ -20,7 +20,7 @@ export default function LiveShell({ children }: { children: React.ReactNode }) {
               href={isChannelPage ? "/live" : "/"}
               className="flex items-center gap-1.5 text-zinc-300 hover:text-white transition-colors text-sm font-medium shrink-0"
             >
-              <IconArrowLeft className="h-4 w-4" />
+              <ArrowLeft className="h-4 w-4" />
               <span className="hidden sm:inline">{isChannelPage ? _("nav.live") : _("watch.backToHome")}</span>
             </Link>
             <div className="flex items-center gap-2 min-w-0">

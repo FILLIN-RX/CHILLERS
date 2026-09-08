@@ -4,26 +4,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import Image from "next/image";
 import { useLanguage } from "@/i18n/LanguageContext";
 import type { MovieOrShow, Episode } from "@/types/media";
-import {
-  IconX,
-  IconDownload,
-  IconPlayerPlay,
-  IconPlayerPause,
-  IconVolume,
-  IconVolume2,
-  IconVolume3,
-  IconVolumeOff,
-  IconMaximize,
-  IconPictureInPicture,
-  IconSubtitles,
-  IconPlayerSkipBack,
-  IconPlayerSkipForward,
-  IconLoader2,
-  IconSettings,
-  IconArrowLeft,
-  IconRotate2,
-  IconCrown,
-} from "@tabler/icons-react";
+import { X, DownloadSimple, Play, Pause, SpeakerSimpleHigh, SpeakerSimpleLow, SpeakerSimpleSlash, ArrowsOutSimple, PictureInPicture, Subtitles, SkipBack, SkipForward, Spinner, GearSix, ArrowLeft, ArrowsClockwise, Crown } from "@phosphor-icons/react";
 import NotificationModal from "./NotificationModal";
 import DownloadModal from "@/features/downloads/DownloadModal";
 import { isIframeProviderUrl, toEmbedUrl } from "@/lib/providers";
@@ -681,7 +662,7 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
       className={`${
         isFullscreen
           ? "fixed inset-0 z-[99999] w-screen h-[100dvh] max-h-none rounded-none aspect-auto bg-black"
-          : `relative w-full min-h-[250px] xs:min-h-[270px] sm:min-h-[340px] aspect-video ${isTheater ? "max-h-[88vh]" : "max-h-[76vh]"} bg-black rounded-none sm:rounded-lg`
+          : `relative w-full min-h-[200px] xs:min-h-[260px] sm:min-h-[340px] aspect-video ${isTheater ? "max-h-[88dvh]" : "max-h-[75dvh]"} bg-black rounded-none sm:rounded-lg`
       } overflow-hidden select-none transition-all duration-300 ${
         isPro ? "shadow-[0_0_50px_rgba(245,158,11,0.18)] ring-1 ring-amber-500/30" : "shadow-[0_20px_70px_rgba(0,0,0,0.95)]"
       } group/container ${
@@ -717,7 +698,7 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
             </span>
             <div className="flex items-center gap-1">
               <button onClick={toggleFullscreen} className="p-1.5 text-white/70 hover:text-white rounded-lg hover:bg-white/10 transition-colors" title="Plein écran">
-                <IconMaximize className="h-4 w-4" />
+                <ArrowsOutSimple className="h-4 w-4" />
               </button>
             </div>
           </div>
@@ -804,13 +785,13 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
                 )}
                 {centerFeedback.icon === "forward" && (
                   <div className="flex flex-col items-center">
-                    <IconPlayerSkipForward className="w-7 h-7" />
+                    <SkipForward className="w-7 h-7" />
                     <span className="text-[10px] font-bold mt-0.5">+5s</span>
                   </div>
                 )}
                 {centerFeedback.icon === "backward" && (
                   <div className="flex flex-col items-center">
-                    <IconPlayerSkipBack className="w-7 h-7" />
+                    <SkipBack className="w-7 h-7" />
                     <span className="text-[10px] font-bold mt-0.5">-5s</span>
                   </div>
                 )}
@@ -848,13 +829,13 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
                   className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-black/60 hover:bg-black/80 border border-white/15 text-white text-xs font-semibold backdrop-blur-md transition-all active:scale-95 cursor-pointer shadow-lg"
                   title="Lecteur réduit / Naviguer en regardant (PiP)"
                 >
-                  <IconPictureInPicture className="w-4 h-4 text-[#D70466]" />
+                  <PictureInPicture className="w-4 h-4 text-[#D70466]" />
                   <span className="text-[11px] font-medium hidden sm:inline">Lecteur réduit</span>
                 </button>
 
                 {canP2P && hasStarted && ["fetching", "scanning", "connecting"].includes(p2p.status) && (
                   <span className="flex items-center gap-1.5 text-[11px] font-bold text-[#22d3ee] bg-black/60 border border-[#22d3ee]/30 rounded-full px-2.5 py-1">
-                    <IconLoader2 className="h-3 w-3 animate-spin" />
+                    <Spinner className="h-3 w-3 animate-spin" />
                     P2P…
                   </span>
                 )}
@@ -1285,7 +1266,7 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
           {isPortrait && !dismissPortraitPrompt && (
             <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-5 bg-black/85 backdrop-blur-sm sm:hidden">
               <button onClick={() => setDismissPortraitPrompt(true)} className="absolute top-4 right-4 p-2 text-white/60 hover:text-white rounded-lg hover:bg-white/10">
-                <IconX className="h-5 w-5" />
+                <X className="h-5 w-5" />
               </button>
               <svg className="h-20 w-20 text-white/70 animate-[spin_3s_ease-in-out_infinite]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="4" y="2" width="16" height="20" rx="2" /><line x1="12" y1="18" x2="12" y2="18.01" />
@@ -1333,7 +1314,7 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
               className="flex items-center gap-2 px-4 py-2 rounded-full bg-black/40 hover:bg-white/20 backdrop-blur-xl border border-white/10 text-white/90 hover:text-white transition-all shadow-xl hover:scale-105 active:scale-95 group"
               title="Retour"
             >
-              <IconArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-0.5" />
+              <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-0.5" />
               <span className="text-xs font-bold tracking-wide">Retour</span>
             </button>
           </div>
@@ -1366,7 +1347,7 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
                 aria-label="Lire la vidéo"
                 className="group/play relative flex items-center justify-center w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-tr from-[#D70466] to-[#7C3AED] shadow-[0_0_40px_rgba(215,4,102,0.6)] ring-4 ring-white/20 transition-all duration-300 hover:scale-110 active:scale-95 text-white"
               >
-                <IconPlayerPlay className="h-9 w-9 sm:h-11 sm:w-11 translate-x-0.5 drop-shadow-lg" fill="currentColor" />
+                <Play className="h-9 w-9 sm:h-11 sm:w-11 translate-x-0.5 drop-shadow-lg" fill="currentColor" />
               </button>
             </div>
 

@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { IconChevronLeft, IconTrophy } from "@tabler/icons-react";
+import { CaretLeft, Trophy } from "@phosphor-icons/react";
 import LivePlayer from "@/components/LivePlayer";
 import { getLiveChannel, getLiveChannels } from "@/services/live";
 import { useLanguage } from "@/i18n/LanguageContext";
@@ -70,7 +70,7 @@ export default function LiveChannelContent() {
             href="/live"
             className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-[#D70466] text-white text-sm font-bold hover:bg-[#b5034f] transition-colors"
           >
-            <IconChevronLeft className="h-4 w-4" />
+            <CaretLeft className="h-4 w-4" />
             {_("live.backToLive")}
           </Link>
           {isError && (
@@ -97,7 +97,7 @@ export default function LiveChannelContent() {
           href="/live"
           className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-zinc-400 hover:text-white transition-colors"
         >
-          <IconChevronLeft className="h-4 w-4" />
+          <CaretLeft className="h-4 w-4" />
           <span>Toutes les chaînes en direct</span>
         </Link>
       </div>
@@ -130,7 +130,7 @@ export default function LiveChannelContent() {
             <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-zinc-400 mt-1">
               {channel.categories?.map((c) => (
                 <span key={c} className={c === "sports" ? "text-amber-400 font-bold flex items-center gap-0.5" : "text-zinc-400"}>
-                  {c === "sports" && <IconTrophy className="h-3 w-3 inline" />}
+                  {c === "sports" && <Trophy className="h-3 w-3 inline" />}
                   #{liveCategoryLabel(c, lang)}
                 </span>
               ))}

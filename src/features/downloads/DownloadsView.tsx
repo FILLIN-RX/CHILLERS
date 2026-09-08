@@ -4,22 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import {
-  IconDownload,
-  IconCheck,
-  IconAlertTriangle,
-  IconPlayerPlay,
-  IconPlayerPause,
-  IconTrash,
-  IconRefresh,
-  IconMovie,
-  IconSearch,
-  IconX,
-  IconDeviceTv,
-  IconFolderOpen,
-  IconWifiOff,
-  IconWifi,
-} from "@tabler/icons-react";
+import { DownloadSimple, Check, Warning, Play, Pause, Trash, ArrowsClockwise, FilmSlate, MagnifyingGlass, X, Television, FolderOpen, WifiSlash, WifiHigh } from "@phosphor-icons/react";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { streamDownloadToDisk } from "@/services/streamSaver";
 import { streamVideoToIndexedDB, getStorageQuota, type StorageQuotaInfo } from "@/services/offlineStorage";
@@ -274,7 +259,7 @@ export default function DownloadsView({
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-red-500/10 border border-red-500/30 text-red-400 text-[10px] font-black uppercase tracking-wider animate-pulse">
-                  <IconWifiOff className="w-3 h-3 text-red-400" />
+                  <WifiSlash className="w-3 h-3 text-red-400" />
                   Mode Hors-Ligne
                 </span>
               )}
@@ -375,7 +360,7 @@ export default function DownloadsView({
           {/* Recherche & Nettoyage */}
           <div className="flex items-center gap-2">
             <div className="relative flex-1 sm:w-48">
-              <IconSearch className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <MagnifyingGlass className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 placeholder="Filtrer..."
@@ -446,9 +431,9 @@ export default function DownloadsView({
                     ) : (
                       <div className="w-full h-full flex flex-col items-center justify-center text-zinc-600 gap-2 bg-gradient-to-br from-zinc-900 to-zinc-950">
                         {task.type === "series" || task.type === "anime" ? (
-                          <IconDeviceTv className="w-10 h-10 text-zinc-500" />
+                          <Television className="w-10 h-10 text-zinc-500" />
                         ) : (
-                          <IconMovie className="w-10 h-10 text-zinc-500" />
+                          <FilmSlate className="w-10 h-10 text-zinc-500" />
                         )}
                         <span className="text-[11px] font-bold tracking-wider uppercase text-zinc-400">
                           {task.type === "series"
@@ -467,7 +452,7 @@ export default function DownloadsView({
                     {isDone && (
                       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/40">
                         <div className="w-12 h-12 rounded-full bg-white/95 text-black flex items-center justify-center shadow-2xl transform scale-90 group-hover:scale-100 transition-transform">
-                          <IconPlayerPlay className="w-6 h-6 fill-black ml-0.5" />
+                          <Play className="w-6 h-6 fill-black ml-0.5" />
                         </div>
                       </div>
                     )}
@@ -485,7 +470,7 @@ export default function DownloadsView({
                     <div className="absolute top-2 right-2">
                       {isDone ? (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/90 text-white text-[10px] font-black uppercase tracking-wider shadow">
-                          <IconCheck className="w-3 h-3 stroke-[3]" />
+                          <Check className="w-3 h-3 stroke-[3]" />
                           Prêt
                         </span>
                       ) : isRunning ? (
@@ -542,7 +527,7 @@ export default function DownloadsView({
                             onClick={() => setDeleteConfirmId(null)}
                             className="p-1 rounded-lg bg-zinc-800 text-zinc-400 hover:text-white transition-colors cursor-pointer"
                           >
-                            <IconX className="w-3.5 h-3.5" />
+                            <X className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       ) : (
@@ -551,7 +536,7 @@ export default function DownloadsView({
                           className="p-1.5 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-white/5 transition-colors cursor-pointer flex-shrink-0"
                           title="Supprimer"
                         >
-                          <IconTrash className="w-4 h-4" />
+                          <Trash className="w-4 h-4" />
                         </button>
                       )}
                     </div>
@@ -576,7 +561,7 @@ export default function DownloadsView({
                         onClick={() => handleWatch(task)}
                         className="flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-xl bg-white hover:bg-zinc-200 text-black font-extrabold text-xs transition-all cursor-pointer shadow active:scale-[0.98]"
                       >
-                        <IconPlayerPlay className="w-3.5 h-3.5 fill-black" />
+                        <Play className="w-3.5 h-3.5 fill-black" />
                         <span>Regarder hors-connexion</span>
                       </button>
                     ) : isRunning ? (
@@ -585,14 +570,14 @@ export default function DownloadsView({
                           onClick={() => handlePauseOne(task.id)}
                           className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-semibold transition-colors cursor-pointer"
                         >
-                          <IconPlayerPause className="w-3.5 h-3.5" />
+                          <Pause className="w-3.5 h-3.5" />
                           <span>Pause</span>
                         </button>
                         <button
                           onClick={() => handleCancelOne(task.id)}
                           className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold transition-colors cursor-pointer"
                         >
-                          <IconX className="w-3.5 h-3.5" />
+                          <X className="w-3.5 h-3.5" />
                           <span>Annuler</span>
                         </button>
                       </>
@@ -602,14 +587,14 @@ export default function DownloadsView({
                           onClick={() => handleResumeOne(task)}
                           className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-[#D70466] hover:bg-[#b5034f] text-white text-xs font-bold transition-colors cursor-pointer shadow"
                         >
-                          <IconPlayerPlay className="w-3.5 h-3.5 fill-white" />
+                          <Play className="w-3.5 h-3.5 fill-white" />
                           <span>Reprendre</span>
                         </button>
                         <button
                           onClick={() => handleCancelOne(task.id)}
                           className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold transition-colors cursor-pointer"
                         >
-                          <IconX className="w-3.5 h-3.5" />
+                          <X className="w-3.5 h-3.5" />
                           <span>Annuler</span>
                         </button>
                       </>
@@ -618,7 +603,7 @@ export default function DownloadsView({
                         onClick={() => handleRetryOne(task.id)}
                         className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-[#D70466] hover:bg-[#b5034f] text-white text-xs font-bold transition-colors cursor-pointer shadow"
                       >
-                        <IconRefresh className="w-3.5 h-3.5" />
+                        <ArrowsClockwise className="w-3.5 h-3.5" />
                         <span>Relancer</span>
                       </button>
                     )}
@@ -632,7 +617,7 @@ export default function DownloadsView({
         /* ÉCRAN VIDE */
         <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
           <div className="w-16 h-16 rounded-3xl bg-zinc-900/80 border border-white/5 flex items-center justify-center text-brand-primary shadow-xl">
-            <IconDownload className="w-8 h-8" />
+            <DownloadSimple className="w-8 h-8" />
           </div>
           <div>
             <h3 className="text-lg font-bold text-white">Aucun téléchargement</h3>
@@ -665,7 +650,7 @@ export default function DownloadsView({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="w-12 h-12 rounded-full bg-red-500/10 text-red-500 flex items-center justify-center mx-auto">
-              <IconAlertTriangle className="w-6 h-6" />
+              <Warning className="w-6 h-6" />
             </div>
             <div>
               <h3 className="text-base font-bold text-white">

@@ -4,7 +4,7 @@ import React, { useRef, useCallback, useState } from "react";
 import Image from "next/image";
 import gsap from "gsap";
 import type { MovieOrShow } from "@/types/media";
-import { IconPlayerPlay, IconPlaylist } from '@tabler/icons-react';
+import { Play, ListNumbers } from '@phosphor-icons/react';
 import { useAuthStore } from "@/stores/useAuthStore";
 import AddToPlaylistModal from "@/components/AddToPlaylistModal";
 
@@ -130,7 +130,7 @@ export default function ContinueWatchingCard({
               title="Enregistrer dans..."
               className="p-1.5 rounded-full bg-black/60 hover:bg-black/85 text-cyan-400 hover:text-white border border-white/20 transition-all hover:scale-110 shadow-lg cursor-pointer"
             >
-              <IconPlaylist className="w-3.5 h-3.5" />
+              <ListNumbers className="w-3.5 h-3.5" />
             </button>
           </div>
         )}
@@ -149,7 +149,7 @@ export default function ContinueWatchingCard({
           className="absolute inset-0 flex items-center justify-center cursor-pointer pointer-events-none group-hover:pointer-events-auto"
         >
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-black shadow-2xl hover:scale-110 active:scale-95 transition-transform duration-200">
-            <IconPlayerPlay className="h-6 w-6 translate-x-0.5" />
+            <Play className="h-6 w-6 translate-x-0.5" />
           </div>
         </div>
 

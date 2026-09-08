@@ -4,7 +4,7 @@ import React, { useState, useRef, useCallback } from "react";
 import Image from "next/image";
 import gsap from "gsap";
 import type { MovieOrShow } from "@/types/media";
-import { IconPlayerPlay, IconStar, IconInfoCircle, IconMovie, IconBookmark, IconBookmarkFilled, IconPlaylist } from '@tabler/icons-react';
+import { Play, Star, Info, FilmSlate, BookmarkSimple, ListNumbers } from '@phosphor-icons/react';
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { userService } from "@/services/user";
@@ -259,7 +259,7 @@ function MovieCard({
             />
           ) : (
             <div className={`w-full h-full flex flex-col items-center justify-center gap-2 bg-gradient-to-br ${gradients[gradientIndex]} p-3 text-center`}>
-              <IconMovie className="h-8 w-8 text-white/40" />
+              <FilmSlate className="h-8 w-8 text-white/40" />
               <span className="line-clamp-3 text-xs font-semibold text-white/70">{item.title}</span>
             </div>
           )}
@@ -309,7 +309,7 @@ function MovieCard({
                 title="Enregistrer dans..."
                 className="rounded-full p-1.5 shadow-lg backdrop-blur-md transition-all bg-black/40 text-cyan-400 hover:bg-black/70 border border-white/20 hover:scale-105"
               >
-                <IconPlaylist className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <ListNumbers className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
 
               <button 
@@ -320,9 +320,9 @@ function MovieCard({
                 }`}
               >
                 {isFavorite ? (
-                  <IconBookmarkFilled className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <BookmarkSimple className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 ) : (
-                  <IconBookmark className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <BookmarkSimple className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 )}
               </button>
             </div>
@@ -332,7 +332,7 @@ function MovieCard({
         {/* Top-left Rating Badge */}
         {Boolean(item.rating) && (
           <div className="absolute top-3 left-3 z-10 flex items-center gap-1 rounded-md glass-badge px-2 py-0.5 text-[10px] font-bold">
-            <IconStar className="h-3 w-3 fill-amber-400 text-amber-400" />
+            <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
             <span className="text-amber-400">{item.rating}</span>
           </div>
         )}
@@ -378,7 +378,7 @@ function MovieCard({
                 aria-label={_("media.watch")}
                 className="h-8 w-8 rounded-xl bg-white text-black hover:bg-zinc-200 hover:scale-105 active:scale-95 flex items-center justify-center shrink-0 shadow-lg transition-all cursor-pointer"
               >
-                <IconPlayerPlay className="h-4 w-4 fill-black translate-x-[0.5px]" />
+                <Play className="h-4 w-4 fill-black translate-x-[0.5px]" />
               </button>
             </div>
 
@@ -445,7 +445,7 @@ function MovieCard({
             />
           ) : (
             <div className={`absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-br ${gradients[gradientIndex]} p-3 text-center`}>
-              <IconMovie className="h-8 w-8 text-white/40" />
+              <FilmSlate className="h-8 w-8 text-white/40" />
               <span className="line-clamp-3 text-xs font-semibold text-white/70">{item.title}</span>
             </div>
           )}
@@ -454,7 +454,7 @@ function MovieCard({
         {/* Top-left rating badge */}
         {Boolean(item.rating) && (
           <div className="absolute top-2 left-2 z-10 flex items-center gap-1 rounded-md glass-badge px-1.5 py-0.5 text-[10px] font-bold">
-            <IconStar className="h-3 w-3 fill-amber-400 text-amber-400" />
+            <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
             <span className="text-amber-400">{item.rating}</span>
           </div>
         )}
@@ -513,7 +513,7 @@ function MovieCard({
                   title="Enregistrer dans..."
                   className="pointer-events-auto flex h-7 w-7 items-center justify-center rounded-full glass-button text-cyan-400 hover:text-white cursor-pointer"
                 >
-                  <IconPlaylist className="h-3.5 w-3.5" />
+                  <ListNumbers className="h-3.5 w-3.5" />
                 </button>
               )}
 
@@ -526,7 +526,7 @@ function MovieCard({
                 className="pointer-events-auto flex h-7 w-7 items-center justify-center rounded-full bg-white text-black hover:bg-zinc-200 hover:scale-110 active:scale-95 transition-all shadow-md cursor-pointer"
                 aria-label={_("media.watch")}
               >
-                <IconPlayerPlay className="h-3.5 w-3.5 fill-black translate-x-[0.5px]" />
+                <Play className="h-3.5 w-3.5 fill-black translate-x-[0.5px]" />
               </button>
 
               <button
@@ -538,7 +538,7 @@ function MovieCard({
                 className="pointer-events-auto flex h-7 w-7 items-center justify-center rounded-full glass-button text-white cursor-pointer"
                 aria-label={_("media.details")}
               >
-                <IconInfoCircle className="h-3.5 w-3.5" />
+                <Info className="h-3.5 w-3.5" />
               </button>
             </div>
           </div>

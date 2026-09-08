@@ -1,7 +1,6 @@
 /* global self ReadableStream Response Headers fetch caches */
 
-const CACHE_NAME = 'chillers-cache-v4';
-const isDev = self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1';
+const CACHE_NAME = 'chillers-cache-v6';
 
 // ── StreamSaver map pour le streaming de téléchargement ────────
 const map = new Map();
@@ -12,32 +11,42 @@ const PRECACHE_ASSETS = [
   '/downloads',
   '/offline.html',
   '/manifest.json',
+  '/site.webmanifest',
   '/favicon.ico',
+  '/favicon-16x16.png',
+  '/favicon-32x32.png',
   '/android-chrome-192x192.png',
+  '/android-chrome-512x512.png',
+  '/apple-touch-icon.png',
 ];
 
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      // Forcer la mise en cache de offline.html et /downloads en priorité
-      return cache.addAll(PRECACHE_ASSETS).catch(err => {
-        console.warn('[SW] Precache failed partially:', err);
-      });
-    }).then(() => self.skipWaiting())
+    caches
+      .open(CACHE_NAME)
+      .then(cache => {
+        return cache.addAll(PRECACHE_ASSETS).catch(err => {
+          console.warn('[SW] Precache failed partially:', err);
+        });
+      })
+      .then(() => self.skipWaiting())
   );
 });
 
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(keys => {
-      return Promise.all(
-        keys.map(key => {
-          if (key !== CACHE_NAME) {
-            return caches.delete(key);
-          }
-        })
-      );
-    }).then(() => self.clients.claim())
+    caches
+      .keys()
+      .then(keys => {
+        return Promise.all(
+          keys.map(key => {
+            if (key !== CACHE_NAME) {
+              return caches.delete(key);
+            }
+          })
+        );
+      })
+      .then(() => self.clients.claim())
   );
 });
 
@@ -50,7 +59,9 @@ self.onmessage = event => {
   const data = event.data;
   if (!data) return;
 
-  const downloadUrl = data.url || self.registration.scope + Math.random() + '/' + (typeof data === 'string' ? data : data.filename);
+  const downloadUrl =
+    data.url ||
+    self.registration.scope + Math.random() + '/' + (typeof data === 'string' ? data : data.filename);
   const port = event.ports && event.ports[0];
   if (!port) return;
 
@@ -89,7 +100,7 @@ function createStream(port) {
     },
     cancel(reason) {
       port.postMessage({ abort: true });
-    }
+    },
   });
 }
 
@@ -107,7 +118,7 @@ self.addEventListener('fetch', event => {
       'Content-Security-Policy': "default-src 'none'",
       'X-Content-Security-Policy': "default-src 'none'",
       'X-WebKit-CSP': "default-src 'none'",
-      'X-XSS-Protection': '1; mode=block'
+      'X-XSS-Protection': '1; mode=block',
     });
 
     let headers = new Headers(data.headers || {});
@@ -129,7 +140,7 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Ne jamais intercepter les chunks HMR ou appels Next internes en dev, ni les API dynamiques et médias
+  // Ne jamais intercepter les chunks HMR ou appels Next internes en dev, ni les API dynamiques et médias vidéo
   if (
     url.includes('/_next/webpack-hmr') ||
     url.includes('/api/') ||
@@ -141,17 +152,78 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // En production/online : Cache des images TMDB (Stale-While-Revalidate)
-  if (url.includes('image.tmdb.org')) {
+  // 2. Cache-First pour le CSS, JS Chunks, Fonts et Actifs Statiques Next.js
+  if (
+    url.includes('/_next/static/') ||
+    /\.(css|js|woff2?|png|jpg|jpeg|svg|ico|webp|avif|json|webmanifest)$/i.test(url)
+  ) {
     event.respondWith(
-      caches.match(event.request).then(cached => {
-        const fetchPromise = fetch(event.request).then(networkResponse => {
+      caches.match(event.request, { ignoreSearch: true }).then(cachedResponse => {
+        if (cachedResponse) {
+          // Re-validation en arrière-plan quand la connexion est disponible
+          fetch(event.request)
+            .then(networkResponse => {
+              if (networkResponse && networkResponse.status === 200) {
+                const copy = networkResponse.clone();
+                caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+              }
+            })
+            .catch(() => {});
+          return cachedResponse;
+        }
+
+        return fetch(event.request)
+          .then(networkResponse => {
+            if (networkResponse && (networkResponse.status === 200 || networkResponse.status === 0)) {
+              const copy = networkResponse.clone();
+              caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+            }
+            return networkResponse;
+          })
+          .catch(err => {
+            console.warn('[SW] Asset fetch failed:', url, err);
+          });
+      })
+    );
+    return;
+  }
+
+  // 3. Gestion des requêtes RSC Next.js (App Router Client-side routing data)
+  if (url.includes('_rsc=') || event.request.headers.get('rsc') === '1') {
+    event.respondWith(
+      fetch(event.request)
+        .then(networkResponse => {
           if (networkResponse && networkResponse.status === 200) {
             const copy = networkResponse.clone();
             caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
           }
           return networkResponse;
-        }).catch(() => cached);
+        })
+        .catch(async () => {
+          const cached = await caches.match(event.request, { ignoreSearch: true });
+          if (cached) return cached;
+          return new Response(JSON.stringify({ offline: true }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        })
+    );
+    return;
+  }
+
+  // 4. Cache des images TMDB (Stale-While-Revalidate)
+  if (url.includes('image.tmdb.org')) {
+    event.respondWith(
+      caches.match(event.request, { ignoreSearch: true }).then(cached => {
+        const fetchPromise = fetch(event.request)
+          .then(networkResponse => {
+            if (networkResponse && networkResponse.status === 200) {
+              const copy = networkResponse.clone();
+              caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+            }
+            return networkResponse;
+          })
+          .catch(() => cached);
 
         return cached || fetchPromise;
       })
@@ -159,7 +231,7 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Navigation HTML (Page loads) : Network-first avec fallback sur cache ou page offline
+  // 5. Navigation HTML (Page loads) : Network-first avec fallback sur cache ou page downloads/offline
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
@@ -171,17 +243,21 @@ self.addEventListener('fetch', event => {
           return response;
         })
         .catch(async () => {
-          // Si hors-ligne : tenter de servir la page depuis le cache
-          const cached = await caches.match(event.request);
+          // Si hors-ligne : tenter de servir la page demandée depuis le cache
+          const cached = await caches.match(event.request, { ignoreSearch: true });
           if (cached) return cached;
 
-          // Si c'est une tentative d'aller sur /downloads, essayer /downloads en cache
-          const cachedDownloads = await caches.match('/downloads');
+          // Si c'est la page /downloads en cache
+          const cachedDownloads = await caches.match('/downloads', { ignoreSearch: true });
           if (cachedDownloads) return cachedDownloads;
 
+          // Si c'est la racine /
+          const cachedHome = await caches.match('/', { ignoreSearch: true });
+          if (cachedHome) return cachedHome;
+
           // Sinon afficher la page offline
-          const offlinePage = await caches.match(OFFLINE_URL);
-          return offlinePage || new Response('Hors ligne', { status: 503, headers: { 'Content-Type': 'text/plain' } });
+          const offlinePage = await caches.match(OFFLINE_URL, { ignoreSearch: true });
+          return offlinePage || new Response('Hors ligne', { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
         })
     );
   }
@@ -201,7 +277,6 @@ self.addEventListener('backgroundfetchsuccess', event => {
         }
         await event.updateUI({ title: 'Téléchargement terminé · CHILLERS' });
 
-        // Notifier tous les clients ouverts
         const clients = await self.clients.matchAll({ type: 'window' });
         for (const client of clients) {
           client.postMessage({
@@ -247,7 +322,5 @@ self.addEventListener('backgroundfetchabort', event => {
 });
 
 self.addEventListener('backgroundfetchclick', event => {
-  event.waitUntil(
-    self.clients.openWindow('/downloads')
-  );
+  event.waitUntil(self.clients.openWindow('/downloads'));
 });

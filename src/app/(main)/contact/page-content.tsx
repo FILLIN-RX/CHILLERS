@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { IconArrowLeft, IconMail, IconAlertTriangle } from '@tabler/icons-react';
+import { ArrowLeft, Envelope, Warning } from '@phosphor-icons/react';
 
 export default function ContactPage() {
   const [submitted, setSubmitted] = useState(false);
@@ -15,7 +15,7 @@ export default function ContactPage() {
           aria-label="Retour"
           className="flex items-center justify-center w-10 h-10 rounded-full bg-black/70 backdrop-blur-sm border border-white/10 text-white hover:bg-white/10 transition-all"
         >
-          <IconArrowLeft className="h-5 w-5" />
+          <ArrowLeft className="h-5 w-5" />
         </button>
       </div>
 
@@ -24,7 +24,7 @@ export default function ContactPage() {
         {/* Header */}
         <section className="text-center space-y-4">
           <div className="w-16 h-16 mx-auto rounded-full bg-[#D70466]/20 flex items-center justify-center">
-            <IconMail className="h-8 w-8 text-[#D70466]" />
+            <Envelope className="h-8 w-8 text-[#D70466]" />
           </div>
           <h1 className="text-3xl sm:text-4xl font-black">Contactez-nous</h1>
           <p className="text-zinc-400 text-sm leading-relaxed">
@@ -41,28 +41,28 @@ export default function ContactPage() {
           </h2>
           <div className="grid sm:grid-cols-2 gap-3">
             <div className="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800">
-              <IconAlertTriangle className="h-5 w-5 text-amber-400 mb-2" />
+              <Warning className="h-5 w-5 text-amber-400 mb-2" />
               <h3 className="text-sm font-bold">Signaler un contenu</h3>
               <p className="text-zinc-500 text-xs mt-1">
                 Si un contenu référencé sur Chillers porte atteinte à vos droits d&apos;auteur, contactez-nous pour un retrait rapide.
               </p>
             </div>
             <div className="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800">
-              <IconMail className="h-5 w-5 text-[#7C3AED] mb-2" />
+              <Envelope className="h-5 w-5 text-[#7C3AED] mb-2" />
               <h3 className="text-sm font-bold">Signaler un bug</h3>
               <p className="text-zinc-500 text-xs mt-1">
                 Vous avez trouvé un problème technique ? Décrivez-le-nous et nous le corrigerons au plus vite.
               </p>
             </div>
             <div className="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800">
-              <IconMail className="h-5 w-5 text-emerald-400 mb-2" />
+              <Envelope className="h-5 w-5 text-emerald-400 mb-2" />
               <h3 className="text-sm font-bold">Suggestion</h3>
               <p className="text-zinc-500 text-xs mt-1">
                 Une idée pour améliorer Chillers ? Nous adorons entendre vos propositions.
               </p>
             </div>
             <div className="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800">
-              <IconMail className="h-5 w-5 text-[#D70466] mb-2" />
+              <Envelope className="h-5 w-5 text-[#D70466] mb-2" />
               <h3 className="text-sm font-bold">Demande DMCA</h3>
               <p className="text-zinc-500 text-xs mt-1">
                 Pour toute demande relative à la propriété intellectuelle, envoyez-nous un email détaillé.

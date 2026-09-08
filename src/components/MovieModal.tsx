@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import gsap from "gsap";
 import type { MovieOrShow, Season, Episode } from "@/types/media";
 import { getSeasonDetails, getMediaDetails } from "@/services/media";
-import { IconX, IconPlayerPlay, IconStar, IconInfoCircle, IconPlaylist } from '@tabler/icons-react';
+import { X, Play, Star, Info, ListNumbers } from '@phosphor-icons/react';
 import { useLanguage } from "@/i18n/LanguageContext";
 import { acquireModalScrollLock, releaseModalScrollLock } from "@/lib/modalScrollLock";
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -237,7 +237,7 @@ export default function MovieModal({
             aria-label={_("common.close")}
             className="absolute top-4 right-4 z-20 p-2.5 rounded-full bg-black/60 text-zinc-300 hover:text-white backdrop-blur-md hover:bg-black/85 transition-all cursor-pointer shadow-lg hover:scale-105"
           >
-            <IconX className="h-5 w-5" />
+            <X className="h-5 w-5" />
           </button>
 
           {/* Bottom title overlay */}
@@ -248,7 +248,7 @@ export default function MovieModal({
             <div className="flex items-center gap-2 text-xs text-white/90 font-semibold flex-wrap">
               {effective.rating && (
                 <div className="flex items-center gap-1 text-amber-400 glass-badge px-2 py-0.5 rounded font-bold">
-                  <IconStar className="h-3.5 w-3.5 fill-amber-400" />
+                  <Star className="h-3.5 w-3.5 fill-amber-400" />
                   <span>{effective.rating}</span>
                 </div>
               )}
@@ -268,7 +268,7 @@ export default function MovieModal({
                 onClick={() => onWatch(item)}
                 className="flex items-center gap-2 rounded-xl bg-brand-primary hover:bg-brand-primary/90 text-white px-6 py-2.5 font-bold text-sm transition-all shadow-lg shadow-brand-primary/25 cursor-pointer hover:scale-105 active:scale-95"
               >
-                <IconPlayerPlay className="h-4 w-4 fill-white" />
+                <Play className="h-4 w-4 fill-white" />
                 {_("media.watch")}
               </button>
 
@@ -280,7 +280,7 @@ export default function MovieModal({
                 }}
                 className="flex items-center gap-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white px-4 py-2.5 font-bold text-sm transition-all cursor-pointer hover:scale-105 active:scale-95 backdrop-blur-md"
               >
-                <IconInfoCircle className="h-4 w-4" />
+                <Info className="h-4 w-4" />
                 <span>Voir la fiche</span>
               </button>
 
@@ -290,7 +290,7 @@ export default function MovieModal({
                   title="Enregistrer dans une playlist ou À regarder plus tard"
                   className="flex items-center gap-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-cyan-400 hover:text-white px-4 py-2.5 font-bold text-sm transition-all cursor-pointer hover:scale-105 active:scale-95 backdrop-blur-md"
                 >
-                  <IconPlaylist className="h-4 w-4" />
+                  <ListNumbers className="h-4 w-4" />
                   <span>Enregistrer</span>
                 </button>
               )}
@@ -377,7 +377,7 @@ export default function MovieModal({
                         <h4 className="text-sm font-bold text-foreground truncate">{ep.title}</h4>
                         <p className="text-[11px] text-brand-text-muted">{ep.duration}</p>
                       </div>
-                      <IconPlayerPlay className="h-4 w-4 text-brand-primary flex-none" />
+                      <Play className="h-4 w-4 text-brand-primary flex-none" />
                     </div>
                   ))
                 )}

@@ -1,32 +1,17 @@
-import {
-  IconLayoutDashboard,
-  IconMovie,
-  IconDeviceTv,
-  IconFileDescription,
-  IconLink,
-  IconSettings,
-  IconLogin2,
-  IconArrowLeft,
-  IconFolder,
-  IconFolderOpen,
-  IconClock,
-  IconSearch,
-  IconCloudUpload,
-  IconPlus,
-} from '@tabler/icons-react';
+import { ChartBar, FilmSlate, Television, FileText, LinkSimple, GearSix, SignIn, ArrowLeft, Folder, FolderOpen, Clock, MagnifyingGlass, CloudArrowUp, Plus } from '@phosphor-icons/react';
 
-export { IconLayoutDashboard as IconDashboard };
-export { IconMovie as IconMovie };
-export { IconDeviceTv as IconTv };
-export { IconFileDescription as IconLogs };
-export { IconLink as IconLink };
-export { IconSettings as IconSettings };
-export { IconLogin2 as IconLogout };
-export { IconArrowLeft as IconBack };
-export { IconFolder as IconFolder };
-export { IconFolderOpen as IconFolderOpen };
-export { IconClock as IconTmdb };
-export { IconClock as IconCron };
-export { IconSearch as IconSearch };
-export { IconCloudUpload as IconUqload };
-export { IconPlus as IconPlus };
+export { ChartBar as ChartBar };
+export { FilmSlate as FilmSlate };
+export { Television as IconTv };
+export { FileText as ListDashes };
+export { LinkSimple as LinkSimple };
+export { GearSix as GearSix };
+export { SignIn as SignOut };
+export { ArrowLeft as IconBack };
+export { Folder as Folder };
+export { FolderOpen as FolderOpen };
+export { Clock as IconTmdb };
+export { Clock as IconCron };
+export { MagnifyingGlass as MagnifyingGlass };
+export { CloudArrowUp as IconUqload };
+export { Plus as Plus };

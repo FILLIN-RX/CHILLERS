@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useState, useEffect, useCallback } from "react";
-import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
+import { CaretLeft, CaretRight } from '@phosphor-icons/react';
 import gsap from "gsap";
 
 import Link from "next/link";
@@ -156,7 +156,7 @@ export default function ScrollRow({
                 className="text-xs sm:text-sm font-semibold text-zinc-400 hover:text-white flex items-center gap-0.5 group transition-colors focus:outline-none"
               >
                 <span>{seeAllText}</span>
-                <IconChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                <CaretRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
               </Link>
             ) : onSeeAll ? (
               <button
@@ -164,7 +164,7 @@ export default function ScrollRow({
                 className="text-xs sm:text-sm font-semibold text-zinc-400 hover:text-white flex items-center gap-0.5 group transition-colors focus:outline-none cursor-pointer"
               >
                 <span>{seeAllText}</span>
-                <IconChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                <CaretRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
               </button>
             ) : null}
 
@@ -179,7 +179,7 @@ export default function ScrollRow({
                     : "border-zinc-800 bg-zinc-950 text-zinc-700 cursor-not-allowed opacity-50"
                 }`}
               >
-                <IconChevronLeft className="h-4 w-4" />
+                <CaretLeft className="h-4 w-4" />
               </button>
               <button
                 onClick={() => scroll("right")}
@@ -191,7 +191,7 @@ export default function ScrollRow({
                     : "border-zinc-800 bg-zinc-950 text-zinc-700 cursor-not-allowed opacity-50"
                 }`}
               >
-                <IconChevronRight className="h-4 w-4" />
+                <CaretRight className="h-4 w-4" />
               </button>
             </div>
           </div>
@@ -220,7 +220,7 @@ export default function ScrollRow({
             className="sm:hidden absolute left-0 top-0 h-full w-10 z-20 flex items-center justify-start pl-1 bg-gradient-to-r from-black/60 to-transparent cursor-pointer"
           >
             <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/70 border border-white/20 backdrop-blur-sm">
-              <IconChevronLeft className="h-5 w-5 text-white" />
+              <CaretLeft className="h-5 w-5 text-white" />
             </span>
           </button>
         )}
@@ -232,7 +232,7 @@ export default function ScrollRow({
             className="sm:hidden absolute right-0 top-0 h-full w-10 z-20 flex items-center justify-end pr-1 bg-gradient-to-l from-black/60 to-transparent cursor-pointer"
           >
             <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/70 border border-white/20 backdrop-blur-sm">
-              <IconChevronRight className="h-5 w-5 text-white" />
+              <CaretRight className="h-5 w-5 text-white" />
             </span>
           </button>
         )}

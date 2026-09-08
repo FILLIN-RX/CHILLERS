@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { IconCrown, IconBolt, IconUser } from "@tabler/icons-react";
+import { Crown, Lightning, User } from "@phosphor-icons/react";
 
 export type PlanType = "free" | "standard" | "premium" | string;
 
@@ -77,7 +77,7 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
     shadow = "shadow-lg shadow-amber-500/25";
     badgeEl = (
       <div className={`absolute ${s.badge} rounded-full bg-amber-500 text-black flex items-center justify-center shadow-md ring-2 ring-zinc-950`}>
-        <IconCrown className={s.badgeIcon} />
+        <Crown className={s.badgeIcon} />
       </div>
     );
   } else if (plan === "standard") {
@@ -86,7 +86,7 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
     shadow = "shadow-md shadow-blue-500/20";
     badgeEl = (
       <div className={`absolute ${s.badge} rounded-full bg-blue-500 text-white flex items-center justify-center shadow-md ring-2 ring-zinc-950`}>
-        <IconBolt className={s.badgeIcon} />
+        <Lightning className={s.badgeIcon} />
       </div>
     );
   } else {

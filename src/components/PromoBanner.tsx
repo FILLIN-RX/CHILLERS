@@ -2,7 +2,7 @@
 
 import React from "react";
 import Image from "next/image";
-import { IconPlayerPlay, IconInfoCircle, IconFlame } from "@tabler/icons-react";
+import { Play, Info, Flame } from "@phosphor-icons/react";
 import type { MovieOrShow } from "@/types/media";
 
 interface PromoBannerProps {
@@ -39,7 +39,7 @@ export default function PromoBanner({ item, onWatchNow, onOpenDetails }: PromoBa
           <div className="max-w-xl">
             <div className="flex items-center gap-2 mb-2">
               <span className="flex items-center gap-1 rounded-full bg-red-600/90 px-2.5 py-0.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-white">
-                <IconFlame className="h-3 w-3" />
+                <Flame className="h-3 w-3" />
                 Le plus en vue
               </span>
               {typeof item.rating === "number" && item.rating > 0 && (
@@ -62,14 +62,14 @@ export default function PromoBanner({ item, onWatchNow, onOpenDetails }: PromoBa
                 onClick={() => onWatchNow(item)}
                 className="flex items-center gap-2 rounded-full bg-white px-4 sm:px-5 py-2 text-sm sm:text-base font-bold text-black hover:bg-zinc-200 active:scale-95 transition-all"
               >
-                <IconPlayerPlay className="h-4 w-4 sm:h-5 sm:w-5" fill="currentColor" />
+                <Play className="h-4 w-4 sm:h-5 sm:w-5" fill="currentColor" />
                 Regarder
               </button>
               <button
                 onClick={() => onOpenDetails(item)}
                 className="flex items-center gap-2 rounded-full bg-white/10 border border-white/20 px-4 sm:px-5 py-2 text-sm sm:text-base font-bold text-white backdrop-blur-sm hover:bg-white/20 active:scale-95 transition-all"
               >
-                <IconInfoCircle className="h-4 w-4 sm:h-5 sm:w-5" />
+                <Info className="h-4 w-4 sm:h-5 sm:w-5" />
                 Détails
               </button>
             </div>

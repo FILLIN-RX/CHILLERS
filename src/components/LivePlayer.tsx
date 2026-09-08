@@ -4,24 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import Hls from "hls.js";
 import { useLanguage } from "@/i18n/LanguageContext";
 import type { LiveChannel } from "@/types/live";
-import {
-  IconArrowLeft,
-  IconX,
-  IconPlayerPlay,
-  IconPlayerPause,
-  IconRotate2,
-  IconRotateDot,
-  IconVolume,
-  IconVolumeOff,
-  IconMaximize,
-  IconMinimize,
-  IconDeviceTv,
-  IconClock,
-  IconDotsVertical,
-  IconPictureInPicture,
-  IconRefresh,
-  IconChevronRight,
-} from "@tabler/icons-react";
+import { ArrowLeft, X, Play, Pause, ArrowsClockwise, SpeakerSimpleHigh, SpeakerSimpleSlash, ArrowsOutSimple, ArrowsInSimple, Television, Clock, DotsThreeVertical, PictureInPicture, CaretRight } from "@phosphor-icons/react";
 
 interface LivePlayerProps {
   channel: LiveChannel;
@@ -376,7 +359,7 @@ export default function LivePlayer({
     <div
       ref={containerRef}
       onMouseMove={handleMouseMove}
-      className="relative w-full aspect-video bg-black overflow-hidden select-none group font-sans text-white"
+      className="relative w-full min-h-[200px] sm:min-h-[340px] aspect-video max-h-[75dvh] bg-black overflow-hidden select-none group font-sans text-white"
     >
       {/* ── Main Video Layer ────────────────────────────────────── */}
       {iframeSrc ? (
@@ -425,7 +408,7 @@ export default function LivePlayer({
       {error && (
         <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-4 bg-black/90 px-6 text-center">
           <div className="h-16 w-16 rounded-full bg-red-600/20 border border-red-500/30 flex items-center justify-center">
-            <IconDeviceTv className="h-8 w-8 text-red-500" />
+            <Television className="h-8 w-8 text-red-500" />
           </div>
           <h3 className="text-xl font-bold text-white">Flux momentanément indisponible</h3>
           <p className="text-sm text-zinc-400 max-w-md">
@@ -435,7 +418,7 @@ export default function LivePlayer({
             onClick={retry}
             className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-red-600 hover:bg-red-500 text-white text-xs font-black uppercase tracking-wider transition-all"
           >
-            <IconRefresh className="h-4 w-4" />
+            <ArrowsClockwise className="h-4 w-4" />
             Réessayer
           </button>
         </div>
@@ -455,7 +438,7 @@ export default function LivePlayer({
               className="flex items-center justify-center w-9 h-9 rounded-full bg-black/50 hover:bg-white/20 text-white transition-colors"
               aria-label="Retour"
             >
-              <IconArrowLeft className="h-5 w-5" />
+              <ArrowLeft className="h-5 w-5" />
             </button>
 
             <ChannelLogoBadge
@@ -470,7 +453,7 @@ export default function LivePlayer({
                 <h1 className="text-sm sm:text-base md:text-lg font-black uppercase tracking-wider text-white truncate">
                   {channel.name}
                 </h1>
-                <IconChevronRight className="h-4 w-4 text-zinc-400 shrink-0" />
+                <CaretRight className="h-4 w-4 text-zinc-400 shrink-0" />
               </div>
               <p className="text-[11px] sm:text-xs text-zinc-400 font-medium truncate">
                 {isLive ? "En direct HD" : "Différé"} · {channel.categories?.[0]?.toUpperCase() || "DIRECT"}
@@ -486,9 +469,9 @@ export default function LivePlayer({
               aria-label="Volume"
             >
               {isMuted ? (
-                <IconVolumeOff className="h-5 w-5 text-red-500" />
+                <SpeakerSimpleSlash className="h-5 w-5 text-red-500" />
               ) : (
-                <IconVolume className="h-5 w-5" />
+                <SpeakerSimpleHigh className="h-5 w-5" />
               )}
             </button>
 
@@ -498,7 +481,7 @@ export default function LivePlayer({
               aria-label="Picture-in-Picture"
               title="Mini-lecteur"
             >
-              <IconPictureInPicture className="h-5 w-5" />
+              <PictureInPicture className="h-5 w-5" />
             </button>
 
             <button
@@ -506,7 +489,7 @@ export default function LivePlayer({
               className="p-2 rounded-full hover:bg-white/10 text-white transition-colors"
               aria-label="Fermer"
             >
-              <IconX className="h-5 w-5" />
+              <X className="h-5 w-5" />
             </button>
           </div>
         </div>
@@ -551,7 +534,7 @@ export default function LivePlayer({
               aria-label="Reculer de 10s"
               title="Reculer de 10s"
             >
-              <IconRotate2 className="h-5 w-5" />
+              <ArrowsClockwise className="h-5 w-5" />
             </button>
 
             <button
@@ -560,9 +543,9 @@ export default function LivePlayer({
               aria-label={isPlaying ? "Pause" : "Lecture"}
             >
               {isPlaying ? (
-                <IconPlayerPause className="h-5 w-5 fill-white" />
+                <Pause className="h-5 w-5 fill-white" />
               ) : (
-                <IconPlayerPlay className="h-5 w-5 fill-white ml-0.5" />
+                <Play className="h-5 w-5 fill-white ml-0.5" />
               )}
             </button>
 
@@ -572,7 +555,7 @@ export default function LivePlayer({
               aria-label="Avancer de 10s"
               title="Avancer de 10s"
             >
-              <IconRotateDot className="h-5 w-5" />
+              <ArrowsClockwise className="h-5 w-5" />
             </button>
 
             {/* Bouton LIVE Canal+ : Rouge en direct, Gris si en pause/différé */}
@@ -601,7 +584,7 @@ export default function LivePlayer({
                 onClick={() => setShowChannelDrawer(!showChannelDrawer)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-wider transition-all"
               >
-                <IconDeviceTv className="h-4 w-4" />
+                <Television className="h-4 w-4" />
                 <span className="hidden sm:inline">TOUTES LES CHAÎNES</span>
               </button>
             )}
@@ -610,7 +593,7 @@ export default function LivePlayer({
               onClick={() => setShowEpgModal(!showEpgModal)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-white/10 text-zinc-300 hover:text-white text-xs font-bold uppercase tracking-wider transition-all hidden md:flex"
             >
-              <IconClock className="h-4 w-4" />
+              <Clock className="h-4 w-4" />
               <span>REVOIR / À SUIVRE</span>
             </button>
 
@@ -619,7 +602,7 @@ export default function LivePlayer({
               className="p-2 rounded-full hover:bg-white/10 text-zinc-300 hover:text-white transition-colors"
               aria-label="Options"
             >
-              <IconDotsVertical className="h-5 w-5" />
+              <DotsThreeVertical className="h-5 w-5" />
             </button>
 
             <button
@@ -628,9 +611,9 @@ export default function LivePlayer({
               aria-label="Plein écran"
             >
               {isFullscreen ? (
-                <IconMinimize className="h-5 w-5" />
+                <ArrowsInSimple className="h-5 w-5" />
               ) : (
-                <IconMaximize className="h-5 w-5" />
+                <ArrowsOutSimple className="h-5 w-5" />
               )}
             </button>
           </div>
@@ -642,14 +625,14 @@ export default function LivePlayer({
         <div className="absolute inset-y-0 right-0 z-40 w-80 sm:w-96 bg-black/95 backdrop-blur-xl border-l border-white/10 flex flex-col p-4 animate-fade-in">
           <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
             <h3 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
-              <IconDeviceTv className="h-4 w-4 text-red-500" />
+              <Television className="h-4 w-4 text-red-500" />
               Toutes les chaînes
             </h3>
             <button
               onClick={() => setShowChannelDrawer(false)}
               className="p-1.5 rounded-full hover:bg-white/10 text-zinc-400 hover:text-white"
             >
-              <IconX className="h-4 w-4" />
+              <X className="h-4 w-4" />
             </button>
           </div>
 

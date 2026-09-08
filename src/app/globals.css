@@ -7,6 +7,8 @@
   /* Static fallback tokens — dynamic variants handled via CSS classes below */
   --font-sans: var(--font-geist-sans), Arial, sans-serif;
   --font-mono: var(--font-geist-mono), monospace;
+  /* Custom xs breakpoint (480px) */
+  --breakpoint-xs: 480px;
 }
 
 :root {

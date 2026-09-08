@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import type { MovieOrShow } from "@/types/media";
-import { IconPlayerPlay, IconPlayerPause, IconChevronLeft, IconChevronRight, IconStar } from '@tabler/icons-react';
+import { Play, Pause, CaretLeft, CaretRight, Star } from '@phosphor-icons/react';
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useHydrated } from "@/hooks/useHydrated";
 
@@ -214,7 +214,7 @@ export default function HeroCarousel({
                   className="flex h-14 w-14 sm:h-20 sm:w-20 md:h-24 md:w-24 items-center justify-center rounded-full bg-brand-primary/20 hover:bg-brand-primary/30 border border-brand-primary/50 text-white cursor-pointer transition-all duration-500 hover:scale-110 shadow-3xl hover:shadow-brand-primary/40 group backdrop-blur-sm"
                 >
                   <div className="flex h-10 w-10 sm:h-14 sm:w-14 md:h-16 md:w-16 items-center justify-center rounded-full bg-brand-primary group-hover:bg-brand-primary/90 transition-all duration-300">
-                    <IconPlayerPlay className="h-5 w-5 sm:h-7 sm:w-7 md:h-8 md:w-8 text-white translate-x-0.5" />
+                    <Play className="h-5 w-5 sm:h-7 sm:w-7 md:h-8 md:w-8 text-white translate-x-0.5" />
                   </div>
                 </button>
               </div>
@@ -230,7 +230,7 @@ export default function HeroCarousel({
                     <span>{slide.duration}</span>
                     <span className="text-zinc-500">•</span>
                     <div className="flex items-center gap-1 text-amber-400 font-semibold">
-                      <IconStar className="h-4 w-4 fill-amber-400" />
+                      <Star className="h-4 w-4 fill-amber-400" />
                       <span>{slide.rating}</span>
                     </div>
                   </div>
@@ -259,7 +259,7 @@ export default function HeroCarousel({
                       onClick={() => onWatchNow(slide)}
                       className="flex items-center gap-2 rounded-full bg-brand-primary hover:bg-brand-primary/95 text-white px-5 sm:px-6 py-2.5 sm:py-3 font-semibold text-sm transition-all duration-300 hover:scale-105 shadow-xl shadow-brand-primary/25 cursor-pointer"
                     >
-                      <IconPlayerPlay className="h-4 w-4 sm:h-5 sm:w-5" />
+                      <Play className="h-4 w-4 sm:h-5 sm:w-5" />
                       {_("hero.watchNow")}
                     </button>
 
@@ -285,9 +285,9 @@ export default function HeroCarousel({
           className="flex h-10 w-10 items-center justify-center rounded-full bg-black/50 border border-white/15 text-white hover:bg-brand-primary/40 hover:border-brand-primary/50 backdrop-blur-md transition-all duration-300 cursor-pointer group"
         >
           {isPaused ? (
-            <IconPlayerPlay className="h-5 w-5 ml-0.5" />
+            <Play className="h-5 w-5 ml-0.5" />
           ) : (
-            <IconPlayerPause className="h-5 w-5" />
+            <Pause className="h-5 w-5" />
           )}
         </button>
         <button
@@ -295,14 +295,14 @@ export default function HeroCarousel({
           aria-label={_("common.previous")}
           className="flex h-10 w-10 items-center justify-center rounded-full bg-black/40 border border-white/10 text-zinc-300 hover:text-white hover:bg-black/60 backdrop-blur-sm transition-all duration-300 cursor-pointer"
         >
-          <IconChevronLeft className="h-5 w-5" />
+          <CaretLeft className="h-5 w-5" />
         </button>
         <button
           onClick={handleNext}
           aria-label={_("common.next")}
           className="flex h-10 w-10 items-center justify-center rounded-full bg-black/40 border border-white/10 text-zinc-300 hover:text-white hover:bg-black/60 backdrop-blur-sm transition-all duration-300 cursor-pointer"
         >
-          <IconChevronRight className="h-5 w-5" />
+          <CaretRight className="h-5 w-5" />
         </button>
       </div>
 

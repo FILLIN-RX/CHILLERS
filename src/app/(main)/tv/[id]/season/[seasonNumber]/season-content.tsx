@@ -12,20 +12,7 @@ import DownloadModal from "@/features/downloads/DownloadModal";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { userService } from "@/services/user";
-import {
-  IconArrowLeft,
-  IconPlayerPlay,
-  IconPlayerTrackPrev,
-  IconPlayerTrackNext,
-  IconMovie,
-  IconDownload,
-  IconShare,
-  IconBookmark,
-  IconBookmarkFilled,
-  IconCheck,
-  IconSparkles,
-  IconLayersLinked,
-} from "@tabler/icons-react";
+import { ArrowLeft, Play, CaretCircleLeft, CaretCircleRight, FilmSlate, DownloadSimple, ShareNetwork, BookmarkSimple, Check, Sparkle, LinkSimple } from "@phosphor-icons/react";
 
 export default function SeasonContent() {
   const params = useParams();
@@ -292,7 +279,7 @@ export default function SeasonContent() {
                 disabled={currentIndex === 0}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/5 text-xs font-semibold text-zinc-300 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer"
               >
-                <IconPlayerTrackPrev className="h-4 w-4" />
+                <CaretCircleLeft className="h-4 w-4" />
                 <span className="hidden sm:inline">Épisode Précédent</span>
               </button>
 
@@ -311,7 +298,7 @@ export default function SeasonContent() {
                 className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/5 text-xs font-semibold text-zinc-300 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer"
               >
                 <span className="hidden sm:inline">Épisode Suivant</span>
-                <IconPlayerTrackNext className="h-4 w-4" />
+                <CaretCircleRight className="h-4 w-4" />
               </button>
             </div>
           )}
@@ -325,7 +312,7 @@ export default function SeasonContent() {
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <span className="text-[#D70466] font-black tracking-widest text-xs uppercase flex items-center gap-1 bg-[#D70466]/10 border border-[#D70466]/20 px-2.5 py-0.5 rounded-full">
-                    <IconSparkles className="w-3 h-3" />
+                    <Sparkle className="w-3 h-3" />
                     CHILLERS SÉRIE
                   </span>
                   <span className="text-xs text-zinc-400 font-mono">
@@ -349,7 +336,7 @@ export default function SeasonContent() {
                   disabled={!currentEpisode}
                   className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-black hover:bg-[#E5E5EA] font-bold text-xs sm:text-sm transition-all shadow-lg cursor-pointer"
                 >
-                  <IconDownload className="h-4 w-4" />
+                  <DownloadSimple className="h-4 w-4" />
                   <span>Télécharger l&apos;épisode</span>
                 </button>
 
@@ -357,7 +344,7 @@ export default function SeasonContent() {
                   onClick={() => setShowBatchDownload(true)}
                   className="flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-white font-bold text-xs sm:text-sm transition-all cursor-pointer"
                 >
-                  <IconLayersLinked className="h-4 w-4" />
+                  <LinkSimple className="h-4 w-4" />
                   <span>Télécharger la saison</span>
                 </button>
 
@@ -373,9 +360,9 @@ export default function SeasonContent() {
                     }`}
                   >
                     {isFavorite ? (
-                      <IconBookmarkFilled className="w-4 h-4" />
+                      <BookmarkSimple className="w-4 h-4" />
                     ) : (
-                      <IconBookmark className="w-4 h-4" />
+                      <BookmarkSimple className="w-4 h-4" />
                     )}
                   </button>
                 )}
@@ -386,7 +373,7 @@ export default function SeasonContent() {
                     aria-label="Partager"
                     className="p-2.5 rounded-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-white transition-all hover:scale-105 cursor-pointer"
                   >
-                    <IconShare className="w-4 h-4" />
+                    <ShareNetwork className="w-4 h-4" />
                   </button>
 
                   {shareOpen && (
@@ -404,7 +391,7 @@ export default function SeasonContent() {
                         className="w-full text-left flex items-center justify-between px-3 py-2 text-xs text-white hover:bg-zinc-800 rounded-lg transition-colors"
                       >
                         <span>{copiedLink ? "Lien copié !" : "Copier le lien"}</span>
-                        {copiedLink && <IconCheck className="w-3.5 h-3.5 text-emerald-400" />}
+                        {copiedLink && <Check className="w-3.5 h-3.5 text-emerald-400" />}
                       </button>
                     </div>
                   )}
@@ -474,7 +461,7 @@ export default function SeasonContent() {
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-zinc-600">
-                            <IconMovie className="w-6 h-6" />
+                            <FilmSlate className="w-6 h-6" />
                           </div>
                         )}
 
@@ -492,7 +479,7 @@ export default function SeasonContent() {
                         {isActive && (
                           <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                             <div className="w-7 h-7 rounded-full bg-[#D70466] flex items-center justify-center">
-                              <IconPlayerPlay className="w-4 h-4 fill-white translate-x-0.5" />
+                              <Play className="w-4 h-4 fill-white translate-x-0.5" />
                             </div>
                           </div>
                         )}

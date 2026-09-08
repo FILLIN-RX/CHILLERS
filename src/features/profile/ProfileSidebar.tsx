@@ -2,10 +2,7 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
-import {
-  IconCrown,
-  IconLogout,
-} from "@tabler/icons-react";
+import { Crown, SignOut } from "@phosphor-icons/react";
 import UserAvatar from "@/components/UserAvatar";
 
 export interface ProfileTabItem {
@@ -57,10 +54,10 @@ export default function ProfileSidebar({
                   }`}
                 >
                   {user.subscription?.plan === "premium" && (
-                    <IconCrown className="w-3 h-3 text-yellow-400" />
+                    <Crown className="w-3 h-3 text-yellow-400" />
                   )}
                   {user.subscription?.plan === "standard" && (
-                    <IconCrown className="w-3 h-3 text-cyan-400" />
+                    <Crown className="w-3 h-3 text-cyan-400" />
                   )}
                   {user.role === "admin"
                     ? "Admin VIP"
@@ -116,7 +113,7 @@ export default function ProfileSidebar({
             onClick={onLogout}
             className="w-full flex items-center justify-start gap-3 px-5 py-3.5 rounded-2xl text-xs sm:text-sm font-bold text-zinc-400 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-all cursor-pointer"
           >
-            <IconLogout className="w-4 h-4 sm:w-5 sm:h-5" />
+            <SignOut className="w-4 h-4 sm:w-5 sm:h-5" />
             <span>{lang === "fr" ? "Se déconnecter" : "Log Out"}</span>
           </button>
         </div>

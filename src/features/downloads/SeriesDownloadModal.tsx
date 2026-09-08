@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { IconX, IconDownload, IconMovie, IconCheck } from "@tabler/icons-react";
+import { X, DownloadSimple, FilmSlate, Check } from "@phosphor-icons/react";
 import type { Episode } from "@/types/media";
 import { downloadTaskId } from "@/lib/format";
 import MultiDownloadModal from "./MultiDownloadModal";
@@ -122,7 +122,7 @@ export default function SeriesDownloadModal({
               className="flex-none w-8 h-8 flex items-center justify-center rounded-full bg-white/8 hover:bg-white/15 transition-colors"
               aria-label="Fermer"
             >
-              <IconX className="h-4 w-4 text-white" />
+              <X className="h-4 w-4 text-white" />
             </button>
           </div>
 
@@ -140,7 +140,7 @@ export default function SeriesDownloadModal({
                 }`}
               >
                 {selected.size === episodes.length && (
-                  <IconCheck className="h-2.5 w-2.5 text-white" />
+                  <Check className="h-2.5 w-2.5 text-white" />
                 )}
               </div>
               {selected.size === episodes.length
@@ -158,7 +158,7 @@ export default function SeriesDownloadModal({
               disabled={selected.size === 0}
               className="flex items-center gap-1.5 px-4 py-1.5 rounded text-xs font-bold bg-white text-black hover:bg-zinc-200 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              <IconDownload className="h-3 w-3" />
+              <DownloadSimple className="h-3 w-3" />
               Télécharger ({selected.size})
             </button>
           </div>
@@ -193,7 +193,7 @@ export default function SeriesDownloadModal({
                         : "border-zinc-600 group-hover:border-zinc-400"
                     }`}
                   >
-                    {isSelected && <IconCheck className="h-3 w-3 text-white" />}
+                    {isSelected && <Check className="h-3 w-3 text-white" />}
                   </div>
 
                   {/* Thumbnail */}
@@ -208,7 +208,7 @@ export default function SeriesDownloadModal({
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <IconMovie className="h-4 w-4 text-zinc-600" />
+                        <FilmSlate className="h-4 w-4 text-zinc-600" />
                       </div>
                     )}
                   </div>
@@ -235,7 +235,7 @@ export default function SeriesDownloadModal({
                     className="flex-none flex items-center justify-center w-8 h-8 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500 hover:text-white hover:border-emerald-500 transition-all"
                     title={`Télécharger ${epKey(ep)}`}
                   >
-                    <IconDownload className="h-3.5 w-3.5" />
+                    <DownloadSimple className="h-3.5 w-3.5" />
                   </button>
                 </div>
               );
@@ -255,7 +255,7 @@ export default function SeriesDownloadModal({
             disabled={selected.size === 0}
             className="flex items-center gap-2 px-5 py-2 rounded font-bold text-sm bg-white text-black hover:bg-zinc-200 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg"
           >
-            <IconDownload className="h-4 w-4" />
+            <DownloadSimple className="h-4 w-4" />
             Télécharger {selected.size} épisode{selected.size > 1 ? "s" : ""}
           </button>
         </div>

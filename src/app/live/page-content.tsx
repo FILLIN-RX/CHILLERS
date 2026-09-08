@@ -3,16 +3,7 @@
 import React, { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import {
-  IconDeviceTv,
-  IconSearch,
-  IconStar,
-  IconPlayerPlay,
-  IconPlayerTrackNext,
-  IconX,
-  IconCheck,
-  IconArrowLeft,
-} from "@tabler/icons-react";
+import { Television, MagnifyingGlass, Star, Play, CaretCircleRight, X, Check, ArrowLeft } from "@phosphor-icons/react";
 import { getLiveChannels, FALLBACK_CHANNELS } from "@/services/live";
 import type { LiveChannel } from "@/types/live";
 import LivePlayer from "@/components/LivePlayer";
@@ -215,7 +206,7 @@ export default function LivePageContent() {
 
         {/* Search Input */}
         <div className="relative w-full sm:w-64 md:w-72">
-          <IconSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+          <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
           <input
             type="search"
             value={search}
@@ -285,7 +276,7 @@ export default function LivePageContent() {
                 </p>
               </div>
               <div className="w-7 h-7 rounded-full bg-white/5 flex items-center justify-center text-zinc-400 group-hover:text-white group-hover:bg-red-600 transition-all">
-                <IconPlayerPlay className="h-3.5 w-3.5 fill-current ml-0.5" />
+                <Play className="h-3.5 w-3.5 fill-current ml-0.5" />
               </div>
             </div>
           </div>
@@ -316,7 +307,7 @@ export default function LivePageContent() {
                   />
                 ) : (
                   <div className="w-full h-full bg-gradient-to-tr from-zinc-900 to-zinc-800 flex items-center justify-center">
-                    <IconDeviceTv className="h-10 w-10 text-zinc-700" />
+                    <Television className="h-10 w-10 text-zinc-700" />
                   </div>
                 )}
 
@@ -338,7 +329,7 @@ export default function LivePageContent() {
                   }`}
                   aria-label="Favori"
                 >
-                  <IconStar className={`h-3.5 w-3.5 ${isFav ? "fill-amber-400" : ""}`} />
+                  <Star className={`h-3.5 w-3.5 ${isFav ? "fill-amber-400" : ""}`} />
                 </button>
 
                 {/* Red Live Progress Bar Indicator */}
@@ -360,7 +351,7 @@ export default function LivePageContent() {
 
                 {/* Action button icon right side */}
                 <div className="flex-none text-zinc-500 group-hover:text-white transition-colors">
-                  <IconPlayerTrackNext className="h-3.5 w-3.5" />
+                  <CaretCircleRight className="h-3.5 w-3.5" />
                 </div>
               </div>
             </Link>
@@ -371,7 +362,7 @@ export default function LivePageContent() {
       {/* ── Empty State ─────────────────────────────────────────── */}
       {!isLoading && filteredChannels.length === 0 && (
         <div className="py-20 text-center space-y-3">
-          <IconDeviceTv className="h-12 w-12 text-zinc-600 mx-auto" />
+          <Television className="h-12 w-12 text-zinc-600 mx-auto" />
           <h3 className="text-base font-bold text-zinc-300">
             {activeCategory === "favorites"
               ? "Aucune chaîne dans vos favoris"
@@ -399,7 +390,7 @@ export default function LivePageContent() {
               onClick={() => setIsMultiLiveOpen(false)}
               className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
             >
-              <IconX className="h-5 w-5" />
+              <X className="h-5 w-5" />
             </button>
           </div>
 

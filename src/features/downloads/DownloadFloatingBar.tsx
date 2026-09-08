@@ -2,14 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import {
-  IconX,
-  IconCheck,
-  IconAlertTriangle,
-  IconGripVertical,
-  IconDownload,
-  IconPlayerPlay,
-} from "@tabler/icons-react";
+import { X, Check, Warning, DotsSixVertical, DownloadSimple, Play } from "@phosphor-icons/react";
 import { useDownloadsStore } from "@/store/downloads";
 import { streamDownloadToDisk } from "@/services/streamSaver";
 import { formatBytes } from "@/lib/format";
@@ -195,9 +188,9 @@ export default function DownloadFloatingBar() {
           {/* Animated Download Icon / Spinner */}
           <div className="relative w-7 h-7 rounded-full bg-[#D70466]/20 border border-[#D70466]/40 flex items-center justify-center flex-shrink-0">
             {totalActive > 0 ? (
-              <IconDownload className="h-4 w-4 text-[#D70466] animate-bounce" />
+              <DownloadSimple className="h-4 w-4 text-[#D70466] animate-bounce" />
             ) : (
-              <IconCheck className="h-4 w-4 text-emerald-400 stroke-[3]" />
+              <Check className="h-4 w-4 text-emerald-400 stroke-[3]" />
             )}
 
             {/* Circular Progress Ring */}
@@ -246,7 +239,7 @@ export default function DownloadFloatingBar() {
             className="w-5 h-5 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white flex items-center justify-center transition-colors flex-shrink-0"
             aria-label="Fermer"
           >
-            <IconX className="h-2.5 w-2.5" />
+            <X className="h-2.5 w-2.5" />
           </button>
         </div>
       </div>
@@ -274,7 +267,7 @@ export default function DownloadFloatingBar() {
           className="flex items-center justify-between px-3 py-2 border-b border-white/8 cursor-grab active:cursor-grabbing select-none touch-none"
         >
           <div className="flex items-center gap-2">
-            <IconGripVertical className="h-3.5 w-3.5 text-zinc-600" />
+            <DotsSixVertical className="h-3.5 w-3.5 text-zinc-600" />
             <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
               Téléchargement{active.length > 1 ? "s" : ""}
             </span>
@@ -287,7 +280,7 @@ export default function DownloadFloatingBar() {
                 className="p-1 rounded hover:bg-white/10 text-zinc-500 hover:text-white transition-colors"
                 aria-label="Réduire"
               >
-                <IconX className="h-3 w-3" />
+                <X className="h-3 w-3" />
               </button>
             )}
             <button
@@ -296,7 +289,7 @@ export default function DownloadFloatingBar() {
               className="p-1 rounded hover:bg-white/10 text-zinc-500 hover:text-white transition-colors"
               aria-label="Masquer"
             >
-              <IconX className="h-3 w-3" />
+              <X className="h-3 w-3" />
             </button>
           </div>
         </div>
@@ -326,10 +319,10 @@ export default function DownloadFloatingBar() {
 
                   <div className="flex items-center gap-1.5 flex-none">
                     {t.status === "done" && (
-                      <IconCheck className="h-3 w-3 text-emerald-400" />
+                      <Check className="h-3 w-3 text-emerald-400" />
                     )}
                     {t.status === "error" && (
-                      <IconAlertTriangle className="h-3 w-3 text-rose-400" />
+                      <Warning className="h-3 w-3 text-rose-400" />
                     )}
                     {t.status === "paused" && t.resolvedUrl && (
                       <button
@@ -337,7 +330,7 @@ export default function DownloadFloatingBar() {
                         onPointerDown={(e) => e.stopPropagation()}
                         className="flex items-center gap-1 text-[10px] font-bold text-brand-primary hover:text-white transition-colors"
                       >
-                        <IconPlayerPlay className="h-3 w-3" /> Reprendre
+                        <Play className="h-3 w-3" /> Reprendre
                       </button>
                     )}
                     {(t.status === "downloading" || t.status === "resolving") && (

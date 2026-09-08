@@ -4,27 +4,7 @@ import { useEffect, useState } from "react";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useRouter, useSearchParams } from "next/navigation";
-import {
-  IconBookmark,
-  IconHistory,
-  IconSettings,
-  IconUser,
-  IconPlayerPlay,
-  IconCrown,
-  IconDeviceDesktop,
-  IconDownload,
-  IconArrowLeft,
-  IconLogout,
-  IconChevronRight,
-  IconClock,
-  IconPlaylist,
-  IconPlus,
-  IconTrash,
-  IconHeart,
-  IconX,
-  IconMovie,
-  IconDeviceTv,
-} from "@tabler/icons-react";
+import { BookmarkSimple, ClockCounterClockwise, GearSix, User, Play, Crown, Monitor, DownloadSimple, ArrowLeft, SignOut, CaretRight, Clock, ListNumbers, Plus, Trash, Heart, X, FilmSlate, Television } from "@phosphor-icons/react";
 import Link from "next/link";
 import { userService } from "@/services/user";
 import { authService } from "@/services/auth";
@@ -73,7 +53,7 @@ export default function ProfileClient() {
       <div className="min-h-[80vh] flex flex-col items-center justify-center px-4 py-20 text-center">
         <div className="max-w-md w-full bg-zinc-900 border border-white/10 rounded-3xl p-8 shadow-2xl space-y-6">
           <div className="w-16 h-16 rounded-2xl bg-[#D70466]/10 border border-[#D70466]/20 flex items-center justify-center mx-auto text-[#D70466]">
-            <IconUser className="w-8 h-8" />
+            <User className="w-8 h-8" />
           </div>
           <div className="space-y-2">
             <h1 className="text-2xl font-bold text-white">
@@ -173,55 +153,55 @@ export default function ProfileClient() {
     {
       id: "overview",
       label: lang === 'fr' ? 'Accueil Profil' : 'Overview',
-      icon: IconUser,
+      icon: User,
       description: lang === 'fr' ? 'Vue générale comme YouTube' : 'YouTube-style library overview',
     },
     {
       id: "history",
       label: lang === 'fr' ? 'Historique' : 'History',
-      icon: IconHistory,
+      icon: ClockCounterClockwise,
       badge: user.watchHistory?.length || 0,
       description: lang === 'fr' ? 'Reprenez vos lectures récentes' : 'Continue watching where you left off',
     },
     {
       id: "playlists",
       label: lang === 'fr' ? 'Playlists' : 'Playlists',
-      icon: IconPlaylist,
+      icon: ListNumbers,
       badge: user.playlists?.length || 0,
       description: lang === 'fr' ? 'Vos collections et listes personnalisées' : 'Your custom video collections',
     },
     {
       id: "watch_later",
       label: lang === 'fr' ? 'À regarder plus tard' : 'Watch Later',
-      icon: IconClock,
+      icon: Clock,
       badge: user.watchLater?.length || 0,
       description: lang === 'fr' ? 'Vos vidéos réservées pour plus tard' : 'Videos saved for later',
     },
     {
       id: "watchlist",
       label: lang === 'fr' ? 'Vidéos "J\'aime"' : 'Liked Videos',
-      icon: IconHeart,
+      icon: Heart,
       badge: user.favorites?.length || 0,
       description: lang === 'fr' ? 'Vos favoris et coups de cœur' : 'Your liked movies and shows',
     },
     {
       id: "downloads",
       label: lang === 'fr' ? 'Téléchargements' : 'Downloads',
-      icon: IconDownload,
+      icon: DownloadSimple,
       badge: doneDownloadsCount > 0 ? doneDownloadsCount : undefined,
       description: lang === 'fr' ? 'Vidéos disponibles hors-connexion' : 'Videos saved for offline viewing',
     },
     {
       id: "subscription",
       label: lang === 'fr' ? 'Abonnement' : 'Subscription',
-      icon: IconCrown,
+      icon: Crown,
       badge: user.subscription?.plan === 'premium' ? 'VIP' : undefined,
       description: lang === 'fr' ? 'Plan, avantages et appareils' : 'Plan, perks and devices',
     },
     {
       id: "settings",
       label: lang === 'fr' ? 'Paramètres' : 'Settings',
-      icon: IconSettings,
+      icon: GearSix,
       description: lang === 'fr' ? 'Qualité vidéo et compte' : 'Playback quality and account',
     },
   ];
@@ -278,7 +258,7 @@ export default function ProfileClient() {
                           : 'bg-white/10 text-zinc-300 border-white/5'
                     }`}>
                       {(user.subscription?.plan === 'premium' || user.subscription?.plan === 'standard') && (
-                        <IconCrown className="w-3 h-3 text-yellow-400" />
+                        <Crown className="w-3 h-3 text-yellow-400" />
                       )}
                       {user.role === 'admin' ? 'Admin VIP' : (user.subscription?.plan || 'Free')}
                     </span>
@@ -323,7 +303,7 @@ export default function ProfileClient() {
                           )}
                         </div>
                       </div>
-                      <IconChevronRight className="w-5 h-5 text-zinc-600 group-hover:text-zinc-300 transition-colors flex-shrink-0" />
+                      <CaretRight className="w-5 h-5 text-zinc-600 group-hover:text-zinc-300 transition-colors flex-shrink-0" />
                     </button>
                   );
                 })}
@@ -336,7 +316,7 @@ export default function ProfileClient() {
                 onClick={handleLogout}
                 className="w-full flex items-center justify-center gap-2.5 p-4 rounded-2xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 hover:text-red-300 font-bold text-sm transition-all active:scale-[0.99] cursor-pointer"
               >
-                <IconLogout className="w-5 h-5" />
+                <SignOut className="w-5 h-5" />
                 <span>{lang === 'fr' ? 'Se déconnecter' : 'Log Out'}</span>
               </button>
             </div>
@@ -349,7 +329,7 @@ export default function ProfileClient() {
                 onClick={() => router.push("/profile")}
                 className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white text-sm font-medium transition-all active:scale-95"
               >
-                <IconArrowLeft className="w-4 h-4" />
+                <ArrowLeft className="w-4 h-4" />
                 <span>{lang === 'fr' ? 'Retour au profil' : 'Back to Profile'}</span>
               </button>
               {currentTabObj && (
@@ -390,7 +370,7 @@ export default function ProfileClient() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[#D70466]">
-                      <IconHistory className="w-4 h-4" />
+                      <ClockCounterClockwise className="w-4 h-4" />
                     </div>
                     <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
                       {lang === 'fr' ? 'Historique' : 'History'}
@@ -429,7 +409,7 @@ export default function ProfileClient() {
                               />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center bg-zinc-800 text-zinc-600">
-                                <IconMovie className="w-8 h-8" />
+                                <FilmSlate className="w-8 h-8" />
                               </div>
                             )}
                             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60 group-hover:opacity-90 transition-opacity" />
@@ -445,7 +425,7 @@ export default function ProfileClient() {
                             </div>
                             <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                               <div className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center shadow-xl">
-                                <IconPlayerPlay className="w-5 h-5 fill-black ml-0.5" />
+                                <Play className="w-5 h-5 fill-black ml-0.5" />
                               </div>
                             </div>
                           </div>
@@ -469,7 +449,7 @@ export default function ProfileClient() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-cyan-400">
-                      <IconPlaylist className="w-4 h-4" />
+                      <ListNumbers className="w-4 h-4" />
                     </div>
                     <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
                       {lang === 'fr' ? 'Playlists' : 'Playlists'}
@@ -480,7 +460,7 @@ export default function ProfileClient() {
                       onClick={() => setShowCreatePlaylistModal(true)}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all shadow"
                     >
-                      <IconPlus className="w-3.5 h-3.5" />
+                      <Plus className="w-3.5 h-3.5" />
                       <span>{lang === 'fr' ? 'Nouvelle playlist' : 'New Playlist'}</span>
                     </button>
                     <button
@@ -495,7 +475,7 @@ export default function ProfileClient() {
                 {(!user.playlists || user.playlists.length === 0) ? (
                   <div className="py-12 px-6 rounded-3xl bg-zinc-900/30 border border-white/5 text-center space-y-3">
                     <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center mx-auto">
-                      <IconPlaylist className="w-6 h-6" />
+                      <ListNumbers className="w-6 h-6" />
                     </div>
                     <p className="text-zinc-400 text-sm font-medium">
                       {lang === 'fr' ? "Vous n'avez pas encore de playlist." : "You have not created any playlist yet."}
@@ -504,7 +484,7 @@ export default function ProfileClient() {
                       onClick={() => setShowCreatePlaylistModal(true)}
                       className="px-4 py-2 rounded-xl bg-[#D70466] hover:bg-[#b5034f] text-white text-xs font-bold transition-all inline-flex items-center gap-2"
                     >
-                      <IconPlus className="w-4 h-4" />
+                      <Plus className="w-4 h-4" />
                       <span>{lang === 'fr' ? 'Créer ma première playlist' : 'Create my first playlist'}</span>
                     </button>
                   </div>
@@ -533,12 +513,12 @@ export default function ProfileClient() {
                               />
                             ) : (
                               <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-zinc-800 to-zinc-900 text-zinc-500">
-                                <IconPlaylist className="w-8 h-8 text-cyan-400 mb-1" />
+                                <ListNumbers className="w-8 h-8 text-cyan-400 mb-1" />
                                 <span className="text-[10px] uppercase font-bold tracking-wider">Playlist</span>
                               </div>
                             )}
                             <div className="absolute inset-y-0 right-0 w-24 bg-black/75 backdrop-blur-sm flex flex-col items-center justify-center text-white gap-1">
-                              <IconPlaylist className="w-5 h-5 text-cyan-400" />
+                              <ListNumbers className="w-5 h-5 text-cyan-400" />
                               <span className="text-xs font-black">{pl.items?.length || 0}</span>
                               <span className="text-[9px] uppercase tracking-wider text-zinc-400">vidéos</span>
                             </div>
@@ -563,7 +543,7 @@ export default function ProfileClient() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-amber-400">
-                      <IconClock className="w-4 h-4" />
+                      <Clock className="w-4 h-4" />
                     </div>
                     <div>
                       <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
@@ -607,7 +587,7 @@ export default function ProfileClient() {
                               />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center bg-zinc-800 text-zinc-600">
-                                <IconMovie className="w-8 h-8" />
+                                <FilmSlate className="w-8 h-8" />
                               </div>
                             )}
                             <div className="absolute top-2 left-2">
@@ -617,7 +597,7 @@ export default function ProfileClient() {
                             </div>
                             <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                               <div className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center shadow-xl">
-                                <IconPlayerPlay className="w-5 h-5 fill-black ml-0.5" />
+                                <Play className="w-5 h-5 fill-black ml-0.5" />
                               </div>
                             </div>
                           </div>
@@ -641,7 +621,7 @@ export default function ProfileClient() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-red-500">
-                      <IconHeart className="w-4 h-4 fill-red-500 text-red-500" />
+                      <Heart className="w-4 h-4 fill-red-500 text-red-500" />
                     </div>
                     <div>
                       <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
@@ -685,7 +665,7 @@ export default function ProfileClient() {
                               />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center bg-zinc-800 text-zinc-600">
-                                <IconMovie className="w-8 h-8" />
+                                <FilmSlate className="w-8 h-8" />
                               </div>
                             )}
                             <div className="absolute top-2 left-2">
@@ -695,7 +675,7 @@ export default function ProfileClient() {
                             </div>
                             <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                               <div className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center shadow-xl">
-                                <IconPlayerPlay className="w-5 h-5 fill-black ml-0.5" />
+                                <Play className="w-5 h-5 fill-black ml-0.5" />
                               </div>
                             </div>
                           </div>
@@ -735,7 +715,7 @@ export default function ProfileClient() {
                   onClick={() => setShowCreatePlaylistModal(true)}
                   className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[#D70466] hover:bg-[#b5034f] text-white font-bold text-sm shadow-lg transition-all"
                 >
-                  <IconPlus className="w-4 h-4" />
+                  <Plus className="w-4 h-4" />
                   <span>{lang === 'fr' ? 'Nouvelle Playlist' : 'New Playlist'}</span>
                 </button>
               </div>
@@ -743,7 +723,7 @@ export default function ProfileClient() {
               {(!user.playlists || user.playlists.length === 0) ? (
                 <div className="flex flex-col items-center justify-center py-20 bg-zinc-900/30 border border-dashed border-white/10 rounded-3xl text-center space-y-4">
                   <div className="w-16 h-16 rounded-3xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center">
-                    <IconPlaylist className="w-8 h-8" />
+                    <ListNumbers className="w-8 h-8" />
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-white">
@@ -784,12 +764,12 @@ export default function ProfileClient() {
                               />
                             ) : (
                               <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-zinc-800 to-zinc-950 text-zinc-500">
-                                <IconPlaylist className="w-10 h-10 text-cyan-400 mb-2" />
+                                <ListNumbers className="w-10 h-10 text-cyan-400 mb-2" />
                                 <span className="text-xs font-bold uppercase tracking-wider">Playlist vide</span>
                               </div>
                             )}
                             <div className="absolute inset-y-0 right-0 w-28 bg-black/80 backdrop-blur-md flex flex-col items-center justify-center text-white gap-1">
-                              <IconPlaylist className="w-6 h-6 text-cyan-400" />
+                              <ListNumbers className="w-6 h-6 text-cyan-400" />
                               <span className="text-base font-black">{pl.items?.length || 0}</span>
                               <span className="text-[10px] uppercase font-bold text-zinc-400">vidéos</span>
                             </div>
@@ -816,7 +796,7 @@ export default function ProfileClient() {
                             className="p-1.5 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-white/5 transition-colors"
                             title={lang === 'fr' ? 'Supprimer la playlist' : 'Delete playlist'}
                           >
-                            <IconTrash className="w-4 h-4" />
+                            <Trash className="w-4 h-4" />
                           </button>
                         </div>
                       </div>
@@ -846,7 +826,7 @@ export default function ProfileClient() {
               {(!user.watchLater || user.watchLater.length === 0) ? (
                 <div className="flex flex-col items-center justify-center py-20 bg-zinc-900/30 border border-dashed border-white/10 rounded-3xl text-center space-y-4">
                   <div className="w-16 h-16 rounded-3xl bg-amber-500/10 text-amber-400 flex items-center justify-center">
-                    <IconClock className="w-8 h-8" />
+                    <Clock className="w-8 h-8" />
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-white">
@@ -885,7 +865,7 @@ export default function ProfileClient() {
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center bg-zinc-800 text-zinc-600">
-                              <IconMovie className="w-8 h-8" />
+                              <FilmSlate className="w-8 h-8" />
                             </div>
                           )}
                           <div className="absolute top-2 left-2">
@@ -898,7 +878,7 @@ export default function ProfileClient() {
                             className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40"
                           >
                             <div className="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center shadow-2xl">
-                              <IconPlayerPlay className="w-6 h-6 fill-black ml-0.5" />
+                              <Play className="w-6 h-6 fill-black ml-0.5" />
                             </div>
                           </Link>
                         </div>
@@ -919,7 +899,7 @@ export default function ProfileClient() {
                             className="p-2 rounded-xl text-zinc-500 hover:text-red-400 hover:bg-white/5 transition-colors flex-shrink-0"
                             title={lang === 'fr' ? 'Retirer' : 'Remove'}
                           >
-                            <IconTrash className="w-4 h-4" />
+                            <Trash className="w-4 h-4" />
                           </button>
                         </div>
                       </div>
@@ -946,7 +926,7 @@ export default function ProfileClient() {
               
               {(!user.favorites || user.favorites.length === 0) ? (
                 <div className="flex flex-col items-center justify-center h-64 bg-zinc-900/30 border border-dashed border-white/10 rounded-3xl">
-                  <IconHeart className="w-12 h-12 text-zinc-600 mb-4" />
+                  <Heart className="w-12 h-12 text-zinc-600 mb-4" />
                   <p className="text-zinc-400 font-medium">{lang === 'fr' ? "Aucune vidéo aimée pour l'instant." : "No liked videos yet."}</p>
                   <Link href="/" className="mt-4 px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white font-semibold transition-colors">
                     {lang === 'fr' ? "Explorer le catalogue" : "Explore catalog"}
@@ -966,7 +946,7 @@ export default function ProfileClient() {
                       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
                         <div className="translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
                           <div className="w-10 h-10 rounded-full bg-[#D70466] flex items-center justify-center mb-3 shadow-lg shadow-[#D70466]/40 text-white">
-                            <IconPlayerPlay className="w-5 h-5 ml-1" fill="currentColor" />
+                            <Play className="w-5 h-5 ml-1" fill="currentColor" />
                           </div>
                           <p className="font-bold text-white text-sm line-clamp-2">{fav.title}</p>
                         </div>
@@ -988,7 +968,7 @@ export default function ProfileClient() {
               </h2>
               {(!user.watchHistory || user.watchHistory.length === 0) ? (
                 <div className="flex flex-col items-center justify-center h-64 bg-zinc-900/30 border border-dashed border-white/10 rounded-3xl">
-                  <IconHistory className="w-12 h-12 text-zinc-600 mb-4" />
+                  <ClockCounterClockwise className="w-12 h-12 text-zinc-600 mb-4" />
                   <p className="text-zinc-400 font-medium">{lang === 'fr' ? "Aucun historique disponible." : "No history available."}</p>
                 </div>
               ) : (
@@ -1019,7 +999,7 @@ export default function ProfileClient() {
                         href={`/media/${h.tmdbId}?type=${h.mediaType}`}
                         className="hidden sm:flex w-10 h-10 items-center justify-center rounded-full bg-white/5 hover:bg-white/20 text-white transition-colors"
                       >
-                        <IconPlayerPlay className="w-4 h-4 ml-0.5" />
+                        <Play className="w-4 h-4 ml-0.5" />
                       </Link>
                     </div>
                   ))}
@@ -1041,7 +1021,7 @@ export default function ProfileClient() {
                 <div className="bg-zinc-900/50 backdrop-blur-md border border-white/5 rounded-3xl p-6 sm:p-8 shadow-xl">
                   <div className="flex items-center gap-4 mb-6">
                     <div className="w-10 h-10 rounded-full bg-[#D70466]/20 text-[#D70466] flex items-center justify-center">
-                      <IconSettings className="w-5 h-5" />
+                      <GearSix className="w-5 h-5" />
                     </div>
                     <div>
                       <h3 className="font-bold text-lg text-white">Lecture Vidéo</h3>
@@ -1116,7 +1096,7 @@ export default function ProfileClient() {
                       <h3 className="text-3xl font-extrabold text-white capitalize flex items-center gap-3">
                         {user.subscription?.plan || (user.role === 'admin' ? 'Admin VIP' : 'Free')}
                         {(user.subscription?.plan === 'premium' || user.role === 'admin') && (
-                          <IconCrown className="w-8 h-8 text-amber-400" />
+                          <Crown className="w-8 h-8 text-amber-400" />
                         )}
                       </h3>
                       <p className="text-sm text-zinc-400 mt-2 flex items-center gap-1.5">
@@ -1167,7 +1147,7 @@ export default function ProfileClient() {
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 rounded-full bg-blue-500/20 text-blue-500 flex items-center justify-center flex-shrink-0">
-                        <IconDeviceDesktop className="w-5 h-5" />
+                        <Monitor className="w-5 h-5" />
                       </div>
                       <div>
                         <h3 className="font-bold text-lg text-white">{lang === 'fr' ? 'Appareils Connectés' : 'Connected Devices'}</h3>
@@ -1206,7 +1186,7 @@ export default function ProfileClient() {
                         return (
                           <div key={idx} className="flex justify-between items-center bg-black/40 p-4 rounded-xl border border-white/5">
                             <div className="flex items-center gap-3">
-                              <IconDeviceDesktop className="text-zinc-500 w-5 h-5 flex-shrink-0" />
+                              <Monitor className="text-zinc-500 w-5 h-5 flex-shrink-0" />
                               <div>
                                 <p className="text-white text-sm font-medium">{session.deviceName || 'Appareil Inconnu'}</p>
                                 <p className="text-xs text-zinc-500">
@@ -1263,7 +1243,7 @@ export default function ProfileClient() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center">
-                  <IconPlaylist className="w-5 h-5" />
+                  <ListNumbers className="w-5 h-5" />
                 </div>
                 <h3 className="text-lg font-bold text-white">
                   {lang === 'fr' ? 'Nouvelle Playlist' : 'New Playlist'}
@@ -1273,7 +1253,7 @@ export default function ProfileClient() {
                 onClick={() => setShowCreatePlaylistModal(false)}
                 className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
               >
-                <IconX className="w-5 h-5" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 

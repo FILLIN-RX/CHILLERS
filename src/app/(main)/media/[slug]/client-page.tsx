@@ -34,9 +34,10 @@ import ScrollRow from "@/components/ScrollRow";
 import MovieCard from "@/components/MovieCard";
 import AddToPlaylistModal from "@/components/AddToPlaylistModal";
 import { useLanguage } from "@/i18n/LanguageContext";
-import { IconArrowLeft, IconPlayerPlay, IconStar, IconClock, IconCalendar, IconMovie, IconChevronLeft, IconChevronRight, IconDownload, IconShare, IconSparkles, IconBookmark, IconBookmarkFilled, IconPlaylist } from '@tabler/icons-react';
+import { ArrowLeft, Play, Star, Clock, CalendarBlank, FilmSlate, CaretLeft, CaretRight, DownloadSimple, ShareNetwork, Sparkle, BookmarkSimple, ListNumbers } from '@phosphor-icons/react';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { userService } from '@/services/user';
+import gsap from 'gsap';
 
 import CatalogSpotlightHero from "@/components/CatalogSpotlightHero";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
@@ -308,7 +309,7 @@ function MediaDetailPage() {
     return (
       <div className="min-h-screen bg-[#09090B] flex items-center justify-center text-white">
         <div className="text-center space-y-4">
-          <IconMovie className="h-16 w-16 text-zinc-700 mx-auto" />
+          <FilmSlate className="h-16 w-16 text-zinc-700 mx-auto" />
           <p className="text-zinc-400 text-lg">{_("media.notFound")}</p>
           <button
             onClick={() => { window.scrollTo(0, 0); router.back(); }}
@@ -369,7 +370,7 @@ function MediaDetailPage() {
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-zinc-600">
-                  <IconMovie className="w-10 h-10 sm:w-12 sm:h-12" />
+                  <FilmSlate className="w-10 h-10 sm:w-12 sm:h-12" />
                 </div>
               )}
             </div>
@@ -432,7 +433,7 @@ function MediaDetailPage() {
               {/* Métadonnées : Note, Année, Durée */}
               <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-zinc-300 font-medium">
                 <div className="flex items-center gap-1 text-amber-400 font-bold">
-                  <IconStar className="h-4 w-4 fill-amber-400" />
+                  <Star className="h-4 w-4 fill-amber-400" />
                   <span>{item.rating}</span>
                   <span className="text-zinc-500 text-[10px] sm:text-xs">/10</span>
                   {item.voteCount && (
@@ -441,12 +442,12 @@ function MediaDetailPage() {
                 </div>
                 <span className="text-zinc-600">•</span>
                 <div className="flex items-center gap-1">
-                  <IconCalendar className="h-4 w-4 text-zinc-500" />
+                  <CalendarBlank className="h-4 w-4 text-zinc-500" />
                   <span>{item.year}</span>
                 </div>
                 <span className="text-zinc-600">•</span>
                 <div className="flex items-center gap-1">
-                  <IconClock className="h-4 w-4 text-zinc-500" />
+                  <Clock className="h-4 w-4 text-zinc-500" />
                   <span>{item.duration}</span>
                 </div>
               </div>
@@ -467,7 +468,7 @@ function MediaDetailPage() {
                       : "bg-[#D70466] hover:bg-[#b5034f] text-white shadow-[#D70466]/30"
                   }`}
                 >
-                  <IconPlayerPlay className="h-4 w-4 fill-white" />
+                  <Play className="h-4 w-4 fill-white" />
                   <span>{_("media.watch")}</span>
                 </button>
 
@@ -476,7 +477,7 @@ function MediaDetailPage() {
                     onClick={() => setTrailerOpen(true)}
                     className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-white font-bold text-xs sm:text-sm transition-all hover:scale-105"
                   >
-                    <IconMovie className="h-4 w-4" />
+                    <FilmSlate className="h-4 w-4" />
                     <span>Bande-annonce</span>
                   </button>
                 )}
@@ -486,7 +487,7 @@ function MediaDetailPage() {
                   disabled={!item || loading}
                   className="flex items-center justify-center gap-2 px-4 sm:px-5 py-3 rounded-full bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-700 text-white font-bold text-xs sm:text-sm transition-all hover:scale-105"
                 >
-                  <IconDownload className="h-4 w-4" />
+                  <DownloadSimple className="h-4 w-4" />
                   <span className="hidden sm:inline">Télécharger</span>
                 </button>
 
@@ -497,7 +498,7 @@ function MediaDetailPage() {
                     title={lang === 'fr' ? 'Enregistrer dans...' : 'Save to...'}
                     className="p-3 rounded-full bg-black/50 hover:bg-black/80 border border-white/20 text-white transition-all hover:scale-105 backdrop-blur-md cursor-pointer"
                   >
-                    <IconPlaylist className="h-4 w-4 text-cyan-400" />
+                    <ListNumbers className="h-4 w-4 text-cyan-400" />
                   </button>
                 )}
 
@@ -512,9 +513,9 @@ function MediaDetailPage() {
                     }`}
                   >
                     {isFavorite ? (
-                      <IconBookmarkFilled className="h-4 w-4" />
+                      <BookmarkSimple className="h-4 w-4" />
                     ) : (
-                      <IconBookmark className="h-4 w-4" />
+                      <BookmarkSimple className="h-4 w-4" />
                     )}
                   </button>
                 )}
@@ -525,7 +526,7 @@ function MediaDetailPage() {
                     aria-label="Partager"
                     className="p-3 rounded-full bg-black/50 hover:bg-black/80 border border-white/20 text-white transition-all hover:scale-105 backdrop-blur-md"
                   >
-                    <IconShare className="h-4 w-4" />
+                    <ShareNetwork className="h-4 w-4" />
                   </button>
                 </div>
               </div>
@@ -645,7 +646,7 @@ function MediaDetailPage() {
                 <div className="flex justify-between items-center pt-1">
                   <span className="text-zinc-400">Note TMDB</span>
                   <span className="font-bold text-amber-400 flex items-center gap-1">
-                    <IconStar className="w-3.5 h-3.5 fill-amber-400" />
+                    <Star className="w-3.5 h-3.5 fill-amber-400" />
                     {item.rating}/10
                   </span>
                 </div>
@@ -815,7 +816,8 @@ function MediaListingPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [isLoadingGrid, setIsLoadingGrid] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [headerHidden, setHeaderHidden] = useState(false);
+  const genreBarRef = useRef<HTMLDivElement>(null);
+  const lastScrollY = useRef(0);
 
   const hasMore = page < totalPages;
 
@@ -836,10 +838,36 @@ function MediaListingPage() {
   const [selectedMovie, setSelectedMovie] = useState<MovieOrShow | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  // Sync genre bar sticky position with Header hide/show via GSAP
   useEffect(() => {
-    const handleScroll = () => setHeaderHidden(window.scrollY > 20);
-    window.addEventListener("scroll", handleScroll);
-    handleScroll();
+    const handleScroll = () => {
+      if (!genreBarRef.current) return;
+      const currentY = window.scrollY;
+      const direction = currentY > lastScrollY.current ? "down" : "up";
+      const delta = Math.abs(currentY - lastScrollY.current);
+
+      if (delta > 5) {
+        if (direction === "down" && currentY > 60) {
+          // Header is hiding → move genre bar to top-0
+          gsap.to(genreBarRef.current, {
+            top: 0,
+            duration: 0.35,
+            ease: "power2.inOut",
+            overwrite: "auto",
+          });
+        } else if (direction === "up") {
+          // Header is showing → move genre bar below header
+          gsap.to(genreBarRef.current, {
+            top: window.innerWidth < 640 ? 100 : 64,
+            duration: 0.3,
+            ease: "power2.out",
+            overwrite: "auto",
+          });
+        }
+        lastScrollY.current = currentY;
+      }
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
@@ -1065,10 +1093,11 @@ function MediaListingPage() {
   return (
     <main className="min-h-screen bg-brand-dark pt-16 sm:pt-20 pb-28">
 
-      {/* ── Sticky genre filter bar with generous breathing room ── */}
-      <div className={`sticky z-30 bg-brand-dark/95 backdrop-blur-md border-b border-zinc-800/40 px-2 sm:px-6 md:px-12 lg:px-[3%] py-3 transition-all duration-500 ${
-        headerHidden ? "top-0" : "top-[60px] sm:top-[64px]"
-      }`}>
+      {/* ── Sticky genre filter bar ── */}
+      <div
+        ref={genreBarRef}
+        className="sticky z-30 bg-brand-dark/95 backdrop-blur-md border-b border-zinc-800/40 px-2 sm:px-6 md:px-12 lg:px-[3%] py-3 top-[100px] sm:top-[64px]"
+      >
         <GenreFilterBar
           genres={genres}
           activeGenreId={activeGenreId}
@@ -1084,7 +1113,7 @@ function MediaListingPage() {
           {type === "anime" && (
             <div className="px-2 sm:px-6 md:px-12 lg:px-[3%]">
               <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-brand-secondary/10 border border-brand-secondary/30">
-                <IconSparkles className="h-4 w-4 text-brand-secondary" />
+                <Sparkle className="h-4 w-4 text-brand-secondary" />
                 <p className="text-xs font-bold text-white">{_("search.animePoweredBy")}</p>
               </div>
             </div>
@@ -1098,7 +1127,7 @@ function MediaListingPage() {
                   <div className="h-5 w-48 bg-zinc-800 rounded skeleton-loading" />
                   <div className="flex gap-3 overflow-hidden">
                     {Array.from({ length: 5 }).map((_, cIdx) => (
-                      <div key={cIdx} className="aspect-video w-[240px] sm:w-[280px] bg-zinc-900 rounded-md skeleton-loading shrink-0" />
+                      <div key={cIdx} className="aspect-video flex-1 min-w-[160px] sm:min-w-[200px] bg-zinc-900 rounded-md skeleton-loading shrink-0" />
                     ))}
                   </div>
                 </div>
@@ -1139,7 +1168,7 @@ function MediaListingPage() {
                   onClick={() => handleSelectGenre(null)}
                   className="text-xs font-semibold text-zinc-400 hover:text-white flex items-center gap-1 transition-colors cursor-pointer"
                 >
-                  <IconChevronLeft className="h-4 w-4" />
+                  <CaretLeft className="h-4 w-4" />
                   <span>Tous les {type === 'movies' ? 'films' : type === 'series' ? 'séries' : 'animes'}</span>
                 </button>
               </div>

@@ -2,7 +2,7 @@
 
 import React, { useMemo } from "react";
 import Image from "next/image";
-import { IconPlayerPlay, IconInfoCircle } from "@tabler/icons-react";
+import { Play, Info } from "@phosphor-icons/react";
 import type { MovieOrShow } from "@/types/media";
 
 interface SpotlightGridProps {
@@ -53,14 +53,14 @@ function SpotlightCard({
               onClick={() => onWatchNow(item)}
               className="flex items-center gap-1 sm:gap-1.5 rounded-full bg-white px-2.5 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-bold text-black hover:bg-zinc-200 active:scale-95 transition-all"
             >
-              <IconPlayerPlay className="h-3 w-3 sm:h-3.5 sm:w-3.5" fill="currentColor" />
+              <Play className="h-3 w-3 sm:h-3.5 sm:w-3.5" fill="currentColor" />
               Play Now
             </button>
             <button
               onClick={() => onOpenDetails(item)}
               className="flex items-center gap-1 sm:gap-1.5 rounded-full bg-white/10 border border-white/20 px-2.5 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-bold text-white backdrop-blur-sm hover:bg-white/20 active:scale-95 transition-all"
             >
-              <IconInfoCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+              <Info className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
               Details
             </button>
           </div>

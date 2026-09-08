@@ -18,22 +18,7 @@ import MovieCard from "@/components/MovieCard";
 import ScrollRow from "@/components/ScrollRow";
 import SeriesDownloadModal from "@/features/downloads/SeriesDownloadModal";
 import AddToPlaylistModal from "@/components/AddToPlaylistModal";
-import {
-  IconArrowLeft,
-  IconPlayerPlay,
-  IconStar,
-  IconCalendar,
-  IconMovie,
-  IconDownload,
-  IconShare,
-  IconBookmark,
-  IconBookmarkFilled,
-  IconX,
-  IconCheck,
-  IconSparkles,
-  IconLayersLinked,
-  IconPlaylist,
-} from "@tabler/icons-react";
+import { ArrowLeft, Play, Star, CalendarBlank, FilmSlate, DownloadSimple, ShareNetwork, BookmarkSimple, X, Check, Sparkle, LinkSimple, ListNumbers } from "@phosphor-icons/react";
 
 export default function TVDetailPage() {
   const params = useParams();
@@ -225,7 +210,7 @@ export default function TVDetailPage() {
             aria-label="Retour"
             className="flex items-center justify-center w-10 h-10 rounded-full bg-black/60 hover:bg-black/90 backdrop-blur-xl border border-white/10 text-white transition-all shadow-xl cursor-pointer"
           >
-            <IconArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-5 h-5" />
           </button>
         </div>
 
@@ -245,7 +230,7 @@ export default function TVDetailPage() {
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-zinc-600">
-                <IconMovie className="w-12 h-12" />
+                <FilmSlate className="w-12 h-12" />
               </div>
             )}
           </div>
@@ -256,7 +241,7 @@ export default function TVDetailPage() {
             {/* Badges : Réseau, Statut, Classification, Audio */}
             <div className="flex flex-wrap items-center gap-2 text-xs font-bold">
               <span className="text-[#D70466] font-black tracking-widest text-[11px] uppercase flex items-center gap-1.5 bg-[#D70466]/10 border border-[#D70466]/20 px-2.5 py-0.5 rounded-full">
-                <IconSparkles className="w-3.5 h-3.5" />
+                <Sparkle className="w-3.5 h-3.5" />
                 SÉRIE CHILLERS
               </span>
 
@@ -322,14 +307,14 @@ export default function TVDetailPage() {
             {/* Métadonnées */}
             <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm text-zinc-300 font-medium">
               <div className="flex items-center gap-1.5 text-amber-400 font-bold bg-amber-400/10 px-2.5 py-0.5 rounded-full border border-amber-400/20">
-                <IconStar className="h-3.5 w-3.5 fill-amber-400" />
+                <Star className="h-3.5 w-3.5 fill-amber-400" />
                 <span>{item.rating}</span>
                 <span className="text-zinc-500 text-[11px]">/10</span>
               </div>
 
               <span className="text-zinc-600">•</span>
               <div className="flex items-center gap-1">
-                <IconCalendar className="h-4 w-4 text-zinc-500" />
+                <CalendarBlank className="h-4 w-4 text-zinc-500" />
                 <span>{item.year}</span>
               </div>
 
@@ -355,7 +340,7 @@ export default function TVDetailPage() {
                 href={`/tv/${id}/season/${firstSeasonNumber}`}
                 className="flex items-center gap-2 px-6 sm:px-8 py-3 rounded-full bg-[#D70466] hover:bg-[#b5034f] text-white font-bold text-xs sm:text-sm transition-all hover:scale-105 shadow-xl shadow-[#D70466]/40 cursor-pointer"
               >
-                <IconPlayerPlay className="h-4 w-4 fill-white" />
+                <Play className="h-4 w-4 fill-white" />
                 <span>Regarder Saison {firstSeasonNumber}</span>
               </Link>
 
@@ -364,7 +349,7 @@ export default function TVDetailPage() {
                   onClick={() => setTrailerOpen(true)}
                   className="flex items-center gap-2 px-4 sm:px-6 py-3 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-white font-bold text-xs sm:text-sm transition-all hover:scale-105 cursor-pointer"
                 >
-                  <IconMovie className="h-4 w-4" />
+                  <FilmSlate className="h-4 w-4" />
                   <span>Bande-annonce</span>
                 </button>
               )}
@@ -376,7 +361,7 @@ export default function TVDetailPage() {
                   aria-label="Enregistrer dans..."
                   className="p-3 rounded-full bg-black/50 hover:bg-black/80 border border-white/20 text-cyan-400 hover:text-white transition-all hover:scale-105 backdrop-blur-md cursor-pointer"
                 >
-                  <IconPlaylist className="w-4 h-4" />
+                  <ListNumbers className="w-4 h-4" />
                 </button>
               )}
 
@@ -392,9 +377,9 @@ export default function TVDetailPage() {
                   }`}
                 >
                   {isFavorite ? (
-                    <IconBookmarkFilled className="w-4 h-4" />
+                    <BookmarkSimple className="w-4 h-4" />
                   ) : (
-                    <IconBookmark className="w-4 h-4" />
+                    <BookmarkSimple className="w-4 h-4" />
                   )}
                 </button>
               )}
@@ -405,7 +390,7 @@ export default function TVDetailPage() {
                   aria-label="Partager"
                   className="p-3 rounded-full bg-black/50 hover:bg-black/80 border border-white/20 text-white transition-all hover:scale-105 backdrop-blur-md cursor-pointer"
                 >
-                  <IconShare className="w-4 h-4" />
+                  <ShareNetwork className="w-4 h-4" />
                 </button>
 
                 {shareOpen && (
@@ -423,7 +408,7 @@ export default function TVDetailPage() {
                       className="w-full text-left flex items-center justify-between px-3 py-2 text-xs text-white hover:bg-zinc-800 rounded-lg transition-colors"
                     >
                       <span>{copiedLink ? "Lien copié !" : "Copier le lien"}</span>
-                      {copiedLink && <IconCheck className="w-3.5 h-3.5 text-emerald-400" />}
+                      {copiedLink && <Check className="w-3.5 h-3.5 text-emerald-400" />}
                     </button>
                   </div>
                 )}
@@ -440,7 +425,7 @@ export default function TVDetailPage() {
         <section className="space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2">
-              <IconLayersLinked className="w-6 h-6 text-[#D70466]" />
+              <LinkSimple className="w-6 h-6 text-[#D70466]" />
               <span>Saisons Disponibles</span>
               <span className="text-xs text-zinc-500 font-normal">({validSeasons.length})</span>
             </h2>
@@ -468,7 +453,7 @@ export default function TVDetailPage() {
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-zinc-600">
-                        <IconMovie className="w-10 h-10" />
+                        <FilmSlate className="w-10 h-10" />
                       </div>
                     )}
 
@@ -485,7 +470,7 @@ export default function TVDetailPage() {
                     {/* Bouton Play au survol */}
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40">
                       <div className="w-12 h-12 rounded-full bg-[#D70466] flex items-center justify-center text-white shadow-xl transform scale-90 group-hover:scale-100 transition-transform">
-                        <IconPlayerPlay className="w-5 h-5 fill-white translate-x-0.5" />
+                        <Play className="w-5 h-5 fill-white translate-x-0.5" />
                       </div>
                     </div>
                   </div>
@@ -528,7 +513,7 @@ export default function TVDetailPage() {
                         />
                       ) : (
                         <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
-                          <IconMovie className="w-8 h-8 text-zinc-600" />
+                          <FilmSlate className="w-8 h-8 text-zinc-600" />
                         </div>
                       )}
 
@@ -545,7 +530,7 @@ export default function TVDetailPage() {
                       {/* Bouton Play au survol */}
                       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40">
                         <div className="w-10 h-10 rounded-full bg-[#D70466] flex items-center justify-center text-white shadow-xl">
-                          <IconPlayerPlay className="w-4 h-4 fill-white translate-x-0.5" />
+                          <Play className="w-4 h-4 fill-white translate-x-0.5" />
                         </div>
                       </div>
                     </div>
@@ -649,7 +634,7 @@ export default function TVDetailPage() {
               onClick={() => setTrailerOpen(false)}
               className="absolute top-4 right-4 z-20 p-2 rounded-full bg-black/60 text-white hover:bg-black/90 transition-colors"
             >
-              <IconX className="w-6 h-6" />
+              <X className="w-6 h-6" />
             </button>
             <iframe
               src={`${item.trailerUrl}?autoplay=1`}

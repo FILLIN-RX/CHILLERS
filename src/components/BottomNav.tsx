@@ -3,13 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  IconHome,
-  IconMovie,
-  IconDeviceTv,
-  IconTower,
-  IconUser,
-} from "@tabler/icons-react";
+import { House, FilmSlate, Television, Radio, User } from "@phosphor-icons/react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { getActiveNavTab } from "@/lib/navActive";
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -32,19 +26,19 @@ export default function BottomNav({ onSearchClick }: BottomNavProps) {
   const { user } = useAuthStore();
 
   const items = [
-    { id: "home", label: _("bottomNav.home"), icon: IconHome, href: "/" },
-    { id: "movies", label: _("bottomNav.movies"), icon: IconMovie, href: "/media/movies" },
-    { id: "series", label: _("bottomNav.series"), icon: IconDeviceTv, href: "/media/series" },
+    { id: "home", label: lang === "fr" ? "Accueil" : "Home", icon: House, href: "/" },
+    { id: "movies", label: lang === "fr" ? "Films" : "Movie", icon: FilmSlate, href: "/media/movies" },
+    { id: "series", label: lang === "fr" ? "Séries" : "TV Show", icon: Television, href: "/media/series" },
     {
       id: "live",
       label: "Live",
-      icon: IconTower,
+      icon: Radio,
       href: "/live",
     },
     {
       id: "profile",
       label: user ? (lang === "fr" ? "Profil" : "Profile") : (lang === "fr" ? "Connexion" : "Login"),
-      icon: IconUser,
+      icon: User,
       href: user ? "/profile" : "/login",
     },
   ] as const;
@@ -68,10 +62,7 @@ export default function BottomNav({ onSearchClick }: BottomNavProps) {
           {items.map((item) => {
             const Icon = item.icon;
             const isProfile = item.id === "profile";
-            const isLive = item.id === "live";
-            const isActive = isLive
-              ? pathname.startsWith("/live")
-              : isProfile
+            const isActive = isProfile
               ? pathname.startsWith("/profile")
               : activeTab === item.id;
 
@@ -81,12 +72,12 @@ export default function BottomNav({ onSearchClick }: BottomNavProps) {
                   key={item.id}
                   onClick={() => router.push("/login")}
                   aria-label={item.label}
-                  className={`relative flex flex-col items-center gap-0.5 py-1 px-2 min-w-[56px] rounded-xl transition-all duration-200 focus:outline-none active:scale-90 ${
-                    isActive ? "text-brand-primary" : "text-zinc-400"
+                  className={`relative flex flex-col items-center gap-1 py-1 px-2 min-w-[56px] rounded-xl transition-all duration-200 focus:outline-none active:scale-90 ${
+                    isActive ? "text-[#00E599]" : "text-zinc-400"
                   }`}
                 >
-                  <Icon className="h-5 w-5" />
-                  <span className="text-[10px] font-semibold leading-none truncate max-w-[60px]">
+                  <Icon className="h-5 w-5 stroke-[2.2]" />
+                  <span className="text-[10px] font-bold leading-none truncate max-w-[60px]">
                     {item.label}
                   </span>
                 </button>
@@ -98,36 +89,26 @@ export default function BottomNav({ onSearchClick }: BottomNavProps) {
                 key={item.id}
                 href={item.href}
                 aria-label={item.label}
-                className={`relative flex flex-col items-center gap-0.5 py-1 px-2 min-w-[56px] rounded-xl transition-all duration-200 focus:outline-none active:scale-90 ${
-                  isActive ? "text-brand-primary" : "text-zinc-400"
+                className={`relative flex flex-col items-center gap-1 py-1 px-2 min-w-[56px] rounded-xl transition-all duration-200 focus:outline-none active:scale-90 ${
+                  isActive ? "text-[#00E599]" : "text-zinc-400"
                 }`}
               >
-                {isActive && (
-                  <span className="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 w-6 rounded-full bg-brand-primary" />
-                )}
                 <div className="relative flex items-center justify-center">
                   {isProfile && user ? (
                     <div
                       className={`rounded-full p-0.5 ${
-                        isActive ? "ring-2 ring-brand-primary" : ""
+                        isActive ? "ring-2 ring-[#00E599]" : ""
                       }`}
                     >
                       <UserAvatar user={user} size="xs" showBadge={false} />
                     </div>
                   ) : (
-                    <Icon className="h-5 w-5" />
-                  )}
-
-                  {isLive && (
-                    <span className="absolute -top-0.5 -right-1 flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-                    </span>
+                    <Icon className="h-5 w-5 stroke-[2.2]" />
                   )}
                 </div>
                 <span
-                  className={`text-[10px] font-semibold leading-none truncate max-w-[60px] ${
-                    isActive ? "text-brand-primary" : "text-zinc-400"
+                  className={`text-[10px] font-bold leading-none truncate max-w-[60px] ${
+                    isActive ? "text-[#00E599]" : "text-zinc-400"
                   }`}
                 >
                   {item.label}

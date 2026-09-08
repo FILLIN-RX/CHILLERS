@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { IconX, IconDownload, IconCheck, IconAlertTriangle } from "@tabler/icons-react";
+import { X, DownloadSimple, Check, Warning } from "@phosphor-icons/react";
 import { acquireModalScrollLock, releaseModalScrollLock } from "@/lib/modalScrollLock";
 import { useDownload } from "@/hooks/useDownload";
 import type { DownloadStatus } from "@/types/download";
@@ -101,7 +101,7 @@ export default function DownloadModal({
           aria-label="Fermer"
           className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 text-zinc-400 hover:text-white transition-all"
         >
-          <IconX className="h-5 w-5" />
+          <X className="h-5 w-5" />
         </button>
 
         <div className="w-16 h-16 mx-auto mb-5 rounded-full flex items-center justify-center bg-white/10">
@@ -113,12 +113,12 @@ export default function DownloadModal({
           )}
           {showSuccess && (
             <div className="w-full h-full rounded-full bg-emerald-500/20 flex items-center justify-center">
-              <IconCheck className="h-7 w-7 text-emerald-400" />
+              <Check className="h-7 w-7 text-emerald-400" />
             </div>
           )}
           {showError && (
             <div className="w-full h-full rounded-full bg-red-500/20 flex items-center justify-center">
-              <IconAlertTriangle className="h-7 w-7 text-red-400" />
+              <Warning className="h-7 w-7 text-red-400" />
             </div>
           )}
         </div>
@@ -139,7 +139,7 @@ export default function DownloadModal({
             onClick={() => { dl.start(); onClose(); }}
             className="w-full px-8 py-3 rounded bg-white text-black font-bold text-sm hover:bg-zinc-200 transition-all flex items-center justify-center gap-2"
           >
-            <IconDownload className="h-5 w-5" />
+            <DownloadSimple className="h-5 w-5" />
             Télécharger
           </button>
         )}
@@ -159,7 +159,7 @@ export default function DownloadModal({
               onClick={() => dl.retry()}
               className="w-full px-8 py-3 rounded bg-white text-black font-bold text-sm hover:bg-zinc-200 transition-all flex items-center justify-center gap-2"
             >
-              <IconDownload className="h-5 w-5" />
+              <DownloadSimple className="h-5 w-5" />
               Télécharger à nouveau
             </button>
             <button

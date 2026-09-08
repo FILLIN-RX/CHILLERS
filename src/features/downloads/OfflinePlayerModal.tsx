@@ -1,12 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import {
-  IconX,
-  IconArrowLeft,
-  IconLoader2,
-  IconFolderOpen,
-} from "@tabler/icons-react";
+import { X, ArrowLeft, Spinner, FolderOpen } from "@phosphor-icons/react";
 import type { DownloadTask } from "@/types/download";
 import { formatTime } from "@/lib/format";
 import { getOfflineVideoBlob, saveOfflineVideoBlob } from "@/services/offlineStorage";
@@ -273,7 +268,7 @@ export default function OfflinePlayerModal({
       {/* ── LOADING ── */}
       {isLoading && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-black z-30">
-          <IconLoader2 className="w-10 h-10 text-[#ff0000] animate-spin mb-4" />
+          <Spinner className="w-10 h-10 text-[#ff0000] animate-spin mb-4" />
           <p className="text-sm font-bold text-white">Chargement de la vidéo hors-ligne…</p>
         </div>
       )}
@@ -308,7 +303,7 @@ export default function OfflinePlayerModal({
         /* ── FALLBACK: fichier non trouvé dans IndexedDB ── */
         <div className="flex flex-col items-center justify-center p-8 text-center max-w-md mx-4 bg-zinc-900/90 border border-white/10 rounded-3xl shadow-2xl z-20">
           <div className="w-16 h-16 rounded-2xl bg-[#ff0000]/10 border border-[#ff0000]/25 text-[#ff0000] flex items-center justify-center mx-auto mb-4">
-            <IconFolderOpen className="w-8 h-8" />
+            <FolderOpen className="w-8 h-8" />
           </div>
           <h3 className="text-lg font-black text-white mb-1">Fichier introuvable en mémoire</h3>
           <p className="text-xs text-zinc-400 mb-6 leading-relaxed">
@@ -318,7 +313,7 @@ export default function OfflinePlayerModal({
             onClick={() => fileInputRef.current?.click()}
             className="flex items-center gap-2 px-6 py-3 rounded-xl bg-white text-black font-bold text-xs hover:bg-zinc-200 transition-all cursor-pointer shadow-lg active:scale-95"
           >
-            <IconFolderOpen className="w-4 h-4" />
+            <FolderOpen className="w-4 h-4" />
             Ouvrir le fichier
           </button>
         </div>
@@ -368,7 +363,7 @@ export default function OfflinePlayerModal({
                 className="p-2 text-white hover:text-zinc-300 transition-opacity flex items-center justify-center"
                 title="Retour (Esc)"
               >
-                <IconArrowLeft className="w-6 h-6" />
+                <ArrowLeft className="w-6 h-6" />
               </button>
               <div className="min-w-0 flex flex-col">
                 <div className="flex items-center gap-2">
@@ -389,7 +384,7 @@ export default function OfflinePlayerModal({
               className="p-2 text-white hover:text-zinc-300 transition-opacity flex items-center justify-center"
               aria-label="Fermer"
             >
-              <IconX className="w-6 h-6" />
+              <X className="w-6 h-6" />
             </button>
           </div>
 

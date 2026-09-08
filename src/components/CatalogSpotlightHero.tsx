@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import type { MovieOrShow } from "@/types/media";
-import { IconPlayerPlay, IconInfoCircle, IconStar, IconChevronLeft, IconChevronRight, IconSparkles, IconPlaylist } from "@tabler/icons-react";
+import { Play, Info, Star, CaretLeft, CaretRight, Sparkle, ListNumbers } from "@phosphor-icons/react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useAuthStore } from "@/stores/useAuthStore";
 import AddToPlaylistModal from "@/components/AddToPlaylistModal";
@@ -111,7 +111,7 @@ export default function CatalogSpotlightHero({
 
               {Boolean(current.rating) && (
                 <div className="flex items-center gap-1 bg-black/70 backdrop-blur-md px-2.5 py-1 rounded-full text-xs font-bold border border-white/10 text-amber-400">
-                  <IconStar className="h-3.5 w-3.5 fill-amber-400" />
+                  <Star className="h-3.5 w-3.5 fill-amber-400" />
                   <span>{current.rating}</span>
                 </div>
               )}
@@ -141,7 +141,7 @@ export default function CatalogSpotlightHero({
                 onClick={() => onPlay(current)}
                 className="flex items-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl bg-white text-black font-black text-xs sm:text-sm hover:bg-zinc-200 transition-all shadow-lg hover:scale-105 active:scale-95 cursor-pointer"
               >
-                <IconPlayerPlay className="h-4 w-4 fill-black" />
+                <Play className="h-4 w-4 fill-black" />
                 <span>Regarder</span>
               </button>
 
@@ -149,7 +149,7 @@ export default function CatalogSpotlightHero({
                 onClick={() => onOpenDetails(current)}
                 className="flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs sm:text-sm backdrop-blur-md border border-white/15 transition-all cursor-pointer"
               >
-                <IconInfoCircle className="h-4 w-4" />
+                <Info className="h-4 w-4" />
                 <span>Détails</span>
               </button>
 
@@ -159,7 +159,7 @@ export default function CatalogSpotlightHero({
                   title="Enregistrer dans une playlist ou À regarder plus tard"
                   className="flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl bg-black/40 hover:bg-black/60 text-cyan-400 hover:text-white font-bold text-xs sm:text-sm backdrop-blur-md border border-white/15 transition-all cursor-pointer"
                 >
-                  <IconPlaylist className="h-4 w-4" />
+                  <ListNumbers className="h-4 w-4" />
                   <span>Enregistrer</span>
                 </button>
               )}
@@ -174,7 +174,7 @@ export default function CatalogSpotlightHero({
                 aria-label="Précédent"
                 className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
               >
-                <IconChevronLeft className="h-4 w-4" />
+                <CaretLeft className="h-4 w-4" />
               </button>
 
               {/* Slide Dots */}
@@ -201,7 +201,7 @@ export default function CatalogSpotlightHero({
                 aria-label="Suivant"
                 className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
               >
-                <IconChevronRight className="h-4 w-4" />
+                <CaretRight className="h-4 w-4" />
               </button>
             </div>
           )}

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { httpJson } from '@/app/api';
-import { IconDeviceFloppy, IconEdit, IconCheck, IconX } from '@tabler/icons-react';
+import { FloppyDisk, PencilSimple, Check, X } from '@phosphor-icons/react';
 import { message } from 'antd';
 import { useAuthStore } from '@/stores/useAuthStore';
 
@@ -133,7 +133,7 @@ export default function AdminSubscriptionsPage() {
                 </div>
                 <div className="flex gap-3 pt-4">
                   <button onClick={handleSave} className="flex-1 bg-primary hover:bg-primary/90 text-white py-2 rounded font-medium flex items-center justify-center gap-2">
-                    <IconDeviceFloppy className="w-4 h-4" /> Enregistrer
+                    <FloppyDisk className="w-4 h-4" /> Enregistrer
                   </button>
                   <button onClick={() => setEditingId(null)} className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded font-medium">
                     Annuler
@@ -143,20 +143,20 @@ export default function AdminSubscriptionsPage() {
             ) : (
               <div>
                 <button onClick={() => handleEdit(plan)} className="absolute top-4 right-4 text-gray-400 hover:text-white bg-dark-bg p-2 rounded-full">
-                  <IconEdit className="w-4 h-4" />
+                  <PencilSimple className="w-4 h-4" />
                 </button>
                 <h3 className="text-2xl font-bold text-white mb-2">{plan.name} <span className="text-sm font-normal text-gray-400 ml-2">({plan.code})</span></h3>
                 <div className="text-3xl font-extrabold text-primary mb-6">{plan.price}€ <span className="text-lg text-gray-400 font-normal">/ {plan.durationMonths} mois</span></div>
                 
                 <ul className="space-y-3 text-gray-300">
-                  <li className="flex items-center gap-3"><IconCheck className="w-5 h-5 text-primary" /> Résolution: {plan.features.maxResolution}</li>
-                  <li className="flex items-center gap-3"><IconCheck className="w-5 h-5 text-primary" /> Appareils: {plan.features.maxDevices}</li>
+                  <li className="flex items-center gap-3"><Check className="w-5 h-5 text-primary" /> Résolution: {plan.features.maxResolution}</li>
+                  <li className="flex items-center gap-3"><Check className="w-5 h-5 text-primary" /> Appareils: {plan.features.maxDevices}</li>
                   <li className="flex items-center gap-3">
-                    {plan.features.hasContinueWatching ? <IconCheck className="w-5 h-5 text-primary" /> : <IconX className="w-5 h-5 text-red-500" />} 
+                    {plan.features.hasContinueWatching ? <Check className="w-5 h-5 text-primary" /> : <X className="w-5 h-5 text-red-500" />} 
                     Reprise de lecture
                   </li>
                   <li className="flex items-center gap-3">
-                    {plan.features.hasWatchHistory ? <IconCheck className="w-5 h-5 text-primary" /> : <IconX className="w-5 h-5 text-red-500" />} 
+                    {plan.features.hasWatchHistory ? <Check className="w-5 h-5 text-primary" /> : <X className="w-5 h-5 text-red-500" />} 
                     Historique complet
                   </li>
                 </ul>
