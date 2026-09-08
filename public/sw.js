@@ -1,6 +1,6 @@
 /* global self ReadableStream Response Headers fetch caches */
 
-const CACHE_NAME = 'chillers-cache-v6';
+const CACHE_NAME = 'chillers-cache-v7';
 
 // ── StreamSaver map pour le streaming de téléchargement ────────
 const map = new Map();
@@ -153,9 +153,14 @@ self.addEventListener('fetch', event => {
   }
 
   // 2. Cache-First pour le CSS, JS Chunks, Fonts et Actifs Statiques Next.js
+  //    (uniquement même-origine : on ne touche jamais aux URL cross-origin comme les logos)
+  const sameOrigin = event.request.url.startsWith(self.registration.scope);
   if (
-    url.includes('/_next/static/') ||
-    /\.(css|js|woff2?|png|jpg|jpeg|svg|ico|webp|avif|json|webmanifest)$/i.test(url)
+    sameOrigin &&
+    (
+      url.includes('/_next/static/') ||
+      /\.(css|js|woff2?|png|jpg|jpeg|svg|ico|webp|avif|json|webmanifest)$/i.test(url)
+    )
   ) {
     event.respondWith(
       caches.match(event.request, { ignoreSearch: true }).then(cachedResponse => {
@@ -165,7 +170,7 @@ self.addEventListener('fetch', event => {
             .then(networkResponse => {
               if (networkResponse && networkResponse.status === 200) {
                 const copy = networkResponse.clone();
-                caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+                caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy)).catch(() => {});
               }
             })
             .catch(() => {});
@@ -174,9 +179,9 @@ self.addEventListener('fetch', event => {
 
         return fetch(event.request)
           .then(networkResponse => {
-            if (networkResponse && (networkResponse.status === 200 || networkResponse.status === 0)) {
+            if (networkResponse && networkResponse.status === 200) {
               const copy = networkResponse.clone();
-              caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+              caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy)).catch(() => {});
             }
             return networkResponse;
           })
@@ -195,7 +200,7 @@ self.addEventListener('fetch', event => {
         .then(networkResponse => {
           if (networkResponse && networkResponse.status === 200) {
             const copy = networkResponse.clone();
-            caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+            caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy)).catch(() => {});
           }
           return networkResponse;
         })
@@ -219,7 +224,7 @@ self.addEventListener('fetch', event => {
           .then(networkResponse => {
             if (networkResponse && networkResponse.status === 200) {
               const copy = networkResponse.clone();
-              caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+              caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy)).catch(() => {});
             }
             return networkResponse;
           })
@@ -238,7 +243,7 @@ self.addEventListener('fetch', event => {
         .then(response => {
           if (response && response.status === 200) {
             const copy = response.clone();
-            caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+            caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy)).catch(() => {});
           }
           return response;
         })
@@ -273,7 +278,11 @@ self.addEventListener('backgroundfetchsuccess', event => {
         const records = await bgFetch.matchAll();
         for (const record of records) {
           const response = await record.responseReady;
-          await cache.put(record.request, response);
+          try {
+            await cache.put(record.request, response);
+          } catch (e) {
+            // réponse opaque/cross-origin non cachable — on ignore
+          }
         }
         await event.updateUI({ title: 'Téléchargement terminé · CHILLERS' });
 
