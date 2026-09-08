@@ -47,6 +47,18 @@ export const getByGenre = async (req: Request, res: Response, next: NextFunction
   }
 };
 
+export const getAnimeByGenre = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const genreId = req.params.genreId as string;
+    const page = Number(req.query.page) || 1;
+    if (!genreId) throw new AppError('Genre ID is required', 400);
+    const data = await tvService.getAnimeByGenre(genreId, page, getLang(req));
+    res.json({ success: true, data, message: null });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getAnime = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const page = Number(req.query.page) || 1;

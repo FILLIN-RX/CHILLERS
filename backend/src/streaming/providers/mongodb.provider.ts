@@ -25,7 +25,7 @@ function resolveUrl(url: string | undefined | null): string | null {
 }
 
 function isEmbedOrProtectedUrl(url: string): boolean {
-  return /doodstream|playmogo|d000d|d0000d|dood\.|vidlink|vidapi|uqload|streamtape|youtube|embed|\/e\//i.test(url);
+  return url.startsWith('/') || /doodstream|playmogo|d000d|d0000d|dood\.|vidlink|vidapi|uqload|streamtape|youtube|embed|\/e\//i.test(url);
 }
 
 /** HEAD check rapide pour savoir si l'URL est joignable (pas morte). */

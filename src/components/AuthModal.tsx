@@ -147,7 +147,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
                   type="button"
                   onClick={() => handleSubmit(undefined, true)}
                   disabled={loading}
-                  className="w-full py-2 px-3 rounded-lg bg-gradient-to-r from-red-600 to-amber-600 hover:opacity-95 text-white font-bold text-xs shadow transition-all active:scale-95 cursor-pointer"
+                  className="w-full py-2 px-3 rounded-lg bg-[#D70466] hover:opacity-95 text-white font-bold text-xs shadow transition-all active:scale-95 cursor-pointer"
                 >
                   {lang === "fr"
                     ? "Déconnecter tous les autres appareils et continuer"
@@ -235,7 +235,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
             <button
               type="submit"
               disabled={loading}
-              className="relative w-full flex items-center justify-center py-3 rounded-xl bg-gradient-to-r from-[#D70466] to-[#7C3AED] text-white font-bold tracking-wide hover:shadow-[0_0_20px_rgba(215,4,102,0.4)] transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
+              className="relative w-full flex items-center justify-center py-3 rounded-xl bg-[#D70466] text-white font-bold tracking-wide hover:shadow-[0_0_20px_rgba(215,4,102,0.4)] transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
             >
               {loading ? (
                 <Spinner className="w-5 h-5 animate-spin" />

@@ -80,7 +80,7 @@ function LoginForm() {
               className="w-12 h-12 sm:w-14 sm:h-14 object-contain drop-shadow-[0_0_20px_rgba(215,4,102,0.4)]"
               priority
             />
-            <span className="text-2xl sm:text-3xl font-black tracking-wider uppercase bg-gradient-to-r from-[#D70466] to-[#7C3AED] bg-clip-text text-transparent">
+            <span className="text-2xl sm:text-3xl font-black tracking-wider uppercase text-[#D70466]">
               CHILLERS
             </span>
           </Link>
@@ -103,7 +103,7 @@ function LoginForm() {
                   type="button"
                   onClick={() => handleSubmit(undefined, true)}
                   disabled={loading}
-                  className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-red-600 to-amber-600 hover:opacity-95 text-white font-bold text-xs transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full py-2.5 px-4 rounded-xl bg-[#D70466] hover:opacity-95 text-white font-bold text-xs transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
                 >
                   {loading && <Spinner className="w-3.5 h-3.5 animate-spin" />}
                   <span>

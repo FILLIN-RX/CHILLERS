@@ -525,7 +525,7 @@ function WatchContent() {
                 }
               />
               {isFullscreen && (
-                <span className="pointer-events-none absolute top-4 left-4 z-50 text-xs sm:text-sm font-black tracking-widest uppercase bg-gradient-to-r from-brand-primary to-brand-secondary bg-clip-text text-transparent drop-shadow-lg">
+                <span className="pointer-events-none absolute top-4 left-4 z-50 text-xs sm:text-sm font-black tracking-widest uppercase text-[#D70466] drop-shadow-lg">
                   CHILLERS
                 </span>
               )}

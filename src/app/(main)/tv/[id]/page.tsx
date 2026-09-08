@@ -38,6 +38,16 @@ export default function TVDetailPage() {
   const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [showSeriesDownloadModal, setShowSeriesDownloadModal] = useState(false);
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
+  const castScrollRef = useRef<HTMLDivElement>(null);
+  const [castCanScrollLeft, setCastCanScrollLeft] = useState(false);
+  const [castCanScrollRight, setCastCanScrollRight] = useState(false);
+
+  const checkCastScroll = useCallback(() => {
+    const el = castScrollRef.current;
+    if (!el) return;
+    setCastCanScrollLeft(el.scrollLeft > 4);
+    setCastCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+  }, []);
 
   const isFavorite = user?.favorites?.some(
     (f) => f.tmdbId === String(item?.id) && (f.mediaType === "series" || f.mediaType === "anime")
@@ -78,6 +88,12 @@ export default function TVDetailPage() {
       controller.abort();
     };
   }, [id]);
+
+  useEffect(() => {
+    if (item?.castDetails?.length) {
+      requestAnimationFrame(checkCastScroll);
+    }
+  }, [item?.castDetails, checkCastScroll]);
 
   // Toggle Favoris
   const toggleFavorite = async (e: React.MouseEvent) => {
@@ -263,7 +279,7 @@ export default function TVDetailPage() {
                 <span
                   className={`px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider ${
                     item.statusLabel === "En cours"
-                      ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                      ? "bg-[#D70466]/20 text-[#D70466] border border-[#D70466]/30"
                       : "bg-zinc-800 text-zinc-300 border border-zinc-700"
                   }`}
                 >
@@ -276,7 +292,7 @@ export default function TVDetailPage() {
                 <span
                   className={`px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider shadow-md ${
                     isFrench
-                      ? "bg-blue-600/90 text-white border border-blue-400/30"
+                      ? "bg-[#D70466]/90 text-white border border-[#D70466]/30"
                       : "bg-amber-600/90 text-white border border-amber-400/30"
                   }`}
                 >
@@ -408,7 +424,7 @@ export default function TVDetailPage() {
                       className="w-full text-left flex items-center justify-between px-3 py-2 text-xs text-white hover:bg-zinc-800 rounded-lg transition-colors"
                     >
                       <span>{copiedLink ? "Lien copié !" : "Copier le lien"}</span>
-                      {copiedLink && <Check className="w-3.5 h-3.5 text-emerald-400" />}
+                      {copiedLink && <Check className="w-3.5 h-3.5 text-[#D70466]" />}
                     </button>
                   </div>
                 )}
@@ -559,43 +575,69 @@ export default function TVDetailPage() {
               </span>
             </div>
 
-            <div className="flex items-start gap-4 sm:gap-6 overflow-x-auto no-scrollbar scroll-smooth py-2 px-1">
-              {item.castDetails.map((actor) => (
-                <div
-                  key={actor.id}
-                  className="flex flex-col items-center text-center space-y-2 flex-shrink-0 w-20 sm:w-24 group cursor-pointer"
+            <div className="relative group/cast">
+              <div
+                ref={castScrollRef}
+                onScroll={checkCastScroll}
+                className="flex items-start gap-4 sm:gap-6 overflow-x-auto no-scrollbar scroll-smooth py-2 px-1"
+              >
+                {item.castDetails.map((actor) => (
+                  <div
+                    key={actor.id}
+                    className="flex flex-col items-center text-center space-y-2 flex-shrink-0 w-20 sm:w-24 group cursor-pointer"
+                  >
+                    <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden bg-zinc-800 shadow-md ring-2 ring-white/5 group-hover:ring-[#D70466] group-hover:scale-105 transition-all duration-300">
+                      {actor.profileUrl ? (
+                        <Image
+                          src={actor.profileUrl}
+                          alt={actor.name}
+                          fill
+                          className="object-cover object-top"
+                          sizes="80px"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-zinc-600 font-bold text-sm">
+                          {actor.name.charAt(0)}
+                        </div>
+                      )}
+                    </div>
+                    <div className="w-full">
+                      <p
+                        className="text-[11px] sm:text-xs font-bold text-white truncate group-hover:text-[#D70466] transition-colors"
+                        title={actor.name}
+                      >
+                        {actor.name}
+                      </p>
+                      <p
+                        className="text-[10px] text-zinc-400 truncate"
+                        title={actor.character}
+                      >
+                        {actor.character}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {castCanScrollLeft && (
+                <button
+                  onClick={() => castScrollRef.current?.scrollBy({ left: -200, behavior: "smooth" })}
+                  className="hidden md:flex absolute left-0 top-0 h-full w-12 z-20 items-center justify-start pl-1 bg-[#0c0c0e] cursor-pointer"
                 >
-                  <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden bg-zinc-800 shadow-md ring-2 ring-white/5 group-hover:ring-[#D70466] group-hover:scale-105 transition-all duration-300">
-                    {actor.profileUrl ? (
-                      <Image
-                        src={actor.profileUrl}
-                        alt={actor.name}
-                        fill
-                        className="object-cover object-top"
-                        sizes="80px"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-zinc-600 font-bold text-sm">
-                        {actor.name.charAt(0)}
-                      </div>
-                    )}
-                  </div>
-                  <div className="w-full">
-                    <p
-                      className="text-[11px] sm:text-xs font-bold text-white truncate group-hover:text-[#D70466] transition-colors"
-                      title={actor.name}
-                    >
-                      {actor.name}
-                    </p>
-                    <p
-                      className="text-[10px] text-zinc-400 truncate"
-                      title={actor.character}
-                    >
-                      {actor.character}
-                    </p>
-                  </div>
-                </div>
-              ))}
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-black/70 border border-white/20">
+                    <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                  </span>
+                </button>
+              )}
+              {castCanScrollRight && (
+                <button
+                  onClick={() => castScrollRef.current?.scrollBy({ left: 200, behavior: "smooth" })}
+                  className="hidden md:flex absolute right-0 top-0 h-full w-12 z-20 items-center justify-end pr-1 bg-[#0c0c0e] cursor-pointer"
+                >
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-black/70 border border-white/20">
+                    <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                  </span>
+                </button>
+              )}
             </div>
           </section>
         )}

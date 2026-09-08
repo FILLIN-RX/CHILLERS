@@ -41,7 +41,7 @@ export default function UpgradeModal({
         <div className="flex flex-col gap-3">
           <button 
             onClick={() => router.push('/subscribe')}
-            className="w-full bg-gradient-to-r from-[#D70466] to-[#7C3AED] hover:opacity-90 text-white font-bold py-3 px-4 rounded-xl transition-all"
+            className="w-full bg-[#D70466] hover:opacity-90 text-white font-bold py-3 px-4 rounded-xl transition-all"
           >
             Voir les abonnements
           </button>

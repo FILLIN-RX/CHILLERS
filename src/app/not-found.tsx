@@ -117,7 +117,7 @@ export default function NotFound() {
       {/* ── Header Brand Logo ── */}
       <header className="relative z-10 px-6 sm:px-12 lg:px-20 pt-8 sm:pt-12 flex items-center justify-between">
         <Link href="/" className="group flex items-center gap-3">
-          <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-2xl bg-gradient-to-tr from-brand-primary via-purple-600 to-amber-500 p-0.5 shadow-[0_0_25px_rgba(215,4,102,0.4)] group-hover:scale-105 transition-transform duration-300">
+          <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-2xl bg-[#D70466] p-0.5 shadow-[0_0_25px_rgba(215,4,102,0.4)] group-hover:scale-105 transition-transform duration-300">
             <div className="w-full h-full bg-[#09090b] rounded-[14px] flex items-center justify-center">
               <span className="font-black text-lg sm:text-xl text-white">C</span>
             </div>
@@ -158,7 +158,7 @@ export default function NotFound() {
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-zinc-200 to-zinc-400">
                 DES ÉTOILES ICONIQUES.
               </span> <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-primary via-rose-400 to-amber-400 drop-shadow-[0_0_35px_rgba(215,4,102,0.4)]">
+              <span className="text-[#D70466] drop-shadow-[0_0_35px_rgba(215,4,102,0.4)]">
                 UNE MONTAGNE DE DIVERTISSEMENT.
               </span>
             </h1>

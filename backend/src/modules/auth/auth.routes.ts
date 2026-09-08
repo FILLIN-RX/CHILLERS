@@ -9,6 +9,7 @@ const router = Router();
 router.post('/register', authController.register);
 router.post('/login', authController.login);
 router.get('/me', requireAuth, authController.getProfile);
+router.get('/session', authController.getSession);
 router.post('/revoke-session', requireAuth, authController.revokeSession);
 router.post('/revoke-other-sessions', requireAuth, authController.revokeOtherSessions);
 router.get('/plans', authController.getPlans);

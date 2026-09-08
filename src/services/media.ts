@@ -587,6 +587,9 @@ export function getMoviesByGenrePage(genreId: string, page = 1, signal?: AbortSi
 export function getTVByGenrePage(genreId: string, page = 1, signal?: AbortSignal) {
   return getPageWithTotal(`/tv/genre/${genreId}`, page, signal);
 }
+export function getAnimeByGenre(genreId: string, page = 1, signal?: AbortSignal): Promise<MovieOrShow[]> {
+  return getPage(`/tv/anime/genre/${genreId}`, page, signal);
+}
 
 /* Combined "all movies" payload used by the home carousel. */
 

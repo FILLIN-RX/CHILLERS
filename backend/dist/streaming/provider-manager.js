@@ -61,17 +61,25 @@ class ProviderManager {
         return null;
     }
     async getEpisodeStream(query) {
+        // Nettoyer les suffixes d'épisode polluant le titre de la série (ex: "Lanterns: The Official Podcast · E1" → "Lanterns: The Official Podcast")
+        const cleanTitle = query.title
+            ? query.title.replace(/\s*·\s*(?:S\d+)?E\d+.*$/i, '').trim()
+            : undefined;
+        const normalizedQuery = {
+            ...query,
+            title: cleanTitle,
+        };
         // ── Cache LRU ───────────────────────────────────────────────────────────
-        const cacheKey = (0, stream_cache_1.getCacheKey)('episode', query.tmdbId, query.season, query.episode, query.isPremium);
+        const cacheKey = (0, stream_cache_1.getCacheKey)('episode', normalizedQuery.tmdbId, normalizedQuery.season, normalizedQuery.episode, normalizedQuery.isPremium);
         const cached = stream_cache_1.streamCache.get(cacheKey);
         if (cached) {
-            console.log(`[Stream] Cache hit for episode ${query.tmdbId} S${query.season}E${query.episode} (premium=${!!query.isPremium})`);
+            console.log(`[Stream] Cache hit for episode ${normalizedQuery.tmdbId} S${normalizedQuery.season}E${normalizedQuery.episode} (premium=${!!normalizedQuery.isPremium})`);
             return cached;
         }
         const attempts = [];
-        const activeProviders = await this.filterProviders(query);
+        const activeProviders = await this.filterProviders(normalizedQuery);
         for (const provider of activeProviders) {
-            const attempt = await this.tryProvider(provider, 'episode', query);
+            const attempt = await this.tryProvider(provider, 'episode', normalizedQuery);
             attempts.push(attempt);
             if (attempt.status === 'success') {
                 console.log(`[Stream] Episode stream found via "${provider.name}" after ${attempts.length} attempt(s)`);
@@ -162,7 +170,7 @@ class ProviderManager {
             }
             else {
                 this.recordFailure(provider.name);
-                this.triggerReScrape(query.title || String(query.tmdbId), type, query.episode);
+                this.triggerReScrape(query.title || String(query.tmdbId), type, query.episode, query.season);
                 return {
                     provider: provider.name,
                     status: 'fail',
@@ -206,11 +214,11 @@ class ProviderManager {
      * - Utilise spawn() au lieu de exec() → pas d'injection shell possible
      * - Debounce via pendingScrapes → évite les appels en boucle
      */
-    triggerReScrape(title, type, episode) {
+    triggerReScrape(title, type, episode, season) {
         const typeArg = type === 'movie' ? 'movie' : 'series';
-        const debounceKey = `${typeArg}:${title}`;
+        const debounceKey = `${typeArg}:${title}:S${season || 1}E${episode || 1}`;
         if (this.pendingScrapes.has(debounceKey)) {
-            console.log(`[Self-Healing] Re-scrape déjà en cours pour "${title}", ignoré`);
+            console.log(`[Self-Healing] Re-scrape déjà en cours pour "${title}" (S${season || 1}E${episode || 1}), ignoré`);
             return;
         }
         this.pendingScrapes.add(debounceKey);
@@ -218,9 +226,9 @@ class ProviderManager {
         setTimeout(() => this.pendingScrapes.delete(debounceKey), 5 * 60 * 1000);
         const scriptPath = path_1.default.join(__dirname, '../scraping/core/on-demand-fetch.ts');
         // spawn() — arguments passés séparément, JAMAIS interpolés dans un shell
-        const child = (0, child_process_1.spawn)('npx', ['tsx', scriptPath, title, typeArg, String(episode ?? '')], { detached: true, stdio: 'ignore', env: process.env });
+        const child = (0, child_process_1.spawn)('npx', ['tsx', scriptPath, title, typeArg, String(episode ?? ''), String(season ?? '')], { detached: true, stdio: 'ignore', env: process.env });
         child.unref();
-        console.log(`[Self-Healing] Re-scrape lancé pour "${title}" (${typeArg}) pid=${child.pid}`);
+        console.log(`[Self-Healing] Re-scrape lancé pour "${title}" (${typeArg} S${season || 1}E${episode || 1}) pid=${child.pid}`);
     }
     isIframeEmbedUrl(url) {
         return (url.includes('vidlink.pro') ||

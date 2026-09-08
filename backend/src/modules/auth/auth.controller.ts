@@ -95,3 +95,21 @@ export const revokeOtherSessions = async (req: Request, res: Response): Promise<
     res.status(500).json({ success: false, message: 'Erreur serveur' });
   }
 };
+
+export const getSession = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      res.json(null);
+      return;
+    }
+    const token = authHeader.split(' ')[1];
+    const jwtSecret = process.env.JWT_SECRET || 'chillers-super-secret-key-change-me';
+    const jwt = require('jsonwebtoken');
+    const decoded = jwt.verify(token, jwtSecret) as { id: string; role: string };
+    const user = await authService.getProfile(decoded.id);
+    res.json({ user, expires: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString() });
+  } catch (error) {
+    res.json(null);
+  }
+};

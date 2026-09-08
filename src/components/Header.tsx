@@ -112,7 +112,7 @@ export default function Header({ onSearchClick }: HeaderProps) {
         } ${
           isScrolled
             ? "bg-[#0c0c0e]/95 backdrop-blur-xl shadow-2xl border-b border-white/8"
-            : "bg-gradient-to-b from-black/95 via-black/60 to-transparent"
+            : "bg-[#0c0c0e]/80"
         }`}
       >
         <div className="flex flex-col max-w-[1920px] mx-auto px-3 sm:px-6 lg:px-8 pt-2 pb-2.5 sm:py-3 gap-2">
@@ -221,7 +221,7 @@ export default function Header({ onSearchClick }: HeaderProps) {
               <Link
                 href="/subscribe"
                 title="Débloquer Premium"
-                className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-tr from-amber-400 via-yellow-300 to-amber-500 text-zinc-950 hover:scale-105 active:scale-95 shadow-[0_0_15px_rgba(234,179,8,0.4)] transition-all cursor-pointer"
+                className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-amber-400 text-zinc-950 hover:scale-105 active:scale-95 shadow-[0_0_15px_rgba(234,179,8,0.4)] transition-all cursor-pointer"
               >
                 <Crown className="w-4 h-4 sm:w-5 sm:h-5 fill-zinc-950 stroke-zinc-950" />
               </Link>
@@ -256,13 +256,13 @@ export default function Header({ onSearchClick }: HeaderProps) {
                     {user.subscription?.plan === "premium" || user.role === "admin" ? (
                       <button
                         onClick={() => router.push("/profile")}
-                        className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1 rounded-full bg-gradient-to-r from-amber-500/20 to-yellow-500/15 hover:from-amber-500/30 hover:to-yellow-500/25 border border-amber-500/40 text-amber-300 transition-all focus:outline-none cursor-pointer"
+                        className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1 rounded-full bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 transition-all focus:outline-none cursor-pointer"
                       >
                         <UserAvatar user={user} size="xs" showBadge={false} />
                         <span className="hidden sm:inline text-xs font-bold uppercase tracking-wider truncate max-w-[80px] text-amber-200">
                           {user.username || user.email.split("@")[0]}
                         </span>
-                        <span className="flex items-center px-1.5 py-0.2 rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 text-black text-[9px] font-black tracking-widest shadow-sm">
+                        <span className="flex items-center px-1.5 py-0.2 rounded-full bg-amber-400 text-black text-[9px] font-black tracking-widest shadow-sm">
                           VIP
                         </span>
                       </button>
@@ -436,7 +436,7 @@ export default function Header({ onSearchClick }: HeaderProps) {
               </nav>
 
               {/* Bannière VIP Drawer */}
-              <div className="p-3.5 rounded-2xl bg-gradient-to-br from-amber-500/15 via-yellow-500/10 to-transparent border border-amber-500/30">
+              <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30">
                 <div className="flex items-center gap-2 mb-1.5">
                   <Crown className="w-4 h-4 text-amber-400 fill-amber-400" />
                   <span className="text-xs font-bold text-amber-300">CHILLERS VIP</span>
@@ -447,7 +447,7 @@ export default function Header({ onSearchClick }: HeaderProps) {
                 <Link
                   href="/subscribe"
                   onClick={() => setIsDrawerOpen(false)}
-                  className="block w-full text-center py-2 px-3 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 text-zinc-950 font-bold text-xs shadow-md active:scale-95 transition-all"
+                  className="block w-full text-center py-2 px-3 rounded-xl bg-amber-400 text-zinc-950 font-bold text-xs shadow-md active:scale-95 transition-all"
                 >
                   {lang === "fr" ? "Débloquer" : "Unlock"}
                 </Link>

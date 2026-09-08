@@ -78,7 +78,7 @@ function RegisterForm() {
               className="w-12 h-12 sm:w-14 sm:h-14 object-contain drop-shadow-[0_0_20px_rgba(215,4,102,0.4)]"
               priority
             />
-            <span className="text-2xl sm:text-3xl font-black tracking-wider uppercase bg-gradient-to-r from-[#D70466] to-[#7C3AED] bg-clip-text text-transparent">
+            <span className="text-2xl sm:text-3xl font-black tracking-wider uppercase text-[#D70466]">
               CHILLERS
             </span>
           </Link>

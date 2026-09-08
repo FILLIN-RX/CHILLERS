@@ -162,7 +162,7 @@ export default async function RootLayout({
             margin:20px 0 32px;
             font-size:28px;font-weight:900;
             letter-spacing:.18em;text-transform:uppercase;
-            background:linear-gradient(135deg,#d70466,#7c3aed);
+            background:#d70466;
             -webkit-background-clip:text;-webkit-text-fill-color:transparent;
             background-clip:text;
           }
@@ -173,7 +173,7 @@ export default async function RootLayout({
           }
           #__chillers_splash .bar-fill {
             height:100%;
-            background:linear-gradient(90deg,#d70466,#7c3aed);
+            background:#d70466;
             border-radius:99px;
             animation:__clb 1.8s ease-in-out infinite;
           }

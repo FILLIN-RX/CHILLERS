@@ -689,11 +689,11 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
           />
           {/* iframe top bar on hover */}
           <div
-            className={`absolute inset-x-0 top-0 z-20 flex items-center justify-between px-4 py-3 bg-gradient-to-b from-black/80 to-transparent transition-opacity duration-300 ${
+            className={`absolute inset-x-0 top-0 z-20 flex items-center justify-between px-4 py-3 bg-black/80 transition-opacity duration-300 ${
               controlsVisible ? "opacity-100" : "opacity-0 pointer-events-none"
             }`}
           >
-            <span className="text-sm font-black tracking-widest uppercase bg-gradient-to-r from-[#D70466] to-[#7C3AED] bg-clip-text text-transparent">
+            <span className="text-sm font-black tracking-widest uppercase text-[#D70466]">
               Chillers
             </span>
             <div className="flex items-center gap-1">
@@ -1339,13 +1339,13 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
 
             <div className="mt-6 sm:mt-8 relative">
               {/* Breathing aura */}
-              <div className="absolute -inset-4 rounded-full bg-gradient-to-tr from-[#D70466] to-[#7C3AED] opacity-40 blur-xl animate-pulse pointer-events-none" />
+              <div className="absolute -inset-4 rounded-full bg-[#D70466] opacity-40 blur-xl animate-pulse pointer-events-none" />
               
               <button
                 type="button"
                 onClick={startPlayback}
                 aria-label="Lire la vidéo"
-                className="group/play relative flex items-center justify-center w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-tr from-[#D70466] to-[#7C3AED] shadow-[0_0_40px_rgba(215,4,102,0.6)] ring-4 ring-white/20 transition-all duration-300 hover:scale-110 active:scale-95 text-white"
+                className="group/play relative flex items-center justify-center w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-[#D70466] shadow-[0_0_40px_rgba(215,4,102,0.6)] ring-4 ring-white/20 transition-all duration-300 hover:scale-110 active:scale-95 text-white"
               >
                 <Play className="h-9 w-9 sm:h-11 sm:w-11 translate-x-0.5 drop-shadow-lg" fill="currentColor" />
               </button>

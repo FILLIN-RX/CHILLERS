@@ -23,6 +23,18 @@ export const getByGenre = async (genreId: string, page: number = 1, language?: s
   return data;
 };
 
+export const getAnimeByGenre = async (genreId: string, page: number = 1, language?: string) => {
+  const params = {
+    with_genres: genreId,
+    sort_by: 'popularity.desc',
+    page,
+    with_original_language: 'ja',
+    language: toTMDBLanguage(language),
+  };
+  const { data } = await tmdbClient.get('/discover/tv', { params });
+  return data;
+};
+
 export const getAnime = async (page: number = 1, language?: string) => {
   const params = {
     with_genres: '16',

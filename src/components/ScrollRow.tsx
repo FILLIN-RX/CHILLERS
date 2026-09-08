@@ -205,19 +205,19 @@ export default function ScrollRow({
       >
         <div
           className={`pointer-events-none absolute left-0 top-0 h-full w-16 z-10 transition-opacity duration-300 hidden md:block
-            bg-gradient-to-r from-brand-dark to-transparent ${canScrollLeft ? "opacity-100" : "opacity-0"}`}
+            bg-[#0c0c0e] ${canScrollLeft ? "opacity-100" : "opacity-0"}`}
         />
 
         <div
           className={`pointer-events-none absolute right-0 top-0 h-full w-16 z-10 transition-opacity duration-300 hidden md:block
-            bg-gradient-to-l from-brand-dark to-transparent ${canScrollRight ? "opacity-100" : "opacity-0"}`}
+            bg-[#0c0c0e] ${canScrollRight ? "opacity-100" : "opacity-0"}`}
         />
 
         {canScrollLeft && (
           <button
             onClick={() => scroll("left")}
             aria-label="Scroll left"
-            className="sm:hidden absolute left-0 top-0 h-full w-10 z-20 flex items-center justify-start pl-1 bg-gradient-to-r from-black/60 to-transparent cursor-pointer"
+            className="sm:hidden absolute left-0 top-0 h-full w-10 z-20 flex items-center justify-start pl-1 bg-black/60 cursor-pointer"
           >
             <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/70 border border-white/20 backdrop-blur-sm">
               <CaretLeft className="h-5 w-5 text-white" />
@@ -229,7 +229,7 @@ export default function ScrollRow({
           <button
             onClick={() => scroll("right")}
             aria-label="Scroll right"
-            className="sm:hidden absolute right-0 top-0 h-full w-10 z-20 flex items-center justify-end pr-1 bg-gradient-to-l from-black/60 to-transparent cursor-pointer"
+            className="sm:hidden absolute right-0 top-0 h-full w-10 z-20 flex items-center justify-end pr-1 bg-black/60 cursor-pointer"
           >
             <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/70 border border-white/20 backdrop-blur-sm">
               <CaretRight className="h-5 w-5 text-white" />

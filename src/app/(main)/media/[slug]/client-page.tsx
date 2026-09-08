@@ -75,6 +75,16 @@ function MediaDetailPage() {
   const [sharePos, setSharePos] = useState<{ top: number; right: number } | null>(null);
   const [disponible, setDisponible] = useState<{ disponible: boolean; streaming: boolean; download: boolean; langueAudio?: string; isFrenchAudio?: boolean } | null>(null);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
+  const castScrollRef = useRef<HTMLDivElement>(null);
+  const [castCanScrollLeft, setCastCanScrollLeft] = useState(false);
+  const [castCanScrollRight, setCastCanScrollRight] = useState(false);
+
+  const checkCastScroll = useCallback(() => {
+    const el = castScrollRef.current;
+    if (!el) return;
+    setCastCanScrollLeft(el.scrollLeft > 4);
+    setCastCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+  }, []);
 
   const fetchData = useCallback(async () => {
     if (!id) return;
@@ -110,6 +120,12 @@ function MediaDetailPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData, id]);
+
+  useEffect(() => {
+    if (item?.castDetails?.length) {
+      requestAnimationFrame(checkCastScroll);
+    }
+  }, [item?.castDetails, checkCastScroll]);
 
   const handleWatch = async () => {
     if (!item) return;
@@ -383,7 +399,7 @@ function MediaDetailPage() {
                   <span
                     className={`px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider border ${
                       disponible.disponible
-                        ? "border-emerald-500/40 text-emerald-400 bg-emerald-500/10"
+                        ? "border-[#D70466]/40 text-[#D70466] bg-[#D70466]/10"
                         : "border-red-500/40 text-red-400 bg-red-500/10"
                     }`}
                   >
@@ -395,7 +411,7 @@ function MediaDetailPage() {
                 {(disponible?.langueAudio || item.langueAudio) && (disponible?.langueAudio !== 'UNKNOWN') && (
                   <span className={`px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider shadow-md ${
                     disponible?.isFrenchAudio || item.isFrenchAudio
-                      ? 'bg-blue-600/90 text-white border border-blue-400/30' 
+                      ? 'bg-[#D70466]/90 text-white border border-[#D70466]/30' 
                       : 'bg-amber-600/90 text-white border border-amber-400/30'
                   }`}>
                     {disponible?.langueAudio === 'VFF' ? 'VF (TrueFrench)' : disponible?.langueAudio === 'VFQ' ? 'VF (Québec)' : (disponible?.langueAudio || item.langueAudio)}
@@ -556,44 +572,70 @@ function MediaDetailPage() {
               <section className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
-                    <span className="h-4 w-1 rounded-full bg-[#7C3AED]" />
+                    <span className="h-4 w-1 rounded-full bg-[#D70466]" />
                     <span>Casting & Personnages</span>
                   </h2>
                   <span className="text-xs text-zinc-500 font-medium">
                     {item.castDetails.length} acteurs
                   </span>
                 </div>
-                <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
-                  {item.castDetails.map((actor) => (
-                    <div
-                      key={actor.id}
-                      className="flex-none w-24 sm:w-28 flex flex-col items-center text-center group"
-                    >
-                      <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden bg-zinc-800 border border-white/10 group-hover:border-[#7C3AED]/50 transition-all shadow-lg mb-2 relative">
-                        {actor.profileUrl ? (
-                          <Image
-                            src={actor.profileUrl}
-                            alt={actor.name}
-                            fill
-                            className="object-cover"
-                            sizes="96px"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-zinc-600 font-black text-sm sm:text-base">
-                            {actor.name.charAt(0)}
-                          </div>
+                <div className="relative group/cast">
+                  <div
+                    ref={castScrollRef}
+                    onScroll={checkCastScroll}
+                    className="flex gap-4 overflow-x-auto no-scrollbar pb-2 scroll-smooth"
+                  >
+                    {item.castDetails.map((actor) => (
+                      <div
+                        key={actor.id}
+                        className="flex-none w-24 sm:w-28 flex flex-col items-center text-center group"
+                      >
+                        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden bg-zinc-800 border border-white/10 group-hover:border-[#D70466]/50 transition-all shadow-lg mb-2 relative">
+                          {actor.profileUrl ? (
+                            <Image
+                              src={actor.profileUrl}
+                              alt={actor.name}
+                              fill
+                              className="object-cover"
+                              sizes="96px"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-zinc-600 font-black text-sm sm:text-base">
+                              {actor.name.charAt(0)}
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-xs font-bold text-white line-clamp-1 group-hover:text-[#D70466] transition-colors">
+                          {actor.name}
+                        </p>
+                        {actor.character && (
+                          <p className="text-[10px] text-zinc-400 line-clamp-1">
+                            {actor.character}
+                          </p>
                         )}
                       </div>
-                      <p className="text-xs font-bold text-white line-clamp-1 group-hover:text-[#7C3AED] transition-colors">
-                        {actor.name}
-                      </p>
-                      {actor.character && (
-                        <p className="text-[10px] text-zinc-400 line-clamp-1">
-                          {actor.character}
-                        </p>
-                      )}
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                  {castCanScrollLeft && (
+                    <button
+                      onClick={() => castScrollRef.current?.scrollBy({ left: -200, behavior: "smooth" })}
+                      className="hidden md:flex absolute left-0 top-0 h-full w-12 z-20 items-center justify-start pl-1 bg-[#0c0c0e] cursor-pointer"
+                    >
+                      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-black/70 border border-white/20">
+                        <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                      </span>
+                    </button>
+                  )}
+                  {castCanScrollRight && (
+                    <button
+                      onClick={() => castScrollRef.current?.scrollBy({ left: 200, behavior: "smooth" })}
+                      className="hidden md:flex absolute right-0 top-0 h-full w-12 z-20 items-center justify-end pr-1 bg-[#0c0c0e] cursor-pointer"
+                    >
+                      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-black/70 border border-white/20">
+                        <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                      </span>
+                    </button>
+                  )}
                 </div>
               </section>
             ) : null}
@@ -616,12 +658,12 @@ function MediaDetailPage() {
 
                 <div className="flex justify-between items-center py-1 border-b border-zinc-800/40">
                   <span className="text-zinc-400">Qualité</span>
-                  <span className="font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">1080p Full HD</span>
+                  <span className="font-bold text-[#D70466] bg-[#D70466]/10 px-2 py-0.5 rounded">1080p Full HD</span>
                 </div>
 
                 <div className="flex justify-between items-center py-1 border-b border-zinc-800/40">
                   <span className="text-zinc-400">Version Audio</span>
-                  <span className="font-bold text-blue-400">
+                  <span className="font-bold text-[#D70466]">
                     {disponible?.langueAudio === 'VFF' ? 'VF (TrueFrench)' : (disponible?.langueAudio || 'VF / French')}
                   </span>
                 </div>

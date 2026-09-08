@@ -66,16 +66,32 @@ async function isRequestPremium(req) {
     catch (_) { }
     return false;
 }
+function getDirectDownloadUrl(embedUrl, title, season, episode) {
+    if (!embedUrl)
+        return null;
+    const isTv = season !== undefined && episode !== undefined;
+    const cleanFilename = `${(title || 'video').replace(/[^a-zA-Z0-9_\-]/g, '_')}${isTv ? `_S${season}E${episode}` : ''}.mp4`;
+    // 1. Proxies internes délivrant des flux directs MP4
+    if (embedUrl.startsWith('/api/doodstream/stream') || embedUrl.startsWith('/api/omnisave/proxy')) {
+        return `${embedUrl}&download=1&filename=${encodeURIComponent(cleanFilename)}`;
+    }
+    // 2. URL directe MP4 externe
+    if (/^https?:\/\/.*\.mp4(\?.*)?$/i.test(embedUrl)) {
+        return `/api/download/file?url=${encodeURIComponent(embedUrl)}&filename=${encodeURIComponent(cleanFilename)}`;
+    }
+    return null;
+}
 const getMovieStream = async (req, res, next) => {
     try {
         const id = parseInt(req.params.id, 10);
         if (isNaN(id))
             throw new types_1.AppError('Valid TMDB movie ID is required', 400);
         const isPremium = await isRequestPremium(req);
+        const title = req.query.title;
         const result = await streamingService.getMovieStream({
             tmdbId: id,
             type: req.query.type || 'movie',
-            title: req.query.title,
+            title,
             language: req.query.language || 'fr',
             isPremium,
         });
@@ -87,10 +103,12 @@ const getMovieStream = async (req, res, next) => {
             });
             return;
         }
+        const downloadUrl = getDirectDownloadUrl(result.embedUrl, title);
         res.json({
             success: true,
             data: {
                 embedUrl: result.embedUrl,
+                downloadUrl,
                 quality: isPremium && result.provider === 'frenchstream' ? '1080p' : 'standard',
                 isPremiumStream: isPremium && result.provider === 'frenchstream',
             },
@@ -111,13 +129,16 @@ const getEpisodeStream = async (req, res, next) => {
         if (isNaN(id) || isNaN(season) || isNaN(episode)) {
             throw new types_1.AppError('Valid TMDB TV ID, season, and episode are required', 400);
         }
+        const isPremium = await isRequestPremium(req);
+        const title = req.query.title;
         const result = await streamingService.getEpisodeStream({
             tmdbId: id,
             type: req.query.type || 'tv',
-            title: req.query.title,
+            title,
             season,
             episode,
             language: req.query.language || 'fr',
+            isPremium,
         });
         if (!result) {
             res.json({
@@ -127,9 +148,15 @@ const getEpisodeStream = async (req, res, next) => {
             });
             return;
         }
+        const downloadUrl = getDirectDownloadUrl(result.embedUrl, title, season, episode);
         res.json({
             success: true,
-            data: { embedUrl: result.embedUrl },
+            data: {
+                embedUrl: result.embedUrl,
+                downloadUrl,
+                quality: isPremium && result.provider === 'frenchstream' ? '1080p' : 'standard',
+                isPremiumStream: isPremium && result.provider === 'frenchstream',
+            },
             provider: result.provider,
             message: null,
         });

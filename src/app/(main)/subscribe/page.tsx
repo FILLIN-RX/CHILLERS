@@ -228,12 +228,12 @@ export default function SubscribePage() {
                 key={plan._id}
                 className={`relative rounded-3xl p-7 sm:p-8 flex flex-col justify-between transition-all duration-300 ${
                   isPremium
-                    ? 'bg-gradient-to-b from-[#1c1424] to-[#120f18] border-2 border-[#7C3AED]/50 shadow-[0_12px_40px_rgba(124,58,237,0.2)]'
+                    ? 'bg-[#1c1424] border-2 border-[#7C3AED]/50 shadow-[0_12px_40px_rgba(124,58,237,0.2)]'
                     : 'bg-[#141416] border border-white/10 hover:border-white/20'
                 }`}
               >
                 {isPremium && (
-                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-gradient-to-r from-brand-primary to-brand-secondary text-white text-[11px] font-black tracking-wider uppercase shadow-md">
+                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-[#D70466] text-white text-[11px] font-black tracking-wider uppercase shadow-md">
                     RECOMMANDÉ
                   </div>
                 )}
@@ -292,7 +292,7 @@ export default function SubscribePage() {
                     isCurrent
                       ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
                       : isPremium
-                      ? 'bg-gradient-to-r from-brand-primary to-brand-secondary hover:opacity-95 text-white'
+                      ? 'bg-[#D70466] hover:opacity-95 text-white'
                       : 'bg-white text-black hover:bg-zinc-200'
                   }`}
                 >
@@ -387,7 +387,7 @@ export default function SubscribePage() {
                     <button
                       type="button"
                       onClick={() => handleDialUssd(paymentMethod, selectedPlan.price)}
-                      className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-sm flex items-center justify-center gap-2.5 shadow-lg active:scale-95 transition-all cursor-pointer"
+                      className="w-full py-3.5 px-4 rounded-xl bg-[#D70466] hover:bg-[#b5034f] text-white font-extrabold text-sm flex items-center justify-center gap-2.5 shadow-lg active:scale-95 transition-all cursor-pointer"
                     >
                       <PhoneCall className="w-5 h-5 animate-pulse" />
                       <span>Lancer le code USSD ({getUssdCode(paymentMethod, selectedPlan.price)})</span>
@@ -492,7 +492,7 @@ export default function SubscribePage() {
                     <button
                       type="submit"
                       disabled={submitting}
-                      className="w-full py-3.5 mt-2 rounded-xl bg-gradient-to-r from-brand-primary to-brand-secondary text-white font-bold text-sm hover:opacity-95 transition-all flex items-center justify-center gap-2 shadow-lg cursor-pointer active:scale-95 disabled:opacity-50"
+                      className="w-full py-3.5 mt-2 rounded-xl bg-[#D70466] text-white font-bold text-sm hover:opacity-95 transition-all flex items-center justify-center gap-2 shadow-lg cursor-pointer active:scale-95 disabled:opacity-50"
                     >
                       {submitting ? (
                         <>

@@ -58,10 +58,10 @@ export default function CatalogSpotlightHero({
 
   const categoryBadge =
     type === "movies"
-      ? { label: "À la une · Films", color: "from-rose-500/20 to-red-500/20 border-rose-500/30 text-rose-300", icon: "🎬" }
+      ? { label: "À la une · Films", color: "bg-rose-500/15 border-rose-500/30 text-rose-300", icon: "🎬" }
       : type === "series"
-      ? { label: "À la une · Séries", color: "from-brand-primary/20 to-purple-500/20 border-brand-primary/30 text-purple-300", icon: "📺" }
-      : { label: "À la une · Anime", color: "from-brand-secondary/20 to-amber-500/20 border-brand-secondary/30 text-amber-300", icon: "✨" };
+      ? { label: "À la une · Séries", color: "bg-[#D70466]/15 border-[#D70466]/30 text-[#D70466]", icon: "📺" }
+      : { label: "À la une · Anime", color: "bg-amber-500/15 border-amber-500/30 text-amber-300", icon: "✨" };
 
   return (
     <div className="relative w-full px-2 sm:px-6 md:px-12 lg:px-[3%] pt-2 pb-4">
@@ -104,7 +104,7 @@ export default function CatalogSpotlightHero({
             
             {/* Category Tag & Rating */}
             <div className="flex items-center gap-2.5 flex-wrap">
-              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border backdrop-blur-md bg-gradient-to-r ${categoryBadge.color}`}>
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border backdrop-blur-md ${categoryBadge.color}`}>
                 <span>{categoryBadge.icon}</span>
                 <span>{categoryBadge.label}</span>
               </span>

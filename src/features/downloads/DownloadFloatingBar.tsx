@@ -222,7 +222,7 @@ export default function DownloadFloatingBar() {
             <div className="w-full bg-white/10 h-1 rounded-full overflow-hidden mt-1">
               <div
                 className={`h-full transition-all duration-300 ${
-                  totalActive > 0 ? "bg-[#D70466]" : "bg-emerald-500"
+                  totalActive > 0 ? "bg-[#D70466]" : "bg-[#D70466]/50"
                 }`}
                 style={{ width: `${percent ?? (totalActive > 0 ? 30 : 100)}%` }}
               />

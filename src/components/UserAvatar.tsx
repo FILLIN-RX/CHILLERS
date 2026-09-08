@@ -72,8 +72,8 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
   let badgeEl = null;
 
   if (plan === "premium" || user?.role === "admin") {
-    ringGradient = "bg-gradient-to-tr from-amber-500 via-yellow-400 to-amber-600";
-    innerBg = "bg-gradient-to-br from-zinc-900 via-amber-950/40 to-zinc-900 text-amber-300 font-extrabold";
+    ringGradient = "bg-amber-500";
+    innerBg = "bg-zinc-900 text-amber-300 font-extrabold";
     shadow = "shadow-lg shadow-amber-500/25";
     badgeEl = (
       <div className={`absolute ${s.badge} rounded-full bg-amber-500 text-black flex items-center justify-center shadow-md ring-2 ring-zinc-950`}>
@@ -81,8 +81,8 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
       </div>
     );
   } else if (plan === "standard") {
-    ringGradient = "bg-gradient-to-tr from-cyan-400 via-blue-500 to-indigo-600";
-    innerBg = "bg-gradient-to-br from-zinc-900 via-blue-950/40 to-zinc-900 text-cyan-300 font-bold";
+    ringGradient = "bg-cyan-500";
+    innerBg = "bg-zinc-900 text-cyan-300 font-bold";
     shadow = "shadow-md shadow-blue-500/20";
     badgeEl = (
       <div className={`absolute ${s.badge} rounded-full bg-blue-500 text-white flex items-center justify-center shadow-md ring-2 ring-zinc-950`}>
@@ -90,7 +90,7 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
       </div>
     );
   } else {
-    ringGradient = "bg-gradient-to-tr from-zinc-600 to-zinc-700";
+    ringGradient = "bg-zinc-600";
     innerBg = "bg-zinc-800 text-zinc-300 font-semibold";
   }
 

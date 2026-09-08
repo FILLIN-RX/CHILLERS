@@ -28,6 +28,9 @@ import {
   getUpcomingMovies,
   getRecommendedForYou,
   enrichHeroSlidesWithTrailers,
+  getPopularMoviesPage,
+  getPopularTVPage,
+  getAnimeSeriesPage,
 } from "../api";
 import UpgradeModal from "@/components/UpgradeModal";
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -69,17 +72,9 @@ const ANIME_GENRES = [
   { id: '10765', title: 'Sci-Fi & Fantasy Anime' },
 ];
 
-type TabFetcher = (signal: AbortSignal) => Promise<MovieOrShow[]>;
-
 const MovieModal = dynamic(() => import("@/components/MovieModal"), {
   ssr: false,
 });
-
-const TAB_FETCHERS: Record<string, TabFetcher> = {
-  movies: (signal) => getPopularMovies(1, signal),
-  series: (signal) => getPopularTV(1, signal),
-  anime: (signal) => getAnimeSeries(1, signal),
-};
 
 export default function HomePage() {
   return (
@@ -163,6 +158,17 @@ function Home() {
   const [hasTriedGenreRows, setHasTriedGenreRows] = useState(false);
   const [hasTriedAnimeGenreRows, setHasTriedAnimeGenreRows] = useState(false);
   const [hasTriedHomeSections, setHasTriedHomeSections] = useState(false);
+
+  // Infinite scroll pagination for tabs
+  const [moviesPage, setMoviesPage] = useState(1);
+  const [seriesPage, setSeriesPage] = useState(1);
+  const [animePage, setAnimePage] = useState(1);
+  const [moviesTotalPages, setMoviesTotalPages] = useState(1);
+  const [seriesTotalPages, setSeriesTotalPages] = useState(1);
+  const [animeTotalPages, setAnimeTotalPages] = useState(1);
+  const [isLoadingMoreMovies, setIsLoadingMoreMovies] = useState(false);
+  const [isLoadingMoreSeries, setIsLoadingMoreSeries] = useState(false);
+  const [isLoadingMoreAnime, setIsLoadingMoreAnime] = useState(false);
 
   // Two animated rows derived from `trendingAll`:
   // - `mostWatched`: top items by rating (people-rated popularity proxy)
@@ -367,14 +373,17 @@ function Home() {
 
       if (is2G) {
         // Priorité 1 : Le haut de page (Tendances + Populaires) pour afficher immédiatement l'écran
-        [trending, popular] = await Promise.all([
+        const [trendingResult, popularPage] = await Promise.all([
           fetchWithCatch(getTrendingMovies(signal), []),
-          fetchWithCatch(getPopularMovies(1, signal), []),
+          fetchWithCatch(getPopularMoviesPage(1, signal), { results: [], totalPages: 1 }),
         ]);
+        trending = trendingResult;
+        popular = popularPage.results;
 
         if (trending.length > 0) setTrendingAll(trending);
         if (popular.length > 0) {
           setMoviesData(popular);
+          setMoviesTotalPages(popularPage.totalPages);
           const topHero = popular.slice(0, 5);
           setHeroSlides(topHero);
         }
@@ -384,11 +393,17 @@ function Home() {
         fetchWithCatch(getTrendingTV(signal), []).then((tTv) => {
           if (tTv.length > 0) setTrendingAll((prev) => [...prev, ...tTv]);
         });
-        fetchWithCatch(getPopularTV(1, signal), []).then((pTv) => {
-          if (pTv.length > 0) setSeriesData(pTv);
+        fetchWithCatch(getPopularTVPage(1, signal), { results: [], totalPages: 1 }).then((r) => {
+          if (r.results.length > 0) {
+            setSeriesData(r.results);
+            setSeriesTotalPages(r.totalPages);
+          }
         });
-        fetchWithCatch(getAnimeSeries(1, signal), []).then((an) => {
-          if (an.length > 0) setAnimeData(an);
+        fetchWithCatch(getAnimeSeriesPage(1, signal), { results: [], totalPages: 1 }).then((r) => {
+          if (r.results.length > 0) {
+            setAnimeData(r.results);
+            setAnimeTotalPages(r.totalPages);
+          }
         });
         fetchWithCatch(getAfricanMovies(1, undefined, signal), []).then((afM) => {
           if (afM.length > 0) setAfricanMoviesData(afM);
@@ -398,21 +413,37 @@ function Home() {
         });
       } else {
         // Mode 3G/4G/WiFi standard : tout en parallèle
-        [trending, trendingTV, popular, popularTV, anime, africanM, africanS] = await Promise.all([
+        const [trendingResult, popularPage, tvPage, animePageResult, africanM, africanS] = await Promise.all([
           fetchWithCatch(getTrendingMovies(signal), []),
-          fetchWithCatch(getTrendingTV(signal), []),
-          fetchWithCatch(getPopularMovies(1, signal), []),
-          fetchWithCatch(getPopularTV(1, signal), []),
-          fetchWithCatch(getAnimeSeries(1, signal), []),
+          fetchWithCatch(getPopularMoviesPage(1, signal), { results: [], totalPages: 1 }),
+          fetchWithCatch(getPopularTVPage(1, signal), { results: [], totalPages: 1 }),
+          fetchWithCatch(getAnimeSeriesPage(1, signal), { results: [], totalPages: 1 }),
           fetchWithCatch(getAfricanMovies(1, undefined, signal), []),
           fetchWithCatch(getAfricanTV(1, undefined, signal), []),
         ]);
 
+        [trending, trendingTV, popular, popularTV, anime] = [
+          trendingResult,
+          await fetchWithCatch(getTrendingTV(signal), []),
+          popularPage.results,
+          tvPage.results,
+          animePageResult.results,
+        ];
+
         const allTrending = [...trending, ...trendingTV];
         if (allTrending.length > 0) setTrendingAll(allTrending);
-        if (popular.length > 0) setMoviesData(popular);
-        if (popularTV.length > 0) setSeriesData(popularTV);
-        if (anime.length > 0) setAnimeData(anime);
+        if (popular.length > 0) {
+          setMoviesData(popular);
+          setMoviesTotalPages(popularPage.totalPages);
+        }
+        if (popularTV.length > 0) {
+          setSeriesData(popularTV);
+          setSeriesTotalPages(tvPage.totalPages);
+        }
+        if (anime.length > 0) {
+          setAnimeData(anime);
+          setAnimeTotalPages(animePageResult.totalPages);
+        }
         if (africanM.length > 0) setAfricanMoviesData(africanM);
         if (africanS.length > 0) setAfricanSeriesData(africanS);
 
@@ -654,24 +685,32 @@ function Home() {
     };
   }, [activeTab, isLoadingData, homeSectionRows.length, hasTriedHomeSections, loadHomeSections]);
 
-  // P1-#22: one effect dispatches on `activeTab` instead of three near-identical
-  // effects. Each tab fetcher is in TAB_FETCHERS; the matching setter is in
-  // TAB_SETTERS so we don't have to pass the setter through the fetcher.
-  const TAB_SETTERS: Record<string, React.Dispatch<React.SetStateAction<MovieOrShow[]>>> = {
-    movies: setMoviesData,
-    series: setSeriesData,
-    anime: setAnimeData,
-  };
-
+  // Tab initial load: use paginated API to track totalPages
   useEffect(() => {
-    const fetcher = TAB_FETCHERS[activeTab];
-    const setter = TAB_SETTERS[activeTab];
-    if (!fetcher || !setter) return;
     if (activeTab === "movies" && moviesData.length > 0) return;
     if (activeTab === "series" && seriesData.length > 0) return;
     if (activeTab === "anime" && animeData.length > 0) return;
     const controller = new AbortController();
-    fetcher(controller.signal).then(setter).catch(() => {});
+    const loadTab = async () => {
+      try {
+        if (activeTab === "movies") {
+          const { results, totalPages } = await getPopularMoviesPage(1, controller.signal);
+          setMoviesData(results);
+          setMoviesTotalPages(totalPages);
+        } else if (activeTab === "series") {
+          const { results, totalPages } = await getPopularTVPage(1, controller.signal);
+          setSeriesData(results);
+          setSeriesTotalPages(totalPages);
+        } else if (activeTab === "anime") {
+          const { results, totalPages } = await getAnimeSeriesPage(1, controller.signal);
+          setAnimeData(results);
+          setAnimeTotalPages(totalPages);
+        }
+      } catch (e) {
+        if (e instanceof DOMException && e.name === "AbortError") return;
+      }
+    };
+    loadTab();
     return () => controller.abort();
   }, [activeTab, moviesData.length, seriesData.length, animeData.length]);
 
@@ -704,6 +743,70 @@ function Home() {
     hasMore: visibleRowsCount < homeRows.length,
     isLoading: false,
     rootMargin: "500px",
+  });
+
+  // Infinite scroll for tab grids (movies/series/anime)
+  const loadMoreMovies = useCallback(async () => {
+    if (isLoadingMoreMovies) return;
+    const nextPage = moviesPage + 1;
+    if (nextPage > moviesTotalPages) return;
+    setIsLoadingMoreMovies(true);
+    try {
+      const { results, totalPages } = await getPopularMoviesPage(nextPage);
+      setMoviesData((prev) => [...prev, ...results]);
+      setMoviesPage(nextPage);
+      setMoviesTotalPages(totalPages);
+    } catch {}
+    setIsLoadingMoreMovies(false);
+  }, [moviesPage, moviesTotalPages, isLoadingMoreMovies]);
+
+  const loadMoreSeries = useCallback(async () => {
+    if (isLoadingMoreSeries) return;
+    const nextPage = seriesPage + 1;
+    if (nextPage > seriesTotalPages) return;
+    setIsLoadingMoreSeries(true);
+    try {
+      const { results, totalPages } = await getPopularTVPage(nextPage);
+      setSeriesData((prev) => [...prev, ...results]);
+      setSeriesPage(nextPage);
+      setSeriesTotalPages(totalPages);
+    } catch {}
+    setIsLoadingMoreSeries(false);
+  }, [seriesPage, seriesTotalPages, isLoadingMoreSeries]);
+
+  const loadMoreAnime = useCallback(async () => {
+    if (isLoadingMoreAnime) return;
+    const nextPage = animePage + 1;
+    if (nextPage > animeTotalPages) return;
+    setIsLoadingMoreAnime(true);
+    try {
+      const { results, totalPages } = await getAnimeSeriesPage(nextPage);
+      setAnimeData((prev) => [...prev, ...results]);
+      setAnimePage(nextPage);
+      setAnimeTotalPages(totalPages);
+    } catch {}
+    setIsLoadingMoreAnime(false);
+  }, [animePage, animeTotalPages, isLoadingMoreAnime]);
+
+  const { sentinelRef: moviesSentinelRef } = useInfiniteScroll({
+    onLoadMore: loadMoreMovies,
+    hasMore: moviesPage < moviesTotalPages,
+    isLoading: isLoadingMoreMovies,
+    rootMargin: "600px",
+  });
+
+  const { sentinelRef: seriesSentinelRef } = useInfiniteScroll({
+    onLoadMore: loadMoreSeries,
+    hasMore: seriesPage < seriesTotalPages,
+    isLoading: isLoadingMoreSeries,
+    rootMargin: "600px",
+  });
+
+  const { sentinelRef: animeSentinelRef } = useInfiniteScroll({
+    onLoadMore: loadMoreAnime,
+    hasMore: animePage < animeTotalPages,
+    isLoading: isLoadingMoreAnime,
+    rootMargin: "600px",
   });
 
   const handleWatchNow = (item: MovieOrShow, season?: number, episode?: number) => {
@@ -1001,9 +1104,15 @@ function Home() {
                         />
                       ))}
                     </ScrollRow>
+                    </div>
+                    {isLoadingMoreMovies && (
+                      <div className="flex justify-center py-6">
+                        <div className="h-8 w-8 rounded-full border-2 border-[#D70466] border-t-transparent animate-spin" />
+                      </div>
+                    )}
+                    <div ref={moviesSentinelRef} className="h-10 w-full pointer-events-none" />
                   </div>
                 </div>
-              </div>
               )}
 
               {activeTab === "series" && (
@@ -1075,9 +1184,15 @@ function Home() {
                         />
                       ))}
                     </ScrollRow>
+                    </div>
+                    {isLoadingMoreSeries && (
+                      <div className="flex justify-center py-6">
+                        <div className="h-8 w-8 rounded-full border-2 border-[#D70466] border-t-transparent animate-spin" />
+                      </div>
+                    )}
+                    <div ref={seriesSentinelRef} className="h-10 w-full pointer-events-none" />
                   </div>
                 </div>
-              </div>
               )}
 
               {activeTab === "anime" && (
@@ -1110,6 +1225,12 @@ function Home() {
                       ))}
                     </ScrollRow>
                   </div>
+                    {isLoadingMoreAnime && (
+                      <div className="flex justify-center py-6">
+                        <div className="h-8 w-8 rounded-full border-2 border-[#D70466] border-t-transparent animate-spin" />
+                      </div>
+                    )}
+                    <div ref={animeSentinelRef} className="h-10 w-full pointer-events-none" />
                 </div>
               )}
 

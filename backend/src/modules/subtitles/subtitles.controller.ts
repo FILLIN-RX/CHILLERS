@@ -1,19 +1,22 @@
-// @ts-nocheck
-import axios_1 from "axios";
-import * as opensubtitles_config_1 from "./opensubtitles.config";
-import * as opensubtitles_service_1 from "./opensubtitles.service";
-import * as srt_to_vtt_1 from "./srt-to-vtt";
-import * as torrents_utils_1 from "../../streaming/torrents/torrents.utils";
-export async function findSubs(req, res) {
-    if (!(0, opensubtitles_config_1.isOpenSubtitlesConfigured)()) {
-        res.status(503).json({ success: false, subtitles: [], message: 'Module sous-titres désactivé (OPENSUBTITLES_USER/PASS manquantes)' });
+import { Request, Response } from 'express';
+import { isAxiosError } from 'axios';
+import { isOpenSubtitlesConfigured } from './opensubtitles.config';
+import { searchSubtitles, downloadSubtitle, refreshToken } from './opensubtitles.service';
+import { srtToVtt } from './srt-to-vtt';
+import { errMessage } from '../../streaming/torrents/torrents.utils';
+
+export async function findSubs(req: Request, res: Response): Promise<void> {
+    if (!isOpenSubtitlesConfigured()) {
+        res.json({ success: true, subtitles: [], message: 'Module sous-titres désactivé (OPENSUBTITLES_USER/PASS manquantes)' });
         return;
     }
+
     const title = String(req.query.title || '').trim();
     if (!title) {
         res.status(400).json({ success: false, subtitles: [], message: 'Paramètre "title" requis' });
         return;
     }
+
     const year = parseInt(String(req.query.year || ''), 10) || undefined;
     const season = parseInt(String(req.query.season || ''), 10) || undefined;
     const episode = parseInt(String(req.query.episode || ''), 10) || undefined;
@@ -22,8 +25,9 @@ export async function findSubs(req, res) {
         .split(',')
         .map((l) => l.trim().toLowerCase())
         .filter(Boolean);
+
     try {
-        const subtitles = await (0, opensubtitles_service_1.searchSubtitles)({
+        const subtitles = await searchSubtitles({
             title,
             year,
             type: type === 'tv' || type === 'series' ? 'episode' : 'movie',
@@ -32,59 +36,59 @@ export async function findSubs(req, res) {
             langs,
         });
         res.json({ success: true, subtitles, message: null });
-    }
-    catch (err) {
-        console.error(`[Subtitles] Erreur recherche "${title}": ${(0, torrents_utils_1.errMessage)(err)}`);
-        res.status(500).json({ success: false, subtitles: [], message: 'Erreur lors de la recherche de sous-titres' });
+    } catch (err) {
+        console.error(`[Subtitles] Erreur recherche "${title}": ${errMessage(err)}`);
+        res.json({ success: true, subtitles: [], message: 'Erreur lors de la recherche de sous-titres' });
     }
 }
-export async function getSubFile(req, res) {
-    if (!(0, opensubtitles_config_1.isOpenSubtitlesConfigured)()) {
-        res.status(503).send('Module sous-titres désactivé');
+
+export async function getSubFile(req: Request, res: Response): Promise<void> {
+    if (!isOpenSubtitlesConfigured()) {
+        res.status(404).send('Module sous-titres désactivé');
         return;
     }
+
     const fileId = parseInt(String(req.params.fileId), 10);
     if (!Number.isFinite(fileId)) {
         res.status(400).send('fileId invalide');
         return;
     }
+
     try {
-        const file = await (0, opensubtitles_service_1.downloadSubtitle)(fileId);
+        const file = await downloadSubtitle(fileId);
         if (!file) {
             res.status(404).send('Sous-titre introuvable');
             return;
         }
-        const vtt = file.format === 'vtt' ? file.buffer.toString('utf8') : (0, srt_to_vtt_1.srtToVtt)(file.buffer.toString('utf8'));
+
+        const vtt = file.format === 'vtt' ? file.buffer.toString('utf8') : srtToVtt(file.buffer.toString('utf8'));
         res.setHeader('Content-Type', 'text/vtt; charset=utf-8');
         res.setHeader('Cache-Control', 'public, max-age=3600');
         res.setHeader('Content-Disposition', 'inline; filename="subtitle.vtt"');
         res.send(vtt);
-    }
-    catch (err) {
-        if (axios_1.isAxiosError(err) && err.response?.status === 401) {
-            // Token expiré → un seul renouvellement, puis abandon.
+    } catch (err) {
+        if (isAxiosError(err) && err.response?.status === 401) {
             try {
-                await (0, opensubtitles_service_1.refreshToken)();
-                const file = await (0, opensubtitles_service_1.downloadSubtitle)(fileId);
+                await refreshToken();
+                const file = await downloadSubtitle(fileId);
                 if (!file) {
                     res.status(404).send('Sous-titre introuvable');
                     return;
                 }
-                const vtt = file.format === 'vtt' ? file.buffer.toString('utf8') : (0, srt_to_vtt_1.srtToVtt)(file.buffer.toString('utf8'));
+                const vtt = file.format === 'vtt' ? file.buffer.toString('utf8') : srtToVtt(file.buffer.toString('utf8'));
                 res.setHeader('Content-Type', 'text/vtt; charset=utf-8');
                 res.setHeader('Cache-Control', 'public, max-age=3600');
                 res.send(vtt);
                 return;
-            }
-            catch (retryErr) {
-                console.error(`[Subtitles] Erreur après refresh token (${fileId}): ${(0, torrents_utils_1.errMessage)(retryErr)}`);
+            } catch (retryErr) {
+                console.error(`[Subtitles] Erreur après refresh token (${fileId}): ${errMessage(retryErr)}`);
             }
         }
-        if (axios_1.isAxiosError(err) && err.response?.status === 429) {
+        if (isAxiosError(err) && err.response?.status === 429) {
             res.status(429).send('Limite OpenSubtitles atteinte — réessaie dans quelques minutes');
             return;
         }
-        console.error(`[Subtitles] Erreur téléchargement (${fileId}): ${(0, torrents_utils_1.errMessage)(err)}`);
+        console.error(`[Subtitles] Erreur téléchargement (${fileId}): ${errMessage(err)}`);
         res.status(502).send('Échec du téléchargement du sous-titre');
     }
 }

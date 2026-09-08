@@ -9,106 +9,119 @@ export class OmniSaveProvider implements StreamingProvider {
     return !!(query.title || query.tmdbId);
   }
 
-  private async resolveTitle(query: StreamQuery): Promise<string | null> {
-    if (query.title) return query.title;
+  private async resolveTitles(query: StreamQuery): Promise<string[]> {
+    const titles = new Set<string>();
+    if (query.title) titles.add(query.title);
+
     if (query.tmdbId) {
       try {
         const endpoint = query.type === 'tv' || query.type === 'anime' ? `/tv/${query.tmdbId}` : `/movie/${query.tmdbId}`;
         const { data } = await tmdbClient.get(`${endpoint}?language=${query.language || 'fr'}`);
-        return data?.title || data?.name || data?.original_title || data?.original_name || null;
+        if (data?.title) titles.add(data.title);
+        if (data?.name) titles.add(data.name);
+        if (data?.original_title) titles.add(data.original_title);
+        if (data?.original_name) titles.add(data.original_name);
       } catch (_) {}
     }
-    return null;
+    return Array.from(titles);
   }
 
   async getMovieStream(query: StreamQuery): Promise<StreamResult | null> {
-    const title = await this.resolveTitle(query);
-    if (!title) return null;
+    const candidateTitles = await this.resolveTitles(query);
+    if (candidateTitles.length === 0) return null;
 
-    try {
-      console.log(`[OmniSave Provider] Recherche film: "${title}"`);
-      const searchRes = await searchOmniSave(title, 1, 5);
-      if (!searchRes.items || searchRes.items.length === 0) return null;
+    const normalize = (s: string) =>
+      s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
-      // Normalisation stricte pour éviter de servir un faux film (ex: "2001 : L'Odyssée de l'espace" pour "L'Odyssée")
-      const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
-      const cleanTarget = normalize(title);
+    const normalizedTargets = candidateTitles.map(t => normalize(t));
 
-      const matchedItem = searchRes.items.find(it => {
-        const itemClean = normalize(it.title);
-        return itemClean === cleanTarget;
-      });
+    for (const title of candidateTitles) {
+      try {
+        console.log(`[OmniSave Provider] Recherche film: "${title}"`);
+        const searchRes = await searchOmniSave(title, 1, 5);
+        if (!searchRes.items || searchRes.items.length === 0) continue;
 
-      if (!matchedItem) {
-        console.log(`[OmniSave Provider] Aucun titre correspondant exactement à "${title}" (trouvés: ${searchRes.items.map(i => i.title).join(', ')})`);
-        return null;
+        const matchedItem = searchRes.items.find(it => {
+          const itemClean = normalize(it.title);
+          return normalizedTargets.includes(itemClean);
+        });
+
+        if (!matchedItem) {
+          console.log(`[OmniSave Provider] Aucun titre correspondant à "${title}" (trouvés: ${searchRes.items.map(i => i.title).join(', ')})`);
+          continue;
+        }
+
+        const item = matchedItem;
+        const dlRes = await getOmniSaveDownloads(item.subjectId, item.detailPath, 1, 1);
+
+        const available = dlRes.downloads
+          .filter(d => !d.vipLocked && d.url)
+          .sort((a, b) => b.resolution - a.resolution);
+
+        if (available.length > 0) {
+          const best = available[0];
+          console.log(`[OmniSave Provider] Flux trouvé (${best.resolution}p): ${best.url.slice(0, 60)}...`);
+          return {
+            provider: this.name,
+            embedUrl: `/api/omnisave/proxy?url=${encodeURIComponent(best.url)}`,
+            type: 'movie'
+          };
+        }
+      } catch (error: any) {
+        console.error(`[OmniSave Provider] Erreur film "${title}":`, error.message);
       }
-
-      const item = matchedItem;
-      const dlRes = await getOmniSaveDownloads(item.subjectId, item.detailPath, 1, 1);
-
-      const available = dlRes.downloads
-        .filter(d => !d.vipLocked && d.url)
-        .sort((a, b) => b.resolution - a.resolution);
-
-      if (available.length > 0) {
-        const best = available[0];
-        console.log(`[OmniSave Provider] Flux trouvé (${best.resolution}p): ${best.url.slice(0, 60)}...`);
-        return {
-          provider: this.name,
-          embedUrl: `/api/omnisave/proxy?url=${encodeURIComponent(best.url)}`,
-          type: 'movie'
-        };
-      }
-    } catch (error: any) {
-      console.error(`[OmniSave Provider] Erreur film "${title}":`, error.message);
     }
     return null;
   }
 
   async getEpisodeStream(query: StreamQuery): Promise<StreamResult | null> {
-    const title = await this.resolveTitle(query);
-    if (!title) return null;
+    const candidateTitles = await this.resolveTitles(query);
+    if (candidateTitles.length === 0) return null;
 
-    try {
-      const season = query.season || 1;
-      const episode = query.episode || 1;
-      console.log(`[OmniSave Provider] Recherche série/anime: "${title}" S${season}E${episode}`);
+    const normalize = (s: string) =>
+      s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
-      const searchRes = await searchOmniSave(title, 1, 5);
-      if (!searchRes.items || searchRes.items.length === 0) return null;
+    const normalizedTargets = candidateTitles.map(t => normalize(t));
 
-      const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
-      const cleanTarget = normalize(title);
+    const season = query.season || 1;
+    const episode = query.episode || 1;
 
-      const matchedItem = searchRes.items.find(it => {
-        const itemClean = normalize(it.title);
-        return itemClean === cleanTarget;
-      });
+    for (const title of candidateTitles) {
+      try {
+        console.log(`[OmniSave Provider] Recherche série/anime: "${title}" S${season}E${episode}`);
 
-      if (!matchedItem) {
-        console.log(`[OmniSave Provider] Aucun titre correspondant exactement pour série "${title}"`);
-        return null;
+        const searchRes = await searchOmniSave(title, 1, 5);
+        if (!searchRes.items || searchRes.items.length === 0) continue;
+
+        const matchedItem = searchRes.items.find(it => {
+          const itemClean = normalize(it.title);
+          return normalizedTargets.includes(itemClean);
+        });
+
+        if (!matchedItem) {
+          console.log(`[OmniSave Provider] Aucun titre correspondant pour série "${title}"`);
+          continue;
+        }
+
+        const item = matchedItem;
+        const dlRes = await getOmniSaveDownloads(item.subjectId, item.detailPath, season, episode);
+
+        const available = dlRes.downloads
+          .filter(d => !d.vipLocked && d.url)
+          .sort((a, b) => b.resolution - a.resolution);
+
+        if (available.length > 0) {
+          const best = available[0];
+          console.log(`[OmniSave Provider] Épisode trouvé (${best.resolution}p): ${best.url.slice(0, 60)}...`);
+          return {
+            provider: this.name,
+            embedUrl: `/api/omnisave/proxy?url=${encodeURIComponent(best.url)}`,
+            type: 'episode'
+          };
+        }
+      } catch (error: any) {
+        console.error(`[OmniSave Provider] Erreur épisode "${title}":`, error.message);
       }
-
-      const item = matchedItem;
-      const dlRes = await getOmniSaveDownloads(item.subjectId, item.detailPath, season, episode);
-
-      const available = dlRes.downloads
-        .filter(d => !d.vipLocked && d.url)
-        .sort((a, b) => b.resolution - a.resolution);
-
-      if (available.length > 0) {
-        const best = available[0];
-        console.log(`[OmniSave Provider] Épisode trouvé (${best.resolution}p): ${best.url.slice(0, 60)}...`);
-        return {
-          provider: this.name,
-          embedUrl: `/api/omnisave/proxy?url=${encodeURIComponent(best.url)}`,
-          type: 'episode'
-        };
-      }
-    } catch (error: any) {
-      console.error(`[OmniSave Provider] Erreur épisode "${title}":`, error.message);
     }
     return null;
   }

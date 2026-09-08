@@ -289,7 +289,7 @@ function MovieCard({
             {audioBadge && (
               <span className={`rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider shadow-lg ${
                 audioBadge.isFrench 
-                  ? 'bg-blue-600/90 text-white border border-blue-400/30' 
+                  ? 'bg-[#D70466]/90 text-white border border-[#D70466]/30' 
                   : 'bg-amber-600/90 text-white border border-amber-400/30'
               }`}>
                 {audioBadge.label}
@@ -464,7 +464,7 @@ function MovieCard({
           {audioBadge && (
             <span className={`rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider shadow-sm ${
               audioBadge.isFrench 
-                ? 'bg-blue-600/90 text-white border border-blue-400/30' 
+                ? 'bg-[#D70466]/90 text-white border border-[#D70466]/30' 
                 : 'bg-amber-600/90 text-white border border-amber-400/30'
             }`}>
               {audioBadge.label}
