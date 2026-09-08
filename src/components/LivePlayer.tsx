@@ -4,13 +4,15 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import Hls from "hls.js";
 import { useLanguage } from "@/i18n/LanguageContext";
 import type { LiveChannel } from "@/types/live";
-import { ArrowLeft, X, Play, Pause, ArrowsClockwise, SpeakerSimpleHigh, SpeakerSimpleSlash, ArrowsOutSimple, ArrowsInSimple, Television, Clock, DotsThreeVertical, PictureInPicture, CaretRight } from "@phosphor-icons/react";
+import { ArrowLeft, X, Play, Pause, ArrowsClockwise, SpeakerSimpleHigh, SpeakerSimpleSlash, ArrowsOutSimple, ArrowsInSimple, Television, Clock, DotsThreeVertical, PictureInPicture, CaretRight, ShareNetwork, Check } from "@phosphor-icons/react";
 
 interface LivePlayerProps {
   channel: LiveChannel;
   allChannels?: LiveChannel[];
   onBack: () => void;
   onSelectChannel?: (ch: LiveChannel) => void;
+  /** Remplit entièrement l'écran (page player plein écran) au lieu d'un ratio 16:9 */
+  fill?: boolean;
 }
 
 const PROXY_BASE = "/api/live/proxy";
@@ -84,6 +86,7 @@ export default function LivePlayer({
   allChannels = [],
   onBack,
   onSelectChannel,
+  fill = false,
 }: LivePlayerProps) {
   const { translate: _ } = useLanguage();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -104,6 +107,9 @@ export default function LivePlayer({
   const [error, setError] = useState<string | null>(null);
   const [proxyMode, setProxyMode] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [shareCopied, setShareCopied] = useState(false);
+  const [latencyMode, setLatencyMode] = useState<"low" | "stable">("low");
+  const [liveLatency, setLiveLatency] = useState<number | null>(null);
 
   const isHls = channel.type === "hls";
 
@@ -138,6 +144,7 @@ export default function LivePlayer({
       const start = el.seekable.start(0);
       const current = el.currentTime;
       const delay = end - current;
+      setLiveLatency(delay);
 
       // Si le retard sur le flux direct est inférieur à 6 secondes, on est en LIVE
       const atLiveEdge = delay <= 6;
@@ -183,12 +190,13 @@ export default function LivePlayer({
     setIsLive(true);
     setLiveProgress(100);
 
+    const lowLatency = latencyMode === "low";
     const config: any = {
       enableWorker: true,
-      lowLatencyMode: false,
-      maxBufferLength: 30,
-      maxMaxBufferLength: 60,
-      backBufferLength: 2,
+      lowLatencyMode: lowLatency,
+      maxBufferLength: lowLatency ? 15 : 30,
+      maxMaxBufferLength: lowLatency ? 30 : 60,
+      backBufferLength: lowLatency ? 0 : 2,
       maxLoadingDelay: 2,
       maxBufferHole: 0.5,
       fragLoadingMaxRetry: 4,
@@ -196,7 +204,8 @@ export default function LivePlayer({
       levelLoadingMaxRetry: 4,
       startLevel: -1,
       abrEwmaDefaultEstimate: 1_000_000,
-      liveSyncDurationCount: 3,
+      liveSyncDurationCount: lowLatency ? 1 : 3,
+      liveMaxLatencyDurationCount: lowLatency ? 2 : 6,
     };
     if (proxyMode && BaseLoader) {
       config.loader = ProxiedHlsLoader;
@@ -265,7 +274,7 @@ export default function LivePlayer({
     return () => {
       if (hls) hls.destroy();
     };
-  }, [isHls, channel.streamUrl, proxyMode, reloadKey, isMuted, updateLiveState]);
+  }, [isHls, channel.streamUrl, proxyMode, reloadKey, isMuted, updateLiveState, latencyMode]);
 
   // Fullscreen change listener
   useEffect(() => {
@@ -297,6 +306,26 @@ export default function LivePlayer({
     setIsMuted(el.muted);
   };
 
+  const handleShare = async () => {
+    const title = channel.name || "CHILLERS";
+    const url = window.location.href;
+    try {
+      if (typeof navigator.share === "function") {
+        await navigator.share({ title, url });
+        return;
+      }
+      throw new Error("no-web-share");
+    } catch {
+      try {
+        await navigator.clipboard.writeText(url);
+        setShareCopied(true);
+        setTimeout(() => setShareCopied(false), 2000);
+      } catch {
+        setError("Impossible de partager le lien");
+      }
+    }
+  };
+
   const toggleFullscreen = () => {
     if (!containerRef.current) return;
     if (document.fullscreenElement) {
@@ -304,6 +333,12 @@ export default function LivePlayer({
     } else {
       containerRef.current.requestFullscreen().catch(() => {});
     }
+  };
+
+  const toggleLatencyMode = () => {
+    const next = latencyMode === "low" ? "stable" : "low";
+    setLatencyMode(next);
+    window.setTimeout(() => setReloadKey((k) => k + 1), 0);
   };
 
   const seekRelative = (seconds: number) => {
@@ -359,7 +394,20 @@ export default function LivePlayer({
     <div
       ref={containerRef}
       onMouseMove={handleMouseMove}
-      className="relative w-full min-h-[200px] sm:min-h-[340px] aspect-video max-h-[75dvh] bg-black overflow-hidden select-none group font-sans text-white"
+      onTouchStart={() => {
+        setShowControls(true);
+        if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+        controlsTimeoutRef.current = setTimeout(() => {
+          if (!showChannelDrawer && !showEpgModal && !showSettingsModal) {
+            setShowControls(false);
+          }
+        }, 4000);
+      }}
+      className={`relative w-full bg-black overflow-hidden select-none group font-sans text-white ${
+        fill
+          ? "h-full w-full"
+          : "min-h-[200px] sm:min-h-[340px] aspect-video max-h-[75dvh]"
+      }`}
     >
       {/* ── Main Video Layer ────────────────────────────────────── */}
       {iframeSrc ? (
@@ -482,6 +530,19 @@ export default function LivePlayer({
               title="Mini-lecteur"
             >
               <PictureInPicture className="h-5 w-5" />
+            </button>
+
+            <button
+              onClick={handleShare}
+              className="p-2 rounded-full hover:bg-white/10 text-white transition-colors"
+              aria-label="Partager"
+              title={shareCopied ? "Lien copié !" : "Partager"}
+            >
+              {shareCopied ? (
+                <Check className="h-5 w-5 text-[#D70466]" />
+              ) : (
+                <ShareNetwork className="h-5 w-5" />
+              )}
             </button>
 
             <button
@@ -673,6 +734,89 @@ export default function LivePlayer({
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* ── SETTINGS OVERLAY (OPTIONS) ─────────────────────────────── */}
+      {showSettingsModal && (
+        <div className="absolute inset-y-0 right-0 z-40 w-80 sm:w-96 bg-black/95 backdrop-blur-xl border-l border-white/10 flex flex-col p-4 animate-fade-in">
+          <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
+            <h3 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
+              <DotsThreeVertical className="h-4 w-4 text-red-500" />
+              Options
+            </h3>
+            <button
+              onClick={() => setShowSettingsModal(false)}
+              className="p-1.5 rounded-full hover:bg-white/10 text-zinc-400 hover:text-white"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Latence en direct */}
+          <div className="mb-4 rounded-xl bg-zinc-900/60 border border-white/10 p-3 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+                Latence actuelle
+              </p>
+              <p className="text-lg font-black text-white mt-0.5 tabular-nums">
+                {liveLatency != null ? `${liveLatency.toFixed(1)}s` : "—"}
+              </p>
+            </div>
+            {isLive && (
+              <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-red-500 bg-red-500/10 px-2 py-1 rounded-md border border-red-500/20">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-500" />
+                </span>
+                Direct
+              </span>
+            )}
+          </div>
+
+          {/* Toggle basse latence */}
+          <button
+            onClick={toggleLatencyMode}
+            className="flex items-center justify-between gap-3 w-full rounded-xl bg-zinc-900/60 border border-white/10 p-3 text-left hover:bg-zinc-900 transition-colors"
+          >
+            <div>
+              <p className="text-sm font-bold text-white flex items-center gap-1.5">
+                Basse latence
+                {liveLatency != null && latencyMode === "low" && (
+                  <span className="text-[10px] font-black uppercase tracking-wider text-[#D70466] bg-[#D70466]/10 px-1.5 py-0.5 rounded-md">
+                    ~{Math.min(6, Math.round(liveLatency))}s
+                  </span>
+                )}
+                {liveLatency != null && latencyMode === "stable" && (
+                  <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded-md">
+                    ~{Math.max(6, Math.round(liveLatency))}s
+                  </span>
+                )}
+              </p>
+              <p className="text-[11px] text-zinc-400 mt-1 leading-snug">
+                {latencyMode === "low"
+                  ? "~4-6s de retard, proche du direct (recommandé)."
+                  : "~15s de retard, plus tolérant aux coupures réseau."}
+              </p>
+            </div>
+            <span
+              className={`relative shrink-0 w-11 h-6 rounded-full transition-colors ${
+                latencyMode === "low" ? "bg-[#D70466]" : "bg-zinc-700"
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                  latencyMode === "low" ? "translate-x-[22px]" : "translate-x-0.5"
+                }`}
+              />
+            </span>
+          </button>
+
+          <p className="mt-4 text-[11px] text-zinc-600 leading-relaxed">
+            Le mode basse latence colle le lecteur au direct (comme YouTube/TikTok). Le mode
+            stable garde un buffer plus large, idéal si le flux tremble sur une connexion lente.
+            Changer de mode relance le flux à la live edge.
+          </p>
         </div>
       )}
     </div>

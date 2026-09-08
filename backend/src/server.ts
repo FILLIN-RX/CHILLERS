@@ -4,6 +4,7 @@ import { connectDB } from './config/db';
 import bcrypt from 'bcryptjs';
 import Admin from './models/Admin';
 import { SubscriptionPlan } from './models/SubscriptionPlan';
+import { syncSeed } from './modules/live/live.service';
 
 const PORT = process.env.PORT || 4000;
 
@@ -52,6 +53,12 @@ async function seedPlans() {
 connectDB().then(async () => {
   await seedAdmin();
   await seedPlans();
+  try {
+    const result = await syncSeed({ updateStreams: true });
+    console.log(`[LiveTV] Seed synchronisé: ${result.added} ajoutée(s), ${result.updated} mise(s) à jour`);
+  } catch (err) {
+    console.warn('[LiveTV] Sync seed ignoré (iptv-org ou base indisponible):', err instanceof Error ? err.message : err);
+  }
   app.listen(PORT, () => {
     console.log(`[Chiller API] Running on http://localhost:${PORT}`);
     console.log(`[Chiller System] Cron géré par GitHub Actions. Le backend ne lance plus de tâches automatiques.`);

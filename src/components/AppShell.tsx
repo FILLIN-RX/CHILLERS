@@ -61,9 +61,20 @@ export default function AppShell({ children, showBottomNav }: AppShellProps) {
       ? showBottomNav
       : !pathname?.startsWith("/watch/");
 
+  // Fullscreen player routes: no page chrome, just the player with its controls.
+  const isPlayerRoute = pathname?.startsWith("/watch/") || pathname?.startsWith("/live/lb/");
+
+  // Never let the donation overlay pop on live pages: it blocks the tab/multi
+  // switching and video controls while watching.
+  const isLivePath = pathname?.startsWith("/live");
+
   useEffect(() => {
     const handleSearch = () => setIsSearchOpen(true);
-    const handleDonation = () => setIsDonationOpen(true);
+    // Suppress donation popup entirely on live pages (both auto and manual triggers)
+    const handleDonation = () => {
+      if (isLivePath) return;
+      setIsDonationOpen(true);
+    };
 
     window.addEventListener("open-search", handleSearch);
     window.addEventListener("open-donation", handleDonation);
@@ -71,7 +82,7 @@ export default function AppShell({ children, showBottomNav }: AppShellProps) {
     // Auto-pop donation modal once per session on site load
     try {
       const alreadyShown = sessionStorage.getItem("chillers_donation_shown");
-      if (!alreadyShown && !pathname?.startsWith("/admin")) {
+      if (!alreadyShown && !pathname?.startsWith("/admin") && !isLivePath) {
         const timer = setTimeout(() => {
           setIsDonationOpen(true);
           sessionStorage.setItem("chillers_donation_shown", "true");
@@ -88,7 +99,7 @@ export default function AppShell({ children, showBottomNav }: AppShellProps) {
       window.removeEventListener("open-search", handleSearch);
       window.removeEventListener("open-donation", handleDonation);
     };
-  }, [pathname]);
+  }, [pathname, isLivePath]);
 
   const isAuthPage = pathname === "/login" || pathname === "/register";
 
@@ -103,14 +114,14 @@ export default function AppShell({ children, showBottomNav }: AppShellProps) {
         isOpen={isDonationOpen}
         onClose={() => setIsDonationOpen(false)}
       />
-      {!isAuthPage && <Header onSearchClick={() => setIsSearchOpen(true)} />}
+      {!isAuthPage && !isPlayerRoute && <Header onSearchClick={() => setIsSearchOpen(true)} />}
       <main className="flex-1 flex flex-col">{children}</main>
-      {!isAuthPage && !pathname?.startsWith("/profile") && <Footer />}
-      <NetworkStatusBanner />
+      {!isAuthPage && !pathname?.startsWith("/profile") && !isPlayerRoute && <Footer />}
+      {!isPlayerRoute && <NetworkStatusBanner />}
       <Suspense>
-        <DownloadFloatingBar />
+        {!isPlayerRoute && <DownloadFloatingBar />}
       </Suspense>
-      {shouldShowBottomNav && !isAuthPage && <BottomNav onSearchClick={() => setIsSearchOpen(true)} />}
+      {shouldShowBottomNav && !isAuthPage && !isPlayerRoute && <BottomNav onSearchClick={() => setIsSearchOpen(true)} />}
     </MantineProvider>
   );
 }

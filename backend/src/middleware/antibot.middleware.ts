@@ -41,6 +41,7 @@ export const antiBotMiddleware = (req: Request, res: Response, next: NextFunctio
     path.includes('/subtitles') ||
     path.includes('/torrents') ||
     path.includes('/live') ||
+    path.includes('/liveball') ||
     path.includes('/uploads') ||
     path.includes('/affiches') ||
     path.includes('/clear-cache') ||

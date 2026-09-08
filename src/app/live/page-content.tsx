@@ -5,7 +5,9 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { Television, MagnifyingGlass, Star, Play, CaretCircleRight, X, Check, ArrowLeft } from "@phosphor-icons/react";
 import { getLiveChannels, FALLBACK_CHANNELS } from "@/services/live";
+import { getLiveBallMatches, getLiveBallChampionsLeague, getLiveBallLiveAvailable } from "@/services/liveball";
 import type { LiveChannel } from "@/types/live";
+import type { LiveBallMatch } from "@/types/liveball";
 import LivePlayer from "@/components/LivePlayer";
 
 export function ChannelLogo({ channel }: { channel: LiveChannel }) {
@@ -114,6 +116,103 @@ const CHANNEL_PROGRAMS: Record<string, { program: string; category: string; bann
   },
 };
 
+function formatMatchTime(ts?: number): string {
+  if (!ts) return "";
+  const d = new Date(ts * 1000);
+  return d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+}
+
+function TeamCrest({ src, alt, size = "md" }: { src?: string; alt: string; size?: "sm" | "md" }) {
+  const [broken, setBroken] = useState(false);
+  const dims = size === "sm" ? "w-6 h-6" : "w-8 h-8";
+  if (!src || broken) {
+    return (
+      <div className={`${dims} rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center text-[9px] font-black text-zinc-400 shrink-0`}>
+        {(alt || "?").slice(0, 2).toUpperCase()}
+      </div>
+    );
+  }
+  return (
+    <img
+      src={src}
+      alt={alt}
+      loading="lazy"
+      onError={() => setBroken(true)}
+      className={`${dims} object-contain shrink-0 rounded-full bg-white/5`}
+    />
+  );
+}
+
+function LiveBallStrip({
+  matches,
+  liveAvailable,
+  title = "Matchs Foot",
+}: {
+  matches: LiveBallMatch[];
+  liveAvailable?: LiveBallMatch[];
+  title?: string;
+}) {
+  const live = liveAvailable || matches.filter((m) => m.status === "live");
+  const upcoming = matches.filter((m) => m.status === "upcoming").slice(0, 6);
+  if (live.length === 0 && upcoming.length === 0) return null;
+
+  const card = (m: LiveBallMatch) => (
+    <a
+      key={m.id}
+      href={`/live/lb/${m.id}`}
+      className="group shrink-0 flex flex-col rounded-xl bg-zinc-900/90 border border-white/10 hover:border-red-600/60 transition-all duration-300 hover:scale-[1.03] hover:shadow-lg hover:shadow-red-600/10 p-3 w-[172px] sm:w-44"
+    >
+      <div className="flex items-center justify-between gap-1 mb-2">
+        <span
+          className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded ${
+            m.status === "live" ? "bg-red-600 text-white animate-pulse" : "bg-zinc-800 text-zinc-400"
+          }`}
+        >
+          {m.status === "live" ? "● Live" : formatMatchTime(m.startTs)}
+        </span>
+        {m.score && (
+          <span className="text-[11px] font-black text-white tabular-nums">{m.score}</span>
+        )}
+      </div>
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0 text-center">
+          <TeamCrest src={m.homeLogo} alt={m.home} />
+          <p className="mt-1 text-[10px] font-bold text-white truncate">{m.home}</p>
+        </div>
+        <span className="text-[10px] font-black text-zinc-600 shrink-0">VS</span>
+        <div className="min-w-0 text-center">
+          <TeamCrest src={m.awayLogo} alt={m.away} />
+          <p className="mt-1 text-[10px] font-bold text-white truncate">{m.away}</p>
+        </div>
+      </div>
+    </a>
+  );
+
+  return (
+    <div className="relative mb-6">
+      <div className="flex items-center gap-2 mb-3">
+        <h2 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
+          {title}
+        </h2>
+        <span className="h-2 w-2 rounded-full bg-red-600 animate-pulse" />
+      </div>
+      {live.length > 0 ? (
+        <div className="flex gap-2.5 overflow-x-auto no-scrollbar -mx-1 px-1 py-1">
+          {live.map(card)}
+          {upcoming.map(card)}
+        </div>
+      ) : (
+        <div className="flex gap-2.5 overflow-x-auto no-scrollbar -mx-1 px-1 py-1">
+          {upcoming.map(card)}
+        </div>
+      )}
+      <p className="mt-2 text-[10px] text-zinc-500">
+        Cliquez sur un match pour regarder la diffusion
+      </p>
+    </div>
+  );
+}
+
 export default function LivePageContent() {
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [search, setSearch] = useState("");
@@ -125,6 +224,26 @@ export default function LivePageContent() {
     queryKey: ["live", "channels"],
     queryFn: () => getLiveChannels(),
     staleTime: 60_000,
+  });
+
+  const { data: lbMatches = [] } = useQuery({
+    queryKey: ["live", "liveball"],
+    queryFn: () => getLiveBallMatches(),
+    staleTime: 60_000,
+  });
+
+  const { data: clMatches = [] } = useQuery({
+    queryKey: ["live", "liveball", "champions-league"],
+    queryFn: () => getLiveBallChampionsLeague(),
+    staleTime: 60_000,
+  });
+
+  // Uniquement les directs dont le flux a été vérifié disponible.
+  const { data: lbLiveAvailable = [] } = useQuery({
+    queryKey: ["live", "liveball", "available"],
+    queryFn: () => getLiveBallLiveAvailable(),
+    staleTime: 5 * 60_000,
+    refetchInterval: 5 * 60_000,
   });
 
   useEffect(() => {
@@ -219,14 +338,17 @@ export default function LivePageContent() {
 
       {/* ── Top Category Tabs Navigation Bar ─────────────────────── */}
       <div className="relative border-b border-white/10 pb-1 mb-6">
-        <div className="flex items-center gap-6 sm:gap-8 overflow-x-auto no-scrollbar scroll-smooth">
+        {/* Fade edges hint the horizontal scroll on mobile */}
+        <div className="pointer-events-none absolute inset-y-0 left-0 w-8 sm:w-12 bg-gradient-to-r from-[#0E0E11] to-transparent z-10 hidden sm:block" />
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-8 sm:w-12 bg-gradient-to-l from-[#0E0E11] to-transparent z-10" />
+        <div className="flex items-center gap-3 sm:gap-8 overflow-x-auto no-scrollbar scroll-smooth -mx-1 px-1 py-1">
           {CATEGORIES.map((cat) => {
             const isActive = activeCategory === cat.id;
             return (
               <button
                 key={cat.id}
                 onClick={() => setActiveCategory(cat.id)}
-                className={`relative pb-3 text-xs sm:text-sm font-extrabold uppercase tracking-wider whitespace-nowrap transition-all ${
+                className={`relative shrink-0 px-2.5 sm:px-1 py-3 text-xs sm:text-sm font-extrabold uppercase tracking-wider whitespace-nowrap transition-all active:scale-95 ${
                   isActive
                     ? "text-white font-black"
                     : "text-zinc-400 hover:text-zinc-200"
@@ -234,13 +356,19 @@ export default function LivePageContent() {
               >
                 {cat.label}
                 {isActive && (
-                  <span className="absolute bottom-0 left-0 right-0 h-0.5 sm:h-1 bg-white rounded-full transition-all" />
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 sm:h-1 bg-[#D70466] rounded-full transition-all" />
                 )}
               </button>
             );
           })}
         </div>
       </div>
+
+      {/* ── Champions League ────────────────────────────────────── */}
+      <LiveBallStrip matches={clMatches} title="Champions League" />
+
+      {/* ── LiveBall Matches Strip (Football en direct) ─────────── */}
+      <LiveBallStrip matches={lbMatches} liveAvailable={lbLiveAvailable} />
 
       {/* ── Live Channel Cards Grid ─────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3.5 sm:gap-4 lg:gap-5">
