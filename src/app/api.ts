@@ -45,6 +45,7 @@ export {
   getTVByGenrePage,
   getMoviesByGenre,
   getMoviesByGenreMultiPage,
+  getAnimeByGenre,
   getByGenreMultiple,
   getDisponible,
   clearTmdbCache,

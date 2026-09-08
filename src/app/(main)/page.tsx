@@ -31,6 +31,7 @@ import {
   getPopularMoviesPage,
   getPopularTVPage,
   getAnimeSeriesPage,
+  getAnimeByGenre,
 } from "../api";
 import UpgradeModal from "@/components/UpgradeModal";
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -525,7 +526,7 @@ function Home() {
       const rowsData = await Promise.all(
         ANIME_GENRES.map(async (g) => ({
           title: g.title,
-          items: await getMoviesByGenre(g.id, 1, signal),
+          items: await getAnimeByGenre(g.id, 1, signal),
         })),
       );
       const validRows = rowsData.filter((row) => row.items.length > 0);

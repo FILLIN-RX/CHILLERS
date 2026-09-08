@@ -20,6 +20,7 @@ import {
   getMoviesByGenrePage,
   getTVByGenrePage,
   getMoviesByGenre,
+  getAnimeByGenre,
   getByGenreMultiple,
   getMovieGenres,
   getTVGenres,
@@ -852,6 +853,12 @@ function MediaListingPage() {
   const [categoryRows, setCategoryRows] = useState<Array<{ id: string; title: string; genreId?: string; variant: 'scroll' | 'poster'; items: MovieOrShow[] }>>([]);
   const [isLoadingCatalog, setIsLoadingCatalog] = useState(true);
 
+  // Infinite scroll grid at the bottom of multi-category catalog mode
+  const [catalogGridItems, setCatalogGridItems] = useState<MovieOrShow[]>([]);
+  const [catalogGridPage, setCatalogGridPage] = useState(1);
+  const [catalogGridTotalPages, setCatalogGridTotalPages] = useState(1);
+  const [isLoadingCatalogMore, setIsLoadingCatalogMore] = useState(false);
+
   // Single Genre Infinite Scroll Grid state (YouTube-style)
   const [gridItems, setGridItems] = useState<MovieOrShow[]>([]);
   const [page, setPage] = useState(1);
@@ -874,6 +881,39 @@ function MediaListingPage() {
     hasMore,
     isLoading: isLoadingGrid || isLoadingMore,
     rootMargin: "500px",
+  });
+
+  // Infinite scroll for the bottom grid in multi-category mode
+  const loadMoreCatalogGrid = useCallback(async () => {
+    if (isLoadingCatalogMore) return;
+    const nextPage = catalogGridPage + 1;
+    if (nextPage > catalogGridTotalPages) return;
+    setIsLoadingCatalogMore(true);
+    try {
+      let result: { results: MovieOrShow[]; totalPages: number } = { results: [], totalPages: 1 };
+      if (type === "movies") {
+        result = await getPopularMoviesPage(nextPage);
+      } else if (type === "anime") {
+        result = await getAnimeSeriesPage(nextPage);
+      } else {
+        result = await getPopularTVPage(nextPage);
+      }
+      setCatalogGridItems((prev) => {
+        const seen = new Set(prev.map((i) => i.id));
+        const unique = result.results.filter((i) => !seen.has(i.id));
+        return [...prev, ...unique];
+      });
+      setCatalogGridPage(nextPage);
+      setCatalogGridTotalPages(result.totalPages);
+    } catch {}
+    setIsLoadingCatalogMore(false);
+  }, [type, catalogGridPage, catalogGridTotalPages, isLoadingCatalogMore]);
+
+  const { sentinelRef: catalogSentinelRef } = useInfiniteScroll({
+    onLoadMore: loadMoreCatalogGrid,
+    hasMore: catalogGridPage < catalogGridTotalPages,
+    isLoading: isLoadingCatalogMore,
+    rootMargin: "600px",
   });
 
   // Modal detail
@@ -927,6 +967,9 @@ function MediaListingPage() {
       .finally(() => setGenresLoading(false));
     setActiveGenreId(null);
     setPage(1);
+    setCatalogGridItems([]);
+    setCatalogGridPage(1);
+    setCatalogGridTotalPages(1);
   }, [type]);
 
   // Read ?genre= from URL on mount or change
@@ -985,6 +1028,8 @@ function MediaListingPage() {
               } else if (row.genreId) {
                 if (type === "movies") {
                   rowItems = await getMoviesByGenre(row.genreId, 1);
+                } else if (type === "anime") {
+                  rowItems = await getAnimeByGenre(row.genreId, 1);
                 } else {
                   const tvRes = await getTVByGenrePage(row.genreId, 1);
                   rowItems = tvRes.results;
@@ -1008,6 +1053,8 @@ function MediaListingPage() {
               if (row.genreId) {
                 if (type === "movies") {
                   rowItems = await getMoviesByGenre(row.genreId, 1);
+                } else if (type === "anime") {
+                  rowItems = await getAnimeByGenre(row.genreId, 1);
                 } else {
                   const tvRes = await getTVByGenrePage(row.genreId, 1);
                   rowItems = tvRes.results;
@@ -1023,6 +1070,17 @@ function MediaListingPage() {
           const valid = remainingResults.filter(r => r.items.length > 0);
           return [...prev, ...valid];
         });
+
+        // Initialize the bottom infinite-scroll grid with page 1 of the main list
+        const page1 = await (async () => {
+          if (type === "movies") return getPopularMoviesPage(1);
+          if (type === "anime") return getAnimeSeriesPage(1);
+          return getPopularTVPage(1);
+        })();
+        if (cancelled) return;
+        setCatalogGridItems(page1.results);
+        setCatalogGridPage(1);
+        setCatalogGridTotalPages(page1.totalPages);
       } catch (err) {
         console.error("Error loading catalog:", err);
       } finally {
@@ -1196,6 +1254,51 @@ function MediaListingPage() {
               ))
             )}
           </div>
+
+          {/* Infinite Scroll "Explorer plus" grid */}
+          {catalogGridItems.length > 0 && (
+            <div className="px-2 sm:px-6 md:px-12 lg:px-[3%] space-y-4 pb-4">
+              <div className="mt-2">
+                <h2 className="text-xl sm:text-2xl font-extrabold text-white">
+                  Explorer plus
+                </h2>
+                <p className="text-zinc-500 text-xs sm:text-sm mt-0.5">
+                  {type === "movies" ? _("home.blockbusterSubtitle") : type === "series" ? _("home.featuredSeriesSubtitle") : _("search.animePoweredBy")}
+                </p>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
+                {catalogGridItems.map((item) => (
+                  <MovieCard
+                    key={item.id}
+                    item={item}
+                    variant="grid"
+                    onPlay={handlePlay}
+                    onOpenDetails={handleOpenDetails}
+                  />
+                ))}
+                {isLoadingCatalogMore &&
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <div
+                      key={`catalog-skeleton-${i}`}
+                      className="aspect-video rounded-xl bg-zinc-900/80 border border-white/5 skeleton-loading"
+                    />
+                  ))}
+              </div>
+              {catalogGridPage < catalogGridTotalPages && (
+                <div
+                  ref={catalogSentinelRef}
+                  className="w-full py-6 flex flex-col items-center justify-center gap-2"
+                >
+                  {isLoadingCatalogMore && (
+                    <div className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-zinc-900/80 border border-white/10 text-xs font-semibold text-zinc-400">
+                      <div className="w-4 h-4 rounded-full border-2 border-[#D70466] border-t-transparent animate-spin" />
+                      <span>Chargement des vidéos suivantes…</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
