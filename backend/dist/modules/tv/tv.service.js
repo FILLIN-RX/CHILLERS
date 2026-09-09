@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getSeasonDetails = exports.getDetails = exports.getAfrican = exports.getAnime = exports.getByGenre = exports.getTopRated = exports.getTrending = exports.getPopular = void 0;
+exports.getSeasonDetails = exports.getDetails = exports.getAfrican = exports.getAnime = exports.getAnimeByGenre = exports.getByGenre = exports.getTopRated = exports.getTrending = exports.getPopular = void 0;
 const tmdb_1 = __importDefault(require("../../config/tmdb"));
 const language_1 = require("../../config/language");
 const getPopular = async (page = 1, language) => {
@@ -28,6 +28,18 @@ const getByGenre = async (genreId, page = 1, language) => {
     return data;
 };
 exports.getByGenre = getByGenre;
+const getAnimeByGenre = async (genreId, page = 1, language) => {
+    const params = {
+        with_genres: genreId,
+        sort_by: 'popularity.desc',
+        page,
+        with_original_language: 'ja',
+        language: (0, language_1.toTMDBLanguage)(language),
+    };
+    const { data } = await tmdb_1.default.get('/discover/tv', { params });
+    return data;
+};
+exports.getAnimeByGenre = getAnimeByGenre;
 const getAnime = async (page = 1, language) => {
     const params = {
         with_genres: '16',

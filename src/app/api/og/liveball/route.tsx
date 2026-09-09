@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 import { NextRequest } from "next/server";
+import { serverApiFetch } from "@/lib/server-api";
 
 export const runtime = "edge";
 
@@ -15,7 +16,7 @@ function initials(name: string): string {
 async function loadDataUri(url: string): Promise<string | null> {
   if (!url) return null;
   try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(6000) });
+    const res = await serverApiFetch(url, { signal: AbortSignal.timeout(6000) });
     if (!res.ok) return null;
     const buf = new Uint8Array(await res.arrayBuffer());
     let bin = "";

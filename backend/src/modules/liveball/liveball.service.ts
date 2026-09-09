@@ -2,6 +2,7 @@ import axios from 'axios';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { LRUCache } from 'lru-cache';
+import CloudScraper from 'cloudscraper';
 
 const execFileAsync = promisify(execFile);
 
@@ -18,6 +19,14 @@ export interface LiveBallMatch {
   league?: string;
 }
 
+// Flux résolu d'un match : soit un HLS natif (m3u8), soit une URL de player
+// à embarquer en iframe (format "f" renvoyé par /api/c/r pour de nombreux
+// matchs dont certains de la Champions League).
+export interface ResolvedStream {
+  url: string;
+  type: 'hls' | 'iframe';
+}
+
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
@@ -30,8 +39,9 @@ const CACHE = new LRUCache<string, LiveBallMatch[]>({
 // présent dans la page d'un match. POST t = XOR(atob(token), clé répétée).
 const TOKEN_XOR_KEY = 'q9!Vx2#mP4nL8wY5gT0dA3fH';
 
-// Les URLs m3u8 retournées par /api/c/r embarquent un token signé (exp ~6h).
-const STREAM_CACHE = new LRUCache<string, string>({
+// Les URLs m3u8 (token signé, exp ~6h) ET les URLs de player iframe renvoyées
+// par /api/c/r sont mis en cache 1h.
+const STREAM_CACHE = new LRUCache<string, ResolvedStream>({
   max: 20,
   ttl: 60 * 60_000, // cache 1h
 });
@@ -47,23 +57,75 @@ function xorDecodeToken(token: string): string {
 
 // liveball.sx est derrière un challenge Cloudflare (JA3/TLS fingerprinting) :
 // axios/node-fetch sont systématiquement bloqués (403 "Just a moment..."),
-// alors que curl (HTTP/2) passe toujours. On privilégie curl via child_process.
+// alors que curl (HTTP/2) avec des headers correct passe souvent.
+// On essaie curl d'abord, puis axios comme fallback.
 async function fetchHtmlWithCurl(url: string): Promise<string> {
-  const { stdout } = await execFileAsync(
-    'curl',
-    [
-      '-sSL',
-      '--compressed',
-      '-A', USER_AGENT,
-      '-H', 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      '-H', 'Accept-Language: ru-RU,ru;q=0.9,en;q=0.8',
-      '-H', 'Referer: https://liveball.sx/',
-      '--max-time', '20',
-      url,
-    ],
-    { maxBuffer: 4 * 1024 * 1024 }
-  );
-  return stdout;
+  try {
+    // Try curl with comprehensive browser-like headers
+    const { stdout } = await execFileAsync(
+      'curl',
+      [
+        '-sSL',
+        '--http2',  // Use HTTP/2
+        '-A', USER_AGENT,
+        '-H', 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+        '-H', 'Accept-Language: en-US,en;q=0.9,fr;q=0.8,ru;q=0.7',
+        '-H', 'Accept-Encoding: gzip, deflate, br',
+        '-H', 'DNT: 1',
+        '-H', 'Connection: keep-alive',
+        '-H', 'Upgrade-Insecure-Requests: 1',
+        '-H', 'Sec-Fetch-Dest: document',
+        '-H', 'Sec-Fetch-Mode: navigate',
+        '-H', 'Sec-Fetch-Site: none',
+        '-H', 'Sec-Fetch-User: ?1',
+        '-H', 'Sec-Ch-Ua: "Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+        '-H', 'Sec-Ch-Ua-Mobile: ?0',
+        '-H', 'Sec-Ch-Ua-Platform: "Linux"',
+        '-H', 'Cache-Control: max-age=0',
+        '--compressed',
+        '--max-time', '20',
+        url,
+      ],
+      { maxBuffer: 4 * 1024 * 1024 }
+    );
+    
+    // Check if we got Cloudflare challenge instead of real content
+    if (stdout.includes('Just a moment') || stdout.includes('challenges.cloudflare.com') || stdout.includes('error code') || stdout.trim().length < 500) {
+      throw new Error('Cloudflare challenge or empty response detected');
+    }
+    
+    return stdout;
+  } catch (curlErr) {
+    // Fallback: try axios with different user agent
+    try {
+      const { data } = await axios.get<string>(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9,fr;q=0.8,ru;q=0.7',
+          'Accept-Encoding': 'gzip, deflate, br',
+          DNT: '1',
+          Connection: 'keep-alive',
+          'Upgrade-Insecure-Requests': '1',
+          'Sec-Fetch-Dest': 'document',
+          'Sec-Fetch-Mode': 'navigate',
+          'Sec-Fetch-Site': 'none',
+        },
+        timeout: 15_000,
+        responseType: 'text',
+        maxRedirects: 10,
+      });
+      
+      if (data.includes('Just a moment') || data.includes('challenges.cloudflare.com')) {
+        throw new Error('Cloudflare challenge detected in axios response');
+      }
+      
+      return data;
+    } catch (axiosErr) {
+      console.error(`[LiveBall] Fetch failed. curl: ${curlErr instanceof Error ? curlErr.message : 'unknown'}, axios: ${axiosErr instanceof Error ? axiosErr.message : 'unknown'}`);
+      throw new Error('Unable to bypass Cloudflare - LiveBall.sx is blocking access');
+    }
+  }
 }
 
 function decodeEntities(s: string): string {
@@ -369,58 +431,170 @@ export async function getLiveBallLeagueMatches(league: string): Promise<LiveBall
 }
 
 interface StreamResponse {
-  d?: string; // base64(m3u8 url)
+  d?: string; // base64(m3u8 url) ou base64(url de player sirame)
   m?: string; // "h" = hls, "f" = flash/iframe
   e?: string; // erreur, ex. "invalid_token"
 }
 
-// Résout l'URL HLS réelle d'un match live.
+// Résout le flux réel d'un match live (HLS ou player iframe).
 //
 // Côté liveball.sx, chaque page de match embarque un token signé via
 // `<script>_xrq("...")</script>`. cl.min.js le décode (XOR simple) puis POST
-// `{t, f}` vers /api/c/r. La réponse contient l'URL m3u8 (base64) du flux
-// réel (channel TV rebroadcast type tnt_sports2_uk). `f` (fingerprint du
-// navigateur) n'est pas vérifié par le serveur ; on envoie "0".
-export async function resolveLiveBallStream(matchId: string): Promise<string | null> {
+// `{t, f}` vers /api/c/r. La réponse contient :
+//  - m="h" : une URL m3u8 (base64) du flux réel (channel TV rebroadcast) ;
+//  - m="f" : une URL de player à embarquer en iframe (base64) — c'est LE format
+//    utilisé par de nombreux matchs (dont certains de la Champions League).
+// `f` (fingerprint navigateur) n'est pas vérifié par le serveur ; on envoie "0".
+export async function resolveLiveBallStream(matchId: string): Promise<ResolvedStream | null> {
   const cached = STREAM_CACHE.get(matchId);
   if (cached) return cached;
 
   try {
     if (!/^\d+$/.test(matchId)) return null;
 
-    const html = await fetchHtmlWithCurl(`https://liveball.sx/match/${matchId}`);
-    const tokenMatch = html.match(/_xrq\("([^"]+)"\)/);
-    if (!tokenMatch) return null;
+    // Fetch page with shorter timeout for availability check
+    let html: string;
+    try {
+      html = await fetchHtmlWithCurl(`https://liveball.sx/match/${matchId}`);
+    } catch (err) {
+      console.warn(`[LiveBall] Failed to fetch match page ${matchId}: ${err}`);
+      return null;
+    }
 
-    const t = xorDecodeToken(tokenMatch[1]);
+    // NEW FORMAT (current): token stored in window._lbStreams object
+    // window._lbStreams = {"b0":{"t":"base64token"},"b1":{"t":"base64token"}};
+    let t: string | null = null;
+    
+    const streamMatch = html.match(/window\._lbStreams\s*=\s*(\{[^}]+\})/);
+    if (streamMatch) {
+      try {
+        const streams = JSON.parse(streamMatch[1]) as Record<string, { t: string }>;
+        // Try to get the first available stream token
+        for (const key in streams) {
+          if (streams[key]?.t) {
+            t = streams[key].t;
+            break;
+          }
+        }
+      } catch (e) {
+        console.warn(`[LiveBall] Failed to parse streams object for match ${matchId}`);
+      }
+    }
+
+    // OLD FORMAT (fallback): token in _xrq("...") call
+    if (!t) {
+      const tokenMatch = html.match(/_xrq\("([^"]+)"\)/);
+      if (tokenMatch) {
+        try {
+          t = xorDecodeToken(tokenMatch[1]);
+        } catch (err) {
+          console.warn(`[LiveBall] Failed to decode XOR token for match ${matchId}: ${err}`);
+        }
+      }
+    }
+
+    if (!t) {
+      console.warn(`[LiveBall] No token found (new or old format) for match ${matchId}`);
+      return null;
+    }
+
     const body = JSON.stringify({ t, f: '0' });
 
-    const { stdout } = await execFileAsync(
-      'curl',
-      [
-        '-sSL',
-        '--compressed',
-        '-A', USER_AGENT,
-        '-H', 'Content-Type: application/json',
-        '-H', 'Accept: application/json, text/plain, */*',
-        '-H', `Referer: https://liveball.sx/match/${matchId}`,
-        '-X', 'POST',
-        '--data-raw', body,
-        '--max-time', '20',
-        'https://liveball.sx/api/c/r',
-      ],
-      { maxBuffer: 2 * 1024 * 1024 }
-    );
+    let stdout: string;
+    try {
+      // Try cloudscraper first (handles Cloudflare bypassing automatically)
+      try {
+        console.log(`[LiveBall] Using CloudScraper to bypass Cloudflare for /api/c/r...`);
+        const response = await CloudScraper({
+          method: 'POST',
+          url: 'https://liveball.sx/api/c/r',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Referer': `https://liveball.sx/match/${matchId}`,
+            'Origin': 'https://liveball.sx',
+            'Sec-Fetch-Dest': 'empty',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Site': 'same-origin',
+            'DNT': '1',
+          },
+          body,
+          json: true,
+        });
+        stdout = typeof response === 'string' ? response : JSON.stringify(response);
+      } catch (cloudflarErr) {
+        // Fallback to curl with headers
+        console.log(`[LiveBall] CloudScraper failed, trying curl with headers...`);
+        const result = await execFileAsync(
+          'curl',
+          [
+            '-sSL',
+            '--http2',
+            '--compressed',
+            '-A', USER_AGENT,
+            '-H', 'Accept: application/json, text/plain, */*',
+            '-H', 'Accept-Language: en-US,en;q=0.9',
+            '-H', 'Accept-Encoding: gzip, deflate, br',
+            '-H', 'Content-Type: application/json',
+            '-H', `Referer: https://liveball.sx/match/${matchId}`,
+            '-H', 'Origin: https://liveball.sx',
+            '-H', 'Sec-Fetch-Dest: empty',
+            '-H', 'Sec-Fetch-Mode: cors',
+            '-H', 'Sec-Fetch-Site: same-origin',
+            '-H', 'DNT: 1',
+            '-X', 'POST',
+            '--data-raw', body,
+            '--max-time', '12',
+            'https://liveball.sx/api/c/r',
+          ],
+          { maxBuffer: 2 * 1024 * 1024 }
+        );
+        stdout = result.stdout;
+      }
+    } catch (err) {
+      console.warn(`[LiveBall] Failed to POST /api/c/r for match ${matchId}: ${err}`);
+      return null;
+    }
 
-    const parsed = JSON.parse(stdout) as StreamResponse;
-    if (!parsed.d) return null;
+    let parsed: StreamResponse;
+    try {
+      parsed = JSON.parse(stdout) as StreamResponse;
+    } catch (err) {
+      console.warn(`[LiveBall] Invalid JSON response for match ${matchId}: ${err}`);
+      return null;
+    }
 
-    const url = Buffer.from(parsed.d, 'base64').toString('utf8').trim();
-    if (!/^https:\/\/[^/]+\/hls\/.+\.m3u8/.test(url)) return null;
+    if (!parsed.d) {
+      console.warn(`[LiveBall] No stream data returned for match ${matchId}, error: ${parsed.e || 'unknown'}`);
+      return null;
+    }
 
-    STREAM_CACHE.set(matchId, url);
-    return url;
-  } catch {
+    const rawUrl = Buffer.from(parsed.d, 'base64').toString('utf8').trim();
+    let url = rawUrl;
+    if (url.startsWith('/')) url = `https://liveball.sx${url}`;
+
+    // m="f" → player à embarquer en iframe ; m="h" → HLS natif.
+    // En l'absence d'indicateur fiable, on déduit du type d'URL.
+    const type: 'hls' | 'iframe' =
+      parsed.m === 'f' || !/\.m3u8($|\?)/i.test(url) ? 'iframe' : 'hls';
+
+    if (type === 'hls' && !/^https:\/\//.test(url)) {
+      console.warn(`[LiveBall] Invalid HLS URL for match ${matchId}: ${rawUrl.slice(0, 80)}`);
+      return null;
+    }
+    if (type === 'iframe' && !/^https?:\/\//i.test(url)) {
+      console.warn(`[LiveBall] Invalid iframe URL for match ${matchId}: ${rawUrl.slice(0, 80)}`);
+      return null;
+    }
+
+    const stream: ResolvedStream = { url, type };
+    STREAM_CACHE.set(matchId, stream);
+    console.log(`[LiveBall] ✓ Stream resolved for match ${matchId} (${type})`);
+    return stream;
+  } catch (err) {
+    console.error(`[LiveBall] Unexpected error resolving match ${matchId}:`, err);
     return null;
   }
 }
@@ -446,8 +620,8 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promis
   return results;
 }
 
-// Ne renvoie que les matchs EN DIRECT dont le flux HLS a pu être résolu.
-// La résolution est coûteuse (~2s/match) : on la parallélise (3 à la fois)
+// Ne renvoie que les matchs EN DIRECT dont le flux a pu être résolu.
+// La résolution est coûteuse (~2s/match) : on la parallélise (5 à la fois)
 // et on cache le résultat 10 min. Les flux sont aussi en STREAM_CACHE (1h).
 export async function getLiveBallAvailableMatches(): Promise<LiveBallMatch[] | null> {
   const cached = AVAILABLE_CACHE.get('live');
@@ -460,17 +634,20 @@ export async function getLiveBallAvailableMatches(): Promise<LiveBallMatch[] | n
     const live = matches.filter((m) => m.status === 'live');
     if (live.length === 0) return [];
 
-    const resolved = await mapLimit(live, 3, async (m) => {
-      const url = await resolveLiveBallStream(m.id);
-      return url ? m : null;
+    // Increase concurrency from 3 to 5 for faster resolution
+    const resolved = await mapLimit(live, 5, async (m) => {
+      const stream = await resolveLiveBallStream(m.id);
+      return stream ? m : null;
     });
 
     const available = resolved.filter((m): m is LiveBallMatch => m !== null);
     if (available.length > 0) {
       AVAILABLE_CACHE.set('live', available);
+      console.log(`[LiveBall] Available matches: ${available.length}/${live.length}`);
     }
     return available;
-  } catch {
+  } catch (err) {
+    console.error(`[LiveBall] Error resolving available matches:`, err);
     return null;
   }
 }

@@ -42,13 +42,20 @@ export const getLeagueMatches = async (req: Request, res: Response, next: NextFu
 
 export const getMatchStream = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const url = await resolveLiveBallStream(String(req.params.matchId));
-    if (!url) {
+    const matchId = String(req.params.matchId);
+    console.log(`[LiveBall] Stream request for match ${matchId}`);
+    
+    const stream = await resolveLiveBallStream(matchId);
+    if (!stream) {
+      console.warn(`[LiveBall] No stream found for match ${matchId}`);
       res.status(404).json({ success: false, data: null, message: 'Flux liveball introuvable' });
       return;
     }
-    res.json({ success: true, data: { url, type: 'hls' }, message: null });
+    
+    console.log(`[LiveBall] ✓ Stream resolved for match ${matchId}`);
+    res.json({ success: true, data: { url: stream.url, type: stream.type }, message: null });
   } catch (error) {
+    console.error(`[LiveBall] Error resolving stream:`, error);
     next(error);
   }
 };

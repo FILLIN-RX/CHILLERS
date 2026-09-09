@@ -127,15 +127,31 @@ export default function LiveBallMatchContent() {
     refetchInterval: (query) => (query.state.data ? false : 30_000),
   });
 
-  // Construit un pseudo-canal HLS à partir du match pour alimenter LivePlayer.
-  const channel: LiveChannel | null = stream
+  // Deux types de flux renvoyés par le backend :
+  //  - "hls"    → l'URL m3u8 est jouée dans le lecteur natif (LivePlayer).
+  //  - "iframe" → l'URL est un player à embarquer en iframe (format "f" du site,
+  //               utilisé par beaucoup de matchs dont ceux de la Champions League).
+  // On n'embarque QUE le player, pas la page liveball.sx.
+  const embedUrl = stream?.type === "iframe" ? stream.url : null;
+
+  // Dernier recours : si le match est en direct mais que la résolution backend a
+  // échoué, on embarque la page du match (le player du site, même IP/cookies,
+  // passe toujours). Tant que le flux n'est pas résolu, ~rien ne s'affiche.
+  const liveFallbackMode = match?.status === "live" && !stream && !isLoading;
+
+  // Construit un pseudo-canal HLS à partir du match pour alimenter LivePlayer
+  // (uniquement pour les flux natifs m3u8). streamUrl passe par NOTRE relay HLS
+  // (/hls/playlist.m3u8) : le backend rapatrie playlists + segments, donc le CDN
+  // liveball ne voit que notre serveur (jeton lié à l'IP) et le navigateur reste
+  // en same-origin (pas de CORS).
+  const channel: LiveChannel | null = stream?.type === "hls"
     ? {
         _id: `lb-${matchId}`,
         name: match ? `${match.home} - ${match.away}` : `Match #${matchId}`,
         slug: `lb-${matchId}`,
         categories: ["sports"],
         type: "hls",
-        streamUrl: stream.url,
+        streamUrl: `/api/liveball/match/${matchId}/hls/playlist.m3u8`,
         enabled: true,
         order: 0,
         isOnline: true,
@@ -149,7 +165,7 @@ export default function LiveBallMatchContent() {
 
   return (
     <div className="fixed inset-0 z-40 h-dvh w-screen bg-black overflow-hidden">
-      {isLoading && !channel && (
+      {isLoading && !channel && !embedUrl && (
         <div className="w-full h-full flex flex-col items-center justify-center gap-3 bg-black">
           <div className="h-12 w-12 border-4 border-[#D70466] border-t-transparent rounded-full animate-spin" />
           <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
@@ -219,6 +235,18 @@ export default function LiveBallMatchContent() {
               </a>
             </div>
 
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <a
+                href={`https://liveball.sx/match/${matchId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-wider transition-all"
+              >
+                <Television className="h-4 w-4" />
+                Voir sur liveball.sx
+              </a>
+            </div>
+
             <p className="text-[11px] text-zinc-600 flex items-center gap-1.5">
               <span className="h-1.5 w-1.5 rounded-full bg-[#D70466] animate-pulse" />
               Vérification automatique du flux toutes les 30 secondes
@@ -228,7 +256,7 @@ export default function LiveBallMatchContent() {
       )}
 
       {/* ── Match sans flux disponible / introuvable ─────────────────── */}
-      {!isLoading && !stream && !isUpcoming && (
+      {!isLoading && !stream && !isUpcoming && !liveFallbackMode && (
         <div className="w-full h-full flex flex-col items-center justify-center gap-4 bg-black/90 px-6 text-center">
           <div className="h-16 w-16 rounded-full bg-red-600/20 border border-red-500/30 flex items-center justify-center">
             <Television className="h-8 w-8 text-red-500" />
@@ -265,6 +293,70 @@ export default function LiveBallMatchContent() {
               <X className="h-4 w-4" />
               Retour aux directs
             </a>
+          </div>
+          <a
+            href={`https://liveball.sx/match/${matchId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-wider transition-all"
+          >
+            <Television className="h-4 w-4" />
+            Voir la diffusion sur liveball.sx
+          </a>
+        </div>
+      )}
+
+      {/* ── Flux au format "player à embarquer" (iframe) ────────────── */}
+      {embedUrl && (
+        <div className="absolute inset-0 bg-black">
+          <iframe
+            src={embedUrl}
+            title={match ? `${match.home} - ${match.away} · En direct` : "Match en direct"}
+            className="h-full w-full border-0"
+            allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+            allowFullScreen
+          />
+        </div>
+      )}
+
+      {/* ── Dernier recours : match live mais résolution backend échouée ── */}
+      {/* La page liveball.sx complète n'est PAS en plein écran : contenu dans
+          un lecteur 16:9, bord énoncé, avec la barre "En direct" au-dessus. */}
+      {liveFallbackMode && (
+        <div className="absolute inset-0 bg-black">
+          <div className="h-full w-full flex flex-col sm:justify-center gap-4 px-4 py-6 sm:py-10 overflow-y-auto no-scrollbar">
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {match && (
+                <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full bg-white/10 text-zinc-300 border border-white/10">
+                  {leagueLabel(match.league)}
+                </span>
+              )}
+              <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full bg-[#D70466] text-white">
+                En direct
+              </span>
+            </div>
+
+            <div className="relative w-full max-w-5xl mx-auto aspect-video rounded-xl overflow-hidden border border-white/10 bg-black shadow-2xl ring-1 ring-white/5">
+              <iframe
+                src={`https://liveball.sx/match/${matchId}`}
+                title={match ? `${match.home} - ${match.away} · En direct` : "Match en direct"}
+                className="h-full w-full border-0"
+                allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <a
+                href={`https://liveball.sx/match/${matchId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-wider transition-all"
+              >
+                <ShareNetwork className="h-4 w-4" />
+                Voir sur liveball.sx
+              </a>
+            </div>
           </div>
         </div>
       )}

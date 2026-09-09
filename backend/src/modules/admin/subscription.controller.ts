@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { SubscriptionPlan } from '../../models/SubscriptionPlan';
 import { User } from '../../models/User';
+import { globalSubscriptionService } from '../../services/global-subscription.service';
 
 export const getPlans = async (req: Request, res: Response) => {
   try {
@@ -197,5 +198,128 @@ export const reviewPaymentProof = async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('[PaymentProof] review error:', error);
     res.status(500).json({ success: false, message: 'Erreur traitement preuve' });
+  }
+};
+
+/* ───────── Global Subscription State Management ───────── */
+
+/**
+ * GET /admin/subscriptions/global-state
+ * Retrieve current global subscription state
+ * 
+ * Response: { success: boolean, globalSubscriptionEnabled: boolean, cachedAt?: Date }
+ * Validates: Requirements 1.6, 4.1, 4.2
+ */
+export const getGlobalState = async (req: Request, res: Response) => {
+  try {
+    const result = await globalSubscriptionService.getGlobalState();
+    res.json({
+      success: true,
+      globalSubscriptionEnabled: result.enabled,
+      cachedAt: result.cachedAt,
+    });
+  } catch (error: any) {
+    console.error('[Admin] getGlobalState error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Service error',
+    });
+  }
+};
+
+/**
+ * POST /admin/subscriptions/global-state
+ * Update global subscription state
+ * 
+ * Body: { enabled: boolean }
+ * Response: { success: boolean, globalSubscriptionEnabled: boolean, previousState: boolean, message: string, updatedAt: Date }
+ * Validates: Requirements 1.3, 4.3, 4.4, 4.5, 6.1
+ */
+export const setGlobalState = async (req: Request, res: Response) => {
+  try {
+    const { enabled } = req.body;
+
+    // Validate that enabled is boolean
+    if (typeof enabled !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        message: 'enabled must be a boolean',
+      });
+    }
+
+    // Extract admin info from request (set by adminMiddleware)
+    const admin = (req as any).admin;
+    if (!admin) {
+      return res.status(401).json({
+        success: false,
+        message: 'Non autorisé: Admin not found',
+      });
+    }
+
+    const adminId = admin._id || admin.id;
+    const adminEmail = admin.email || 'unknown@example.com';
+    const ipAddress = req.ip || req.connection.remoteAddress || '0.0.0.0';
+    const userAgent = req.get('user-agent');
+
+    // Update global state
+    const result = await globalSubscriptionService.setGlobalState(
+      enabled,
+      String(adminId),
+      adminEmail,
+      ipAddress,
+      userAgent
+    );
+
+    res.json({
+      success: result.success,
+      globalSubscriptionEnabled: result.newState,
+      previousState: result.previousState,
+      message: result.message,
+      updatedAt: new Date(),
+    });
+  } catch (error: any) {
+    console.error('[Admin] setGlobalState error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Database error - state update failed',
+    });
+  }
+};
+
+/**
+ * GET /admin/subscriptions/audit-history
+ * Retrieve audit log of subscription state changes
+ * 
+ * Query: limit (default 100, max 500)
+ * Response: { success: boolean, auditLogs: Array<{id, adminEmail, previousState, newState, timestamp, httpStatusCode, requestIpAddress}> }
+ * Validates: Requirements 6.4, 6.5
+ */
+export const getAuditHistory = async (req: Request, res: Response) => {
+  try {
+    const { limit = '100' } = req.query;
+    const limitNum = Math.min(Math.max(1, parseInt(String(limit), 10) || 100), 500);
+
+    const auditLogs = await globalSubscriptionService.getAuditHistory(limitNum);
+
+    const formattedLogs = auditLogs.map((log) => ({
+      id: log._id,
+      adminEmail: log.adminEmail,
+      previousState: log.previousState,
+      newState: log.newState,
+      timestamp: log.timestamp,
+      httpStatusCode: log.httpStatusCode,
+      requestIpAddress: log.requestIpAddress,
+    }));
+
+    res.json({
+      success: true,
+      auditLogs: formattedLogs,
+    });
+  } catch (error: any) {
+    console.error('[Admin] getAuditHistory error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Service error',
+    });
   }
 };

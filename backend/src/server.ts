@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs';
 import Admin from './models/Admin';
 import { SubscriptionPlan } from './models/SubscriptionPlan';
 import { syncSeed } from './modules/live/live.service';
+import { initializeSystemSettings } from './scripts/init-system-settings';
 
 const PORT = process.env.PORT || 4000;
 
@@ -53,6 +54,7 @@ async function seedPlans() {
 connectDB().then(async () => {
   await seedAdmin();
   await seedPlans();
+  await initializeSystemSettings();
   try {
     const result = await syncSeed({ updateStreams: true });
     console.log(`[LiveTV] Seed synchronisé: ${result.added} ajoutée(s), ${result.updated} mise(s) à jour`);

@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAfrican = exports.getSeasonDetails = exports.getDetails = exports.getAnime = exports.getByGenre = exports.getTopRated = exports.getTrending = exports.getPopular = void 0;
+exports.getAfrican = exports.getSeasonDetails = exports.getDetails = exports.getAnime = exports.getAnimeByGenre = exports.getByGenre = exports.getTopRated = exports.getTrending = exports.getPopular = void 0;
 const tvService = __importStar(require("./tv.service"));
 const types_1 = require("../../types");
 function getLang(req) {
@@ -85,6 +85,20 @@ const getByGenre = async (req, res, next) => {
     }
 };
 exports.getByGenre = getByGenre;
+const getAnimeByGenre = async (req, res, next) => {
+    try {
+        const genreId = req.params.genreId;
+        const page = Number(req.query.page) || 1;
+        if (!genreId)
+            throw new types_1.AppError('Genre ID is required', 400);
+        const data = await tvService.getAnimeByGenre(genreId, page, getLang(req));
+        res.json({ success: true, data, message: null });
+    }
+    catch (error) {
+        next(error);
+    }
+};
+exports.getAnimeByGenre = getAnimeByGenre;
 const getAnime = async (req, res, next) => {
     try {
         const page = Number(req.query.page) || 1;

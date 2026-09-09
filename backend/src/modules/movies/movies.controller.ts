@@ -49,6 +49,7 @@ export const getDetails = async (req: Request, res: Response, next: NextFunction
   try {
     const id = req.params.id as string;
     if (!id) throw new AppError('Movie ID is required', 400);
+
     const data = await moviesService.getDetails(id, getLang(req));
     res.json({ success: true, data, message: null });
   } catch (error) {

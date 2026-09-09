@@ -72,4 +72,9 @@ router.put('/users/:id/subscription', adminMiddleware, subController.updateUserS
 router.get('/payment-proofs', adminMiddleware, subController.getPaymentProofs);
 router.put('/payment-proofs/:id/review', adminMiddleware, subController.reviewPaymentProof);
 
+// Global Subscription State Management
+router.get('/subscriptions/global-state', adminMiddleware, subController.getGlobalState);
+router.post('/subscriptions/global-state', adminMiddleware, subController.setGlobalState);
+router.get('/subscriptions/audit-history', adminMiddleware, subController.getAuditHistory);
+
 export default router;

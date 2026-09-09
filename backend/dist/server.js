@@ -9,6 +9,8 @@ const db_1 = require("./config/db");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const Admin_1 = __importDefault(require("./models/Admin"));
 const SubscriptionPlan_1 = require("./models/SubscriptionPlan");
+const live_service_1 = require("./modules/live/live.service");
+const init_system_settings_1 = require("./scripts/init-system-settings");
 const PORT = process.env.PORT || 4000;
 /**
  * En production, refuse de démarrer avec des secrets par défaut/faibles.
@@ -50,6 +52,14 @@ async function seedPlans() {
 (0, db_1.connectDB)().then(async () => {
     await seedAdmin();
     await seedPlans();
+    await (0, init_system_settings_1.initializeSystemSettings)();
+    try {
+        const result = await (0, live_service_1.syncSeed)({ updateStreams: true });
+        console.log(`[LiveTV] Seed synchronisé: ${result.added} ajoutée(s), ${result.updated} mise(s) à jour`);
+    }
+    catch (err) {
+        console.warn('[LiveTV] Sync seed ignoré (iptv-org ou base indisponible):', err instanceof Error ? err.message : err);
+    }
     app_1.default.listen(PORT, () => {
         console.log(`[Chiller API] Running on http://localhost:${PORT}`);
         console.log(`[Chiller System] Cron géré par GitHub Actions. Le backend ne lance plus de tâches automatiques.`);

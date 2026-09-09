@@ -13,5 +13,5 @@ export interface LiveBallMatch {
 
 export interface LiveBallStream {
   url: string;
-  type: "hls";
+  type: "hls" | "iframe";
 }

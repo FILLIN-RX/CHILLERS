@@ -17,7 +17,8 @@
     "organize-series": "npx tsx src/scripts/organize-series.ts",
     "check-status": "npx tsx src/scripts/check-upload-status.ts",
     "otaku-picker": "npx tsx src/scripts/openotaku-picker.ts",
-    "keepalive": "npx tsx src/scraping/maintenance/keepalive-uqload.ts"
+    "keepalive": "npx tsx src/scraping/maintenance/keepalive-uqload.ts",
+    "migrate:system-settings": "npx tsx src/scripts/migrate-system-settings.ts"
   },
   "keywords": [
     "chiller",
@@ -35,6 +36,7 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "fast-check": "^4.9.0",
     "helmet": "^7.2.0",
     "jsonwebtoken": "^9.0.3",
     "lru-cache": "^11.5.2",
