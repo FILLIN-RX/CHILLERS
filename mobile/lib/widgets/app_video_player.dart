@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -15,6 +16,8 @@ class AppVideoPlayer extends StatefulWidget {
   final String? subtitle;
   final bool autoPlay;
   final bool isFullScreen;
+  final Duration? initialPosition;
+  final void Function(Duration position, Duration duration)? onProgress;
   final VoidCallback? onNextEpisode;
   final VoidCallback? onPrevEpisode;
   final bool hasNextEpisode;
@@ -27,6 +30,8 @@ class AppVideoPlayer extends StatefulWidget {
     this.subtitle,
     this.autoPlay = true,
     this.isFullScreen = false,
+    this.initialPosition,
+    this.onProgress,
     this.onNextEpisode,
     this.onPrevEpisode,
     this.hasNextEpisode = false,
@@ -41,6 +46,9 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> {
   // MediaKit engine
   Player? _mediaKitPlayer;
   VideoController? _mediaKitController;
+  StreamSubscription? _mediaKitPositionSub;
+  StreamSubscription? _mediaKitDurationSub;
+  Duration _currentMediaKitDuration = Duration.zero;
 
   // VideoPlayer / Chewie fallback engine
   VideoPlayerController? _videoPlayerController;
@@ -53,6 +61,7 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> {
   bool _useMediaKit = false;
   bool _isLoading = true;
   String? _errorMessage;
+  bool _hasSeekedInitial = false;
 
   bool get _isPlatformWebViewSupported {
     if (kIsWeb) return false;
@@ -73,6 +82,7 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> {
   void didUpdateWidget(covariant AppVideoPlayer oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.videoUrl != widget.videoUrl) {
+      _hasSeekedInitial = false;
       _initializePlayer();
     }
   }
@@ -164,6 +174,20 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> {
         _mediaKitPlayer = player;
         _mediaKitController = controller;
 
+        _mediaKitDurationSub = player.stream.duration.listen((dur) {
+          _currentMediaKitDuration = dur;
+          if (!_hasSeekedInitial && widget.initialPosition != null && dur > Duration.zero) {
+            _hasSeekedInitial = true;
+            player.seek(widget.initialPosition!);
+          }
+        });
+
+        _mediaKitPositionSub = player.stream.position.listen((pos) {
+          if (widget.onProgress != null && _currentMediaKitDuration > Duration.zero) {
+            widget.onProgress!(pos, _currentMediaKitDuration);
+          }
+        });
+
         await player.open(
           Media(widget.videoUrl),
           play: widget.autoPlay,
@@ -192,9 +216,20 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> {
   Future<void> _initFallbackVideoPlayer() async {
     _useMediaKit = false;
     try {
-      final uri = Uri.parse(widget.videoUrl);
-      _videoPlayerController = VideoPlayerController.networkUrl(uri);
+      final isLocalFile = File(widget.videoUrl).existsSync();
+      if (isLocalFile) {
+        _videoPlayerController = VideoPlayerController.file(File(widget.videoUrl));
+      } else {
+        final uri = Uri.parse(widget.videoUrl);
+        _videoPlayerController = VideoPlayerController.networkUrl(uri);
+      }
       await _videoPlayerController!.initialize();
+
+      if (widget.initialPosition != null && widget.initialPosition! > Duration.zero) {
+        await _videoPlayerController!.seekTo(widget.initialPosition!);
+      }
+
+      _videoPlayerController!.addListener(_fallbackVideoListener);
 
       _chewieController = ChewieController(
         videoPlayerController: _videoPlayerController!,
@@ -228,15 +263,34 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> {
     }
   }
 
+  void _fallbackVideoListener() {
+    if (_videoPlayerController != null && _videoPlayerController!.value.isInitialized) {
+      final pos = _videoPlayerController!.value.position;
+      final dur = _videoPlayerController!.value.duration;
+      if (widget.onProgress != null && dur > Duration.zero) {
+        widget.onProgress!(pos, dur);
+      }
+    }
+  }
+
   void _disposeAllControllers() {
+    _mediaKitPositionSub?.cancel();
+    _mediaKitPositionSub = null;
+    _mediaKitDurationSub?.cancel();
+    _mediaKitDurationSub = null;
+
     _mediaKitPlayer?.dispose();
     _mediaKitPlayer = null;
     _mediaKitController = null;
 
+    if (_videoPlayerController != null) {
+      _videoPlayerController!.removeListener(_fallbackVideoListener);
+      _videoPlayerController!.dispose();
+      _videoPlayerController = null;
+    }
+
     _chewieController?.dispose();
     _chewieController = null;
-    _videoPlayerController?.dispose();
-    _videoPlayerController = null;
 
     _webViewController = null;
   }

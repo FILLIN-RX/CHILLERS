@@ -600,6 +600,48 @@ class ApiService {
     return [];
   }
 
+  Future<List<LiveMatch>> getAvailableMatches() async {
+    try {
+      final response = await http
+          .get(
+            Uri.parse('$_base/api/liveball/matches/available'),
+            headers: await _getHeaders(),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final list = _extractList(data);
+        return list.map((e) => LiveMatch.fromJson(e as Map<String, dynamic>)).toList();
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  Future<List<LiveMatch>> getLeagueMatches(String league) async {
+    try {
+      final response = await http
+          .get(
+            Uri.parse('$_base/api/liveball/league/$league/matches'),
+            headers: await _getHeaders(),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final list = _extractList(data);
+        return list.map((e) => LiveMatch.fromJson(e as Map<String, dynamic>)).toList();
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  Future<List<LiveMatch>> getChampionsLeagueMatches() async {
+    final matches = await getLeagueMatches('champions-league');
+    if (matches.isNotEmpty) return matches;
+    return getLeagueMatches('uefa-champions-league');
+  }
+
   Future<String?> getMatchStreamUrl(String matchId) async {
     try {
       final response = await http
@@ -617,25 +659,128 @@ class ApiService {
         }
       }
     } catch (_) {}
-    return null;
+    // Fallback directly to the relay HLS playlist proxy on the backend
+    return '$_base/api/liveball/match/$matchId/hls/playlist.m3u8';
+  }
+
+  Future<List<MediaItem>> enrichHeroSlidesWithTrailers(List<MediaItem> slides) async {
+    final futures = slides.map((slide) async {
+      try {
+        if (slide.trailerUrl != null && slide.trailerUrl!.isNotEmpty) {
+          return slide;
+        }
+        final isSeries = slide.type == 'serie' || slide.type == 'series' || slide.type == 'anime';
+        final details = await getMediaDetail(slide.id, isSeries: isSeries);
+        if (details != null && details.trailerUrl != null && details.trailerUrl!.isNotEmpty) {
+          return MediaItem(
+            id: slide.id,
+            title: slide.title,
+            poster: slide.poster,
+            backdrop: slide.backdrop,
+            description: slide.description ?? details.description,
+            tagline: slide.tagline ?? details.tagline,
+            year: slide.year ?? details.year,
+            quality: slide.quality ?? details.quality,
+            rating: slide.rating ?? details.rating,
+            type: slide.type,
+            streamUrl: slide.streamUrl ?? details.streamUrl,
+            runtime: slide.runtime ?? details.runtime,
+            numberOfSeasons: slide.numberOfSeasons ?? details.numberOfSeasons,
+            numberOfEpisodes: slide.numberOfEpisodes ?? details.numberOfEpisodes,
+            episodes: slide.episodes ?? details.episodes,
+            seasons: slide.seasons ?? details.seasons,
+            cast: slide.cast ?? details.cast,
+            genres: slide.genres ?? details.genres,
+            trailerUrl: details.trailerUrl,
+            recommendations: slide.recommendations ?? details.recommendations,
+          );
+        }
+      } catch (_) {}
+      return slide;
+    });
+
+    return await Future.wait(futures);
   }
 
   // ==================== SEARCH & GENRES ====================
 
   Future<List<MediaItem>> searchMedia(String query) async {
-    if (query.trim().isEmpty) return [];
+    final cleanQuery = query.trim();
+    if (cleanQuery.isEmpty) return [];
     try {
       final response = await http
           .get(
-            Uri.parse('$_base/api/search?q=${Uri.encodeComponent(query)}'),
+            Uri.parse('$_base/api/search?q=${Uri.encodeComponent(cleanQuery)}'),
             headers: await _getHeaders(),
           )
           .timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        final list = _extractList(data);
-        return list.map((e) => MediaItem.fromJson(e as Map<String, dynamic>)).toList();
+        final List<MediaItem> allItems = [];
+        final Set<String> seenIds = {};
+
+        // 1. Structure standard CHILLERS : { localResults: { movies: [], series: [] }, tmdbResults: { results: [] } }
+        if (data is Map && data['data'] is Map) {
+          final dataMap = data['data'] as Map;
+
+          // Films locaux (catalogue direct avec liens de streaming)
+          if (dataMap['localResults'] is Map && dataMap['localResults']['movies'] is List) {
+            for (final m in dataMap['localResults']['movies']) {
+              if (m is Map<String, dynamic>) {
+                final item = MediaItem.fromJson({...m, 'type': 'movie'});
+                if (item.id.isNotEmpty && !seenIds.contains(item.id)) {
+                  seenIds.add(item.id);
+                  allItems.add(item);
+                }
+              }
+            }
+          }
+
+          // Séries locales
+          if (dataMap['localResults'] is Map && dataMap['localResults']['series'] is List) {
+            for (final s in dataMap['localResults']['series']) {
+              if (s is Map<String, dynamic>) {
+                final item = MediaItem.fromJson({...s, 'type': 'serie'});
+                if (item.id.isNotEmpty && !seenIds.contains(item.id)) {
+                  seenIds.add(item.id);
+                  allItems.add(item);
+                }
+              }
+            }
+          }
+
+          // Résultats TMDB enrichis
+          if (dataMap['tmdbResults'] is Map && dataMap['tmdbResults']['results'] is List) {
+            for (final t in dataMap['tmdbResults']['results']) {
+              if (t is Map<String, dynamic>) {
+                final isTv = t['media_type'] == 'tv';
+                final item = MediaItem.fromJson({...t, 'type': isTv ? 'serie' : 'movie'});
+                final tmdbKey = 'tmdb_${item.id}';
+                if (item.id.isNotEmpty && !seenIds.contains(item.id) && !seenIds.contains(tmdbKey)) {
+                  seenIds.add(item.id);
+                  allItems.add(item);
+                }
+              }
+            }
+          }
+        }
+
+        // 2. Fallback classique via _extractList si l'API retourne directement une liste
+        if (allItems.isEmpty) {
+          final list = _extractList(data);
+          for (final e in list) {
+            if (e is Map<String, dynamic>) {
+              final item = MediaItem.fromJson(e);
+              if (item.id.isNotEmpty && !seenIds.contains(item.id)) {
+                seenIds.add(item.id);
+                allItems.add(item);
+              }
+            }
+          }
+        }
+
+        return allItems;
       }
     } catch (_) {}
     return [];
@@ -755,5 +900,46 @@ class ApiService {
     }
 
     return null;
+  }
+
+  Future<String?> resolveDownloadUrl({
+    required String tmdbId,
+    required String title,
+    String type = 'movie',
+    int? season,
+    int? episode,
+  }) async {
+    try {
+      final params = <String, String>{
+        'tmdb_id': tmdbId,
+        'title': title,
+        'type': type,
+      };
+      if (season != null) params['season'] = season.toString();
+      if (episode != null) params['episode'] = episode.toString();
+
+      final uri = Uri.parse('$_base/api/download/resolve').replace(queryParameters: params);
+      final headers = await _getHeaders();
+      final res = await http.get(uri, headers: headers).timeout(const Duration(seconds: 15));
+
+      if (res.statusCode == 200) {
+        final body = json.decode(res.body);
+        final url = body['data']?['downloadUrl'] ?? body['downloadUrl'];
+        if (url != null && url.toString().isNotEmpty) {
+          final str = url.toString();
+          if (str.startsWith('/')) {
+            return '$_base$str';
+          }
+          return str;
+        }
+      }
+    } catch (_) {}
+
+    // Fallback direct stream resolution
+    if (type == 'movie') {
+      return getMovieStreamUrl(tmdbId, title);
+    } else {
+      return getEpisodeStreamUrl(tmdbId, season ?? 1, episode ?? 1, title);
+    }
   }
 }

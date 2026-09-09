@@ -45,6 +45,8 @@ dependencies:
   media_kit_video: ^2.0.1
   media_kit_libs_video: ^1.0.7
   webview_flutter: ^4.14.1
+  path_provider: ^2.1.6
+  dio: ^5.11.1
 
 dev_dependencies:
   flutter_test:

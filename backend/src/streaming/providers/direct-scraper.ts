@@ -534,4 +534,9 @@ export function isScrapableUrl(url: string): boolean {
   return isDoodstreamUrl(url) || isUqloadUrl(url);
 }
 
+export const DirectScraper = {
+  resolve: (url: string, preferHls = false) => scrapeDirectStream(url, preferHls),
+  isScrapable: isScrapableUrl,
+};
+
 export { isDoodstreamUrl, isUqloadUrl, extractCodeFromUrl, extractUqloadCode, getUqloadDirectLink };

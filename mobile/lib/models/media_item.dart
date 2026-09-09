@@ -146,7 +146,13 @@ class MediaItem {
       year: _parseYear(rawDate),
       quality: json['quality'] ?? json['qualite'] ?? 'HD',
       rating: _parseRating(json['rating'] ?? json['vote_average']),
-      type: json['type'] ?? (json['first_air_date'] != null || json['name'] != null ? 'serie' : 'movie'),
+      type: json['type'] ??
+          (json['media_type'] == 'tv' ||
+                  json['media_type'] == 'serie' ||
+                  json['first_air_date'] != null ||
+                  (json['name'] != null && json['title'] == null)
+              ? 'serie'
+              : 'movie'),
       streamUrl: json['lien'] ?? json['streamUrl'] ?? json['uqloadLink'],
       runtime: rawRuntime is int ? rawRuntime : (int.tryParse(rawRuntime?.toString() ?? '')),
       numberOfSeasons: json['number_of_seasons'] is int ? json['number_of_seasons'] : null,
@@ -158,6 +164,27 @@ class MediaItem {
       trailerUrl: json['trailerUrl'] ?? json['trailer'],
       recommendations: recs,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'poster': poster,
+      'backdrop': backdrop,
+      'description': description,
+      'tagline': tagline,
+      'year': year,
+      'quality': quality,
+      'rating': rating,
+      'type': type,
+      'streamUrl': streamUrl,
+      'runtime': runtime,
+      'number_of_seasons': numberOfSeasons,
+      'number_of_episodes': numberOfEpisodes,
+      'genres': genres,
+      'trailerUrl': trailerUrl,
+    };
   }
 }
 

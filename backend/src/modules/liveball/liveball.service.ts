@@ -399,35 +399,75 @@ export async function getLiveBallMatches(): Promise<LiveBallMatch[] | null> {
 }
 
 export async function getLiveBallLeagueMatches(league: string): Promise<LiveBallMatch[] | null> {
-  const slug = encodeURIComponent(league);
-  const cacheKey = `league:${slug}`;
+  const normalizedLeague = league.toLowerCase();
+  const isUefa = normalizedLeague.includes('champion') || normalizedLeague.includes('uefa');
+  const leagueTitle = isUefa ? 'UEFA Champions League' : league;
+  
+  const slugsToTry = isUefa
+    ? ['champions-league', 'uefa-champions-league', 'liga-chempionov']
+    : [encodeURIComponent(league)];
+
+  const cacheKey = `league:${slugsToTry[0]}`;
   const cached = CACHE.get(cacheKey);
   if (cached) return cached;
 
-  try {
-    let html: string;
+  let allMatches: LiveBallMatch[] = [];
+
+  for (const slug of slugsToTry) {
     try {
-      html = await fetchHtmlWithCurl(`https://liveball.sx/league/${slug}`);
-    } catch {
-      const { data } = await axios.get<string>(`https://liveball.sx/league/${slug}`, {
-        headers: {
-          'User-Agent': USER_AGENT,
-          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Language': 'ru-RU,ru;q=0.9,en;q=0.8',
-        },
-        timeout: 15_000,
-        responseType: 'text',
-      });
-      html = data;
-    }
-    const matches = parseBlocks(html, league);
-    if (matches.length > 0) {
-      CACHE.set(cacheKey, matches);
-    }
-    return matches;
-  } catch {
-    return null;
+      let html: string;
+      try {
+        html = await fetchHtmlWithCurl(`https://liveball.sx/league/${slug}`);
+      } catch {
+        const { data } = await axios.get<string>(`https://liveball.sx/league/${slug}`, {
+          headers: {
+            'User-Agent': USER_AGENT,
+            Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'ru-RU,ru;q=0.9,en;q=0.8',
+          },
+          timeout: 12_000,
+          responseType: 'text',
+        });
+        html = data;
+      }
+      const parsed = parseBlocks(html, leagueTitle);
+      if (parsed && parsed.length > 0) {
+        allMatches.push(...parsed);
+        break;
+      }
+    } catch (_) {}
   }
+
+  // Si c'est la Champions League et qu'on n'a pas assez de matchs, on pioche aussi dans la homepage
+  if (isUefa) {
+    try {
+      const homeMatches = await getLiveBallMatches();
+      if (homeMatches) {
+        const uefaOnHome = homeMatches.filter(
+          (m) =>
+            m.league?.toLowerCase().includes('champion') ||
+            m.league?.toLowerCase().includes('uefa') ||
+            TEAM_NAMES[m.home] !== undefined ||
+            TEAM_NAMES[m.away] !== undefined
+        );
+        allMatches.push(...uefaOnHome.map((m) => ({ ...m, league: 'UEFA Champions League' })));
+      }
+    } catch (_) {}
+  }
+
+  // Dédoublonnage
+  const seen = new Set<string>();
+  const uniqueMatches = allMatches.filter((m) => {
+    if (seen.has(m.id)) return false;
+    seen.add(m.id);
+    return true;
+  });
+
+  if (uniqueMatches.length > 0) {
+    CACHE.set(cacheKey, uniqueMatches);
+  }
+
+  return uniqueMatches;
 }
 
 interface StreamResponse {
@@ -437,14 +477,14 @@ interface StreamResponse {
 }
 
 // Résout le flux réel d'un match live (HLS ou player iframe).
+// Résout le flux réel d'un match live (HLS ou player iframe).
 //
-// Côté liveball.sx, chaque page de match embarque un token signé via
-// `<script>_xrq("...")</script>`. cl.min.js le décode (XOR simple) puis POST
-// `{t, f}` vers /api/c/r. La réponse contient :
-//  - m="h" : une URL m3u8 (base64) du flux réel (channel TV rebroadcast) ;
-//  - m="f" : une URL de player à embarquer en iframe (base64) — c'est LE format
-//    utilisé par de nombreux matchs (dont certains de la Champions League).
-// `f` (fingerprint navigateur) n'est pas vérifié par le serveur ; on envoie "0".
+// Côté liveball.sx, chaque page de match embarque un token signé soit via
+// `window._lbStreams = {"b0": {"t": "..."}, "b1": {"t": "..."}}`, soit via
+// `<script>_xrq("...")</script>`. cl.min.js le décode (XOR avec TOKEN_XOR_KEY)
+// puis POST `{t, f: '0'}` vers /api/c/r. La réponse contient :
+//  - m="h" : une URL m3u8 (base64) du flux réel HLS ;
+//  - m="f" : une URL de player à embarquer en iframe (base64).
 export async function resolveLiveBallStream(matchId: string): Promise<ResolvedStream | null> {
   const cached = STREAM_CACHE.get(matchId);
   if (cached) return cached;
@@ -452,7 +492,7 @@ export async function resolveLiveBallStream(matchId: string): Promise<ResolvedSt
   try {
     if (!/^\d+$/.test(matchId)) return null;
 
-    // Fetch page with shorter timeout for availability check
+    // Fetch page
     let html: string;
     try {
       html = await fetchHtmlWithCurl(`https://liveball.sx/match/${matchId}`);
@@ -461,72 +501,63 @@ export async function resolveLiveBallStream(matchId: string): Promise<ResolvedSt
       return null;
     }
 
-    // NEW FORMAT (current): token stored in window._lbStreams object
-    // window._lbStreams = {"b0":{"t":"base64token"},"b1":{"t":"base64token"}};
-    let t: string | null = null;
-    
-    const streamMatch = html.match(/window\._lbStreams\s*=\s*(\{[^}]+\})/);
+    // Collect all candidate decoded tokens
+    const candidateTokens: string[] = [];
+
+    // 1. FORMAT COURANT : window._lbStreams = {"b0":{"t":"base64token"},"b1":{"t":"base64token"}};
+    const streamMatch =
+      html.match(/window\._lbStreams\s*=\s*(\{[\s\S]*?\})\s*;\s*(?:window\._lbActiveStream|<\/script>)/) ||
+      html.match(/window\._lbStreams\s*=\s*(\{[\s\S]*?\})\s*;/);
+
     if (streamMatch) {
       try {
-        const streams = JSON.parse(streamMatch[1]) as Record<string, { t: string }>;
-        // Try to get the first available stream token
-        for (const key in streams) {
-          if (streams[key]?.t) {
-            t = streams[key].t;
-            break;
+        const streams = JSON.parse(streamMatch[1]) as Record<string, { t?: string; msg?: string }>;
+        for (const key of Object.keys(streams)) {
+          const rawT = streams[key]?.t;
+          if (rawT && typeof rawT === 'string') {
+            try {
+              const decoded = xorDecodeToken(rawT);
+              if (decoded && decoded.length > 10) {
+                candidateTokens.push(decoded);
+              }
+            } catch (decErr) {
+              console.warn(`[LiveBall] Error XOR-decoding stream ${key} token for match ${matchId}:`, decErr);
+            }
           }
         }
       } catch (e) {
-        console.warn(`[LiveBall] Failed to parse streams object for match ${matchId}`);
+        console.warn(`[LiveBall] Failed to parse _lbStreams JSON for match ${matchId}`);
       }
     }
 
-    // OLD FORMAT (fallback): token in _xrq("...") call
-    if (!t) {
-      const tokenMatch = html.match(/_xrq\("([^"]+)"\)/);
-      if (tokenMatch) {
-        try {
-          t = xorDecodeToken(tokenMatch[1]);
-        } catch (err) {
-          console.warn(`[LiveBall] Failed to decode XOR token for match ${matchId}: ${err}`);
+    // 2. FORMAT ALTERNATIF / ANCIEN : _xrq("...")
+    const allXrq = html.matchAll(/_xrq\("([^"]+)"\)/g);
+    for (const m of allXrq) {
+      try {
+        const decoded = xorDecodeToken(m[1]);
+        if (decoded && !candidateTokens.includes(decoded)) {
+          candidateTokens.push(decoded);
         }
+      } catch (err) {
+        console.warn(`[LiveBall] Failed to decode _xrq token for match ${matchId}:`, err);
       }
     }
 
-    if (!t) {
-      console.warn(`[LiveBall] No token found (new or old format) for match ${matchId}`);
+    if (candidateTokens.length === 0) {
+      console.warn(`[LiveBall] No valid stream token found for match ${matchId}`);
       return null;
     }
 
-    const body = JSON.stringify({ t, f: '0' });
+    console.log(`[LiveBall] Found ${candidateTokens.length} stream token candidate(s) for match ${matchId}`);
 
-    let stdout: string;
-    try {
-      // Try cloudscraper first (handles Cloudflare bypassing automatically)
+    // Try resolving with each candidate token until one succeeds
+    for (const token of candidateTokens) {
+      const body = JSON.stringify({ t: token, f: '0' });
+
+      let stdout: string | null = null;
+
+      // Try curl with HTTP/2 and proper headers first
       try {
-        console.log(`[LiveBall] Using CloudScraper to bypass Cloudflare for /api/c/r...`);
-        const response = await CloudScraper({
-          method: 'POST',
-          url: 'https://liveball.sx/api/c/r',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json, text/plain, */*',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Referer': `https://liveball.sx/match/${matchId}`,
-            'Origin': 'https://liveball.sx',
-            'Sec-Fetch-Dest': 'empty',
-            'Sec-Fetch-Mode': 'cors',
-            'Sec-Fetch-Site': 'same-origin',
-            'DNT': '1',
-          },
-          body,
-          json: true,
-        });
-        stdout = typeof response === 'string' ? response : JSON.stringify(response);
-      } catch (cloudflarErr) {
-        // Fallback to curl with headers
-        console.log(`[LiveBall] CloudScraper failed, trying curl with headers...`);
         const result = await execFileAsync(
           'curl',
           [
@@ -552,47 +583,61 @@ export async function resolveLiveBallStream(matchId: string): Promise<ResolvedSt
           { maxBuffer: 2 * 1024 * 1024 }
         );
         stdout = result.stdout;
+      } catch (curlErr) {
+        // Fallback to CloudScraper
+        try {
+          const response = await CloudScraper({
+            method: 'POST',
+            url: 'https://liveball.sx/api/c/r',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json, text/plain, */*',
+              'Accept-Language': 'en-US,en;q=0.9',
+              'Accept-Encoding': 'gzip, deflate, br',
+              'Referer': `https://liveball.sx/match/${matchId}`,
+              'Origin': 'https://liveball.sx',
+              'Sec-Fetch-Dest': 'empty',
+              'Sec-Fetch-Mode': 'cors',
+              'Sec-Fetch-Site': 'same-origin',
+              'DNT': '1',
+            },
+            body,
+            json: true,
+          });
+          stdout = typeof response === 'string' ? response : JSON.stringify(response);
+        } catch (_) {}
       }
-    } catch (err) {
-      console.warn(`[LiveBall] Failed to POST /api/c/r for match ${matchId}: ${err}`);
-      return null;
+
+      if (!stdout) continue;
+
+      let parsed: StreamResponse;
+      try {
+        parsed = JSON.parse(stdout) as StreamResponse;
+      } catch {
+        continue;
+      }
+
+      if (!parsed.d) continue;
+
+      const rawUrl = Buffer.from(parsed.d, 'base64').toString('utf8').trim();
+      let url = rawUrl;
+      if (url.startsWith('//')) url = `https:${url}`;
+      else if (url.startsWith('/')) url = `https://liveball.sx${url}`;
+
+      const type: 'hls' | 'iframe' =
+        parsed.m === 'f' || !/\.m3u8($|\?)/i.test(url) ? 'iframe' : 'hls';
+
+      if (type === 'hls' && !/^https?:\/\//.test(url)) continue;
+      if (type === 'iframe' && !/^https?:\/\//i.test(url)) continue;
+
+      const stream: ResolvedStream = { url, type };
+      STREAM_CACHE.set(matchId, stream);
+      console.log(`[LiveBall] ✓ Stream resolved successfully for match ${matchId} (${type}): ${url.slice(0, 80)}...`);
+      return stream;
     }
 
-    let parsed: StreamResponse;
-    try {
-      parsed = JSON.parse(stdout) as StreamResponse;
-    } catch (err) {
-      console.warn(`[LiveBall] Invalid JSON response for match ${matchId}: ${err}`);
-      return null;
-    }
-
-    if (!parsed.d) {
-      console.warn(`[LiveBall] No stream data returned for match ${matchId}, error: ${parsed.e || 'unknown'}`);
-      return null;
-    }
-
-    const rawUrl = Buffer.from(parsed.d, 'base64').toString('utf8').trim();
-    let url = rawUrl;
-    if (url.startsWith('/')) url = `https://liveball.sx${url}`;
-
-    // m="f" → player à embarquer en iframe ; m="h" → HLS natif.
-    // En l'absence d'indicateur fiable, on déduit du type d'URL.
-    const type: 'hls' | 'iframe' =
-      parsed.m === 'f' || !/\.m3u8($|\?)/i.test(url) ? 'iframe' : 'hls';
-
-    if (type === 'hls' && !/^https:\/\//.test(url)) {
-      console.warn(`[LiveBall] Invalid HLS URL for match ${matchId}: ${rawUrl.slice(0, 80)}`);
-      return null;
-    }
-    if (type === 'iframe' && !/^https?:\/\//i.test(url)) {
-      console.warn(`[LiveBall] Invalid iframe URL for match ${matchId}: ${rawUrl.slice(0, 80)}`);
-      return null;
-    }
-
-    const stream: ResolvedStream = { url, type };
-    STREAM_CACHE.set(matchId, stream);
-    console.log(`[LiveBall] ✓ Stream resolved for match ${matchId} (${type})`);
-    return stream;
+    console.warn(`[LiveBall] All stream candidates failed to resolve for match ${matchId}`);
+    return null;
   } catch (err) {
     console.error(`[LiveBall] Unexpected error resolving match ${matchId}:`, err);
     return null;

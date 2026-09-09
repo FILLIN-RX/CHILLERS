@@ -26,7 +26,7 @@ class ChillersApp extends StatelessWidget {
       title: 'CHILLERS',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme(),
-      home: const MainNavigation(),
+      home: MainNavigation(key: MainNavigation.navKey),
     );
   }
 }

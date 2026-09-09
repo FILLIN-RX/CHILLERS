@@ -5,6 +5,10 @@ import '../../models/subscription_plan.dart';
 import '../../services/storage_service.dart';
 import '../../services/api_service.dart';
 import '../auth/auth_screen.dart';
+import '../history/history_screen.dart';
+import '../favorites/favorites_screen.dart';
+import '../playlists/playlists_screen.dart';
+import '../../widgets/upgrade_modal.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -387,38 +391,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                     // LISTE DES OPTIONS / PARAMÈTRES
                     _buildOptionTile(
-                      icon: Icons.bookmark_outline_rounded,
-                      title: 'Ma Liste de Lecture',
-                      subtitle: isGuest ? 'Connectez-vous pour sauvegarder' : 'Vos films et séries enregistrés',
+                      icon: Icons.history_rounded,
+                      title: 'Lectures Récentes',
+                      subtitle: 'Historique et reprise de visionnage',
                       onTap: () {
-                        if (isGuest) {
-                          _openAuth();
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Accès à votre liste')),
-                          );
-                        }
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const HistoryScreen()),
+                        );
                       },
                     ),
                     _buildOptionTile(
-                      icon: Icons.favorite_border_rounded,
-                      title: 'Mes Favoris',
-                      subtitle: isGuest ? 'Connectez-vous pour sauvegarder' : 'Vos coups de cœur',
+                      icon: Icons.favorite_rounded,
+                      title: 'Mes Favoris & Ma Liste',
+                      subtitle: 'Vos coups de cœur et titres à voir plus tard',
                       onTap: () {
-                        if (isGuest) {
-                          _openAuth();
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Accès à vos favoris')),
-                          );
-                        }
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const FavoritesScreen()),
+                        );
                       },
                     ),
                     _buildOptionTile(
-                      icon: Icons.download_done_rounded,
-                      title: 'Téléchargements',
-                      subtitle: 'Gérer vos fichiers hors ligne',
-                      onTap: () {},
+                      icon: Icons.queue_music_rounded,
+                      title: 'Mes Playlists Personnalisées',
+                      subtitle: 'Collections thématiques et sélections',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const PlaylistsScreen()),
+                        );
+                      },
+                    ),
+                    _buildOptionTile(
+                      icon: Icons.workspace_premium_rounded,
+                      title: 'CHILLERS VIP (Mobile Money)',
+                      subtitle: 'Pass 24h, VIP Mensuel et Annuel sans pub',
+                      onTap: () => UpgradeModal.show(context),
                     ),
                     _buildOptionTile(
                       icon: Icons.notifications_none_rounded,
@@ -454,15 +463,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     String? subtitle,
     required VoidCallback onTap,
   }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-      ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
       child: Material(
         color: AppTheme.card,
-        borderRadius: BorderRadius.circular(12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
+        ),
         child: ListTile(
           leading: Icon(icon, color: AppTheme.primary, size: 22),
           title: Text(title, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),

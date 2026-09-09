@@ -3,6 +3,7 @@ import { spawn } from 'child_process';
 import axios from 'axios';
 import { ProviderManager } from '../../streaming/provider-manager';
 import { StreamQuery } from '../../streaming/providers/provider.interface';
+import { DirectScraper } from '../../streaming/providers/direct-scraper';
 
 const router = Router();
 const providerManager = new ProviderManager();
@@ -65,7 +66,19 @@ router.get('/resolve', async (req: Request, res: Response) => {
     }
 
     let downloadUrl = streamResult.embedUrl;
-    // Si c'est un proxy interne, conserver l'URL relative ou la convertir
+    
+    // Si c'est un lien embed (Uqload, Dood, etc.), extraire le flux direct MP4/HLS
+    if (downloadUrl.startsWith('http://') || downloadUrl.startsWith('https://')) {
+      try {
+        const direct = await DirectScraper.resolve(downloadUrl);
+        if (direct && direct.directUrl && direct.directUrl.startsWith('http')) {
+          downloadUrl = direct.directUrl;
+        }
+      } catch (err: any) {
+        console.warn(`[Download Resolve] Échec DirectScraper sur "${downloadUrl}":`, err.message);
+      }
+    }
+
     const cleanFilename = `${(title || 'video').replace(/[^a-zA-Z0-9_\-]/g, '_')}${isTv ? `_S${season || 1}E${episode || 1}` : ''}.mp4`;
 
     return res.json({

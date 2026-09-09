@@ -35,9 +35,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const streamingController = __importStar(require("./streaming.controller"));
-const premium_feature_gate_middleware_1 = require("../middleware/premium-feature-gate.middleware");
 const router = (0, express_1.Router)();
-// Apply premium feature gate middleware to 1080p/premium quality and download routes
-router.get('/movie/:id', premium_feature_gate_middleware_1.premiumFeatureGate, streamingController.getMovieStream);
-router.get('/tv/:id/:season/:episode', premium_feature_gate_middleware_1.premiumFeatureGate, streamingController.getEpisodeStream);
+// Routes de streaming (Gestion automatique des paliers free / guest / premium dans le controller)
+router.get('/movie/:id', streamingController.getMovieStream);
+router.get('/tv/:id/:season/:episode', streamingController.getEpisodeStream);
 exports.default = router;

@@ -22,11 +22,11 @@ class _AnimesScreenState extends State<AnimesScreen> {
   bool _hasMore = true;
   int _currentPage = 1;
 
-  final List<Map<String, String>> _filterOptions = const [
-    {'id': 'all', 'label': '🎌 Tous les Animes'},
-    {'id': 'action', 'label': '🔥 Action & Shōnen'},
-    {'id': 'fantasy', 'label': '✨ Fantaisie & Isekai'},
-    {'id': 'trending', 'label': '⚡ Tendances'},
+  final List<Map<String, dynamic>> _filterOptions = const [
+    {'id': 'all', 'label': 'Tous les Animes', 'icon': Icons.auto_awesome_rounded},
+    {'id': 'action', 'label': 'Action & Shōnen', 'icon': Icons.local_fire_department_rounded},
+    {'id': 'fantasy', 'label': 'Fantaisie & Isekai', 'icon': Icons.stars_rounded},
+    {'id': 'trending', 'label': 'Tendances', 'icon': Icons.trending_up_rounded},
   ];
 
   @override
@@ -139,7 +139,12 @@ class _AnimesScreenState extends State<AnimesScreen> {
                 return Padding(
                   padding: const EdgeInsets.only(right: 6),
                   child: ChoiceChip(
-                    label: Text(filter['label']!),
+                    avatar: Icon(
+                      filter['icon'] as IconData,
+                      size: 16,
+                      color: isSelected ? Colors.white : AppTheme.primary,
+                    ),
+                    label: Text(filter['label'] as String),
                     selected: isSelected,
                     selectedColor: AppTheme.primary,
                     backgroundColor: AppTheme.card,
@@ -152,7 +157,7 @@ class _AnimesScreenState extends State<AnimesScreen> {
                       color: isSelected ? AppTheme.primary : Colors.white.withValues(alpha: 0.08),
                     ),
                     onSelected: (_) {
-                      setState(() => _selectedFilter = filter['id']!);
+                      setState(() => _selectedFilter = filter['id'] as String);
                       _loadAnimes(refresh: true);
                     },
                   ),

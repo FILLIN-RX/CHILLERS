@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../config/theme.dart';
@@ -42,12 +43,21 @@ class _DownloadScreenState extends State<DownloadScreen> {
   }
 
   void _playOffline(DownloadTask task) {
+    String? localUrl;
+    if (task.localFilePath != null) {
+      final f = File(task.localFilePath!);
+      if (f.existsSync()) {
+        localUrl = task.localFilePath!;
+      }
+    }
+    localUrl ??= task.streamUrl;
+
     final mediaItem = MediaItem(
       id: task.mediaId,
       title: task.title,
       poster: task.poster,
       type: task.type ?? 'movie',
-      streamUrl: task.streamUrl,
+      streamUrl: localUrl,
       quality: task.quality,
     );
 
@@ -58,6 +68,7 @@ class _DownloadScreenState extends State<DownloadScreen> {
           item: mediaItem,
           initialEpisode: task.episodeNumber != null ? int.tryParse(task.episodeNumber!) : null,
           initialSeason: task.seasonNumber != null ? int.tryParse(task.seasonNumber!) : null,
+          initialVideoUrl: localUrl,
         ),
       ),
     );

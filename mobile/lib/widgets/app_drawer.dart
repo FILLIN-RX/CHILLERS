@@ -3,8 +3,11 @@ import '../config/theme.dart';
 import '../models/user_model.dart';
 import '../services/storage_service.dart';
 import '../services/api_service.dart';
-import '../screens/profile/profile_screen.dart';
 import '../screens/auth/auth_screen.dart';
+import '../screens/history/history_screen.dart';
+import '../screens/favorites/favorites_screen.dart';
+import '../screens/playlists/playlists_screen.dart';
+import 'upgrade_modal.dart';
 
 class AppDrawer extends StatefulWidget {
   final String activeCategory;
@@ -44,10 +47,7 @@ class _AppDrawerState extends State<AppDrawer> {
 
   void _openSubscription() {
     Navigator.pop(context);
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const ProfileScreen()),
-    );
+    UpgradeModal.show(context);
   }
 
   @override
@@ -183,9 +183,42 @@ class _AppDrawerState extends State<AppDrawer> {
                       },
                     ),
 
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                     const Divider(color: Colors.white10),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
+
+                    // SECTION MA BIBLIOTHÈQUE
+                    _buildNavItem(
+                      icon: Icons.history_rounded,
+                      title: 'Lectures Récentes',
+                      isSelected: false,
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const HistoryScreen()));
+                      },
+                    ),
+                    _buildNavItem(
+                      icon: Icons.favorite_rounded,
+                      title: 'Favoris & Ma Liste',
+                      isSelected: false,
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const FavoritesScreen()));
+                      },
+                    ),
+                    _buildNavItem(
+                      icon: Icons.queue_music_rounded,
+                      title: 'Mes Playlists',
+                      isSelected: false,
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const PlaylistsScreen()));
+                      },
+                    ),
+
+                    const SizedBox(height: 8),
+                    const Divider(color: Colors.white10),
+                    const SizedBox(height: 8),
 
                     // Carte Promotion VIP style MovieBox
                     Container(

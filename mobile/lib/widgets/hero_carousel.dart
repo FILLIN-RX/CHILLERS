@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../config/theme.dart';
 import '../models/media_item.dart';
+import 'trailer_modal.dart';
 
 class HeroCarousel extends StatefulWidget {
   final List<MediaItem> slides;
@@ -81,12 +82,16 @@ class _HeroCarouselState extends State<HeroCarousel> {
     });
   }
 
+  void _openTrailer(MediaItem slide) {
+    TrailerModal.show(context, slide);
+  }
+
   @override
   Widget build(BuildContext context) {
     if (widget.slides.isEmpty) return const SizedBox.shrink();
 
     final screenHeight = MediaQuery.of(context).size.height;
-    final heroHeight = (screenHeight * 0.45).clamp(320.0, 480.0);
+    final heroHeight = (screenHeight * 0.58).clamp(440.0, 560.0);
 
     return SizedBox(
       height: heroHeight,
@@ -111,6 +116,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
                       ? CachedNetworkImage(
                           imageUrl: imageUrl,
                           fit: BoxFit.cover,
+                          alignment: Alignment.topCenter,
                           placeholder: (context, url) => Container(color: AppTheme.surface),
                           errorWidget: (context, url, error) => Container(
                             color: AppTheme.surface,
@@ -119,7 +125,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
                         )
                       : Container(color: AppTheme.surface),
 
-                  // Dégradé sombre style Web (Gradient overlay)
+                  // Dégradé sombre style Web (Gradient overlay pour intégration navbar transparente)
                   const DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -127,49 +133,50 @@ class _HeroCarouselState extends State<HeroCarousel> {
                         end: Alignment.bottomCenter,
                         colors: [
                           Colors.transparent,
+                          Colors.transparent,
                           Colors.black45,
                           Colors.black87,
                           AppTheme.background,
                         ],
-                        stops: [0.0, 0.4, 0.75, 1.0],
+                        stops: [0.0, 0.25, 0.55, 0.82, 1.0],
                       ),
                     ),
                   ),
 
-                  // Bouton Play géant flottant sur la droite
+                  // Bouton Play géant flottant sur la droite (Style Web Hero)
                   Positioned(
-                    right: 20,
-                    top: heroHeight * 0.28,
+                    right: 18,
+                    top: heroHeight * 0.38,
                     child: GestureDetector(
                       onTap: () => widget.onWatchNow(slide),
                       child: Container(
-                        width: 56,
-                        height: 56,
+                        width: 58,
+                        height: 58,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: AppTheme.primary,
                           boxShadow: [
                             BoxShadow(
-                              color: AppTheme.primary.withAlpha(120),
-                              blurRadius: 16,
-                              spreadRadius: 2,
+                              color: AppTheme.primary.withValues(alpha: 0.55),
+                              blurRadius: 20,
+                              spreadRadius: 3,
                             ),
                           ],
                         ),
                         child: const Icon(
                           Icons.play_arrow_rounded,
                           color: Colors.white,
-                          size: 36,
+                          size: 38,
                         ),
                       ),
                     ),
                   ),
 
-                  // Contenu texte et métadonnées
+                  // Contenu texte et métadonnées (positionné dans le tiers inférieur)
                   Positioned(
                     left: 16,
                     right: 80,
-                    bottom: 48,
+                    bottom: 40,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
@@ -228,9 +235,9 @@ class _HeroCarouselState extends State<HeroCarousel> {
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
-                            height: 1.1,
+                            height: 1.15,
                             shadows: [
-                              Shadow(blurRadius: 6, color: Colors.black, offset: Offset(0, 2)),
+                              Shadow(blurRadius: 8, color: Colors.black, offset: Offset(0, 2)),
                             ],
                           ),
                           maxLines: 2,
@@ -250,42 +257,70 @@ class _HeroCarouselState extends State<HeroCarousel> {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ],
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 14),
 
-                        // Boutons d'action : Regarder + Détails
-                        Row(
-                          children: [
-                            ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.primary,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(20),
+                        // Boutons d'action : Regarder + Bande-annonce + Détails
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              // Bouton REGARDER
+                              ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.primary,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  elevation: 4,
+                                  shadowColor: AppTheme.primary.withValues(alpha: 0.4),
+                                ),
+                                onPressed: () => widget.onWatchNow(slide),
+                                icon: const Icon(Icons.play_arrow_rounded, size: 20),
+                                label: const Text(
+                                  'REGARDER',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                                 ),
                               ),
-                              onPressed: () => widget.onWatchNow(slide),
-                              icon: const Icon(Icons.play_arrow_rounded, size: 20),
-                              label: const Text(
-                                'REGARDER',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            OutlinedButton.icon(
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.white,
-                                side: const BorderSide(color: Colors.white54),
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(20),
+                              const SizedBox(width: 8),
+
+                              // Bouton BANDE-ANNONCE (Trailer Vidéo Fonctionnel)
+                              OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.white,
+                                  backgroundColor: Colors.white.withValues(alpha: 0.12),
+                                  side: const BorderSide(color: Colors.white24),
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                ),
+                                onPressed: () => _openTrailer(slide),
+                                icon: const Icon(Icons.movie_creation_outlined, size: 16, color: Colors.amber),
+                                label: const Text(
+                                  'Bande-annonce',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                                 ),
                               ),
-                              onPressed: () => widget.onOpenDetails(slide),
-                              icon: const Icon(Icons.info_outline_rounded, size: 18),
-                              label: const Text('Détails', style: TextStyle(fontSize: 13)),
-                            ),
-                          ],
+                              const SizedBox(width: 8),
+
+                              // Bouton DÉTAILS
+                              OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.white70,
+                                  side: const BorderSide(color: Colors.white24),
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                ),
+                                onPressed: () => widget.onOpenDetails(slide),
+                                icon: const Icon(Icons.info_outline_rounded, size: 16),
+                                label: const Text('Détails', style: TextStyle(fontSize: 12)),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -307,13 +342,14 @@ class _HeroCarouselState extends State<HeroCarousel> {
                   child: Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: Colors.black.withAlpha(120),
+                      color: Colors.black.withValues(alpha: 0.6),
                       shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white12),
                     ),
                     child: Icon(
-                      _isPaused ? Icons.play_arrow : Icons.pause,
+                      _isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
                       color: Colors.white,
-                      size: 18,
+                      size: 16,
                     ),
                   ),
                 ),
@@ -324,13 +360,14 @@ class _HeroCarouselState extends State<HeroCarousel> {
                   child: Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: Colors.black.withAlpha(120),
+                      color: Colors.black.withValues(alpha: 0.6),
                       shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white12),
                     ),
                     child: const Icon(
-                      Icons.chevron_left,
+                      Icons.chevron_left_rounded,
                       color: Colors.white,
-                      size: 18,
+                      size: 16,
                     ),
                   ),
                 ),
@@ -341,13 +378,14 @@ class _HeroCarouselState extends State<HeroCarousel> {
                   child: Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: Colors.black.withAlpha(120),
+                      color: Colors.black.withValues(alpha: 0.6),
                       shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white12),
                     ),
                     child: const Icon(
-                      Icons.chevron_right,
+                      Icons.chevron_right_rounded,
                       color: Colors.white,
-                      size: 18,
+                      size: 16,
                     ),
                   ),
                 ),
@@ -358,13 +396,13 @@ class _HeroCarouselState extends State<HeroCarousel> {
           // Indicateurs de pagination en bas au centre (Dots)
           Positioned(
             left: 16,
-            bottom: 16,
+            bottom: 14,
             child: Row(
               children: List.generate(
                 widget.slides.length,
                 (idx) => AnimatedContainer(
                   duration: const Duration(milliseconds: 300),
-                  width: _currentIndex == idx ? 20 : 6,
+                  width: _currentIndex == idx ? 22 : 6,
                   height: 6,
                   margin: const EdgeInsets.only(right: 4),
                   decoration: BoxDecoration(

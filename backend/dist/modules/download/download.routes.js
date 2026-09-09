@@ -40,6 +40,7 @@ const express_1 = require("express");
 const child_process_1 = require("child_process");
 const axios_1 = __importDefault(require("axios"));
 const provider_manager_1 = require("../../streaming/provider-manager");
+const direct_scraper_1 = require("../../streaming/providers/direct-scraper");
 const router = (0, express_1.Router)();
 const providerManager = new provider_manager_1.ProviderManager();
 /**
@@ -78,7 +79,18 @@ router.get('/resolve', async (req, res) => {
             });
         }
         let downloadUrl = streamResult.embedUrl;
-        // Si c'est un proxy interne, conserver l'URL relative ou la convertir
+        // Si c'est un lien embed (Uqload, Dood, etc.), extraire le flux direct MP4/HLS
+        if (downloadUrl.startsWith('http://') || downloadUrl.startsWith('https://')) {
+            try {
+                const direct = await direct_scraper_1.DirectScraper.resolve(downloadUrl);
+                if (direct && direct.directUrl && direct.directUrl.startsWith('http')) {
+                    downloadUrl = direct.directUrl;
+                }
+            }
+            catch (err) {
+                console.warn(`[Download Resolve] Échec DirectScraper sur "${downloadUrl}":`, err.message);
+            }
+        }
         const cleanFilename = `${(title || 'video').replace(/[^a-zA-Z0-9_\-]/g, '_')}${isTv ? `_S${season || 1}E${episode || 1}` : ''}.mp4`;
         return res.json({
             success: true,

@@ -34,12 +34,12 @@ class _MediaScreenState extends State<MediaScreen> {
   bool _hasMore = true;
   int _currentPage = 1;
 
-  final List<Map<String, String>> _types = const [
-    {'id': 'all', 'label': 'Tout Explorer'},
-    {'id': 'movie', 'label': '🎬 Films'},
-    {'id': 'tv', 'label': '📺 Séries'},
-    {'id': 'anime', 'label': '🎌 Animes'},
-    {'id': 'african', 'label': '🌍 Nollywood & Afrique'},
+  final List<Map<String, dynamic>> _types = const [
+    {'id': 'all', 'label': 'Tout Explorer', 'icon': Icons.explore_rounded},
+    {'id': 'movie', 'label': 'Films', 'icon': Icons.movie_creation_rounded},
+    {'id': 'tv', 'label': 'Séries', 'icon': Icons.tv_rounded},
+    {'id': 'anime', 'label': 'Animes', 'icon': Icons.auto_awesome_rounded},
+    {'id': 'african', 'label': 'Nollywood & Afrique', 'icon': Icons.public_rounded},
   ];
 
   final List<Map<String, String>> _sortOptions = const [
@@ -222,7 +222,12 @@ class _MediaScreenState extends State<MediaScreen> {
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: ChoiceChip(
-                    label: Text(type['label']!),
+                    avatar: Icon(
+                      type['icon'] as IconData,
+                      size: 16,
+                      color: isSelected ? Colors.white : AppTheme.primary,
+                    ),
+                    label: Text(type['label'] as String),
                     selected: isSelected,
                     selectedColor: AppTheme.primary,
                     backgroundColor: AppTheme.card,
@@ -237,7 +242,7 @@ class _MediaScreenState extends State<MediaScreen> {
                     onSelected: (val) {
                       if (val) {
                         setState(() {
-                          _selectedType = type['id']!;
+                          _selectedType = type['id'] as String;
                           _selectedGenreId = null;
                         });
                         _loadMedia(refresh: true);
