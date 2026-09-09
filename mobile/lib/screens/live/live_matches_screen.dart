@@ -222,6 +222,7 @@ class _LiveMatchesScreenState extends State<LiveMatchesScreen> {
                                   videoUrl: _currentStreamUrl,
                                   title: _currentTitle,
                                   subtitle: _currentSubtitle,
+                                  isLive: true,
                                   autoPlay: true,
                                 ),
                                 Positioned(

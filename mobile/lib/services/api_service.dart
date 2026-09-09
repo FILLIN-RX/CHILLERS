@@ -642,20 +642,31 @@ class ApiService {
     return getLeagueMatches('uefa-champions-league');
   }
 
-  Future<String?> getMatchStreamUrl(String matchId) async {
+  Future<String?> getMatchStreamUrl(String matchId, {bool forceRefresh = false}) async {
     try {
+      final queryParam = forceRefresh ? '?refresh=true' : '';
       final response = await http
           .get(
-            Uri.parse('$_base/api/liveball/match/$matchId/stream'),
+            Uri.parse('$_base/api/liveball/match/$matchId/stream$queryParam'),
             headers: await _getHeaders(),
           )
           .timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        final url = data['data']?['url'] ?? data['url'];
-        if (url != null && url.toString().isNotEmpty) {
-          return url.toString();
+        final streamData = data['data'] ?? data;
+        final url = streamData['url']?.toString();
+        final relayUrl = streamData['relayUrl']?.toString();
+        final type = streamData['type']?.toString();
+
+        if (type == 'iframe' && url != null && url.isNotEmpty) {
+          return url;
+        }
+        if (relayUrl != null && relayUrl.isNotEmpty) {
+          return relayUrl;
+        }
+        if (url != null && url.isNotEmpty) {
+          return url;
         }
       }
     } catch (_) {}

@@ -43,17 +43,31 @@ export const getLeagueMatches = async (req: Request, res: Response, next: NextFu
 export const getMatchStream = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const matchId = String(req.params.matchId);
-    console.log(`[LiveBall] Stream request for match ${matchId}`);
+    const forceRefresh = req.query.refresh === 'true' || req.query.force === '1';
+    console.log(`[LiveBall] Stream request for match ${matchId} (refresh=${forceRefresh})`);
     
-    const stream = await resolveLiveBallStream(matchId);
+    const stream = await resolveLiveBallStream(matchId, forceRefresh);
     if (!stream) {
       console.warn(`[LiveBall] No stream found for match ${matchId}`);
       res.status(404).json({ success: false, data: null, message: 'Flux liveball introuvable' });
       return;
     }
     
-    console.log(`[LiveBall] ✓ Stream resolved for match ${matchId}`);
-    res.json({ success: true, data: { url: stream.url, type: stream.type }, message: null });
+    const host = req.get('host') || 'chillers.onrender.com';
+    const protocol = req.protocol === 'https' || req.get('x-forwarded-proto') === 'https' ? 'https' : 'http';
+    const relayUrl = `${protocol}://${host}/api/liveball/match/${matchId}/hls/playlist.m3u8`;
+
+    console.log(`[LiveBall] ✓ Stream resolved for match ${matchId} (${stream.type})`);
+    res.json({
+      success: true,
+      data: {
+        url: stream.type === 'hls' ? relayUrl : stream.url,
+        directUrl: stream.url,
+        relayUrl: stream.type === 'hls' ? relayUrl : undefined,
+        type: stream.type,
+      },
+      message: null,
+    });
   } catch (error) {
     console.error(`[LiveBall] Error resolving stream:`, error);
     next(error);

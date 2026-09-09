@@ -15,6 +15,7 @@ class AppVideoPlayer extends StatefulWidget {
   final String title;
   final String? subtitle;
   final bool autoPlay;
+  final bool isLive;
   final bool isFullScreen;
   final Duration? initialPosition;
   final void Function(Duration position, Duration duration)? onProgress;
@@ -29,6 +30,7 @@ class AppVideoPlayer extends StatefulWidget {
     required this.title,
     this.subtitle,
     this.autoPlay = true,
+    this.isLive = false,
     this.isFullScreen = false,
     this.initialPosition,
     this.onProgress,
@@ -48,6 +50,8 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> {
   VideoController? _mediaKitController;
   StreamSubscription? _mediaKitPositionSub;
   StreamSubscription? _mediaKitDurationSub;
+  StreamSubscription? _mediaKitErrorSub;
+  StreamSubscription? _mediaKitBufferingSub;
   Duration _currentMediaKitDuration = Duration.zero;
 
   // VideoPlayer / Chewie fallback engine
@@ -60,8 +64,16 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> {
   bool _isEmbed = false;
   bool _useMediaKit = false;
   bool _isLoading = true;
+  bool _isBuffering = false;
   String? _errorMessage;
   bool _hasSeekedInitial = false;
+  int _autoRetryCount = 0;
+  Timer? _stallTimer;
+
+  bool get _isLiveStream =>
+      widget.isLive ||
+      widget.videoUrl.toLowerCase().contains('.m3u8') ||
+      widget.videoUrl.toLowerCase().contains('/hls/');
 
   bool get _isPlatformWebViewSupported {
     if (kIsWeb) return false;
@@ -116,6 +128,7 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> {
   Future<void> _initializePlayer() async {
     setState(() {
       _isLoading = true;
+      _isBuffering = false;
       _errorMessage = null;
     });
 
@@ -168,7 +181,11 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> {
       // 2. MEDIAKIT ENGINE (Android / iOS / Linux avec libmpv)
       try {
         _useMediaKit = true;
-        final player = Player();
+        final player = Player(
+          configuration: const PlayerConfiguration(
+            bufferSize: 16 * 1024 * 1024,
+          ),
+        );
         final controller = VideoController(player);
 
         _mediaKitPlayer = player;
@@ -188,13 +205,42 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> {
           }
         });
 
+        _mediaKitBufferingSub = player.stream.buffering.listen((buffering) {
+          if (mounted) setState(() => _isBuffering = buffering);
+          if (buffering && _isLiveStream) {
+            _stallTimer?.cancel();
+            _stallTimer = Timer(const Duration(seconds: 8), () {
+              if (_isBuffering && mounted) {
+                debugPrint('[AppVideoPlayer] Live stream stalled, attempting auto-reconnect...');
+                _retryPlayLive();
+              }
+            });
+          } else {
+            _stallTimer?.cancel();
+          }
+        });
+
+        _mediaKitErrorSub = player.stream.error.listen((err) {
+          debugPrint('[AppVideoPlayer] MediaKit error: $err');
+          _handlePlaybackFailure(err.toString());
+        });
+
         await player.open(
-          Media(widget.videoUrl),
+          Media(
+            widget.videoUrl,
+            httpHeaders: {
+              'User-Agent':
+                  'Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+            },
+          ),
           play: widget.autoPlay,
         );
 
         if (mounted) {
-          setState(() => _isLoading = false);
+          setState(() {
+            _isLoading = false;
+            _autoRetryCount = 0;
+          });
         }
       } catch (e) {
         debugPrint('[AppVideoPlayer] MediaKit échec, tentative fallback video_player: $e');
@@ -213,6 +259,28 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> {
     }
   }
 
+  void _handlePlaybackFailure(String error) {
+    if (_autoRetryCount < 3 && _isLiveStream) {
+      _autoRetryCount++;
+      debugPrint('[AppVideoPlayer] Auto-reconnect live stream attempt $_autoRetryCount/3...');
+      Future.delayed(Duration(milliseconds: 1000 * _autoRetryCount), () {
+        if (mounted) _initializePlayer();
+      });
+      return;
+    }
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Connexion au direct instable ou interrompue.';
+      });
+    }
+  }
+
+  void _retryPlayLive() {
+    _autoRetryCount = 0;
+    _initializePlayer();
+  }
+
   Future<void> _initFallbackVideoPlayer() async {
     _useMediaKit = false;
     try {
@@ -221,7 +289,13 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> {
         _videoPlayerController = VideoPlayerController.file(File(widget.videoUrl));
       } else {
         final uri = Uri.parse(widget.videoUrl);
-        _videoPlayerController = VideoPlayerController.networkUrl(uri);
+        _videoPlayerController = VideoPlayerController.networkUrl(
+          uri,
+          httpHeaders: {
+            'User-Agent':
+                'Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+          },
+        );
       }
       await _videoPlayerController!.initialize();
 
@@ -234,6 +308,7 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> {
       _chewieController = ChewieController(
         videoPlayerController: _videoPlayerController!,
         autoPlay: widget.autoPlay,
+        isLive: _isLiveStream,
         looping: false,
         aspectRatio: _videoPlayerController!.value.aspectRatio > 0
             ? _videoPlayerController!.value.aspectRatio
@@ -255,10 +330,7 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _errorMessage = 'Impossible de charger le flux vidéo : $e';
-        });
+        _handlePlaybackFailure(e.toString());
       }
     }
   }
@@ -274,10 +346,17 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> {
   }
 
   void _disposeAllControllers() {
+    _stallTimer?.cancel();
+    _stallTimer = null;
+
     _mediaKitPositionSub?.cancel();
     _mediaKitPositionSub = null;
     _mediaKitDurationSub?.cancel();
     _mediaKitDurationSub = null;
+    _mediaKitErrorSub?.cancel();
+    _mediaKitErrorSub = null;
+    _mediaKitBufferingSub?.cancel();
+    _mediaKitBufferingSub = null;
 
     _mediaKitPlayer?.dispose();
     _mediaKitPlayer = null;
@@ -313,7 +392,11 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> {
               const CircularProgressIndicator(color: AppTheme.primary),
               const SizedBox(height: 14),
               Text(
-                _isEmbed ? 'Chargement du lecteur web...' : 'Initialisation du lecteur vidéo...',
+                _isEmbed
+                    ? 'Chargement du lecteur web...'
+                    : _isLiveStream
+                        ? 'Connexion au direct HD...'
+                        : 'Initialisation du lecteur vidéo...',
                 style: const TextStyle(color: Colors.white70, fontSize: 12),
               ),
             ],
@@ -330,11 +413,11 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_rounded, color: Colors.redAccent, size: 48),
+            const Icon(Icons.wifi_tethering_off_rounded, color: Colors.redAccent, size: 48),
             const SizedBox(height: 12),
-            const Text(
-              'Erreur de lecture',
-              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+            Text(
+              _isLiveStream ? 'Flux Direct Indisponible' : 'Erreur de lecture',
+              style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 6),
             Text(
@@ -347,10 +430,12 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
               ),
-              onPressed: _initializePlayer,
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Réessayer'),
+              onPressed: _retryPlayLive,
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Recharger le direct'),
             ),
           ],
         ),
@@ -414,25 +499,53 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> {
       );
     }
 
+    Widget playerBody;
+
     // C. Affichage MediaKit
     if (_useMediaKit && _mediaKitController != null) {
-      return Container(
-        color: Colors.black,
-        child: Video(
-          controller: _mediaKitController!,
-          controls: MaterialVideoControls,
-        ),
+      playerBody = Video(
+        controller: _mediaKitController!,
+        controls: MaterialVideoControls,
       );
+    } else if (_chewieController != null) {
+      // D. Affichage Fallback Chewie
+      playerBody = Chewie(controller: _chewieController!);
+    } else {
+      playerBody = const SizedBox.shrink();
     }
 
-    // D. Affichage Fallback Chewie
-    if (_chewieController != null) {
-      return Container(
-        color: Colors.black,
-        child: Chewie(controller: _chewieController!),
-      );
-    }
-
-    return const SizedBox.shrink();
+    return Stack(
+      children: [
+        Positioned.fill(child: Container(color: Colors.black, child: playerBody)),
+        if (_isBuffering && !_isLoading)
+          Positioned(
+            top: 12,
+            right: 12,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.black87,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white24),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 10,
+                    height: 10,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primary),
+                  ),
+                  SizedBox(width: 6),
+                  Text(
+                    'Optimisation buffer...',
+                    style: TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
   }
 }

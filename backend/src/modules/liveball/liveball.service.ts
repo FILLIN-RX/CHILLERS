@@ -38,12 +38,16 @@ const CACHE = new LRUCache<string, LiveBallMatch[]>({
 // présent dans la page d'un match. POST t = XOR(atob(token), clé répétée).
 const TOKEN_XOR_KEY = 'q9!Vx2#mP4nL8wY5gT0dA3fH';
 
-// Les URLs m3u8 (token signé, exp ~6h) ET les URLs de player iframe renvoyées
-// par /api/c/r sont mis en cache 1h.
+// Les URLs m3u8 (token signé) et URLs de player iframe renvoyées
+// par /api/c/r sont mises en cache 20 minutes (pour permettre la rotation des tokens).
 const STREAM_CACHE = new LRUCache<string, ResolvedStream>({
-  max: 20,
-  ttl: 60 * 60_000, // cache 1h
+  max: 50,
+  ttl: 20 * 60_000, // cache 20min
 });
+
+export function invalidateStreamCache(matchId: string): void {
+  STREAM_CACHE.delete(matchId);
+}
 
 function xorDecodeToken(token: string): string {
   const raw = Buffer.from(token, 'base64');
@@ -484,9 +488,13 @@ interface StreamResponse {
 // puis POST `{t, f: '0'}` vers /api/c/r. La réponse contient :
 //  - m="h" : une URL m3u8 (base64) du flux réel HLS ;
 //  - m="f" : une URL de player à embarquer en iframe (base64).
-export async function resolveLiveBallStream(matchId: string): Promise<ResolvedStream | null> {
-  const cached = STREAM_CACHE.get(matchId);
-  if (cached) return cached;
+export async function resolveLiveBallStream(matchId: string, forceRefresh = false): Promise<ResolvedStream | null> {
+  if (!forceRefresh) {
+    const cached = STREAM_CACHE.get(matchId);
+    if (cached) return cached;
+  } else {
+    STREAM_CACHE.delete(matchId);
+  }
 
   try {
     if (!/^\d+$/.test(matchId)) return null;

@@ -376,6 +376,7 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
                                   videoUrl: _currentStreamUrl,
                                   title: _currentTitle,
                                   subtitle: _currentSubtitle,
+                                  isLive: true,
                                   autoPlay: true,
                                 ),
                                 Positioned(
