@@ -2,7 +2,6 @@ import axios from 'axios';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { LRUCache } from 'lru-cache';
-import CloudScraper from 'cloudscraper';
 
 const execFileAsync = promisify(execFile);
 
@@ -584,27 +583,25 @@ export async function resolveLiveBallStream(matchId: string): Promise<ResolvedSt
         );
         stdout = result.stdout;
       } catch (curlErr) {
-        // Fallback to CloudScraper
+        // Fallback to axios
         try {
-          const response = await CloudScraper({
-            method: 'POST',
-            url: 'https://liveball.sx/api/c/r',
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json, text/plain, */*',
-              'Accept-Language': 'en-US,en;q=0.9',
-              'Accept-Encoding': 'gzip, deflate, br',
-              'Referer': `https://liveball.sx/match/${matchId}`,
-              'Origin': 'https://liveball.sx',
-              'Sec-Fetch-Dest': 'empty',
-              'Sec-Fetch-Mode': 'cors',
-              'Sec-Fetch-Site': 'same-origin',
-              'DNT': '1',
-            },
-            body,
-            json: true,
-          });
-          stdout = typeof response === 'string' ? response : JSON.stringify(response);
+          const { data } = await axios.post<string | StreamResponse>(
+            'https://liveball.sx/api/c/r',
+            { t: token, f: '0' },
+            {
+              headers: {
+                'User-Agent': USER_AGENT,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json, text/plain, */*',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Referer': `https://liveball.sx/match/${matchId}`,
+                'Origin': 'https://liveball.sx',
+                'DNT': '1',
+              },
+              timeout: 12_000,
+            }
+          );
+          stdout = typeof data === 'string' ? data : JSON.stringify(data);
         } catch (_) {}
       }
 
