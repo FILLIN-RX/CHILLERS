@@ -96,12 +96,14 @@ export default function DownloadListItem({
         {task.status === "error" && task.error && (
           <p className="mt-2 text-xs text-rose-400">{task.error}</p>
         )}
-        {!isTerminal && task.status !== "queued" && (
+        {!isTerminal && (
           <p className="mt-1 text-xs text-zinc-500">
             {task.status === "resolving"
               ? "Recherche du lien…"
               : task.status === "downloading"
               ? "Téléchargement en cours"
+              : task.status === "queued"
+              ? "En file d'attente (démarrage automatique)"
               : task.status}
           </p>
         )}

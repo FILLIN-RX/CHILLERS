@@ -52,7 +52,7 @@ const UserSchema: Schema = new Schema(
     },
     passwordHash: {
       type: String,
-      required: true,
+      required: false,
     },
     avatarUrl: {
       type: String,

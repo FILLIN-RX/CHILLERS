@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { httpJson } from '@/app/api';
-import { Check, X, ArrowLeft, UploadSimple, Copy, ListChecks, Sparkle, WarningCircle, Spinner, PhoneCall } from '@phosphor-icons/react';
+import { Check, X, UploadSimple, Copy, ListChecks, Crown, WarningCircle, Spinner, PhoneCall } from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
 
 interface Plan {
@@ -192,21 +192,11 @@ export default function SubscribePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-white py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#09090b] text-white pt-24 sm:pt-28 pb-16 px-4 sm:px-6 lg:px-8">
       <div className="max-w-5xl mx-auto">
-        {/* Bouton retour */}
-        <button
-          onClick={() => router.back()}
-          aria-label="Retour"
-          className="inline-flex items-center gap-2 px-4 py-2 mb-8 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 hover:text-white text-xs font-semibold transition-all hover:scale-[1.02] active:scale-95"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Retour
-        </button>
-
         <div className="text-center max-w-2xl mx-auto mb-12">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-brand-primary/10 border border-brand-primary/20 text-brand-primary text-xs font-bold mb-4">
-            <Sparkle className="w-4 h-4" />
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-bold mb-4">
+            <Crown className="w-4 h-4 text-amber-400 fill-amber-400" />
             <span>Formules VIP & Streaming Illimité</span>
           </div>
           <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white mb-3">
@@ -217,8 +207,8 @@ export default function SubscribePage() {
           </p>
         </div>
 
-        {/* Grille des abonnements */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto mb-16">
+        {/* Grille des abonnements (Alignés sur une seule ligne) */}
+        <div className="flex flex-col md:flex-row items-stretch justify-center gap-6 sm:gap-8 max-w-5xl mx-auto mb-16">
           {plans.map((plan) => {
             const isCurrent = user?.subscription?.plan === plan.code;
             const isPremium = plan.code === 'premium';
@@ -226,7 +216,7 @@ export default function SubscribePage() {
             return (
               <div
                 key={plan._id}
-                className={`relative rounded-3xl p-7 sm:p-8 flex flex-col justify-between transition-all duration-300 ${
+                className={`relative flex-1 w-full max-w-md rounded-3xl p-7 sm:p-8 flex flex-col justify-between transition-all duration-300 ${
                   isPremium
                     ? 'bg-[#1c1424] border-2 border-[#7C3AED]/50 shadow-[0_12px_40px_rgba(124,58,237,0.2)]'
                     : 'bg-[#141416] border border-white/10 hover:border-white/20'
@@ -389,7 +379,7 @@ export default function SubscribePage() {
                       onClick={() => handleDialUssd(paymentMethod, selectedPlan.price)}
                       className="w-full py-3.5 px-4 rounded-xl bg-[#D70466] hover:bg-[#b5034f] text-white font-extrabold text-sm flex items-center justify-center gap-2.5 shadow-lg active:scale-95 transition-all cursor-pointer"
                     >
-                      <PhoneCall className="w-5 h-5 animate-pulse" />
+                      <PhoneCall className="w-5 h-5" />
                       <span>Lancer le code USSD ({getUssdCode(paymentMethod, selectedPlan.price)})</span>
                     </button>
 

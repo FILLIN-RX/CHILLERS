@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { X, DownloadSimple, Check, Warning } from "@phosphor-icons/react";
+import { X, DownloadSimple, Check, Warning, Info } from "@phosphor-icons/react";
 import { acquireModalScrollLock, releaseModalScrollLock } from "@/lib/modalScrollLock";
 import { useDownload } from "@/hooks/useDownload";
+import { useDownloadsStore } from "@/store/downloads";
 import type { DownloadStatus } from "@/types/download";
 import { useLanguage } from "@/i18n/LanguageContext";
 
@@ -20,7 +21,7 @@ interface DownloadModalProps {
 }
 
 const STATUS_LABEL: Record<DownloadStatus, string> = {
-  queued: "En attente",
+  queued: "En file d'attente",
   resolving: "Recherche du lien…",
   ready: "Lien trouvé",
   downloading: "Téléchargement en cours",
@@ -54,6 +55,12 @@ export default function DownloadModal({
     backdropUrl,
   });
 
+  const activeCount = useDownloadsStore((s) =>
+    s.tasks.filter(
+      (t) => (t.status === "downloading" || t.status === "resolving") && t.id !== dl.task?.id
+    ).length
+  );
+
   // Scroll lock + ESC handler.
   useEffect(() => {
     if (!isOpen) return;
@@ -71,7 +78,7 @@ export default function DownloadModal({
   // Auto-resolve: as soon as the modal opens, always resolve fresh if not actively downloading
   useEffect(() => {
     if (!isOpen) return;
-    if (dl.status !== "downloading" && dl.status !== "resolving") {
+    if (dl.status !== "downloading" && dl.status !== "resolving" && dl.status !== "done") {
       dl.retry();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -128,6 +135,15 @@ export default function DownloadModal({
           <p className="text-zinc-400 text-sm mb-4">
             S{String(season ?? 1).padStart(2, "0")}E{String(episode).padStart(2, "0")}
           </p>
+        )}
+
+        {activeCount > 0 && dl.status !== "downloading" && dl.status !== "done" && (
+          <div className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-300 text-xs text-left flex items-start gap-2">
+            <Info className="h-4 w-4 shrink-0 mt-0.5 text-amber-400" />
+            <span>
+              Un autre téléchargement est actuellement en cours. Votre fichier sera placé en file d'attente et démarrera automatiquement.
+            </span>
+          </div>
         )}
 
         <p className="text-zinc-400 text-sm mb-6">

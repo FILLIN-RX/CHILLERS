@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { MagnifyingGlass, House, FilmSlate, Television, Sparkle, Radio, User, ClockCounterClockwise, BookmarkSimple, SignOut, Crown, DownloadSimple, List, X, SquaresFour, CaretLeft, CaretRight, GearSix } from "@phosphor-icons/react";
+import { MagnifyingGlass, House, FilmSlate, Television, Star, Radio, User, ClockCounterClockwise, BookmarkSimple, SignOut, Crown, DownloadSimple, List, X, SquaresFour, CaretLeft, CaretRight, GearSix } from "@phosphor-icons/react";
 import gsap from "gsap";
 import { useLanguage } from "@/i18n/LanguageContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
@@ -27,7 +27,7 @@ export default function Header({ onSearchClick }: HeaderProps) {
     { id: "home", label: _("nav.home"), href: "/", icon: House, fillIcon: House },
     { id: "movies", label: _("nav.movies"), href: "/media/movies", icon: FilmSlate, fillIcon: null },
     { id: "series", label: _("nav.series"), href: "/media/series", icon: Television, fillIcon: Television },
-    { id: "anime", label: _("nav.anime"), href: "/media/anime", icon: Sparkle, fillIcon: Sparkle },
+    { id: "anime", label: _("nav.anime"), href: "/media/anime", icon: Star, fillIcon: Star },
     { id: "live", label: _("nav.live"), href: "/live", icon: Radio, fillIcon: null },
   ];
 
@@ -107,19 +107,19 @@ export default function Header({ onSearchClick }: HeaderProps) {
     <>
       <header
         ref={headerRef}
-        className={`fixed top-0 left-0 w-full z-40 select-none [app-region:drag] ${
+        className={`fixed top-0 left-0 w-full z-40 select-none [app-region:drag] transition-colors duration-300 ${
           isDetailPage ? "max-sm:hidden" : ""
         } ${
           isScrolled
             ? "bg-[#0c0c0e]/95 backdrop-blur-xl shadow-2xl border-b border-white/8"
-            : "bg-[#0c0c0e]/80"
+            : "bg-gradient-to-b from-black/90 via-black/40 to-transparent border-b-0"
         }`}
       >
         <div className="flex flex-col max-w-[1920px] mx-auto px-3 sm:px-6 lg:px-8 pt-2 pb-2.5 sm:py-3 gap-2">
           {/* LIGNE PRINCIPALE : Menu burger (mobile), Logo, Nav PC, Search PC, Bouton PRO & Profil */}
           <div className="flex items-center justify-between gap-3 sm:gap-4">
-            {/* GAUCHE : BURGER (Mobile) + LOGO + NAV PC */}
-            <div className="flex items-center gap-2.5 sm:gap-5 flex-shrink-0 [app-region:no-drag]">
+            {/* GAUCHE : BURGER (Mobile) + RETOUR + LOGO + NAV PC */}
+            <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0 [app-region:no-drag]">
               {/* BOUTON BURGER STYLE MOVIEBOX (Mobile uniquement) */}
               <button
                 onClick={() => setIsDrawerOpen(true)}
@@ -129,19 +129,21 @@ export default function Header({ onSearchClick }: HeaderProps) {
                 <List className="w-6 h-6 stroke-[2.2]" />
               </button>
 
-              {/* FLÈCHES HISTORIQUE (PC / GRAND ÉCRAN UNIQUEMENT) */}
-              <div className="hidden lg:flex items-center gap-1.5">
+              {/* FLÈCHES HISTORIQUE / RETOUR */}
+              <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => router.back()}
                   title="Page précédente"
-                  className="w-8 h-8 rounded-full bg-black/40 hover:bg-white/10 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-all cursor-pointer active:scale-95"
+                  aria-label="Retour"
+                  className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 flex items-center justify-center text-zinc-300 hover:text-white transition-all cursor-pointer active:scale-95"
                 >
                   <CaretLeft className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => router.forward()}
                   title="Page suivante"
-                  className="w-8 h-8 rounded-full bg-black/40 hover:bg-white/10 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-all cursor-pointer active:scale-95"
+                  aria-label="Suivant"
+                  className="hidden lg:flex w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 items-center justify-center text-zinc-300 hover:text-white transition-all cursor-pointer active:scale-95"
                 >
                   <CaretRight className="w-4 h-4" />
                 </button>
@@ -237,7 +239,7 @@ export default function Header({ onSearchClick }: HeaderProps) {
               >
                 <DownloadSimple className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
                 {activeDownloadsCount > 0 ? (
-                  <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-brand-primary text-[9px] font-black text-white animate-pulse">
+                  <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-brand-primary text-[9px] font-black text-white">
                     {activeDownloadsCount}
                   </span>
                 ) : doneDownloadsCount > 0 ? (

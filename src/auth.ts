@@ -78,8 +78,29 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.avatarUrl = (user as any).avatarUrl;
         token.backendToken = (user as any).backendToken;
       }
-      if (account?.provider === "google") {
+      if (account?.provider === "google" || token.provider === "google") {
         token.provider = "google";
+        try {
+          const res = await fetch(`${API_BASE_URL}/auth/google`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: user?.email || token.email,
+              username: user?.name || token.name,
+              avatarUrl: (user as any)?.image || token.picture,
+            }),
+          });
+          const data = await res.json();
+          if (data.success && data.user) {
+            token.id = data.user.id;
+            token.role = data.user.role || "user";
+            token.subscription = data.user.subscription;
+            token.avatarUrl = data.user.avatarUrl;
+            token.backendToken = data.token;
+          }
+        } catch (error) {
+          console.error("[NextAuth] Erreur de synchronisation Google avec la base de données:", error);
+        }
       }
       return token;
     },

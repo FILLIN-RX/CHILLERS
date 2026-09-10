@@ -129,6 +129,65 @@ export class AuthService {
     return { token, user: this.formatUserPayload(user, planDoc?.features) };
   }
 
+  async googleLogin(
+    email: string,
+    username?: string,
+    avatarUrl?: string,
+    deviceId?: string,
+    deviceName?: string
+  ): Promise<AuthResult> {
+    const cleanEmail = email.toLowerCase().trim();
+    let user = await userRepository.findByEmail(cleanEmail);
+
+    if (!user) {
+      const salt = await bcrypt.genSalt(10);
+      const randomPass = Math.random().toString(36).slice(-10) + Date.now();
+      const passwordHash = await bcrypt.hash(randomPass, salt);
+
+      user = await userRepository.create({
+        email: cleanEmail,
+        passwordHash,
+        username: username || cleanEmail.split('@')[0],
+        avatarUrl,
+        role: 'user',
+        subscription: { plan: 'free', status: 'active' },
+        activeSessions: deviceId ? [{ deviceId, lastLogin: new Date(), deviceName }] : [],
+      });
+      console.log(`[Auth] ✨ Nouvel utilisateur créé et stocké en BD via Google OAuth : ${cleanEmail}`);
+    } else {
+      let updated = false;
+      if (!user.avatarUrl && avatarUrl) {
+        user.avatarUrl = avatarUrl;
+        updated = true;
+      }
+      if (!user.username && username) {
+        user.username = username;
+        updated = true;
+      }
+      if (deviceId) {
+        let sessions = user.activeSessions || [];
+        const existingSessionIndex = sessions.findIndex((s) => s.deviceId === deviceId);
+        if (existingSessionIndex !== -1) {
+          sessions[existingSessionIndex].lastLogin = new Date();
+          if (deviceName) sessions[existingSessionIndex].deviceName = deviceName;
+        } else {
+          sessions.push({ deviceId, lastLogin: new Date(), deviceName });
+        }
+        user.activeSessions = sessions;
+        updated = true;
+      }
+      if (updated) {
+        await user.save();
+      }
+    }
+
+    const planCode = user.subscription?.plan || 'free';
+    const planDoc = await SubscriptionPlan.findOne({ code: planCode });
+    const token = this.generateToken(user, deviceId);
+
+    return { token, user: this.formatUserPayload(user, planDoc?.features) };
+  }
+
   async revokeAllOtherSessions(userId: string, currentDeviceId: string): Promise<any> {
     const user = await userRepository.findById(userId);
     if (!user) throw new Error('Utilisateur non trouvé');

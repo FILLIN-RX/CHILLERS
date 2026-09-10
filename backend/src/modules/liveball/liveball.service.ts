@@ -334,6 +334,13 @@ function parseSingleBlock(block: string, status: 'live' | 'upcoming', league?: s
 
   const scoreMatch = block.match(/class="score align_center"[^>]*>([\s\S]*?)<\/div>/);
   const tsMatch = block.match(/data-ts="(\d+)"/);
+  const startTs = tsMatch ? Number(tsMatch[1]) : undefined;
+  const nowSec = Math.floor(Date.now() / 1000);
+
+  // Si le match est marqué upcoming mais a commencé il y a plus de 3h30, il est déjà passé
+  if (status === 'upcoming' && startTs && startTs < nowSec - 3.5 * 3600) {
+    return null;
+  }
 
   return {
     id,
@@ -344,7 +351,7 @@ function parseSingleBlock(block: string, status: 'live' | 'upcoming', league?: s
     awayLogo: teamLogo(block, 'right'),
     score: status === 'live' ? (scoreMatch?.[1] ?? '').replace(/\s+/g, ' ').trim() : undefined,
     minute: status === 'live' ? extractMinute(block) : undefined,
-    startTs: status === 'upcoming' && tsMatch ? Number(tsMatch[1]) : undefined,
+    startTs: status === 'upcoming' ? startTs : undefined,
     league,
   };
 }
@@ -353,24 +360,34 @@ export function parseBlocks(html: string, league?: string): LiveBallMatch[] {
   const matches: LiveBallMatch[] = [];
 
   const BLOCK_START = '<div class="live_block2">';
+  const hasLiveSection = html.includes('class="live_section"');
+  const nowSec = Math.floor(Date.now() / 1000);
 
-  // LiveBall structure ses matchs dans des sections "live_section" (en live)
-  // et "time_section" (à venir) sur la homepage, mais sur les pages
-  // /league/... tous les matchs sont dans un simple <div class="live">.
-  // Pour être robuste on itère tous les blocs et on infère le statut :
-  // un bloc live porte un score, un bloc à venir un data-ts.
   const parts = html.split(BLOCK_START);
   for (let i = 1; i < parts.length; i++) {
     const block = parts[i];
     if (!block.trim()) continue;
-    // L'éventuel prochain bloc qui suit n'apparaît pas ici (split), donc
-    // le statut est déduit de la présence du score vs du data-ts.
+
     const isLive = block.includes('class="score');
     const hasTs = block.includes('data-ts="');
+    const tsMatch = block.match(/data-ts="(\d+)"/);
+    const startTs = tsMatch ? Number(tsMatch[1]) : undefined;
+    const hasMinute = !!extractMinute(block);
+
+    // Sur une page de ligue (/league/...) ou archives, les matchs terminés ont un score final mais AUCUNE minute de jeu en direct.
+    // Un match n'est réellement "live" que s'il est dans la live_section OU s'il porte une minute de jeu active (ex: 45', 78').
     if (isLive) {
+      if (!hasLiveSection && !hasMinute) {
+        // Match terminé/archivé de la compétition -> on l'exclut totalement
+        continue;
+      }
       const parsed = parseSingleBlock(block, 'live', league);
       if (parsed) matches.push(parsed);
     } else if (hasTs) {
+      if (startTs && startTs < nowSec - 15 * 60) {
+        // Heure de match déjà dépassée
+        continue;
+      }
       const parsed = parseSingleBlock(block, 'upcoming', league);
       if (parsed) matches.push(parsed);
     }
@@ -403,7 +420,7 @@ export async function getLiveBallMatches(): Promise<LiveBallMatch[] | null> {
 
 export async function getLiveBallLeagueMatches(league: string): Promise<LiveBallMatch[] | null> {
   const normalizedLeague = league.toLowerCase();
-  const isUefa = normalizedLeague.includes('champion') || normalizedLeague.includes('uefa');
+  const isUefa = normalizedLeague.includes('champion') || normalizedLeague.includes('uefa') || normalizedLeague.includes('chempionov');
   const leagueTitle = isUefa ? 'UEFA Champions League' : league;
   
   const slugsToTry = isUefa
@@ -441,7 +458,7 @@ export async function getLiveBallLeagueMatches(league: string): Promise<LiveBall
     } catch (_) {}
   }
 
-  // Si c'est la Champions League et qu'on n'a pas assez de matchs, on pioche aussi dans la homepage
+  // Si c'est la Champions League, on vérifie aussi les vrais matchs UEFA sur la homepage
   if (isUefa) {
     try {
       const homeMatches = await getLiveBallMatches();
@@ -450,18 +467,21 @@ export async function getLiveBallLeagueMatches(league: string): Promise<LiveBall
           (m) =>
             m.league?.toLowerCase().includes('champion') ||
             m.league?.toLowerCase().includes('uefa') ||
-            TEAM_NAMES[m.home] !== undefined ||
-            TEAM_NAMES[m.away] !== undefined
+            m.league?.toLowerCase().includes('лига чемпионов')
         );
         allMatches.push(...uefaOnHome.map((m) => ({ ...m, league: 'UEFA Champions League' })));
       }
     } catch (_) {}
   }
 
-  // Dédoublonnage
+  // Dédoublonnage et filtrage des matchs expirés
+  const nowSec = Math.floor(Date.now() / 1000);
   const seen = new Set<string>();
   const uniqueMatches = allMatches.filter((m) => {
     if (seen.has(m.id)) return false;
+    if (m.status === 'upcoming' && m.startTs && m.startTs < nowSec - 3.5 * 3600) {
+      return false; // Ne pas inclure de matchs passés
+    }
     seen.add(m.id);
     return true;
   });

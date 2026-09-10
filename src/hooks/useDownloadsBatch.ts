@@ -10,7 +10,7 @@ import type { Episode } from "@/types/media";
 import { useDownloadsStore } from "@/store/downloads";
 import { useAuthStore } from "@/stores/useAuthStore";
 
-const MAX_CONCURRENT = 1;
+const MAX_CONCURRENT = 2;
 const MAX_RETRIES = 2;
 
 export interface UseDownloadsBatchArgs {
@@ -299,21 +299,14 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
     schedule();
   }, [tasks, gated, schedule]);
 
-  // Cleanup ONLY on unmount — abort all in-flight downloads
+  // Cleanup on unmount — clear timers without aborting background downloads
   useEffect(() => {
     unmountedRef.current = false;
     return () => {
       unmountedRef.current = true;
-      // Abort via store controllers
-      inflightRef.current.forEach((id) => {
-        const ctrl = useDownloadsStore.getState().getController(id);
-        ctrl?.abort();
-      });
       // Clear retry timers
       retryTimersRef.current.forEach((timer) => clearTimeout(timer));
       retryTimersRef.current.clear();
-      retriesRef.current.clear();
-      inflightRef.current.clear();
     };
   }, []);
 

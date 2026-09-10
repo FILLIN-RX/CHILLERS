@@ -83,15 +83,16 @@ export default function DownloadFloatingBar() {
     dragRef.current.isDragging = false;
   }, []);
 
-  // Tasks: active + paused (reload) + recently done
+  // Tasks: active + queued + paused (reload) + recently done
   const active = tasks.filter(
     (t) => t.status === "downloading" || t.status === "resolving",
   );
+  const queued = tasks.filter((t) => t.status === "queued");
   const paused = tasks.filter((t) => t.status === "paused");
   const recentDone = tasks.filter(
     (t) => t.status === "done" && Date.now() - t.updatedAt < 8_000,
   );
-  const visible = [...active, ...paused, ...recentDone];
+  const visible = [...active, ...queued, ...paused, ...recentDone];
 
   if (visible.length === 0 || dismissed) return null;
 
@@ -357,6 +358,8 @@ export default function DownloadFloatingBar() {
                       ? "Recherche…"
                       : t.status === "downloading"
                       ? percent != null ? `${percent}%` : "…"
+                      : t.status === "queued"
+                      ? "En file d'attente (démarrage auto)"
                       : t.status === "paused"
                       ? "Interrompu — reprendre ?"
                       : t.status === "done"

@@ -8,6 +8,7 @@ const router = Router();
 
 router.post('/register', authController.register);
 router.post('/login', authController.login);
+router.post('/google', authController.googleLogin);
 router.get('/me', requireAuth, authController.getProfile);
 router.get('/session', authController.getSession);
 router.post('/revoke-session', requireAuth, authController.revokeSession);

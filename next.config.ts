@@ -20,8 +20,28 @@ const nextConfig: NextConfig = {
 
     return [
       {
-        source: '/api/auth/:path*',
-        destination: '/api/auth/:path*', // géré par Next-Auth, ne pas rediriger vers le backend
+        source: '/api/nextauth/:path*',
+        destination: '/api/nextauth/:path*',
+      },
+      {
+        source: '/api/auth/signin/:path*',
+        destination: '/api/nextauth/signin/:path*',
+      },
+      {
+        source: '/api/auth/callback/:path*',
+        destination: '/api/nextauth/callback/:path*',
+      },
+      {
+        source: '/api/auth/session',
+        destination: '/api/nextauth/session',
+      },
+      {
+        source: '/api/auth/csrf',
+        destination: '/api/nextauth/csrf',
+      },
+      {
+        source: '/api/auth/providers',
+        destination: '/api/nextauth/providers',
       },
       {
         source: '/api/:path*',

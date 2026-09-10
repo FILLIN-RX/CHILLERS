@@ -46,7 +46,7 @@ export default function SessionSyncProvider({
   session?: any;
 }) {
   return (
-    <SessionProvider session={session}>
+    <SessionProvider session={session} basePath="/api/nextauth">
       <SessionSyncInner>{children}</SessionSyncInner>
     </SessionProvider>
   );

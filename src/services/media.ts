@@ -1021,8 +1021,8 @@ export async function getDisponible(
       if (entry) setCached(cacheKey, entry, 5 * 60 * 1000);
       return entry;
     }
-  } catch (err) {
-    if (err instanceof HttpError) return null;
+  } catch (err: any) {
+    if (err?.name === "AbortError" || err instanceof HttpError) return null;
     console.error("Error fetching availability:", err);
   }
   return null;

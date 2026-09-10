@@ -152,8 +152,13 @@ function LiveBallStrip({
   liveAvailable?: LiveBallMatch[];
   title?: string;
 }) {
-  const live = liveAvailable || matches.filter((m) => m.status === "live");
-  const upcoming = matches.filter((m) => m.status === "upcoming").slice(0, 6);
+  const nowSec = Math.floor(Date.now() / 1000);
+  const live = (liveAvailable || matches.filter((m) => m.status === "live")).filter(
+    (m) => !m.startTs || m.startTs > nowSec - 3.5 * 3600
+  );
+  const upcoming = matches
+    .filter((m) => m.status === "upcoming" && (!m.startTs || m.startTs > nowSec - 3.5 * 3600))
+    .slice(0, 6);
   if (live.length === 0 && upcoming.length === 0) return null;
 
   const card = (m: LiveBallMatch) => (

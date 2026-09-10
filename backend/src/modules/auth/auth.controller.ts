@@ -46,6 +46,21 @@ export const login = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
+export const googleLogin = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email, username, avatarUrl, deviceId, deviceName } = req.body;
+    if (!email) {
+      res.status(400).json({ success: false, message: 'Email requis pour Google Auth' });
+      return;
+    }
+    const result = await authService.googleLogin(email, username, avatarUrl, deviceId, deviceName);
+    res.json({ success: true, ...result });
+  } catch (error: any) {
+    console.error('[Auth] Erreur lors de la connexion Google:', error);
+    res.status(500).json({ success: false, message: error.message || 'Erreur serveur lors de la connexion Google' });
+  }
+};
+
 export const getProfile = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user.id;
