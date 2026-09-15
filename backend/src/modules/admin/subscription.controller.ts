@@ -258,7 +258,7 @@ export const setGlobalState = async (req: Request, res: Response) => {
 
     const adminId = admin._id || admin.id;
     const adminEmail = admin.email || 'unknown@example.com';
-    const ipAddress = req.ip || req.connection.remoteAddress || '0.0.0.0';
+    const ipAddress = req.ip || req.connection?.remoteAddress || '0.0.0.0';
     const userAgent = req.get('user-agent');
 
     // Update global state
@@ -270,6 +270,25 @@ export const setGlobalState = async (req: Request, res: Response) => {
       userAgent
     );
 
+    // Audit logging
+    if (result.success) {
+      try {
+        await globalSubscriptionService.createAuditLog(
+          String(adminId),
+          adminEmail,
+          result.previousState,
+          result.newState,
+          ipAddress,
+          200, // HTTP 200 for success
+          userAgent,
+          true // success
+        );
+      } catch (auditError) {
+        console.warn('[Admin] Audit log creation failed:', auditError);
+        // Continue - don't fail the request if audit logging fails
+      }
+    }
+
     res.json({
       success: result.success,
       globalSubscriptionEnabled: result.newState,
@@ -279,6 +298,29 @@ export const setGlobalState = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error('[Admin] setGlobalState error:', error);
+
+    // Audit log the error
+    try {
+      const admin = (req as any).admin;
+      if (admin) {
+        const ipAddress = req.ip || req.connection?.remoteAddress || '0.0.0.0';
+        const userAgent = req.get('user-agent');
+        await globalSubscriptionService.createAuditLog(
+          String(admin._id || admin.id),
+          admin.email || 'unknown@example.com',
+          false, // previous state (unknown on error)
+          false, // new state (unknown on error)
+          ipAddress,
+          500, // HTTP 500 for error
+          userAgent,
+          false, // failed
+          error.message
+        );
+      }
+    } catch (auditError) {
+      console.warn('[Admin] Audit log creation failed:', auditError);
+    }
+
     res.status(500).json({
       success: false,
       message: 'Database error - state update failed',

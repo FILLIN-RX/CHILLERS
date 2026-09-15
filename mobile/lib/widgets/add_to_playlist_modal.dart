@@ -278,7 +278,6 @@ class _AddToPlaylistModalState extends State<AddToPlaylistModal> {
                     padding: const EdgeInsets.only(bottom: 8),
                     child: Material(
                       color: isIn ? AppTheme.primary.withValues(alpha: 0.22) : Colors.white.withValues(alpha: 0.04),
-                      borderRadius: BorderRadius.circular(14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                         side: BorderSide(

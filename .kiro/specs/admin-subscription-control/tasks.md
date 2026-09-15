@@ -88,7 +88,7 @@ This implementation plan breaks down the global subscription toggle feature into
 
 ### Phase 3: API Controller Layer
 
-- [~] 10. Create SubscriptionStateController - GET Endpoint
+- [ ] 10. Create SubscriptionStateController - GET Endpoint
   - Create `backend/src/modules/admin/subscription-state.controller.ts` (or extend subscription.controller.ts)
   - Implement `getGlobalState(req: Request, res: Response)` handler:
     - Call GlobalSubscriptionService.getGlobalState()
@@ -97,7 +97,7 @@ This implementation plan breaks down the global subscription toggle feature into
     - Endpoint target: GET /admin/subscriptions/global-state
   - _Requirements: 1.6, 4.1, 4.2_
 
-- [~] 11. Create SubscriptionStateController - POST Endpoint
+- [ ] 11. Create SubscriptionStateController - POST Endpoint
   - Implement `setGlobalState(req: AuthRequest, res: Response)` handler in SubscriptionStateController:
     - Extract adminId and adminEmail from req.admin (verified by adminMiddleware)
     - Extract ipAddress from req.ip and userAgent from req.get('user-agent')
@@ -111,7 +111,7 @@ This implementation plan breaks down the global subscription toggle feature into
     - Endpoint target: POST /admin/subscriptions/global-state
   - _Requirements: 1.3, 4.3, 4.4, 4.5, 6.1_
 
-- [~] 12. Create SubscriptionStateController - Audit History Endpoint
+- [ ] 12. Create SubscriptionStateController - Audit History Endpoint
   - Implement `getAuditHistory(req: Request, res: Response)` handler:
     - Extract query parameter limit (default 100, max 500)
     - Call GlobalSubscriptionService.getAuditHistory(limit)
@@ -185,7 +185,7 @@ This implementation plan breaks down the global subscription toggle feature into
 
 ### Phase 6: Testing - Property-Based and Unit Tests
 
-- [~] 19.* Write Property-Based Tests for Idempotence
+- [ ] 19.* Write Property-Based Tests for Idempotence
   - Create `backend/src/__tests__/services/global-subscription.properties.test.ts`
   - Implement test for Property 1: Idempotent Toggle
     - **Property 1: Idempotent Toggle**
@@ -195,7 +195,7 @@ This implementation plan breaks down the global subscription toggle feature into
     - Verify multiple identical POSTs return identical responses
   - _Requirements: 1.3, 4.3_
 
-- [~] 20.* Write Property-Based Tests for State Consistency
+- [ ] 20.* Write Property-Based Tests for State Consistency
   - Implement test for Property 2: State Retrieval Consistency
     - **Property 2: State Retrieval Consistency**
     - **Validates: Requirements 1.6, 4.4**
@@ -203,7 +203,7 @@ This implementation plan breaks down the global subscription toggle feature into
     - Generate random valid state transitions, POST each, GET after each, verify equality
   - _Requirements: 1.6, 4.4_
 
-- [~] 21.* Write Property-Based Tests for Feature Gate Logic
+- [ ] 21.* Write Property-Based Tests for Feature Gate Logic
   - Implement test for Property 3: Global State Feature Gate Effect
     - **Property 3: Global State Feature Gate Effect**
     - **Validates: Requirements 2.1, 2.2, 2.3**
@@ -212,7 +212,7 @@ This implementation plan breaks down the global subscription toggle feature into
     - Generate random user subscription states, random global states, verify gate decisions
   - _Requirements: 2.1, 2.2, 2.3_
 
-- [~] 22.* Write Property-Based Tests for Subscription Data Preservation
+- [ ] 22.* Write Property-Based Tests for Subscription Data Preservation
   - Implement test for Property 4: User Subscription Data Preservation
     - **Property 4: User Subscription Data Preservation**
     - **Validates: Requirements 3.1, 3.2, 3.6**
@@ -221,7 +221,7 @@ This implementation plan breaks down the global subscription toggle feature into
     - Generate random subscription data, toggle multiple times, verify data integrity
   - _Requirements: 3.1, 3.2, 3.6_
 
-- [~] 23.* Write Property-Based Tests for Feature Gate Updates
+- [ ] 23.* Write Property-Based Tests for Feature Gate Updates
   - Implement test for Property 5: Immediate Feature Gate Updates
     - **Property 5: Immediate Feature Gate Updates**
     - **Validates: Requirements 2.8, 8.1, 8.2**
@@ -230,7 +230,7 @@ This implementation plan breaks down the global subscription toggle feature into
     - Generate state transitions, verify subsequent gate checks reflect new state immediately
   - _Requirements: 2.8, 8.1, 8.2_
 
-- [~] 24.* Write Property-Based Tests for Audit Log Ordering
+- [ ] 24.* Write Property-Based Tests for Audit Log Ordering
   - Implement test for Property 6: Audit Log Immutability and Ordering
     - **Property 6: Audit Log Immutability and Ordering**
     - **Validates: Requirements 6.1, 6.5**
@@ -239,7 +239,7 @@ This implementation plan breaks down the global subscription toggle feature into
     - Generate random toggle sequence, verify audit trail is correct and immutable
   - _Requirements: 6.1, 6.5_
 
-- [~] 25.* Write Property-Based Tests for Cache Invalidation
+- [ ] 25.* Write Property-Based Tests for Cache Invalidation
   - Implement test for Property 7: Cache Invalidation Correctness
     - **Property 7: Cache Invalidation Correctness**
     - **Validates: Requirements 7.5, 7.6**
@@ -247,7 +247,7 @@ This implementation plan breaks down the global subscription toggle feature into
     - Generate state changes with concurrent reads, verify cache coherency
   - _Requirements: 7.5, 7.6_
 
-- [~] 26.* Write Property-Based Tests for Authentication and Authorization
+- [ ] 26.* Write Property-Based Tests for Authentication and Authorization
   - Implement test for Property 8: Authentication and Authorization
     - **Property 8: Authentication and Authorization**
     - **Validates: Requirements 1.7, 4.6**
@@ -255,7 +255,7 @@ This implementation plan breaks down the global subscription toggle feature into
     - Generate invalid tokens, non-admin users, verify rejection
   - _Requirements: 1.7, 4.6_
 
-- [~] 27.* Write Property-Based Tests for No Automatic Subscription Expiration
+- [ ] 27.* Write Property-Based Tests for No Automatic Subscription Expiration
   - Implement test for Property 9: No Automatic Subscription Expiration
     - **Property 9: No Automatic Subscription Expiration**
     - **Validates: Requirements 3.3, 3.5**
@@ -263,7 +263,7 @@ This implementation plan breaks down the global subscription toggle feature into
     - Generate toggle sequences, verify subscription expiration fields unchanged
   - _Requirements: 3.3, 3.5_
 
-- [~] 28.* Write Property-Based Tests for Error Safety
+- [ ] 28.* Write Property-Based Tests for Error Safety
   - Implement test for Property 10: Error Safety
     - **Property 10: Error Safety**
     - **Validates: Requirements 9.1, 9.3, 9.4**
@@ -271,7 +271,7 @@ This implementation plan breaks down the global subscription toggle feature into
     - Generate error scenarios (connection failure, timeout), verify safe response
   - _Requirements: 9.1, 9.3, 9.4_
 
-- [~] 29. Write Unit Tests for Controller - GET Endpoint
+- [ ] 29. Write Unit Tests for Controller - GET Endpoint
   - Create test file `backend/src/__tests__/modules/admin/subscription-state.controller.test.ts`
   - Test getGlobalState():
     - Successfully returns current state with HTTP 200
@@ -279,7 +279,7 @@ This implementation plan breaks down the global subscription toggle feature into
     - Handles service errors gracefully with HTTP 500
   - _Requirements: 1.6, 4.1, 4.2_
 
-- [~] 30. Write Unit Tests for Controller - POST Endpoint
+- [ ] 30. Write Unit Tests for Controller - POST Endpoint
   - Test setGlobalState():
     - Validates request body (enabled must be boolean)
     - Returns HTTP 400 on validation failure
@@ -288,7 +288,7 @@ This implementation plan breaks down the global subscription toggle feature into
     - Handles authorization errors (requires adminMiddleware verification)
   - _Requirements: 4.3, 4.4, 4.5, 6.1_
 
-- [~] 31. Write Unit Tests for Controller - Audit History Endpoint
+- [ ] 31. Write Unit Tests for Controller - Audit History Endpoint
   - Test getAuditHistory():
     - Returns audit logs in reverse chronological order
     - Respects limit parameter (default 100, max 500)
@@ -296,7 +296,7 @@ This implementation plan breaks down the global subscription toggle feature into
     - Handles service errors gracefully
   - _Requirements: 6.4, 6.5_
 
-- [~] 32. Write Unit Tests for GlobalSubscriptionService
+- [ ] 32. Write Unit Tests for GlobalSubscriptionService
   - Test getGlobalState():
     - Returns cached state on cache hit (<10ms)
     - Queries database on cache miss
@@ -312,7 +312,7 @@ This implementation plan breaks down the global subscription toggle feature into
     - Subsequent calls hit database
   - _Requirements: 1.3, 7.4, 7.5, 7.6, 10.1_
 
-- [~] 33. Write Unit Tests for Feature Gate Middleware
+- [ ] 33. Write Unit Tests for Feature Gate Middleware
   - Test middleware behavior:
     - Denies access when global state is OFF
     - Checks user subscription when global state is ON
@@ -324,7 +324,7 @@ This implementation plan breaks down the global subscription toggle feature into
 
 ### Phase 7: Testing - Integration Tests
 
-- [~] 34.* Write Integration Tests - Database Persistence
+- [ ] 34.* Write Integration Tests - Database Persistence
   - Create `backend/src/__tests__/integration/subscription-persistence.test.ts`
   - Test that state survives application restart:
     - Set global state to OFF via API
@@ -333,7 +333,7 @@ This implementation plan breaks down the global subscription toggle feature into
     - Test both ON and OFF states
   - _Requirements: 1.5, 7.2, 7.3_
 
-- [~] 35.* Write Integration Tests - Audit Logging End-to-End
+- [ ] 35.* Write Integration Tests - Audit Logging End-to-End
   - Create `backend/src/__tests__/integration/audit-logging.test.ts`
   - Test complete audit trail:
     - Toggle state multiple times via API
@@ -343,7 +343,7 @@ This implementation plan breaks down the global subscription toggle feature into
     - Verify logs in correct chronological order
   - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
 
-- [~] 36.* Write Integration Tests - Feature Gate Routing Integration
+- [ ] 36.* Write Integration Tests - Feature Gate Routing Integration
   - Create `backend/src/__tests__/integration/feature-gate-routing.test.ts`
   - Test feature gate with actual route handlers:
     - Set global state to OFF
@@ -353,7 +353,7 @@ This implementation plan breaks down the global subscription toggle feature into
     - Request with free user, verify denied
   - _Requirements: 2.1, 2.2, 2.3, 8.1_
 
-- [~] 37.* Write Integration Tests - Cache Invalidation End-to-End
+- [ ] 37.* Write Integration Tests - Cache Invalidation End-to-End
   - Create `backend/src/__tests__/integration/cache-invalidation.test.ts`
   - Test cache behavior:
     - Make GET request (cache miss, populate cache)
@@ -362,7 +362,7 @@ This implementation plan breaks down the global subscription toggle feature into
     - Make GET request (cache miss, verify new state)
   - _Requirements: 7.5, 7.6, 10.1, 10.3_
 
-- [~] 38.* Write Integration Tests - Concurrent Request Handling
+- [ ] 38.* Write Integration Tests - Concurrent Request Handling
   - Create `backend/src/__tests__/integration/concurrent-requests.test.ts`
   - Test concurrent feature gate checks:
     - Simulate 1000+ concurrent requests
@@ -373,7 +373,7 @@ This implementation plan breaks down the global subscription toggle feature into
 
 ### Phase 8: Performance and Load Testing
 
-- [~] 39.* Write Performance Test - Cache Hit Latency
+- [ ] 39.* Write Performance Test - Cache Hit Latency
   - Create `backend/src/__tests__/performance/cache-hit-latency.test.ts`
   - Test that cached feature gate checks are <10ms at 1000 req/sec:
     - Warm up cache with initial read
@@ -383,7 +383,7 @@ This implementation plan breaks down the global subscription toggle feature into
     - Verify no database queries during test
   - _Requirements: 10.1, 10.3, 10.4_
 
-- [~] 40.* Write Performance Test - API Update Latency
+- [ ] 40.* Write Performance Test - API Update Latency
   - Create `backend/src/__tests__/performance/api-update-latency.test.ts`
   - Test that state updates complete within 500ms:
     - Make POST request to toggle state
@@ -393,7 +393,7 @@ This implementation plan breaks down the global subscription toggle feature into
     - Verify cache invalidation completed
   - _Requirements: 1.4, 10.2_
 
-- [~] 41.* Write Load Test - 1000 Requests Per Second
+- [ ] 41.* Write Load Test - 1000 Requests Per Second
   - Create `backend/src/__tests__/load/sustained-load.test.ts`
   - Test sustained load handling:
     - Generate 1000+ requests/sec to feature gate endpoint
@@ -405,7 +405,7 @@ This implementation plan breaks down the global subscription toggle feature into
 
 ### Phase 9: Checkpoint and Final Validation
 
-- [~] 42. Checkpoint - Ensure All Tests Pass
+- [ ] 42. Checkpoint - Ensure All Tests Pass
   - Run full test suite: `npm test` or `yarn test` (with watch mode disabled)
   - Verify all unit tests pass (20+ tests)
   - Verify all property-based tests pass (10+ properties)
@@ -416,7 +416,7 @@ This implementation plan breaks down the global subscription toggle feature into
 
 ### Phase 10: Documentation and Integration
 
-- [~] 43. Document New APIs
+- [ ] 43. Document New APIs
   - Update backend API documentation (if exists in project):
     - Document GET /admin/subscriptions/global-state endpoint
     - Document POST /admin/subscriptions/global-state endpoint
@@ -425,7 +425,7 @@ This implementation plan breaks down the global subscription toggle feature into
   - Note authentication requirement (adminMiddleware)
   - _Requirements: 1.2, 4.1, 4.2_
 
-- [~] 44. Create Migration Script for Existing Deployments
+- [ ] 44. Create Migration Script for Existing Deployments
   - Create `backend/src/scripts/migrate-system-settings.ts`
   - Script ensures SystemSettings collection exists and is properly initialized
   - Can be run on existing deployments without data loss
@@ -433,7 +433,7 @@ This implementation plan breaks down the global subscription toggle feature into
   - Logs migration results
   - _Requirements: 7.1, 7.2_
 
-- [~] 45. Update Deployment Checklist
+- [ ] 45. Update Deployment Checklist
   - Document deployment steps:
     - Ensure MongoDB indexes are created (systemSettings.settingKey unique)
     - Run migration script: `npm run migrate:system-settings`
@@ -442,7 +442,7 @@ This implementation plan breaks down the global subscription toggle feature into
     - Verify feature gate is blocking premium features appropriately
   - _Requirements: 1.5, 7.1_
 
-- [~] 46. Verify Backward Compatibility
+- [ ] 46. Verify Backward Compatibility
   - Test that existing subscription functionality still works:
     - User subscription CRUD operations unchanged
     - Existing subscription checks still work (non-global)

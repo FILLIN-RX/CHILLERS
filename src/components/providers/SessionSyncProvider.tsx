@@ -6,9 +6,10 @@ import { useAuthStore, type UserProfile } from "@/stores/useAuthStore";
 
 function SessionSyncInner({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
-  const { user, token, setAuth, logout } = useAuthStore();
 
   useEffect(() => {
+    const { user, token, setAuth, logout } = useAuthStore.getState();
+
     if (status === "authenticated" && session?.user) {
       const u = session.user as any;
       const backendToken = u.backendToken || token || "nextauth-session-active";
@@ -22,18 +23,18 @@ function SessionSyncInner({ children }: { children: React.ReactNode }) {
           role: u.role || "user",
           avatarUrl: u.avatarUrl || u.image,
           subscription: u.subscription || { plan: "free", status: "active" },
-          favorites: [],
-          continueWatching: [],
-          watchHistory: [],
-          watchLater: [],
-          playlists: [],
+          favorites: user?.favorites || [],
+          continueWatching: user?.continueWatching || [],
+          watchHistory: user?.watchHistory || [],
+          watchLater: user?.watchLater || [],
+          playlists: user?.playlists || [],
         };
         setAuth(backendToken, userProfile);
       }
     } else if (status === "unauthenticated" && token?.startsWith("nextauth-")) {
       logout();
     }
-  }, [session, status, user, token, setAuth, logout]);
+  }, [session, status]);
 
   return <>{children}</>;
 }
@@ -46,7 +47,12 @@ export default function SessionSyncProvider({
   session?: any;
 }) {
   return (
-    <SessionProvider session={session} basePath="/api/nextauth">
+    <SessionProvider
+      session={session}
+      basePath="/api/nextauth"
+      refetchOnWindowFocus={false}
+      refetchInterval={0}
+    >
       <SessionSyncInner>{children}</SessionSyncInner>
     </SessionProvider>
   );

@@ -5,6 +5,7 @@ import '../../models/live_match.dart';
 import '../../services/api_service.dart';
 import '../../widgets/app_video_player.dart';
 import '../../widgets/app_drawer.dart';
+import '../../services/notification_service.dart';
 import '../main_navigation.dart';
 
 class LiveMatchesScreen extends StatefulWidget {
@@ -463,20 +464,64 @@ class _LiveMatchesScreenState extends State<LiveMatchesScreen> {
                                               ),
                                             ],
                                           ),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                            decoration: BoxDecoration(
-                                              color: isLive ? Colors.redAccent : Colors.white10,
-                                              borderRadius: BorderRadius.circular(4),
-                                            ),
-                                            child: Text(
-                                              isLive ? 'DIRECT' : (m.minute ?? 'Bientôt'),
-                                              style: TextStyle(
-                                                color: isLive ? Colors.white : Colors.white70,
-                                                fontSize: 10,
-                                                fontWeight: FontWeight.bold,
+                                          Row(
+                                            children: [
+                                              // Bouton Rappel Coup d'envoi
+                                              IconButton(
+                                                icon: Icon(
+                                                  NotificationService().isReminderActive(m.id)
+                                                      ? Icons.notifications_active_rounded
+                                                      : Icons.notifications_none_rounded,
+                                                  color: NotificationService().isReminderActive(m.id)
+                                                      ? Colors.amber
+                                                      : Colors.white38,
+                                                  size: 18,
+                                                ),
+                                                tooltip: 'Rappel 15 min avant le coup d\'envoi',
+                                                padding: const EdgeInsets.symmetric(horizontal: 4),
+                                                constraints: const BoxConstraints(),
+                                                onPressed: () async {
+                                                  final active = await NotificationService().toggleMatchReminder(
+                                                    matchId: m.id,
+                                                    title: '${m.home} vs ${m.away}',
+                                                    teamHome: m.home,
+                                                    teamAway: m.away,
+                                                    league: m.league,
+                                                  );
+                                                  if (context.mounted) {
+                                                    setState(() {});
+                                                    ScaffoldMessenger.of(context).showSnackBar(
+                                                      SnackBar(
+                                                        backgroundColor: AppTheme.card,
+                                                        content: Text(
+                                                          active
+                                                              ? '🔔 Alerte programmée : 15 min avant ${m.home} vs ${m.away}'
+                                                              : 'Alerte désactivée pour ce match.',
+                                                          style: const TextStyle(color: Colors.white, fontSize: 12),
+                                                        ),
+                                                        duration: const Duration(seconds: 3),
+                                                      ),
+                                                    );
+                                                  }
+                                                },
                                               ),
-                                            ),
+                                              const SizedBox(width: 6),
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                                decoration: BoxDecoration(
+                                                  color: isLive ? Colors.redAccent : Colors.white10,
+                                                  borderRadius: BorderRadius.circular(4),
+                                                ),
+                                                child: Text(
+                                                  isLive ? 'DIRECT' : (m.minute ?? 'Bientôt'),
+                                                  style: TextStyle(
+                                                    color: isLive ? Colors.white : Colors.white70,
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ],
                                       ),

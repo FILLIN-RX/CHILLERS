@@ -13,8 +13,8 @@ interface NetworkState {
 export const useNetworkStore = create<NetworkState>((set) => ({
   isOnline: typeof navigator !== "undefined" ? navigator.onLine : true,
   isLowBandwidth: false,
-  setOnline: (isOnline) => set({ isOnline }),
-  setLowBandwidth: (isLowBandwidth) => set({ isLowBandwidth }),
+  setOnline: (isOnline) => set((state) => (state.isOnline === isOnline ? state : { isOnline })),
+  setLowBandwidth: (isLowBandwidth) => set((state) => (state.isLowBandwidth === isLowBandwidth ? state : { isLowBandwidth })),
 }));
 
 /**

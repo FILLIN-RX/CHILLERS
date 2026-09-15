@@ -2,13 +2,17 @@
 
 import React, { useState, useRef, useCallback } from "react";
 import Image from "next/image";
+import dynamic from "next/dynamic";
 import gsap from "gsap";
 import type { MovieOrShow } from "@/types/media";
 import { Play, Star, Info, FilmSlate, BookmarkSimple, ListNumbers } from '@phosphor-icons/react';
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { userService } from "@/services/user";
-import AddToPlaylistModal from "@/components/AddToPlaylistModal";
+
+const AddToPlaylistModal = dynamic(() => import("@/components/AddToPlaylistModal"), {
+  ssr: false,
+});
 
 interface MovieCardProps {
   item: MovieOrShow;
@@ -24,16 +28,25 @@ function MovieCard({
   variant = "scroll",
 }: MovieCardProps) {
   const { translate: _ } = useLanguage();
-  const { user, token, updateUser } = useAuthStore();
+  const isLoggedIn = useAuthStore((s) => Boolean(s.token));
+  const isFavorite = useAuthStore((s) =>
+    Boolean(
+      s.user?.favorites?.some(
+        (f) =>
+          f.tmdbId === String(item?.id) &&
+          f.mediaType === (item?.type === "series" ? "series" : item?.type === "anime" ? "anime" : "movie")
+      )
+    )
+  );
+
   const [imgError, setImgError] = useState(false);
   const [backdropFailed, setBackdropFailed] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
 
-  const isFavorite = user?.favorites?.some((f) => f.tmdbId === String(item?.id) && f.mediaType === (item.type === 'series' ? 'series' : item.type === 'anime' ? 'anime' : 'movie'));
-
   const toggleFavorite = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    const { token, user, updateUser } = useAuthStore.getState();
     if (!token || !user || !item) return;
     setFavoriteLoading(true);
     try {
@@ -299,7 +312,7 @@ function MovieCard({
               {item.isTrending ? "NOUVEAU" : item.type === "series" ? "SÉRIE" : item.type === "anime" ? "ANIME" : "FILM"}
             </span>
           </div>
-          {user && (
+          {isLoggedIn && (
             <div className="flex items-center gap-1">
               <button
                 onClick={(e) => {
@@ -504,7 +517,7 @@ function MovieCard({
               {item.title}
             </h3>
             <div ref={buttonsRef} className="flex items-center gap-1.5 shrink-0">
-              {user && (
+              {isLoggedIn && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 import 'config/theme.dart';
-import 'screens/main_navigation.dart';
+import 'screens/splash/splash_screen.dart';
 
 bool hasMediaKitSupport = false;
 
@@ -26,7 +26,7 @@ class ChillersApp extends StatelessWidget {
       title: 'CHILLERS',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme(),
-      home: MainNavigation(key: MainNavigation.navKey),
+      home: const SplashScreen(),
     );
   }
 }

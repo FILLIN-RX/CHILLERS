@@ -8,7 +8,7 @@ import {
   useCallback,
   type ReactNode,
 } from "react";
-import { type Language, defaultLanguage, t, translations } from "./index";
+import { type Language, defaultLanguage, t } from "./index";
 import { clearTmdbCache } from "@/services/media";
 
 interface LanguageContextType {

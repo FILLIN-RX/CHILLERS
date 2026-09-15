@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../config/theme.dart';
 import '../../models/media_item.dart';
+import '../../models/user_model.dart';
 import '../../services/api_service.dart';
 import '../../services/storage_service.dart';
 import '../../widgets/download_modal.dart';
@@ -22,6 +23,7 @@ class _DetailScreenState extends State<DetailScreen> {
   final StorageService _storage = StorageService();
 
   late MediaItem _currentMedia;
+  UserModel? _user;
 
   // Gestion des séries / saisons
   SeasonItem? _selectedSeason;
@@ -35,8 +37,16 @@ class _DetailScreenState extends State<DetailScreen> {
   void initState() {
     super.initState();
     _currentMedia = widget.item;
+    _loadUser();
     _checkFavoriteAndWatchlist();
     _loadFullDetails();
+  }
+
+  Future<void> _loadUser() async {
+    final user = await _storage.getUser();
+    if (mounted) {
+      setState(() => _user = user);
+    }
   }
 
   Future<void> _checkFavoriteAndWatchlist() async {
@@ -154,6 +164,7 @@ class _DetailScreenState extends State<DetailScreen> {
     DownloadModal.show(
       context: context,
       item: _currentMedia,
+      user: _user,
       episode: episode,
       seasonNumber: _selectedSeason?.seasonNumber ?? 1,
     );

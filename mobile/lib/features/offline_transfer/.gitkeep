@@ -1,0 +1,7 @@
+# This file ensures the directory structure is preserved in git
+# The offline_transfer feature module is organized as follows:
+#
+# - models/    : Data structures
+# - services/  : Business logic
+# - ui/        : User interface
+# - utils/     : Helper functions

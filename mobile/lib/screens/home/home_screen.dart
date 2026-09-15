@@ -4,15 +4,16 @@ import '../../config/theme.dart';
 import '../../models/media_item.dart';
 import '../../models/live_channel.dart';
 import '../../models/live_match.dart';
-import '../../models/user_model.dart';
 import '../../services/api_service.dart';
 import '../../services/storage_service.dart';
+import '../../services/pagination_service.dart';
 import '../../widgets/hero_carousel.dart';
-import '../../widgets/app_header.dart';
 import '../../widgets/app_drawer.dart';
+import '../../widgets/infinite_media_section.dart';
 import '../detail/detail_screen.dart';
 import '../watch/watch_screen.dart';
 import '../live/live_screen.dart';
+import '../search/optimized_search_screen.dart';
 import '../main_navigation.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -26,28 +27,27 @@ class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final ApiService _apiService = ApiService();
   final StorageService _storage = StorageService();
+  final PaginationService _paginationService = PaginationService();
 
-  UserModel? _user;
   List<MediaItem> _heroSlides = [];
-  List<MediaItem> _trending = [];
-  List<MediaItem> _upcoming = [];
-  List<MediaItem> _series = [];
-  List<MediaItem> _animes = [];
-  List<MediaItem> _african = [];
-  List<MediaItem> _actionMovies = [];
-  List<MediaItem> _comedyMovies = [];
-  List<MediaItem> _horrorMovies = [];
   List<Map<String, dynamic>> _continueWatching = [];
-
   List<LiveMatch> _liveMatches = [];
-  List<LiveChannel> _liveChannels = [];
 
   bool _isLoading = true;
+  late ScrollController _mainScrollController;
 
   @override
   void initState() {
     super.initState();
+    _mainScrollController = ScrollController();
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    _mainScrollController.dispose();
+    _paginationService.resetAll();
+    super.dispose();
   }
 
   Future<T?> _safeCall<T>(Future<T> Function() call) async {
@@ -61,71 +61,47 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
 
-    final cachedUser = await _storage.getUser();
-    final trendingRes = await _safeCall(() => _apiService.getTrendingMovies()) ?? [];
-    final upcomingRes = await _safeCall(() => _apiService.getUpcomingMovies()) ?? [];
-    final seriesRes = await _safeCall(() => _apiService.getPopularSeries()) ?? [];
-    final animesRes = await _safeCall(() => _apiService.getAnimeSeries()) ?? [];
-    final africanRes = await _safeCall(() => _apiService.getAfricanMovies()) ?? [];
-    final actionRes = await _safeCall(() => _apiService.getMoviesByGenre('28')) ?? [];
-    final comedyRes = await _safeCall(() => _apiService.getMoviesByGenre('35')) ?? [];
-    final horrorRes = await _safeCall(() => _apiService.getMoviesByGenre('27')) ?? [];
+    try {
+      final continueWatchingRes = await _storage.getContinueWatching();
 
-    final matchesRes = await _safeCall(() => _apiService.getLiveMatches()) ?? [];
-    final uefaMatchesRes = await _safeCall(() => _apiService.getChampionsLeagueMatches()) ?? [];
-    final channelsRes = await _safeCall(() => _apiService.getLiveChannels()) ?? [];
-    final continueWatchingRes = await _storage.getContinueWatching();
+      // Load Champions League matches only
+      final uefaMatchesRes = await _safeCall(() => _apiService.getChampionsLeagueMatches()) ?? [];
 
-    // Fusionner les matchs généraux et les matchs Champions League sans doublons
-    final allMatchesMap = <String, LiveMatch>{};
-    for (final m in [...matchesRes, ...uefaMatchesRes]) {
-      allMatchesMap[m.id] = m;
-    }
-    final combinedMatches = allMatchesMap.values.toList();
+      // Filter only Champions League matches
+      final filteredMatches = uefaMatchesRes.where((match) {
+        final league = match.league ?? '';
+        return league.toLowerCase().contains('champion') || league.toLowerCase().contains('uefa');
+      }).toList();
 
-    final rawHero = [
-      if (trendingRes.isNotEmpty) ...trendingRes.take(3),
-      if (seriesRes.isNotEmpty) ...seriesRes.take(2),
-      if (animesRes.isNotEmpty) ...animesRes.take(2),
-    ];
+      // Load initial trending data for hero slides
+      final trendingRes = await _paginationService.loadInitial(MediaSection.trending);
+      final heroSlides = trendingRes.take(7).toList();
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    setState(() {
-      _user = cachedUser;
-      _continueWatching = continueWatchingRes;
-      _trending = trendingRes;
-      _upcoming = upcomingRes;
-      _series = seriesRes;
-      _animes = animesRes;
-      _african = africanRes;
-      _actionMovies = actionRes;
-      _comedyMovies = comedyRes;
-      _horrorMovies = horrorRes;
-
-      _liveMatches = combinedMatches;
-      _liveChannels = channelsRes;
-      _heroSlides = rawHero;
-
-      _isLoading = false;
-    });
-
-    // Enrichir les vidéos de trailers en arrière-plan comme sur le Web
-    if (rawHero.isNotEmpty) {
-      _apiService.enrichHeroSlidesWithTrailers(rawHero).then((enriched) {
-        if (mounted && enriched.isNotEmpty) {
-          setState(() {
-            _heroSlides = enriched;
-          });
-        }
+      setState(() {
+        _continueWatching = continueWatchingRes;
+        _liveMatches = filteredMatches;
+        _heroSlides = heroSlides;
+        _isLoading = false;
       });
-    }
 
-    _safeCall(() => _apiService.getProfile()).then((freshUser) {
-      if (mounted && freshUser != null) {
-        setState(() => _user = freshUser);
+      // Enrich hero slides with trailers in background
+      if (heroSlides.isNotEmpty) {
+        _apiService.enrichHeroSlidesWithTrailers(heroSlides).then((enriched) {
+          if (mounted && enriched.isNotEmpty) {
+            setState(() {
+              _heroSlides = enriched;
+            });
+          }
+        });
       }
-    });
+    } catch (e) {
+      debugPrint('Error loading home data: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   void _onWatchMedia(MediaItem item) {
@@ -141,6 +117,15 @@ class _HomeScreenState extends State<HomeScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => DetailScreen(item: item)),
+    );
+  }
+
+  void _openSearch() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const OptimizedSearchScreen(),
+      ),
     );
   }
 
@@ -161,16 +146,17 @@ class _HomeScreenState extends State<HomeScreen> {
           ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
           : Stack(
               children: [
-                // Scrollable Content
+                // Main Scrollable Content with Infinite Scroll
                 RefreshIndicator(
                   color: AppTheme.primary,
                   onRefresh: _loadData,
                   child: SingleChildScrollView(
+                    controller: _mainScrollController,
                     physics: const AlwaysScrollableScrollPhysics(),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // HERO CAROUSEL (Blended with transparent navbar above)
+                        // HERO CAROUSEL
                         if (_heroSlides.isNotEmpty)
                           HeroCarousel(
                             slides: _heroSlides,
@@ -180,28 +166,77 @@ class _HomeScreenState extends State<HomeScreen> {
                         else
                           SizedBox(height: MediaQuery.of(context).padding.top + 70),
 
-                        // Reprendre la lecture
+                        // Continue Watching
                         if (_continueWatching.isNotEmpty)
                           _buildContinueWatchingSection(),
 
-                        // Matchs en Direct (avec logos des clubs et score)
+                        // Champions League Matches (if available)
                         if (_liveMatches.isNotEmpty)
                           _buildLiveMatchesRow(_liveMatches),
 
-                        // Sections Vidéos
-                        _buildMediaSection('Tendance actuellement', _trending),
-                        _buildMediaSection('Nouveautés & Sorties', _upcoming),
+                        // Infinite Scroll Sections
+                        InfiniteMediaSection(
+                          section: MediaSection.trending,
+                          title: 'Tendance actuellement',
+                          onItemTap: _onWatchMedia,
+                          onDetailsTab: _onOpenMediaDetails,
+                        ),
+                        const SizedBox(height: 12),
 
-                        // Chaînes TV
-                        if (_liveChannels.isNotEmpty)
-                          _buildLiveChannelsRow(_liveChannels),
+                        InfiniteMediaSection(
+                          section: MediaSection.upcoming,
+                          title: 'Nouveautés & Sorties',
+                          onItemTap: _onWatchMedia,
+                          onDetailsTab: _onOpenMediaDetails,
+                        ),
+                        const SizedBox(height: 12),
 
-                        _buildMediaSection('Séries TV Populaires', _series),
-                        _buildMediaSection('Animes & Mangas', _animes),
-                        _buildMediaSection('Cinéma & Séries Africains', _african),
-                        _buildMediaSection('Films d\'Action & Aventure', _actionMovies),
-                        _buildMediaSection('Films de Comédie', _comedyMovies),
-                        _buildMediaSection('Films d\'Horreur & Thriller', _horrorMovies),
+                        InfiniteMediaSection(
+                          section: MediaSection.series,
+                          title: 'Séries TV Populaires',
+                          onItemTap: _onWatchMedia,
+                          onDetailsTab: _onOpenMediaDetails,
+                        ),
+                        const SizedBox(height: 12),
+
+                        InfiniteMediaSection(
+                          section: MediaSection.animes,
+                          title: 'Animes & Mangas',
+                          onItemTap: _onWatchMedia,
+                          onDetailsTab: _onOpenMediaDetails,
+                        ),
+                        const SizedBox(height: 12),
+
+                        InfiniteMediaSection(
+                          section: MediaSection.african,
+                          title: 'Cinéma & Séries Africains',
+                          onItemTap: _onWatchMedia,
+                          onDetailsTab: _onOpenMediaDetails,
+                        ),
+                        const SizedBox(height: 12),
+
+                        InfiniteMediaSection(
+                          section: MediaSection.actionMovies,
+                          title: 'Films d\'Action & Aventure',
+                          onItemTap: _onWatchMedia,
+                          onDetailsTab: _onOpenMediaDetails,
+                        ),
+                        const SizedBox(height: 12),
+
+                        InfiniteMediaSection(
+                          section: MediaSection.comedyMovies,
+                          title: 'Films de Comédie',
+                          onItemTap: _onWatchMedia,
+                          onDetailsTab: _onOpenMediaDetails,
+                        ),
+                        const SizedBox(height: 12),
+
+                        InfiniteMediaSection(
+                          section: MediaSection.horrorMovies,
+                          title: 'Films d\'Horreur & Thriller',
+                          onItemTap: _onWatchMedia,
+                          onDetailsTab: _onOpenMediaDetails,
+                        ),
 
                         const SizedBox(height: 50),
                       ],
@@ -209,15 +244,78 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
 
-                // Floating Blended AppHeader
+                // Floating Header with Search Button
                 Positioned(
                   top: 0,
                   left: 0,
                   right: 0,
-                  child: AppHeader(
-                    scaffoldKey: _scaffoldKey,
-                    user: _user,
-                    onLogoTap: _loadData,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withValues(alpha: 0.6),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                    padding: EdgeInsets.fromLTRB(
+                      16,
+                      MediaQuery.of(context).padding.top + 8,
+                      16,
+                      16,
+                    ),
+                    child: Row(
+                      children: [
+                        // Menu Button
+                        GestureDetector(
+                          onTap: () => _scaffoldKey.currentState?.openDrawer(),
+                          child: const Icon(
+                            Icons.menu_rounded,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ),
+                        const Spacer(),
+
+                        // Search Button
+                        GestureDetector(
+                          onTap: _openSearch,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.1),
+                              ),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.search_rounded,
+                                  color: AppTheme.primary,
+                                  size: 18,
+                                ),
+                                SizedBox(width: 6),
+                                Text(
+                                  'Rechercher',
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -284,7 +382,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Header : Ligue + Badge Direct
+                      // Header : League + Live Badge
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -325,7 +423,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ],
                       ),
 
-                      // Teams Row with Logo Images
+                      // Teams with logos
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
@@ -347,7 +445,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
 
-                          // Score or VS
+                          // Score
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 8),
                             child: Text(
@@ -506,82 +604,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w500),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMediaSection(String title, List<MediaItem> items) {
-    if (items.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
-          child: Text(
-            title,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-        ),
-        SizedBox(
-          height: 220,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            itemCount: items.length,
-            itemBuilder: (context, index) {
-              final item = items[index];
-              return GestureDetector(
-                onTap: () => _onOpenMediaDetails(item),
-                child: Container(
-                  width: 130,
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: item.poster != null && item.poster!.isNotEmpty
-                            ? CachedNetworkImage(
-                                imageUrl: item.poster!,
-                                height: 175,
-                                width: 130,
-                                fit: BoxFit.cover,
-                                placeholder: (context, url) => Container(color: AppTheme.card),
-                                errorWidget: (context, url, error) => Container(
-                                  color: AppTheme.card,
-                                  child: const Icon(Icons.movie, color: Colors.white30),
-                                ),
-                              )
-                            : Container(
-                                height: 175,
-                                width: 130,
-                                color: AppTheme.card,
-                                child: const Icon(Icons.movie, color: Colors.white30),
-                              ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        item.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
                       ),
                     ],
                   ),

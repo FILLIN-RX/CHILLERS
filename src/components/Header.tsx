@@ -49,12 +49,16 @@ export default function Header({ onSearchClick }: HeaderProps) {
   const headerRef = useRef<HTMLElement>(null);
   const lastScrollY = useRef(0);
 
-  const { user, logout } = useAuthStore();
-  const tasks = useDownloadsStore((s) => s.tasks);
-  const activeDownloadsCount = tasks.filter(
-    (t) => t.status === "downloading" || t.status === "resolving" || t.status === "queued"
-  ).length;
-  const doneDownloadsCount = tasks.filter((t) => t.status === "done").length;
+  const user = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
+  const activeDownloadsCount = useDownloadsStore((s) =>
+    s.tasks.filter(
+      (t) => t.status === "downloading" || t.status === "resolving" || t.status === "queued"
+    ).length
+  );
+  const doneDownloadsCount = useDownloadsStore((s) =>
+    s.tasks.filter((t) => t.status === "done").length
+  );
 
   useEffect(() => {
     const handleScroll = () => {

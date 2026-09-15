@@ -1,60 +1,59 @@
-"use client";
+import { useEffect, useRef, useCallback } from 'react';
 
-import { useEffect, useRef, useCallback } from "react";
-
-interface UseInfiniteScrollOptions {
-  /** Callback déclenché quand le bas de page / sentinelle est atteint */
+interface UseInfiniteScrollProps {
   onLoadMore: () => void;
-  /** Indique s'il reste des pages à charger */
   hasMore: boolean;
-  /** Indique si un chargement est déjà en cours */
-  isLoading: boolean;
-  /** Distance avant la fin (rootMargin) pour pré-charger de façon invisible */
+  isLoading?: boolean;
   rootMargin?: string;
-  /** Seuil de visibilité (0 à 1) */
-  threshold?: number;
 }
 
 /**
- * Hook d'Infinite Scroll inspiré de l'architecture YouTube.
- * Détecte l'approche de la fin de liste via IntersectionObserver sans saccade.
+ * Hook for infinite scroll that uses Intersection Observer
+ * Efficient: only observes one sentinel element, no scroll listener
  */
 export function useInfiniteScroll({
   onLoadMore,
   hasMore,
-  isLoading,
-  rootMargin = "400px",
-  threshold = 0,
-}: UseInfiniteScrollOptions) {
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  isLoading = false,
+  rootMargin = '500px',
+}: UseInfiniteScrollProps) {
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const isLoadingRef = useRef(false);
 
-  const handleObserver = useCallback(
+  const handleIntersection = useCallback(
     (entries: IntersectionObserverEntry[]) => {
-      const [target] = entries;
-      if (target.isIntersecting && hasMore && !isLoading) {
+      const [entry] = entries;
+
+      // Only trigger if: visible, has more content, not currently loading
+      if (entry.isIntersecting && hasMore && !isLoadingRef.current) {
+        isLoadingRef.current = true;
         onLoadMore();
       }
     },
-    [onLoadMore, hasMore, isLoading]
+    [hasMore, onLoadMore]
   );
 
   useEffect(() => {
-    const element = sentinelRef.current;
-    if (!element) return;
+    isLoadingRef.current = isLoading;
+  }, [isLoading]);
 
-    const observer = new IntersectionObserver(handleObserver, {
-      root: null,
+  useEffect(() => {
+    const observer = new IntersectionObserver(handleIntersection, {
       rootMargin,
-      threshold,
     });
 
-    observer.observe(element);
+    const sentinel = sentinelRef.current;
+    if (sentinel) {
+      observer.observe(sentinel);
+    }
 
     return () => {
-      if (element) observer.unobserve(element);
+      if (sentinel) {
+        observer.unobserve(sentinel);
+      }
       observer.disconnect();
     };
-  }, [handleObserver, rootMargin, threshold]);
+  }, [handleIntersection, rootMargin]);
 
   return { sentinelRef };
 }

@@ -9,6 +9,8 @@ import '../history/history_screen.dart';
 import '../favorites/favorites_screen.dart';
 import '../playlists/playlists_screen.dart';
 import '../../widgets/upgrade_modal.dart';
+import '../../services/biometric_service.dart';
+import '../../services/notification_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -65,7 +67,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Déconnexion', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         content: const Text(
-          'Êtes-vous sûr de vouloir vous déconnecter ? Vous repasserez en mode visiteur.',
+          'Êtes-vous sûr de vouloir vous déconnecter ?',
           style: TextStyle(color: Colors.white70),
         ),
         actions: [
@@ -79,7 +81,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               foregroundColor: Colors.white,
             ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Se déconnecter'),
+            child: const Text('Déconnexion'),
           ),
         ],
       ),
@@ -89,9 +91,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await _storage.clearAuth();
       if (mounted) {
         setState(() => _currentUser = null);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Déconnecté avec succès. Mode visiteur actif.')),
-        );
       }
     }
   }
@@ -103,385 +102,520 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return Scaffold(
       backgroundColor: AppTheme.background,
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF0C0C0E),
-        elevation: 0,
-        title: const Text(
-          'Mon Compte',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 18),
-        ),
-        actions: [
-          if (!isGuest)
-            IconButton(
-              icon: const Icon(Icons.logout_rounded, color: Colors.redAccent),
-              tooltip: 'Se déconnecter',
-              onPressed: _logout,
-            ),
-        ],
-      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
           : RefreshIndicator(
               color: AppTheme.primary,
               onRefresh: _loadData,
-              child: SingleChildScrollView(
+              child: CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  children: [
-                    // EN-TÊTE PROFIL / MODE VISITEUR
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: AppTheme.card,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: isVip
-                              ? Colors.amber.withValues(alpha: 0.4)
-                              : Colors.white.withValues(alpha: 0.08),
-                        ),
-                      ),
-                      child: Column(
-                        children: [
-                          Stack(
-                            alignment: Alignment.bottomRight,
-                            children: [
-                              CircleAvatar(
-                                radius: 40,
-                                backgroundColor: isVip
-                                    ? Colors.amber.withValues(alpha: 0.2)
-                                    : AppTheme.primary.withValues(alpha: 0.15),
-                                child: Text(
-                                  isGuest
-                                      ? '?'
-                                      : (_currentUser!.username?.isNotEmpty == true
-                                              ? _currentUser!.username![0]
-                                              : _currentUser!.email[0])
-                                          .toUpperCase(),
-                                  style: TextStyle(
-                                    fontSize: 32,
-                                    fontWeight: FontWeight.bold,
-                                    color: isVip ? Colors.amber : (isGuest ? Colors.white70 : AppTheme.primary),
-                                  ),
-                                ),
-                              ),
-                              if (isVip)
-                                Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: const BoxDecoration(
-                                    color: Colors.amber,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(Icons.workspace_premium_rounded, color: Colors.black, size: 16),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: 14),
-                          Text(
-                            isGuest ? 'Mode Visiteur' : (_currentUser!.username ?? _currentUser!.email.split('@')[0]),
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            isGuest
-                                ? 'Non connecté (accès aux fonctionnalités de base)'
-                                : _currentUser!.email,
-                            style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
-                            textAlign: TextAlign.center,
-                          ),
-
-                          // Badges Statut
-                          const SizedBox(height: 12),
-                          if (isGuest)
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.08),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: const Text(
-                                'INVITÉ',
-                                style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold),
-                              ),
-                            )
-                          else if (isVip)
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.amber,
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: const Text(
-                                'MEMBRE VIP',
-                                style: TextStyle(color: Colors.black, fontSize: 11, fontWeight: FontWeight.w900),
-                              ),
-                            )
-                          else
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.blueGrey.withValues(alpha: 0.3),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: const Text(
-                                'COMPTE STANDARD',
-                                style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // CARTE APPEL À L'ACTION : Si mode invité
-                    if (isGuest) ...[
-                      Container(
-                        padding: const EdgeInsets.all(18),
+                slivers: [
+                  // YouTube-style Profile Header
+                  SliverAppBar(
+                    expandedHeight: 260,
+                    floating: false,
+                    pinned: true,
+                    backgroundColor: AppTheme.background,
+                    elevation: 0,
+                    flexibleSpace: FlexibleSpaceBar(
+                      background: Container(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
                             colors: [
-                              AppTheme.primary.withValues(alpha: 0.2),
-                              Colors.transparent,
+                              isVip
+                                  ? Colors.amber.withValues(alpha: 0.15)
+                                  : AppTheme.primary.withValues(alpha: 0.08),
+                              AppTheme.background,
                             ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
                           ),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppTheme.primary.withValues(alpha: 0.3)),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Row(
+                        child: SafeArea(
+                          child: SingleChildScrollView(
+                            physics: const NeverScrollableScrollPhysics(),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.stars_rounded, color: AppTheme.primary, size: 24),
-                                SizedBox(width: 8),
-                                Text(
-                                  'Passez à la vitesse supérieure',
-                                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                                const SizedBox(height: 20),
+                                // Avatar
+                                CircleAvatar(
+                                  radius: 45,
+                                  backgroundColor: isVip
+                                      ? Colors.amber.withValues(alpha: 0.3)
+                                      : AppTheme.primary.withValues(alpha: 0.2),
+                                  child: Text(
+                                    isGuest
+                                        ? '?'
+                                        : (_currentUser!.username?.isNotEmpty == true
+                                                ? _currentUser!.username![0]
+                                                : _currentUser!.email[0])
+                                            .toUpperCase(),
+                                    style: TextStyle(
+                                      fontSize: 40,
+                                      fontWeight: FontWeight.bold,
+                                      color: isVip ? Colors.amber : (isGuest ? Colors.white70 : AppTheme.primary),
+                                    ),
+                                  ),
                                 ),
+                                const SizedBox(height: 12),
+                                // Username
+                                Text(
+                                  isGuest ? 'Mode Visiteur' : (_currentUser!.username ?? _currentUser!.email.split('@')[0]),
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                if (!isGuest) ...[
+                                  const SizedBox(height: 2),
+                                  // Email
+                                  Text(
+                                    _currentUser!.email,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppTheme.textSecondary,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                                const SizedBox(height: 10),
+                                // Status Badge
+                                if (isVip)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.amber,
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: const [
+                                        Icon(Icons.workspace_premium_rounded, color: Colors.black, size: 12),
+                                        SizedBox(width: 4),
+                                        Text(
+                                          'MEMBRE VIP',
+                                          style: TextStyle(
+                                            color: Colors.black,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w900,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                               ],
                             ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'Créez un compte gratuit pour synchroniser vos favoris, reprendre la lecture sur tous vos écrans et profiter des offres CHILLERS VIP.',
-                              style: TextStyle(color: Colors.white70, fontSize: 12, height: 1.4),
-                            ),
-                            const SizedBox(height: 16),
+                          ),
+                        ),
+                      ),
+                    ),
+                    actions: [
+                      if (!isGuest)
+                        IconButton(
+                          icon: const Icon(Icons.logout_rounded, color: Colors.redAccent, size: 20),
+                          tooltip: 'Déconnexion',
+                          onPressed: _logout,
+                        )
+                      else
+                        const SizedBox(width: 16),
+                    ],
+                  ),
+
+                  // Content
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Auth Buttons (Guest Mode)
+                          if (isGuest) ...[
                             Row(
                               children: [
                                 Expanded(
-                                  child: ElevatedButton(
+                                  child: ElevatedButton.icon(
+                                    icon: const Icon(Icons.login_rounded),
+                                    label: const Text('Connexion'),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: AppTheme.primary,
                                       foregroundColor: Colors.white,
                                       padding: const EdgeInsets.symmetric(vertical: 12),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
                                     ),
                                     onPressed: () => _openAuth(isRegister: false),
-                                    child: const Text('Connexion', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                                   ),
                                 ),
-                                const SizedBox(width: 10),
+                                const SizedBox(width: 12),
                                 Expanded(
-                                  child: OutlinedButton(
+                                  child: OutlinedButton.icon(
+                                    icon: const Icon(Icons.person_add_rounded),
+                                    label: const Text('S\'inscrire'),
                                     style: OutlinedButton.styleFrom(
                                       foregroundColor: Colors.white,
                                       side: const BorderSide(color: Colors.white30),
                                       padding: const EdgeInsets.symmetric(vertical: 12),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
                                     ),
                                     onPressed: () => _openAuth(isRegister: true),
-                                    child: const Text('S\'inscrire', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                                   ),
                                 ),
                               ],
                             ),
+                            const SizedBox(height: 24),
                           ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
 
-                    // CARTE ABONNEMENT VIP
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.amber.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(Icons.workspace_premium_rounded, color: Colors.amber, size: 22),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    'CHILLERS VIP',
-                                    style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 15),
-                                  ),
-                                ],
+                          // Main Menu Items
+                          _buildMenuSection(
+                            items: [
+                              _MenuItem(
+                                icon: Icons.history_rounded,
+                                title: 'Lectures Récentes',
+                                subtitle: 'Votre historique de visionnage',
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const HistoryScreen()),
+                                ),
                               ),
-                              Text('Streaming 4K / HD', style: TextStyle(color: Colors.amberAccent, fontSize: 11)),
+                              _MenuItem(
+                                icon: Icons.favorite_rounded,
+                                title: 'Favoris & À regarder plus tard',
+                                subtitle: 'Vos titres enregistrés',
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const FavoritesScreen()),
+                                ),
+                              ),
+                              _MenuItem(
+                                icon: Icons.playlist_play_rounded,
+                                title: 'Mes Playlists',
+                                subtitle: 'Collections personnalisées',
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const PlaylistsScreen()),
+                                ),
+                              ),
                             ],
                           ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            '• Zéro publicité et temps d\'attente supprimé\n• Téléchargements haute vitesse illimités\n• Accès prioritaire à toutes les nouveautés & IPTV en direct',
-                            style: TextStyle(color: Colors.white70, fontSize: 12, height: 1.5),
+
+                          const SizedBox(height: 24),
+
+                          // Premium Section
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.amber.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: Colors.amber.withValues(alpha: 0.3),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Row(
+                                  children: [
+                                    Icon(Icons.workspace_premium_rounded, color: Colors.amber, size: 24),
+                                    SizedBox(width: 10),
+                                    Text(
+                                      'CHILLERS VIP',
+                                      style: TextStyle(
+                                        color: Colors.amber,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                const Text(
+                                  '• Streaming HD/4K illimité\n• Sans publicités\n• Téléchargements rapides\n• Accès exclusif aux nouveautés',
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 13,
+                                    height: 1.6,
+                                  ),
+                                ),
+                                const SizedBox(height: 14),
+                                if (_plans.isNotEmpty)
+                                  SizedBox(
+                                    height: 100,
+                                    child: ListView.builder(
+                                      scrollDirection: Axis.horizontal,
+                                      itemCount: _plans.length,
+                                      itemBuilder: (context, index) {
+                                        final plan = _plans[index];
+                                        return Container(
+                                          width: 130,
+                                          margin: const EdgeInsets.only(right: 8),
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: AppTheme.card,
+                                            borderRadius: BorderRadius.circular(10),
+                                            border: Border.all(
+                                              color: Colors.amber.withValues(alpha: 0.4),
+                                            ),
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Text(
+                                                plan.name,
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 13,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              Text(
+                                                '${plan.price} ${plan.currency}',
+                                                style: const TextStyle(
+                                                  color: Colors.amber,
+                                                  fontWeight: FontWeight.w900,
+                                                  fontSize: 15,
+                                                ),
+                                              ),
+                                              Text(
+                                                '${plan.durationDays}j',
+                                                style: const TextStyle(
+                                                  color: AppTheme.textSecondary,
+                                                  fontSize: 11,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                const SizedBox(height: 12),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.amber,
+                                      foregroundColor: Colors.black,
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    onPressed: () => UpgradeModal.show(context),
+                                    child: const Text(
+                                      'Découvrir les offres',
+                                      style: TextStyle(fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                          if (_plans.isNotEmpty) ...[
-                            const SizedBox(height: 14),
-                            SizedBox(
-                              height: 90,
-                              child: ListView.builder(
-                                scrollDirection: Axis.horizontal,
-                                itemCount: _plans.length,
-                                itemBuilder: (context, index) {
-                                  final plan = _plans[index];
-                                  return Container(
-                                    width: 140,
-                                    margin: const EdgeInsets.only(right: 10),
-                                    padding: const EdgeInsets.all(10),
-                                    decoration: BoxDecoration(
-                                      color: AppTheme.card,
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(
-                                          plan.name,
-                                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-                                          maxLines: 1,
+
+                          const SizedBox(height: 24),
+
+                          // Settings Section
+                          _buildMenuSection(
+                            title: 'PARAMÈTRES',
+                            items: [
+                              if (BiometricService().isAvailable)
+                                _MenuItem(
+                                  icon: Icons.fingerprint_rounded,
+                                  title: 'Sécurité Biométrique',
+                                  subtitle: 'Verrou ${BiometricService().biometricName}',
+                                  onTap: () async {
+                                    final newValue = !BiometricService().isEnabled;
+                                    final success = await BiometricService().setBiometricEnabled(newValue);
+                                    if (mounted && !success && newValue) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Validation biométrique échouée'),
                                         ),
-                                        Text(
-                                          '${plan.price} ${plan.currency}',
-                                          style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.w900, fontSize: 14),
-                                        ),
-                                        Text(
-                                          '${plan.durationDays} jours',
-                                          style: const TextStyle(color: AppTheme.textSecondary, fontSize: 10),
-                                        ),
-                                      ],
-                                    ),
+                                      );
+                                    } else if (mounted) {
+                                      setState(() {});
+                                    }
+                                  },
+                                ),
+                              _MenuItem(
+                                icon: Icons.notifications_rounded,
+                                title: 'Notifications',
+                                subtitle: 'Gérer les alertes',
+                                onTap: _showNotificationSettingsModal,
+                              ),
+                              _MenuItem(
+                                icon: Icons.info_rounded,
+                                title: 'À propos',
+                                subtitle: 'Version 1.0.0',
+                                onTap: () {
+                                  showAboutDialog(
+                                    context: context,
+                                    applicationName: 'CHILLERS',
+                                    applicationVersion: '1.0.0',
+                                    applicationLegalese: '© 2025 CHILLERS Streaming',
                                   );
                                 },
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
+
+                          const SizedBox(height: 32),
                         ],
                       ),
                     ),
-
-                    const SizedBox(height: 16),
-
-                    // LISTE DES OPTIONS / PARAMÈTRES
-                    _buildOptionTile(
-                      icon: Icons.history_rounded,
-                      title: 'Lectures Récentes',
-                      subtitle: 'Historique et reprise de visionnage',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const HistoryScreen()),
-                        );
-                      },
-                    ),
-                    _buildOptionTile(
-                      icon: Icons.favorite_rounded,
-                      title: 'Mes Favoris & Ma Liste',
-                      subtitle: 'Vos coups de cœur et titres à voir plus tard',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const FavoritesScreen()),
-                        );
-                      },
-                    ),
-                    _buildOptionTile(
-                      icon: Icons.queue_music_rounded,
-                      title: 'Mes Playlists Personnalisées',
-                      subtitle: 'Collections thématiques et sélections',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const PlaylistsScreen()),
-                        );
-                      },
-                    ),
-                    _buildOptionTile(
-                      icon: Icons.workspace_premium_rounded,
-                      title: 'CHILLERS VIP (Mobile Money)',
-                      subtitle: 'Pass 24h, VIP Mensuel et Annuel sans pub',
-                      onTap: () => UpgradeModal.show(context),
-                    ),
-                    _buildOptionTile(
-                      icon: Icons.notifications_none_rounded,
-                      title: 'Notifications & Alertes',
-                      subtitle: 'Nouveautés et sorties',
-                      onTap: () {},
-                    ),
-                    _buildOptionTile(
-                      icon: Icons.info_outline_rounded,
-                      title: 'À propos de CHILLERS',
-                      subtitle: 'Version 1.0.0 (Mobile)',
-                      onTap: () {
-                        showAboutDialog(
-                          context: context,
-                          applicationName: 'CHILLERS',
-                          applicationVersion: '1.0.0',
-                          applicationLegalese: '© 2025-2026 CHILLERS Streaming',
-                        );
-                      },
-                    ),
-
-                    const SizedBox(height: 32),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
     );
   }
 
-  Widget _buildOptionTile({
-    required IconData icon,
-    required String title,
-    String? subtitle,
-    required VoidCallback onTap,
+  Widget _buildMenuSection({
+    String? title,
+    required List<_MenuItem> items,
   }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Material(
-        color: AppTheme.card,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
-        ),
-        child: ListTile(
-          leading: Icon(icon, color: AppTheme.primary, size: 22),
-          title: Text(title, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
-          subtitle: subtitle != null
-              ? Text(subtitle, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11))
-              : null,
-          trailing: const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white38, size: 14),
-          onTap: onTap,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (title != null) ...[
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 12),
+            child: Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white54,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+        ],
+        ...items.asMap().entries.map((e) {
+          final isLast = e.key == items.length - 1;
+          return Padding(
+            padding: EdgeInsets.only(bottom: isLast ? 0 : 8),
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppTheme.card,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: ListTile(
+                leading: Icon(e.value.icon, color: AppTheme.primary, size: 24),
+                title: Text(
+                  e.value.title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                subtitle: Text(
+                  e.value.subtitle,
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12,
+                  ),
+                ),
+                trailing: const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  color: Colors.white30,
+                  size: 14,
+                ),
+                onTap: e.value.onTap,
+              ),
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  void _showNotificationSettingsModal() {
+    final notif = NotificationService();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) => Container(
+          padding: const EdgeInsets.all(20),
+          decoration: const BoxDecoration(
+            color: AppTheme.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Row(
+                  children: [
+                    Icon(Icons.notifications_active_rounded, color: AppTheme.primary, size: 24),
+                    SizedBox(width: 10),
+                    Text(
+                      'Notifications',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                SwitchListTile(
+                  secondary: const Icon(Icons.movie_rounded, color: AppTheme.primary, size: 22),
+                  title: const Text(
+                    'Nouveaux contenus',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+                  ),
+                  activeThumbColor: AppTheme.primary,
+                  activeTrackColor: AppTheme.primary.withValues(alpha: 0.5),
+                  value: notif.releaseAlertsEnabled,
+                  onChanged: (val) async {
+                    await notif.setReleaseAlertsEnabled(val);
+                    setModalState(() {});
+                  },
+                ),
+                const SizedBox(height: 12),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
+}
+
+class _MenuItem {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  _MenuItem({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
 }

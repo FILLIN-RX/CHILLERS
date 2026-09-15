@@ -4,6 +4,8 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { errorMiddleware } from './middleware/error.middleware';
 import { antiBotMiddleware } from './middleware/antibot.middleware';
+import { verifyCsrfToken, generateCsrfToken } from './middleware/csrf.middleware';
+import { apiRateLimiter, loginRateLimiter, streamingRateLimiter } from './middleware/rate-limit.middleware';
 import { clearCache } from './config/tmdb';
 import moviesRoutes from './modules/movies/movies.routes';
 import tvRoutes from './modules/tv/tv.routes';
@@ -74,6 +76,18 @@ app.post('/api/clear-cache', (_req, res) => {
   clearCache();
   res.json({ success: true, data: null, message: 'TMDB cache cleared' });
 });
+
+// Security middleware
+// Rate limiting for API endpoints
+app.use('/api', apiRateLimiter);
+
+// CSRF token generation on first request
+app.get('/api/csrf-token', generateCsrfToken);
+
+// CSRF verification on state-changing requests
+app.use('/api/admin', verifyCsrfToken);
+app.use('/api/user', verifyCsrfToken);
+app.use('/api/auth/logout', verifyCsrfToken);
 
 // Protection anti-bot & anti-scraping sur les routes publiques et médias
 app.use('/api', antiBotMiddleware);

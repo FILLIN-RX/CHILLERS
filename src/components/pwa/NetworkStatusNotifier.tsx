@@ -26,7 +26,7 @@ export default function NetworkStatusNotifier() {
 
     const checkRealConnectivity = async () => {
       if (!navigator.onLine) {
-        setIsOnline(false);
+        setIsOnline((prev) => (prev ? false : prev));
         setStoreOnline(false);
         return;
       }
@@ -40,10 +40,10 @@ export default function NetworkStatusNotifier() {
         });
         clearTimeout(timeoutId);
         const online = res.ok || res.status < 500;
-        setIsOnline(online);
+        setIsOnline((prev) => (prev !== online ? online : prev));
         setStoreOnline(online);
       } catch {
-        setIsOnline(false);
+        setIsOnline((prev) => (prev ? false : prev));
         setStoreOnline(false);
       }
     };

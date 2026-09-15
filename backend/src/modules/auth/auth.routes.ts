@@ -1,14 +1,15 @@
 import { Router } from 'express';
 import * as authController from './auth.controller';
 import { requireAuth } from '../../middleware/auth.middleware';
+import { loginRateLimiter } from '../../middleware/rate-limit.middleware';
 import * as subController from '../admin/subscription.controller';
 import { proofUpload, publicProofUrl } from '../admin/media.upload';
 
 const router = Router();
 
-router.post('/register', authController.register);
-router.post('/login', authController.login);
-router.post('/google', authController.googleLogin);
+router.post('/register', loginRateLimiter, authController.register);
+router.post('/login', loginRateLimiter, authController.login);
+router.post('/google', loginRateLimiter, authController.googleLogin);
 router.get('/me', requireAuth, authController.getProfile);
 router.get('/session', authController.getSession);
 router.post('/revoke-session', requireAuth, authController.revokeSession);

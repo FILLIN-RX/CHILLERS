@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo, Suspense } from "react";
+import React, { useState, useEffect, useCallback, useMemo, Suspense, startTransition } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import HeroCarousel from "@/components/HeroCarousel";
@@ -134,7 +134,7 @@ function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
-  const { user } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
   const [continueWatching, setContinueWatching] = useState<
     { item: MovieOrShow; progress: number; remaining: string; episodeName?: string; season?: number; episode?: number }[]
   >([]);
@@ -715,35 +715,39 @@ function Home() {
     return () => controller.abort();
   }, [activeTab, moviesData.length, seriesData.length, animeData.length]);
 
-  const handleOpenDetails = (item: MovieOrShow) => {
-    // Mobile: navigate directly instead of opening modal
-    // Use window.innerWidth safely - this is in a click handler, so it's safe for client-only logic
-    if (window.innerWidth < 768) {
-      if (item.type === "series" || item.type === "anime") {
-        router.push(`/tv/${item.id}`);
-      } else {
-        router.push(`/media/${item.id}`);
+  const handleOpenDetails = useCallback((item: MovieOrShow) => {
+    startTransition(() => {
+      if (typeof window !== "undefined" && window.innerWidth < 768) {
+        if (item.type === "series" || item.type === "anime") {
+          router.push(`/tv/${item.id}`);
+        } else {
+          router.push(`/media/${item.id}`);
+        }
+        return;
       }
-      return;
-    }
-    // Desktop : ouvre la modale immédiatement avec les données partielles du card.
-    // Les détails complets (cast, saisons, trailer, synopsis long) sont récupérés
-    // par MovieModal dans son propre useEffect — plus d'attente synchrone.
-    setSelectedMovie(item);
-    setIsModalOpen(true);
-  };
+      setSelectedMovie(item);
+      setIsModalOpen(true);
+    });
+  }, [router]);
 
   // Infinite Scroll fluide YouTube-style : charge progressivement plus de rangées
   const [visibleRowsCount, setVisibleRowsCount] = useState(6);
+  const [rowsLoadingState, setRowsLoadingState] = useState<'idle' | 'loading'>('idle');
+  
   const handleLoadMoreRows = useCallback(() => {
-    setVisibleRowsCount((prev) => Math.min(prev + 4, homeRows.length));
+    setRowsLoadingState('loading');
+    // Simulate lazy loading with a small delay
+    setTimeout(() => {
+      setVisibleRowsCount((prev) => Math.min(prev + 4, homeRows.length));
+      setRowsLoadingState('idle');
+    }, 100);
   }, [homeRows.length]);
 
   const { sentinelRef } = useInfiniteScroll({
     onLoadMore: handleLoadMoreRows,
     hasMore: visibleRowsCount < homeRows.length,
-    isLoading: false,
-    rootMargin: "500px",
+    isLoading: rowsLoadingState === 'loading',
+    rootMargin: "800px",
   });
 
   // Infinite scroll for tab grids (movies/series/anime)
@@ -810,15 +814,17 @@ function Home() {
     rootMargin: "600px",
   });
 
-  const handleWatchNow = (item: MovieOrShow, season?: number, episode?: number) => {
+  const handleWatchNow = useCallback((item: MovieOrShow, season?: number, episode?: number) => {
     setIsModalOpen(false);
     const typeParam =
       item.type === "series" || item.type === "anime" ? "tv" : "movie";
     let url = `/watch/${item.id}?type=${typeParam}`;
     if (season) url += `&season=${season}`;
     if (episode) url += `&episode=${episode}`;
-    router.push(url);
-  };
+    startTransition(() => {
+      router.push(url);
+    });
+  }, [router]);
 
   const handleResume = (item: MovieOrShow, season?: number, episode?: number) => {
     if (!user || (user?.subscription?.features && !user.subscription.features.hasContinueWatching)) {

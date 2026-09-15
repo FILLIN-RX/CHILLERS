@@ -9,6 +9,8 @@ const cors_1 = __importDefault(require("cors"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const error_middleware_1 = require("./middleware/error.middleware");
 const antibot_middleware_1 = require("./middleware/antibot.middleware");
+const csrf_middleware_1 = require("./middleware/csrf.middleware");
+const rate_limit_middleware_1 = require("./middleware/rate-limit.middleware");
 const tmdb_1 = require("./config/tmdb");
 const movies_routes_1 = __importDefault(require("./modules/movies/movies.routes"));
 const tv_routes_1 = __importDefault(require("./modules/tv/tv.routes"));
@@ -72,6 +74,15 @@ app.post('/api/clear-cache', (_req, res) => {
     (0, tmdb_1.clearCache)();
     res.json({ success: true, data: null, message: 'TMDB cache cleared' });
 });
+// Security middleware
+// Rate limiting for API endpoints
+app.use('/api', rate_limit_middleware_1.apiRateLimiter);
+// CSRF token generation on first request
+app.get('/api/csrf-token', csrf_middleware_1.generateCsrfToken);
+// CSRF verification on state-changing requests
+app.use('/api/admin', csrf_middleware_1.verifyCsrfToken);
+app.use('/api/user', csrf_middleware_1.verifyCsrfToken);
+app.use('/api/auth/logout', csrf_middleware_1.verifyCsrfToken);
 // Protection anti-bot & anti-scraping sur les routes publiques et médias
 app.use('/api', antibot_middleware_1.antiBotMiddleware);
 app.use('/api/movies', movies_routes_1.default);

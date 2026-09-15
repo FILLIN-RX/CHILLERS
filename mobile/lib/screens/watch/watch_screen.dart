@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../config/theme.dart';
 import '../../models/media_item.dart';
+import '../../models/user_model.dart';
 import '../../services/api_service.dart';
 import '../../services/storage_service.dart';
 import '../../widgets/download_modal.dart';
@@ -32,6 +33,7 @@ class _WatchScreenState extends State<WatchScreen> {
   final StorageService _storage = StorageService();
 
   late MediaItem _currentMedia;
+  UserModel? _user;
   String _currentVideoUrl = '';
   bool _isLoadingStream = true;
   bool _streamUnavailable = false;
@@ -49,9 +51,6 @@ class _WatchScreenState extends State<WatchScreen> {
   List<EpisodeItem> _episodes = [];
   bool _isLoadingEpisodes = false;
 
-  // Audio, Serveurs & Reprise
-  String _selectedAudioVersion = 'VF';
-  String _selectedServer = 'VIP Ultra 4K (Fast CDN)';
   Duration? _savedResumePosition;
   DateTime _lastProgressSaveTime = DateTime.now();
 
@@ -62,6 +61,7 @@ class _WatchScreenState extends State<WatchScreen> {
     _selectedSeason = widget.initialSeason ?? 1;
     _currentEpisodeNumber = widget.initialEpisode ?? 1;
 
+    _loadUser();
     _loadMediaDetails();
     _loadSavedProgress();
 
@@ -69,6 +69,13 @@ class _WatchScreenState extends State<WatchScreen> {
       _loadSeasonEpisodes(_selectedSeason);
     } else {
       _resolveMovieStream();
+    }
+  }
+
+  Future<void> _loadUser() async {
+    final user = await _storage.getUser();
+    if (mounted) {
+      setState(() => _user = user);
     }
   }
 
@@ -223,6 +230,34 @@ class _WatchScreenState extends State<WatchScreen> {
     });
   }
 
+  bool get _hasNextEpisode {
+    if (!_isSeries || _episodes.isEmpty || _currentEpisodeNumber == null) return false;
+    final currentIndex = _episodes.indexWhere((e) => e.episodeNumber == _currentEpisodeNumber);
+    return currentIndex != -1 && currentIndex < _episodes.length - 1;
+  }
+
+  bool get _hasPrevEpisode {
+    if (!_isSeries || _episodes.isEmpty || _currentEpisodeNumber == null) return false;
+    final currentIndex = _episodes.indexWhere((e) => e.episodeNumber == _currentEpisodeNumber);
+    return currentIndex > 0;
+  }
+
+  void _goToNextEpisode() {
+    if (!_hasNextEpisode) return;
+    final currentIndex = _episodes.indexWhere((e) => e.episodeNumber == _currentEpisodeNumber);
+    if (currentIndex != -1 && currentIndex < _episodes.length - 1) {
+      _playEpisode(_episodes[currentIndex + 1]);
+    }
+  }
+
+  void _goToPrevEpisode() {
+    if (!_hasPrevEpisode) return;
+    final currentIndex = _episodes.indexWhere((e) => e.episodeNumber == _currentEpisodeNumber);
+    if (currentIndex > 0) {
+      _playEpisode(_episodes[currentIndex - 1]);
+    }
+  }
+
   String _formatRuntime(int? minutes) {
     if (minutes == null || minutes <= 0) return '';
     final h = minutes ~/ 60;
@@ -235,6 +270,7 @@ class _WatchScreenState extends State<WatchScreen> {
     DownloadModal.show(
       context: context,
       item: _currentMedia,
+      user: _user,
       episode: episode,
       seasonNumber: _selectedSeason,
       streamUrl: _currentVideoUrl.isNotEmpty ? _currentVideoUrl : null,
@@ -293,7 +329,7 @@ class _WatchScreenState extends State<WatchScreen> {
                     )
                   : _currentVideoUrl.isNotEmpty
                        ? AppVideoPlayer(
-                          key: ValueKey('$_currentVideoUrl-$_selectedAudioVersion-$_selectedServer'),
+                          key: ValueKey(_currentVideoUrl),
                           videoUrl: _currentVideoUrl,
                           title: _currentMedia.title,
                           subtitle: _isSeries && _currentEpisodeNumber != null
@@ -302,6 +338,10 @@ class _WatchScreenState extends State<WatchScreen> {
                           initialPosition: _savedResumePosition,
                           onProgress: _onPlaybackProgress,
                           autoPlay: true,
+                          hasNextEpisode: _hasNextEpisode,
+                          hasPrevEpisode: _hasPrevEpisode,
+                          onNextEpisode: _hasNextEpisode ? _goToNextEpisode : null,
+                          onPrevEpisode: _hasPrevEpisode ? _goToPrevEpisode : null,
                         )
                       : const SizedBox.shrink(),
         ),
@@ -409,7 +449,7 @@ class _WatchScreenState extends State<WatchScreen> {
 
         const SizedBox(height: 16),
 
-        // Barre d'Actions (Télécharger, Serveurs & Audio, Playlist, Partager)
+        // Barre d'Actions (Télécharger, Playlist, Partager)
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
@@ -419,12 +459,6 @@ class _WatchScreenState extends State<WatchScreen> {
                 label: 'Télécharger',
                 activeColor: AppTheme.primary,
                 onTap: () => _onDownload(),
-              ),
-              const SizedBox(width: 8),
-              _buildActionButton(
-                icon: Icons.tune_rounded,
-                label: '$_selectedAudioVersion • Serveurs',
-                onTap: _showServerAndAudioModal,
               ),
               const SizedBox(width: 8),
               _buildActionButton(
@@ -551,7 +585,6 @@ class _WatchScreenState extends State<WatchScreen> {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Material(
                   color: isCurrent ? AppTheme.primary.withValues(alpha: 0.15) : AppTheme.card,
-                  borderRadius: BorderRadius.circular(12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                     side: BorderSide(
@@ -897,148 +930,6 @@ class _WatchScreenState extends State<WatchScreen> {
                 fontWeight: isActive ? FontWeight.w900 : FontWeight.bold,
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showServerAndAudioModal() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return Container(
-              decoration: const BoxDecoration(
-                color: AppTheme.card,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.white24,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Pistes Audio & Serveurs',
-                        style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.close_rounded, color: Colors.white70),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Sélecteur VF / VOSTFR
-                  const Text('Langue & Sous-titres', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ChoiceChip(
-                          avatar: const Icon(Icons.record_voice_over_rounded, size: 16),
-                          label: const Text('VF (Français)'),
-                          selected: _selectedAudioVersion == 'VF',
-                          selectedColor: AppTheme.primary,
-                          onSelected: (val) {
-                            if (val) {
-                              setState(() => _selectedAudioVersion = 'VF');
-                              setModalState(() {});
-                            }
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: ChoiceChip(
-                          avatar: const Icon(Icons.subtitles_rounded, size: 16),
-                          label: const Text('VOSTFR (Sous-titré)'),
-                          selected: _selectedAudioVersion == 'VOSTFR',
-                          selectedColor: AppTheme.primary,
-                          onSelected: (val) {
-                            if (val) {
-                              setState(() => _selectedAudioVersion = 'VOSTFR');
-                              setModalState(() {});
-                            }
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Sélecteur de Serveurs
-                  const Text('Serveur de Streaming', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  _buildServerTile('VIP Ultra 4K (Fast CDN)', 'Ultra rapide sans mise en mémoire tampon', Icons.bolt_rounded, Colors.amber, setModalState),
-                  _buildServerTile('Serveur VidLink (Direct MP4)', 'Lecteur direct fluide', Icons.speed_rounded, Colors.cyanAccent, setModalState),
-                  _buildServerTile('Serveur Secours (FrenchStream)', 'Source alternative haute résolution', Icons.cloud_sync_rounded, Colors.blueAccent, setModalState),
-                  const SizedBox(height: 12),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildServerTile(String name, String desc, IconData icon, Color color, StateSetter setModalState) {
-    final isSelected = _selectedServer == name;
-    return GestureDetector(
-      onTap: () {
-        setState(() => _selectedServer = name);
-        setModalState(() {});
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: AppTheme.card,
-            content: Text('Basculé sur $name ($_selectedAudioVersion)'),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: isSelected ? AppTheme.primary.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.04),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: isSelected ? AppTheme.primary : Colors.white10),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: color, size: 22),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(name, style: TextStyle(color: isSelected ? Colors.white : Colors.white70, fontWeight: FontWeight.bold, fontSize: 13)),
-                  Text(desc, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11)),
-                ],
-              ),
-            ),
-            if (isSelected)
-              const Icon(Icons.check_circle_rounded, color: AppTheme.primary, size: 18),
           ],
         ),
       ),
