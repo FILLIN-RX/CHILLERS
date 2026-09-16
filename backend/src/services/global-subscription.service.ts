@@ -130,7 +130,7 @@ export class GlobalSubscriptionService {
           lastUpdatedBy: adminId,
           lastUpdatedAt: new Date(),
         },
-        { returnDocument: 'after', upsert: true }
+        { new: true, returnDocument: 'after', upsert: true }
       );
 
       if (!updated) {

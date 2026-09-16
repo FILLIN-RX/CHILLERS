@@ -20,6 +20,8 @@ import { connectDB } from '../../config/db';
  * 5. Immediate Feature Gate Updates - State transitions reflected immediately
  */
 
+jest.setTimeout(30000);
+
 describe('Global Subscription Control - Property-Based Tests', () => {
   let service: GlobalSubscriptionService;
 

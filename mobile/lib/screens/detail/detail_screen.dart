@@ -930,7 +930,6 @@ class _DetailScreenState extends State<DetailScreen> {
                             padding: const EdgeInsets.only(bottom: 10),
                             child: Material(
                               color: AppTheme.card,
-                              borderRadius: BorderRadius.circular(14),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
                                 side: BorderSide(color: Colors.white.withValues(alpha: 0.06)),

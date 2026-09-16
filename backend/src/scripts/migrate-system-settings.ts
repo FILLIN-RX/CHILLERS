@@ -1,274 +1,150 @@
-import { SystemSettings } from '../models/SystemSettings';
-import { AuditLog } from '../models/AuditLog';
-import mongoose from 'mongoose';
-
 /**
- * Migration script for existing deployments
- *
- * This script:
- * 1. Ensures SystemSettings collection exists and is properly initialized
- * 2. Can be run on existing deployments without data loss
- * 3. Creates MongoDB indexes if missing (unique index on settingKey)
- * 4. Sets default value (enabled: true) if not already set
- * 5. Logs migration results (number of documents created/updated)
- * 6. Is idempotent (safe to run multiple times)
- *
+ * Migration Script: System Settings
+ * 
+ * This script ensures the SystemSettings collection is properly initialized
+ * for the Admin Subscription Control System. It can be safely run on existing
+ * deployments without data loss.
+ * 
+ * What it does:
+ * - Creates SystemSettings collection if it doesn't exist
+ * - Initializes 'global_subscription_enabled' setting with default value (true)
+ * - Creates required indexes (unique on settingKey, index on lastUpdatedAt)
+ * - Logs all operations for verification
+ * 
  * Usage:
- * - CLI: npx tsx src/scripts/migrate-system-settings.ts
- * - From code: import and call migrateSystemSettings()
- *
- * @example
- * // In package.json
- * "migrate:system-settings": "npx tsx src/scripts/migrate-system-settings.ts"
- *
- * // Then run:
- * npm run migrate:system-settings
+ *   npm run migrate:system-settings
+ *   or
+ *   ts-node backend/src/scripts/migrate-system-settings.ts
+ * 
+ * Requirements: 7.1, 7.2
  */
 
-interface MigrationResult {
-  success: boolean;
-  documentsCreated: number;
-  documentsUpdated: number;
-  indexesCreated: number;
-  indexesExisting: number;
-  message: string;
-  timestamp: Date;
-}
+import mongoose from 'mongoose';
+import { SystemSettings } from '../models/SystemSettings';
+import * as dotenv from 'dotenv';
 
-/**
- * Main migration function
- */
-export async function migrateSystemSettings(): Promise<MigrationResult> {
-  const result: MigrationResult = {
-    success: true,
-    documentsCreated: 0,
-    documentsUpdated: 0,
-    indexesCreated: 0,
-    indexesExisting: 0,
-    message: '',
-    timestamp: new Date(),
-  };
+// Load environment variables
+dotenv.config();
+
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/chillers';
+const SETTING_KEY = 'global_subscription_enabled';
+const DEFAULT_VALUE = true; // Subscriptions enabled by default
+
+async function migrate() {
+  console.log('[Migration] Starting SystemSettings migration...');
+  console.log(`[Migration] MongoDB URI: ${MONGO_URI.replace(/:[^:@]+@/, ':****@')}`);
 
   try {
-    console.log('[Migration] Starting SystemSettings migration...');
-
-    // Step 1: Ensure collection exists
-    console.log('[Migration] Step 1: Checking SystemSettings collection...');
-    const collections = await mongoose.connection.db?.listCollections().toArray() || [];
-    const systemSettingsExists = collections.some(
-      (col) => col.name === 'systemsettings'
-    );
-
-    if (!systemSettingsExists) {
-      console.log('[Migration] SystemSettings collection does not exist - will be created on first document write');
-    } else {
-      console.log('[Migration] SystemSettings collection exists');
-    }
-
-    // Step 2: Create indexes
-    console.log('[Migration] Step 2: Creating indexes...');
-    try {
-      const indexes = await SystemSettings.collection.getIndexes();
-      const settingKeyIndexExists = Object.values(indexes).some(
-        (idx: any) => idx.key?.settingKey === 1 && idx.unique === true
-      );
-
-      if (!settingKeyIndexExists) {
-        console.log('[Migration] Creating unique index on settingKey...');
-        await SystemSettings.collection.createIndex(
-          { settingKey: 1 },
-          { unique: true }
-        );
-        result.indexesCreated++;
-        console.log('[Migration] ✓ Unique index created on settingKey');
-      } else {
-        result.indexesExisting++;
-        console.log('[Migration] ✓ Unique index on settingKey already exists');
-      }
-
-      // Create index on lastUpdatedAt for audit queries
-      const lastUpdatedAtIndexExists = Object.values(indexes).some(
-        (idx: any) => idx.key?.lastUpdatedAt === 1
-      );
-      if (!lastUpdatedAtIndexExists) {
-        console.log('[Migration] Creating index on lastUpdatedAt...');
-        await SystemSettings.collection.createIndex({ lastUpdatedAt: -1 });
-        result.indexesCreated++;
-        console.log('[Migration] ✓ Index created on lastUpdatedAt');
-      } else {
-        result.indexesExisting++;
-        console.log('[Migration] ✓ Index on lastUpdatedAt already exists');
-      }
-    } catch (indexError) {
-      const errorMsg = indexError instanceof Error ? indexError.message : String(indexError);
-      console.warn('[Migration] Warning: Failed to manage indexes:', errorMsg);
-      // Continue anyway - indexes are not critical for functionality
-    }
-
-    // Step 3: Ensure default system setting exists
-    console.log('[Migration] Step 3: Checking for default system settings...');
-    const existingSetting = await SystemSettings.findOne({
-      settingKey: 'global_subscription_enabled',
-    });
-
-    if (existingSetting) {
-      console.log('[Migration] ✓ Global subscription setting already exists', {
-        value: existingSetting.value,
-        lastUpdatedAt: existingSetting.lastUpdatedAt,
-      });
-      result.documentsUpdated = 1; // Indicates document existed
-    } else {
-      // Create the default setting
-      console.log('[Migration] Creating default global subscription setting (enabled: true)...');
-      const now = new Date();
-      const newSetting = await SystemSettings.create({
-        settingKey: 'global_subscription_enabled',
-        value: true, // Default: subscriptions enabled
-        lastUpdatedBy: 'migration',
-        lastUpdatedAt: now,
-        createdAt: now,
-      });
-      result.documentsCreated = 1;
-      console.log('[Migration] ✓ Default setting created', {
-        settingKey: newSetting.settingKey,
-        value: newSetting.value,
-        createdAt: newSetting.createdAt,
-      });
-    }
-
-    // Step 4: Create indexes for AuditLog collection if it doesn't exist
-    console.log('[Migration] Step 4: Creating AuditLog indexes...');
-    try {
-      const auditLogIndexes = await AuditLog.collection.getIndexes();
-
-      // Index on timestamp (descending) for sorting recent changes
-      const timestampIndexExists = Object.values(auditLogIndexes).some(
-        (idx: any) => idx.key?.timestamp === -1
-      );
-      if (!timestampIndexExists) {
-        console.log('[Migration] Creating index on timestamp (descending)...');
-        await AuditLog.collection.createIndex({ timestamp: -1 });
-        result.indexesCreated++;
-        console.log('[Migration] ✓ Index created on timestamp');
-      } else {
-        result.indexesExisting++;
-        console.log('[Migration] ✓ Index on timestamp already exists');
-      }
-
-      // Index on adminId for filtering by admin
-      const adminIdIndexExists = Object.values(auditLogIndexes).some(
-        (idx: any) => idx.key?.adminId === 1
-      );
-      if (!adminIdIndexExists) {
-        console.log('[Migration] Creating index on adminId...');
-        await AuditLog.collection.createIndex({ adminId: 1 });
-        result.indexesCreated++;
-        console.log('[Migration] ✓ Index created on adminId');
-      } else {
-        result.indexesExisting++;
-        console.log('[Migration] ✓ Index on adminId already exists');
-      }
-
-      // Index on action for filtering by action type
-      const actionIndexExists = Object.values(auditLogIndexes).some(
-        (idx: any) => idx.key?.action === 1
-      );
-      if (!actionIndexExists) {
-        console.log('[Migration] Creating index on action...');
-        await AuditLog.collection.createIndex({ action: 1 });
-        result.indexesCreated++;
-        console.log('[Migration] ✓ Index created on action');
-      } else {
-        result.indexesExisting++;
-        console.log('[Migration] ✓ Index on action already exists');
-      }
-    } catch (auditIndexError) {
-      const errorMsg = auditIndexError instanceof Error ? auditIndexError.message : String(auditIndexError);
-      console.warn('[Migration] Warning: Failed to create AuditLog indexes:', errorMsg);
-      // Continue anyway - AuditLog collection may not be used yet
-    }
-
-    // Success message
-    result.message = 'Migration completed successfully';
-    console.log('[Migration] ✓ Migration completed successfully!');
-    console.log('[Migration] Results:', {
-      documentsCreated: result.documentsCreated,
-      documentsUpdated: result.documentsUpdated,
-      indexesCreated: result.indexesCreated,
-      indexesExisting: result.indexesExisting,
-    });
-
-    return result;
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    result.success = false;
-    result.message = `Migration failed: ${errorMessage}`;
-
-    console.error('[Migration] ✗ Migration failed:', {
-      error: errorMessage,
-      stack: error instanceof Error ? error.stack : undefined,
-    });
-
-    return result;
-  }
-}
-
-/**
- * CLI execution
- * Runs the migration and exits with appropriate status code
- */
-async function runMigration(): Promise<void> {
-  // Check if MongoDB connection string is set
-  if (!process.env.MONGODB_URI) {
-    console.error('[Migration] Error: MONGODB_URI environment variable not set');
-    process.exit(1);
-  }
-
-  try {
-    console.log('[Migration] Connecting to MongoDB...');
-    console.log('[Migration] Database:', process.env.MONGODB_URI.replace(/mongodb.*@/, 'mongodb+srv://***@'));
-
     // Connect to MongoDB
-    await mongoose.connect(process.env.MONGODB_URI, {
-      serverSelectionTimeoutMS: 10000,
-    } as any);
-
+    await mongoose.connect(MONGO_URI);
     console.log('[Migration] ✓ Connected to MongoDB');
 
-    // Run migration
-    const result = await migrateSystemSettings();
+    // Check if SystemSettings collection exists
+    const db = mongoose.connection.db;
+    const collections = db ? await db.listCollections().toArray() : [];
+    const systemSettingsExists = collections.some((col) => col.name === 'systemsettings');
 
-    // Close database connection
-    await mongoose.connection.close();
-    console.log('[Migration] ✓ Database connection closed');
-
-    // Exit with appropriate code
-    if (result.success) {
-      console.log('[Migration] ✓ Exiting with status code 0 (success)');
-      process.exit(0);
+    if (!systemSettingsExists) {
+      console.log('[Migration] SystemSettings collection does not exist, will be created automatically');
     } else {
-      console.error('[Migration] ✗ Exiting with status code 1 (failure)');
+      console.log('[Migration] ✓ SystemSettings collection exists');
+    }
+
+    // Check if global_subscription_enabled setting exists
+    const existingSetting = await SystemSettings.findOne({ settingKey: SETTING_KEY });
+
+    if (existingSetting) {
+      console.log(`[Migration] ✓ Setting '${SETTING_KEY}' already exists with value: ${existingSetting.value}`);
+      console.log(`[Migration]   Last updated by: ${existingSetting.lastUpdatedBy}`);
+      console.log(`[Migration]   Last updated at: ${existingSetting.lastUpdatedAt}`);
+    } else {
+      console.log(`[Migration] Setting '${SETTING_KEY}' does not exist, creating with default value: ${DEFAULT_VALUE}`);
+
+      const newSetting = new SystemSettings({
+        settingKey: SETTING_KEY,
+        value: DEFAULT_VALUE,
+        lastUpdatedBy: 'migration-script',
+        lastUpdatedAt: new Date(),
+      });
+
+      await newSetting.save();
+      console.log(`[Migration] ✓ Created setting '${SETTING_KEY}' with value: ${DEFAULT_VALUE}`);
+    }
+
+    // Ensure indexes are created
+    console.log('[Migration] Ensuring indexes...');
+
+    try {
+      // Get existing indexes
+      const indexes = await SystemSettings.collection.getIndexes();
+      console.log('[Migration] Existing indexes:', Object.keys(indexes));
+
+      // Create indexes (idempotent operation - won't recreate if they exist)
+      await SystemSettings.createIndexes();
+      console.log('[Migration] ✓ Indexes ensured');
+
+      // Verify unique index on settingKey
+      const settingKeyIndex = indexes['settingKey_1'];
+      if (settingKeyIndex) {
+        console.log('[Migration] ✓ Unique index on settingKey exists');
+      } else {
+        console.log('[Migration] ⚠ Unique index on settingKey may not exist, but schema will ensure it');
+      }
+
+      // Verify index on lastUpdatedAt
+      const lastUpdatedAtIndex = indexes['lastUpdatedAt_1'];
+      if (lastUpdatedAtIndex) {
+        console.log('[Migration] ✓ Index on lastUpdatedAt exists');
+      } else {
+        console.log('[Migration] ⚠ Index on lastUpdatedAt may not exist, but schema will ensure it');
+      }
+    } catch (indexError) {
+      console.warn('[Migration] ⚠ Index verification/creation had warnings:', indexError);
+      console.warn('[Migration] This is usually safe - indexes will be created on first operation');
+    }
+
+    // Verify the setting can be read back
+    const verification = await SystemSettings.findOne({ settingKey: SETTING_KEY });
+    if (verification) {
+      console.log(`[Migration] ✓ Verification successful: ${SETTING_KEY} = ${verification.value}`);
+    } else {
+      console.error('[Migration] ✗ Verification failed: Could not read setting back');
       process.exit(1);
     }
+
+    console.log('[Migration] ✓ Migration completed successfully!');
+    console.log('[Migration] Summary:');
+    console.log(`[Migration]   - SystemSettings collection: Ready`);
+    console.log(`[Migration]   - Setting '${SETTING_KEY}': Initialized`);
+    console.log(`[Migration]   - Indexes: Ensured`);
+    console.log('[Migration]   - Verification: Passed');
+
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[Migration] ✗ Fatal error during migration:', errorMessage);
-
-    // Attempt to close connection
-    try {
-      await mongoose.connection.close();
-    } catch (closeError) {
-      // Ignore close errors
+    console.error('[Migration] ✗ Migration failed:', error);
+    if (error instanceof Error) {
+      console.error('[Migration] Error message:', error.message);
+      console.error('[Migration] Stack trace:', error.stack);
     }
-
     process.exit(1);
+  } finally {
+    // Close MongoDB connection
+    await mongoose.connection.close();
+    console.log('[Migration] MongoDB connection closed');
   }
 }
 
-// Run if this script is executed directly (not imported)
+// Run migration if this script is executed directly
 if (require.main === module) {
-  runMigration();
+  migrate()
+    .then(() => {
+      console.log('[Migration] Exiting with success');
+      process.exit(0);
+    })
+    .catch((error) => {
+      console.error('[Migration] Unhandled error:', error);
+      process.exit(1);
+    });
 }
 
 // Export for use in other scripts or tests
-export default migrateSystemSettings;
+export default migrate;

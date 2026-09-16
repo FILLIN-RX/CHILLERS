@@ -23,9 +23,7 @@ const SystemSettingsSchema: Schema = new Schema(
     settingKey: {
       type: String,
       required: true,
-      unique: true,
       trim: true,
-      index: true,
     },
     value: {
       type: Boolean,
@@ -38,7 +36,6 @@ const SystemSettingsSchema: Schema = new Schema(
     lastUpdatedAt: {
       type: Date,
       required: true,
-      index: true, // Index for audit queries
     },
     createdAt: {
       type: Date,

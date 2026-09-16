@@ -9,6 +9,8 @@ import '../../services/storage_service.dart';
 import '../../services/native_bridge.dart';
 import '../watch/watch_screen.dart';
 import '../../widgets/upgrade_modal.dart';
+import '../../features/offline_transfer/ui/screens/transfer_receiver_screen.dart';
+import '../../features/offline_transfer/ui/screens/transfer_sender_screen.dart';
 
 class DownloadScreen extends StatefulWidget {
   const DownloadScreen({super.key});
@@ -345,6 +347,16 @@ class _DownloadScreenState extends State<DownloadScreen> with SingleTickerProvid
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.wifi_tethering_rounded, color: Colors.white, size: 22),
+            tooltip: 'Recevoir en P2P',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const TransferReceiverScreen()),
+              );
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.info_outline_rounded, color: Colors.white70, size: 22),
             tooltip: 'Informations',
             onPressed: _showInfoModal,
@@ -492,15 +504,37 @@ class _DownloadScreenState extends State<DownloadScreen> with SingleTickerProvid
               ),
             ),
             const SizedBox(height: 20),
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              ),
-              icon: const Icon(Icons.info_outline_rounded, size: 18),
-              label: const Text('En savoir plus'),
-              onPressed: _showInfoModal,
+            Wrap(
+              spacing: 12,
+              runSpacing: 10,
+              alignment: WrapAlignment.center,
+              children: [
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
+                  icon: const Icon(Icons.info_outline_rounded, size: 18),
+                  label: const Text('En savoir plus'),
+                  onPressed: _showInfoModal,
+                ),
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Colors.white24),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
+                  icon: const Icon(Icons.wifi_tethering_rounded, size: 18),
+                  label: const Text('Recevoir en P2P'),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const TransferReceiverScreen()),
+                    );
+                  },
+                ),
+              ],
             ),
           ],
         ),
@@ -661,15 +695,35 @@ class _DownloadScreenState extends State<DownloadScreen> with SingleTickerProvid
               ),
 
               // Actions
-              if (isDone)
+              if (isDone) ...[
+                if (task.localFilePath != null)
+                  IconButton(
+                    icon: const Icon(Icons.share_rounded, color: Colors.white70, size: 22),
+                    tooltip: 'Partager hors ligne (P2P)',
+                    onPressed: () {
+                      final media = MediaItem(
+                        id: task.mediaId,
+                        title: task.title,
+                        poster: task.poster,
+                        type: task.type ?? 'movie',
+                        streamUrl: task.localFilePath,
+                        quality: task.quality,
+                      );
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => TransferSenderScreen(media: media)),
+                      );
+                    },
+                  ),
                 IconButton(
                   icon: Icon(
                     task.publicUri != null ? Icons.open_in_new_rounded : Icons.play_circle_filled_rounded,
                     color: AppTheme.primary,
-                    size: 36,
+                    size: 34,
                   ),
                   onPressed: () => _playOffline(task),
-                )
+                ),
+              ]
               else if (isDownloading)
                 IconButton(
                   icon: const Icon(Icons.pause_circle_filled_rounded, color: Colors.amber, size: 32),

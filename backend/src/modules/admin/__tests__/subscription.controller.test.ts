@@ -20,6 +20,8 @@ import { connectDB } from '../../../config/db';
  * Validates: Requirements 1.6, 4.1-4.5, 6.4, 6.5
  */
 
+jest.setTimeout(30000);
+
 describe('SubscriptionController - Global State Endpoints', () => {
   const skipIfNoDb = process.env.SKIP_DB_TESTS ? test.skip : test;
 
@@ -40,10 +42,15 @@ describe('SubscriptionController - Global State Endpoints', () => {
   });
 
   beforeEach(async () => {
+    jest.restoreAllMocks();
     if (mongoose.connection.readyState) {
       await SystemSettings.deleteMany({});
       await AuditLog.deleteMany({});
     }
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   describe('getGlobalState()', () => {

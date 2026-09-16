@@ -723,4 +723,12 @@ class DownloadService extends ChangeNotifier {
     _tasks.clear();
     _emitProgress(force: true);
   }
+
+  /// Adds an already-completed download task (e.g. from P2P offline transfer)
+  Future<void> addCompletedTask(DownloadTask task) async {
+    _tasks.removeWhere((t) => t.id == task.id);
+    _tasks.insert(0, task);
+    await _saveTasks();
+    _emitProgress(force: true);
+  }
 }

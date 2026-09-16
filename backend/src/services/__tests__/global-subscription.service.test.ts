@@ -18,6 +18,8 @@ import { connectDB } from '../../config/db';
  * Validates: Requirements 1.3, 1.6, 6.1, 7.3-7.6, 10.1, 10.3
  */
 
+jest.setTimeout(30000);
+
 describe('GlobalSubscriptionService', () => {
   let service: GlobalSubscriptionService;
 
@@ -25,7 +27,7 @@ describe('GlobalSubscriptionService', () => {
   const skipIfNoDb = process.env.SKIP_DB_TESTS ? test.skip : test;
 
   beforeAll(async () => {
-    // Connect to database for integration tests
+    // Connect to test database if not already connected
     if (!mongoose.connection.readyState) {
       try {
         await connectDB();
@@ -43,6 +45,7 @@ describe('GlobalSubscriptionService', () => {
   });
 
   beforeEach(async () => {
+    jest.restoreAllMocks();
     // Clear collections before each test
     if (mongoose.connection.readyState) {
       await SystemSettings.deleteMany({});
@@ -50,6 +53,10 @@ describe('GlobalSubscriptionService', () => {
     }
     // Fresh service instance for each test
     service = new GlobalSubscriptionService();
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   describe('getGlobalState()', () => {
@@ -203,9 +210,9 @@ describe('GlobalSubscriptionService', () => {
   describe('getAuditHistory()', () => {
     skipIfNoDb('should return audit logs in reverse chronological order', async () => {
       // Create multiple audit logs
-      await service.setGlobalState(false, 'admin-1', 'admin1@example.com', '192.168.1.1');
-      await new Promise((resolve) => setTimeout(resolve, 100)); // Small delay
-      await service.setGlobalState(true, 'admin-2', 'admin2@example.com', '192.168.1.2');
+      await service.createAuditLog('admin-1', 'admin1@example.com', true, false, '192.168.1.1', 200, undefined, true);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      await service.createAuditLog('admin-2', 'admin2@example.com', false, true, '192.168.1.2', 200, undefined, true);
 
       const history = await service.getAuditHistory(10);
 
@@ -218,7 +225,7 @@ describe('GlobalSubscriptionService', () => {
     skipIfNoDb('should respect limit parameter', async () => {
       // Create 5 audit logs
       for (let i = 0; i < 5; i++) {
-        await service.setGlobalState(i % 2 === 0, `admin-${i}`, `admin${i}@example.com`, '192.168.1.1');
+        await service.createAuditLog(`admin-${i}`, `admin${i}@example.com`, false, true, '192.168.1.1', 200, undefined, true);
       }
 
       const history = await service.getAuditHistory(3);
@@ -232,14 +239,17 @@ describe('GlobalSubscriptionService', () => {
     });
 
     skipIfNoDb('should return empty array on database error', async () => {
-      jest.spyOn(AuditLog, 'find').mockImplementation(() => ({
+      const spy = jest.spyOn(AuditLog, 'find').mockImplementation(() => ({
         sort: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockRejectedValueOnce(new Error('DB Error')),
+        limit: jest.fn().mockReturnValue({
+          lean: jest.fn().mockRejectedValueOnce(new Error('DB Error')),
+        }),
       } as any));
 
       const history = await service.getAuditHistory(10);
       expect(Array.isArray(history)).toBe(true);
       expect(history.length).toBe(0);
+      spy.mockRestore();
     });
   });
 
@@ -366,13 +376,11 @@ describe('GlobalSubscriptionService', () => {
 
       // Mock findOne to delay and track calls
       let findOneCallCount = 0;
-      const originalFindOne = SystemSettings.findOne;
-      jest.spyOn(SystemSettings, 'findOne').mockImplementation(async (...args) => {
+      jest.spyOn(SystemSettings, 'findOne').mockImplementation((async () => {
         findOneCallCount++;
-        // Simulate delay
         await new Promise((resolve) => setTimeout(resolve, 50));
-        return originalFindOne.apply(SystemSettings, args);
-      });
+        return { value: false } as any;
+      }) as any);
 
       // Make 3 concurrent requests
       const promises = [

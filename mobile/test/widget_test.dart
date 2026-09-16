@@ -1,30 +1,53 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:chillers_mobile/main.dart';
+import 'package:chillers_mobile/models/media_item.dart';
+import 'package:chillers_mobile/features/offline_transfer/offline_transfer.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const ChillersApp());
+  testWidgets('ShareOfflineButton renders correctly', (WidgetTester tester) async {
+    final media = MediaItem(
+      id: 'test-123',
+      title: 'Inception',
+      type: 'movie',
+      streamUrl: '/path/to/local/movie.mp4',
+    );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ShareOfflineButton(media: media),
+        ),
+      ),
+    );
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    expect(find.text('Partager Hors Ligne'), findsOneWidget);
+    expect(find.byIcon(Icons.wifi_tethering_rounded), findsOneWidget);
+  });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  testWidgets('TransferProgressWidget displays progress and metrics', (WidgetTester tester) async {
+    final progress = TransferProgress(
+      sessionId: 'sess-abc',
+      state: TransferState.transferring,
+      progress: 0.75,
+      transferredBytes: 750000000,
+      totalBytes: 1000000000,
+      currentSpeed: 25000000, // 25 MB/s
+      estimatedTimeRemaining: const Duration(seconds: 10),
+      statusMessage: 'Envoi des données...',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: TransferProgressWidget(
+            progress: progress,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.textContaining('75%'), findsOneWidget);
+    expect(find.text('Envoi des données...'), findsOneWidget);
+    expect(find.textContaining('23.8 MB/s'), findsOneWidget);
   });
 }

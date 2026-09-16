@@ -558,12 +558,13 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
 
     return Column(
       children: [
+        // ── Category Chips Filter Row (YouTube Style) ─────────────────
         Container(
-          height: 44,
+          height: 48,
           padding: const EdgeInsets.symmetric(vertical: 6),
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             itemCount: _channelCategories.length,
             itemBuilder: (context, index) {
               final cat = _channelCategories[index];
@@ -573,12 +574,12 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
                 onTap: () => setState(() => _selectedChannelCategory = cat['id']!),
                 child: Container(
                   margin: const EdgeInsets.only(right: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                   decoration: BoxDecoration(
-                    color: isSelected ? AppTheme.primary : AppTheme.card,
-                    borderRadius: BorderRadius.circular(20),
+                    color: isSelected ? Colors.white : const Color(0xFF27272A),
+                    borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: isSelected ? AppTheme.primary : Colors.white12,
+                      color: isSelected ? Colors.white : Colors.white10,
                     ),
                   ),
                   child: Row(
@@ -587,15 +588,15 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
                       Icon(
                         cat['icon'] as IconData,
                         size: 14,
-                        color: isSelected ? Colors.white : Colors.white70,
+                        color: isSelected ? Colors.black : Colors.white70,
                       ),
                       const SizedBox(width: 6),
                       Text(
                         cat['label'] as String,
                         style: TextStyle(
-                          color: isSelected ? Colors.white : Colors.white70,
+                          color: isSelected ? Colors.black : Colors.white,
                           fontSize: 12,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
                         ),
                       ),
                     ],
@@ -606,6 +607,7 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
           ),
         ),
 
+        // ── Responsive 16:9 Channel Cards Grid (YouTube Style) ─────────
         Expanded(
           child: _filteredChannels.isEmpty
               ? const Center(
@@ -617,86 +619,286 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
                     ),
                   ),
                 )
-              : GridView.builder(
-                  padding: const EdgeInsets.all(12),
-                  itemCount: _filteredChannels.length,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    childAspectRatio: 2.2,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                  ),
-                  itemBuilder: (context, index) {
-                    final channel = _filteredChannels[index];
-                    final isActive = _activeChannel?.id == channel.id;
-                    final catLabel = channel.categories.isNotEmpty ? channel.categories.first : 'Direct';
+              : LayoutBuilder(
+                  builder: (context, constraints) {
+                    final width = constraints.maxWidth;
+                    int crossAxisCount = 1;
+                    double childAspectRatio = 1.18;
 
-                    return GestureDetector(
-                      onTap: () => _selectChannel(channel),
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: isActive ? AppTheme.primary.withValues(alpha: 0.18) : AppTheme.card,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: isActive ? AppTheme.primary : Colors.white.withValues(alpha: 0.08),
-                            width: isActive ? 1.5 : 1,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: channel.logo.isNotEmpty
-                                  ? CachedNetworkImage(
-                                      imageUrl: channel.logo,
-                                      width: 38,
-                                      height: 38,
-                                      fit: BoxFit.contain,
-                                      errorWidget: (context, url, error) => Container(
-                                        width: 38,
-                                        height: 38,
-                                        color: Colors.white10,
-                                        child: const Icon(Icons.tv, color: Colors.white30, size: 20),
-                                      ),
-                                    )
-                                  : Container(
-                                      width: 38,
-                                      height: 38,
-                                      color: Colors.white10,
-                                      child: const Icon(Icons.tv, color: Colors.white30, size: 20),
-                                    ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    channel.name,
-                                    style: TextStyle(
-                                      color: isActive ? AppTheme.primary : Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    catLabel,
-                                    style: const TextStyle(color: AppTheme.textSecondary, fontSize: 10),
-                                    maxLines: 1,
-                                  ),
-                                ],
-                              ),
-                            ),
-                            if (isActive)
-                              const Icon(Icons.equalizer_rounded, color: AppTheme.primary, size: 18),
-                          ],
-                        ),
+                    if (width >= 1300) {
+                      crossAxisCount = 4;
+                      childAspectRatio = 1.22;
+                    } else if (width >= 950) {
+                      crossAxisCount = 3;
+                      childAspectRatio = 1.20;
+                    } else if (width >= 600) {
+                      crossAxisCount = 2;
+                      childAspectRatio = 1.16;
+                    } else {
+                      crossAxisCount = 1;
+                      childAspectRatio = 1.35;
+                    }
+
+                    return GridView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _filteredChannels.length,
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: crossAxisCount,
+                        childAspectRatio: childAspectRatio,
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 20,
                       ),
+                      itemBuilder: (context, index) {
+                        final channel = _filteredChannels[index];
+                        final isActive = _activeChannel?.id == channel.id;
+                        final catLabel = channel.categories.isNotEmpty ? channel.categories.first : 'Direct';
+
+                        return GestureDetector(
+                          onTap: () => _selectChannel(channel),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.transparent,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // 16:9 Landscape Video Preview Banner
+                                AspectRatio(
+                                  aspectRatio: 16 / 9,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF18181B),
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(
+                                        color: isActive ? AppTheme.primary : Colors.white10,
+                                        width: isActive ? 2 : 1,
+                                      ),
+                                    ),
+                                    child: Stack(
+                                      children: [
+                                        // Background Image / Gradient
+                                        Positioned.fill(
+                                          child: ClipRRect(
+                                            borderRadius: BorderRadius.circular(13),
+                                            child: Container(
+                                              decoration: BoxDecoration(
+                                                gradient: LinearGradient(
+                                                  begin: Alignment.topLeft,
+                                                  end: Alignment.bottomRight,
+                                                  colors: [
+                                                    const Color(0xFF27272A),
+                                                    const Color(0xFF18181B),
+                                                    channel.categories.contains('sport')
+                                                        ? const Color(0xFF3F1522)
+                                                        : const Color(0xFF1E1B2E),
+                                                  ],
+                                                ),
+                                              ),
+                                              child: Center(
+                                                child: channel.logo.isNotEmpty
+                                                    ? CachedNetworkImage(
+                                                        imageUrl: channel.logo,
+                                                        width: 64,
+                                                        height: 64,
+                                                        fit: BoxFit.contain,
+                                                        errorWidget: (context, url, error) => const Icon(
+                                                          Icons.tv_rounded,
+                                                          color: Colors.white24,
+                                                          size: 44,
+                                                        ),
+                                                      )
+                                                    : const Icon(
+                                                        Icons.tv_rounded,
+                                                        color: Colors.white24,
+                                                        size: 44,
+                                                      ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+
+                                        // Dark gradient overlay on bottom
+                                        Positioned(
+                                          bottom: 0,
+                                          left: 0,
+                                          right: 0,
+                                          height: 40,
+                                          child: ClipRRect(
+                                            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(13)),
+                                            child: Container(
+                                              decoration: const BoxDecoration(
+                                                gradient: LinearGradient(
+                                                  begin: Alignment.topCenter,
+                                                  end: Alignment.bottomCenter,
+                                                  colors: [Colors.transparent, Colors.black87],
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+
+                                        // Red "● EN DIRECT" Badge
+                                        Positioned(
+                                          bottom: 8,
+                                          right: 8,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFCC0000),
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: const Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(Icons.circle, color: Colors.white, size: 6),
+                                                SizedBox(width: 4),
+                                                Text(
+                                                  'EN DIRECT',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w900,
+                                                    letterSpacing: 0.5,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+
+                                        // Playing Equalizer indicator if active
+                                        if (isActive)
+                                          Positioned(
+                                            top: 8,
+                                            left: 8,
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                              decoration: BoxDecoration(
+                                                color: AppTheme.primary,
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: const Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(Icons.equalizer_rounded, color: Colors.white, size: 12),
+                                                  SizedBox(width: 4),
+                                                  Text(
+                                                    'En cours',
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 10,
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+
+                                const SizedBox(height: 10),
+
+                                // Channel Info Metadata Below Thumbnail
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Channel Avatar
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(20),
+                                      child: Container(
+                                        width: 36,
+                                        height: 36,
+                                        color: const Color(0xFF27272A),
+                                        padding: const EdgeInsets.all(4),
+                                        child: channel.logo.isNotEmpty
+                                            ? CachedNetworkImage(
+                                                imageUrl: channel.logo,
+                                                fit: BoxFit.contain,
+                                                errorWidget: (context, url, error) => const Icon(
+                                                  Icons.tv,
+                                                  color: Colors.white54,
+                                                  size: 16,
+                                                ),
+                                              )
+                                            : const Icon(
+                                                Icons.tv,
+                                                color: Colors.white54,
+                                                size: 16,
+                                              ),
+                                      ),
+                                    ),
+
+                                    const SizedBox(width: 10),
+
+                                    // Title, Name & Details
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            channel.name,
+                                            style: TextStyle(
+                                              color: isActive ? AppTheme.primary : Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13,
+                                              height: 1.2,
+                                            ),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Row(
+                                            children: [
+                                              Flexible(
+                                                child: Text(
+                                                  catLabel.toUpperCase(),
+                                                  style: const TextStyle(
+                                                    color: Colors.white60,
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              const Icon(
+                                                Icons.check_circle_rounded,
+                                                color: Colors.white54,
+                                                size: 12,
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            'Streaming HD · Chillers Live',
+                                            style: TextStyle(
+                                              color: Colors.white.withOpacity(0.4),
+                                              fontSize: 11,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+
+                                    // 3-dots Menu Button
+                                    IconButton(
+                                      icon: const Icon(Icons.more_vert_rounded, color: Colors.white54, size: 18),
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                      onPressed: () {},
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     );
                   },
                 ),
@@ -820,180 +1022,209 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
               : RefreshIndicator(
                   color: AppTheme.primary,
                   onRefresh: _loadData,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(12),
-                    itemCount: filtered.length,
-                    itemBuilder: (context, index) {
-                      final m = filtered[index];
-                      final isLive = m.status == 'live';
-                      final isActive = _activeMatch?.id == m.id;
-                      final isUefa = m.league != null &&
-                          (m.league!.toLowerCase().contains('champion') || m.league!.toLowerCase().contains('uefa'));
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isWide = constraints.maxWidth >= 750;
+                      final crossAxisCount = constraints.maxWidth >= 1200 ? 3 : 2;
 
-                      return GestureDetector(
-                        onTap: () => selectMatch(m),
-                        child: Container(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: isActive ? AppTheme.primary.withValues(alpha: 0.16) : AppTheme.card,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: isActive
-                                  ? AppTheme.primary
-                                  : (isLive ? AppTheme.primary.withValues(alpha: 0.4) : Colors.white10),
-                              width: isActive ? 1.5 : 1,
-                            ),
+                      if (isWide) {
+                        return GridView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: filtered.length,
+                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: crossAxisCount,
+                            childAspectRatio: 2.1,
+                            crossAxisSpacing: 14,
+                            mainAxisSpacing: 14,
                           ),
-                          child: Column(
-                            children: [
-                              // Header Ligue + Statut
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Row(
-                                    children: [
-                                      if (isUefa) ...[
-                                        const Icon(Icons.emoji_events_rounded, color: Colors.amber, size: 15),
-                                        const SizedBox(width: 4),
-                                      ],
-                                      Text(
-                                        m.league ?? 'Football',
-                                        style: TextStyle(
-                                          color: isUefa ? Colors.amber : AppTheme.primary,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: isLive ? Colors.redAccent : Colors.white10,
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      isLive ? 'DIRECT' : (m.minute ?? 'Bientôt'),
-                                      style: TextStyle(
-                                        color: isLive ? Colors.white : Colors.white70,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
+                          itemBuilder: (context, index) {
+                            final m = filtered[index];
+                            return _buildMatchCard(m);
+                          },
+                        );
+                      }
 
-                              const SizedBox(height: 12),
-
-                              // Rangée des équipes avec LOGOS
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  // Home team
-                                  Expanded(
-                                    flex: 4,
-                                    child: Row(
-                                      children: [
-                                        _buildTeamLogo(m.homeLogo, m.home, size: 38),
-                                        const SizedBox(width: 10),
-                                        Expanded(
-                                          child: Text(
-                                            m.home,
-                                            style: TextStyle(
-                                              color: isActive ? AppTheme.primary : Colors.white,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 13,
-                                            ),
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-
-                                  // Score ou VS
-                                  Expanded(
-                                    flex: 2,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                                      decoration: BoxDecoration(
-                                        color: Colors.black.withValues(alpha: 0.4),
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(color: Colors.white12),
-                                      ),
-                                      alignment: Alignment.center,
-                                      child: Text(
-                                        (m.score != null && m.score!.isNotEmpty) ? m.score! : 'VS',
-                                        style: TextStyle(
-                                          color: isLive ? Colors.amber : Colors.white70,
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w900,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-
-                                  // Away team
-                                  Expanded(
-                                    flex: 4,
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.end,
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            m.away,
-                                            textAlign: TextAlign.right,
-                                            style: TextStyle(
-                                              color: isActive ? AppTheme.primary : Colors.white,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 13,
-                                            ),
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 10),
-                                        _buildTeamLogo(m.awayLogo, m.away, size: 38),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-
-                              const SizedBox(height: 10),
-
-                              // Action Lancer le match
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    isActive ? Icons.volume_up_rounded : Icons.play_circle_fill_rounded,
-                                    color: isActive ? AppTheme.primary : Colors.white70,
-                                    size: 16,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    isActive ? 'Diffusion en cours sur le lecteur' : 'Regarder le match',
-                                    style: TextStyle(
-                                      color: isActive ? AppTheme.primary : Colors.white70,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
+                      return ListView.builder(
+                        padding: const EdgeInsets.all(12),
+                        itemCount: filtered.length,
+                        itemBuilder: (context, index) {
+                          final m = filtered[index];
+                          return _buildMatchCard(m);
+                        },
                       );
                     },
                   ),
                 ),
         ),
       ],
+    );
+  }
+
+  Widget _buildMatchCard(LiveMatch m) {
+    final isLive = m.status == 'live';
+    final isActive = _activeMatch?.id == m.id;
+    final isUefa = m.league != null &&
+        (m.league!.toLowerCase().contains('champion') || m.league!.toLowerCase().contains('uefa'));
+
+    return GestureDetector(
+      onTap: () => selectMatch(m),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isActive ? AppTheme.primary.withValues(alpha: 0.16) : AppTheme.card,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isActive
+                ? AppTheme.primary
+                : (isLive ? AppTheme.primary.withValues(alpha: 0.4) : Colors.white10),
+            width: isActive ? 1.5 : 1,
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Header Ligue + Statut
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    if (isUefa) ...[
+                      const Icon(Icons.emoji_events_rounded, color: Colors.amber, size: 15),
+                      const SizedBox(width: 4),
+                    ],
+                    Text(
+                      m.league ?? 'Football',
+                      style: TextStyle(
+                        color: isUefa ? Colors.amber : AppTheme.primary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: isLive ? Colors.redAccent : Colors.white10,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    isLive ? 'DIRECT' : (m.minute ?? 'Bientôt'),
+                    style: TextStyle(
+                      color: isLive ? Colors.white : Colors.white70,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 10),
+
+            // Rangée des équipes avec LOGOS
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Home team
+                Expanded(
+                  flex: 4,
+                  child: Row(
+                    children: [
+                      _buildTeamLogo(m.homeLogo, m.home, size: 36),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          m.home,
+                          style: TextStyle(
+                            color: isActive ? AppTheme.primary : Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Score ou VS
+                Expanded(
+                  flex: 2,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.white12),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      (m.score != null && m.score!.isNotEmpty) ? m.score! : 'VS',
+                      style: TextStyle(
+                        color: isLive ? Colors.amber : Colors.white70,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Away team
+                Expanded(
+                  flex: 4,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          m.away,
+                          textAlign: TextAlign.right,
+                          style: TextStyle(
+                            color: isActive ? AppTheme.primary : Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildTeamLogo(m.awayLogo, m.away, size: 36),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 8),
+
+            // Action Lancer le match
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  isActive ? Icons.volume_up_rounded : Icons.play_circle_fill_rounded,
+                  color: isActive ? AppTheme.primary : Colors.white70,
+                  size: 15,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  isActive ? 'Diffusion en cours' : 'Regarder le match en direct',
+                  style: TextStyle(
+                    color: isActive ? AppTheme.primary : Colors.white70,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 

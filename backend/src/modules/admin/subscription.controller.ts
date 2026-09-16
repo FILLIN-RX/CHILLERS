@@ -261,7 +261,7 @@ export const setGlobalState = async (req: Request, res: Response) => {
     const ipAddress = req.ip || req.connection?.remoteAddress || '0.0.0.0';
     const userAgent = req.get('user-agent');
 
-    // Update global state
+    // Update global state (creates audit log internally)
     const result = await globalSubscriptionService.setGlobalState(
       enabled,
       String(adminId),
@@ -269,25 +269,6 @@ export const setGlobalState = async (req: Request, res: Response) => {
       ipAddress,
       userAgent
     );
-
-    // Audit logging
-    if (result.success) {
-      try {
-        await globalSubscriptionService.createAuditLog(
-          String(adminId),
-          adminEmail,
-          result.previousState,
-          result.newState,
-          ipAddress,
-          200, // HTTP 200 for success
-          userAgent,
-          true // success
-        );
-      } catch (auditError) {
-        console.warn('[Admin] Audit log creation failed:', auditError);
-        // Continue - don't fail the request if audit logging fails
-      }
-    }
 
     res.json({
       success: result.success,

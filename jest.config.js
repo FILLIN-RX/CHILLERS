@@ -1,11 +1,24 @@
 /** @type {import('ts-jest').JestConfigWithTsJest} **/
 module.exports = {
-  testEnvironment: "jsdom",
+  testEnvironment: "node",
   transform: {
-    "^.+.tsx?$": ["ts-jest",{}],
+    "^.+\\.tsx?$": [
+      "ts-jest",
+      {
+        tsconfig: {
+          esModuleInterop: true,
+          allowJs: true,
+          target: "es2022",
+          module: "commonjs",
+        },
+      },
+    ],
   },
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
   },
-  setupFilesAfterEnv: ["@testing-library/jest-dom"],
+  transformIgnorePatterns: [
+    "node_modules/(?!(bson|mongodb|mongoose)/)",
+  ],
 };
+

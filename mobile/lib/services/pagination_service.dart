@@ -46,7 +46,7 @@ class PaginationService {
 
   bool hasMorePages(MediaSection section) {
     final current = _currentPages[section] ?? 1;
-    final total = _totalPages[section] ?? 1;
+    final total = _totalPages[section] ?? 100;
     return current < total;
   }
 
@@ -54,10 +54,14 @@ class PaginationService {
   Future<List<MediaItem>> loadInitial(MediaSection section) async {
     _isLoading[section] = true;
     _currentPages[section] = 1;
+    _totalPages[section] = 100; // Allow subsequent pages
 
     try {
       final results = await _fetchSection(section, 1);
       _cache[section] = results;
+      if (results.isEmpty) {
+        _totalPages[section] = 1;
+      }
       _isLoading[section] = false;
       return results;
     } catch (e) {
@@ -68,7 +72,7 @@ class PaginationService {
 
   /// Load next page for infinite scroll
   Future<List<MediaItem>> loadMore(MediaSection section) async {
-    if (_isLoading[section]!) return [];
+    if (_isLoading[section] == true) return [];
     if (!hasMorePages(section)) return [];
 
     _isLoading[section] = true;
@@ -76,9 +80,16 @@ class PaginationService {
 
     try {
       final results = await _fetchSection(section, nextPage);
+      
+      if (results.isEmpty) {
+        _totalPages[section] = _currentPages[section] ?? 1;
+        _isLoading[section] = false;
+        return [];
+      }
+
       final currentCache = _cache[section] ?? [];
       
-      // Merge with existing cache
+      // Merge with existing cache without duplicates
       final merged = <String, MediaItem>{};
       for (final item in currentCache) {
         merged[item.id] = item;

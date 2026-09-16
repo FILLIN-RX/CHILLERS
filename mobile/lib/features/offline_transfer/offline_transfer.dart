@@ -1,3 +1,5 @@
+library;
+
 /// Offline P2P Transfer Feature Module
 /// 
 /// This module provides peer-to-peer file transfer functionality for offline media sharing.

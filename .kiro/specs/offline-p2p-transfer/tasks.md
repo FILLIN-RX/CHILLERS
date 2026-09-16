@@ -20,7 +20,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
 
 #### Epic 1: Project Setup and Core Architecture
 
-- [-] 1.1 Create Flutter module structure for P2P transfer feature
+- [x] 1.1 Create Flutter module structure for P2P transfer feature
   - Create `lib/features/offline_transfer/` directory structure
   - Define folder organization: `models/`, `services/`, `ui/`, `utils/`
   - Set up barrel exports for clean imports
@@ -28,7 +28,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Low_
   - _Sprint: 1_
 
-- [-] 1.2 Add required Flutter dependencies to pubspec.yaml
+- [x] 1.2 Add required Flutter dependencies to pubspec.yaml
   - Add `network_info_plus`, `wifi_iot`, `nfc_manager`, `qr_flutter`, `mobile_scanner`
   - Add `shelf`, `crypto`, `path_provider`, `uuid`
   - Configure version constraints and platform compatibility
@@ -36,7 +36,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Low_
   - _Sprint: 1_
 
-- [~] 1.3 Create data models (ConnectionCredentials, TransferSession, MediaMetadata)
+- [x] 1.3 Create data models (ConnectionCredentials, TransferSession, MediaMetadata)
   - Implement `ConnectionCredentials` with JSON serialization and NDEF encoding
   - Implement `TransferSession` with state management and progress tracking
   - Implement `MediaMetadata` with all required fields
@@ -46,7 +46,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Medium_
   - _Sprint: 1_
 
-- [~] 1.4 Create TransferManager core class with state machine
+- [x] 1.4 Create TransferManager core class with state machine
   - Implement state machine with 11 states (Idle, PairingMode, AwaitingConnection, etc.)
   - Create methods: `initiateShare()`, `initiateReceive()`, `cancelTransfer()`
   - Implement state transition logic and validation
@@ -55,22 +55,22 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: High_
   - _Sprint: 1_
 
-- [~] 1.5 Checkpoint - Core architecture review
+- [x] 1.5 Checkpoint - Core architecture review
   - Ensure all models compile without errors
   - Verify TransferManager state transitions are logical
   - Ask the user if questions arise about architecture decisions
 
 #### Epic 2: NFC Service Implementation
 
-- [ ] 2.1 Implement NFCService for pairing
-  - [~] 2.1.1 Create NFCService class with platform channel setup
+- [x] 2.1 Implement NFCService for pairing
+  - [x] 2.1.1 Create NFCService class with platform channel setup
     - Implement `isNFCAvailable()` using `nfc_manager` package
     - Add permission checks for Android (NFC permission)
     - _Requirements: 2.1, 11.1_
     - _Complexity: Medium_
     - _Sprint: 2_
 
-  - [~] 2.1.2 Implement NFC emission mode (Sender)
+  - [x] 2.1.2 Implement NFC emission mode (Sender)
     - Create `startEmission()` method with NDEF message creation
     - Encode ConnectionCredentials to NDEF format
     - Handle NFC session lifecycle
@@ -78,7 +78,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Medium_
     - _Sprint: 2_
 
-  - [~] 2.1.3 Implement NFC reception mode (Receiver)
+  - [x] 2.1.3 Implement NFC reception mode (Receiver)
     - Create `startReception()` method with NDEF parsing
     - Decode ConnectionCredentials from NDEF payload
     - Emit credentials via Stream
@@ -86,7 +86,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Medium_
     - _Sprint: 2_
 
-  - [ ]* 2.1.4 Write unit tests for NFCService
+  - [x] 2.1.4 Write unit tests for NFCService
     - Test NDEF encoding/decoding
     - Test availability checks
     - Mock platform channel responses
@@ -94,7 +94,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Low_
     - _Sprint: 2_
 
-- [~] 2.2 Create error handling for NFC failures
+- [x] 2.2 Create error handling for NFC failures
   - Implement `PairingError.nfcUnavailable` with fallback to QR Code
   - Implement `PairingError.nfcDisabled` with user guidance
   - Add error recovery strategy
@@ -104,8 +104,8 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
 
 #### Epic 3: QR Code Generation and Scanning
 
-- [ ] 3.1 Implement QRGenerator for credential sharing
-  - [~] 3.1.1 Create QRGenerator class
+- [x] 3.1 Implement QRGenerator for credential sharing
+  - [x] 3.1.1 Create QRGenerator class
     - Implement `generateQRCode()` using `qr_flutter`
     - Serialize ConnectionCredentials to JSON for QR payload
     - Add expiration timestamp validation
@@ -113,7 +113,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Low_
     - _Sprint: 3_
 
-  - [~] 3.1.2 Create QR code display widget
+  - [x] 3.1.2 Create QR code display widget
     - Build `QRDisplayWidget` with full-screen display
     - Add manual 6-digit code display below QR
     - Implement animations and modern design
@@ -121,8 +121,8 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Medium_
     - _Sprint: 3_
 
-- [ ] 3.2 Implement QRScanner for credential reception
-  - [~] 3.2.1 Create QRScanner class with mobile_scanner
+- [x] 3.2 Implement QRScanner for credential reception
+  - [x] 3.2.1 Create QRScanner class with mobile_scanner
     - Implement `startScanning()` with camera activation
     - Parse QR data and validate JSON structure
     - Extract ConnectionCredentials from QR payload
@@ -130,7 +130,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Medium_
     - _Sprint: 3_
 
-  - [~] 3.2.2 Create scanner UI widget
+  - [x] 3.2.2 Create scanner UI widget
     - Build camera preview with scanning overlay
     - Add "waiting for scan" indicator
     - Handle camera permissions
@@ -138,7 +138,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Medium_
     - _Sprint: 3_
 
-  - [ ]* 3.2.3 Write unit tests for QR encoding/decoding
+  - [x] 3.2.3 Write unit tests for QR encoding/decoding
     - Test JSON serialization of credentials
     - Test QR data parsing
     - Test expiration validation
@@ -146,22 +146,22 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Low_
     - _Sprint: 3_
 
-- [~] 3.3 Checkpoint - Pairing mechanisms complete
+- [x] 3.3 Checkpoint - Pairing mechanisms complete
   - Ensure NFC and QR Code both work end-to-end
   - Test fallback from NFC to QR Code
   - Ask the user if questions arise
 
 #### Epic 4: Wi-Fi Direct Manager (Mobile)
 
-- [ ] 4.1 Implement WiFiDirectManager for Android
-  - [~] 4.1.1 Create WiFiDirectManager class with platform channels
+- [x] 4.1 Implement WiFiDirectManager for Android
+  - [x] 4.1.1 Create WiFiDirectManager class with platform channels
     - Set up method channel for Android WifiP2pManager
     - Implement permission checks (Location, Nearby Devices)
     - _Requirements: 4.1, 11.1_
     - _Complexity: High_
     - _Sprint: 4_
 
-  - [~] 4.1.2 Implement createAccessPoint() for Sender
+  - [x] 4.1.2 Implement createAccessPoint() for Sender
     - Generate random SSID with format `CHILLERS_P2P_{6chars}`
     - Generate 16-character random password
     - Create Wi-Fi Direct group using Android API
@@ -171,7 +171,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: High_
     - _Sprint: 4_
 
-  - [~] 4.1.3 Implement connect() for Receiver
+  - [x] 4.1.3 Implement connect() for Receiver
     - Accept ConnectionCredentials as parameter
     - Temporarily disable current Wi-Fi connection
     - Connect to Wi-Fi Direct network using SSID/password
@@ -180,7 +180,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: High_
     - _Sprint: 4_
 
-  - [~] 4.1.4 Add Android native code for Wi-Fi Direct
+  - [x] 4.1.4 Add Android native code for Wi-Fi Direct
     - Write Kotlin code for WifiP2pManager integration
     - Handle Wi-Fi Direct group creation and connection
     - Implement broadcast receivers for connection events
@@ -188,8 +188,8 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Very High_
     - _Sprint: 4-5_
 
-- [ ] 4.2 Implement WiFiDirectManager for iOS
-  - [~] 4.2.1 Create iOS-specific implementation with Hotspot API
+- [x] 4.2 Implement WiFiDirectManager for iOS
+  - [x] 4.2.1 Create iOS-specific implementation with Hotspot API
     - Use NEHotspotConfiguration for iOS hotspot creation
     - Implement platform channel for iOS
     - Handle iOS-specific permissions
@@ -197,7 +197,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: High_
     - _Sprint: 5_
 
-  - [~] 4.2.2 Add iOS native code (Swift)
+  - [x] 4.2.2 Add iOS native code (Swift)
     - Write Swift code for NEHotspotConfiguration
     - Handle iOS hotspot lifecycle
     - Implement error handling for iOS limitations
@@ -205,7 +205,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: High_
     - _Sprint: 5_
 
-- [~] 4.3 Implement connection status monitoring
+- [x] 4.3 Implement connection status monitoring
   - Add `connectionStatusStream` with real-time updates
   - Implement `testConnectivity()` with HTTP ping
   - Add automatic reconnection logic (3 retries with backoff)
@@ -213,7 +213,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Medium_
   - _Sprint: 5_
 
-- [~] 4.4 Implement disconnect() and network restoration
+- [x] 4.4 Implement disconnect() and network restoration
   - Restore previous Wi-Fi connection after transfer
   - Clean up Wi-Fi Direct group on Sender
   - Handle edge cases (app backgrounded, system interruptions)
@@ -221,7 +221,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Medium_
   - _Sprint: 5_
 
-- [ ]* 4.5 Write integration tests for Wi-Fi Direct flow
+- [x] 4.5 Write integration tests for Wi-Fi Direct flow
   - Test createAccessPoint() credentials generation
   - Test connect() with valid credentials
   - Test reconnection logic
@@ -229,7 +229,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Medium_
   - _Sprint: 5_
 
-- [~] 4.6 Checkpoint - Wi-Fi Direct fully functional
+- [x] 4.6 Checkpoint - Wi-Fi Direct fully functional
   - Test Android ↔ Android connection
   - Test iOS ↔ iOS connection (if hotspot API works)
   - Test Android ↔ iOS cross-platform connection
@@ -237,8 +237,8 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
 
 #### Epic 5: Local HTTP Server (Sender)
 
-- [ ] 5.1 Implement LocalHTTPServer using shelf package
-  - [~] 5.1.1 Create LocalHTTPServer class with server lifecycle
+- [x] 5.1 Implement LocalHTTPServer using shelf package
+  - [x] 5.1.1 Create LocalHTTPServer class with server lifecycle
     - Implement `start()` method with port range scanning (8000-9000)
     - Set up shelf server with request routing
     - Store file path and metadata for serving
@@ -246,7 +246,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Medium_
     - _Sprint: 6_
 
-  - [~] 5.1.2 Implement /metadata endpoint
+  - [x] 5.1.2 Implement /metadata endpoint
     - Create handler returning MediaMetadata as JSON
     - Include title, poster (base64), duration, fileSize, sha256
     - Add CORS headers for cross-origin requests
@@ -254,7 +254,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Low_
     - _Sprint: 6_
 
-  - [~] 5.1.3 Implement /file endpoint with chunked serving
+  - [x] 5.1.3 Implement /file endpoint with chunked serving
     - Parse Range header for chunk requests
     - Read file in 1 MB chunks using RandomAccessFile
     - Return appropriate headers (Content-Range, Accept-Ranges, Content-Type)
@@ -263,7 +263,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: High_
     - _Sprint: 6_
 
-  - [~] 5.1.4 Implement stop() method and cleanup
+  - [x] 5.1.4 Implement stop() method and cleanup
     - Close server and release port
     - Clean up file handles
     - Emit server stopped event
@@ -271,7 +271,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Low_
     - _Sprint: 6_
 
-  - [ ]* 5.1.5 Write unit tests for HTTP server
+  - [x] 5.1.5 Write unit tests for HTTP server
     - Test metadata endpoint response
     - Test chunked file serving with Range requests
     - Test port scanning logic
@@ -279,7 +279,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Medium_
     - _Sprint: 6_
 
-- [~] 5.2 Add request logging and error handling
+- [x] 5.2 Add request logging and error handling
   - Log all incoming requests with timestamp
   - Handle file not found errors gracefully
   - Return appropriate HTTP error codes (404, 416, 500)
@@ -289,8 +289,8 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
 
 #### Epic 6: HTTP Download Client (Receiver)
 
-- [ ] 6.1 Implement HTTPDownloadClient for chunked downloading
-  - [~] 6.1.1 Create HTTPDownloadClient class
+- [x] 6.1 Implement HTTPDownloadClient for chunked downloading
+  - [x] 6.1.1 Create HTTPDownloadClient class
     - Implement `downloadFile()` with chunk strategy
     - Calculate total chunks based on file size (1 MB per chunk)
     - Set up parallel download queue (max 4 concurrent)
@@ -298,7 +298,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: High_
     - _Sprint: 7_
 
-  - [~] 6.1.2 Implement chunk download worker
+  - [x] 6.1.2 Implement chunk download worker
     - Create method to download single chunk with Range request
     - Write chunk to temporary file immediately after download
     - Update progress tracking after each chunk
@@ -306,7 +306,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Medium_
     - _Sprint: 7_
 
-  - [~] 6.1.3 Implement retry logic with exponential backoff
+  - [x] 6.1.3 Implement retry logic with exponential backoff
     - Retry failed chunks up to 3 times
     - Use backoff: 1s, 2s, 4s delays
     - Track retry count per chunk
@@ -314,7 +314,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Medium_
     - _Sprint: 7_
 
-  - [~] 6.1.4 Implement progress tracking and speed calculation
+  - [x] 6.1.4 Implement progress tracking and speed calculation
     - Update `progressStream` every 500ms
     - Calculate current speed based on bytes transferred
     - Estimate time remaining using average speed
@@ -322,7 +322,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Medium_
     - _Sprint: 7_
 
-  - [~] 6.1.5 Implement pause(), resume(), cancel() methods
+  - [x] 6.1.5 Implement pause(), resume(), cancel() methods
     - Save download state to disk on pause
     - Resume from last completed chunk
     - Clean up temporary files on cancel
@@ -330,7 +330,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Medium_
     - _Sprint: 7_
 
-  - [ ]* 6.1.6 Write unit tests for download client
+  - [x] 6.1.6 Write unit tests for download client
     - Test chunk calculation logic
     - Test retry mechanism with mock server
     - Test progress calculation accuracy
@@ -338,7 +338,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Medium_
     - _Sprint: 7_
 
-- [~] 6.2 Implement chunk assembly after download
+- [x] 6.2 Implement chunk assembly after download
   - Verify all chunks are present and complete
   - Concatenate chunks in correct order
   - Write final file to destination path
@@ -347,7 +347,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Medium_
   - _Sprint: 7_
 
-- [~] 6.3 Checkpoint - File transfer end-to-end working
+- [x] 6.3 Checkpoint - File transfer end-to-end working
   - Test complete file transfer (small test file ~10 MB)
   - Verify chunk assembly produces valid file
   - Test pause/resume functionality
@@ -355,8 +355,8 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
 
 #### Epic 7: Integrity Checker
 
-- [ ] 7.1 Implement IntegrityChecker with SHA-256
-  - [~] 7.1.1 Create IntegrityChecker class
+- [x] 7.1 Implement IntegrityChecker with SHA-256
+  - [x] 7.1.1 Create IntegrityChecker class
     - Implement `calculateFileHash()` using crypto package
     - Read file in 1 MB chunks to avoid memory issues
     - Use Isolate for background computation
@@ -364,7 +364,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Medium_
     - _Sprint: 8_
 
-  - [~] 7.1.2 Implement hash calculation with progress reporting
+  - [x] 7.1.2 Implement hash calculation with progress reporting
     - Create `calculateFileHashWithProgress()` variant
     - Emit progress updates during calculation
     - Show progress in UI (0-100%)
@@ -372,7 +372,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Low_
     - _Sprint: 8_
 
-  - [~] 7.1.3 Implement verifyFileIntegrity()
+  - [x] 7.1.3 Implement verifyFileIntegrity()
     - Compare calculated hash with expected hash
     - Return boolean result
     - Log comparison results
@@ -380,7 +380,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Low_
     - _Sprint: 8_
 
-  - [ ]* 7.1.4 Write unit tests for integrity checker
+  - [x] 7.1.4 Write unit tests for integrity checker
     - Test hash calculation for known files
     - Test hash comparison logic
     - Test Isolate-based computation
@@ -388,7 +388,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Low_
     - _Sprint: 8_
 
-- [~] 7.2 Add error handling for integrity failures
+- [x] 7.2 Add error handling for integrity failures
   - Implement `TransferError.integrityCheckFailed`
   - Delete corrupted file on hash mismatch
   - Display user-friendly error message
@@ -399,8 +399,8 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
 
 #### Epic 8: Media Library Integration
 
-- [ ] 8.1 Extend MediaLibrary with P2P transfer methods
-  - [~] 8.1.1 Add getMediaItem() and getMediaFilePath()
+- [x] 8.1 Extend MediaLibrary with P2P transfer methods
+  - [x] 8.1.1 Add getMediaItem() and getMediaFilePath()
     - Query local database for media by ID
     - Return file path for sharing
     - Validate file existence before transfer
@@ -408,7 +408,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Low_
     - _Sprint: 8_
 
-  - [~] 8.1.2 Implement addMedia() for received files
+  - [x] 8.1.2 Implement addMedia() for received files
     - Create database entry with all metadata
     - Move file from cache to permanent storage
     - Update UI to show new media
@@ -416,7 +416,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Medium_
     - _Sprint: 8_
 
-  - [~] 8.1.3 Add "Disponible Hors Ligne" marker
+  - [x] 8.1.3 Add "Disponible Hors Ligne" marker
     - Mark media as locally available
     - Update UI indicators
     - Allow immediate playback
@@ -424,7 +424,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Low_
     - _Sprint: 8_
 
-  - [ ]* 8.1.4 Write unit tests for media library integration
+  - [x] 8.1.4 Write unit tests for media library integration
     - Test addMedia() with complete metadata
     - Test file movement to permanent storage
     - Test duplicate detection
@@ -432,7 +432,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Low_
     - _Sprint: 8_
 
-- [~] 8.2 Update downloads UI section
+- [x] 8.2 Update downloads UI section
   - Display received media in "Téléchargements" section
   - Show P2P transfer indicator (badge or icon)
   - Enable immediate playback of received media
@@ -442,7 +442,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
 
 #### Epic 9: Transfer UI - Sender Flow
 
-- [~] 9.1 Create Share Offline button and entry point
+- [x] 9.1 Create Share Offline button and entry point
   - Add "Partager Hors Ligne" button to media detail screen
   - Validate media is downloaded before showing button
   - Implement button click handler
@@ -450,8 +450,8 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Low_
   - _Sprint: 9_
 
-- [ ] 9.2 Create PairingModeScreen (Sender)
-  - [~] 9.2.1 Design and implement UI layout
+- [x] 9.2 Create PairingModeScreen (Sender)
+  - [x] 9.2.1 Design and implement UI layout
     - Display NFC and QR Code options with tabs
     - Show device name/avatar for sender
     - Add "waiting for connection" animation
@@ -459,7 +459,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Medium_
     - _Sprint: 9_
 
-  - [~] 9.2.2 Implement NFC tab
+  - [x] 9.2.2 Implement NFC tab
     - Show NFC icon and "Tap to connect" message
     - Display animation when NFC is active
     - Handle NFCService events
@@ -467,7 +467,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Low_
     - _Sprint: 9_
 
-  - [~] 9.2.3 Implement QR Code tab
+  - [x] 9.2.3 Implement QR Code tab
     - Display QR code from QRGenerator
     - Show 6-digit manual code below QR
     - Add copy button for manual code
@@ -475,7 +475,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Low_
     - _Sprint: 9_
 
-- [~] 9.3 Create TransferProgressScreen (Sender)
+- [x] 9.3 Create TransferProgressScreen (Sender)
   - Display connection status ("Connecté à [Device Name]")
   - Show static message "Envoi en cours..."
   - Display file name and size
@@ -485,7 +485,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Low_
   - _Sprint: 9_
 
-- [~] 9.4 Create TransferCompleteScreen (Sender)
+- [x] 9.4 Create TransferCompleteScreen (Sender)
   - Show success animation (checkmark)
   - Display "Transfert terminé" message
   - Show receiver device name
@@ -496,7 +496,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
 
 #### Epic 10: Transfer UI - Receiver Flow
 
-- [~] 10.1 Create ReceiveModeScreen
+- [x] 10.1 Create ReceiveModeScreen
   - Add "Recevoir Hors Ligne" entry point in app
   - Display NFC and QR Scanner options
   - Show device name/avatar for receiver
@@ -504,7 +504,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Low_
   - _Sprint: 10_
 
-- [~] 10.2 Implement NFC reception UI
+- [x] 10.2 Implement NFC reception UI
   - Show "Tap to receive" message with animation
   - Display status when NFC detects sender
   - Transition to connection screen automatically
@@ -512,7 +512,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Low_
   - _Sprint: 10_
 
-- [~] 10.3 Implement QR Scanner UI
+- [x] 10.3 Implement QR Scanner UI
   - Display camera preview with scanning overlay
   - Show instructions "Scannez le QR code"
   - Handle QR detection and credential extraction
@@ -521,7 +521,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Medium_
   - _Sprint: 10_
 
-- [~] 10.4 Create ConnectionEstablishingScreen
+- [x] 10.4 Create ConnectionEstablishingScreen
   - Show "Connexion en cours..." animation
   - Display sender device info (name, media title)
   - Show connection progress indicator
@@ -530,8 +530,8 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Medium_
   - _Sprint: 10_
 
-- [ ] 10.5 Create TransferProgressScreen (Receiver)
-  - [~] 10.5.1 Implement progress bar and percentage display
+- [x] 10.5 Create TransferProgressScreen (Receiver)
+  - [x] 10.5.1 Implement progress bar and percentage display
     - Show animated progress bar (0-100%)
     - Display percentage text
     - Update smoothly every 500ms
@@ -539,7 +539,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Low_
     - _Sprint: 10_
 
-  - [~] 10.5.2 Display transfer metrics
+  - [x] 10.5.2 Display transfer metrics
     - Show current speed (MB/s)
     - Show transferred / total size
     - Show estimated time remaining
@@ -548,7 +548,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Low_
     - _Sprint: 10_
 
-  - [~] 10.5.3 Add media preview card
+  - [x] 10.5.3 Add media preview card
     - Display media poster image
     - Show title, year, genre
     - Show file size
@@ -556,7 +556,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Low_
     - _Sprint: 10_
 
-  - [~] 10.5.4 Add control buttons
+  - [x] 10.5.4 Add control buttons
     - Implement "Pause" / "Resume" button with state
     - Implement "Annuler" button with confirmation dialog
     - Handle button states based on transfer status
@@ -564,7 +564,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Low_
     - _Sprint: 10_
 
-- [~] 10.6 Create VerifyingScreen
+- [x] 10.6 Create VerifyingScreen
   - Show "Vérification en cours..." message
   - Display spinning loader with hash calculation progress
   - Show checkmark animation on success
@@ -572,7 +572,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Low_
   - _Sprint: 10_
 
-- [~] 10.7 Create TransferCompleteScreen (Receiver)
+- [x] 10.7 Create TransferCompleteScreen (Receiver)
   - Show success animation with confetti effect
   - Display "Transfert réussi !" message
   - Show media card with "Regarder Maintenant" button
@@ -582,7 +582,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Medium_
   - _Sprint: 10_
 
-- [~] 10.8 Checkpoint - Complete mobile UI flow
+- [x] 10.8 Checkpoint - Complete mobile UI flow
   - Test sender flow from start to finish
   - Test receiver flow from start to finish
   - Verify all animations work smoothly (60 FPS)
@@ -590,7 +590,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
 
 #### Epic 11: Error Handling and Recovery
 
-- [~] 11.1 Implement error dialog system
+- [x] 11.1 Implement error dialog system
   - Create reusable ErrorDialog widget
   - Display user-friendly error messages
   - Show recovery actions (Retry, Cancel, Open Settings)
@@ -598,8 +598,8 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Low_
   - _Sprint: 11_
 
-- [ ] 11.2 Implement error recovery strategies
-  - [~] 11.2.1 Create ErrorRecoveryStrategy class
+- [x] 11.2 Implement error recovery strategies
+  - [x] 11.2.1 Create ErrorRecoveryStrategy class
     - Implement `isRecoverable()` check
     - Implement `getRecoveryAction()` mapper
     - Define recovery actions for each error type
@@ -607,7 +607,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Medium_
     - _Sprint: 11_
 
-  - [~] 11.2.2 Implement auto-retry for connection lost
+  - [x] 11.2.2 Implement auto-retry for connection lost
     - Detect connection loss during transfer
     - Attempt reconnection with exponential backoff (2s, 4s, 8s)
     - Retry up to 5 times
@@ -616,7 +616,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Medium_
     - _Sprint: 11_
 
-  - [~] 11.2.3 Implement manual retry for user-facing errors
+  - [x] 11.2.3 Implement manual retry for user-facing errors
     - Show "Réessayer" button for connection timeouts
     - Show "Ouvrir les paramètres" for permission errors
     - Allow restart of transfer for integrity failures
@@ -624,7 +624,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Low_
     - _Sprint: 11_
 
-- [~] 11.3 Add transfer logging for debugging
+- [x] 11.3 Add transfer logging for debugging
   - Implement TransferLogger class
   - Log all state transitions with timestamps
   - Log errors with full context (sessionId, progress, retry count)
@@ -633,7 +633,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Low_
   - _Sprint: 11_
 
-- [ ]* 11.4 Write integration tests for error scenarios
+- [x] 11.4 Write integration tests for error scenarios
   - Test connection timeout handling
   - Test connection lost during transfer
   - Test integrity check failure
@@ -644,8 +644,8 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
 
 #### Epic 12: Permissions Management
 
-- [ ] 12.1 Implement PermissionsManager service
-  - [~] 12.1.1 Create PermissionsManager class
+- [x] 12.1 Implement PermissionsManager service
+  - [x] 12.1.1 Create PermissionsManager class
     - Check permissions: Wi-Fi, Location, NFC, Storage, Camera
     - Request permissions with rationale dialogs
     - Handle permission denial gracefully
@@ -653,7 +653,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Medium_
     - _Sprint: 11_
 
-  - [~] 12.1.2 Add Android-specific permission handling
+  - [x] 12.1.2 Add Android-specific permission handling
     - Request NEARBY_WIFI_DEVICES (Android 13+)
     - Request ACCESS_FINE_LOCATION for Wi-Fi Direct
     - Request NFC permission
@@ -662,7 +662,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Low_
     - _Sprint: 11_
 
-  - [~] 12.1.3 Add iOS-specific permission handling
+  - [x] 12.1.3 Add iOS-specific permission handling
     - Request Local Network permission
     - Request Camera permission (for QR scanner)
     - Request NFC permission
@@ -671,7 +671,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Low_
     - _Sprint: 11_
 
-- [~] 12.2 Create permission request UI flow
+- [x] 12.2 Create permission request UI flow
   - Show rationale dialog before requesting permissions
   - Display helpful message explaining why permission is needed
   - Handle "Don't ask again" scenario with "Open Settings" option
@@ -679,7 +679,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Low_
   - _Sprint: 11_
 
-- [~] 12.3 Implement feature fallbacks for missing permissions
+- [x] 12.3 Implement feature fallbacks for missing permissions
   - Fallback to QR Code if NFC permission denied
   - Disable P2P transfer if Wi-Fi permission denied
   - Show appropriate error messages

@@ -10,6 +10,7 @@ import crypto from 'crypto';
 interface CsrfRequest extends Request {
   csrfToken?: string;
   csrfValid?: boolean;
+  sessionID?: string;
 }
 
 // In-memory store for CSRF tokens (in production, use Redis)
@@ -31,7 +32,10 @@ setInterval(() => {
  */
 export function generateCsrfToken(req: CsrfRequest, res: Response, next: NextFunction): void {
   try {
-    const sessionId = req.sessionID || req.headers['x-session-id'] || crypto.randomUUID();
+    const headerSessionId = Array.isArray(req.headers['x-session-id'])
+      ? req.headers['x-session-id'][0]
+      : req.headers['x-session-id'];
+    const sessionId: string = req.sessionID || headerSessionId || crypto.randomUUID();
     const token = crypto.randomBytes(32).toString('hex');
     const expiresIn = 24 * 60 * 60 * 1000; // 24 hours
 
