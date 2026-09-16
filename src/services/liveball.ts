@@ -22,11 +22,11 @@ export async function getLiveBallMatches(): Promise<LiveBallMatch[]> {
   return [];
 }
 
-// Récupère les matchs de la Champions League (scrapés depuis /league/champions-league).
-export async function getLiveBallChampionsLeague(): Promise<LiveBallMatch[]> {
+// Récupère les matchs d'une ligue spécifique (ex: champions-league, premier-league, la-liga, serie-a, bundesliga, ligue-1)
+export async function getLiveBallLeagueMatches(league: string): Promise<LiveBallMatch[]> {
   try {
     const res = await httpJson<Envelope<LiveBallMatch[]>>(
-      "/liveball/league/champions-league/matches",
+      `/liveball/league/${encodeURIComponent(league)}/matches`,
       { timeoutMs: 12_000 }
     );
     if (res?.data) return res.data;
@@ -34,6 +34,11 @@ export async function getLiveBallChampionsLeague(): Promise<LiveBallMatch[]> {
     // Silencieux.
   }
   return [];
+}
+
+// Récupère les matchs de la Champions League (scrapés depuis /league/champions-league).
+export async function getLiveBallChampionsLeague(): Promise<LiveBallMatch[]> {
+  return getLiveBallLeagueMatches("champions-league");
 }
 
 // Ne renvoie que les matchs EN DIRECT dont le flux HLS a été confirmé disponible

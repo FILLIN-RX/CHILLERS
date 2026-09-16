@@ -3,7 +3,11 @@
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { getLiveBallMatches, getLiveBallChampionsLeague, getLiveBallLiveAvailable } from "@/services/liveball";
+import {
+  getLiveBallMatches,
+  getLiveBallLeagueMatches,
+  getLiveBallLiveAvailable,
+} from "@/services/liveball";
 import type { LiveBallMatch } from "@/types/liveball";
 
 function formatMatchTime(ts?: number): string {
@@ -43,12 +47,12 @@ function TeamCrest({ src, alt }: { src?: string; alt: string }) {
 const LEAGUE_TABS = [
   { id: "all", label: "Tous les Matchs", icon: "⚽" },
   { id: "live", label: "En Direct", icon: "🔴" },
-  { id: "cl", label: "Champions League", icon: "🏆" },
-  { id: "pl", label: "Premier League", icon: "🏴󠁧󠁢󠁥󠁮󠁧󠁿" },
-  { id: "liga", label: "La Liga", icon: "🇪🇸" },
-  { id: "seriea", label: "Serie A", icon: "🇮🇹" },
-  { id: "bundesliga", label: "Bundesliga", icon: "🇩🇪" },
-  { id: "ligue1", label: "Ligue 1", icon: "🇫🇷" },
+  { id: "cl", label: "Champions League", icon: "🏆", slug: "champions-league" },
+  { id: "pl", label: "Premier League", icon: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", slug: "premier-league" },
+  { id: "liga", label: "La Liga", icon: "🇪🇸", slug: "la-liga" },
+  { id: "seriea", label: "Serie A", icon: "🇮🇹", slug: "serie-a" },
+  { id: "bundesliga", label: "Bundesliga", icon: "🇩🇪", slug: "bundesliga" },
+  { id: "ligue1", label: "Ligue 1", icon: "🇫🇷", slug: "ligue-1" },
 ];
 
 export default function LiveMatchesRow({
@@ -62,15 +66,12 @@ export default function LiveMatchesRow({
 }) {
   const [activeLeague, setActiveLeague] = useState<string>("all");
 
+  const currentTab = LEAGUE_TABS.find((t) => t.id === activeLeague);
+  const leagueSlug = currentTab && "slug" in currentTab ? (currentTab as { slug?: string }).slug : undefined;
+
   const { data: lbMatches = [] } = useQuery({
     queryKey: ["live", "liveball", "all"],
     queryFn: () => getLiveBallMatches(),
-    staleTime: 60_000,
-  });
-
-  const { data: clMatches = [] } = useQuery({
-    queryKey: ["live", "liveball", "champions-league"],
-    queryFn: () => getLiveBallChampionsLeague(),
     staleTime: 60_000,
   });
 
@@ -80,77 +81,59 @@ export default function LiveMatchesRow({
     staleTime: 5 * 60_000,
   });
 
-  // Merge and deduplicate matches
-  const allMatches = useMemo(() => {
-    const map = new Map<string, LiveBallMatch>();
-    for (const m of [...liveAvailable, ...lbMatches, ...clMatches]) {
-      if (m && m.id && !map.has(m.id)) {
-        map.set(m.id, m);
-      }
-    }
-    return Array.from(map.values());
-  }, [lbMatches, clMatches, liveAvailable]);
+  const { data: leagueMatches = [], isLoading: isLoadingLeague } = useQuery({
+    queryKey: ["live", "liveball", "league", leagueSlug],
+    queryFn: () => (leagueSlug ? getLiveBallLeagueMatches(leagueSlug) : Promise.resolve([])),
+    enabled: !!leagueSlug,
+    staleTime: 60_000,
+  });
 
   // Filter matches based on selected tab
   const filteredMatches = useMemo(() => {
     const nowSec = Math.floor(Date.now() / 1000);
-    const valid = allMatches.filter((m) => !m.startTs || m.startTs > nowSec - 4 * 3600);
 
     if (activeLeague === "live") {
-      return valid.filter((m) => m.status === "live");
+      const map = new Map<string, LiveBallMatch>();
+      for (const m of [...liveAvailable, ...lbMatches]) {
+        if (m && m.id && m.status === "live" && !map.has(m.id)) {
+          map.set(m.id, m);
+        }
+      }
+      return Array.from(map.values());
     }
-    if (activeLeague === "cl") {
-      return valid.filter(
-        (m) =>
-          m.league &&
-          (m.league.toLowerCase().includes("champion") || m.league.toLowerCase().includes("uefa"))
-      );
-    }
-    if (activeLeague === "pl") {
-      return valid.filter(
-        (m) =>
-          m.league &&
-          (m.league.toLowerCase().includes("premier") ||
-            m.league.toLowerCase().includes("epl") ||
-            m.league.toLowerCase().includes("england"))
-      );
-    }
-    if (activeLeague === "liga") {
-      return valid.filter(
-        (m) =>
-          m.league &&
-          (m.league.toLowerCase().includes("liga") ||
-            m.league.toLowerCase().includes("spain") ||
-            m.league.toLowerCase().includes("primera"))
-      );
-    }
-    if (activeLeague === "seriea") {
-      return valid.filter(
-        (m) =>
-          m.league &&
-          (m.league.toLowerCase().includes("serie a") ||
-            m.league.toLowerCase().includes("italy") ||
-            m.league.toLowerCase().includes("italia"))
-      );
-    }
-    if (activeLeague === "bundesliga") {
-      return valid.filter(
-        (m) =>
-          m.league &&
-          (m.league.toLowerCase().includes("bundesliga") || m.league.toLowerCase().includes("germany"))
-      );
-    }
-    if (activeLeague === "ligue1") {
-      return valid.filter(
-        (m) =>
-          m.league &&
-          (m.league.toLowerCase().includes("ligue 1") || m.league.toLowerCase().includes("france"))
-      );
-    }
-    return valid;
-  }, [allMatches, activeLeague]);
 
-  if (allMatches.length === 0) return null;
+    if (activeLeague === "all") {
+      const map = new Map<string, LiveBallMatch>();
+      for (const m of [...liveAvailable, ...lbMatches]) {
+        if (m && m.id && !map.has(m.id)) {
+          map.set(m.id, m);
+        }
+      }
+      return Array.from(map.values()).filter(
+        (m) => !m.startTs || m.startTs > nowSec - 4 * 3600
+      );
+    }
+
+    // Specific league tab (Premier League, La Liga, Serie A, etc.)
+    const map = new Map<string, LiveBallMatch>();
+    for (const m of leagueMatches) {
+      if (m && m.id && !map.has(m.id)) {
+        map.set(m.id, m);
+      }
+    }
+    return Array.from(map.values()).filter(
+      (m) => !m.startTs || m.startTs > nowSec - 4 * 3600
+    );
+  }, [activeLeague, lbMatches, liveAvailable, leagueMatches]);
+
+  const liveCount = useMemo(() => {
+    const map = new Set<string>();
+    for (const m of liveAvailable) if (m?.id) map.add(m.id);
+    for (const m of lbMatches) if (m?.id && m.status === "live") map.add(m.id);
+    return map.size;
+  }, [liveAvailable, lbMatches]);
+
+  if (lbMatches.length === 0 && liveAvailable.length === 0 && leagueMatches.length === 0 && !isLoadingLeague) return null;
 
   return (
     <div className={`relative ${className}`}>
@@ -163,9 +146,9 @@ export default function LiveMatchesRow({
               {title}
             </h2>
           </div>
-          {allMatches.filter((m) => m.status === "live").length > 0 && (
+          {liveCount > 0 && (
             <span className="text-[10px] font-black uppercase tracking-wider bg-red-600/90 text-white px-2 py-0.5 rounded-full animate-pulse shadow-sm">
-              {allMatches.filter((m) => m.status === "live").length} En Direct
+              {liveCount} En Direct
             </span>
           )}
         </div>
@@ -200,7 +183,12 @@ export default function LiveMatchesRow({
       </div>
 
       {/* Match Cards Row */}
-      {filteredMatches.length === 0 ? (
+      {isLoadingLeague && leagueSlug ? (
+        <div className="py-8 px-4 rounded-2xl bg-zinc-900/40 border border-white/5 text-center flex items-center justify-center gap-2">
+          <span className="w-4 h-4 border-2 border-[#D70466] border-t-transparent rounded-full animate-spin" />
+          <p className="text-xs text-zinc-400 font-medium">Chargement des matchs de la compétition...</p>
+        </div>
+      ) : filteredMatches.length === 0 ? (
         <div className="py-8 px-4 rounded-2xl bg-zinc-900/40 border border-white/5 text-center">
           <p className="text-xs text-zinc-500 font-medium">
             Aucun match programmé pour ce championnat en ce moment.

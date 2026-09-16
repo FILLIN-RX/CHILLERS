@@ -418,41 +418,60 @@ export async function getLiveBallMatches(): Promise<LiveBallMatch[] | null> {
   }
 }
 
-const LEAGUE_CONFIGS: Record<string, { title: string; slugs: string[]; keywords: string[] }> = {
+const LEAGUE_CONFIGS: Record<string, { title: string; slugs: string[]; keywords: string[]; teams: string[] }> = {
   'champions-league': {
     title: 'UEFA Champions League',
     slugs: ['champions-league', 'uefa-champions-league', 'liga-chempionov'],
     keywords: ['champion', 'uefa', 'лига чемпионов'],
+    teams: ['Real Madrid', 'Manchester City', 'Bayern Munich', 'PSG', 'Paris Saint-Germain', 'Arsenal', 'Barcelona', 'Inter', 'Liverpool', 'Atletico Madrid', 'Borussia Dortmund', 'Juventus', 'Bayer Leverkusen', 'Atalanta', 'Milan', 'Sporting CP', 'Benfica', 'Monaco', 'Lille', 'Aston Villa', 'PSV', 'Feyenoord', 'Celtic', 'Club Brugge', 'Red Star Belgrade', 'Young Boys', 'Sturm Graz', 'Brest', 'Salzburg', 'Sparta Prague', 'Bologna', 'Girona', 'Stuttgart', 'Leipzig', 'Shakhtar', 'Dinamo Zagreb', 'Slovan Bratislava'],
   },
   'uefa-champions-league': {
     title: 'UEFA Champions League',
     slugs: ['champions-league', 'uefa-champions-league', 'liga-chempionov'],
     keywords: ['champion', 'uefa', 'лига чемпионов'],
+    teams: [],
   },
   'premier-league': {
     title: 'Premier League',
-    slugs: ['premier-league', 'angliya-premer-liga', 'apl', 'epl', 'england-premier-league'],
+    slugs: ['premier-league', 'epl', 'angliya-premer-liga', 'apl', 'england-premier-league'],
     keywords: ['premier', 'epl', 'england', 'премьер-лига', 'апл', 'англия'],
+    teams: ['Arsenal', 'Chelsea', 'Liverpool', 'Manchester City', 'Manchester United', 'Tottenham', 'Aston Villa', 'Newcastle', 'Everton', 'Brighton', 'Brayton', 'West Ham', 'Wolverhampton', 'Wolves', 'Fulham', 'Fulkhem', 'Crystal Palace', 'Kristal Pelas', 'Brentford', 'Bournemouth', 'Bornmut', 'Nottingham Forest', 'Nottingem Forest', 'Leicester', 'Lester', 'Southampton', 'Ipswich Town', 'Ipsvich Taun', 'Leeds', 'Lids Yunayted', 'Sunderland', 'Sanderlend', 'Hull City', 'Khall Siti', 'Coventry', 'Koventri Siti'],
+  },
+  'epl': {
+    title: 'Premier League',
+    slugs: ['epl', 'premier-league', 'angliya-premer-liga', 'apl'],
+    keywords: ['premier', 'epl', 'england', 'премьер-лига', 'апл', 'англия'],
+    teams: [],
   },
   'la-liga': {
     title: 'La Liga',
     slugs: ['la-liga', 'primera', 'ispaniya-primera', 'spain-la-liga', 'laliga'],
     keywords: ['liga', 'spain', 'primera', 'ла лига', 'примера', 'испания'],
+    teams: ['Real Madrid', 'Barcelona', 'Atletico Madrid', 'Atletiko Madrid', 'Sevilla', 'Real Sociedad', 'Villarreal', 'Athletic Bilbao', 'Atletik', 'Real Betis', 'Valencia', 'Valensiya', 'Girona', 'Celta', 'Selta', 'Osasuna', 'Mallorca', 'Malorka', 'Las Palmas', 'Alaves', 'Rayo Vallecano', 'Rayo Valekano', 'Getafe', 'Khetafe', 'Espanyol', 'Valladolid', 'Valyadolid', 'Leganes', 'Racing', 'Rasing', 'Levante', 'Malaga'],
   },
   'serie-a': {
     title: 'Serie A',
-    slugs: ['serie-a', 'seriya-a', 'italiya-seriya-a', 'italy-serie-a'],
+    slugs: ['seria-a', 'serie-a', 'seriya-a', 'italiya-seriya-a', 'italy-serie-a'],
     keywords: ['serie a', 'seria a', 'italy', 'italia', 'серия а', 'италия'],
+    teams: ['Juventus', 'Yuventus', 'Inter', 'AC Milan', 'Milan', 'Napoli', 'Roma', 'Lazio', 'Latsio', 'Atalanta', 'Fiorentina', 'Torino', 'Bologna', 'Bolonya', 'Monza', 'Montsa', 'Genoa', 'Dzhenoa', 'Udinese', 'Udineze', 'Verona', 'Cagliari', 'Kalyari', 'Empoli', 'Parma', 'Como', 'Komo', 'Venezia', 'Venetsiya', 'Lecce', 'Lechche'],
+  },
+  'seria-a': {
+    title: 'Serie A',
+    slugs: ['seria-a', 'serie-a', 'seriya-a', 'italiya-seriya-a', 'italy-serie-a'],
+    keywords: ['serie a', 'seria a', 'italy', 'italia', 'серия а', 'италия'],
+    teams: [],
   },
   'bundesliga': {
     title: 'Bundesliga',
     slugs: ['bundesliga', 'germaniya-bundesliga', 'germany-bundesliga'],
     keywords: ['bundesliga', 'germany', 'бундеслига', 'германия'],
+    teams: ['Bayern Munich', 'Bavariya', 'Borussia Dortmund', 'Borussiya D', 'Bayer Leverkusen', 'Bayer', 'RB Leipzig', 'Leyptsig', 'Eintracht Frankfurt', 'Ayntrakht', 'Stuttgart', 'Shtutgart', 'Wolfsburg', 'Volfsburg', 'Borussia Monchengladbach', 'Borussiya M', 'Freiburg', 'Frayburg', 'Hoffenheim', 'Khoffenkhaym', 'Augsburg', 'Union Berlin', 'Werder Bremen', 'Verder', 'Mainz', 'Maynts', 'Heidenheim', 'Khaydenkhaym', 'St. Pauli', 'Sankt-Pauli', 'Holstein Kiel', 'Kholstayn Kil', 'Bochum', 'Bokhum'],
   },
   'ligue-1': {
     title: 'Ligue 1',
     slugs: ['ligue-1', 'frantsiya-liga-1', 'france-ligue-1', 'liga-1'],
     keywords: ['ligue 1', 'france', 'лига 1', 'франция'],
+    teams: ['Paris Saint-Germain', 'PSG', 'Marseille', 'Marsel', 'Lyon', 'Lion', 'Monaco', 'Monako', 'Lille', 'Lill', 'Rennes', 'Renn', 'Nice', 'Nitstsa', 'Lens', 'Lans', 'Strasbourg', 'Strasbur', 'Nantes', 'Nant', 'Brest', 'Reims', 'Reyms', 'Montpellier', 'Monpele', 'Toulouse', 'Tuluza', 'Auxerre', 'Oser', 'Angers', 'Anzhe', 'Saint-Etienne', 'Sent-Eten', 'Le Havre', 'Gavr'],
   },
 };
 
@@ -500,29 +519,71 @@ export async function getLiveBallLeagueMatches(league: string): Promise<LiveBall
     } catch (_) {}
   }
 
-  // Vérifier également les matchs de la page d'accueil correspondant à la ligue
+  // Mettre à jour avec les informations en direct (score, minute, live) depuis la page d'accueil
   try {
     const homeMatches = await getLiveBallMatches();
     if (homeMatches && homeMatches.length > 0) {
-      const keywords = conf ? conf.keywords : [normalizedInput];
-      const matchingFromHome = homeMatches.filter((m) => {
-        const leagueStr = (m.league || '').toLowerCase();
-        return keywords.some((kw) => leagueStr.includes(kw));
+      const homeMap = new Map<string, LiveBallMatch>();
+      for (const hm of homeMatches) {
+        if (hm?.id) homeMap.set(hm.id, hm);
+      }
+
+      // 1. Si un match officiel de la ligue est actuellement en direct sur la page d'accueil, synchroniser son statut live et score
+      allMatches = allMatches.map((m) => {
+        const liveMatch = homeMap.get(m.id);
+        if (liveMatch && liveMatch.status === 'live') {
+          return {
+            ...m,
+            status: 'live',
+            score: liveMatch.score || m.score,
+            minute: liveMatch.minute || m.minute,
+          };
+        }
+        return m;
       });
-      allMatches.push(...matchingFromHome.map((m) => ({ ...m, league: leagueTitle })));
+
+      // 2. Si un match en direct sur la page d'accueil a les DEUX équipes qui appartiennent strictement à ce championnat
+      if (conf && conf.teams.length > 0) {
+        const teamsLower = conf.teams.map((t) => t.toLowerCase().trim());
+        const matchIds = new Set(allMatches.map((m) => m.id));
+
+        for (const hm of homeMatches) {
+          if (hm.status === 'live' && !matchIds.has(hm.id)) {
+            const h = (hm.home || '').toLowerCase().trim();
+            const a = (hm.away || '').toLowerCase().trim();
+            // Les DEUX équipes doivent obligatoirement appartenir au championnat (pas de match amical / coupe internationale mixte)
+            const homeIsLeagueTeam = teamsLower.some((t) => h === t || (h.length > 3 && t.length > 3 && (h.startsWith(t) || t.startsWith(h))));
+            const awayIsLeagueTeam = teamsLower.some((t) => a === t || (a.length > 3 && t.length > 3 && (a.startsWith(t) || t.startsWith(a))));
+
+            if (homeIsLeagueTeam && awayIsLeagueTeam) {
+              allMatches.unshift({ ...hm, league: leagueTitle });
+              matchIds.add(hm.id);
+            }
+          }
+        }
+      }
     }
   } catch (_) {}
 
-  // Dédoublonnage et filtrage des matchs expirés
+  // Dédoublonnage et tri : d'abord les matchs LIVE, puis upcoming
   const nowSec = Math.floor(Date.now() / 1000);
   const seen = new Set<string>();
-  const uniqueMatches = allMatches.filter((m) => {
-    if (seen.has(m.id)) return false;
+  const uniqueMatches: LiveBallMatch[] = [];
+
+  for (const m of allMatches) {
+    if (!m || !m.id || seen.has(m.id)) continue;
     if (m.status === 'upcoming' && m.startTs && m.startTs < nowSec - 3.5 * 3600) {
-      return false; // Ne pas inclure de matchs passés
+      continue; // Ne pas inclure de matchs passés
     }
     seen.add(m.id);
-    return true;
+    uniqueMatches.push(m);
+  }
+
+  // Trier : matchs en DIRECT en premier, puis les matchs à venir ordonnés par heure
+  uniqueMatches.sort((a, b) => {
+    if (a.status === 'live' && b.status !== 'live') return -1;
+    if (a.status !== 'live' && b.status === 'live') return 1;
+    return (a.startTs || 0) - (b.startTs || 0);
   });
 
   if (uniqueMatches.length > 0) {
