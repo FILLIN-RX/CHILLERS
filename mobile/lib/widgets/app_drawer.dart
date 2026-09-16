@@ -377,17 +377,19 @@ class _AppDrawerState extends State<AppDrawer> {
     required bool isSelected,
     required VoidCallback onTap,
   }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 4),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: isSelected ? Border.all(color: AppTheme.primary.withValues(alpha: 0.3)) : null,
-      ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
       child: Material(
         color: isSelected ? AppTheme.primary.withValues(alpha: 0.15) : Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: isSelected
+              ? BorderSide(color: AppTheme.primary.withValues(alpha: 0.35), width: 1)
+              : BorderSide.none,
+        ),
         child: ListTile(
           dense: true,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
           leading: Icon(
             icon,
             color: isSelected ? AppTheme.primary : Colors.white70,
@@ -412,7 +414,6 @@ class _AppDrawerState extends State<AppDrawer> {
                 )
               : null,
           onTap: onTap,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       ),
     );

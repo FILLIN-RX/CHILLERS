@@ -503,11 +503,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           final isLast = e.key == items.length - 1;
           return Padding(
             padding: EdgeInsets.only(bottom: isLast ? 0 : 8),
-            child: Container(
-              decoration: BoxDecoration(
-                color: AppTheme.card,
-                borderRadius: BorderRadius.circular(12),
-              ),
+            child: Material(
+              color: AppTheme.card,
+              borderRadius: BorderRadius.circular(12),
               child: ListTile(
                 leading: Icon(e.value.icon, color: AppTheme.primary, size: 24),
                 title: Text(

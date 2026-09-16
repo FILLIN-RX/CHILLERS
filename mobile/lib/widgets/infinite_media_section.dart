@@ -63,11 +63,12 @@ class _InfiniteMediaSectionState extends State<InfiniteMediaSection> {
   }
 
   void _onScroll() {
-    if (!mounted) return;
+    if (!mounted || _isDisposed) return;
     
-    // Check if scrolled to near the end (last 200 pixels)
-    if (_scrollController.position.pixels >= 
-        _scrollController.position.maxScrollExtent - 200) {
+    // Check if scrolled to near the end (last 250 pixels)
+    if (_scrollController.hasClients &&
+        _scrollController.position.pixels >= 
+        _scrollController.position.maxScrollExtent - 250) {
       _loadMore();
     }
   }
@@ -77,13 +78,18 @@ class _InfiniteMediaSectionState extends State<InfiniteMediaSection> {
     if (_paginationService.isLoading(widget.section)) return;
     if (!_paginationService.hasMorePages(widget.section)) return;
 
+    setState(() {}); // Show loading indicator at the tail of horizontal scroll
+
     try {
       await _paginationService.loadMore(widget.section);
       if (!_isDisposed && mounted) {
         setState(() {});
       }
     } catch (e) {
-      debugPrint('Error loading more: $e');
+      debugPrint('Error loading more for ${widget.section}: $e');
+      if (!_isDisposed && mounted) {
+        setState(() {});
+      }
     }
   }
 

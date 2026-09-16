@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../config/theme.dart';
 import '../../models/media_item.dart';
-import '../../models/live_channel.dart';
 import '../../models/live_match.dart';
 import '../../services/api_service.dart';
 import '../../services/storage_service.dart';
@@ -32,6 +31,22 @@ class _HomeScreenState extends State<HomeScreen> {
   List<MediaItem> _heroSlides = [];
   List<Map<String, dynamic>> _continueWatching = [];
   List<LiveMatch> _liveMatches = [];
+  List<MediaItem> _infiniteFeedItems = [];
+  int _infiniteFeedPage = 1;
+  bool _isLoadingMoreFeed = false;
+  bool _hasMoreFeed = true;
+  String _selectedMatchLeague = 'all';
+
+  final List<Map<String, dynamic>> _homeLeagueFilters = const [
+    {'id': 'all', 'label': 'Tous', 'icon': Icons.sports_soccer_rounded},
+    {'id': 'live', 'label': 'En Direct', 'icon': Icons.circle_rounded},
+    {'id': 'uefa', 'label': 'Champions League', 'icon': Icons.emoji_events_rounded},
+    {'id': 'premier-league', 'label': 'Premier League', 'icon': Icons.sports_soccer_rounded},
+    {'id': 'la-liga', 'label': 'La Liga', 'icon': Icons.sports_soccer_rounded},
+    {'id': 'serie-a', 'label': 'Serie A', 'icon': Icons.sports_soccer_rounded},
+    {'id': 'bundesliga', 'label': 'Bundesliga', 'icon': Icons.sports_soccer_rounded},
+    {'id': 'ligue-1', 'label': 'Ligue 1', 'icon': Icons.sports_soccer_rounded},
+  ];
 
   bool _isLoading = true;
   late ScrollController _mainScrollController;
@@ -40,14 +55,26 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _mainScrollController = ScrollController();
+    _mainScrollController.addListener(_onMainScroll);
     _loadData();
   }
 
   @override
   void dispose() {
+    _mainScrollController.removeListener(_onMainScroll);
     _mainScrollController.dispose();
     _paginationService.resetAll();
     super.dispose();
+  }
+
+  void _onMainScroll() {
+    if (!_mainScrollController.hasClients) return;
+    if (_mainScrollController.position.pixels >=
+        _mainScrollController.position.maxScrollExtent - 500) {
+      if (!_isLoadingMoreFeed && _hasMoreFeed && !_isLoading) {
+        _loadMoreFeed();
+      }
+    }
   }
 
   Future<T?> _safeCall<T>(Future<T> Function() call) async {
@@ -59,30 +86,45 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadData() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _infiniteFeedPage = 1;
+      _hasMoreFeed = true;
+    });
 
     try {
       final continueWatchingRes = await _storage.getContinueWatching();
 
-      // Load Champions League matches only
-      final uefaMatchesRes = await _safeCall(() => _apiService.getChampionsLeagueMatches()) ?? [];
+      // Load all matches + champions league matches
+      final allMatchesFuture = _safeCall(() => _apiService.getLiveMatches());
+      final uefaMatchesFuture = _safeCall(() => _apiService.getChampionsLeagueMatches());
 
-      // Filter only Champions League matches
-      final filteredMatches = uefaMatchesRes.where((match) {
-        final league = match.league ?? '';
-        return league.toLowerCase().contains('champion') || league.toLowerCase().contains('uefa');
-      }).toList();
+      final results = await Future.wait([allMatchesFuture, uefaMatchesFuture]);
+      final allMatches = results[0] ?? [];
+      final uefaMatches = results[1] ?? [];
+
+      // Merge and deduplicate matches
+      final matchesMap = <String, LiveMatch>{};
+      for (final m in [...allMatches, ...uefaMatches]) {
+        matchesMap[m.id] = m;
+      }
+      final mergedMatches = matchesMap.values.toList();
 
       // Load initial trending data for hero slides
       final trendingRes = await _paginationService.loadInitial(MediaSection.trending);
       final heroSlides = trendingRes.take(7).toList();
 
+      // Load initial infinite discovery feed
+      final feedRes = await _safeCall(() => _apiService.getPopularMovies(page: 1)) ?? [];
+
       if (!mounted) return;
 
       setState(() {
         _continueWatching = continueWatchingRes;
-        _liveMatches = filteredMatches;
+        _liveMatches = mergedMatches;
         _heroSlides = heroSlides;
+        _infiniteFeedItems = feedRes;
+        _hasMoreFeed = feedRes.isNotEmpty;
         _isLoading = false;
       });
 
@@ -100,6 +142,46 @@ class _HomeScreenState extends State<HomeScreen> {
       debugPrint('Error loading home data: $e');
       if (mounted) {
         setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _loadMoreFeed() async {
+    if (_isLoadingMoreFeed || !_hasMoreFeed) return;
+    setState(() => _isLoadingMoreFeed = true);
+
+    final nextPage = _infiniteFeedPage + 1;
+    try {
+      List<MediaItem> newItems;
+      if (nextPage % 3 == 0) {
+        newItems = await _apiService.getTopRatedMovies(page: nextPage ~/ 3);
+      } else if (nextPage % 2 == 0) {
+        newItems = await _apiService.getPopularSeries(page: nextPage ~/ 2);
+      } else {
+        newItems = await _apiService.getPopularMovies(page: nextPage);
+      }
+
+      if (!mounted) return;
+
+      if (newItems.isEmpty) {
+        setState(() {
+          _hasMoreFeed = false;
+          _isLoadingMoreFeed = false;
+        });
+      } else {
+        final existingIds = _infiniteFeedItems.map((e) => e.id).toSet();
+        final uniqueNew = newItems.where((e) => !existingIds.contains(e.id)).toList();
+
+        setState(() {
+          _infiniteFeedItems.addAll(uniqueNew);
+          _infiniteFeedPage = nextPage;
+          _isLoadingMoreFeed = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading more feed: $e');
+      if (mounted) {
+        setState(() => _isLoadingMoreFeed = false);
       }
     }
   }
@@ -131,17 +213,22 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isDesktop = screenWidth >= 850;
+
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: AppTheme.background,
-      drawer: AppDrawer(
-        activeCategory: 'Tous',
-        onSelectCategory: (cat) {
-          if (cat == 'En Direct') {
-            MainNavigation.switchTab(context, 2);
-          }
-        },
-      ),
+      drawer: isDesktop
+          ? null
+          : AppDrawer(
+              activeCategory: 'Tous',
+              onSelectCategory: (cat) {
+                if (cat == 'En Direct') {
+                  MainNavigation.switchTab(context, 2);
+                }
+              },
+            ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
           : Stack(
@@ -237,104 +324,248 @@ class _HomeScreenState extends State<HomeScreen> {
                           onItemTap: _onWatchMedia,
                           onDetailsTab: _onOpenMediaDetails,
                         ),
+                        const SizedBox(height: 16),
 
-                        const SizedBox(height: 50),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // Floating Header with Search Button
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.black.withValues(alpha: 0.6),
-                          Colors.transparent,
-                        ],
-                      ),
-                    ),
-                    padding: EdgeInsets.fromLTRB(
-                      16,
-                      MediaQuery.of(context).padding.top + 8,
-                      16,
-                      16,
-                    ),
-                    child: Row(
-                      children: [
-                        // Menu Button
-                        GestureDetector(
-                          onTap: () => _scaffoldKey.currentState?.openDrawer(),
-                          child: const Icon(
-                            Icons.menu_rounded,
-                            color: Colors.white,
-                            size: 24,
-                          ),
-                        ),
-                        const Spacer(),
-
-                        // Search Button
-                        GestureDetector(
-                          onTap: _openSearch,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.1),
-                              ),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
+                        // ── INFINITE DISCOVERY FEED (EXPLORER SANS FIN) ──
+                        if (_infiniteFeedItems.isNotEmpty) ...[
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                            child: Row(
                               children: [
-                                Icon(
-                                  Icons.search_rounded,
-                                  color: AppTheme.primary,
-                                  size: 18,
-                                ),
-                                SizedBox(width: 6),
-                                Text(
-                                  'Rechercher',
+                                const Icon(Icons.auto_awesome_rounded, color: AppTheme.primary, size: 20),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  'Explorer sans fin',
                                   style: TextStyle(
-                                    color: Colors.white70,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                const Spacer(),
+                                Text(
+                                  '${_infiniteFeedItems.length} titres',
+                                  style: const TextStyle(
+                                    color: AppTheme.textSecondary,
                                     fontSize: 12,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                        ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                final crossAxisCount = (constraints.maxWidth / 120).floor().clamp(3, 8);
+                                return GridView.builder(
+                                  shrinkWrap: true,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  itemCount: _infiniteFeedItems.length,
+                                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: crossAxisCount,
+                                    childAspectRatio: 0.62,
+                                    crossAxisSpacing: 8,
+                                    mainAxisSpacing: 10,
+                                  ),
+                                  itemBuilder: (context, index) {
+                                    final item = _infiniteFeedItems[index];
+                                    return GestureDetector(
+                                      onTap: () => _onOpenMediaDetails(item),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Expanded(
+                                            child: ClipRRect(
+                                              borderRadius: BorderRadius.circular(10),
+                                              child: (item.poster != null && item.poster!.isNotEmpty)
+                                                  ? CachedNetworkImage(
+                                                      imageUrl: item.poster!,
+                                                      fit: BoxFit.cover,
+                                                      width: double.infinity,
+                                                      placeholder: (context, url) => Container(color: AppTheme.card),
+                                                      errorWidget: (context, url, error) => Container(
+                                                        color: AppTheme.card,
+                                                        child: const Icon(Icons.movie, color: Colors.white24),
+                                                      ),
+                                                    )
+                                                  : Container(
+                                                      color: AppTheme.card,
+                                                      child: const Icon(Icons.movie, color: Colors.white24),
+                                                    ),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            item.title,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+
+                        if (_isLoadingMoreFeed)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 24),
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                color: AppTheme.primary,
+                                strokeWidth: 2.5,
+                              ),
+                            ),
+                          ),
+
+                        const SizedBox(height: 60),
                       ],
                     ),
                   ),
                 ),
+
+                // Floating Header with Search Button (Mobile Only)
+                if (!isDesktop)
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.black.withValues(alpha: 0.6),
+                            Colors.transparent,
+                          ],
+                        ),
+                      ),
+                      padding: EdgeInsets.fromLTRB(
+                        16,
+                        MediaQuery.of(context).padding.top + 8,
+                        16,
+                        16,
+                      ),
+                      child: Row(
+                        children: [
+                          // Menu Button
+                          GestureDetector(
+                            onTap: () => _scaffoldKey.currentState?.openDrawer(),
+                            child: const Icon(
+                              Icons.menu_rounded,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                          ),
+                          const Spacer(),
+
+                          // Search Button
+                          GestureDetector(
+                            onTap: _openSearch,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.1),
+                                ),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.search_rounded,
+                                    color: AppTheme.primary,
+                                    size: 18,
+                                  ),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    'Rechercher',
+                                    style: TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
               ],
             ),
     );
   }
 
+  List<LiveMatch> _filterMatches(List<LiveMatch> matches, String leagueFilter) {
+    if (leagueFilter == 'all') return matches;
+    if (leagueFilter == 'live') {
+      return matches.where((m) => m.status == 'live').toList();
+    }
+    if (leagueFilter == 'uefa') {
+      return matches.where((m) =>
+          m.league != null &&
+          (m.league!.toLowerCase().contains('champion') || m.league!.toLowerCase().contains('uefa'))).toList();
+    }
+    if (leagueFilter == 'premier-league') {
+      return matches.where((m) =>
+          m.league != null &&
+          (m.league!.toLowerCase().contains('premier') || m.league!.toLowerCase().contains('epl') || m.league!.toLowerCase().contains('england'))).toList();
+    }
+    if (leagueFilter == 'la-liga') {
+      return matches.where((m) =>
+          m.league != null &&
+          (m.league!.toLowerCase().contains('liga') || m.league!.toLowerCase().contains('spain') || m.league!.toLowerCase().contains('primera'))).toList();
+    }
+    if (leagueFilter == 'serie-a') {
+      return matches.where((m) =>
+          m.league != null &&
+          (m.league!.toLowerCase().contains('serie a') || m.league!.toLowerCase().contains('italy') || m.league!.toLowerCase().contains('italia'))).toList();
+    }
+    if (leagueFilter == 'bundesliga') {
+      return matches.where((m) =>
+          m.league != null &&
+          (m.league!.toLowerCase().contains('bundesliga') || m.league!.toLowerCase().contains('germany'))).toList();
+    }
+    if (leagueFilter == 'ligue-1') {
+      return matches.where((m) =>
+          m.league != null &&
+          (m.league!.toLowerCase().contains('ligue 1') || m.league!.toLowerCase().contains('france'))).toList();
+    }
+    return matches;
+  }
+
   Widget _buildLiveMatchesRow(List<LiveMatch> matches) {
+    final displayedMatches = _filterMatches(matches, _selectedMatchLeague);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
           child: Row(
             children: [
               const Icon(Icons.sports_soccer_rounded, color: AppTheme.primary, size: 20),
               const SizedBox(width: 8),
               const Text(
-                'Matchs en Direct & à venir',
+                'Matchs de Football en Direct',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
               ),
               const Spacer(),
@@ -350,80 +581,154 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
         ),
+
+        // ── LEAGUE FILTER PILLS ──
         SizedBox(
-          height: 130,
+          height: 38,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 12),
-            itemCount: matches.length,
+            itemCount: _homeLeagueFilters.length,
             itemBuilder: (context, index) {
-              final match = matches[index];
-              final isLive = match.status == 'live';
-              final isUefa = match.league != null &&
-                  (match.league!.toLowerCase().contains('champion') || match.league!.toLowerCase().contains('uefa'));
+              final filter = _homeLeagueFilters[index];
+              final isSelected = _selectedMatchLeague == filter['id'];
 
-              return GestureDetector(
-                onTap: () {
-                  LiveScreen.playMatch(match);
-                  MainNavigation.switchTab(context, 2, subTab: 1);
-                },
-                child: Container(
-                  width: 250,
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppTheme.card,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: isLive ? AppTheme.primary.withValues(alpha: 0.6) : Colors.white10,
-                      width: isLive ? 1.5 : 1,
+              return Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: InkWell(
+                  onTap: () {
+                    setState(() {
+                      _selectedMatchLeague = filter['id'] as String;
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isSelected ? AppTheme.primary : AppTheme.card,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isSelected ? AppTheme.primary : Colors.white10,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          filter['icon'] as IconData,
+                          size: 14,
+                          color: isSelected ? Colors.white : (filter['id'] == 'live' ? Colors.redAccent : Colors.white60),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          filter['label'] as String,
+                          style: TextStyle(
+                            color: isSelected ? Colors.white : Colors.white70,
+                            fontSize: 11,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Header : League + Live Badge
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (isUefa) ...[
-                                const Icon(Icons.emoji_events_rounded, color: Colors.amber, size: 14),
-                                const SizedBox(width: 4),
-                              ],
-                              Text(
-                                match.league ?? 'Football',
-                                style: TextStyle(
-                                  color: isUefa ? Colors.amber : AppTheme.primary,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: isLive ? Colors.redAccent : Colors.white10,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              isLive ? 'DIRECT' : (match.minute ?? 'Bientôt'),
-                              style: TextStyle(
-                                color: isLive ? Colors.white : Colors.white70,
-                                fontSize: 9,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 10),
 
-                      // Teams with logos
+        displayedMatches.isEmpty
+            ? Container(
+                height: 100,
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: AppTheme.card,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.white10),
+                ),
+                child: Center(
+                  child: Text(
+                    'Aucun match programmé pour ce championnat en ce moment',
+                    style: TextStyle(color: Colors.white54, fontSize: 12),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              )
+            : SizedBox(
+                height: 135,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  itemCount: displayedMatches.length,
+                  itemBuilder: (context, index) {
+                    final match = displayedMatches[index];
+                    final isLive = match.status == 'live';
+                    final isUefa = match.league != null &&
+                        (match.league!.toLowerCase().contains('champion') || match.league!.toLowerCase().contains('uefa'));
+
+                    return GestureDetector(
+                      onTap: () {
+                        LiveScreen.playMatch(match);
+                        MainNavigation.switchTab(context, 2, subTab: 1);
+                      },
+                      child: Container(
+                        width: 250,
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppTheme.card,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: isLive ? AppTheme.primary.withValues(alpha: 0.6) : Colors.white10,
+                            width: isLive ? 1.5 : 1,
+                          ),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            // Header : League + Live Badge
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (isUefa) ...[
+                                      const Icon(Icons.emoji_events_rounded, color: Colors.amber, size: 14),
+                                      const SizedBox(width: 4),
+                                    ],
+                                    Text(
+                                      match.league ?? 'Football',
+                                      style: TextStyle(
+                                        color: isUefa ? Colors.amber : AppTheme.primary,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: isLive ? Colors.redAccent : Colors.white10,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    isLive ? 'DIRECT' : (match.minute ?? 'Bientôt'),
+                                    style: TextStyle(
+                                      color: isLive ? Colors.white : Colors.white70,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                            // Teams with logos
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
@@ -536,83 +841,6 @@ class _HomeScreenState extends State<HomeScreen> {
           style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
         ),
       ),
-    );
-  }
-
-  Widget _buildLiveChannelsRow(List<LiveChannel> channels) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-          child: Row(
-            children: [
-              const Icon(Icons.live_tv_rounded, color: AppTheme.primary, size: 20),
-              const SizedBox(width: 8),
-              const Text(
-                'Chaînes TV en Direct',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
-              ),
-              const Spacer(),
-              GestureDetector(
-                onTap: () {
-                  MainNavigation.switchTab(context, 2, subTab: 0);
-                },
-                child: const Text(
-                  'Voir tout',
-                  style: TextStyle(color: AppTheme.primary, fontSize: 12, fontWeight: FontWeight.w600),
-                ),
-              ),
-            ],
-          ),
-        ),
-        SizedBox(
-          height: 100,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            itemCount: channels.length,
-            itemBuilder: (context, index) {
-              final channel = channels[index];
-              return GestureDetector(
-                onTap: () {
-                  MainNavigation.switchTab(context, 2, subTab: 0);
-                },
-                child: Container(
-                  width: 100,
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  decoration: BoxDecoration(
-                    color: AppTheme.card,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.white10),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      channel.logo.isNotEmpty
-                          ? CachedNetworkImage(
-                              imageUrl: channel.logo,
-                              height: 38,
-                              fit: BoxFit.contain,
-                              errorWidget: (context, url, error) =>
-                                  const Icon(Icons.tv, color: Colors.white54, size: 28),
-                            )
-                          : const Icon(Icons.tv, color: Colors.white54, size: 28),
-                      const SizedBox(height: 6),
-                      Text(
-                        channel.name,
-                        style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w500),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
     );
   }
 

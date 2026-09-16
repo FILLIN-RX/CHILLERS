@@ -418,14 +418,56 @@ export async function getLiveBallMatches(): Promise<LiveBallMatch[] | null> {
   }
 }
 
+const LEAGUE_CONFIGS: Record<string, { title: string; slugs: string[]; keywords: string[] }> = {
+  'champions-league': {
+    title: 'UEFA Champions League',
+    slugs: ['champions-league', 'uefa-champions-league', 'liga-chempionov'],
+    keywords: ['champion', 'uefa', 'лига чемпионов'],
+  },
+  'uefa-champions-league': {
+    title: 'UEFA Champions League',
+    slugs: ['champions-league', 'uefa-champions-league', 'liga-chempionov'],
+    keywords: ['champion', 'uefa', 'лига чемпионов'],
+  },
+  'premier-league': {
+    title: 'Premier League',
+    slugs: ['premier-league', 'angliya-premer-liga', 'apl', 'epl', 'england-premier-league'],
+    keywords: ['premier', 'epl', 'england', 'премьер-лига', 'апл', 'англия'],
+  },
+  'la-liga': {
+    title: 'La Liga',
+    slugs: ['la-liga', 'primera', 'ispaniya-primera', 'spain-la-liga', 'laliga'],
+    keywords: ['liga', 'spain', 'primera', 'ла лига', 'примера', 'испания'],
+  },
+  'serie-a': {
+    title: 'Serie A',
+    slugs: ['serie-a', 'seriya-a', 'italiya-seriya-a', 'italy-serie-a'],
+    keywords: ['serie a', 'seria a', 'italy', 'italia', 'серия а', 'италия'],
+  },
+  'bundesliga': {
+    title: 'Bundesliga',
+    slugs: ['bundesliga', 'germaniya-bundesliga', 'germany-bundesliga'],
+    keywords: ['bundesliga', 'germany', 'бундеслига', 'германия'],
+  },
+  'ligue-1': {
+    title: 'Ligue 1',
+    slugs: ['ligue-1', 'frantsiya-liga-1', 'france-ligue-1', 'liga-1'],
+    keywords: ['ligue 1', 'france', 'лига 1', 'франция'],
+  },
+};
+
 export async function getLiveBallLeagueMatches(league: string): Promise<LiveBallMatch[] | null> {
-  const normalizedLeague = league.toLowerCase();
-  const isUefa = normalizedLeague.includes('champion') || normalizedLeague.includes('uefa') || normalizedLeague.includes('chempionov');
-  const leagueTitle = isUefa ? 'UEFA Champions League' : league;
-  
-  const slugsToTry = isUefa
-    ? ['champions-league', 'uefa-champions-league', 'liga-chempionov']
-    : [encodeURIComponent(league)];
+  const normalizedInput = league.toLowerCase().trim().replace(/[\s_]+/g, '-');
+  const matchedKey = Object.keys(LEAGUE_CONFIGS).find(
+    (k) =>
+      k === normalizedInput ||
+      normalizedInput.includes(k) ||
+      k.includes(normalizedInput)
+  );
+
+  const conf = matchedKey ? LEAGUE_CONFIGS[matchedKey] : null;
+  const leagueTitle = conf ? conf.title : league;
+  const slugsToTry = conf ? conf.slugs : [encodeURIComponent(league)];
 
   const cacheKey = `league:${slugsToTry[0]}`;
   const cached = CACHE.get(cacheKey);
@@ -458,21 +500,18 @@ export async function getLiveBallLeagueMatches(league: string): Promise<LiveBall
     } catch (_) {}
   }
 
-  // Si c'est la Champions League, on vérifie aussi les vrais matchs UEFA sur la homepage
-  if (isUefa) {
-    try {
-      const homeMatches = await getLiveBallMatches();
-      if (homeMatches) {
-        const uefaOnHome = homeMatches.filter(
-          (m) =>
-            m.league?.toLowerCase().includes('champion') ||
-            m.league?.toLowerCase().includes('uefa') ||
-            m.league?.toLowerCase().includes('лига чемпионов')
-        );
-        allMatches.push(...uefaOnHome.map((m) => ({ ...m, league: 'UEFA Champions League' })));
-      }
-    } catch (_) {}
-  }
+  // Vérifier également les matchs de la page d'accueil correspondant à la ligue
+  try {
+    const homeMatches = await getLiveBallMatches();
+    if (homeMatches && homeMatches.length > 0) {
+      const keywords = conf ? conf.keywords : [normalizedInput];
+      const matchingFromHome = homeMatches.filter((m) => {
+        const leagueStr = (m.league || '').toLowerCase();
+        return keywords.some((kw) => leagueStr.includes(kw));
+      });
+      allMatches.push(...matchingFromHome.map((m) => ({ ...m, league: leagueTitle })));
+    }
+  } catch (_) {}
 
   // Dédoublonnage et filtrage des matchs expirés
   const nowSec = Math.floor(Date.now() / 1000);

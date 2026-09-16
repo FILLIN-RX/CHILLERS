@@ -37,7 +37,6 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
   UserModel? _user;
   List<LiveChannel> _channels = [];
   List<LiveMatch> _matches = [];
-  List<LiveMatch> _uefaMatches = [];
   bool _isLoading = true;
 
   late TabController _tabController;
@@ -61,8 +60,13 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
 
   final List<Map<String, dynamic>> _matchFilters = const [
     {'id': 'all', 'label': 'Tous les Matchs', 'icon': Icons.sports_soccer_rounded},
-    {'id': 'uefa', 'label': 'Ligue des Champions', 'icon': Icons.emoji_events_rounded},
     {'id': 'live', 'label': 'En Direct', 'icon': Icons.circle_rounded},
+    {'id': 'uefa', 'label': 'Champions League', 'icon': Icons.emoji_events_rounded},
+    {'id': 'premier-league', 'label': 'Premier League', 'icon': Icons.sports_soccer_rounded},
+    {'id': 'la-liga', 'label': 'La Liga', 'icon': Icons.sports_soccer_rounded},
+    {'id': 'serie-a', 'label': 'Serie A', 'icon': Icons.sports_soccer_rounded},
+    {'id': 'bundesliga', 'label': 'Bundesliga', 'icon': Icons.sports_soccer_rounded},
+    {'id': 'ligue-1', 'label': 'Ligue 1', 'icon': Icons.sports_soccer_rounded},
     {'id': 'upcoming', 'label': 'À Venir', 'icon': Icons.schedule_rounded},
   ];
 
@@ -114,11 +118,6 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
         _user = cachedUser;
         _channels = channels;
         _matches = allMatches;
-        _uefaMatches = uefa.isNotEmpty
-            ? uefa
-            : allMatches.where((m) =>
-                m.league != null &&
-                (m.league!.toLowerCase().contains('champion') || m.league!.toLowerCase().contains('uefa'))).toList();
         _isLoading = false;
 
         if (channels.isNotEmpty && _activeChannel == null && _activeMatch == null) {
@@ -178,20 +177,49 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
   }
 
   List<LiveMatch> get _filteredMatches {
-    if (_selectedMatchFilter == 'uefa') {
-      return _uefaMatches.isNotEmpty ? _uefaMatches : _matches;
-    }
     if (_selectedMatchFilter == 'live') {
       return _matches.where((m) => m.status == 'live').toList();
     }
     if (_selectedMatchFilter == 'upcoming') {
       return _matches.where((m) => m.status == 'upcoming').toList();
     }
+    if (_selectedMatchFilter == 'uefa') {
+      return _matches.where((m) =>
+          m.league != null &&
+          (m.league!.toLowerCase().contains('champion') || m.league!.toLowerCase().contains('uefa'))).toList();
+    }
+    if (_selectedMatchFilter == 'premier-league') {
+      return _matches.where((m) =>
+          m.league != null &&
+          (m.league!.toLowerCase().contains('premier') || m.league!.toLowerCase().contains('epl') || m.league!.toLowerCase().contains('england'))).toList();
+    }
+    if (_selectedMatchFilter == 'la-liga') {
+      return _matches.where((m) =>
+          m.league != null &&
+          (m.league!.toLowerCase().contains('liga') || m.league!.toLowerCase().contains('spain') || m.league!.toLowerCase().contains('primera'))).toList();
+    }
+    if (_selectedMatchFilter == 'serie-a') {
+      return _matches.where((m) =>
+          m.league != null &&
+          (m.league!.toLowerCase().contains('serie a') || m.league!.toLowerCase().contains('italy') || m.league!.toLowerCase().contains('italia'))).toList();
+    }
+    if (_selectedMatchFilter == 'bundesliga') {
+      return _matches.where((m) =>
+          m.league != null &&
+          (m.league!.toLowerCase().contains('bundesliga') || m.league!.toLowerCase().contains('germany'))).toList();
+    }
+    if (_selectedMatchFilter == 'ligue-1') {
+      return _matches.where((m) =>
+          m.league != null &&
+          (m.league!.toLowerCase().contains('ligue 1') || m.league!.toLowerCase().contains('france'))).toList();
+    }
     return _matches;
   }
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isDesktop = screenWidth >= 850;
     final isVip = _user?.subscription?.status == 'active';
     final liveMatchesCount = _matches.where((m) => m.status == 'live').length;
     final isMatchActive = _activeMatch != null;
@@ -199,20 +227,24 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: AppTheme.background,
-      drawer: AppDrawer(
-        activeCategory: 'En Direct',
-        onSelectCategory: (_) {},
-      ),
+      drawer: isDesktop
+          ? null
+          : AppDrawer(
+              activeCategory: 'En Direct',
+              onSelectCategory: (_) {},
+            ),
       body: SafeArea(
+        top: !isDesktop,
         child: Column(
           children: [
-            // ── TOP APP HEADER ──
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: const BoxDecoration(
-                color: Color(0xFF0C0C0E),
-                border: Border(bottom: BorderSide(color: Colors.white10)),
-              ),
+            // ── TOP APP HEADER (Mobile Only) ──
+            if (!isDesktop)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF0C0C0E),
+                  border: Border(bottom: BorderSide(color: Colors.white10)),
+                ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -877,7 +909,7 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
                                           Text(
                                             'Streaming HD · Chillers Live',
                                             style: TextStyle(
-                                              color: Colors.white.withOpacity(0.4),
+                                              color: Colors.white.withValues(alpha: 0.4),
                                               fontSize: 11,
                                             ),
                                           ),

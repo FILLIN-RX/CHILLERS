@@ -5,10 +5,9 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { Television, MagnifyingGlass, Star, Play, CaretCircleRight, X, Check, ArrowLeft } from "@phosphor-icons/react";
 import { getLiveChannels, FALLBACK_CHANNELS } from "@/services/live";
-import { getLiveBallMatches, getLiveBallChampionsLeague, getLiveBallLiveAvailable } from "@/services/liveball";
 import type { LiveChannel } from "@/types/live";
-import type { LiveBallMatch } from "@/types/liveball";
 import LivePlayer from "@/components/LivePlayer";
+import LiveMatchesRow from "@/components/LiveMatchesRow";
 
 export function ChannelLogo({ channel }: { channel: LiveChannel }) {
   const [broken, setBroken] = useState(false);
@@ -143,81 +142,6 @@ function TeamCrest({ src, alt, size = "md" }: { src?: string; alt: string; size?
   );
 }
 
-function LiveBallStrip({
-  matches,
-  liveAvailable,
-  title = "Matchs Foot",
-}: {
-  matches: LiveBallMatch[];
-  liveAvailable?: LiveBallMatch[];
-  title?: string;
-}) {
-  const nowSec = Math.floor(Date.now() / 1000);
-  const live = (liveAvailable || matches.filter((m) => m.status === "live")).filter(
-    (m) => !m.startTs || m.startTs > nowSec - 3.5 * 3600
-  );
-  const upcoming = matches
-    .filter((m) => m.status === "upcoming" && (!m.startTs || m.startTs > nowSec - 3.5 * 3600))
-    .slice(0, 6);
-  if (live.length === 0 && upcoming.length === 0) return null;
-
-  const card = (m: LiveBallMatch) => (
-    <a
-      key={m.id}
-      href={`/live/lb/${m.id}`}
-      className="group shrink-0 flex flex-col rounded-xl bg-zinc-900/90 border border-white/10 hover:border-red-600/60 transition-all duration-300 hover:scale-[1.03] hover:shadow-lg hover:shadow-red-600/10 p-3 w-[172px] sm:w-44"
-    >
-      <div className="flex items-center justify-between gap-1 mb-2">
-        <span
-          className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded ${
-            m.status === "live" ? "bg-red-600 text-white animate-pulse" : "bg-zinc-800 text-zinc-400"
-          }`}
-        >
-          {m.status === "live" ? "● Live" : formatMatchTime(m.startTs)}
-        </span>
-        {m.score && (
-          <span className="text-[11px] font-black text-white tabular-nums">{m.score}</span>
-        )}
-      </div>
-      <div className="flex items-center justify-between gap-2">
-        <div className="min-w-0 text-center">
-          <TeamCrest src={m.homeLogo} alt={m.home} />
-          <p className="mt-1 text-[10px] font-bold text-white truncate">{m.home}</p>
-        </div>
-        <span className="text-[10px] font-black text-zinc-600 shrink-0">VS</span>
-        <div className="min-w-0 text-center">
-          <TeamCrest src={m.awayLogo} alt={m.away} />
-          <p className="mt-1 text-[10px] font-bold text-white truncate">{m.away}</p>
-        </div>
-      </div>
-    </a>
-  );
-
-  return (
-    <div className="relative mb-6">
-      <div className="flex items-center gap-2 mb-3">
-        <h2 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
-          {title}
-        </h2>
-        <span className="h-2 w-2 rounded-full bg-red-600 animate-pulse" />
-      </div>
-      {live.length > 0 ? (
-        <div className="flex gap-2.5 overflow-x-auto no-scrollbar -mx-1 px-1 py-1">
-          {live.map(card)}
-          {upcoming.map(card)}
-        </div>
-      ) : (
-        <div className="flex gap-2.5 overflow-x-auto no-scrollbar -mx-1 px-1 py-1">
-          {upcoming.map(card)}
-        </div>
-      )}
-      <p className="mt-2 text-[10px] text-zinc-500">
-        Cliquez sur un match pour regarder la diffusion
-      </p>
-    </div>
-  );
-}
-
 export default function LivePageContent() {
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [search, setSearch] = useState("");
@@ -229,26 +153,6 @@ export default function LivePageContent() {
     queryKey: ["live", "channels"],
     queryFn: () => getLiveChannels(),
     staleTime: 60_000,
-  });
-
-  const { data: lbMatches = [] } = useQuery({
-    queryKey: ["live", "liveball"],
-    queryFn: () => getLiveBallMatches(),
-    staleTime: 60_000,
-  });
-
-  const { data: clMatches = [] } = useQuery({
-    queryKey: ["live", "liveball", "champions-league"],
-    queryFn: () => getLiveBallChampionsLeague(),
-    staleTime: 60_000,
-  });
-
-  // Uniquement les directs dont le flux a été vérifié disponible.
-  const { data: lbLiveAvailable = [] } = useQuery({
-    queryKey: ["live", "liveball", "available"],
-    queryFn: () => getLiveBallLiveAvailable(),
-    staleTime: 5 * 60_000,
-    refetchInterval: 5 * 60_000,
   });
 
   useEffect(() => {
@@ -369,11 +273,8 @@ export default function LivePageContent() {
         </div>
       </div>
 
-      {/* ── Champions League ────────────────────────────────────── */}
-      <LiveBallStrip matches={clMatches} title="Champions League" />
-
-      {/* ── LiveBall Matches Strip (Football en direct) ─────────── */}
-      <LiveBallStrip matches={lbMatches} liveAvailable={lbLiveAvailable} />
+      {/* ── Matchs Foot par Championnat ───────────────────────── */}
+      <LiveMatchesRow className="mb-8" noScrollMargin />
 
       {/* ── Live Channel Cards Grid ─────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3.5 sm:gap-4 lg:gap-5">

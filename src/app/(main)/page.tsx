@@ -9,6 +9,7 @@ import ContinueWatchingCard from "@/components/ContinueWatchingCard";
 import ScrollRow from "@/components/ScrollRow";
 import SpotlightGrid from "@/components/SpotlightGrid";
 import MostViewedMovie from "@/components/MostViewedMovie";
+import LiveMatchesRow from "@/components/LiveMatchesRow";
 import { useLanguage } from "@/i18n/LanguageContext";
 import {
   MovieOrShow,
@@ -884,6 +885,8 @@ function Home() {
 
               {activeTab === "home" && (
                 <>
+                  <LiveMatchesRow />
+
                   {isLoadingData ? (
                     <>
                       <ScrollRow title={_("home.trending")} accentColor="primary">

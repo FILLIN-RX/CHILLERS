@@ -236,10 +236,10 @@ class MainNavigationState extends State<MainNavigation> {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(vertical: 10),
                                 decoration: BoxDecoration(
-                                  color: isSelected ? AppTheme.primary.withOpacity(0.15) : Colors.transparent,
+                                  color: isSelected ? AppTheme.primary.withValues(alpha: 0.15) : Colors.transparent,
                                   borderRadius: BorderRadius.circular(12),
                                   border: isSelected
-                                      ? Border.all(color: AppTheme.primary.withOpacity(0.4))
+                                      ? Border.all(color: AppTheme.primary.withValues(alpha: 0.4))
                                       : null,
                                 ),
                                 child: Column(
@@ -276,10 +276,10 @@ class MainNavigationState extends State<MainNavigation> {
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                               decoration: BoxDecoration(
-                                color: isSelected ? AppTheme.primary.withOpacity(0.18) : Colors.transparent,
+                                color: isSelected ? AppTheme.primary.withValues(alpha: 0.18) : Colors.transparent,
                                 borderRadius: BorderRadius.circular(12),
                                 border: isSelected
-                                    ? Border.all(color: AppTheme.primary.withOpacity(0.4))
+                                    ? Border.all(color: AppTheme.primary.withValues(alpha: 0.4))
                                     : null,
                               ),
                               child: Row(
@@ -414,7 +414,7 @@ class MainNavigationState extends State<MainNavigation> {
               decoration: BoxDecoration(
                 color: const Color(0xFF27272A),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
               ),
               child: const Row(
                 children: [
@@ -430,7 +430,7 @@ class MainNavigationState extends State<MainNavigation> {
               decoration: BoxDecoration(
                 color: const Color(0xFF27272A),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.yellow.withOpacity(0.3)),
+                border: Border.all(color: Colors.yellow.withValues(alpha: 0.3)),
               ),
               child: const Row(
                 children: [
