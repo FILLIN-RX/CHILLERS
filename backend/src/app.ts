@@ -37,7 +37,52 @@ dotenv.config({ path: path.join(__dirname, '../.env') });
 
 const app = express();
 
-app.use(cors());
+const allowedOrigins = [
+  'https://chillers-pi.vercel.app',
+  ...(process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map(o => o.trim().replace(/\/$/, '')) : []),
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://127.0.0.1:3000',
+];
+
+const corsOptions: cors.CorsOptions = {
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    const normalizedOrigin = origin.replace(/\/$/, '');
+    if (allowedOrigins.includes(normalizedOrigin) || normalizedOrigin === 'https://chillers-pi.vercel.app') {
+      return callback(null, true);
+    }
+    return callback(new Error(`CORS non autorisé pour l'origine: ${origin}`));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
+    'Accept',
+    'Origin',
+    'Range',
+    'X-Session-ID',
+    'X-Forwarded-For',
+    'x-csrf-token',
+    'X-CSRF-Token',
+    'x-no-compression',
+    'Cache-Control',
+    'Pragma',
+  ],
+  exposedHeaders: [
+    'Content-Range',
+    'Accept-Ranges',
+    'Content-Length',
+    'Content-Type',
+    'ETag',
+    'X-Total-Count',
+  ],
+  maxAge: 86400,
+};
+
+app.use(cors(corsOptions));
 app.use(compression({
   filter: (req, res) => {
     if (req.headers['x-no-compression']) {
@@ -52,6 +97,8 @@ app.use(compression({
   threshold: 512, // Compress payloads larger than 512 bytes
 }));
 app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginEmbedderPolicy: false,
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],

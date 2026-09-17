@@ -105,15 +105,16 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
   }, [pathname]);
 
   const isWatchPage = pathname?.startsWith("/watch");
+  const isSeasonPage = Boolean(pathname?.includes("/season"));
 
   return (
     <>
       <header
         ref={headerRef}
         className={`fixed top-0 left-0 w-full z-40 select-none [app-region:drag] transition-colors duration-300 ${
-          isDetailPage && !isWatchPage ? "max-sm:hidden" : ""
+          isDetailPage && !isWatchPage && !isSeasonPage ? "max-sm:hidden" : ""
         } ${
-          isScrolled || isWatchPage
+          isScrolled || isWatchPage || isSeasonPage
             ? "bg-[#0c0c0e]/95 backdrop-blur-xl shadow-2xl border-b border-white/8"
             : "bg-gradient-to-b from-black/90 via-black/40 to-transparent border-b-0"
         }`}

@@ -111,55 +111,69 @@ export default function MovieModal({
     }
   }, [isOpen, item?.id, activeSeason, handleSeasonChange]);
 
+  const animatedSessionRef = useRef<string | null>(null);
+
   // GSAP Smooth Morph Expansion Animation (Card blossoming into Modal)
   useEffect(() => {
-    if (isOpen && modalRef.current && backdropRef.current) {
-      gsap.fromTo(
-        backdropRef.current,
-        { opacity: 0 },
-        { opacity: 1, duration: 0.42, ease: "power2.out" }
-      );
+    if (isOpen && item?.id) {
+      const sessionKey = `${item.id}-${isOpen}`;
+      if (animatedSessionRef.current === sessionKey) return;
+      animatedSessionRef.current = sessionKey;
 
-      gsap.fromTo(
-        modalRef.current,
-        {
-          scale: 0.86,
-          y: 28,
-          opacity: 0.2,
-          borderRadius: "28px",
-        },
-        {
-          scale: 1,
-          y: 0,
-          opacity: 1,
-          borderRadius: "24px",
-          duration: 0.5,
-          ease: "power3.out",
-        }
-      );
+      if (modalRef.current && backdropRef.current) {
+        gsap.killTweensOf([backdropRef.current, modalRef.current]);
+        if (heroImageRef.current) gsap.killTweensOf(heroImageRef.current);
+        if (contentRef.current?.children) gsap.killTweensOf(contentRef.current.children);
 
-      if (heroImageRef.current) {
         gsap.fromTo(
-          heroImageRef.current,
-          { scale: 1.08 },
-          { scale: 1, duration: 0.6, ease: "power2.out" }
+          backdropRef.current,
+          { opacity: 0 },
+          { opacity: 1, duration: 0.35, ease: "power2.out" }
         );
-      }
 
-      if (contentRef.current) {
         gsap.fromTo(
-          contentRef.current.children,
-          { opacity: 0, y: 16 },
+          modalRef.current,
           {
-            opacity: 1,
+            scale: 0.9,
+            y: 20,
+            opacity: 0,
+            borderRadius: "28px",
+          },
+          {
+            scale: 1,
             y: 0,
+            opacity: 1,
+            borderRadius: "24px",
             duration: 0.42,
-            stagger: 0.05,
-            delay: 0.12,
-            ease: "power2.out",
+            ease: "power3.out",
           }
         );
+
+        if (heroImageRef.current) {
+          gsap.fromTo(
+            heroImageRef.current,
+            { scale: 1.06 },
+            { scale: 1, duration: 0.5, ease: "power2.out" }
+          );
+        }
+
+        if (contentRef.current) {
+          gsap.fromTo(
+            contentRef.current.children,
+            { opacity: 0, y: 12 },
+            {
+              opacity: 1,
+              y: 0,
+              duration: 0.35,
+              stagger: 0.04,
+              delay: 0.08,
+              ease: "power2.out",
+            }
+          );
+        }
       }
+    } else if (!isOpen) {
+      animatedSessionRef.current = null;
     }
   }, [isOpen, item?.id]);
 

@@ -718,18 +718,16 @@ function Home() {
   }, [activeTab, moviesData.length, seriesData.length, animeData.length]);
 
   const handleOpenDetails = useCallback((item: MovieOrShow) => {
-    startTransition(() => {
-      if (typeof window !== "undefined" && window.innerWidth < 768) {
-        if (item.type === "series" || item.type === "anime") {
-          router.push(`/tv/${item.id}`);
-        } else {
-          router.push(`/media/${item.id}`);
-        }
-        return;
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      if (item.type === "series" || item.type === "anime") {
+        router.push(`/tv/${item.id}`);
+      } else {
+        router.push(`/media/${item.id}`);
       }
-      setSelectedMovie(item);
-      setIsModalOpen(true);
-    });
+      return;
+    }
+    setSelectedMovie(item);
+    setIsModalOpen(true);
   }, [router]);
 
   // Infinite Scroll fluide YouTube-style : charge progressivement plus de rangées
@@ -1288,7 +1286,10 @@ function Home() {
       <MovieModal
         item={selectedMovie}
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => {
+          setIsModalOpen(false);
+          setSelectedMovie(null);
+        }}
         onWatch={handleModalWatch}
         onOpenDetails={(movie) => {
           setSelectedMovie(movie);

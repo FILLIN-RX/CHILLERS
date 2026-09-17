@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import Image from "next/image";
 import { useLanguage } from "@/i18n/LanguageContext";
 import type { MovieOrShow, Episode } from "@/types/media";
-import { X, DownloadSimple, Play, Pause, SpeakerSimpleHigh, SpeakerSimpleLow, SpeakerSimpleSlash, ArrowsOutSimple, PictureInPicture, Subtitles, SkipBack, SkipForward, Spinner, GearSix, ArrowLeft, ArrowsClockwise, Crown } from "@phosphor-icons/react";
+import { X, DownloadSimple, Play, Pause, SpeakerSimpleHigh, SpeakerSimpleLow, SpeakerSimpleSlash, ArrowsOutSimple, PictureInPicture, Subtitles, SkipBack, SkipForward, Spinner, GearSix, ArrowsClockwise, Crown } from "@phosphor-icons/react";
 import NotificationModal from "./NotificationModal";
 import DownloadModal from "@/features/downloads/DownloadModal";
 import { isIframeProviderUrl, toEmbedUrl } from "@/lib/providers";
@@ -20,7 +20,7 @@ import Hls from "hls.js";
 interface VideoPlayerProps {
   item: MovieOrShow;
   episode?: Episode;
-  onBack: () => void;
+  onBack?: () => void;
   onOpenDetails?: (item: MovieOrShow) => void;
 }
 
@@ -1305,19 +1305,6 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
             <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 via-zinc-950 to-black" />
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-black/30" />
-
-          {/* Top Bar on Cover */}
-          <div className="absolute top-4 left-4 sm:top-6 sm:left-6 z-20">
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onBack(); }}
-              className="flex items-center gap-2 px-4 py-2 rounded-full bg-black/40 hover:bg-white/20 backdrop-blur-xl border border-white/10 text-white/90 hover:text-white transition-all shadow-xl hover:scale-105 active:scale-95 group"
-              title="Retour"
-            >
-              <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-0.5" />
-              <span className="text-xs font-bold tracking-wide">Retour</span>
-            </button>
-          </div>
 
           <div className="relative z-10 h-full w-full flex flex-col items-center justify-center px-6 text-center">
             {item.type && (

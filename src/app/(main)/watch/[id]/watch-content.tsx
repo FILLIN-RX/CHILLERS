@@ -446,7 +446,7 @@ function WatchContent() {
     <div className="min-h-screen bg-[#09090B] text-white">
       <div
         className={`pt-[64px] sm:pt-[70px] pb-16 sm:pb-20 lg:pb-24 ${
-          hasEpisodes ? "lg:pr-[24rem] xl:pr-[28rem]" : ""
+          hasEpisodes ? "lg:pr-[26rem] xl:pr-[28rem]" : ""
         }`}
       >
         {/* Main Video Player Section */}
@@ -764,9 +764,9 @@ function WatchContent() {
 
       {/* Desktop Persistent Sidebar with Season Selector & Episode List */}
       {hasEpisodes && (
-        <aside className="hidden lg:block fixed top-[72px] right-0 w-[26rem] xl:w-[28rem] h-[calc(100dvh-72px)] bg-[#0c0c0e]/95 backdrop-blur-xl border-l border-white/5 overflow-y-auto p-4 z-30 space-y-3">
+        <aside className="hidden lg:block fixed top-[64px] sm:top-[70px] right-0 w-[26rem] xl:w-[28rem] h-[calc(100dvh-64px)] sm:h-[calc(100dvh-70px)] bg-[#0c0c0e]/98 backdrop-blur-2xl border-l border-white/5 overflow-y-auto p-4 z-30 space-y-3">
           {/* Season Selector Dropdown */}
-          <div className="sticky top-0 bg-[#0c0c0e]/95 backdrop-blur-md pb-3 pt-1 z-10 border-b border-white/5 space-y-2">
+          <div className="sticky top-0 bg-[#0c0c0e] backdrop-blur-md pb-3 pt-1 z-30 border-b border-white/5 space-y-2">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
                 <span className="h-3 w-1 rounded-full bg-brand-primary" />
@@ -875,7 +875,7 @@ function EpisodeCard({
           fallbackText={`Épisode ${ep.number}`}
         />
         {active && (
-          <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-20 pointer-events-none">
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10 pointer-events-none">
             <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-brand-primary flex items-center justify-center shadow-lg">
               <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white fill-white ml-0.5" />
             </div>
