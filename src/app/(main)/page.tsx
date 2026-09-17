@@ -465,11 +465,6 @@ function Home() {
         if (heroBase.length > 0) {
           const topHero = heroBase.slice(0, 10);
           setHeroSlides(topHero);
-
-          // Enrichir les slides avec les bandes-annonces en background (non bloquant, hors 2G)
-          enrichHeroSlidesWithTrailers(topHero, signal)
-            .then((enriched) => setHeroSlides(enriched))
-            .catch(() => {});
         }
       }
 

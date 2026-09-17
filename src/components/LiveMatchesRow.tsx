@@ -98,12 +98,6 @@ export default function LiveMatchesRow({
     staleTime: 60_000,
   });
 
-  const { data: liveAvailable = [] } = useQuery({
-    queryKey: ["live", "liveball", "available"],
-    queryFn: () => getLiveBallLiveAvailable(),
-    staleTime: 5 * 60_000,
-  });
-
   const { data: leagueMatches = [], isLoading: isLoadingLeague } = useQuery({
     queryKey: ["live", "liveball", "league", leagueSlug],
     queryFn: () => (leagueSlug ? getLiveBallLeagueMatches(leagueSlug) : Promise.resolve([])),
@@ -117,7 +111,7 @@ export default function LiveMatchesRow({
 
     if (activeLeague === "live") {
       const map = new Map<string, LiveBallMatch>();
-      for (const m of [...liveAvailable, ...lbMatches]) {
+      for (const m of lbMatches) {
         if (m && m.id && m.status === "live" && !map.has(m.id)) {
           map.set(m.id, m);
         }
@@ -127,7 +121,7 @@ export default function LiveMatchesRow({
 
     if (activeLeague === "all") {
       const map = new Map<string, LiveBallMatch>();
-      for (const m of [...liveAvailable, ...lbMatches]) {
+      for (const m of lbMatches) {
         if (m && m.id && !map.has(m.id)) {
           map.set(m.id, m);
         }
@@ -147,16 +141,15 @@ export default function LiveMatchesRow({
     return Array.from(map.values()).filter(
       (m) => !m.startTs || m.startTs > nowSec - 4 * 3600
     );
-  }, [activeLeague, lbMatches, liveAvailable, leagueMatches]);
+  }, [activeLeague, lbMatches, leagueMatches]);
 
   const liveCount = useMemo(() => {
     const map = new Set<string>();
-    for (const m of liveAvailable) if (m?.id) map.add(m.id);
     for (const m of lbMatches) if (m?.id && m.status === "live") map.add(m.id);
     return map.size;
-  }, [liveAvailable, lbMatches]);
+  }, [lbMatches]);
 
-  if (lbMatches.length === 0 && liveAvailable.length === 0 && leagueMatches.length === 0 && !isLoadingLeague) return null;
+  if (lbMatches.length === 0 && leagueMatches.length === 0 && !isLoadingLeague) return null;
 
   return (
     <div className={`relative ${className}`}>

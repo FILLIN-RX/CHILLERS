@@ -610,24 +610,47 @@ export async function getAllMovies(page = 1, signal?: AbortSignal): Promise<Movi
 /* ─── Hero trailer enrichment ────────────────────────────────────────────── */
 
 /**
- * Enrichit les slides du hero avec les bandes-annonces YouTube.
- * Les appels sont faits en parallèle via Promise.allSettled pour ne pas
- * bloquer si un appel échoue. Résultat : chaque slide reçoit un videoUrl
- * pointant vers l'embed YouTube du trailer (si disponible).
+ * Récupère l'URL d'embed YouTube du trailer pour un film ou une série à la demande.
+ * Mise en cache 30 minutes pour une fluidité instantanée.
  */
+export async function getMediaTrailerUrl(
+  id: string,
+  isTV = false,
+  signal?: AbortSignal,
+): Promise<string | null> {
+  const cacheKey = `media_trailer:${isTV ? "tv" : "movie"}:${id}`;
+  const cached = getCached<string>(cacheKey);
+  if (cached) return cached;
+
+  const endpoint = isTV ? `/tv/${id}/trailer` : `/movies/${id}/trailer`;
+  try {
+    const env = await httpJson<ApiEnvelope<{ key?: string; site?: string }>>(endpoint, {
+      query: { language: clientLang() },
+      signal,
+      timeoutMs: 6_000,
+    });
+    if (env.success && env.data?.key) {
+      const url = `https://www.youtube.com/embed/${env.data.key}`;
+      setCached(cacheKey, url, 30 * 60 * 1000);
+      return url;
+    }
+  } catch {}
+  return null;
+}
+
 export async function enrichHeroSlidesWithTrailers(
   slides: MovieOrShow[],
   signal?: AbortSignal,
 ): Promise<MovieOrShow[]> {
   const results = await Promise.allSettled(
     slides.map((s) =>
-      getMediaDetails(s.id, s.type === "series" || s.type === "anime", signal),
+      getMediaTrailerUrl(s.id, s.type === "series" || s.type === "anime", signal),
     ),
   );
   return slides.map((slide, i) => {
     const result = results[i];
-    if (result.status === "fulfilled" && result.value?.trailerUrl) {
-      return { ...slide, videoUrl: result.value.trailerUrl };
+    if (result.status === "fulfilled" && result.value) {
+      return { ...slide, videoUrl: result.value };
     }
     return slide;
   });

@@ -107,3 +107,31 @@ export const getSeasonDetails = async (id: string, seasonNumber: string, languag
   });
   return data;
 };
+
+export const getTrailer = async (id: string, language?: string) => {
+  try {
+    const { data } = await tmdbClient.get(`/tv/${id}/videos`, { params: { language: toTMDBLanguage(language) } });
+    let results = data.results || [];
+
+    // Si aucun trailer en français, repli automatique sur en-US ou toutes les vidéos
+    if (results.length === 0) {
+      const fallback = await tmdbClient.get(`/tv/${id}/videos`, { params: { language: 'en-US' } });
+      results = fallback.data?.results || [];
+    }
+    if (results.length === 0) {
+      const fallbackAll = await tmdbClient.get(`/tv/${id}/videos`);
+      results = fallbackAll.data?.results || [];
+    }
+
+    const trailer =
+      results.find((v: any) => v.site === 'YouTube' && v.type === 'Trailer' && v.official === true) ||
+      results.find((v: any) => v.site === 'YouTube' && v.type === 'Trailer') ||
+      results.find((v: any) => v.site === 'YouTube' && v.type === 'Teaser') ||
+      results.find((v: any) => v.site === 'YouTube') ||
+      null;
+
+    return trailer;
+  } catch {
+    return null;
+  }
+};

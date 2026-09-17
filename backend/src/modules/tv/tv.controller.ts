@@ -102,3 +102,14 @@ export const getAfrican = async (req: Request, res: Response, next: NextFunction
     next(error);
   }
 };
+
+export const getTrailer = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const id = req.params.id as string;
+    if (!id) throw new AppError('TV show ID is required', 400);
+    const data = await tvService.getTrailer(id, getLang(req));
+    res.json({ success: true, data, message: null });
+  } catch (error) {
+    next(error);
+  }
+};

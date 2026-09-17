@@ -1,18 +1,27 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import type { MovieOrShow } from "@/types/media";
-import { Play, Pause, CaretLeft, CaretRight, Star } from '@phosphor-icons/react';
+import { Play, Pause, CaretLeft, CaretRight, Star } from "@phosphor-icons/react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useHydrated } from "@/hooks/useHydrated";
 import Button from "@/components/Button";
+import { getMediaTrailerUrl } from "@/app/api";
 
 interface HeroCarouselProps {
   slides: MovieOrShow[];
   onWatchNow: (movie: MovieOrShow) => void;
   onOpenDetails: (movie: MovieOrShow) => void;
   slideTimings?: number[];
+}
+
+function getYouTubeKey(url?: string): string | null {
+  if (!url) return null;
+  const match = url.match(/(?:embed\/|v=|vi\/|youtu\.be\/|\/v\/|watch\?v=)([\w-]{11})/);
+  if (match) return match[1];
+  if (url.length === 11 && !url.includes("/")) return url;
+  return null;
 }
 
 export default function HeroCarousel({
@@ -25,51 +34,82 @@ export default function HeroCarousel({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const [trailerMap, setTrailerMap] = useState<Record<string, string>>({});
+  const [isVideoReady, setIsVideoReady] = useState(false);
   const [videoExpired, setVideoExpired] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const { translate: _ } = useLanguage();
 
-  // Detect mobile to disable hero video (save bandwidth)
+  // Lazy loading fluide du trailer UNIQUEMENT pour la slide active avec debounce
   useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768);
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
-
-  // Auto-pause video after 15 seconds per slide
-  useEffect(() => {
+    setIsVideoReady(false);
     setVideoExpired(false);
-    const slide = slides[currentIndex];
-    if (!slide?.videoUrl || isPaused || isMobile) return;
-    const timer = setTimeout(() => setVideoExpired(true), 15_000);
-    return () => clearTimeout(timer);
-  }, [currentIndex, isPaused, isMobile, slides]);
 
+    if (!slides || slides.length === 0 || isPaused) return;
+    const currentSlide = slides[currentIndex];
+    if (!currentSlide) return;
+
+    // Si on a déjà l'URL du trailer dans la slide ou en cache interne
+    const existingUrl = currentSlide.videoUrl || trailerMap[currentSlide.id];
+    if (existingUrl) {
+      const timer = setTimeout(() => setIsVideoReady(true), 300);
+      return () => clearTimeout(timer);
+    }
+
+    // Charger le trailer à la demande après 800ms de présence sur la slide (évite de spammer si défilement rapide)
+    const loadTimer = setTimeout(async () => {
+      try {
+        const isTV = currentSlide.type === "series" || currentSlide.type === "anime";
+        const url = await getMediaTrailerUrl(currentSlide.id, isTV);
+        if (url) {
+          setTrailerMap((prev) => ({ ...prev, [currentSlide.id]: url }));
+          setIsVideoReady(true);
+        }
+      } catch {}
+    }, 800);
+
+    return () => clearTimeout(loadTimer);
+  }, [currentIndex, slides, isPaused, trailerMap]);
+
+  // Durée d'affichage de la vidéo (pause automatique après 25s pour économiser CPU)
   useEffect(() => {
-    if (slides.length > 0) return;
+    if (!isVideoReady || isPaused) return;
+    const timer = setTimeout(() => setVideoExpired(true), 25_000);
+    return () => clearTimeout(timer);
+  }, [currentIndex, isVideoReady, isPaused]);
+
+  // Timeout d'erreur si aucune slide après 8 secondes
+  useEffect(() => {
+    if (slides && slides.length > 0) return;
     const timer = setTimeout(() => setTimedOut(true), 8000);
     return () => clearTimeout(timer);
-  }, [slides.length]);
+  }, [slides]);
 
+  const handleNext = useCallback(() => {
+    if (!slides || slides.length === 0) return;
+    setCurrentIndex((prev) => (prev === slides.length - 1 ? 0 : prev + 1));
+  }, [slides]);
+
+  const handlePrev = useCallback(() => {
+    if (!slides || slides.length === 0) return;
+    setCurrentIndex((prev) => (prev === 0 ? slides.length - 1 : prev - 1));
+  }, [slides]);
+
+  // Défilement automatique du carrousel
   useEffect(() => {
-    if (isPaused) return;
-    const duration = (slideTimings && slideTimings[currentIndex]) || 20000;
+    if (isPaused || !slides || slides.length === 0) return;
+    const duration = (slideTimings && slideTimings[currentIndex]) || 12000;
     const timer = setInterval(() => {
       handleNext();
     }, duration);
     return () => clearInterval(timer);
-  }, [currentIndex, slideTimings, isPaused]);
+  }, [currentIndex, slideTimings, isPaused, slides, handleNext]);
 
   const togglePause = () => {
     setIsPaused((prev) => !prev);
   };
 
-  // P1-#2: split into two effects so the <video> mute/pause action doesn't
-  // re-fire every time the user changes slide, and the iframe postMessage
-  // doesn't accidentally hit an iframe from a different slide.
-  // 1. Local <video> element: pause/play when [isPaused] changes.
+  // Contrôle Pause/Play de la vidéo native
   useEffect(() => {
     const node = videoRef.current;
     if (!node) return;
@@ -77,43 +117,28 @@ export default function HeroCarousel({
     else node.play().catch(() => {});
   }, [isPaused, currentIndex]);
 
-  // 2. YouTube iframe: postMessage only when [isPaused] changes, and only to
-  // the iframe currently marked data-hero-video. (We re-query on each effect
-  // run because the iframe DOM node swaps with `currentIndex`.)
+  // Contrôle Pause/Play de l'iframe YouTube
   useEffect(() => {
     const iframe = document.querySelector(
-      'iframe[data-hero-video]',
+      "iframe[data-hero-video]",
     ) as HTMLIFrameElement | null;
     if (iframe?.contentWindow && document.contains(iframe)) {
       try {
         iframe.contentWindow.postMessage(
           JSON.stringify({
-            event: 'command',
-            func: isPaused ? 'pauseVideo' : 'playVideo',
-            args: '',
+            event: "command",
+            func: isPaused ? "pauseVideo" : "playVideo",
+            args: "",
           }),
-          '*',
+          "*",
         );
-      } catch (e) {
-        // Silently ignore postMessage errors when iframe is being removed
-      }
+      } catch {}
     }
   }, [isPaused, currentIndex]);
 
-  const handlePrev = () => {
-    setCurrentIndex((prev) => (prev === 0 ? slides.length - 1 : prev - 1));
-    setIsPaused(false);
-  };
-
-  const handleNext = () => {
-    setCurrentIndex((prev) => (prev === slides.length - 1 ? 0 : prev + 1));
-    setIsPaused(false);
-  };
-
-  // Don't render until hydrated to avoid SSR/client mismatch on isMobile state
   if (!hydrated) {
     return (
-      <section className="relative w-full h-[75vh] sm:h-screen bg-black">
+      <section className="relative w-full h-[70vh] sm:h-[80vh] lg:h-[88vh] bg-black">
         <div className="absolute inset-0 bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-900 animate-pulse" />
       </section>
     );
@@ -122,25 +147,25 @@ export default function HeroCarousel({
   if (!slides || slides.length === 0) {
     if (!timedOut) {
       return (
-        <section className="relative w-full h-screen bg-zinc-950 flex items-center justify-center">
+        <section className="relative w-full h-[70vh] sm:h-[80vh] lg:h-[88vh] bg-zinc-950 flex items-center justify-center">
           <div className="absolute inset-0 bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-900 animate-pulse" />
           <div className="z-10 flex flex-col items-center gap-4">
             <div className="h-12 w-12 border-4 border-zinc-700 border-t-brand-primary rounded-full animate-spin" />
-            <p className="text-zinc-500 font-bold tracking-widest uppercase text-sm animate-pulse">{_("hero.loading")}</p>
+            <p className="text-zinc-500 font-bold tracking-widest uppercase text-sm animate-pulse">
+              {_("hero.loading")}
+            </p>
           </div>
         </section>
       );
     }
     return (
-      <section className="relative w-full h-screen bg-zinc-950 flex items-center justify-center px-6">
+      <section className="relative w-full h-[70vh] sm:h-[80vh] lg:h-[88vh] bg-zinc-950 flex items-center justify-center px-6">
         <div className="z-10 flex flex-col items-center gap-4 text-center max-w-md">
           <div className="w-16 h-16 rounded-full bg-zinc-800 flex items-center justify-center">
             <span className="text-3xl text-zinc-500">!</span>
           </div>
           <h1 className="text-white text-xl font-bold">{_("hero.connectionError")}</h1>
-          <p className="text-zinc-400 text-sm">
-            {_("hero.connectionErrorDesc")}
-          </p>
+          <p className="text-zinc-400 text-sm">{_("hero.connectionErrorDesc")}</p>
           <Button
             onClick={() => window.location.reload()}
             variant="primary"
@@ -156,37 +181,41 @@ export default function HeroCarousel({
   }
 
   return (
-    <section className="relative w-full h-[75vh] sm:h-screen overflow-hidden bg-black">
-      <div 
+    <section className="relative w-full h-[70vh] sm:h-[80vh] lg:h-[88vh] overflow-hidden bg-black select-none">
+      <div
         className="flex flex-row w-full h-full transition-transform duration-700 ease-out"
         style={{ transform: `translateX(-${currentIndex * 100}%)` }}
       >
         {slides.map((slide, index) => {
           const isActive = index === currentIndex;
+          const activeTrailer = slide.videoUrl || trailerMap[slide.id];
+          const ytKey = getYouTubeKey(activeTrailer);
 
           return (
             <div key={slide.id} className="w-full h-full flex-shrink-0 relative">
               <div className="absolute inset-0 w-full h-full bg-black">
+                {/* Backdrop Image */}
                 <Image
                   src={slide.backdropOriginalUrl || slide.backdropUrl}
                   alt={slide.title}
                   fill
-                  className="object-cover object-center"
-                  style={{ filter: "brightness(0.85) saturate(1.1)" }}
+                  className="object-cover object-center transition-opacity duration-700"
+                  style={{ filter: "brightness(0.8) saturate(1.1)" }}
                   sizes="100vw"
                   priority={index === 0}
                   loading={index === 0 ? "eager" : "lazy"}
                 />
 
-                {isActive && slide.videoUrl && !isPaused && !isMobile && !videoExpired && (
-                  <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none z-[1]">
-                    {slide.videoUrl.startsWith("https://www.youtube.com/embed/") ? (
+                {/* Video / Trailer Overlay (Smooth Fade-in) */}
+                {isActive && activeTrailer && isVideoReady && !isPaused && !videoExpired && (
+                  <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none z-[1] transition-opacity duration-1000 opacity-100 animate-in fade-in duration-700">
+                    {ytKey ? (
                       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[100vw] min-w-[177.78vh] h-[56.25vw] min-h-full scale-125 sm:scale-115">
                         <iframe
                           data-hero-video
-                          src={`${slide.videoUrl}?autoplay=1&controls=0&mute=1&loop=0&enablejsapi=1&rel=0&showinfo=0&iv_load_policy=3&modestbranding=1&playsinline=1`}
+                          src={`https://www.youtube.com/embed/${ytKey}?autoplay=1&mute=1&controls=0&loop=1&playlist=${ytKey}&playsinline=1&rel=0&showinfo=0&iv_load_policy=3&modestbranding=1&enablejsapi=1`}
                           className="w-full h-full border-none pointer-events-none"
-                          allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+                          allow="autoplay; encrypted-media; gyroscope; picture-in-picture"
                           allowFullScreen
                           title={slide.title}
                         />
@@ -194,7 +223,7 @@ export default function HeroCarousel({
                     ) : (
                       <video
                         ref={videoRef}
-                        src={slide.videoUrl}
+                        src={activeTrailer}
                         autoPlay
                         muted
                         playsInline
@@ -205,12 +234,13 @@ export default function HeroCarousel({
                   </div>
                 )}
 
-                <div className="absolute inset-0 banner-overlay pointer-events-none z-[2]" />
-                <div className="absolute inset-x-0 top-0 h-36 banner-overlay-top pointer-events-none z-[2]" />
+                {/* Gradient Overlays for Readability */}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#09090B] via-[#09090B]/40 to-transparent pointer-events-none z-[2]" />
+                <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-black/80 via-black/30 to-transparent pointer-events-none z-[2]" />
+                <div className="absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-black/80 via-black/20 to-transparent pointer-events-none z-[2]" />
               </div>
 
-              {/* P3-B: was `hidden md:block` which made the play button invisible
-                  on mobile. Show on all viewports; right offset scales down. */}
+              {/* Play Hero Button (Center Right) */}
               <div className="absolute top-1/2 right-[5%] sm:right-[10%] md:right-[15%] -translate-y-1/2 z-20">
                 <button
                   onClick={() => onWatchNow(slide)}
@@ -223,42 +253,53 @@ export default function HeroCarousel({
                 </button>
               </div>
 
-              <div className="absolute inset-0 z-10 flex flex-col justify-end px-4 sm:px-8 md:px-12 lg:px-[4%] pb-20 sm:pb-20 lg:pb-24">
-                <div className="space-y-3 md:space-y-6 max-w-3xl">
+              {/* Slide Content (Bottom Left) */}
+              <div className="absolute inset-0 z-10 flex flex-col justify-end px-4 sm:px-8 md:px-12 lg:px-[4%] pb-16 sm:pb-20 lg:pb-24">
+                <div className="space-y-3 md:space-y-5 max-w-3xl">
                   <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs md:text-sm text-zinc-300 font-medium">
-                    <span className="rounded bg-brand-primary/10 px-2.5 py-1 text-brand-primary font-bold border border-brand-primary/20 uppercase tracking-wider text-[10px]">
+                    <span className="rounded bg-brand-primary/20 text-brand-primary font-extrabold border border-brand-primary/30 uppercase tracking-wider text-[10px] px-2.5 py-0.5">
                       {_("hero.featured")}
                     </span>
-                    <span>{slide.year}</span>
-                    <span className="text-zinc-500">•</span>
-                    <span>{slide.duration}</span>
-                    <span className="text-zinc-500">•</span>
-                    <div className="flex items-center gap-1 text-amber-400 font-semibold">
-                      <Star className="h-4 w-4 fill-amber-400" />
-                      <span>{slide.rating}</span>
-                    </div>
+                    {slide.year > 0 && <span>{slide.year}</span>}
+                    {slide.duration && (
+                      <>
+                        <span className="text-zinc-600">•</span>
+                        <span>{slide.duration}</span>
+                      </>
+                    )}
+                    {slide.rating > 0 && (
+                      <>
+                        <span className="text-zinc-600">•</span>
+                        <div className="flex items-center gap-1 text-amber-400 font-bold">
+                          <Star className="h-3.5 w-3.5 fill-amber-400" />
+                          <span>{slide.rating}</span>
+                        </div>
+                      </>
+                    )}
                   </div>
 
-                  <h1 className="text-2xl font-extrabold tracking-tight text-white sm:text-4xl md:text-6xl lg:text-7xl font-sans drop-shadow-md leading-tight">
+                  <h1 className="text-2xl font-black tracking-tight text-white sm:text-4xl md:text-5xl lg:text-6xl font-sans drop-shadow-lg leading-tight line-clamp-2">
                     {slide.title}
                   </h1>
 
-                  <p className="hidden sm:block text-sm sm:text-base md:text-lg text-zinc-200 max-w-2xl font-light leading-relaxed line-clamp-3">
+                  <p className="hidden sm:block text-xs sm:text-sm md:text-base text-zinc-300 max-w-2xl font-normal leading-relaxed line-clamp-2 sm:line-clamp-3">
                     {slide.description}
                   </p>
 
-                  <div className="hidden sm:flex flex-wrap gap-2 pt-1">
-                    {slide.genres.map((genre) => (
-                      <span
-                        key={genre}
-                        className="rounded-full bg-black/40 border border-white/10 px-3 py-1 text-xs text-zinc-300 font-medium backdrop-blur-sm"
-                      >
-                        {genre}
-                      </span>
-                    ))}
-                  </div>
+                  {slide.genres && slide.genres.length > 0 && (
+                    <div className="hidden sm:flex flex-wrap gap-1.5 pt-0.5">
+                      {slide.genres.slice(0, 4).map((genre) => (
+                        <span
+                          key={genre}
+                          className="rounded-full bg-black/40 border border-white/10 px-2.5 py-0.5 text-[11px] text-zinc-300 font-medium backdrop-blur-sm"
+                        >
+                          {genre}
+                        </span>
+                      ))}
+                    </div>
+                  )}
 
-                  <div className="flex flex-wrap items-center gap-2.5 sm:gap-4 pt-2 sm:pt-3">
+                  <div className="flex flex-wrap items-center gap-2.5 sm:gap-4 pt-1 sm:pt-2">
                     <Button
                       onClick={() => onWatchNow(slide)}
                       variant="primary"
@@ -287,35 +328,33 @@ export default function HeroCarousel({
         })}
       </div>
 
-      <div className="absolute right-4 bottom-16 z-20 flex items-center gap-2">
+      {/* Control Buttons (Right Bottom) */}
+      <div className="absolute right-4 bottom-12 sm:bottom-16 z-20 flex items-center gap-2">
         <button
           onClick={togglePause}
           aria-label={isPaused ? _("player.play") : _("player.pause")}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-black/50 border border-white/15 text-white hover:bg-brand-primary/40 hover:border-brand-primary/50 backdrop-blur-md transition-all duration-300 cursor-pointer group"
+          className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-black/50 border border-white/15 text-white hover:bg-brand-primary/40 hover:border-brand-primary/50 backdrop-blur-md transition-all duration-300 cursor-pointer"
         >
-          {isPaused ? (
-            <Play className="h-5 w-5 ml-0.5" />
-          ) : (
-            <Pause className="h-5 w-5" />
-          )}
+          {isPaused ? <Play className="h-4 w-4 sm:h-5 sm:w-5 ml-0.5" /> : <Pause className="h-4 w-4 sm:h-5 sm:w-5" />}
         </button>
         <button
           onClick={handlePrev}
           aria-label={_("common.previous")}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-black/40 border border-white/10 text-zinc-300 hover:text-white hover:bg-black/60 backdrop-blur-sm transition-all duration-300 cursor-pointer"
+          className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-black/40 border border-white/10 text-zinc-300 hover:text-white hover:bg-black/60 backdrop-blur-sm transition-all duration-300 cursor-pointer"
         >
-          <CaretLeft className="h-5 w-5" />
+          <CaretLeft className="h-4 w-4 sm:h-5 sm:w-5" />
         </button>
         <button
           onClick={handleNext}
           aria-label={_("common.next")}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-black/40 border border-white/10 text-zinc-300 hover:text-white hover:bg-black/60 backdrop-blur-sm transition-all duration-300 cursor-pointer"
+          className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-black/40 border border-white/10 text-zinc-300 hover:text-white hover:bg-black/60 backdrop-blur-sm transition-all duration-300 cursor-pointer"
         >
-          <CaretRight className="h-5 w-5" />
+          <CaretRight className="h-4 w-4 sm:h-5 sm:w-5" />
         </button>
       </div>
 
-      <div className="absolute left-1/2 -translate-x-1/2 bottom-8 z-20 flex gap-2.5">
+      {/* Pagination Dots (Bottom Center) */}
+      <div className="absolute left-1/2 -translate-x-1/2 bottom-5 sm:bottom-8 z-20 flex gap-2">
         {slides.map((_s, index) => (
           <button
             key={index}
@@ -323,10 +362,10 @@ export default function HeroCarousel({
               setCurrentIndex(index);
               setIsPaused(false);
             }}
-            className={`h-2.5 rounded-full transition-all duration-500 cursor-pointer ${
+            className={`h-2 rounded-full transition-all duration-500 cursor-pointer ${
               index === currentIndex
-                ? "w-8 bg-brand-primary shadow-lg shadow-brand-primary/50"
-                : "w-2.5 bg-white/30 hover:bg-white/50"
+                ? "w-7 bg-brand-primary shadow-lg shadow-brand-primary/50"
+                : "w-2 bg-white/30 hover:bg-white/50"
             }`}
             title={`${_("common.page")} ${index + 1}`}
           />

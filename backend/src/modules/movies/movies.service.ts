@@ -52,12 +52,31 @@ export const getRecommendations = async (id: string, language?: string) => {
 };
 
 export const getTrailer = async (id: string, language?: string) => {
-  const { data } = await tmdbClient.get(`/movie/${id}/videos`, { params: { language: toTMDBLanguage(language) } });
-  const results = data.results || [];
-  const trailer = results.find(
-    (v: any) => v.site === 'YouTube' && v.type === 'Trailer' && v.official === true
-  );
-  return trailer || results.find((v: any) => v.site === 'YouTube' && v.type === 'Trailer') || null;
+  try {
+    const { data } = await tmdbClient.get(`/movie/${id}/videos`, { params: { language: toTMDBLanguage(language) } });
+    let results = data.results || [];
+
+    // Si aucun trailer en français, repli automatique sur en-US ou toutes les vidéos
+    if (results.length === 0) {
+      const fallback = await tmdbClient.get(`/movie/${id}/videos`, { params: { language: 'en-US' } });
+      results = fallback.data?.results || [];
+    }
+    if (results.length === 0) {
+      const fallbackAll = await tmdbClient.get(`/movie/${id}/videos`);
+      results = fallbackAll.data?.results || [];
+    }
+
+    const trailer =
+      results.find((v: any) => v.site === 'YouTube' && v.type === 'Trailer' && v.official === true) ||
+      results.find((v: any) => v.site === 'YouTube' && v.type === 'Trailer') ||
+      results.find((v: any) => v.site === 'YouTube' && v.type === 'Teaser') ||
+      results.find((v: any) => v.site === 'YouTube') ||
+      null;
+
+    return trailer;
+  } catch {
+    return null;
+  }
 };
 
 export const getByGenre = async (genreId: string, page: number = 1, language?: string) => {

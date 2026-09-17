@@ -50,6 +50,7 @@ export {
   getDisponible,
   clearTmdbCache,
   mapTMDBToMovieOrShow,
+  getMediaTrailerUrl,
   enrichHeroSlidesWithTrailers,
 } from "@/services/media";
 
