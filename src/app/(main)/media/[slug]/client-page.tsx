@@ -50,7 +50,12 @@ const MovieModal = dynamic(() => import("@/components/MovieModal"), { ssr: false
 
 const LISTING_TYPES = ["movies", "series", "anime"];
 
-function MediaDetailPage() {
+interface MediaPageProps {
+  initialItem?: MovieOrShow | null;
+  initialSimilar?: MovieOrShow[];
+}
+
+function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -66,9 +71,9 @@ function MediaDetailPage() {
     }
   }, [isTV, id, router]);
 
-  const [item, setItem] = useState<MovieOrShow | null>(null);
-  const [similar, setSimilar] = useState<MovieOrShow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [item, setItem] = useState<MovieOrShow | null>(initialItem || null);
+  const [similar, setSimilar] = useState<MovieOrShow[]>(initialSimilar || []);
+  const [loading, setLoading] = useState(!initialItem);
   const [trailerOpen, setTrailerOpen] = useState(false);
   const [trailerUrl, setTrailerUrl] = useState<string | null>(null);
   const [notification, setNotification] = useState<{ title: string; message: string } | null>(null);
@@ -91,7 +96,7 @@ function MediaDetailPage() {
   }, []);
 
   const fetchData = useCallback(async () => {
-    if (!id) return;
+    if (!id || initialItem) return;
     setLoading(true);
     try {
       const [detail, similarList] = await Promise.all([
@@ -106,41 +111,6 @@ function MediaDetailPage() {
           setTrailerUrl(detail.videoUrl);
         }
         setItem(detail);
-
-        // 1. Récupération précise de la disponibilité avec le titre
-        const dispo = await getDisponible(id, isTV ? 'series' : 'movie', detail.title);
-        if (dispo) {
-          setDisponible(dispo);
-        }
-
-        // 2. Si le contenu n'est pas encore disponible en base, déclenchement automatique et transparent de la recherche Go
-        if (!dispo?.disponible && detail.title) {
-          httpJson("/api/requests", {
-            method: "POST",
-            body: {
-              tmdbId: Number(id),
-              title: detail.title,
-              type: isTV ? "series" : "movie",
-              year: typeof detail.year === "number" ? detail.year : detail.year ? parseInt(String(detail.year)) : undefined,
-              posterUrl: detail.posterUrl,
-            },
-          }).catch(() => {});
-
-          // Polling léger (toutes les 3s, max 4 fois) pour mettre à jour la disponibilité dès que Go trouve le flux
-          let attempts = 0;
-          const pollTimer = setInterval(async () => {
-            attempts++;
-            if (attempts > 4) {
-              clearInterval(pollTimer);
-              return;
-            }
-            const updatedDispo = await getDisponible(id, isTV ? 'series' : 'movie', detail.title);
-            if (updatedDispo?.disponible) {
-              setDisponible(updatedDispo);
-              clearInterval(pollTimer);
-            }
-          }, 3000);
-        }
       }
 
       if (detail?.similar && detail.similar.length > 0) {
@@ -153,11 +123,62 @@ function MediaDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [id, isTV]);
+  }, [id, isTV, initialItem]);
 
   useEffect(() => {
     fetchData();
-  }, [fetchData, id]);
+  }, [fetchData]);
+
+  // Handle availability check separately (client-side only polling)
+  useEffect(() => {
+    let cancelled = false;
+    const checkAvailability = async () => {
+      const targetItem = initialItem || item;
+      if (!targetItem || !id) return;
+      
+      // Initialize trailerUrl if not already set by fetchData
+      if (initialItem && !trailerUrl) {
+        if (targetItem.trailerUrl) {
+          setTrailerUrl(targetItem.trailerUrl);
+        } else if (targetItem.videoUrl?.includes("youtube.com") || targetItem.videoUrl?.includes("embed")) {
+          setTrailerUrl(targetItem.videoUrl);
+        }
+      }
+
+      const dispo = await getDisponible(id, isTV ? 'series' : 'movie', targetItem.title);
+      if (cancelled) return;
+      if (dispo) setDisponible(dispo);
+
+      if (!dispo?.disponible && targetItem.title) {
+        httpJson("/api/requests", {
+          method: "POST",
+          body: {
+            tmdbId: Number(id),
+            title: targetItem.title,
+            type: isTV ? "series" : "movie",
+            year: typeof targetItem.year === "number" ? targetItem.year : targetItem.year ? parseInt(String(targetItem.year)) : undefined,
+            posterUrl: targetItem.posterUrl,
+          },
+        }).catch(() => {});
+
+        let attempts = 0;
+        const pollTimer = setInterval(async () => {
+          attempts++;
+          if (attempts > 4 || cancelled) {
+            clearInterval(pollTimer);
+            return;
+          }
+          const updatedDispo = await getDisponible(id, isTV ? 'series' : 'movie', targetItem.title);
+          if (updatedDispo?.disponible) {
+            setDisponible(updatedDispo);
+            clearInterval(pollTimer);
+          }
+        }, 3000);
+      }
+    };
+    checkAvailability();
+    return () => { cancelled = true; };
+  }, [id, initialItem, item, isTV, trailerUrl]);
 
   useEffect(() => {
     if (item?.castDetails?.length) {
@@ -1420,7 +1441,7 @@ function MediaDetailPageFallback() {
   return <div className="min-h-screen bg-brand-dark" />;
 }
 
-export default function MediaPage() {
+export default function MediaPage({ initialItem, initialSimilar }: MediaPageProps) {
   const params = useParams();
   const slug = params?.slug as string;
 
@@ -1434,7 +1455,7 @@ export default function MediaPage() {
 
   return (
     <Suspense fallback={<MediaDetailPageFallback />}>
-      <MediaDetailPage />
+      <MediaDetailPage initialItem={initialItem} initialSimilar={initialSimilar} />
     </Suspense>
   );
 }

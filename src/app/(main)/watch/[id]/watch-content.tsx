@@ -26,7 +26,14 @@ import Button from "@/components/Button";
 import CardImage from "@/components/CardImage";
 import { ArrowLeft, Play, Star, Clock, CalendarBlank, FilmSlate, DownloadSimple, ShareNetwork, CaretDown, CaretCircleRight, CaretCircleLeft } from "@phosphor-icons/react";
 
-function WatchContent() {
+interface WatchContentProps {
+  initialItem?: MovieOrShow | null;
+  initialSeasonData?: any;
+  initialStreamUrl?: string | null;
+  initialStreamUnavailable?: boolean;
+}
+
+function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initialStreamUnavailable }: WatchContentProps) {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -42,12 +49,12 @@ function WatchContent() {
   const initialSeasonParam = searchParams?.get("season") || "1";
   const initialEpisodeParam = searchParams?.get("episode") || "1";
 
-  const [item, setItem] = useState<MovieOrShow | null>(null);
+  const [item, setItem] = useState<MovieOrShow | null>(initialItem || null);
   const [currentSeason, setCurrentSeason] = useState<number>(parseInt(initialSeasonParam) || 1);
-  const [streamUrl, setStreamUrl] = useState("");
-  const [streamLoading, setStreamLoading] = useState(true);
-  const [streamUnavailable, setStreamUnavailable] = useState(false);
-  const [pageLoading, setPageLoading] = useState(true);
+  const [streamUrl, setStreamUrl] = useState(initialStreamUrl || "");
+  const [streamLoading, setStreamLoading] = useState(!initialStreamUrl && !initialStreamUnavailable);
+  const [streamUnavailable, setStreamUnavailable] = useState(initialStreamUnavailable || false);
+  const [pageLoading, setPageLoading] = useState(!initialItem);
 
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [currentEpisodeIndex, setCurrentEpisodeIndex] = useState(0);
@@ -73,9 +80,33 @@ function WatchContent() {
     return () => document.removeEventListener("fullscreenchange", onChange);
   }, []);
 
-  // Initial Load (Media Details + First Stream)
+  // Initialize episodes from initialSeasonData if available
   useEffect(() => {
-    if (!id) return;
+    if (isTV && initialSeasonData?.episodes?.length) {
+      const targetEp = parseInt(initialEpisodeParam) || 1;
+      let startIdx = 0;
+      const eps: Episode[] = initialSeasonData.episodes.map((ep: any, idx: number) => {
+        if (targetEp && ep.episode_number === targetEp) startIdx = idx;
+        return {
+          id: String(ep.id),
+          title: ep.name || `${_("media.episode")} ${ep.episode_number}`,
+          duration: `${ep.runtime || 24}m`,
+          number: ep.episode_number,
+          season: currentSeason,
+          thumbnail: ep.still_path
+            ? `https://image.tmdb.org/t/p/w185${ep.still_path}`
+            : "",
+          synopsis: ep.overview || "",
+        };
+      });
+      setEpisodes(eps);
+      setCurrentEpisodeIndex(startIdx);
+    }
+  }, [initialSeasonData, isTV, initialEpisodeParam, currentSeason, _]);
+
+  // Initial Load (Media Details + First Stream) if not provided
+  useEffect(() => {
+    if (!id || initialItem) return;
     const controller = new AbortController();
     const signal = controller.signal;
     let cancelled = false;
@@ -177,7 +208,7 @@ function WatchContent() {
       cancelled = true;
       controller.abort();
     };
-  }, [id, isTV, initialSeasonParam, initialEpisodeParam, _]);
+  }, [id, isTV, initialSeasonParam, initialEpisodeParam, initialItem, _]);
 
   // Record into Watch History when media is ready
   useEffect(() => {

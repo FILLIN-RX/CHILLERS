@@ -24,8 +24,7 @@ function getAdaptiveTimeout(): number {
 
 /** Read NEXT_PUBLIC_API_URL at runtime on the client to resolve the backend origin for /uploads and absolute image URLs. */
 export function getBackendOrigin(): string {
-  if (typeof window === "undefined") return "";
-  const raw = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
+  const raw = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === "production" ? "https://chillers.onrender.com/api" : "http://localhost:4000/api");
   return raw.replace(/\/api\/?$/, "");
 }
 
@@ -51,11 +50,19 @@ export interface HttpJsonOptions {
 }
 
 function buildUrl(path: string, query?: HttpJsonOptions["query"]): string {
-  const base = path.startsWith("http")
-    ? path
-    : path.startsWith(API_BASE_PATH)
-      ? path
-      : `${API_BASE_PATH}${path.startsWith("/") ? path : `/${path}`}`;
+  let base = path;
+  if (!path.startsWith("http")) {
+    const isServer = typeof window === "undefined";
+    if (isServer) {
+      const backendApi = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === "production" ? "https://chillers.onrender.com/api" : "http://localhost:4000/api");
+      const cleanPath = path.startsWith(API_BASE_PATH) ? path.substring(API_BASE_PATH.length) : path;
+      base = `${backendApi}${cleanPath.startsWith("/") ? cleanPath : `/${cleanPath}`}`;
+    } else {
+      base = path.startsWith(API_BASE_PATH)
+        ? path
+        : `${API_BASE_PATH}${path.startsWith("/") ? path : `/${path}`}`;
+    }
+  }
 
   if (!query) return base;
   const params = new URLSearchParams();

@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import { Suspense } from "react";
 import { API_BASE, getServerApiHeaders } from "@/lib/server-api";
 import { buildMediaMetadata, buildMediaJsonLd } from "@/lib/seo";
+import { getMediaDetails, getSeasonDetails, getStreamUrl } from "@/services/media";
 import WatchContent from "./watch-content";
 
 type Props = {
@@ -9,65 +10,24 @@ type Props = {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 };
 
-async function fetchMediaData(id: string, isTV: boolean) {
-  let d = null;
-  const tmdbToken = process.env.TMDB_TOKEN || process.env.NEXT_PUBLIC_TMDB_TOKEN;
-  if (tmdbToken) {
-    try {
-      const tmdbRes = await fetch(`https://api.themoviedb.org/3/${isTV ? "tv" : "movie"}/${id}?language=fr-FR`, {
-        headers: { Authorization: `Bearer ${tmdbToken}` },
-        signal: AbortSignal.timeout(5000),
-      });
-      const json = await tmdbRes.json();
-      if (json && !json.status_code) {
-        d = json;
-      }
-    } catch (err) {
-      console.warn("TMDB fetch failed for watch metadata, falling back to backend...", err);
-    }
-  }
-
-  if (!d) {
-    const endpoint = isTV ? "tv" : "movies";
-    const res = await fetch(`${API_BASE}/${endpoint}/${id}?language=fr`, {
-      headers: getServerApiHeaders(),
-      signal: AbortSignal.timeout(8000),
-    });
-    const json = await res.json().catch(() => null);
-    if (json && json.success && json.data) {
-      d = json.data;
-    }
-  }
-  return d;
-}
-
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const { id } = await params;
   const sp = await searchParams;
   const isTV = sp?.type === "tv" || sp?.type === "series" || sp?.type === "anime";
 
   try {
-    const d = await fetchMediaData(id, isTV);
+    const d = await getMediaDetails(id, isTV);
     if (d) {
-      const title = d.title || d.name || id;
-      const year = d.release_date
-        ? new Date(d.release_date).getFullYear()
-        : d.first_air_date
-          ? new Date(d.first_air_date).getFullYear()
-          : undefined;
-      const rating = typeof d.vote_average === "number" ? Math.round(d.vote_average * 10) / 10 : undefined;
-      const genres = Array.isArray(d.genres) ? d.genres.map((g: any) => g.name) : [];
-
       return buildMediaMetadata({
         id,
-        title,
+        title: d.title,
         type: isTV ? "tv" : "movie",
-        overview: d.overview,
-        posterPath: d.poster_path,
-        backdropPath: d.backdrop_path,
-        year,
-        rating,
-        genres,
+        overview: d.synopsis || d.description,
+        posterPath: d.posterUrl,
+        backdropPath: d.backdropUrl,
+        year: d.year,
+        rating: d.rating,
+        genres: d.genres,
         path: `/watch/${id}?type=${isTV ? "tv" : "movie"}`,
         context: "watch",
       });
@@ -81,46 +41,78 @@ export default async function WatchPage({ params, searchParams }: Props) {
   const { id } = await params;
   const sp = await searchParams;
   const isTV = sp?.type === "tv" || sp?.type === "series" || sp?.type === "anime";
+  const seasonParam = parseInt((sp?.season as string) || "1", 10);
+  const episodeParam = parseInt((sp?.episode as string) || "1", 10);
+  
   let jsonLd = null;
+  let item = null;
+  let seasonData = null;
+  let streamData = null;
+  let streamUnavailable = false;
 
   try {
-    const d = await fetchMediaData(id, isTV);
-    if (d) {
-      const title = d.title || d.name || id;
-      const year = d.release_date
-        ? new Date(d.release_date).getFullYear()
-        : d.first_air_date
-          ? new Date(d.first_air_date).getFullYear()
-          : undefined;
-      const rating = typeof d.vote_average === "number" ? Math.round(d.vote_average * 10) / 10 : undefined;
-      const genres = Array.isArray(d.genres) ? d.genres.map((g: any) => g.name) : [];
-
+    item = await getMediaDetails(id, isTV).catch(() => null);
+    
+    if (item) {
       jsonLd = buildMediaJsonLd({
         id,
-        title,
+        title: item.title,
         type: isTV ? "tv" : "movie",
-        overview: d.overview,
-        posterPath: d.poster_path,
-        backdropPath: d.backdrop_path,
-        year,
-        rating,
-        genres,
+        overview: item.synopsis || item.description,
+        posterPath: item.posterUrl,
+        backdropPath: item.backdropUrl,
+        year: item.year,
+        rating: item.rating,
+        genres: item.genres,
         path: `/watch/${id}?type=${isTV ? "tv" : "movie"}`,
         context: "watch",
       });
+
+      if (isTV) {
+        const [seasonRes, streamRes] = await Promise.all([
+          getSeasonDetails(id, String(seasonParam)).catch(() => null),
+          getStreamUrl(id, "series", seasonParam, episodeParam, item.title).catch(() => null)
+        ]);
+        seasonData = seasonRes;
+        
+        // Retry with S1E1 if current season/ep is unavailable and not already requesting S1
+        if (!streamRes && seasonParam !== 1) {
+          const fallbackStream = await getStreamUrl(id, "series", 1, 1, item.title).catch(() => null);
+          if (fallbackStream) {
+            streamData = fallbackStream.embedUrl;
+          } else {
+            streamUnavailable = true;
+          }
+        } else if (streamRes) {
+          streamData = streamRes.embedUrl;
+        } else {
+          streamUnavailable = true;
+        }
+      } else {
+        const streamRes = await getStreamUrl(id, "movie", undefined, undefined, item.title).catch(() => null);
+        if (streamRes) {
+          streamData = streamRes.embedUrl;
+        } else {
+          streamUnavailable = true;
+        }
+      }
     }
   } catch {}
 
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<div className="min-h-screen bg-brand-dark" />}>
       {jsonLd && (
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       )}
-      <WatchContent />
+      <WatchContent 
+        initialItem={item} 
+        initialSeasonData={seasonData} 
+        initialStreamUrl={streamData} 
+        initialStreamUnavailable={streamUnavailable} 
+      />
     </Suspense>
   );
 }
-
