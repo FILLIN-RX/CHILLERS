@@ -1,10 +1,14 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { DownloadSimple, Check, Warning, Play, Pause, Trash, ArrowsClockwise, FilmSlate, MagnifyingGlass, X, Television, FolderOpen, WifiSlash, WifiHigh } from "@phosphor-icons/react";
+import { 
+  DownloadSimple, Check, Warning, Play, Pause, Trash, 
+  ArrowsClockwise, FilmSlate, MagnifyingGlass, X, Television, 
+  WifiSlash, DotsThreeVertical, GearSix, Info, CaretRight, ShieldCheck
+} from "@phosphor-icons/react";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { streamDownloadToDisk } from "@/services/streamSaver";
 import { streamVideoToIndexedDB, getStorageQuota, type StorageQuotaInfo } from "@/services/offlineStorage";
@@ -13,7 +17,7 @@ import DownloadProgressBar from "@/features/downloads/DownloadProgressBar";
 import OfflinePlayerModal from "@/features/downloads/OfflinePlayerModal";
 import type { DownloadTask } from "@/types/download";
 import { formatBytes } from "@/lib/format";
-import { resolveDownloadUrl, proxyDownloadHref } from "@/services/downloads";
+import { resolveDownloadUrl } from "@/services/downloads";
 import { useAuthStore } from "@/stores/useAuthStore";
 
 function getPosterUrl(task: DownloadTask): string | null {
@@ -31,12 +35,15 @@ export default function DownloadsView({
 }) {
   const router = useRouter();
   const { isOnline } = useOnlineStatus();
-  const [filter, setFilter] = useState<"all" | "running" | "done" | "error">("all");
+  const [filter, setFilter] = useState<"all" | "done" | "running" | "error">("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [showClearAllModal, setShowClearAllModal] = useState(false);
   const [offlinePlayerTask, setOfflinePlayerTask] = useState<DownloadTask | null>(null);
   const [quotaInfo, setQuotaInfo] = useState<StorageQuotaInfo | null>(null);
+
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const tasks = useDownloadsStore((s) => s.tasks);
   const removeTask = useDownloadsStore((s) => s.remove);
@@ -50,6 +57,17 @@ export default function DownloadsView({
   const setController = useDownloadsStore((s) => s.setController);
   const removeController = useDownloadsStore((s) => s.removeController);
   const resetTasks = useDownloadsStore((s) => s.resetTasks);
+
+  // Close 3-dots menu on outside click
+  useEffect(() => {
+    const handleOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setActiveMenuId(null);
+      }
+    };
+    window.addEventListener("click", handleOutside);
+    return () => window.removeEventListener("click", handleOutside);
+  }, []);
 
   useEffect(() => {
     getStorageQuota().then((q) => {
@@ -101,6 +119,7 @@ export default function DownloadsView({
     ctrl?.abort();
     removeController(id);
     setStatus(id, "canceled");
+    setActiveMenuId(null);
   };
 
   const handlePauseOne = (id: string) => {
@@ -108,6 +127,7 @@ export default function DownloadsView({
     ctrl?.abort();
     removeController(id);
     setStatus(id, "paused");
+    setActiveMenuId(null);
   };
 
   const { user } = useAuthStore();
@@ -148,6 +168,7 @@ export default function DownloadsView({
   };
 
   const handleResumeOne = async (targetTask: DownloadTask) => {
+    setActiveMenuId(null);
     let activeUrl = targetTask.resolvedUrl;
     const isUrlFresh =
       activeUrl &&
@@ -198,6 +219,7 @@ export default function DownloadsView({
   };
 
   const handleRetryOne = async (id: string) => {
+    setActiveMenuId(null);
     const targetTask = tasks.find((t) => t.id === id);
     if (!targetTask) return;
     resetTasks([id]);
@@ -208,6 +230,7 @@ export default function DownloadsView({
     handleCancelOne(id);
     removeTask(id);
     setDeleteConfirmId(null);
+    setActiveMenuId(null);
   };
 
   const handleClearFinished = () => {
@@ -224,12 +247,8 @@ export default function DownloadsView({
     setShowClearAllModal(false);
   };
 
-  const handleRelaunchErrors = () => {
-    const errorIds = errorTasks.map((t) => t.id);
-    if (errorIds.length > 0) resetTasks(errorIds);
-  };
-
   const handleWatch = (task: DownloadTask) => {
+    setActiveMenuId(null);
     // Si hors-ligne ou vidéo terminée -> Lancer le lecteur hors-ligne direct
     if ((typeof navigator !== "undefined" && !navigator.onLine) || task.status === "done") {
       setOfflinePlayerTask(task);
@@ -245,119 +264,68 @@ export default function DownloadsView({
     }
   };
 
+  const goToDetails = (task: DownloadTask) => {
+    setActiveMenuId(null);
+    const typeParam = task.type === "series" || task.type === "anime" ? "tv" : "movie";
+    if (typeParam === "tv") {
+      router.push(`/tv/${task.tmdbId || task.id}`);
+    } else {
+      router.push(`/media/${task.tmdbId || task.id}?type=movie`);
+    }
+  };
+
   return (
-    <div className="w-full space-y-6">
-      {/* 1. EN-TÊTE DE LA PAGE */}
-      {!isEmbeddedInProfile && (
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-6 border-b border-white/5">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              {isOnline ? (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-black uppercase tracking-wider">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                  Connecté
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-red-500/10 border border-red-500/30 text-red-400 text-[10px] font-black uppercase tracking-wider animate-pulse">
-                  <WifiSlash className="w-3 h-3 text-red-400" />
-                  Mode Hors-Ligne
-                </span>
-              )}
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
-              Téléchargements
-            </h1>
-            <p className="text-xs sm:text-sm text-zinc-400 mt-1">
-              {isOnline
-                ? "Films et séries disponibles pour visionnage sans connexion"
-                : "Vous êtes hors-ligne. Vous pouvez regarder vos vidéos téléchargées."}
-            </p>
-          </div>
-
-          {/* Stats Pills */}
-          {tasks.length > 0 && (
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex items-center gap-2 bg-zinc-900/80 border border-white/5 px-3 py-1.5 rounded-full text-xs">
-                <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                <span className="font-semibold text-white">{doneTasks.length} prêts</span>
-              </div>
-
-              {runningTasks.length > 0 && (
-                <div className="flex items-center gap-2 bg-zinc-900/80 border border-white/5 px-3 py-1.5 rounded-full text-xs">
-                  <span className="w-2 h-2 rounded-full bg-brand-primary animate-pulse" />
-                  <span className="font-semibold text-white">
-                    {runningTasks.length} en cours
-                  </span>
-                </div>
-              )}
-
-              <div className="flex items-center gap-2 bg-zinc-900/80 border border-white/5 px-3 py-1.5 rounded-full text-xs text-zinc-400">
-                <span>Téléchargements :</span>
-                <span className="font-semibold text-white">{formatBytes(totalBytesDone)}</span>
-              </div>
-
-              {quotaInfo && quotaInfo.quotaBytes > 0 && (
-                <div className="flex items-center gap-2 bg-zinc-900/80 border border-white/5 px-3 py-1.5 rounded-full text-xs text-zinc-400" title={`Espace appareil total alloué: ${formatBytes(quotaInfo.quotaBytes)}`}>
-                  <span className="w-2 h-2 rounded-full bg-cyan-400" />
-                  <span>Dispo appareil :</span>
-                  <span className="font-semibold text-cyan-300">{formatBytes(quotaInfo.availableBytes)}</span>
-                </div>
-              )}
-            </div>
-          )}
+    <div className="w-full space-y-6 select-none">
+      {/* ── 1. EN-TÊTE EXACT YOUTUBE STYLE (Titre + Paramètres) ─────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-white/5">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+            Téléchargements
+          </h1>
+          <p className="text-xs sm:text-sm text-zinc-400 mt-1 font-medium">
+            Vos téléchargements <span className="text-zinc-600">•</span> {tasks.length} vidéo{tasks.length > 1 ? "s" : ""}
+            {doneTasks.length > 0 && ` (${formatBytes(totalBytesDone)})`}
+          </p>
         </div>
-      )}
 
-      {/* 2. FILTRES & BARRE D'ACTIONS */}
+        {/* Bouton Paramètres Style YouTube */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => router.push("/profile?tab=settings")}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-[3px] bg-zinc-900 hover:bg-zinc-800 border border-white/10 text-xs font-semibold text-zinc-300 hover:text-white transition-all cursor-pointer shadow-sm active:scale-95"
+          >
+            <GearSix className="w-4 h-4" />
+            <span>Paramètres</span>
+          </button>
+        </div>
+      </div>
+
+      {/* ── 2. FILTRES MINIMAUX & RECHERCHE ───────────────────────── */}
       {tasks.length > 0 && (
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          {/* Tabs Filtres */}
-          <div className="inline-flex bg-zinc-900/80 p-1 rounded-xl border border-white/5 overflow-x-auto">
-            <button
-              onClick={() => setFilter("all")}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
-                filter === "all"
-                  ? "bg-white/10 text-white shadow-sm"
-                  : "text-zinc-400 hover:text-white"
-              }`}
-            >
-              Tous ({tasks.length})
-            </button>
-            <button
-              onClick={() => setFilter("done")}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
-                filter === "done"
-                  ? "bg-white/10 text-white shadow-sm"
-                  : "text-zinc-400 hover:text-white"
-              }`}
-            >
-              Prêts ({doneTasks.length})
-            </button>
-            <button
-              onClick={() => setFilter("running")}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
-                filter === "running"
-                  ? "bg-white/10 text-white shadow-sm"
-                  : "text-zinc-400 hover:text-white"
-              }`}
-            >
-              En cours ({runningTasks.length})
-            </button>
-            {errorTasks.length > 0 && (
+          {/* Pills Filtres YouTube */}
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+            {[
+              { id: "all", label: `Tous (${tasks.length})` },
+              { id: "done", label: `Prêts (${doneTasks.length})` },
+              { id: "running", label: `En cours (${runningTasks.length})` },
+              ...(errorTasks.length > 0 ? [{ id: "error", label: `Erreurs (${errorTasks.length})` }] : []),
+            ].map((tab) => (
               <button
-                onClick={() => setFilter("error")}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
-                  filter === "error"
-                    ? "bg-white/10 text-white shadow-sm"
-                    : "text-zinc-400 hover:text-white"
+                key={tab.id}
+                onClick={() => setFilter(tab.id as any)}
+                className={`px-3 py-1.5 rounded-[3px] text-xs font-bold transition-all cursor-pointer whitespace-nowrap active:scale-95 ${
+                  filter === tab.id
+                    ? "bg-white text-black shadow-sm"
+                    : "bg-zinc-900/90 text-zinc-400 hover:text-white hover:bg-zinc-800 border border-white/5"
                 }`}
               >
-                Erreurs ({errorTasks.length})
+                {tab.label}
               </button>
-            )}
+            ))}
           </div>
 
-          {/* Recherche & Nettoyage */}
+          {/* Recherche & Actions */}
           <div className="flex items-center gap-2">
             <div className="relative flex-1 sm:w-48">
               <MagnifyingGlass className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -366,14 +334,14 @@ export default function DownloadsView({
                 placeholder="Filtrer..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-zinc-900/80 border border-white/5 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-white/20 transition-colors"
+                className="w-full bg-zinc-900 border border-white/10 rounded-[3px] pl-8 pr-3 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-white/30 transition-colors"
               />
             </div>
 
             {doneTasks.length > 0 && (
               <button
                 onClick={handleClearFinished}
-                className="px-3 py-1.5 rounded-xl bg-zinc-900/80 hover:bg-zinc-800 border border-white/5 text-zinc-300 text-xs font-medium transition-colors cursor-pointer whitespace-nowrap"
+                className="px-3 py-1.5 rounded-[3px] bg-zinc-900 hover:bg-zinc-800 border border-white/10 text-zinc-300 text-xs font-medium transition-colors cursor-pointer whitespace-nowrap"
               >
                 Nettoyer
               </button>
@@ -381,7 +349,7 @@ export default function DownloadsView({
 
             <button
               onClick={() => setShowClearAllModal(true)}
-              className="px-3 py-1.5 rounded-xl bg-zinc-900/80 hover:bg-red-500/20 border border-white/5 hover:border-red-500/30 text-red-400 text-xs font-medium transition-colors cursor-pointer whitespace-nowrap"
+              className="px-3 py-1.5 rounded-[3px] bg-zinc-900 hover:bg-red-500/20 border border-white/10 hover:border-red-500/30 text-red-400 text-xs font-medium transition-colors cursor-pointer whitespace-nowrap"
             >
               Tout effacer
             </button>
@@ -389,9 +357,9 @@ export default function DownloadsView({
         </div>
       )}
 
-      {/* 3. GRILLE DES TÉLÉCHARGEMENTS */}
+      {/* ── 3. GRILLE VIDÉO YOUTUBE (16:9 + Titre + 3 Points) ───────── */}
       {filteredTasks.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-5 w-full">
           {filteredTasks.map((task) => {
             const isPaused = task.status === "paused";
             const isRunning =
@@ -402,210 +370,201 @@ export default function DownloadsView({
             const isError = task.status === "error" || task.status === "canceled";
             const subtitle =
               task.episodeNumber != null
-                ? `Saison ${task.season ?? 1} · Épisode ${task.episodeNumber}`
-                : null;
+                ? `Saison ${task.season ?? 1} • Épisode ${task.episodeNumber}`
+                : task.type === "movie"
+                ? "Film complet"
+                : "Chillers";
             const poster = getPosterUrl(task);
+            const isMenuOpen = activeMenuId === task.id;
 
             return (
               <div
                 key={task.id}
-                className="bg-zinc-900/50 hover:bg-zinc-900/80 border border-white/5 hover:border-white/10 rounded-2xl overflow-hidden transition-all duration-300 flex flex-col justify-between group shadow-lg hover:shadow-2xl"
+                className="group flex flex-col justify-start bg-transparent transition-all duration-200 w-full relative"
               >
-                <div>
-                  {/* YouTube style 16:9 Thumbnail with Overlay badges */}
-                  <div
-                    onClick={() => isDone && handleWatch(task)}
-                    className={`relative aspect-video w-full overflow-hidden bg-zinc-950 ${
-                      isDone ? "cursor-pointer" : ""
-                    }`}
-                  >
-                    {poster ? (
-                      <Image
-                        src={poster}
-                        alt={task.title}
-                        fill
-                        className="object-cover object-center group-hover:scale-105 transition-transform duration-500"
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                        unoptimized
-                      />
-                    ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center text-zinc-600 gap-2 bg-gradient-to-br from-zinc-900 to-zinc-950">
-                        {task.type === "series" || task.type === "anime" ? (
-                          <Television className="w-10 h-10 text-zinc-500" />
-                        ) : (
-                          <FilmSlate className="w-10 h-10 text-zinc-500" />
-                        )}
-                        <span className="text-[11px] font-bold tracking-wider uppercase text-zinc-400">
-                          {task.type === "series"
-                            ? "Série"
-                            : task.type === "anime"
-                            ? "Anime"
-                            : "Film"}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Gradient overlay for bottom shadow */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20 pointer-events-none" />
-
-                    {/* Play button overlay on hover (YouTube style) */}
-                    {isDone && (
-                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/40">
-                        <div className="w-12 h-12 rounded-full bg-white/95 text-black flex items-center justify-center shadow-2xl transform scale-90 group-hover:scale-100 transition-transform">
-                          <Play className="w-6 h-6 fill-black ml-0.5" />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* YouTube Badges: Bottom-right duration / size badge */}
-                    <div className="absolute bottom-2 right-2 flex items-center gap-1.5">
-                      {task.totalBytes || task.bytesDownloaded ? (
-                        <span className="px-1.5 py-0.5 rounded bg-black/80 backdrop-blur-md text-white text-[10px] font-semibold tracking-tight shadow">
-                          {formatBytes(task.totalBytes || task.bytesDownloaded || 0)}
-                        </span>
-                      ) : null}
-                    </div>
-
-                    {/* Top-right Status Pill */}
-                    <div className="absolute top-2 right-2">
-                      {isDone ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/90 text-white text-[10px] font-black uppercase tracking-wider shadow">
-                          <Check className="w-3 h-3 stroke-[3]" />
-                          Prêt
-                        </span>
-                      ) : isRunning ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#D70466]/90 text-white text-[10px] font-black uppercase tracking-wider shadow animate-pulse">
-                          En cours
-                        </span>
-                      ) : isPaused ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/90 text-white text-[10px] font-black uppercase tracking-wider shadow">
-                          En pause
-                        </span>
+                {/* 1. Miniature 16:9 YouTube avec badges discrets */}
+                <div
+                  onClick={() => isDone && handleWatch(task)}
+                  className={`relative aspect-video w-full rounded-[3px] overflow-hidden bg-zinc-900 border border-white/10 group-hover:border-white/25 transition-all shadow-md ${
+                    isDone ? "cursor-pointer" : ""
+                  }`}
+                >
+                  {poster ? (
+                    <Image
+                      src={poster}
+                      alt={task.title}
+                      fill
+                      className="object-cover object-center group-hover:scale-105 transition-transform duration-300"
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                      unoptimized
+                    />
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center text-zinc-600 gap-2 bg-gradient-to-br from-zinc-900 to-zinc-950">
+                      {task.type === "series" || task.type === "anime" ? (
+                        <Television className="w-8 h-8 text-zinc-500" />
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-700/90 text-zinc-200 text-[10px] font-black uppercase tracking-wider shadow">
-                          Arrêté
-                        </span>
+                        <FilmSlate className="w-8 h-8 text-zinc-500" />
                       )}
-                    </div>
-
-                    {/* Top-left Type Tag */}
-                    <div className="absolute top-2 left-2">
-                      <span className="px-2 py-0.5 rounded bg-black/60 backdrop-blur-md text-zinc-300 text-[9px] font-bold uppercase tracking-wider">
+                      <span className="text-[10px] font-bold tracking-wider uppercase text-zinc-400">
                         {task.type === "series" ? "Série" : task.type === "anime" ? "Anime" : "Film"}
                       </span>
                     </div>
-                  </div>
+                  )}
 
-                  {/* YouTube Video Info Block */}
-                  <div className="p-3.5 pb-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <h3
-                          onClick={() => isDone && handleWatch(task)}
-                          title={task.title}
-                          className={`text-sm font-bold text-white line-clamp-1 group-hover:text-[#D70466] transition-colors ${
-                            isDone ? "cursor-pointer" : ""
-                          }`}
-                        >
-                          {task.title}
-                        </h3>
-                        <p className="text-xs text-zinc-400 line-clamp-1 mt-0.5">
-                          {subtitle || (task.type === "movie" ? "Film complet" : task.filename)}
-                        </p>
+                  {/* Dégradé léger en bas */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
+
+                  {/* Play overlay hover */}
+                  {isDone && (
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/40">
+                      <div className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center shadow-xl transform scale-90 group-hover:scale-100 transition-transform">
+                        <Play className="w-5 h-5 fill-black ml-0.5" />
                       </div>
-
-                      {/* Delete button or confirmation */}
-                      {deleteConfirmId === task.id ? (
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                          <button
-                            onClick={() => handleDeleteOne(task.id)}
-                            className="px-2 py-1 rounded-lg bg-red-500/20 hover:bg-red-500 text-red-300 hover:text-white text-[10px] font-bold transition-all cursor-pointer"
-                          >
-                            Supprimer
-                          </button>
-                          <button
-                            onClick={() => setDeleteConfirmId(null)}
-                            className="p-1 rounded-lg bg-zinc-800 text-zinc-400 hover:text-white transition-colors cursor-pointer"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => setDeleteConfirmId(task.id)}
-                          className="p-1.5 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-white/5 transition-colors cursor-pointer flex-shrink-0"
-                          title="Supprimer"
-                        >
-                          <Trash className="w-4 h-4" />
-                        </button>
-                      )}
                     </div>
-                  </div>
-                </div>
+                  )}
 
-                {/* Progress bar and Action Buttons */}
-                <div className="p-3.5 pt-0 space-y-2.5">
-                  {(isRunning || isPaused) && (
-                    <div className="space-y-1">
-                      <DownloadProgressBar
-                        bytesDownloaded={task.bytesDownloaded}
-                        totalBytes={task.totalBytes}
-                        status={task.status}
+                  {/* Badge Durée / Taille en bas à droite (Style YouTube exact) */}
+                  <div className="absolute bottom-1.5 right-1.5 flex items-center gap-1 z-10">
+                    <span className="px-1.5 py-0.5 rounded-[2px] bg-black/90 text-white text-[10px] font-mono font-bold tracking-tight shadow">
+                      {task.totalBytes || task.bytesDownloaded
+                        ? formatBytes(task.totalBytes || task.bytesDownloaded || 0)
+                        : isDone
+                        ? "HD"
+                        : "..."}
+                    </span>
+                  </div>
+
+                  {/* Barre de progression rouge en bas de la miniature si en cours */}
+                  {isRunning && (
+                    <div className="absolute bottom-0 inset-x-0 h-[3px] bg-zinc-800 z-10">
+                      <div
+                        className="h-full bg-red-600 rounded-r-full shadow-[0_0_6px_rgba(220,38,38,0.8)] transition-all duration-300"
+                        style={{
+                          width: `${
+                            task.totalBytes && task.totalBytes > 0
+                              ? Math.min(100, Math.round(((task.bytesDownloaded || 0) / task.totalBytes) * 100))
+                              : 20
+                          }%`,
+                        }}
                       />
                     </div>
                   )}
 
-                  <div className="flex items-center gap-2">
-                    {isDone ? (
-                      <button
-                        onClick={() => handleWatch(task)}
-                        className="flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-xl bg-white hover:bg-zinc-200 text-black font-extrabold text-xs transition-all cursor-pointer shadow active:scale-[0.98]"
+                  {/* Badge statut si erreur ou pause */}
+                  {isPaused && (
+                    <div className="absolute top-1.5 left-1.5 z-10">
+                      <span className="px-1.5 py-0.5 rounded-[2px] bg-amber-500/90 text-black text-[9px] font-black uppercase">
+                        Pause
+                      </span>
+                    </div>
+                  )}
+                  {isError && (
+                    <div className="absolute top-1.5 left-1.5 z-10">
+                      <span className="px-1.5 py-0.5 rounded-[2px] bg-red-600 text-white text-[9px] font-black uppercase">
+                        Erreur
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. Ligne Info YouTube sous la miniature : Titre + 3 Points */}
+                <div className="pt-2 px-0.5 flex items-start justify-between gap-1.5">
+                  <div className="min-w-0 flex-1">
+                    <h3
+                      onClick={() => isDone && handleWatch(task)}
+                      title={task.title}
+                      className={`text-xs sm:text-sm font-bold text-white line-clamp-2 leading-tight group-hover:text-brand-primary transition-colors ${
+                        isDone ? "cursor-pointer" : ""
+                      }`}
+                    >
+                      {task.title}
+                    </h3>
+                    <p className="text-[11px] text-zinc-400 line-clamp-1 mt-0.5 font-normal leading-tight">
+                      {subtitle} {task.totalBytes ? `• ${formatBytes(task.totalBytes)}` : ""}
+                    </p>
+                  </div>
+
+                  {/* Bouton 3 Points Verticaux ⋮ */}
+                  <div className="relative shrink-0">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveMenuId(isMenuOpen ? null : task.id);
+                      }}
+                      aria-label="Options"
+                      className="p-1 text-zinc-400 hover:text-white rounded-full hover:bg-white/10 transition-colors cursor-pointer"
+                    >
+                      <DotsThreeVertical className="w-4 h-4" />
+                    </button>
+
+                    {/* Menu contextuel déroulant (3 Points) */}
+                    {isMenuOpen && (
+                      <div
+                        ref={menuRef}
+                        className="absolute right-0 top-full mt-1 w-48 bg-[#18181c] border border-white/15 rounded-[3px] shadow-2xl p-1 z-30 flex flex-col divide-y divide-white/5 animate-in fade-in zoom-in-95 duration-150"
+                        onClick={(e) => e.stopPropagation()}
                       >
-                        <Play className="w-3.5 h-3.5 fill-black" />
-                        <span>Regarder hors-connexion</span>
-                      </button>
-                    ) : isRunning ? (
-                      <>
-                        <button
-                          onClick={() => handlePauseOne(task.id)}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-semibold transition-colors cursor-pointer"
-                        >
-                          <Pause className="w-3.5 h-3.5" />
-                          <span>Pause</span>
-                        </button>
-                        <button
-                          onClick={() => handleCancelOne(task.id)}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold transition-colors cursor-pointer"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                          <span>Annuler</span>
-                        </button>
-                      </>
-                    ) : isPaused ? (
-                      <>
-                        <button
-                          onClick={() => handleResumeOne(task)}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-[#D70466] hover:bg-[#b5034f] text-white text-xs font-bold transition-colors cursor-pointer shadow"
-                        >
-                          <Play className="w-3.5 h-3.5 fill-white" />
-                          <span>Reprendre</span>
-                        </button>
-                        <button
-                          onClick={() => handleCancelOne(task.id)}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold transition-colors cursor-pointer"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                          <span>Annuler</span>
-                        </button>
-                      </>
-                    ) : (
-                      <button
-                        onClick={() => handleRetryOne(task.id)}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-[#D70466] hover:bg-[#b5034f] text-white text-xs font-bold transition-colors cursor-pointer shadow"
-                      >
-                        <ArrowsClockwise className="w-3.5 h-3.5" />
-                        <span>Relancer</span>
-                      </button>
+                        <div className="py-1">
+                          {isDone && (
+                            <button
+                              onClick={() => handleWatch(task)}
+                              className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-semibold text-white hover:bg-white/10 rounded-[2px] transition-colors cursor-pointer text-left"
+                            >
+                              <Play className="w-3.5 h-3.5 fill-white text-white" />
+                              <span>Regarder</span>
+                            </button>
+                          )}
+
+                          <button
+                            onClick={() => goToDetails(task)}
+                            className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/10 rounded-[2px] transition-colors cursor-pointer text-left"
+                          >
+                            <Info className="w-3.5 h-3.5" />
+                            <span>Voir les détails</span>
+                          </button>
+
+                          {isRunning && (
+                            <button
+                              onClick={() => handlePauseOne(task.id)}
+                              className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-semibold text-amber-400 hover:bg-white/10 rounded-[2px] transition-colors cursor-pointer text-left"
+                            >
+                              <Pause className="w-3.5 h-3.5" />
+                              <span>Mettre en pause</span>
+                            </button>
+                          )}
+
+                          {isPaused && (
+                            <button
+                              onClick={() => handleResumeOne(task)}
+                              className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-semibold text-emerald-400 hover:bg-white/10 rounded-[2px] transition-colors cursor-pointer text-left"
+                            >
+                              <Play className="w-3.5 h-3.5 fill-emerald-400" />
+                              <span>Reprendre</span>
+                            </button>
+                          )}
+
+                          {isError && (
+                            <button
+                              onClick={() => handleRetryOne(task.id)}
+                              className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-semibold text-emerald-400 hover:bg-white/10 rounded-[2px] transition-colors cursor-pointer text-left"
+                            >
+                              <ArrowsClockwise className="w-3.5 h-3.5" />
+                              <span>Relancer</span>
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="py-1">
+                          <button
+                            onClick={() => handleDeleteOne(task.id)}
+                            className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-semibold text-red-400 hover:bg-red-500/20 rounded-[2px] transition-colors cursor-pointer text-left"
+                          >
+                            <Trash className="w-3.5 h-3.5" />
+                            <span>Supprimer</span>
+                          </button>
+                        </div>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -616,18 +575,18 @@ export default function DownloadsView({
       ) : tasks.length === 0 ? (
         /* ÉCRAN VIDE */
         <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
-          <div className="w-16 h-16 rounded-3xl bg-zinc-900/80 border border-white/5 flex items-center justify-center text-brand-primary shadow-xl">
-            <DownloadSimple className="w-8 h-8" />
+          <div className="w-14 h-14 rounded-[3px] bg-zinc-900 border border-white/10 flex items-center justify-center text-brand-primary shadow-xl">
+            <DownloadSimple className="w-7 h-7" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-white">Aucun téléchargement</h3>
+            <h3 className="text-base sm:text-lg font-bold text-white">Aucun téléchargement</h3>
             <p className="text-xs text-zinc-400 mt-1 max-w-sm mx-auto">
               Téléchargez vos films et épisodes pour les regarder partout sans connexion internet.
             </p>
           </div>
           <Link
             href="/"
-            className="px-5 py-2.5 rounded-xl bg-brand-primary hover:bg-brand-primary/90 text-white text-xs font-bold transition-all shadow-lg active:scale-95"
+            className="px-4 py-2 rounded-[3px] bg-brand-primary hover:bg-[#b5034f] text-white text-xs font-bold transition-all shadow-md active:scale-95"
           >
             Explorer les films & séries
           </Link>
@@ -642,14 +601,14 @@ export default function DownloadsView({
       {/* MODALE DE CONFIRMATION SUPPRESSION TOTALE */}
       {showClearAllModal && (
         <div
-          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
           onClick={() => setShowClearAllModal(false)}
         >
           <div
-            className="bg-zinc-900 border border-white/10 rounded-2xl p-6 max-w-sm w-full text-center space-y-4 shadow-2xl"
+            className="bg-[#141417] border border-white/15 rounded-[3px] p-6 max-w-sm w-full text-center space-y-4 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="w-12 h-12 rounded-full bg-red-500/10 text-red-500 flex items-center justify-center mx-auto">
+            <div className="w-12 h-12 rounded-full bg-red-500/15 text-red-500 flex items-center justify-center mx-auto">
               <Warning className="w-6 h-6" />
             </div>
             <div>
@@ -663,13 +622,13 @@ export default function DownloadsView({
             <div className="grid grid-cols-2 gap-2 pt-2">
               <button
                 onClick={() => setShowClearAllModal(false)}
-                className="py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-white transition-colors cursor-pointer"
+                className="py-2.5 rounded-[3px] bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-white transition-colors cursor-pointer"
               >
                 Annuler
               </button>
               <button
                 onClick={handleClearAll}
-                className="py-2.5 rounded-xl bg-brand-primary hover:bg-brand-primary/90 text-xs font-semibold text-white transition-colors cursor-pointer"
+                className="py-2.5 rounded-[3px] bg-[#D70466] hover:bg-[#b5034f] text-xs font-semibold text-white transition-colors cursor-pointer"
               >
                 Tout effacer
               </button>

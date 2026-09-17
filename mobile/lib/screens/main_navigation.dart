@@ -1,5 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../config/theme.dart';
+import '../services/download_service.dart';
+import '../widgets/download_success_overlay.dart';
 import 'home/home_screen.dart';
 import 'media/media_screen.dart';
 import 'live/live_screen.dart';
@@ -24,6 +27,38 @@ class MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
   bool _isSidebarExpanded = true;
   final TextEditingController _searchController = TextEditingController();
+  StreamSubscription<DownloadTask>? _downloadSub;
+
+  @override
+  void initState() {
+    super.initState();
+    _downloadSub = DownloadService().onDownloadCompleted.listen(_onDownloadCompleted);
+  }
+
+  /// Called whenever a [DownloadTask] reaches 'completed' status.
+  /// Shows an animated overlay that slides in from the top.
+  void _onDownloadCompleted(DownloadTask task) {
+    final overlay = Overlay.of(context, rootOverlay: true);
+    late OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (ctx) => SafeArea(
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: DownloadSuccessOverlay(
+            task: task,
+            onTap: () {
+              // Navigate to the Downloads tab (index 3)
+              switchTo(3);
+            },
+            onDismiss: () {
+              entry.remove();
+            },
+          ),
+        ),
+      ),
+    );
+    overlay.insert(entry);
+  }
 
   void switchTo(int index, {int? subTab}) {
     if (mounted) {
@@ -54,6 +89,7 @@ class MainNavigationState extends State<MainNavigation> {
 
   @override
   void dispose() {
+    _downloadSub?.cancel();
     _searchController.dispose();
     super.dispose();
   }

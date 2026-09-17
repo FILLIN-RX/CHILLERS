@@ -4,6 +4,17 @@
 @theme {
   --color-brand-primary: #D70466;
   --color-brand-secondary: #7C3AED;
+  /* Card and component border radius strictly between 2px and 3px */
+  --radius-DEFAULT: 2px;
+  --radius-none: 0px;
+  --radius-xs: 2px;
+  --radius-sm: 2px;
+  --radius-md: 2px;
+  --radius-lg: 3px;
+  --radius-xl: 3px;
+  --radius-2xl: 3px;
+  --radius-3xl: 3px;
+  --radius-full: 9999px;
   /* Static fallback tokens — dynamic variants handled via CSS classes below */
   --font-sans: var(--font-geist-sans), Arial, sans-serif;
   --font-mono: var(--font-geist-mono), monospace;
@@ -155,20 +166,39 @@ body {
   border-color: rgba(215, 4, 102, 0.4);
 }
 
-/* Skeleton Loading State Animations */
+/* Skeleton Loading State Animations (Silky 60fps GPU-accelerated) */
 @keyframes shimmer {
   0% {
-    background-position: -200% 0;
+    transform: translateX(-100%);
   }
   100% {
-    background-position: 200% 0;
+    transform: translateX(100%);
   }
 }
 
 .skeleton-loading {
-  background: linear-gradient(90deg, var(--skeleton-base) 25%, var(--skeleton-shimmer) 50%, var(--skeleton-base) 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
+  position: relative;
+  overflow: hidden;
+  background-color: var(--skeleton-base);
+}
+
+.skeleton-loading::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.03) 30%,
+    rgba(255, 255, 255, 0.1) 50%,
+    rgba(255, 255, 255, 0.03) 70%,
+    transparent 100%
+  );
+  animation: shimmer 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  will-change: transform;
 }
 
 /* Fade-in utilisé par les modales (MovieModal, DownloadModal, NotificationModal).
@@ -276,7 +306,7 @@ textarea:focus-visible,
 [role="button"]:focus-visible {
   outline: 2px solid var(--color-brand-primary);
   outline-offset: 2px;
-  border-radius: 6px;
+  border-radius: 2px;
 }
 
 /* Respecte la préférence système « animations réduites ». */

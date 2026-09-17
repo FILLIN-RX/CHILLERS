@@ -525,3 +525,44 @@ export async function adminReviewPaymentProof(
     }
   );
 }
+
+export interface AdminMediaRequest {
+  _id: string;
+  tmdbId?: number;
+  title: string;
+  type: "movie" | "series";
+  season?: number;
+  episode?: number;
+  year?: number;
+  posterUrl?: string;
+  status: "pending" | "searching" | "fulfilled" | "not_found";
+  requestCount: number;
+  requestedBy: Array<{ userId?: string; email?: string; requestedAt: string }>;
+  streamSources?: Array<{ source: string; streamUrl: string; quality?: string; language?: string; server?: string }>;
+  searchAttempts: number;
+  fulfilledAt?: string;
+  lastSearchAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function adminGetRequests(params: { status?: string; type?: string; search?: string; page?: number; limit?: number } = {}) {
+  const query = new URLSearchParams();
+  if (params.status) query.set("status", params.status);
+  if (params.type) query.set("type", params.type);
+  if (params.search) query.set("search", params.search);
+  if (params.page) query.set("page", String(params.page));
+  if (params.limit) query.set("limit", String(params.limit));
+
+  return adminRequest<{
+    success: boolean;
+    data: AdminMediaRequest[];
+    pagination: { page: number; limit: number; total: number; pages: number };
+  }>(`/requests/admin?${query.toString()}`);
+}
+
+export async function adminRetryRequest(id: string) {
+  return adminRequest<{ success: boolean; message: string }>(`/requests/admin/${id}/retry`, {
+    method: "POST",
+  });
+}

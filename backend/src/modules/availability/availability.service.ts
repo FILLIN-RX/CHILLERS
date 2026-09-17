@@ -248,32 +248,78 @@ export async function scanAvailability(type: 'movie' | 'series' | 'all' = 'all')
   }
 }
 
-export async function getBatchAvailability(type: 'movie' | 'tv', ids: number[]): Promise<Record<string, { disponible: boolean; streaming: boolean; download: boolean; langueAudio?: string; isFrenchAudio?: boolean }>> {
+export async function getBatchAvailability(
+  type: 'movie' | 'tv',
+  ids: number[],
+  title?: string
+): Promise<Record<string, { disponible: boolean; streaming: boolean; download: boolean; langueAudio?: string; isFrenchAudio?: boolean }>> {
   const result: Record<string, any> = {};
-  if (ids.length === 0) return result;
+  if (ids.length === 0 && !title) return result;
 
   if (type === 'movie') {
-    const movies = await Movie.find({ tmdbId: { $in: ids } }).select('titre tmdbId lien lienOriginal pageUrl uqloadLink streamtapeLink fileCode disponible langueAudio').lean();
+    const query: any = ids.length > 0 ? { tmdbId: { $in: ids } } : {};
+    let movies = ids.length > 0 ? await Movie.find(query).select('titre tmdbId lien lienOriginal pageUrl uqloadLink streamtapeLink fileCode disponible langueAudio').lean() : [];
+
+    // Fallback recherche par titre si non trouvé par tmdbId
+    if (movies.length === 0 && title && ids.length === 1) {
+      const cleanTitle = title.trim();
+      const byTitle = await Movie.findOne({
+        titre: { $regex: new RegExp(`^${cleanTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }
+      }).select('titre tmdbId lien lienOriginal pageUrl uqloadLink streamtapeLink fileCode disponible langueAudio').lean();
+      
+      if (byTitle) {
+        // Associer le tmdbId si manquant
+        if (!byTitle.tmdbId && ids[0]) {
+          Movie.updateOne({ _id: byTitle._id }, { $set: { tmdbId: ids[0] } }).catch(() => {});
+        }
+        movies = [byTitle];
+      }
+    }
+
     for (const m of movies) {
       const audio = detectAudioLanguage(m);
       const langueAudio = m.langueAudio && m.langueAudio !== 'UNKNOWN' ? m.langueAudio : audio.langueAudio;
-      result[String(m.tmdbId)] = {
-        disponible: !!m.disponible,
-        streaming: await checkStreaming(m),
-        download: await checkDownload(m),
+      const hasStream = !!(m.lien || m.uqloadLink || m.streamtapeLink || m.disponible);
+      const key = String(m.tmdbId || ids[0] || m._id);
+
+      result[key] = {
+        disponible: hasStream,
+        streaming: hasStream,
+        download: hasStream,
         langueAudio,
         isFrenchAudio: langueAudio === 'VF' || langueAudio === 'VFF' || langueAudio === 'VFQ',
       };
     }
   } else {
-    const series = await Serie.find({ tmdbId: { $in: ids } }).select('titre tmdbId pageUrl episodes disponible langueAudio').lean();
+    const query: any = ids.length > 0 ? { tmdbId: { $in: ids } } : {};
+    let series = ids.length > 0 ? await Serie.find(query).select('titre tmdbId pageUrl episodes disponible langueAudio').lean() : [];
+
+    // Fallback recherche par titre si non trouvé par tmdbId
+    if (series.length === 0 && title && ids.length === 1) {
+      const cleanTitle = title.trim();
+      const byTitle = await Serie.findOne({
+        titre: { $regex: new RegExp(`^${cleanTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }
+      }).select('titre tmdbId pageUrl episodes disponible langueAudio').lean();
+      
+      if (byTitle) {
+        if (!byTitle.tmdbId && ids[0]) {
+          Serie.updateOne({ _id: byTitle._id }, { $set: { tmdbId: ids[0] } }).catch(() => {});
+        }
+        series = [byTitle];
+      }
+    }
+
     for (const s of series) {
       const audio = detectAudioLanguage(s);
       const langueAudio = s.langueAudio && s.langueAudio !== 'UNKNOWN' ? s.langueAudio : audio.langueAudio;
-      result[String(s.tmdbId)] = {
-        disponible: !!s.disponible,
-        streaming: await checkStreaming(s.episodes?.[0] || s),
-        download: await checkDownload(s.episodes?.[0] || s),
+      const hasEpisodesWithLink = Array.isArray(s.episodes) && s.episodes.some((e: any) => !!e.lien);
+      const hasStream = !!(s.disponible || hasEpisodesWithLink);
+      const key = String(s.tmdbId || ids[0] || s._id);
+
+      result[key] = {
+        disponible: hasStream,
+        streaming: hasStream,
+        download: hasStream,
         langueAudio,
         isFrenchAudio: langueAudio === 'VF' || langueAudio === 'VFF' || langueAudio === 'VFQ',
       };

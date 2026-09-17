@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { httpJson } from '@/app/api';
-import { Check, X, UploadSimple, Copy, ListChecks, Crown, WarningCircle, Spinner, PhoneCall } from '@phosphor-icons/react';
+import { Check, X, UploadSimple, Copy, ListChecks, Crown, WarningCircle, Spinner, PhoneCall, ArrowLeft, ArrowRight, DeviceMobile, ShieldCheck } from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
 
 interface Plan {
@@ -27,8 +27,9 @@ export default function SubscribePage() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Modal paiement & preuve
+  // Modal paiement Stepper (1: Opérateur, 2: USSD/Dépôt, 3: Preuve)
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
   const [paymentMethod, setPaymentMethod] = useState<'orange' | 'mtn'>('orange');
   const [senderPhone, setSenderPhone] = useState('');
   const [transactionRef, setTransactionRef] = useState('');
@@ -90,9 +91,6 @@ export default function SubscribePage() {
     fetchPlans();
   }, []);
 
-  // USSD Codes Cameroun :
-  // Orange Money : #150*1*1*NUMERO*MONTANT#
-  // MTN MoMo : *126*1*1*NUMERO*MONTANT#
   const getUssdCode = (method: 'orange' | 'mtn', amount: number) => {
     if (method === 'orange') {
       return `#150*1*1*${ORANGE_NUMBER}*${amount}#`;
@@ -102,12 +100,10 @@ export default function SubscribePage() {
 
   const handleDialUssd = (method: 'orange' | 'mtn', amount: number) => {
     const rawCode = getUssdCode(method, amount);
-    // Copier également dans le presse-papier pour sécurité
     navigator.clipboard.writeText(rawCode);
     setCopiedNumber(rawCode);
     setTimeout(() => setCopiedNumber(null), 3000);
 
-    // Encodage propre du caractère # pour tel: (%23)
     const encodedCode = rawCode.replace(/#/g, '%23');
     window.location.href = `tel:${encodedCode}`;
   };
@@ -117,6 +113,7 @@ export default function SubscribePage() {
       const file = e.target.files[0];
       setScreenshotFile(file);
       setScreenshotPreview(URL.createObjectURL(file));
+      setErrorMessage(null);
     }
   };
 
@@ -172,7 +169,7 @@ export default function SubscribePage() {
       });
 
       if (res.success) {
-        setSuccessMessage('Votre preuve a été envoyée avec succès ! Notre équipe va valider votre paiement et activer votre compte dans quelques instants.');
+        setSuccessMessage('Votre preuve a été envoyée avec succès ! Notre équipe va valider votre paiement et activer votre compte sous peu.');
       } else {
         throw new Error(res.message || 'Erreur lors de l’envoi de la preuve.');
       }
@@ -185,30 +182,30 @@ export default function SubscribePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0c] flex items-center justify-center text-white">
+      <div className="min-h-screen bg-[#09090b] flex items-center justify-center text-white">
         <Spinner className="w-8 h-8 animate-spin text-brand-primary" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-white pt-24 sm:pt-28 pb-16 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#09090b] text-white pt-24 sm:pt-28 pb-16 px-4 sm:px-6 lg:px-8 select-none">
       <div className="max-w-5xl mx-auto">
-        <div className="text-center max-w-2xl mx-auto mb-12">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-bold mb-4">
+        <div className="text-center max-w-2xl mx-auto mb-10 sm:mb-12">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-[3px] bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-bold mb-4">
             <Crown className="w-4 h-4 text-amber-400 fill-amber-400" />
             <span>Formules VIP & Streaming Illimité</span>
           </div>
           <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white mb-3">
             Passez à l&apos;Expérience Chiller
           </h1>
-          <p className="text-zinc-400 text-sm sm:text-base leading-relaxed">
+          <p className="text-zinc-400 text-xs sm:text-sm leading-relaxed max-w-xl mx-auto">
             Profitez du Full HD 1080p sans publicité, des téléchargements illimités et de la reprise de lecture multi-écrans.
           </p>
         </div>
 
-        {/* Grille des abonnements (Alignés sur une seule ligne) */}
-        <div className="flex flex-col md:flex-row items-stretch justify-center gap-6 sm:gap-8 max-w-5xl mx-auto mb-16">
+        {/* Grille des abonnements avec bordures 2px-3px */}
+        <div className="flex flex-col md:flex-row items-stretch justify-center gap-5 sm:gap-6 max-w-4xl mx-auto mb-16">
           {plans.map((plan) => {
             const isCurrent = user?.subscription?.plan === plan.code;
             const isPremium = plan.code === 'premium';
@@ -216,52 +213,52 @@ export default function SubscribePage() {
             return (
               <div
                 key={plan._id}
-                className={`relative flex-1 w-full max-w-md rounded-3xl p-7 sm:p-8 flex flex-col justify-between transition-all duration-300 ${
+                className={`relative flex-1 w-full rounded-[3px] p-6 sm:p-7 flex flex-col justify-between transition-all duration-300 ${
                   isPremium
-                    ? 'bg-[#1c1424] border-2 border-[#7C3AED]/50 shadow-[0_12px_40px_rgba(124,58,237,0.2)]'
-                    : 'bg-[#141416] border border-white/10 hover:border-white/20'
+                    ? 'bg-[#15111c] border-2 border-[#7C3AED]/60 shadow-[0_8px_30px_rgba(124,58,237,0.18)]'
+                    : 'bg-[#121214] border border-white/10 hover:border-white/20'
                 }`}
               >
                 {isPremium && (
-                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-[#D70466] text-white text-[11px] font-black tracking-wider uppercase shadow-md">
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-[2px] bg-[#D70466] text-white text-[10px] font-black tracking-wider uppercase shadow-md">
                     RECOMMANDÉ
                   </div>
                 )}
 
                 <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-2xl font-bold text-white">{plan.name}</h3>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-xl sm:text-2xl font-bold text-white">{plan.name}</h3>
                     {isCurrent && (
-                      <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-bold">
+                      <span className="px-2.5 py-0.5 rounded-[2px] bg-emerald-500/20 text-emerald-400 text-[11px] font-bold">
                         Actuel
                       </span>
                     )}
                   </div>
 
                   <div className="flex items-baseline gap-2 mb-6">
-                    <span className="text-4xl sm:text-5xl font-black text-white">{plan.price}</span>
-                    <span className="text-sm font-bold text-zinc-400">FCFA / mois</span>
+                    <span className="text-3xl sm:text-4xl font-black text-white">{plan.price}</span>
+                    <span className="text-xs font-bold text-zinc-400">FCFA / mois</span>
                   </div>
 
-                  <ul className="space-y-3.5 mb-8 text-sm text-zinc-300">
-                    <li className="flex items-center gap-3">
-                      <Check className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+                  <ul className="space-y-3 mb-8 text-xs sm:text-sm text-zinc-300">
+                    <li className="flex items-center gap-2.5">
+                      <Check className="w-4 h-4 text-emerald-400 flex-shrink-0" />
                       <span>Qualité maximale : <strong className="text-white">{plan.features.maxResolution}</strong></span>
                     </li>
-                    <li className="flex items-center gap-3">
-                      <Check className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+                    <li className="flex items-center gap-2.5">
+                      <Check className="w-4 h-4 text-emerald-400 flex-shrink-0" />
                       <span>Écrans simultanés : <strong className="text-white">{plan.features.maxDevices}</strong></span>
                     </li>
-                    <li className="flex items-center gap-3">
-                      <Check className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+                    <li className="flex items-center gap-2.5">
+                      <Check className="w-4 h-4 text-emerald-400 flex-shrink-0" />
                       <span>Reprise de lecture automatique</span>
                     </li>
-                    <li className="flex items-center gap-3">
-                      <Check className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+                    <li className="flex items-center gap-2.5">
+                      <Check className="w-4 h-4 text-emerald-400 flex-shrink-0" />
                       <span>Téléchargements illimités haute vitesse</span>
                     </li>
-                    <li className="flex items-center gap-3">
-                      <Check className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+                    <li className="flex items-center gap-2.5">
+                      <Check className="w-4 h-4 text-emerald-400 flex-shrink-0" />
                       <span>Accès prioritaire sans attente</span>
                     </li>
                   </ul>
@@ -274,15 +271,16 @@ export default function SubscribePage() {
                       return;
                     }
                     setSelectedPlan(plan);
+                    setCurrentStep(1);
                     setSuccessMessage(null);
                     setErrorMessage(null);
                   }}
                   disabled={isCurrent}
-                  className={`w-full py-3.5 rounded-2xl font-bold text-sm transition-all cursor-pointer shadow-lg active:scale-95 ${
+                  className={`w-full py-3 rounded-[3px] font-bold text-xs sm:text-sm transition-all cursor-pointer shadow-md active:scale-95 ${
                     isCurrent
                       ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
                       : isPremium
-                      ? 'bg-[#D70466] hover:opacity-95 text-white'
+                      ? 'bg-[#D70466] hover:bg-[#b5034f] text-white'
                       : 'bg-white text-black hover:bg-zinc-200'
                   }`}
                 >
@@ -293,207 +291,306 @@ export default function SubscribePage() {
           })}
         </div>
 
-        {/* Modal de paiement Mobile Money & Soumission de preuve */}
+        {/* ── MODAL STEPPER DE PAIEMENT ULTRA-COMPACT ────────────────── */}
         {selectedPlan && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md overflow-y-auto">
-            <div className="relative w-full max-w-lg bg-[#141417] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl my-8">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md overflow-y-auto animate-fade-in">
+            <div className="relative w-full max-w-md bg-[#121215] border border-white/15 rounded-[3px] p-5 sm:p-6 shadow-2xl my-4">
+              {/* Close Button */}
               <button
                 onClick={() => setSelectedPlan(null)}
-                className="absolute top-5 right-5 text-zinc-400 hover:text-white p-1 rounded-full hover:bg-white/10 transition-all"
+                aria-label="Fermer"
+                className="absolute top-4 right-4 text-zinc-400 hover:text-white p-1 rounded-[2px] hover:bg-white/10 transition-all cursor-pointer"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
 
               {successMessage ? (
-                <div className="text-center py-6 space-y-4">
-                  <div className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto">
-                    <ListChecks className="w-8 h-8" />
+                <div className="text-center py-4 space-y-4">
+                  <div className="w-14 h-14 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto">
+                    <ListChecks className="w-7 h-7" />
                   </div>
-                  <h3 className="text-2xl font-bold text-white">Preuve bien transmise !</h3>
-                  <p className="text-zinc-300 text-sm leading-relaxed">{successMessage}</p>
+                  <h3 className="text-xl font-bold text-white">Preuve bien transmise !</h3>
+                  <p className="text-zinc-300 text-xs sm:text-sm leading-relaxed">{successMessage}</p>
                   <button
                     onClick={() => {
                       setSelectedPlan(null);
                       router.push('/');
                     }}
-                    className="w-full py-3 mt-4 rounded-xl bg-white text-black font-bold text-sm hover:bg-zinc-200 transition-all"
+                    className="w-full py-2.5 rounded-[3px] bg-white text-black font-bold text-xs hover:bg-zinc-200 transition-all cursor-pointer"
                   >
                     Retour à l&apos;accueil
                   </button>
                 </div>
               ) : (
-                <div>
-                  <div className="mb-6">
-                    <span className="text-xs font-bold text-brand-primary uppercase tracking-wider">
-                      Étape de Paiement
-                    </span>
-                    <h3 className="text-xl sm:text-2xl font-black text-white mt-1">
-                      Abonnement {selectedPlan.name} ({selectedPlan.price} FCFA)
-                    </h3>
-                  </div>
-
-                  {/* Choix de l'opérateur */}
-                  <div className="space-y-3 mb-6">
-                    <label className="text-xs font-semibold text-zinc-400">1. Choisissez votre moyen de dépôt :</label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setPaymentMethod('orange')}
-                        className={`p-3.5 rounded-2xl border flex flex-col items-center gap-1.5 transition-all cursor-pointer ${
-                          paymentMethod === 'orange'
-                            ? 'bg-orange-500/15 border-orange-500 text-orange-400 font-bold'
-                            : 'bg-zinc-900 border-white/5 text-zinc-400 hover:border-white/15'
-                        }`}
-                      >
-                        <span className="text-sm font-black tracking-wide">Orange Money</span>
-                        <span className="text-[11px] opacity-85">Cameroun</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setPaymentMethod('mtn')}
-                        className={`p-3.5 rounded-2xl border flex flex-col items-center gap-1.5 transition-all cursor-pointer ${
-                          paymentMethod === 'mtn'
-                            ? 'bg-yellow-500/15 border-yellow-500 text-yellow-400 font-bold'
-                            : 'bg-zinc-900 border-white/5 text-zinc-400 hover:border-white/15'
-                        }`}
-                      >
-                        <span className="text-sm font-black tracking-wide">MTN MoMo</span>
-                        <span className="text-[11px] opacity-85">Cameroun</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Code USSD Direct & Numéro de dépôt */}
-                  <div className="bg-[#1c1c22] border border-white/5 rounded-2xl p-4 sm:p-5 mb-6 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs text-zinc-400">
-                        2. Code USSD automatique pour <strong className="text-white">{selectedPlan.price} FCFA</strong> :
-                      </p>
-                      <span className="text-[10px] font-bold text-brand-primary uppercase">1-Clic Mobile</span>
-                    </div>
-
-                    {/* Grand bouton d'action USSD */}
-                    <button
-                      type="button"
-                      onClick={() => handleDialUssd(paymentMethod, selectedPlan.price)}
-                      className="w-full py-3.5 px-4 rounded-xl bg-[#D70466] hover:bg-[#b5034f] text-white font-extrabold text-sm flex items-center justify-center gap-2.5 shadow-lg active:scale-95 transition-all cursor-pointer"
-                    >
-                      <PhoneCall className="w-5 h-5" />
-                      <span>Lancer le code USSD ({getUssdCode(paymentMethod, selectedPlan.price)})</span>
-                    </button>
-
-                    {/* Affichage du code et copie de secours */}
-                    <div className="flex items-center justify-between bg-black/40 px-3.5 py-2 rounded-xl border border-white/10 text-xs">
-                      <div className="truncate pr-2">
-                        <span className="text-zinc-500 text-[10px] block">Code complet :</span>
-                        <code className="text-amber-400 font-mono font-bold text-sm tracking-wider select-all">
-                          {getUssdCode(paymentMethod, selectedPlan.price)}
-                        </code>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const code = getUssdCode(paymentMethod, selectedPlan.price);
-                          navigator.clipboard.writeText(code);
-                          setCopiedNumber(code);
-                          setTimeout(() => setCopiedNumber(null), 2500);
-                        }}
-                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-[11px] font-bold transition-all active:scale-95 flex-shrink-0"
-                      >
-                        <Copy className="w-3.5 h-3.5" />
-                        <span>{copiedNumber ? 'Copié !' : 'Copier code'}</span>
-                      </button>
-                    </div>
-
-                    <p className="text-[11px] text-zinc-500 leading-snug">
-                      💡 Cliquez sur le bouton vert ci-dessus pour ouvrir automatiquement votre clavier téléphonique avec le code prêt à être validé avec votre code secret.
-                    </p>
-                  </div>
-
-                  {/* Formulaire de preuve */}
-                  <form onSubmit={handleSubmitProof} className="space-y-4">
-                    <label className="text-xs font-semibold text-zinc-400 block">3. Transmettez votre preuve de paiement :</label>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-[11px] text-zinc-400 block mb-1">Numéro expéditeur (optionnel)</label>
-                        <input
-                          type="tel"
-                          placeholder="Ex: 6XXXXXXXX"
-                          value={senderPhone}
-                          onChange={(e) => setSenderPhone(e.target.value)}
-                          className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-white/10 text-white text-xs focus:outline-none focus:border-brand-primary"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-[11px] text-zinc-400 block mb-1">ID / Réf Transaction (optionnel)</label>
-                        <input
-                          type="text"
-                          placeholder="Ex: Tx123456"
-                          value={transactionRef}
-                          onChange={(e) => setTransactionRef(e.target.value)}
-                          className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-white/10 text-white text-xs focus:outline-none focus:border-brand-primary"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Téléversement de la capture */}
+                <div className="space-y-4">
+                  {/* Plan Info Badge */}
+                  <div className="flex items-center justify-between border-b border-white/10 pb-3 pr-6">
                     <div>
-                      <label className="text-[11px] text-zinc-400 block mb-1 font-semibold text-white">
-                        Capture d&apos;écran du virement *
-                      </label>
-                      <label className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-white/15 hover:border-brand-primary rounded-2xl bg-zinc-900/50 cursor-pointer transition-all">
-                        {screenshotPreview ? (
-                          <div className="relative w-full aspect-video rounded-xl overflow-hidden">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={screenshotPreview} alt="Aperçu" className="w-full h-full object-cover" />
-                            <span className="absolute bottom-2 right-2 px-2.5 py-1 rounded-lg bg-black/75 text-[10px] font-bold text-white">
-                              Modifier
-                            </span>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center gap-2 text-zinc-400">
-                            <UploadSimple className="w-6 h-6 text-brand-primary" />
-                            <span className="text-xs font-semibold text-zinc-300">
-                              Cliquez pour choisir votre capture d&apos;écran
-                            </span>
-                            <span className="text-[10px] text-zinc-500">Formats acceptés : JPG, PNG (Max 15 Mo)</span>
-                          </div>
-                        )}
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleFileChange}
-                          className="hidden"
-                          required
-                        />
-                      </label>
+                      <span className="text-[10px] font-bold text-brand-primary uppercase tracking-widest block">
+                        Abonnement
+                      </span>
+                      <h3 className="text-base sm:text-lg font-black text-white leading-tight">
+                        {selectedPlan.name}
+                      </h3>
                     </div>
+                    <div className="text-right">
+                      <span className="text-base sm:text-lg font-black text-white">{selectedPlan.price}</span>
+                      <span className="text-[10px] text-zinc-400 font-bold block">FCFA / mois</span>
+                    </div>
+                  </div>
 
-                    {errorMessage && (
-                      <div className="flex items-center gap-2 p-3 rounded-xl bg-red-500/15 border border-red-500/30 text-red-400 text-xs">
-                        <WarningCircle className="w-4 h-4 flex-shrink-0" />
-                        <span>{errorMessage}</span>
+                  {/* ── Stepper Navigation Indicator Bar ──────────────── */}
+                  <div className="flex items-center justify-between px-1 py-1">
+                    {[
+                      { step: 1, label: '1. Opérateur' },
+                      { step: 2, label: '2. Dépôt' },
+                      { step: 3, label: '3. Preuve' },
+                    ].map((s, idx) => (
+                      <React.Fragment key={s.step}>
+                        <div
+                          className={`flex items-center gap-1 text-[11px] font-bold transition-colors ${
+                            currentStep === s.step
+                              ? 'text-brand-primary'
+                              : currentStep > s.step
+                              ? 'text-emerald-400'
+                              : 'text-zinc-500'
+                          }`}
+                        >
+                          <span
+                            className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${
+                              currentStep === s.step
+                                ? 'bg-[#D70466] text-white'
+                                : currentStep > s.step
+                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                : 'bg-zinc-800 text-zinc-400'
+                            }`}
+                          >
+                            {currentStep > s.step ? '✓' : s.step}
+                          </span>
+                          <span className="hidden xs:inline">{s.label.split('. ')[1]}</span>
+                        </div>
+                        {idx < 2 && (
+                          <div
+                            className={`flex-1 h-[1.5px] mx-2 rounded-full transition-all ${
+                              currentStep > idx + 1 ? 'bg-emerald-500/50' : 'bg-zinc-800'
+                            }`}
+                          />
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </div>
+
+                  {/* ── ÉTAPE 1 : Choix de l'opérateur ────────────────── */}
+                  {currentStep === 1 && (
+                    <div className="space-y-4 pt-1 animate-fade-in">
+                      <p className="text-xs text-zinc-300 font-medium">
+                        Sélectionnez votre moyen de paiement Mobile Money :
+                      </p>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setPaymentMethod('orange')}
+                          className={`p-3 rounded-[3px] border flex flex-col items-center gap-1 transition-all cursor-pointer ${
+                            paymentMethod === 'orange'
+                              ? 'bg-orange-500/15 border-orange-500 text-orange-400 font-bold shadow-[0_0_12px_rgba(249,115,22,0.2)]'
+                              : 'bg-zinc-900 border-white/5 text-zinc-400 hover:border-white/20'
+                          }`}
+                        >
+                          <span className="text-xs sm:text-sm font-black tracking-wide">Orange Money</span>
+                          <span className="text-[10px] opacity-80">Cameroun</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setPaymentMethod('mtn')}
+                          className={`p-3 rounded-[3px] border flex flex-col items-center gap-1 transition-all cursor-pointer ${
+                            paymentMethod === 'mtn'
+                              ? 'bg-yellow-500/15 border-yellow-500 text-yellow-400 font-bold shadow-[0_0_12px_rgba(234,179,8,0.2)]'
+                              : 'bg-zinc-900 border-white/5 text-zinc-400 hover:border-white/20'
+                          }`}
+                        >
+                          <span className="text-xs sm:text-sm font-black tracking-wide">MTN MoMo</span>
+                          <span className="text-[10px] opacity-80">Cameroun</span>
+                        </button>
                       </div>
-                    )}
 
-                    <button
-                      type="submit"
-                      disabled={submitting}
-                      className="w-full py-3.5 mt-2 rounded-xl bg-[#D70466] text-white font-bold text-sm hover:opacity-95 transition-all flex items-center justify-center gap-2 shadow-lg cursor-pointer active:scale-95 disabled:opacity-50"
-                    >
-                      {submitting ? (
-                        <>
-                          <Spinner className="w-4 h-4 animate-spin" />
-                          <span>Envoi en cours...</span>
-                        </>
-                      ) : (
-                        <span>Confirmer mon Paiement</span>
+                      <button
+                        type="button"
+                        onClick={() => setCurrentStep(2)}
+                        className="w-full py-2.5 rounded-[3px] bg-[#D70466] hover:bg-[#b5034f] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md cursor-pointer transition-all active:scale-95"
+                      >
+                        <span>Continuer vers le Dépôt</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* ── ÉTAPE 2 : Dépôt & Code USSD ──────────────────── */}
+                  {currentStep === 2 && (
+                    <div className="space-y-3.5 pt-1 animate-fade-in">
+                      <div className="bg-[#18181c] border border-white/10 rounded-[3px] p-3.5 space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-zinc-300">
+                            Montant exact : <strong className="text-white">{selectedPlan.price} FCFA</strong>
+                          </p>
+                          <span className="text-[10px] font-bold text-emerald-400 uppercase">
+                            {paymentMethod === 'orange' ? 'Orange Money' : 'MTN MoMo'}
+                          </span>
+                        </div>
+
+                        {/* Grand bouton d'action USSD 1-Clic */}
+                        <button
+                          type="button"
+                          onClick={() => handleDialUssd(paymentMethod, selectedPlan.price)}
+                          className="w-full py-2.5 px-3 rounded-[3px] bg-[#D70466] hover:bg-[#b5034f] text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all cursor-pointer"
+                        >
+                          <PhoneCall className="w-4 h-4" />
+                          <span>Lancer le code USSD automatique</span>
+                        </button>
+
+                        {/* Affichage du code et copie de secours */}
+                        <div className="flex items-center justify-between bg-black/60 px-3 py-1.5 rounded-[3px] border border-white/10 text-xs">
+                          <code className="text-amber-400 font-mono font-bold text-xs tracking-wider select-all truncate mr-2">
+                            {getUssdCode(paymentMethod, selectedPlan.price)}
+                          </code>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const code = getUssdCode(paymentMethod, selectedPlan.price);
+                              navigator.clipboard.writeText(code);
+                              setCopiedNumber(code);
+                              setTimeout(() => setCopiedNumber(null), 2500);
+                            }}
+                            className="flex items-center gap-1 px-2 py-1 rounded-[2px] bg-white/10 hover:bg-white/20 text-white text-[10px] font-bold transition-all active:scale-95 shrink-0 cursor-pointer"
+                          >
+                            <Copy className="w-3 h-3" />
+                            <span>{copiedNumber ? 'Copié !' : 'Copier'}</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <p className="text-[11px] text-zinc-400 leading-tight">
+                        Une fois votre transfert effectué, faites une capture d&apos;écran de confirmation et passez à l&apos;étape suivante.
+                      </p>
+
+                      <div className="flex items-center gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setCurrentStep(1)}
+                          className="w-1/3 py-2.5 rounded-[3px] bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                        >
+                          <ArrowLeft className="w-3.5 h-3.5" />
+                          <span>Retour</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCurrentStep(3)}
+                          className="flex-1 py-2.5 rounded-[3px] bg-[#D70466] hover:bg-[#b5034f] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-md cursor-pointer transition-all active:scale-95"
+                        >
+                          <span>J&apos;ai fait le dépôt</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── ÉTAPE 3 : Validation & Preuve ────────────────── */}
+                  {currentStep === 3 && (
+                    <form onSubmit={handleSubmitProof} className="space-y-3 pt-1 animate-fade-in">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] text-zinc-400 block mb-1">N° Expéditeur (opt.)</label>
+                          <input
+                            type="tel"
+                            placeholder="6XXXXXXXX"
+                            value={senderPhone}
+                            onChange={(e) => setSenderPhone(e.target.value)}
+                            className="w-full px-2.5 py-1.5 rounded-[3px] bg-zinc-900 border border-white/10 text-white text-xs focus:outline-none focus:border-brand-primary"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] text-zinc-400 block mb-1">Réf Trans. (opt.)</label>
+                          <input
+                            type="text"
+                            placeholder="Tx123456"
+                            value={transactionRef}
+                            onChange={(e) => setTransactionRef(e.target.value)}
+                            className="w-full px-2.5 py-1.5 rounded-[3px] bg-zinc-900 border border-white/10 text-white text-xs focus:outline-none focus:border-brand-primary"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Dropzone Capture d'écran */}
+                      <div>
+                        <label className="text-[11px] text-zinc-300 block mb-1 font-semibold">
+                          Capture d&apos;écran du virement *
+                        </label>
+                        <label className="flex flex-col items-center justify-center p-3 border border-dashed border-white/20 hover:border-brand-primary rounded-[3px] bg-zinc-900/60 cursor-pointer transition-all">
+                          {screenshotPreview ? (
+                            <div className="relative w-full aspect-video max-h-36 rounded-[2px] overflow-hidden">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={screenshotPreview} alt="Aperçu" className="w-full h-full object-cover" />
+                              <span className="absolute bottom-1.5 right-1.5 px-2 py-0.5 rounded-[2px] bg-black/80 text-[10px] font-bold text-white">
+                                Modifier
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center gap-1 text-zinc-400 py-1">
+                              <UploadSimple className="w-5 h-5 text-brand-primary" />
+                              <span className="text-xs font-semibold text-zinc-200">
+                                Cliquer pour joindre la capture
+                              </span>
+                              <span className="text-[9px] text-zinc-500">JPG, PNG (Max 15 Mo)</span>
+                            </div>
+                          )}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleFileChange}
+                            className="hidden"
+                            required
+                          />
+                        </label>
+                      </div>
+
+                      {errorMessage && (
+                        <div className="flex items-center gap-2 p-2 rounded-[3px] bg-red-500/15 border border-red-500/30 text-red-400 text-[11px]">
+                          <WarningCircle className="w-3.5 h-3.5 shrink-0" />
+                          <span>{errorMessage}</span>
+                        </div>
                       )}
-                    </button>
-                  </form>
+
+                      <div className="flex items-center gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setCurrentStep(2)}
+                          className="w-1/3 py-2.5 rounded-[3px] bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-xs flex items-center justify-center gap-1 transition-all cursor-pointer"
+                        >
+                          <ArrowLeft className="w-3.5 h-3.5" />
+                          <span>Retour</span>
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={submitting}
+                          className="flex-1 py-2.5 rounded-[3px] bg-[#D70466] hover:bg-[#b5034f] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-md cursor-pointer transition-all active:scale-95 disabled:opacity-50"
+                        >
+                          {submitting ? (
+                            <>
+                              <Spinner className="w-4 h-4 animate-spin" />
+                              <span>Envoi en cours...</span>
+                            </>
+                          ) : (
+                            <>
+                              <ShieldCheck className="w-4 h-4" />
+                              <span>Valider mon Paiement</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </form>
+                  )}
                 </div>
               )}
             </div>

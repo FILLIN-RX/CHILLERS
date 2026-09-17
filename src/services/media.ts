@@ -1005,8 +1005,9 @@ export interface AvailabilityEntry {
 export async function getDisponible(
   tmdbId: string,
   type: "movie" | "series",
+  title?: string,
 ): Promise<AvailabilityEntry | null> {
-  const cacheKey = `dispo:${type}:${tmdbId}`;
+  const cacheKey = `dispo:${type}:${tmdbId}:${title || ""}`;
   const cached = getCached<AvailabilityEntry>(cacheKey);
   if (cached) return cached;
 
@@ -1014,11 +1015,11 @@ export async function getDisponible(
     const batchType = type === "series" ? "tv" : "movie";
     const env = await httpJson<ApiEnvelope<Record<string, AvailabilityEntry>>>(
       "/availability/batch",
-      { query: { type: batchType, ids: tmdbId }, timeoutMs: 8_000 },
+      { query: { type: batchType, ids: tmdbId, title }, timeoutMs: 8_000 },
     );
     if (env.success && env.data) {
-      const entry = env.data[tmdbId] ?? null;
-      if (entry) setCached(cacheKey, entry, 5 * 60 * 1000);
+      const entry = env.data[tmdbId] ?? Object.values(env.data)[0] ?? null;
+      if (entry) setCached(cacheKey, entry, 2 * 60 * 1000);
       return entry;
     }
   } catch (err: any) {

@@ -10,6 +10,7 @@ import {
   getPopularTV,
   AvailabilityEntry,
 } from "@/services/media";
+import { httpJson } from "@/services/http";
 import type { MovieOrShow, Episode } from "@/types/media";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -18,6 +19,8 @@ import MovieCard from "@/components/MovieCard";
 import ScrollRow from "@/components/ScrollRow";
 import SeriesDownloadModal from "@/features/downloads/SeriesDownloadModal";
 import AddToPlaylistModal from "@/components/AddToPlaylistModal";
+import Button from "@/components/Button";
+import CardImage from "@/components/CardImage";
 import { ArrowLeft, Play, Star, CalendarBlank, FilmSlate, DownloadSimple, ShareNetwork, BookmarkSimple, X, Check, Sparkle, LinkSimple, ListNumbers } from "@phosphor-icons/react";
 
 export default function TVDetailPage() {
@@ -62,17 +65,47 @@ export default function TVDetailPage() {
 
     setLoading(true);
 
-    Promise.all([
-      getMediaDetails(id, true, signal),
-      getDisponible(id, "series").catch(() => null),
-      getPopularTV(1, signal).catch(() => []),
-    ])
-      .then(([detail, dispo, popularList]) => {
+    getMediaDetails(id, true, signal)
+      .then(async (detail) => {
         if (cancelled) return;
-        if (detail) setItem(detail);
-        if (dispo) setDisponible(dispo);
-        if (popularList && popularList.length > 0) {
-          setSimilar(popularList.filter((m) => m.id !== id).slice(0, 14));
+        if (detail) {
+          setItem(detail);
+
+          // 1. Récupération précise de la disponibilité avec le titre
+          const dispo = await getDisponible(id, "series", detail.title).catch(() => null);
+          if (cancelled) return;
+          if (dispo) setDisponible(dispo);
+
+          // 2. Déclenchement automatique et transparent de la recherche si indisponible
+          if (!dispo?.disponible && detail.title) {
+            httpJson("/api/requests", {
+              method: "POST",
+              body: {
+                tmdbId: Number(id),
+                title: detail.title,
+                type: "series",
+                season: 1,
+                episode: 1,
+                year: typeof detail.year === "number" ? detail.year : undefined,
+                posterUrl: detail.posterUrl,
+              },
+            }).catch(() => {});
+
+            // Polling léger
+            let attempts = 0;
+            const pollTimer = setInterval(async () => {
+              attempts++;
+              if (attempts > 4 || cancelled) {
+                clearInterval(pollTimer);
+                return;
+              }
+              const updatedDispo = await getDisponible(id, "series", detail.title).catch(() => null);
+              if (updatedDispo?.disponible) {
+                setDisponible(updatedDispo);
+                clearInterval(pollTimer);
+              }
+            }, 3000);
+          }
         }
       })
       .catch((err) => {
@@ -82,6 +115,14 @@ export default function TVDetailPage() {
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
+
+    getPopularTV(1, signal)
+      .then((popularList) => {
+        if (!cancelled && popularList && popularList.length > 0) {
+          setSimilar(popularList.filter((m) => m.id !== id).slice(0, 14));
+        }
+      })
+      .catch(() => {});
 
     return () => {
       cancelled = true;
@@ -142,6 +183,17 @@ export default function TVDetailPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#09090B] text-white select-none pb-24">
+        {/* Bouton retour */}
+        <div className="fixed top-4 left-4 z-50">
+          <button
+            onClick={() => { window.scrollTo(0, 0); router.back(); }}
+            aria-label={_("media.back") || "Retour"}
+            className="flex items-center justify-center w-10 h-10 rounded-full bg-black/60 hover:bg-black/90 backdrop-blur-xl border border-white/15 text-white transition-all shadow-xl hover:scale-105 active:scale-95 cursor-pointer"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+        </div>
+
         {/* 1. HERO SKELETON */}
         <div className="relative w-full h-[65vh] sm:h-[75vh] lg:h-[80vh] max-h-[800px] overflow-hidden bg-zinc-900 animate-pulse">
           <div className="absolute inset-0 bg-gradient-to-t from-[#09090B] via-[#09090B]/60 to-transparent" />
@@ -219,12 +271,12 @@ export default function TVDetailPage() {
         <div className="absolute inset-0 bg-gradient-to-r from-[#09090B] via-[#09090B]/70 to-transparent max-w-5xl" />
         <div className="absolute top-0 left-0 right-0 h-28 bg-gradient-to-b from-black/80 to-transparent pointer-events-none" />
 
-        {/* Bouton retour (mobile uniquement, masqué sur PC car les flèches du header gèrent la navigation) */}
-        <div className="fixed top-0 left-0 z-40 p-4 sm:hidden">
+        {/* Bouton retour (Mobile & Desktop) */}
+        <div className="fixed top-4 left-4 z-50">
           <button
-            onClick={() => router.back()}
-            aria-label="Retour"
-            className="flex items-center justify-center w-10 h-10 rounded-full bg-black/60 hover:bg-black/90 backdrop-blur-xl border border-white/10 text-white transition-all shadow-xl cursor-pointer"
+            onClick={() => { window.scrollTo(0, 0); router.back(); }}
+            aria-label={_("media.back") || "Retour"}
+            className="flex items-center justify-center w-10 h-10 rounded-full bg-black/60 hover:bg-black/90 backdrop-blur-xl border border-white/15 text-white transition-all shadow-xl hover:scale-105 active:scale-95 cursor-pointer"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
@@ -235,20 +287,15 @@ export default function TVDetailPage() {
           
           {/* Affiche Verticale de la Série (Aspect 2/3) */}
           <div className="relative w-[160px] sm:w-[200px] lg:w-[230px] aspect-[2/3] rounded-2xl overflow-hidden bg-zinc-900 border border-white/10 shrink-0 shadow-2xl">
-            {item.posterUrl ? (
-              <Image
-                src={item.posterUrl}
-                alt={item.title}
-                fill
-                className="object-cover object-top"
-                sizes="(max-width: 768px) 160px, 230px"
-                priority
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-zinc-600">
-                <FilmSlate className="w-12 h-12" />
-              </div>
-            )}
+            <CardImage
+              src={item.posterUrl}
+              alt={item.title}
+              fill
+              className="object-cover object-top"
+              sizes="(max-width: 768px) 160px, 230px"
+              priority
+              fallbackText={item.title}
+            />
           </div>
 
           {/* Informations textuelles & Actions */}
@@ -350,64 +397,59 @@ export default function TVDetailPage() {
               {item.synopsis || item.description}
             </p>
 
-            {/* Boutons d'Action */}
+            {/* Boutons d'Action avec le composant Button global */}
             <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 pt-2">
-              <Link
-                href={`/tv/${id}/season/${firstSeasonNumber}`}
-                className="flex items-center gap-2 px-6 sm:px-8 py-3 rounded-full bg-[#D70466] hover:bg-[#b5034f] text-white font-bold text-xs sm:text-sm transition-all hover:scale-105 shadow-xl shadow-[#D70466]/40 cursor-pointer"
-              >
-                <Play className="h-4 w-4 fill-white" />
-                <span>Regarder Saison {firstSeasonNumber}</span>
+              <Link href={`/tv/${id}/season/${firstSeasonNumber}`}>
+                <Button
+                  variant="primary"
+                  size="md"
+                  text={`Regarder Saison ${firstSeasonNumber}`}
+                  leftIcon={<Play className="h-4 w-4 fill-white" />}
+                  ariaLabel={`Regarder la saison ${firstSeasonNumber} de ${item.title}`}
+                />
               </Link>
 
               {item.trailerUrl && (
-                <button
+                <Button
                   onClick={() => setTrailerOpen(true)}
-                  className="flex items-center gap-2 px-4 sm:px-6 py-3 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-white font-bold text-xs sm:text-sm transition-all hover:scale-105 cursor-pointer"
-                >
-                  <FilmSlate className="h-4 w-4" />
-                  <span>Bande-annonce</span>
-                </button>
+                  variant="outline"
+                  size="md"
+                  text="Bande-annonce"
+                  leftIcon={<FilmSlate className="h-4 w-4" />}
+                  ariaLabel={`Voir la bande-annonce de ${item.title}`}
+                />
               )}
 
               {user && (
-                <button
+                <Button
                   onClick={() => setShowPlaylistModal(true)}
+                  variant="outline"
+                  size="icon"
                   title="Enregistrer dans une playlist ou À regarder plus tard"
-                  aria-label="Enregistrer dans..."
-                  className="p-3 rounded-full bg-black/50 hover:bg-black/80 border border-white/20 text-cyan-400 hover:text-white transition-all hover:scale-105 backdrop-blur-md cursor-pointer"
-                >
-                  <ListNumbers className="w-4 h-4" />
-                </button>
+                  ariaLabel="Enregistrer dans une playlist"
+                  icon={<ListNumbers className="w-4 h-4 text-cyan-400" />}
+                />
               )}
 
               {user && (
-                <button
+                <Button
                   onClick={toggleFavorite}
                   disabled={favoriteLoading}
-                  aria-label="Favoris"
-                  className={`p-3 rounded-full border transition-all hover:scale-105 backdrop-blur-md cursor-pointer ${
-                    isFavorite
-                      ? "bg-[#D70466]/90 border-[#D70466] text-white shadow-lg shadow-[#D70466]/40"
-                      : "bg-black/50 border-white/20 text-white hover:bg-black/80"
-                  }`}
-                >
-                  {isFavorite ? (
-                    <BookmarkSimple className="w-4 h-4" />
-                  ) : (
-                    <BookmarkSimple className="w-4 h-4" />
-                  )}
-                </button>
+                  variant={isFavorite ? "primary" : "outline"}
+                  size="icon"
+                  ariaLabel={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
+                  icon={<BookmarkSimple className="w-4 h-4" />}
+                />
               )}
 
               <div className="relative">
-                <button
+                <Button
                   onClick={handleShare}
-                  aria-label="Partager"
-                  className="p-3 rounded-full bg-black/50 hover:bg-black/80 border border-white/20 text-white transition-all hover:scale-105 backdrop-blur-md cursor-pointer"
-                >
-                  <ShareNetwork className="w-4 h-4" />
-                </button>
+                  variant="outline"
+                  size="icon"
+                  ariaLabel="Partager la série"
+                  icon={<ShareNetwork className="w-4 h-4" />}
+                />
 
                 {shareOpen && (
                   <div className="absolute left-0 bottom-full mb-2 w-48 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl p-1 z-50 overflow-hidden">
@@ -459,32 +501,27 @@ export default function TVDetailPage() {
                 >
                   {/* Image Poster de la saison */}
                   <div className="relative aspect-[2/3] w-full rounded-2xl overflow-hidden bg-zinc-900 shadow-xl">
-                    {poster ? (
-                      <Image
-                        src={poster}
-                        alt={season.name}
-                        fill
-                        className="object-cover object-top transition-transform duration-500 group-hover:scale-105"
-                        sizes="(max-width: 768px) 50vw, (max-width: 1200px) 25vw, 16vw"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-zinc-600">
-                        <FilmSlate className="w-10 h-10" />
-                      </div>
-                    )}
+                    <CardImage
+                      src={poster}
+                      alt={season.name}
+                      fill
+                      className="object-cover object-top transition-transform duration-500 group-hover:scale-105"
+                      sizes="(max-width: 768px) 50vw, (max-width: 1200px) 25vw, 16vw"
+                      fallbackText={season.name}
+                    />
 
                     {/* Gradient Overlay sombre */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60 group-hover:opacity-30 transition-opacity" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60 group-hover:opacity-30 transition-opacity pointer-events-none" />
 
                     {/* Badge Épisodes */}
-                    <div className="absolute top-2.5 right-2.5">
+                    <div className="absolute top-2.5 right-2.5 z-20">
                       <span className="px-2 py-0.5 rounded-md bg-black/80 backdrop-blur-md text-white font-bold text-[10px]">
                         {season.episodeCount} épisodes
                       </span>
                     </div>
 
                     {/* Bouton Play au survol */}
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40">
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 z-20 pointer-events-none">
                       <div className="w-12 h-12 rounded-full bg-[#D70466] flex items-center justify-center text-white shadow-xl transform scale-90 group-hover:scale-100 transition-transform">
                         <Play className="w-5 h-5 fill-white translate-x-0.5" />
                       </div>
@@ -519,22 +556,17 @@ export default function TVDetailPage() {
                   >
                     {/* Image Poster de la saison */}
                     <div className="relative aspect-[2/3] w-32 rounded-2xl overflow-hidden bg-zinc-900 shadow-xl">
-                      {poster ? (
-                        <Image
-                          src={poster}
-                          alt={season.name}
-                          fill
-                          className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-300"
-                          sizes="(max-width: 768px) 128px"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
-                          <FilmSlate className="w-8 h-8 text-zinc-600" />
-                        </div>
-                      )}
+                      <CardImage
+                        src={poster}
+                        alt={season.name}
+                        fill
+                        className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-300"
+                        sizes="(max-width: 768px) 128px"
+                        fallbackText={season.name}
+                      />
 
                       {/* Gradient Overlay sombre */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60 group-hover:opacity-30 transition-opacity" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60 group-hover:opacity-30 transition-opacity pointer-events-none" />
 
                       {/* Badge Épisodes */}
                       <div className="absolute top-2.5 right-2.5">
@@ -642,9 +674,9 @@ export default function TVDetailPage() {
           </section>
         )}
 
-        {/* 4. SÉRIES SIMILAIRES ET RECOMMANDÉES (GRID 3 SUR MOBILE) */}
+        {/* 4. SÉRIES SIMILAIRES ET RECOMMANDÉES */}
         {similar.length > 0 && (
-          <section className="space-y-6 pt-8 border-t border-zinc-800/80 w-full">
+          <section className="space-y-4 sm:space-y-6 pt-6 sm:pt-8 border-t border-zinc-800/80 w-full">
             <div className="flex items-center justify-between">
               <h2 className="text-lg sm:text-2xl font-black text-white flex items-center gap-3">
                 <span className="h-5 w-1 rounded-full bg-[#7C3AED]" />
@@ -652,12 +684,12 @@ export default function TVDetailPage() {
               </h2>
               <span className="text-xs text-zinc-400 font-semibold">{similar.length} titres</span>
             </div>
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-4 sm:gap-5 lg:gap-6 w-full">
-              {similar.slice(0, 15).map((show) => (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 lg:gap-5 w-full">
+              {similar.slice(0, 18).map((show) => (
                 <MovieCard
                   key={show.id}
                   item={show}
-                  variant="poster"
+                  variant="grid-poster"
                   onOpenDetails={(m) => router.push(`/tv/${m.id}`)}
                   onPlay={(m) => router.push(`/tv/${m.id}`)}
                 />

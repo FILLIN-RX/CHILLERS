@@ -17,6 +17,7 @@ import {
   MenuOutlined,
   RobotOutlined,
   UserOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons';
 import Link from 'next/link';
 import { adminTheme } from './theme';
@@ -33,6 +34,7 @@ const NAV_ITEMS: MenuProps['items'] = [
   { key: '/admin/animes', icon: <VideoCameraOutlined />, label: <Link href="/admin/animes">Animes</Link> },
   { key: '/admin/affiches', icon: <RobotOutlined />, label: <Link href="/admin/affiches">Assistant IA</Link> },
   { key: '/admin/tmdb', icon: <AppstoreOutlined />, label: <Link href="/admin/tmdb">TMDB</Link> },
+  { key: '/admin/requests', icon: <ThunderboltOutlined />, label: <Link href="/admin/requests">Demandes de Contenu</Link> },
   { key: '/admin/scrapper', icon: <BugOutlined />, label: <Link href="/admin/scrapper">Scrapper</Link> },
   { key: '/admin/logs', icon: <UnorderedListOutlined />, label: <Link href="/admin/logs">Logs</Link> },
   { key: '/admin/dead-links', icon: <BugOutlined />, label: <Link href="/admin/dead-links">Liens morts</Link> },

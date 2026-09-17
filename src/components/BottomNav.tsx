@@ -15,7 +15,7 @@ interface BottomNavProps {
   onSearchClick: () => void;
 }
 
-export default function BottomNav({ onSearchClick }: BottomNavProps) {
+function BottomNavComponent({ onSearchClick }: BottomNavProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { translate: _, lang } = useLanguage();
@@ -123,3 +123,6 @@ export default function BottomNav({ onSearchClick }: BottomNavProps) {
     </>
   );
 }
+
+const BottomNav = React.memo(BottomNavComponent);
+export default BottomNav;

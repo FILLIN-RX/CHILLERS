@@ -9,9 +9,15 @@ import Footer from "@/components/Footer";
 import BottomNav from "@/components/BottomNav";
 import NetworkStatusBanner from "@/components/NetworkStatusBanner";
 import { useSplashReady } from "@/hooks/useSplashReady";
+import { useDownloadToastEmitter } from "@/hooks/useDownloadToast";
 
 const DownloadFloatingBar = dynamic(
   () => import("@/features/downloads/DownloadFloatingBar"),
+  { ssr: false },
+);
+
+const DownloadSuccessToast = dynamic(
+  () => import("@/features/downloads/DownloadSuccessToast"),
   { ssr: false },
 );
 
@@ -50,6 +56,9 @@ interface AppShellProps {
 export default function AppShell({ children, showBottomNav }: AppShellProps) {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isDonationOpen, setIsDonationOpen] = useState(false);
+
+  // Fire window events whenever a download task transitions to "done"
+  useDownloadToastEmitter();
   const pathname = usePathname();
 
   // Fallback : garantit que le splash disparaît sur les pages sans fetch home
@@ -61,8 +70,8 @@ export default function AppShell({ children, showBottomNav }: AppShellProps) {
       ? showBottomNav
       : !pathname?.startsWith("/watch/");
 
-  // Fullscreen player routes: no page chrome, just the player with its controls.
-  const isPlayerRoute = pathname?.startsWith("/watch/") || pathname?.startsWith("/live/lb/");
+  // Fullscreen player routes: no page chrome, just the player with its controls (for raw live embed).
+  const isPlayerRoute = pathname?.startsWith("/live/lb/");
 
   // Never let the donation overlay pop on live pages: it blocks the tab/multi
   // switching and video controls while watching.
@@ -120,6 +129,9 @@ export default function AppShell({ children, showBottomNav }: AppShellProps) {
       {!isPlayerRoute && <NetworkStatusBanner />}
       <Suspense>
         {!isPlayerRoute && <DownloadFloatingBar />}
+      </Suspense>
+      <Suspense>
+        <DownloadSuccessToast />
       </Suspense>
       {shouldShowBottomNav && !isAuthPage && !isPlayerRoute && <BottomNav onSearchClick={() => setIsSearchOpen(true)} />}
     </MantineProvider>

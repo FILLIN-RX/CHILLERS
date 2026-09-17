@@ -16,6 +16,29 @@ function formatMatchTime(ts?: number): string {
   return d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 }
 
+function formatMatchDateTime(ts?: number): string {
+  if (!ts) return "Bientôt";
+  const d = new Date(ts * 1000);
+  const now = new Date();
+  const isToday = d.toDateString() === now.toDateString();
+
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
+  const isTomorrow = d.toDateString() === tomorrow.toDateString();
+
+  const timeStr = d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+
+  if (isToday) {
+    return `Aujourd'hui à ${timeStr}`;
+  }
+  if (isTomorrow) {
+    return `Demain à ${timeStr}`;
+  }
+
+  const dateStr = d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+  return `${dateStr} • ${timeStr}`;
+}
+
 function TeamCrest({ src, alt }: { src?: string; alt: string }) {
   const [broken, setBroken] = useState(false);
   const initials = (alt || "?")
@@ -27,7 +50,7 @@ function TeamCrest({ src, alt }: { src?: string; alt: string }) {
 
   if (!src || broken) {
     return (
-      <div className="w-8 h-8 rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center text-[10px] font-black text-zinc-300 shrink-0 shadow-inner">
+      <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center text-xs font-black text-zinc-400 shrink-0">
         {initials || "?"}
       </div>
     );
@@ -39,7 +62,7 @@ function TeamCrest({ src, alt }: { src?: string; alt: string }) {
       alt={alt}
       loading="lazy"
       onError={() => setBroken(true)}
-      className="w-8 h-8 object-contain shrink-0 rounded-full bg-white/5 p-0.5"
+      className="w-12 h-12 sm:w-14 sm:h-14 object-contain shrink-0 drop-shadow-md"
     />
   );
 }
@@ -57,7 +80,7 @@ const LEAGUE_TABS = [
 
 export default function LiveMatchesRow({
   title = "Matchs de Football en Direct",
-  className = "px-4 sm:px-8 md:px-12 lg:px-16 my-8",
+  className = "space-y-3 my-6",
   noScrollMargin = false,
 }: {
   title?: string;
@@ -137,42 +160,41 @@ export default function LiveMatchesRow({
 
   return (
     <div className={`relative ${className}`}>
-      {/* Header Row */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-pulse" />
-            <h2 className="text-lg sm:text-xl font-black uppercase tracking-wider text-white">
-              {title}
-            </h2>
-          </div>
+      {/* Header Row - Aligned cleanly with flexible wrapping on mobile */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4 mb-2 pr-1">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+          <h2 className="text-base sm:text-lg font-bold text-white tracking-tight flex items-center gap-2">
+            <span className="h-3.5 w-1 bg-red-600 rounded-full" />
+            {title}
+          </h2>
           {liveCount > 0 && (
-            <span className="text-[10px] font-black uppercase tracking-wider bg-red-600/90 text-white px-2 py-0.5 rounded-full animate-pulse shadow-sm">
-              {liveCount} En Direct
+            <span className="text-[11px] font-black uppercase tracking-wider text-red-500 animate-pulse">
+              • {liveCount} En Direct
             </span>
           )}
         </div>
 
         <Link
           href="/live"
-          className="text-xs font-bold text-[#D70466] hover:text-[#ff2b89] transition-colors flex items-center gap-1 shrink-0"
+          className="text-xs sm:text-sm font-semibold text-zinc-400 hover:text-white flex items-center gap-1 group transition-colors focus:outline-none shrink-0 self-end sm:self-auto"
         >
-          Voir toutes les diffusions Live →
+          <span>Voir tout le Live</span>
+          <span className="transition-transform group-hover:translate-x-0.5">→</span>
         </Link>
       </div>
 
-      {/* League Filter Chips */}
-      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-3 pt-1 -mx-1 px-1">
+      {/* League Filter Chips - Borderless sleek buttons */}
+      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2 pt-0.5 px-1">
         {LEAGUE_TABS.map((tab) => {
           const isSelected = activeLeague === tab.id;
           return (
             <button
               key={tab.id}
               onClick={() => setActiveLeague(tab.id)}
-              className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 focus:outline-none ${
+              className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 focus:outline-none cursor-pointer ${
                 isSelected
-                  ? "bg-[#D70466] text-white shadow-lg shadow-[#D70466]/25 scale-[1.02]"
-                  : "bg-zinc-900/90 text-zinc-400 hover:text-white hover:bg-zinc-800 border border-white/5"
+                  ? "bg-brand-primary text-white shadow-md shadow-brand-primary/20 scale-[1.02]"
+                  : "bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10"
               }`}
             >
               <span>{tab.icon}</span>
@@ -182,26 +204,20 @@ export default function LiveMatchesRow({
         })}
       </div>
 
-      {/* Match Cards Row */}
+      {/* Match Cards Row - No background on cards, pure red live indicator */}
       {isLoadingLeague && leagueSlug ? (
-        <div className="py-8 px-4 rounded-2xl bg-zinc-900/40 border border-white/5 text-center flex items-center justify-center gap-2">
-          <span className="w-4 h-4 border-2 border-[#D70466] border-t-transparent rounded-full animate-spin" />
+        <div className="py-8 px-4 rounded-2xl bg-zinc-900/40 text-center flex items-center justify-center gap-2">
+          <span className="w-4 h-4 border-2 border-brand-primary border-t-transparent rounded-full animate-spin" />
           <p className="text-xs text-zinc-400 font-medium">Chargement des matchs de la compétition...</p>
         </div>
       ) : filteredMatches.length === 0 ? (
-        <div className="py-8 px-4 rounded-2xl bg-zinc-900/40 border border-white/5 text-center">
+        <div className="py-8 px-4 rounded-2xl bg-zinc-900/40 text-center">
           <p className="text-xs text-zinc-500 font-medium">
             Aucun match programmé pour ce championnat en ce moment.
           </p>
         </div>
       ) : (
-        <div
-          className={`flex gap-3.5 overflow-x-auto no-scrollbar py-2 ${
-            noScrollMargin
-              ? "-mx-1 px-1"
-              : "-mx-4 px-4 sm:-mx-8 sm:px-8 md:-mx-12 md:px-12 lg:-mx-16 lg:px-16"
-          }`}
-        >
+        <div className="flex gap-4 sm:gap-5 overflow-x-auto no-scrollbar py-2 px-1">
           {filteredMatches.map((m) => {
             const isLive = m.status === "live";
             const isUefa =
@@ -212,13 +228,9 @@ export default function LiveMatchesRow({
               <Link
                 key={m.id}
                 href={`/live/lb/${m.id}`}
-                className={`group shrink-0 flex flex-col justify-between rounded-2xl p-3.5 w-[220px] sm:w-[240px] transition-all duration-300 hover:scale-[1.03] ${
-                  isLive
-                    ? "bg-zinc-900/95 border border-red-600/40 hover:border-red-500 hover:shadow-xl hover:shadow-red-600/15"
-                    : "bg-zinc-900/80 border border-white/10 hover:border-white/20 hover:shadow-lg"
-                }`}
+                className="group shrink-0 flex flex-col justify-between rounded-2xl p-3.5 w-[260px] sm:w-[280px] bg-transparent hover:bg-white/[0.04] transition-all duration-300 hover:scale-[1.02] cursor-pointer"
               >
-                {/* Card Top: League & Status Badge */}
+                {/* Card Top: League & Status Badge (Pure red text, no background) */}
                 <div className="flex items-center justify-between gap-1 mb-2.5">
                   <span
                     className={`text-[10px] font-bold truncate max-w-[130px] ${
@@ -228,10 +240,10 @@ export default function LiveMatchesRow({
                     {m.league || "Football"}
                   </span>
                   <span
-                    className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                    className={`text-[10px] font-black uppercase tracking-wider ${
                       isLive
-                        ? "bg-red-600 text-white animate-pulse"
-                        : "bg-zinc-800 text-zinc-400"
+                        ? "text-red-500 animate-pulse"
+                        : "text-zinc-500"
                     }`}
                   >
                     {isLive ? "● DIRECT" : formatMatchTime(m.startTs)}
@@ -243,13 +255,13 @@ export default function LiveMatchesRow({
                   {/* Home Team */}
                   <div className="flex-1 flex flex-col items-center text-center min-w-0">
                     <TeamCrest src={m.homeLogo} alt={m.home} />
-                    <p className="mt-1.5 text-[11px] font-bold text-white truncate w-full group-hover:text-[#D70466] transition-colors">
+                    <p className="mt-1.5 text-[11px] font-bold text-white truncate w-full group-hover:text-brand-primary transition-colors">
                       {m.home}
                     </p>
                   </div>
 
                   {/* Score / VS Badge */}
-                  <div className="shrink-0 px-2 py-1 rounded-lg bg-black/60 border border-white/10 text-center min-w-[36px]">
+                  <div className="shrink-0 px-2 text-center min-w-[32px]">
                     <span
                       className={`text-xs font-black tabular-nums ${
                         isLive ? "text-amber-400" : "text-zinc-400"
@@ -262,16 +274,24 @@ export default function LiveMatchesRow({
                   {/* Away Team */}
                   <div className="flex-1 flex flex-col items-center text-center min-w-0">
                     <TeamCrest src={m.awayLogo} alt={m.away} />
-                    <p className="mt-1.5 text-[11px] font-bold text-white truncate w-full group-hover:text-[#D70466] transition-colors">
+                    <p className="mt-1.5 text-[11px] font-bold text-white truncate w-full group-hover:text-brand-primary transition-colors">
                       {m.away}
                     </p>
                   </div>
                 </div>
 
-                {/* Card Bottom: Watch CTA */}
-                <div className="mt-2.5 pt-2 border-t border-white/5 flex items-center justify-center gap-1 text-[10px] font-bold text-zinc-400 group-hover:text-white transition-colors">
-                  <span>Regarder le direct</span>
-                  <span>→</span>
+                {/* Card Bottom: Watch CTA for Live, or Date & Time for non-live */}
+                <div className="mt-2.5 pt-2 flex items-center justify-center text-center">
+                  {isLive ? (
+                    <div className="flex items-center gap-1 text-[11px] font-bold text-red-500 group-hover:text-red-400 transition-colors">
+                      <span>Regarder le direct</span>
+                      <span>→</span>
+                    </div>
+                  ) : (
+                    <span className="text-[11px] font-semibold text-zinc-400 group-hover:text-zinc-200 transition-colors">
+                      {formatMatchDateTime(m.startTs)}
+                    </span>
+                  )}
                 </div>
               </Link>
             );

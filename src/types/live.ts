@@ -5,6 +5,7 @@ export interface LiveChannel {
   name: string;
   slug: string;
   logo?: string;
+  banner?: string;
   categories: string[];
   country?: string;
   language?: string;

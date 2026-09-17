@@ -34,7 +34,7 @@ export default function ProfileClient() {
   const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user && !token) {
+    if (!user && !token && tab !== "downloads") {
       router.push("/");
       return;
     }
@@ -46,9 +46,24 @@ export default function ProfileClient() {
         }
       }).catch(console.error);
     }
-  }, [token, router, updateUser]);
+  }, [token, router, updateUser, user, tab]);
+
+  const displayUser = user || {
+    username: lang === "fr" ? "Utilisateur" : "User",
+    email: lang === "fr" ? "Mode Hors-ligne" : "Offline Mode",
+    subscription: { plan: "free", status: "inactive" },
+    role: "user",
+    avatar: null,
+  };
 
   if (!user) {
+    if (tab === "downloads") {
+      return (
+        <div className="min-h-screen bg-[#0e0e11] text-white">
+          <DownloadsView />
+        </div>
+      );
+    }
     return (
       <div className="min-h-[80vh] flex flex-col items-center justify-center px-4 py-20 text-center">
         <div className="max-w-md w-full bg-zinc-900 border border-white/10 rounded-3xl p-8 shadow-2xl space-y-6">
@@ -314,7 +329,7 @@ export default function ProfileClient() {
             <div className="pt-2">
               <button
                 onClick={handleLogout}
-                className="w-full flex items-center justify-center gap-2.5 p-4 rounded-2xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 hover:text-red-300 font-bold text-sm transition-all active:scale-[0.99] cursor-pointer"
+                className="w-full flex items-center justify-center gap-2.5 p-3.5 sm:p-4 rounded-xl bg-brand-primary hover:bg-brand-primary/90 active:scale-[0.99] text-white font-bold text-sm transition-all cursor-pointer shadow-lg shadow-brand-primary/20"
               >
                 <SignOut className="w-5 h-5" />
                 <span>{lang === 'fr' ? 'Se déconnecter' : 'Log Out'}</span>
@@ -349,7 +364,7 @@ export default function ProfileClient() {
         {/* Desktop Sidebar as dedicated fixed/sticky component */}
         <div className="hidden lg:block">
           <ProfileSidebar
-            user={user}
+            user={displayUser}
             tabs={tabs}
             activeTab={activeTabDesktop}
             lang={lang}

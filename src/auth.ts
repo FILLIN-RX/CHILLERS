@@ -97,6 +97,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             token.subscription = data.user.subscription;
             token.avatarUrl = data.user.avatarUrl;
             token.backendToken = data.token;
+            (token as any).userData = data.user;
           }
         } catch (error) {
           console.error("[NextAuth] Erreur de synchronisation Google avec la base de données:", error);
@@ -111,6 +112,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         (session.user as any).subscription = token.subscription;
         (session.user as any).avatarUrl = token.avatarUrl;
         (session.user as any).backendToken = token.backendToken;
+        (session.user as any).userData = (token as any).userData;
       }
       return session;
     },

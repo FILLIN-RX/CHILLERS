@@ -7,6 +7,7 @@ import { Play, Info, Star, CaretLeft, CaretRight, Sparkle, ListNumbers } from "@
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useAuthStore } from "@/stores/useAuthStore";
 import AddToPlaylistModal from "@/components/AddToPlaylistModal";
+import Button from "@/components/Button";
 
 interface CatalogSpotlightHeroProps {
   items: MovieOrShow[];
@@ -136,32 +137,40 @@ export default function CatalogSpotlightHero({
             )}
 
             {/* Action Buttons */}
-            <div className="flex items-center gap-3 pt-1">
-              <button
+            <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 pt-1">
+              <Button
                 onClick={() => onPlay(current)}
-                className="flex items-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl bg-white text-black font-black text-xs sm:text-sm hover:bg-zinc-200 transition-all shadow-lg hover:scale-105 active:scale-95 cursor-pointer"
+                variant="primary"
+                size="md"
+                leftIcon={<Play className="h-4 w-4 fill-current" />}
+                ariaLabel={`Regarder ${current.title}`}
               >
-                <Play className="h-4 w-4 fill-black" />
-                <span>Regarder</span>
-              </button>
+                Regarder
+              </Button>
 
-              <button
+              <Button
                 onClick={() => onOpenDetails(current)}
-                className="flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs sm:text-sm backdrop-blur-md border border-white/15 transition-all cursor-pointer"
+                variant="dark"
+                size="md"
+                leftIcon={<Info className="h-4 w-4" />}
+                ariaLabel={`Détails de ${current.title}`}
+                className="bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border border-white/15"
               >
-                <Info className="h-4 w-4" />
-                <span>Détails</span>
-              </button>
+                Détails
+              </Button>
 
               {user && (
-                <button
+                <Button
                   onClick={() => setShowPlaylistModal(true)}
+                  variant="outline"
+                  size="md"
+                  leftIcon={<ListNumbers className="h-4 w-4 text-cyan-400" />}
                   title="Enregistrer dans une playlist ou À regarder plus tard"
-                  className="flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl bg-black/40 hover:bg-black/60 text-cyan-400 hover:text-white font-bold text-xs sm:text-sm backdrop-blur-md border border-white/15 transition-all cursor-pointer"
+                  ariaLabel="Enregistrer dans une playlist"
+                  className="bg-black/40 hover:bg-black/60 text-cyan-400 hover:text-white backdrop-blur-md border border-white/15"
                 >
-                  <ListNumbers className="h-4 w-4" />
-                  <span>Enregistrer</span>
-                </button>
+                  Enregistrer
+                </Button>
               )}
             </div>
           </div>

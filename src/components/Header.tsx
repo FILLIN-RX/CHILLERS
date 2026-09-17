@@ -7,7 +7,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { MagnifyingGlass, House, FilmSlate, Television, Star, Radio, User, ClockCounterClockwise, BookmarkSimple, SignOut, Crown, DownloadSimple, List, X, SquaresFour, CaretLeft, CaretRight, GearSix } from "@phosphor-icons/react";
 import gsap from "gsap";
 import { useLanguage } from "@/i18n/LanguageContext";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { getActiveNavTab } from "@/lib/navActive";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useDownloadsStore } from "@/store/downloads";
@@ -18,7 +17,7 @@ interface HeaderProps {
   onSearchClick: () => void;
 }
 
-export default function Header({ onSearchClick }: HeaderProps) {
+function HeaderComponent({ onSearchClick }: HeaderProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { translate: _, lang } = useLanguage();
@@ -105,16 +104,16 @@ export default function Header({ onSearchClick }: HeaderProps) {
     setIsDrawerOpen(false);
   }, [pathname]);
 
-  if (pathname?.startsWith("/watch")) return null;
+  const isWatchPage = pathname?.startsWith("/watch");
 
   return (
     <>
       <header
         ref={headerRef}
         className={`fixed top-0 left-0 w-full z-40 select-none [app-region:drag] transition-colors duration-300 ${
-          isDetailPage ? "max-sm:hidden" : ""
+          isDetailPage && !isWatchPage ? "max-sm:hidden" : ""
         } ${
-          isScrolled
+          isScrolled || isWatchPage
             ? "bg-[#0c0c0e]/95 backdrop-blur-xl shadow-2xl border-b border-white/8"
             : "bg-gradient-to-b from-black/90 via-black/40 to-transparent border-b-0"
         }`}
@@ -168,8 +167,8 @@ export default function Header({ onSearchClick }: HeaderProps) {
                 </span>
               </Link>
 
-              {/* ONGLETS DESKTOP */}
-              <nav className="hidden xl:flex items-center gap-1">
+              {/* ONGLETS DESKTOP (Couleur Primary pure sans glassmorphism sur l'actif) */}
+              <nav className="hidden lg:flex items-center gap-2">
                 {tabs.map((tab) => {
                   const isActive = activeTab === tab.id;
                   const ActiveIcon = tab.fillIcon ?? tab.icon;
@@ -179,13 +178,13 @@ export default function Header({ onSearchClick }: HeaderProps) {
                       key={tab.id}
                       href={tab.href}
                       aria-current={isActive ? "page" : undefined}
-                      className={`relative flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold transition-all focus:outline-none rounded-full ${
+                      className={`relative flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium transition-colors focus:outline-none ${
                         isActive
-                          ? "text-white bg-white/12 shadow-sm ring-1 ring-white/15"
-                          : "text-zinc-400 hover:text-white hover:bg-white/5"
+                          ? "text-brand-primary font-bold"
+                          : "text-zinc-400 hover:text-white"
                       }`}
                     >
-                      <TabIcon className={`h-3.5 w-3.5 ${isActive ? "text-brand-primary" : ""}`} />
+                      <TabIcon className="h-3.5 w-3.5" />
                       {tab.label}
                     </Link>
                   );
@@ -193,10 +192,10 @@ export default function Header({ onSearchClick }: HeaderProps) {
                 <Link
                   href="/categories"
                   aria-current={activeTab === "categories" ? "page" : undefined}
-                  className={`relative flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold transition-all focus:outline-none rounded-full ${
+                  className={`relative flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium transition-colors focus:outline-none ${
                     activeTab === "categories"
-                      ? "text-white bg-white/12 shadow-sm ring-1 ring-white/15"
-                      : "text-zinc-400 hover:text-white hover:bg-white/5"
+                      ? "text-brand-primary font-bold"
+                      : "text-zinc-400 hover:text-white"
                   }`}
                 >
                   {_("nav.categories")}
@@ -204,26 +203,9 @@ export default function Header({ onSearchClick }: HeaderProps) {
               </nav>
             </div>
 
-            {/* CENTRE : BARRE DE RECHERCHE PC */}
-            <div className="flex-1 max-w-md hidden md:flex items-center justify-center [app-region:no-drag]">
-              <button
-                onClick={onSearchClick}
-                aria-label="Rechercher"
-                className="w-full flex items-center gap-3 px-4 py-2 rounded-full bg-transparent hover:bg-white/5 border border-white/10 hover:border-white/20 text-zinc-400 hover:text-white transition-all shadow-inner group cursor-pointer"
-              >
-                <MagnifyingGlass className="w-4 h-4 text-zinc-400 group-hover:text-white transition-colors" />
-                <span className="text-xs font-medium truncate">
-                  {lang === "fr" ? "Rechercher films / séries TV" : "Search movies/ TV Shows"}
-                </span>
-                <kbd className="hidden lg:inline-block ml-auto text-[10px] font-mono text-zinc-500 bg-black/40 px-1.5 py-0.5 rounded border border-white/10">
-                  Ctrl+K
-                </kbd>
-              </button>
-            </div>
-
-            {/* DROITE : BOUTON PRO STYLE MOVIEBOX (CERCLE GOLD) + USER PROFIL */}
-            <div className="flex items-center gap-2 sm:gap-2.5 flex-shrink-0 [app-region:no-drag]">
-              {/* BOUTON CROWN GOLD STYLE MOVIEBOX (Visible sur mobile & PC) */}
+            {/* DROITE : RECHERCHE + BOUTONS ACTIONS + USER AVATAR AVEC BORDURE ABONNEMENT */}
+            <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 [app-region:no-drag]">
+              {/* BOUTON CROWN GOLD STYLE MOVIEBOX */}
               <Link
                 href="/subscribe"
                 title="Débloquer Premium"
@@ -238,7 +220,7 @@ export default function Header({ onSearchClick }: HeaderProps) {
                 aria-label="Téléchargements"
                 title="Mes Téléchargements"
                 className={`hidden sm:flex relative h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full hover:bg-white/10 text-zinc-300 hover:text-white transition-colors focus:outline-none ${
-                  pathname === "/downloads" ? "text-white bg-white/15 ring-1 ring-white/25" : ""
+                  pathname === "/downloads" ? "text-brand-primary" : ""
                 }`}
               >
                 <DownloadSimple className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
@@ -251,124 +233,98 @@ export default function Header({ onSearchClick }: HeaderProps) {
                 ) : null}
               </Link>
 
-              <div className="hidden sm:block">
-                <LanguageSwitcher />
-              </div>
+              {/* BOUTON RECHERCHE (Placé juste à côté de l'avatar) */}
+              <button
+                onClick={onSearchClick}
+                aria-label="Rechercher"
+                title="Rechercher films / séries"
+                className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/8 hover:bg-white/15 border border-white/10 text-zinc-300 hover:text-white transition-all cursor-pointer active:scale-95"
+              >
+                <MagnifyingGlass className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+              </button>
 
-              {/* USER / CONNEXION */}
+              {/* USER AVATAR / PROFIL AVEC BORDURE SELON ABONNEMENT */}
               {user ? (
-                <div className="flex items-center gap-2">
-                  <div className="relative group/user">
-                    {user.subscription?.plan === "premium" || user.role === "admin" ? (
-                      <button
-                        onClick={() => router.push("/profile")}
-                        className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1 rounded-full bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 transition-all focus:outline-none cursor-pointer"
-                      >
-                        <UserAvatar user={user} size="xs" showBadge={false} />
-                        <span className="hidden sm:inline text-xs font-bold uppercase tracking-wider truncate max-w-[80px] text-amber-200">
-                          {user.username || user.email.split("@")[0]}
-                        </span>
-                        <span className="flex items-center px-1.5 py-0.2 rounded-full bg-amber-400 text-black text-[9px] font-black tracking-widest shadow-sm">
-                          VIP
-                        </span>
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => router.push("/profile")}
-                        className="flex items-center gap-1.5 sm:gap-2 px-1.5 sm:px-2 py-1 rounded-full bg-white/8 hover:bg-white/15 border border-white/10 text-white transition-all focus:outline-none cursor-pointer"
-                      >
-                        <UserAvatar user={user} size="xs" showBadge={false} />
-                        <span className="hidden sm:inline text-xs font-semibold uppercase tracking-wider truncate max-w-[80px]">
-                          {user.username || user.email.split("@")[0]}
-                        </span>
-                      </button>
-                    )}
+                <div className="relative group/user">
+                  <button
+                    onClick={() => router.push("/profile")}
+                    aria-label="Mon Profil"
+                    className="flex items-center justify-center focus:outline-none cursor-pointer transition-transform hover:scale-105 active:scale-95"
+                  >
+                    <UserAvatar user={user} size="sm" showBadge={true} />
+                  </button>
 
-                    {/* MENU DÉROULANT DESKTOP */}
-                    <div className="absolute right-0 top-full mt-2 w-60 bg-[#141416]/98 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl opacity-0 invisible group-hover/user:opacity-100 group-hover/user:visible transition-all flex flex-col p-2 z-50">
-                      <div className="flex items-center gap-3 px-3 py-2.5 border-b border-white/10 mb-1">
-                        <UserAvatar user={user} size="sm" showBadge={true} />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs text-white font-bold truncate">
-                            {user.username || user.email}
-                          </p>
-                          <p className="text-[10px] text-zinc-400 truncate">{user.email}</p>
-                        </div>
+                  {/* MENU DÉROULANT DESKTOP */}
+                  <div className="absolute right-0 top-full mt-2 w-60 bg-[#141416]/98 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl opacity-0 invisible group-hover/user:opacity-100 group-hover/user:visible transition-all flex flex-col p-2 z-50">
+                    <div className="flex items-center gap-3 px-3 py-2.5 border-b border-white/10 mb-1">
+                      <UserAvatar user={user} size="sm" showBadge={true} />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs text-white font-bold truncate">
+                          {user.username || user.email}
+                        </p>
+                        <p className="text-[10px] text-zinc-400 truncate">{user.email}</p>
                       </div>
-
-                      <Link
-                        href="/profile"
-                        className="flex items-center gap-2.5 px-3 py-2 text-xs text-zinc-300 hover:text-white hover:bg-white/10 rounded-xl transition-colors font-medium"
-                      >
-                        <User className="w-4 h-4" />
-                        {lang === "fr" ? "Mon Profil" : "My Profile"}
-                      </Link>
-
-                      <Link
-                        href="/downloads"
-                        className="flex items-center gap-2.5 px-3 py-2 text-xs text-zinc-300 hover:text-white hover:bg-white/10 rounded-xl transition-colors font-medium"
-                      >
-                        <DownloadSimple className="w-4 h-4 text-emerald-400" />
-                        {lang === "fr" ? "Mes Téléchargements" : "Downloads"}
-                        {doneDownloadsCount > 0 && (
-                          <span className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300">
-                            {doneDownloadsCount}
-                          </span>
-                        )}
-                      </Link>
-
-                      <Link
-                        href="/profile?tab=watchlist"
-                        className="flex items-center gap-2.5 px-3 py-2 text-xs text-zinc-300 hover:text-white hover:bg-white/10 rounded-xl transition-colors font-medium"
-                      >
-                        <BookmarkSimple className="w-4 h-4" />
-                        {lang === "fr" ? "Ma Liste" : "Watchlist"}
-                      </Link>
-
-                      <Link
-                        href="/profile?tab=history"
-                        className="flex items-center gap-2.5 px-3 py-2 text-xs text-zinc-300 hover:text-white hover:bg-white/10 rounded-xl transition-colors font-medium"
-                      >
-                        <ClockCounterClockwise className="w-4 h-4" />
-                        {lang === "fr" ? "Historique" : "History"}
-                      </Link>
-
-                      <div className="border-t border-white/10 my-1"></div>
-
-                      <button
-                        onClick={logout}
-                        className="flex items-center gap-2.5 px-3 py-2 text-xs text-left text-red-400 hover:bg-white/10 rounded-xl transition-colors font-medium cursor-pointer"
-                      >
-                        <SignOut className="w-4 h-4" />
-                        {lang === "fr" ? "Se déconnecter" : "Log out"}
-                      </button>
                     </div>
+
+                    <Link
+                      href="/profile"
+                      className="flex items-center gap-2.5 px-3 py-2 text-xs text-zinc-300 hover:text-white hover:bg-white/10 rounded-xl transition-colors font-medium"
+                    >
+                      <User className="w-4 h-4" />
+                      {lang === "fr" ? "Mon Profil" : "My Profile"}
+                    </Link>
+
+                    <Link
+                      href="/downloads"
+                      className="flex items-center gap-2.5 px-3 py-2 text-xs text-zinc-300 hover:text-white hover:bg-white/10 rounded-xl transition-colors font-medium"
+                    >
+                      <DownloadSimple className="w-4 h-4 text-emerald-400" />
+                      {lang === "fr" ? "Mes Téléchargements" : "Downloads"}
+                      {doneDownloadsCount > 0 && (
+                        <span className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300">
+                          {doneDownloadsCount}
+                        </span>
+                      )}
+                    </Link>
+
+                    <Link
+                      href="/profile?tab=watchlist"
+                      className="flex items-center gap-2.5 px-3 py-2 text-xs text-zinc-300 hover:text-white hover:bg-white/10 rounded-xl transition-colors font-medium"
+                    >
+                      <BookmarkSimple className="w-4 h-4" />
+                      {lang === "fr" ? "Ma Liste" : "Watchlist"}
+                    </Link>
+
+                    <Link
+                      href="/profile?tab=history"
+                      className="flex items-center gap-2.5 px-3 py-2 text-xs text-zinc-300 hover:text-white hover:bg-white/10 rounded-xl transition-colors font-medium"
+                    >
+                      <ClockCounterClockwise className="w-4 h-4" />
+                      {lang === "fr" ? "Historique" : "History"}
+                    </Link>
+
+                    <div className="border-t border-white/10 my-1"></div>
+
+                    <button
+                      onClick={logout}
+                      className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-brand-primary hover:bg-brand-primary/90 active:scale-95 text-white font-bold text-xs shadow-md transition-all cursor-pointer mt-1"
+                    >
+                      <SignOut className="w-4 h-4" />
+                      <span>{lang === "fr" ? "Se déconnecter" : "Log out"}</span>
+                    </button>
                   </div>
                 </div>
               ) : (
-                /* BOUTON CONNEXION : VISIBLE UNIQUEMENT SUR PC (Masqué sur mobile) */
+                /* BOUTON CONNEXION AVATAR */
                 <button
                   onClick={() => setIsAuthModalOpen(true)}
-                  className="hidden md:flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-white text-xs font-bold transition-all focus:outline-none cursor-pointer shadow-sm active:scale-95"
+                  aria-label="Connexion"
+                  className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-white transition-all focus:outline-none cursor-pointer shadow-sm active:scale-95"
                 >
-                  <User className="w-3.5 h-3.5" />
-                  <span>{lang === "fr" ? "Connexion" : "Log in"}</span>
+                  <User className="w-4 h-4" />
                 </button>
               )}
             </div>
-          </div>
-
-          {/* LIGNE 2 (Mobile uniquement) : BARRE DE RECHERCHE DIRECTE DANS LE HEADER STYLE MOVIEBOX */}
-          <div className="md:hidden w-full pt-0.5">
-            <button
-              onClick={onSearchClick}
-              className="w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-transparent border border-white/10 active:bg-white/5 text-zinc-400 text-xs font-normal cursor-pointer text-left"
-            >
-              <MagnifyingGlass className="w-4 h-4 text-zinc-400 shrink-0 stroke-[2.2]" />
-              <span className="truncate text-zinc-400">
-                {lang === "fr" ? "Rechercher films / séries TV" : "Search movies/ TV Shows"}
-              </span>
-            </button>
           </div>
         </div>
 
@@ -460,26 +416,28 @@ export default function Header({ onSearchClick }: HeaderProps) {
               </div>
             </div>
 
-            {/* Bas du Drawer : Langue & Paramètres */}
-            <div className="pt-4 border-t border-white/10 flex items-center justify-between">
-              <LanguageSwitcher />
-              {user && (
+            {/* Bas du Drawer : Déconnexion */}
+            {user && (
+              <div className="pt-4 border-t border-white/10">
                 <button
                   onClick={() => {
                     setIsDrawerOpen(false);
                     logout();
                   }}
-                  className="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300 font-medium"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-brand-primary hover:bg-brand-primary/90 active:scale-95 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
                 >
                   <SignOut className="w-4 h-4" />
-                  <span>{lang === "fr" ? "Déconnexion" : "Logout"}</span>
+                  <span>{lang === "fr" ? "Se déconnecter" : "Logout"}</span>
                 </button>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       )}
     </>
   );
 }
+
+const Header = React.memo(HeaderComponent);
+export default Header;
 

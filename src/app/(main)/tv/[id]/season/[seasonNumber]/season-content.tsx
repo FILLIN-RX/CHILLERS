@@ -13,6 +13,7 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { userService } from "@/services/user";
 import { ArrowLeft, Play, CaretCircleLeft, CaretCircleRight, FilmSlate, DownloadSimple, ShareNetwork, BookmarkSimple, Check, Sparkle, LinkSimple } from "@phosphor-icons/react";
+import Button from "@/components/ui/Button";
 
 export default function SeasonContent() {
   const params = useParams();
@@ -331,50 +332,44 @@ export default function SeasonContent() {
 
               {/* Boutons d'Action */}
               <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 pt-1">
-                <button
+                <Button
                   onClick={() => setShowSingleDownload(true)}
                   disabled={!currentEpisode}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-black hover:bg-[#E5E5EA] font-bold text-xs sm:text-sm transition-all shadow-lg cursor-pointer"
-                >
-                  <DownloadSimple className="h-4 w-4" />
-                  <span>Télécharger l&apos;épisode</span>
-                </button>
+                  variant="primary"
+                  size="md"
+                  text="Télécharger l'épisode"
+                  leftIcon={<DownloadSimple className="h-4 w-4" />}
+                  ariaLabel="Télécharger cet épisode"
+                />
 
-                <button
+                <Button
                   onClick={() => setShowBatchDownload(true)}
-                  className="flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-white font-bold text-xs sm:text-sm transition-all cursor-pointer"
-                >
-                  <LinkSimple className="h-4 w-4" />
-                  <span>Télécharger la saison</span>
-                </button>
+                  variant="dark"
+                  size="md"
+                  text="Télécharger la saison"
+                  leftIcon={<LinkSimple className="h-4 w-4" />}
+                  ariaLabel="Télécharger la saison complète"
+                />
 
                 {user && (
-                  <button
+                  <Button
                     onClick={toggleFavorite}
                     disabled={favoriteLoading}
-                    aria-label="Favoris"
-                    className={`p-2.5 rounded-full border transition-all hover:scale-105 backdrop-blur-md cursor-pointer ${
-                      isFavorite
-                        ? "bg-[#D70466]/90 border-[#D70466] text-white shadow-lg shadow-[#D70466]/40"
-                        : "bg-zinc-900 border-zinc-700 text-white hover:bg-zinc-800"
-                    }`}
-                  >
-                    {isFavorite ? (
-                      <BookmarkSimple className="w-4 h-4" />
-                    ) : (
-                      <BookmarkSimple className="w-4 h-4" />
-                    )}
-                  </button>
+                    variant={isFavorite ? "primary" : "outline"}
+                    size="icon"
+                    ariaLabel={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
+                    icon={<BookmarkSimple className="w-4 h-4" />}
+                  />
                 )}
 
                 <div className="relative">
-                  <button
+                  <Button
                     onClick={handleShare}
-                    aria-label="Partager"
-                    className="p-2.5 rounded-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-white transition-all hover:scale-105 cursor-pointer"
-                  >
-                    <ShareNetwork className="w-4 h-4" />
-                  </button>
+                    variant="outline"
+                    size="icon"
+                    ariaLabel="Partager la série"
+                    icon={<ShareNetwork className="w-4 h-4" />}
+                  />
 
                   {shareOpen && (
                     <div className="absolute left-0 bottom-full mb-2 w-48 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl p-1 z-50 overflow-hidden">

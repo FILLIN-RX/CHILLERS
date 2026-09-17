@@ -26,6 +26,7 @@ import {
   getTVGenres,
   getDisponible,
 } from "@/services/media";
+import { httpJson } from "@/services/http";
 import type { Genre, MovieOrShow } from "@/types/media";
 import GenreFilterBar from "@/components/GenreFilterBar";
 import NotificationModal from "@/components/NotificationModal";
@@ -34,6 +35,8 @@ import UpgradeModal from "@/components/UpgradeModal";
 import ScrollRow from "@/components/ScrollRow";
 import MovieCard from "@/components/MovieCard";
 import AddToPlaylistModal from "@/components/AddToPlaylistModal";
+import Button from "@/components/Button";
+import CardImage from "@/components/CardImage";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { ArrowLeft, Play, Star, Clock, CalendarBlank, FilmSlate, CaretLeft, CaretRight, DownloadSimple, ShareNetwork, Sparkle, BookmarkSimple, ListNumbers } from '@phosphor-icons/react';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -91,9 +94,8 @@ function MediaDetailPage() {
     if (!id) return;
     setLoading(true);
     try {
-      const [detail, dispo, similarList] = await Promise.all([
+      const [detail, similarList] = await Promise.all([
         getMediaDetails(id, isTV),
-        getDisponible(id, isTV ? 'series' : 'movie'),
         isTV ? getPopularTV(1) : getPopularMovies(1),
       ]);
 
@@ -104,8 +106,43 @@ function MediaDetailPage() {
           setTrailerUrl(detail.videoUrl);
         }
         setItem(detail);
+
+        // 1. Récupération précise de la disponibilité avec le titre
+        const dispo = await getDisponible(id, isTV ? 'series' : 'movie', detail.title);
+        if (dispo) {
+          setDisponible(dispo);
+        }
+
+        // 2. Si le contenu n'est pas encore disponible en base, déclenchement automatique et transparent de la recherche Go
+        if (!dispo?.disponible && detail.title) {
+          httpJson("/api/requests", {
+            method: "POST",
+            body: {
+              tmdbId: Number(id),
+              title: detail.title,
+              type: isTV ? "series" : "movie",
+              year: typeof detail.year === "number" ? detail.year : detail.year ? parseInt(String(detail.year)) : undefined,
+              posterUrl: detail.posterUrl,
+            },
+          }).catch(() => {});
+
+          // Polling léger (toutes les 3s, max 4 fois) pour mettre à jour la disponibilité dès que Go trouve le flux
+          let attempts = 0;
+          const pollTimer = setInterval(async () => {
+            attempts++;
+            if (attempts > 4) {
+              clearInterval(pollTimer);
+              return;
+            }
+            const updatedDispo = await getDisponible(id, isTV ? 'series' : 'movie', detail.title);
+            if (updatedDispo?.disponible) {
+              setDisponible(updatedDispo);
+              clearInterval(pollTimer);
+            }
+          }, 3000);
+        }
       }
-      if (dispo) setDisponible(dispo);
+
       if (detail?.similar && detail.similar.length > 0) {
         setSimilar(detail.similar);
       } else if (similarList) {
@@ -163,7 +200,7 @@ function MediaDetailPage() {
       try {
         await navigator.share({ title, url });
         return;
-      } catch {}
+      } catch { }
     }
     const rect = shareBtnRef.current?.getBoundingClientRect();
     if (rect) {
@@ -231,8 +268,14 @@ function MediaDetailPage() {
     return (
       <div className="flex-1 flex flex-col bg-[#09090B] text-white pb-20">
         {/* Bouton retour */}
-        <div className="fixed top-0 left-0 z-40 p-4">
-          <div className="w-10 h-10 rounded-full bg-black/70 border border-white/10" />
+        <div className="fixed top-4 left-4 z-50">
+          <button
+            onClick={() => { window.scrollTo(0, 0); router.back(); }}
+            aria-label={_("media.back") || "Retour"}
+            className="flex items-center justify-center w-10 h-10 rounded-full bg-black/60 hover:bg-black/90 backdrop-blur-xl border border-white/15 text-white transition-all shadow-xl hover:scale-105 active:scale-95 cursor-pointer"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
         </div>
 
         {/* 1. HERO SKELETON */}
@@ -344,7 +387,18 @@ function MediaDetailPage() {
   return (
     <div className="flex-1 flex flex-col bg-[#09090B] text-white pb-20 sm:pb-0">
 
-{jsonLd && (
+      {/* Floating Back Button (Mobile & Desktop) */}
+      <div className="fixed top-4 left-4 z-50">
+        <button
+          onClick={() => { window.scrollTo(0, 0); router.back(); }}
+          aria-label={_("media.back") || "Retour"}
+          className="flex items-center justify-center w-10 h-10 rounded-full bg-black/60 hover:bg-black/90 backdrop-blur-xl border border-white/15 text-white transition-all shadow-xl hover:scale-105 active:scale-95 cursor-pointer"
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </button>
+      </div>
+
+      {jsonLd && (
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -376,20 +430,15 @@ function MediaDetailPage() {
           <div className="flex flex-col sm:flex-row gap-5 sm:gap-8 items-start sm:items-end w-full">
             {/* Poster vertical avec taille adaptative mobile / desktop */}
             <div className="relative flex-none w-28 sm:w-44 md:w-52 lg:w-56 aspect-[2/3] rounded-xl sm:rounded-2xl overflow-hidden shadow-2xl border border-white/10 ring-1 ring-white/5 bg-zinc-900 shrink-0">
-              {item.posterUrl ? (
-                <Image
-                  src={item.posterUrl}
-                  alt={item.title}
-                  fill
-                  className="object-cover object-top"
-                  sizes="(max-width: 640px) 112px, (max-width: 1024px) 210px, 240px"
-                  priority
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-zinc-600">
-                  <FilmSlate className="w-10 h-10 sm:w-12 sm:h-12" />
-                </div>
-              )}
+              <CardImage
+                src={item.posterUrl}
+                alt={item.title}
+                fill
+                className="object-cover object-top"
+                sizes="(max-width: 640px) 112px, (max-width: 1024px) 210px, 240px"
+                priority
+                fallbackText={item.title}
+              />
             </div>
 
             {/* Informations textuelles */}
@@ -398,11 +447,10 @@ function MediaDetailPage() {
               <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-xs font-bold">
                 {disponible && (
                   <span
-                    className={`px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider border ${
-                      disponible.disponible
+                    className={`px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider border ${disponible.disponible
                         ? "border-[#D70466]/40 text-[#D70466] bg-[#D70466]/10"
                         : "border-red-500/40 text-red-400 bg-red-500/10"
-                    }`}
+                      }`}
                   >
                     {disponible.disponible ? "● Disponible" : "● Bientôt disponible"}
                   </span>
@@ -410,11 +458,10 @@ function MediaDetailPage() {
 
                 {/* Badge Audio */}
                 {(disponible?.langueAudio || item.langueAudio) && (disponible?.langueAudio !== 'UNKNOWN') && (
-                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider shadow-md ${
-                    disponible?.isFrenchAudio || item.isFrenchAudio
-                      ? 'bg-[#D70466]/90 text-white border border-[#D70466]/30' 
+                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider shadow-md ${disponible?.isFrenchAudio || item.isFrenchAudio
+                      ? 'bg-[#D70466]/90 text-white border border-[#D70466]/30'
                       : 'bg-amber-600/90 text-white border border-amber-400/30'
-                  }`}>
+                    }`}>
                     {disponible?.langueAudio === 'VFF' ? 'VF (TrueFrench)' : disponible?.langueAudio === 'VFQ' ? 'VF (Québec)' : (disponible?.langueAudio || item.langueAudio)}
                   </span>
                 )}
@@ -474,77 +521,71 @@ function MediaDetailPage() {
                 {item.synopsis || item.description}
               </p>
 
-              {/* Actions */}
+              {/* Actions avec le composant Button global */}
               <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-2">
-                <button
+                <Button
                   onClick={handleWatch}
                   disabled={!item || loading}
-                  className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-6 sm:px-8 py-3 rounded-full font-bold text-xs sm:text-sm transition-all hover:scale-105 shadow-xl whitespace-nowrap ${
-                    !item || loading
-                      ? "bg-zinc-800 border border-zinc-700 text-zinc-400 cursor-not-allowed"
-                      : "bg-[#D70466] hover:bg-[#b5034f] text-white shadow-[#D70466]/30"
-                  }`}
-                >
-                  <Play className="h-4 w-4 fill-white" />
-                  <span>{_("media.watch")}</span>
-                </button>
+                  variant="primary"
+                  size="md"
+                  text={_("media.watch")}
+                  leftIcon={<Play className="h-4 w-4 fill-white" />}
+                  ariaLabel={`Regarder le film ${item?.title || ""}`}
+                  className="flex-1 sm:flex-initial"
+                />
 
                 {item.trailerUrl && (
-                  <button
+                  <Button
                     onClick={() => setTrailerOpen(true)}
-                    className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-white font-bold text-xs sm:text-sm transition-all hover:scale-105"
-                  >
-                    <FilmSlate className="h-4 w-4" />
-                    <span>Bande-annonce</span>
-                  </button>
+                    variant="outline"
+                    size="md"
+                    text="Bande-annonce"
+                    leftIcon={<FilmSlate className="h-4 w-4" />}
+                    ariaLabel={`Voir la bande-annonce de ${item.title}`}
+                    className="flex-1 sm:flex-initial"
+                  />
                 )}
 
-                <button
+                <Button
                   onClick={handleDownload}
                   disabled={!item || loading}
-                  className="flex items-center justify-center gap-2 px-4 sm:px-5 py-3 rounded-full bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-700 text-white font-bold text-xs sm:text-sm transition-all hover:scale-105"
-                >
-                  <DownloadSimple className="h-4 w-4" />
-                  <span className="hidden sm:inline">Télécharger</span>
-                </button>
+                  variant="dark"
+                  size="md"
+                  text="Télécharger"
+                  leftIcon={<DownloadSimple className="h-4 w-4" />}
+                  ariaLabel={`Télécharger ${item.title}`}
+                />
 
                 {user && (
-                  <button
+                  <Button
                     onClick={() => setShowPlaylistModal(true)}
-                    aria-label={lang === 'fr' ? 'Enregistrer dans une playlist ou À regarder plus tard' : 'Save to playlist or watch later'}
-                    title={lang === 'fr' ? 'Enregistrer dans...' : 'Save to...'}
-                    className="p-3 rounded-full bg-black/50 hover:bg-black/80 border border-white/20 text-white transition-all hover:scale-105 backdrop-blur-md cursor-pointer"
-                  >
-                    <ListNumbers className="h-4 w-4 text-cyan-400" />
-                  </button>
+                    variant="outline"
+                    size="icon"
+                    title={lang === "fr" ? "Enregistrer dans une playlist ou À regarder plus tard" : "Save to playlist or watch later"}
+                    ariaLabel={lang === "fr" ? "Enregistrer dans une playlist" : "Save to playlist"}
+                    icon={<ListNumbers className="h-4 w-4 text-cyan-400" />}
+                  />
                 )}
 
                 {user && (
-                  <button
+                  <Button
                     onClick={toggleFavorite}
                     disabled={favoriteLoading || !item}
-                    className={`p-3 rounded-full border transition-all hover:scale-105 backdrop-blur-md ${
-                      isFavorite
-                        ? "bg-[#D70466]/90 border-[#D70466] text-white shadow-lg shadow-[#D70466]/40"
-                        : "bg-black/50 border-white/20 text-white hover:bg-black/80"
-                    }`}
-                  >
-                    {isFavorite ? (
-                      <BookmarkSimple className="h-4 w-4" />
-                    ) : (
-                      <BookmarkSimple className="h-4 w-4" />
-                    )}
-                  </button>
+                    variant={isFavorite ? "primary" : "outline"}
+                    size="icon"
+                    ariaLabel={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
+                    icon={<BookmarkSimple className="w-4 h-4" />}
+                  />
                 )}
 
                 <div className="relative" ref={shareBtnRef}>
-                  <button
+                  <Button
                     onClick={handleShare}
-                    aria-label="Partager"
-                    className="p-3 rounded-full bg-black/50 hover:bg-black/80 border border-white/20 text-white transition-all hover:scale-105 backdrop-blur-md"
-                  >
-                    <ShareNetwork className="h-4 w-4" />
-                  </button>
+                    variant="outline"
+                    size="icon"
+                    ariaLabel="Partager le film"
+                    icon={<ShareNetwork className="h-4 w-4" />}
+                  />
                 </div>
               </div>
             </div>
@@ -558,10 +599,10 @@ function MediaDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Colonne gauche : Synopsis & Réalisateur */}
           <div className="lg:col-span-2 space-y-6">
-            <section className="bg-zinc-900/40 border border-zinc-800/80 rounded-2xl p-6 space-y-3">
+            <section className=" p-6 space-y-3">
               <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
-                <span className="h-4 w-1 rounded-full bg-[#D70466]" />
-                <span>Synopsis</span>
+                {/* <span className="h-4 w-1 rounded-full bg-[#D70466]" /> */}
+                <span>Info</span>
               </h2>
               <p className="text-zinc-300 text-sm sm:text-base leading-relaxed">
                 {item.synopsis || item.description || "Aucun résumé disponible pour ce film."}
@@ -593,12 +634,13 @@ function MediaDetailPage() {
                       >
                         <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden bg-zinc-800 border border-white/10 group-hover:border-[#D70466]/50 transition-all shadow-lg mb-2 relative">
                           {actor.profileUrl ? (
-                            <Image
+                            <CardImage
                               src={actor.profileUrl}
                               alt={actor.name}
                               fill
                               className="object-cover"
                               sizes="96px"
+                              fallbackText={actor.name.charAt(0)}
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-zinc-600 font-black text-sm sm:text-base">
@@ -700,37 +742,24 @@ function MediaDetailPage() {
 
         {/* 3. FILMS SIMILAIRES & RECOMMANDÉS */}
         {similar.length > 0 && (
-          <section className="space-y-6 pt-6 border-t border-zinc-800/80 w-full">
+          <section className="space-y-4 sm:space-y-6 pt-6 sm:pt-8 border-t border-zinc-800/80 w-full">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-3">
+              <h2 className="text-lg sm:text-2xl font-black text-white flex items-center gap-3">
                 <span className="h-5 w-1 rounded-full bg-[#7C3AED]" />
                 <span>Films Similaires & Recommandés</span>
               </h2>
               <span className="text-xs text-zinc-400 font-semibold">{similar.length} titres</span>
             </div>
-            <div className="hidden sm:grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 lg:gap-6 w-full">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 lg:gap-5 w-full">
               {similar.map((sim) => (
                 <MovieCard
                   key={sim.id}
                   item={sim}
-                  variant="poster"
+                  variant="grid-poster"
                   onOpenDetails={(m) => router.push(`/media/${m.id}`)}
                   onPlay={(m) => router.push(`/watch/${m.id}?type=movie`)}
                 />
               ))}
-            </div>
-            <div className="sm:hidden">
-              <ScrollRow title="" accentColor="primary" className="space-y-0">
-                {similar.map((sim) => (
-                  <MovieCard
-                    key={sim.id}
-                    item={sim}
-                    variant="poster"
-                    onOpenDetails={(m) => router.push(`/media/${m.id}`)}
-                    onPlay={(m) => router.push(`/watch/${m.id}?type=movie`)}
-                  />
-                ))}
-              </ScrollRow>
             </div>
           </section>
         )}
@@ -905,7 +934,7 @@ function MediaListingPage() {
       });
       setCatalogGridPage(nextPage);
       setCatalogGridTotalPages(result.totalPages);
-    } catch {}
+    } catch { }
     setIsLoadingCatalogMore(false);
   }, [type, catalogGridPage, catalogGridTotalPages, isLoadingCatalogMore]);
 
@@ -991,10 +1020,10 @@ function MediaListingPage() {
     async function loadCatalog() {
       setIsLoadingCatalog(true);
       try {
-        const rowsConfig = type === "movies" 
-          ? MOVIE_ROWS_CONFIG 
-          : type === "series" 
-            ? SERIES_ROWS_CONFIG 
+        const rowsConfig = type === "movies"
+          ? MOVIE_ROWS_CONFIG
+          : type === "series"
+            ? SERIES_ROWS_CONFIG
             : ANIME_ROWS_CONFIG;
 
         // Fetch top hero items + initial rows in parallel
@@ -1014,16 +1043,16 @@ function MediaListingPage() {
             let rowItems: MovieOrShow[] = [];
             try {
               if (row.id === 'recent') {
-                rowItems = type === "movies" 
-                  ? await getPopularMovies(1) 
-                  : type === "series" 
-                    ? await getPopularTV(1) 
+                rowItems = type === "movies"
+                  ? await getPopularMovies(1)
+                  : type === "series"
+                    ? await getPopularTV(1)
                     : await getAnimeSeries(1);
               } else if (row.id === 'trending') {
-                rowItems = type === "movies" 
-                  ? await getTrendingMovies() 
-                  : type === "series" 
-                    ? await getTrendingTV() 
+                rowItems = type === "movies"
+                  ? await getTrendingMovies()
+                  : type === "series"
+                    ? await getTrendingTV()
                     : await getAnimeSeries(2);
               } else if (row.genreId) {
                 if (type === "movies") {
@@ -1035,7 +1064,7 @@ function MediaListingPage() {
                   rowItems = tvRes.results;
                 }
               }
-            } catch {}
+            } catch { }
             return { ...row, items: rowItems };
           })
         );
@@ -1060,7 +1089,7 @@ function MediaListingPage() {
                   rowItems = tvRes.results;
                 }
               }
-            } catch {}
+            } catch { }
             return { ...row, items: rowItems };
           })
         );

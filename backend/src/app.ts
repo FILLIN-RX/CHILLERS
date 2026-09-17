@@ -28,6 +28,7 @@ import aiRoutes from './modules/ai/ai.routes';
 import authRoutes from './modules/auth/auth.routes';
 import userRoutes from './modules/user/user.routes';
 import omnisaveRoutes from './modules/omnisave/omnisave.routes';
+import requestsRoutes from './modules/requests/requests.routes';
 
 import compression from 'compression';
 
@@ -113,6 +114,9 @@ app.use('/api/torrents', torrentsRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/omnisave', omnisaveRoutes);
+app.use('/api/requests', requestsRoutes);
+app.use('/api/admin/requests', requestsRoutes);
+app.use('/api/internal/requests', requestsRoutes);
 
 app.use((_req, res) => {
   res.status(404).json({

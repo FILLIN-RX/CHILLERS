@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
+import { Crown, X } from '@phosphor-icons/react';
 
 export default function UpgradeModal({ 
   isOpen, 
@@ -9,7 +10,7 @@ export default function UpgradeModal({
   featureName = "Cette fonctionnalité"
 }: { 
   isOpen: boolean; 
-  onClose: () => void;
+  onClose: () => void; 
   featureName?: string;
 }) {
   const router = useRouter();
@@ -17,37 +18,39 @@ export default function UpgradeModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm transition-all">
-      <div className="bg-[#1a1a1a] rounded-2xl p-8 max-w-md w-full border border-gray-800 shadow-2xl relative animate-in fade-in zoom-in duration-300">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md transition-all animate-fade-in select-none">
+      <div className="bg-[#121215] rounded-[3px] p-6 sm:p-7 max-w-sm w-full border border-white/15 shadow-2xl relative animate-in fade-in zoom-in duration-200">
         <button 
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
+          aria-label="Fermer"
+          className="absolute top-4 right-4 text-zinc-400 hover:text-white p-1 rounded-[2px] hover:bg-white/10 transition-colors cursor-pointer"
         >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
+          <X className="w-4 h-4" />
         </button>
-        <div className="text-center mb-6">
-          <div className="w-16 h-16 bg-[#D70466]/20 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-[#D70466]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-            </svg>
+
+        <div className="text-center mb-5">
+          <div className="w-12 h-12 bg-amber-500/15 border border-amber-500/30 rounded-[3px] flex items-center justify-center mx-auto mb-3 shadow-[0_0_15px_rgba(234,179,8,0.2)]">
+            <Crown className="w-6 h-6 text-amber-400 fill-amber-400" />
           </div>
-          <h3 className="text-2xl font-bold text-white mb-2">Passez au niveau supérieur</h3>
-          <p className="text-gray-400 text-sm">
-            {featureName} est réservée aux abonnements supérieurs. Mettez à niveau votre plan pour la débloquer et profiter de bien d'autres avantages !
+          <h3 className="text-xl font-bold text-white mb-1.5">Passez en VIP</h3>
+          <p className="text-zinc-400 text-xs leading-relaxed">
+            <strong className="text-white">{featureName}</strong> est réservée aux membres VIP. Débloquez le streaming illimité 1080p et les téléchargements instantanés.
           </p>
         </div>
-        <div className="flex flex-col gap-3">
+
+        <div className="flex flex-col gap-2">
           <button 
-            onClick={() => router.push('/subscribe')}
-            className="w-full bg-[#D70466] hover:opacity-90 text-white font-bold py-3 px-4 rounded-xl transition-all"
+            onClick={() => {
+              onClose();
+              router.push('/subscribe');
+            }}
+            className="w-full bg-[#D70466] hover:bg-[#b5034f] text-white font-bold py-2.5 px-4 rounded-[3px] text-xs sm:text-sm transition-all shadow-md cursor-pointer active:scale-95"
           >
-            Voir les abonnements
+            Découvrir les offres
           </button>
           <button 
             onClick={onClose}
-            className="w-full bg-transparent hover:bg-gray-800 text-gray-300 font-bold py-3 px-4 rounded-xl transition-all"
+            className="w-full bg-transparent hover:bg-white/5 text-zinc-400 hover:text-white font-medium py-2 px-4 rounded-[3px] text-xs transition-all cursor-pointer"
           >
             Plus tard
           </button>

@@ -6,6 +6,7 @@ import type { MovieOrShow } from "@/types/media";
 import { Play, Pause, CaretLeft, CaretRight, Star } from '@phosphor-icons/react';
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useHydrated } from "@/hooks/useHydrated";
+import Button from "@/components/Button";
 
 interface HeroCarouselProps {
   slides: MovieOrShow[];
@@ -140,12 +141,15 @@ export default function HeroCarousel({
           <p className="text-zinc-400 text-sm">
             {_("hero.connectionErrorDesc")}
           </p>
-          <button
+          <Button
             onClick={() => window.location.reload()}
-            className="mt-2 px-6 py-3 rounded-full bg-brand-primary text-white font-bold text-sm hover:bg-brand-primary/90 transition-all"
+            variant="primary"
+            size="md"
+            className="mt-2"
+            ariaLabel={_("hero.retry")}
           >
             {_("hero.retry")}
-          </button>
+          </Button>
         </div>
       </section>
     );
@@ -254,22 +258,27 @@ export default function HeroCarousel({
                     ))}
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2 sm:gap-4 pt-2 sm:pt-3">
-                    <button
+                  <div className="flex flex-wrap items-center gap-2.5 sm:gap-4 pt-2 sm:pt-3">
+                    <Button
                       onClick={() => onWatchNow(slide)}
-                      className="flex items-center gap-2 rounded-full bg-brand-primary hover:bg-brand-primary/95 text-white px-5 sm:px-6 py-2.5 sm:py-3 font-semibold text-sm transition-all duration-300 hover:scale-105 shadow-xl shadow-brand-primary/25 cursor-pointer"
+                      variant="primary"
+                      size="lg"
+                      leftIcon={<Play className="h-4 w-4 sm:h-5 sm:w-5 fill-current" />}
+                      ariaLabel={`${_("hero.watchNow")} ${slide.title}`}
                     >
-                      <Play className="h-4 w-4 sm:h-5 sm:w-5" />
                       {_("hero.watchNow")}
-                    </button>
+                    </Button>
 
-                    <button
+                    <Button
                       onClick={() => onOpenDetails(slide)}
-                      className="rounded-full bg-black/40 border border-white/10 text-zinc-200 hover:text-white px-4 sm:px-5 py-2.5 sm:py-3 text-sm font-semibold transition-all duration-300 hover:bg-black/60 backdrop-blur-sm cursor-pointer"
+                      variant="dark"
+                      size="lg"
+                      ariaLabel={`${_("hero.moreDetails")} ${slide.title}`}
+                      className="bg-black/50 border-white/15 text-zinc-100 hover:text-white hover:bg-black/70 backdrop-blur-md"
                     >
                       <span className="hidden sm:inline">{_("hero.moreDetails")}</span>
                       <span className="sm:hidden">{_("hero.details")}</span>
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>

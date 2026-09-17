@@ -111,7 +111,7 @@ export default function ProfileSidebar({
         <div className="pt-2">
           <button
             onClick={onLogout}
-            className="w-full flex items-center justify-start gap-3 px-5 py-3.5 rounded-2xl text-xs sm:text-sm font-bold text-zinc-400 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-all cursor-pointer"
+            className="w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl text-xs sm:text-sm font-bold text-white bg-brand-primary hover:bg-brand-primary/90 active:scale-[0.99] shadow-lg shadow-brand-primary/20 transition-all cursor-pointer"
           >
             <SignOut className="w-4 h-4 sm:w-5 sm:h-5" />
             <span>{lang === "fr" ? "Se déconnecter" : "Log Out"}</span>

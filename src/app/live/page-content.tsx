@@ -26,18 +26,18 @@ export function ChannelLogo({ channel }: { channel: LiveChannel }) {
 
   if (!channel.logo || broken) {
     return (
-      <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-white/10 flex items-center justify-center text-[10px] font-black text-zinc-300 shrink-0 shadow-sm">
+      <div className="h-5 px-1.5 rounded bg-black/70 backdrop-blur-sm border border-white/15 flex items-center justify-center text-[9px] font-black text-white shrink-0 shadow-sm">
         {initials || "TV"}
       </div>
     );
   }
 
   return (
-    <div className="h-7 w-12 px-1 py-0.5 rounded bg-black/70 backdrop-blur-sm border border-white/10 flex items-center justify-center shrink-0 overflow-hidden">
+    <div className="h-5 px-1.5 py-0.5 rounded bg-black/70 backdrop-blur-sm border border-white/15 flex items-center justify-center shrink-0 overflow-hidden shadow-sm">
       <img
         src={channel.logo}
         alt={channel.name}
-        className="h-full w-auto object-contain max-h-5"
+        className="h-full w-auto object-contain max-h-3.5"
         onError={() => setBroken(true)}
       />
     </div>
@@ -57,63 +57,349 @@ const CATEGORIES = [
   { id: "music", label: "MUSIQUE" },
 ];
 
-const CHANNEL_PROGRAMS: Record<string, { program: string; category: string; banner?: string }> = {
+const LIVE_CHANNEL_INFO: Record<string, { program: string; subtitle: string; banner: string }> = {
+  "equinoxe-tv": {
+    program: "Equinoxe TV",
+    subtitle: "Divers",
+    banner: "https://images.unsplash.com/photo-1598899134739-24c46f58b8c0?w=600&auto=format&fit=crop&q=80",
+  },
   "crtv-sport": {
-    program: "CRTV Sport Live",
-    category: "Sports & Directs",
+    program: "Magazine sportif",
+    subtitle: "Mag. Sport · Direct",
     banner: "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=600&auto=format&fit=crop&q=80",
   },
   "canal-2-international": {
     program: "Canal 2 International",
-    category: "Grandes Éditions & Mag",
+    subtitle: "Grandes Éditions & Mag",
     banner: "https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=600&auto=format&fit=crop&q=80",
   },
-  "equinoxe-tv": {
-    program: "Équinoxe TV Soir",
-    category: "Mag. Actualités & Débats",
-    banner: "https://images.unsplash.com/photo-1495020689067-958852a7765e?w=600&auto=format&fit=crop&q=80",
-  },
   "bein-sports-xtra": {
-    program: "beIN Live Match Football",
-    category: "Football & Ligue 1 / Champions",
+    program: "Elversberg / Bayern Munich",
+    subtitle: "Bundesliga - 3e journée",
     banner: "https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=600&auto=format&fit=crop&q=80",
   },
   "bein-sports-xtra-hd": {
     program: "beIN Sports XTRA Action",
-    category: "Sports US & Direct",
+    subtitle: "Sports US & Direct",
     banner: "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?w=600&auto=format&fit=crop&q=80",
   },
   "red-bull-tv": {
     program: "Red Bull Action Sports Live",
-    category: "Extreme Sports & Drift",
+    subtitle: "Extreme Sports & Drift",
     banner: "https://images.unsplash.com/photo-1517649763962-0c623266ddc0?w=600&auto=format&fit=crop&q=80",
   },
-  "fight-network": {
+  "fight-sports-hd": {
     program: "Fight Night Championship",
-    category: "MMA & Boxe Pro",
+    subtitle: "MMA & Boxe Pro",
     banner: "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=600&auto=format&fit=crop&q=80",
+  },
+  "fight-network": {
+    program: "Fight Network Championship",
+    subtitle: "Combat Sports · Direct",
+    banner: "https://images.unsplash.com/photo-1549719386-74dfcbf7dbed?w=600&auto=format&fit=crop&q=80",
+  },
+  "world-poker-tour": {
+    program: "World Poker Tour",
+    subtitle: "Table Finale Las Vegas",
+    banner: "https://images.unsplash.com/photo-1511193311914-0346f16efe90?w=600&auto=format&fit=crop&q=80",
+  },
+  "fox-sports-us": {
+    program: "FOX NFL Sunday",
+    subtitle: "Football Américain · Direct",
+    banner: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=600&auto=format&fit=crop&q=80",
+  },
+  "fox-sports-2-us": {
+    program: "NASCAR Cup Series",
+    subtitle: "Course Automobile · Direct",
+    banner: "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=600&auto=format&fit=crop&q=80",
+  },
+  "espn8-the-ocho": {
+    program: "ESPN8 The Ocho",
+    subtitle: "Compétitions Insolites",
+    banner: "https://images.unsplash.com/photo-1526676037777-05a232554f77?w=600&auto=format&fit=crop&q=80",
+  },
+  "fubo-sports-network": {
+    program: "fubo Sports Network",
+    subtitle: "Talk Show Sportif",
+    banner: "https://images.unsplash.com/photo-1518091043644-c1d4457512c6?w=600&auto=format&fit=crop&q=80",
+  },
+  "goal-tv": {
+    program: "Goal TV",
+    subtitle: "Tous les buts en direct",
+    banner: "https://images.unsplash.com/photo-1522778119026-d647f0596c20?w=600&auto=format&fit=crop&q=80",
+  },
+  "flohockey-24-7": {
+    program: "FloHockey 24/7",
+    subtitle: "Hockey sur Glace · Direct",
+    banner: "https://images.unsplash.com/photo-1580748141549-71748dbe0bdc?w=600&auto=format&fit=crop&q=80",
+  },
+  "floracing-24-7": {
+    program: "FloRacing 24/7",
+    subtitle: "Motorsport & Sprint Cars",
+    banner: "https://images.unsplash.com/photo-1511919884226-fd3cad34687c?w=600&auto=format&fit=crop&q=80",
+  },
+  "stingray-soccer-anthems": {
+    program: "Stingray Soccer Anthems",
+    subtitle: "Musique & Ambiance Stade",
+    banner: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80",
   },
   "france-24-francais": {
     program: "Le Journal International",
-    category: "Information en Continu",
+    subtitle: "Information en Continu",
     banner: "https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=600&auto=format&fit=crop&q=80",
   },
   "tv5monde-europe": {
-    program: "Le 64 Minutes",
-    category: "Culture & Monde",
+    program: "Mashatu, terre de léopards",
+    subtitle: "Doc. Animalier",
     banner: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=600&auto=format&fit=crop&q=80",
   },
   "euronews-francais": {
     program: "Euronews Direct",
-    category: "Actualités Européennes",
+    subtitle: "Actualités Européennes",
     banner: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=600&auto=format&fit=crop&q=80",
+  },
+  "lcp-assemblee-nationale": {
+    program: "LCP Assemblée Nationale",
+    subtitle: "Débats Parlementaires",
+    banner: "https://images.unsplash.com/photo-1541872703-74c5e44368f9?w=600&auto=format&fit=crop&q=80",
+  },
+  "public-senat": {
+    program: "Public Sénat",
+    subtitle: "Politique & Société",
+    banner: "https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?w=600&auto=format&fit=crop&q=80",
   },
   "sky-news": {
     program: "Sky News Live Broadcast",
-    category: "Global Breaking News",
+    subtitle: "Global Breaking News",
+    banner: "https://images.unsplash.com/photo-1526470608268-f674ce90ebd4?w=600&auto=format&fit=crop&q=80",
+  },
+  "bloomberg-originals": {
+    program: "Bloomberg TV Originals",
+    subtitle: "Économie & Marchés",
+    banner: "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=600&auto=format&fit=crop&q=80",
+  },
+  "dw-english": {
+    program: "DW English HD",
+    subtitle: "World News & Insight",
+    banner: "https://images.unsplash.com/photo-1495020689067-958852a7765e?w=600&auto=format&fit=crop&q=80",
+  },
+  "arte-francais": {
+    program: "Frontières",
+    subtitle: "Film Drame",
+    banner: "https://images.unsplash.com/photo-1500485035595-cbe6f645feb1?w=600&auto=format&fit=crop&q=80",
+  },
+  "rakuten-action-fr": {
+    program: "Racers",
+    subtitle: "Film Action",
+    banner: "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600&auto=format&fit=crop&q=80",
+  },
+  "pluto-tv-action": {
+    program: "Mission Commando",
+    subtitle: "Film Action",
+    banner: "https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=600&auto=format&fit=crop&q=80",
+  },
+  "pluto-tv-cinema": {
+    program: "Kasam",
+    subtitle: "Série Drame",
+    banner: "https://images.unsplash.com/photo-1518173946687-a4c8a383392e?w=600&auto=format&fit=crop&q=80",
+  },
+  "pluto-tv-series": {
+    program: "New York police judiciaire - Saison 15",
+    subtitle: "Épisode 18 : La vengeance est un...",
+    banner: "https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?w=600&auto=format&fit=crop&q=80",
+  },
+  "rakuten-comedie-fr": {
+    program: "Jeux de dames - Saison 2",
+    subtitle: "Épisode 10 : JEUX DE DAMES S2",
+    banner: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80",
+  },
+  "gulli-direct": {
+    program: "Tu dis, tu stoppes ! - Saison 1",
+    subtitle: "Épisode 1 · Dessin animé",
+    banner: "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=600&auto=format&fit=crop&q=80",
+  },
+  "m6-replay": {
+    program: "Pour tout voir et tout savoir",
+    subtitle: "Divers",
+    banner: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=600&auto=format&fit=crop&q=80",
+  },
+  "w9-direct": {
+    program: "La Dona - Saison 1",
+    subtitle: "Épisode 92 : Braulio se desquicia",
+    banner: "https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?w=600&auto=format&fit=crop&q=80",
+  },
+  "nrj12-direct": {
+    program: "Sous le masque - Saison 1",
+    subtitle: "Épisode 24",
+    banner: "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=600&auto=format&fit=crop&q=80",
+  },
+  "bfm-tv": {
+    program: "1x Infosport+",
+    subtitle: "Émission du jour",
+    banner: "https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=600&auto=format&fit=crop&q=80",
+  },
+  "cnews": {
+    program: "Punchline",
+    subtitle: "Débats & Société",
+    banner: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=600&auto=format&fit=crop&q=80",
+  },
+  "lci": {
+    program: "LCI Soirée Direct",
+    subtitle: "Mag. Infos",
     banner: "https://images.unsplash.com/photo-1526470608268-f674ce90ebd4?w=600&auto=format&fit=crop&q=80",
   },
 };
+
+const UNIQUE_COVER_POOL = [
+  "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=600&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=600&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1517649763962-0c623266ddc0?w=600&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=600&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1511193311914-0346f16efe90?w=600&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=600&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=600&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?w=600&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1518091043644-c1d4457512c6?w=600&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1522778119026-d647f0596c20?w=600&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1580748141549-71748dbe0bdc?w=600&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1511919884226-fd3cad34687c?w=600&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=600&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1495020689067-958852a7765e?w=600&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=600&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=600&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=600&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1541872703-74c5e44368f9?w=600&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?w=600&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1526470608268-f674ce90ebd4?w=600&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=600&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1500485035595-cbe6f645feb1?w=600&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=600&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1518173946687-a4c8a383392e?w=600&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?w=600&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=600&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=600&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?w=600&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=600&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?w=600&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1549719386-74dfcbf7dbed?w=600&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1598899134739-24c46f58b8c0?w=600&auto=format&fit=crop&q=80",
+];
+
+function getChannelInfo(channel: LiveChannel) {
+  const specific = LIVE_CHANNEL_INFO[channel.slug];
+  if (specific) return specific;
+
+  // Compute a deterministic unique cover index so EVERY channel has a distinct photo
+  let hash = 0;
+  const str = channel.slug || channel.name || channel._id || "ch";
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash * 31 + str.charCodeAt(i)) % UNIQUE_COVER_POOL.length;
+  }
+  const banner = channel.banner || UNIQUE_COVER_POOL[Math.abs(hash)];
+
+  const category = channel.categories?.[0]
+    ? channel.categories[0].charAt(0).toUpperCase() + channel.categories[0].slice(1)
+    : "Divers";
+
+  return {
+    program: channel.name,
+    subtitle: category,
+    banner,
+  };
+}
+
+function LiveChannelCard({
+  channel,
+  isFavorite,
+  onToggleFavorite,
+}: {
+  channel: LiveChannel;
+  isFavorite: boolean;
+  onToggleFavorite: (e: React.MouseEvent, slug: string) => void;
+}) {
+  const info = getChannelInfo(channel);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imgSrc, setImgSrc] = useState<string>(info.banner);
+
+  return (
+    <Link
+      href={`/live/${channel.slug}`}
+      className="group flex flex-col justify-start rounded-lg overflow-hidden bg-transparent transition-all duration-200 cursor-pointer w-full md:w-[260.688px] shrink-0"
+    >
+      {/* 1. Top 16:9 Thumbnail Image */}
+      <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-zinc-900 border border-white/10 group-hover:border-white/25 transition-all shadow-md">
+        {/* Shimmer Placeholder */}
+        <div
+          className={`absolute inset-0 skeleton-loading z-0 pointer-events-none transition-opacity duration-500 ease-out ${
+            imageLoaded ? "opacity-0" : "opacity-100"
+          }`}
+          aria-hidden="true"
+        />
+
+        <img
+          src={imgSrc}
+          alt={info.program}
+          onLoad={() => setImageLoaded(true)}
+          onError={() => {
+            setImgSrc(UNIQUE_COVER_POOL[0]);
+          }}
+          className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${
+            imageLoaded ? "opacity-100" : "opacity-0"
+          }`}
+          loading="lazy"
+        />
+
+        {/* Subtle bottom shadow to make channel logo pop */}
+        <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black/80 to-transparent pointer-events-none" />
+
+        {/* Channel Logo at Bottom-Left of thumbnail */}
+        <div className="absolute bottom-1.5 left-1.5 z-10">
+          <ChannelLogo channel={channel} />
+        </div>
+
+        {/* Favorite Button on Top-Right */}
+        <button
+          onClick={(e) => onToggleFavorite(e, channel.slug)}
+          className={`absolute top-1.5 right-1.5 p-1 rounded-full backdrop-blur-md transition-all cursor-pointer z-10 ${
+            isFavorite
+              ? "bg-amber-500/30 text-amber-400 border border-amber-500/50"
+              : "bg-black/60 text-zinc-400 hover:text-white hover:bg-black/90 opacity-0 group-hover:opacity-100"
+          }`}
+          aria-label="Favori"
+        >
+          <Star className={`h-3.5 w-3.5 ${isFavorite ? "fill-amber-400" : ""}`} />
+        </button>
+
+        {/* Red Live Progress Bar on Bottom Edge */}
+        <div className="absolute bottom-0 inset-x-0 h-[2.5px] bg-zinc-800 z-10">
+          <div className="h-full bg-red-600 w-2/3 rounded-r-full shadow-[0_0_6px_rgba(220,38,38,0.8)]" />
+        </div>
+      </div>
+
+      {/* 2. Bottom Row (Below Thumbnail): Title + Subtitle on Left, Play/Skip icon on Right */}
+      <div className="pt-2 px-0.5 flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <h3 className="text-xs sm:text-sm font-bold text-white truncate leading-tight group-hover:text-red-500 transition-colors">
+            {info.program}
+          </h3>
+          <p className="text-[11px] text-zinc-400 truncate mt-0.5 font-normal leading-tight">
+            {info.subtitle}
+          </p>
+        </div>
+
+        {/* Right Play / Skip Action Button matching Canal+ */}
+        <div className="w-6 h-6 rounded bg-zinc-800/80 group-hover:bg-zinc-700 text-zinc-400 group-hover:text-white flex items-center justify-center shrink-0 transition-all mt-0.5 border border-white/5">
+          <svg className="w-3 h-3 fill-current ml-0.5" viewBox="0 0 24 24">
+            <path d="M5 3l14 9-14 9V3z" />
+          </svg>
+        </div>
+      </div>
+    </Link>
+  );
+}
 
 function formatMatchTime(ts?: number): string {
   if (!ts) return "";
@@ -276,121 +562,63 @@ export default function LivePageContent() {
       {/* ── Matchs Foot par Championnat ───────────────────────── */}
       <LiveMatchesRow className="mb-8" noScrollMargin />
 
-      {/* ── Live Channel Cards Grid ─────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3.5 sm:gap-4 lg:gap-5">
+      {/* ── Live Channel Cards Grid (260.688px on PC, fluid responsive on mobile) ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-[repeat(auto-fill,260.688px)] gap-2.5 sm:gap-4 md:gap-5 justify-start">
         {/* 1. Special Multi-Live Card (always visible on 'all') */}
         {activeCategory === "all" && !search && (
           <div
             onClick={() => setIsMultiLiveOpen(true)}
-            className="group relative cursor-pointer flex flex-col rounded-xl overflow-hidden bg-gradient-to-br from-zinc-900 via-zinc-900/90 to-zinc-950 border border-white/10 hover:border-red-600/60 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-red-600/10"
+            className="group flex flex-col justify-start rounded-lg overflow-hidden bg-transparent transition-all duration-200 cursor-pointer w-full md:w-[260.688px] shrink-0"
           >
-            {/* 16:9 Thumbnail Mock */}
-            <div className="w-full aspect-video bg-zinc-950/80 flex items-center justify-center relative overflow-hidden p-6">
-              <div className="grid grid-cols-2 gap-1.5 w-16 h-12">
+            {/* Top 16:9 Thumbnail Mock */}
+            <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-zinc-950 border border-white/10 group-hover:border-red-600/50 transition-all shadow-md flex items-center justify-center p-4">
+              <div className="grid grid-cols-2 gap-1.5 w-20 h-12">
                 <div className="bg-zinc-700/80 rounded group-hover:bg-red-600/70 transition-colors" />
                 <div className="bg-zinc-700/80 rounded group-hover:bg-red-600/70 transition-colors" />
                 <div className="bg-zinc-700/80 rounded group-hover:bg-red-600/70 transition-colors" />
                 <div className="bg-zinc-700/80 rounded group-hover:bg-red-600/70 transition-colors" />
               </div>
 
-              {/* Multi-Live Badge */}
-              <div className="absolute top-2 right-2 px-2 py-0.5 rounded bg-red-600 text-[10px] font-black text-white uppercase tracking-wider">
+              {/* Multi-Live Badge Bottom-Left */}
+              <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-red-600 text-[9px] font-black text-white uppercase tracking-wider">
                 Multi-View
+              </div>
+
+              {/* Red Progress Bar on Bottom Edge */}
+              <div className="absolute bottom-0 inset-x-0 h-[2.5px] bg-zinc-800 z-10">
+                <div className="h-full bg-red-600 w-full rounded-r-full shadow-[0_0_6px_rgba(220,38,38,0.8)]" />
               </div>
             </div>
 
-            {/* Bottom Info */}
-            <div className="p-3 bg-zinc-900/90 flex items-center justify-between">
-              <div>
-                <h4 className="text-sm font-black text-white group-hover:text-red-500 transition-colors">
-                  Multi-Live
-                </h4>
-                <p className="text-[11px] text-zinc-400 font-medium">
+            {/* Bottom Row */}
+            <div className="pt-2 px-0.5 flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <h3 className="text-xs sm:text-sm font-bold text-white truncate leading-tight group-hover:text-red-500 transition-colors">
+                  Multi-Live (4 Écrans)
+                </h3>
+                <p className="text-[11px] text-zinc-400 truncate mt-0.5 font-normal leading-tight">
                   Regarder 4 chaînes en direct
                 </p>
               </div>
-              <div className="w-7 h-7 rounded-full bg-white/5 flex items-center justify-center text-zinc-400 group-hover:text-white group-hover:bg-red-600 transition-all">
-                <Play className="h-3.5 w-3.5 fill-current ml-0.5" />
+
+              <div className="w-6 h-6 rounded bg-zinc-800/80 group-hover:bg-red-600 text-zinc-400 group-hover:text-white flex items-center justify-center shrink-0 transition-all mt-0.5 border border-white/5">
+                <svg className="w-3 h-3 fill-current ml-0.5" viewBox="0 0 24 24">
+                  <path d="M5 3l14 9-14 9V3z" />
+                </svg>
               </div>
             </div>
           </div>
         )}
 
         {/* 2. Channel Cards */}
-        {filteredChannels.map((channel) => {
-          const info = CHANNEL_PROGRAMS[channel.slug] || {
-            program: channel.name,
-            category: channel.categories?.[0] ? `Direct · ${channel.categories[0].toUpperCase()}` : "Émission en Direct",
-          };
-          const isFav = favorites.includes(channel.slug);
-
-          return (
-            <Link
-              key={channel.slug}
-              href={`/live/${channel.slug}`}
-              className="group relative flex flex-col rounded-xl overflow-hidden bg-zinc-900/90 border border-white/10 hover:border-red-600/60 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-red-600/10"
-            >
-              {/* 16:9 Landscape Thumbnail Preview */}
-              <div className="w-full aspect-video bg-zinc-950 relative overflow-hidden">
-                {info.banner ? (
-                  <img
-                    src={info.banner}
-                    alt={channel.name}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    loading="lazy"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-tr from-zinc-900 to-zinc-800 flex items-center justify-center">
-                    <Television className="h-10 w-10 text-zinc-700" />
-                  </div>
-                )}
-
-                {/* Dark gradient overlay for readability */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20" />
-
-                {/* Channel Logo Overlay Bottom-Left */}
-                <div className="absolute bottom-2 left-2.5 flex items-center gap-2">
-                  <ChannelLogo channel={channel} />
-                </div>
-
-                {/* Favorite Button Top-Right */}
-                <button
-                  onClick={(e) => toggleFavorite(e, channel.slug)}
-                  className={`absolute top-2 right-2 p-1.5 rounded-full backdrop-blur-md transition-all ${
-                    isFav
-                      ? "bg-amber-500/30 text-amber-400 border border-amber-500/50"
-                      : "bg-black/50 text-zinc-400 hover:text-white hover:bg-black/70 opacity-0 group-hover:opacity-100"
-                  }`}
-                  aria-label="Favori"
-                >
-                  <Star className={`h-3.5 w-3.5 ${isFav ? "fill-amber-400" : ""}`} />
-                </button>
-
-                {/* Red Live Progress Bar Indicator */}
-                <div className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-zinc-800">
-                  <div className="h-full bg-red-600 w-3/4 rounded-r-full shadow-[0_0_8px_rgba(220,38,38,0.8)]" />
-                </div>
-              </div>
-
-              {/* Card Metadata / Footer */}
-              <div className="p-3 bg-zinc-900/95 flex items-center justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <h3 className="text-xs sm:text-sm font-bold text-white truncate leading-tight group-hover:text-red-400 transition-colors">
-                    {info.program}
-                  </h3>
-                  <p className="text-[11px] text-zinc-400 truncate mt-0.5 font-medium">
-                    {info.category}
-                  </p>
-                </div>
-
-                {/* Action button icon right side */}
-                <div className="flex-none text-zinc-500 group-hover:text-white transition-colors">
-                  <CaretCircleRight className="h-3.5 w-3.5" />
-                </div>
-              </div>
-            </Link>
-          );
-        })}
+        {filteredChannels.map((channel) => (
+          <LiveChannelCard
+            key={channel.slug}
+            channel={channel}
+            isFavorite={favorites.includes(channel.slug)}
+            onToggleFavorite={toggleFavorite}
+          />
+        ))}
       </div>
 
       {/* ── Empty State ─────────────────────────────────────────── */}

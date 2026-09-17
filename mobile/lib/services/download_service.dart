@@ -114,6 +114,11 @@ class DownloadService extends ChangeNotifier {
   final Map<String, CancelToken> _cancelTokens = {};
   final Map<String, RandomAccessFile> _openFiles = {};
 
+  /// Stream that emits a [DownloadTask] whenever one transitions to 'completed'.
+  /// Widgets (e.g. main_navigation) subscribe to this to show in-app toasts.
+  final _completionController = StreamController<DownloadTask>.broadcast();
+  Stream<DownloadTask> get onDownloadCompleted => _completionController.stream;
+
   /// Un `cancel()` de CancelToken est ambigu : il sert aussi bien à mettre en pause
   /// qu'à supprimer. On note donc l'intention pour distinguer 'paused' de 'error'.
   final Set<String> _pauseRequested = {};
@@ -317,6 +322,9 @@ class DownloadService extends ChangeNotifier {
 
     task.status = 'completed';
     debugPrint('[DownloadService] Téléchargement vidéo validé avec succès ($fileSize octets)');
+
+    // Notify subscribers (in-app overlay, etc.) of successful completion
+    _completionController.add(task);
 
     unawaited(NativeBridge.instance.notifyCompleted(
       title: task.episodeNumber != null

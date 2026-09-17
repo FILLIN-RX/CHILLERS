@@ -4,6 +4,7 @@ import React, { useMemo } from "react";
 import Image from "next/image";
 import { Play, Info } from "@phosphor-icons/react";
 import type { MovieOrShow } from "@/types/media";
+import Button from "@/components/Button";
 
 interface SpotlightGridProps {
   items: MovieOrShow[];
@@ -49,20 +50,25 @@ function SpotlightCard({
             {item.synopsis || item.description}
           </p>
           <div className="flex items-center gap-1.5 sm:gap-2">
-            <button
+            <Button
               onClick={() => onWatchNow(item)}
-              className="flex items-center gap-1 sm:gap-1.5 rounded-full bg-white px-2.5 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-bold text-black hover:bg-zinc-200 active:scale-95 transition-all"
+              variant="primary"
+              size="xs"
+              leftIcon={<Play className="h-3 w-3 fill-current" />}
+              ariaLabel={`Regarder ${item.title}`}
             >
-              <Play className="h-3 w-3 sm:h-3.5 sm:w-3.5" fill="currentColor" />
               Play Now
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={() => onOpenDetails(item)}
-              className="flex items-center gap-1 sm:gap-1.5 rounded-full bg-white/10 border border-white/20 px-2.5 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-bold text-white backdrop-blur-sm hover:bg-white/20 active:scale-95 transition-all"
+              variant="outline"
+              size="xs"
+              leftIcon={<Info className="h-3 w-3" />}
+              ariaLabel={`Détails de ${item.title}`}
+              className="backdrop-blur-sm bg-white/10 border-white/20 hover:bg-white/20"
             >
-              <Info className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
               Details
-            </button>
+            </Button>
           </div>
         </div>
 

@@ -22,6 +22,8 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { userService } from "@/services/user";
 import { PopupFirewall } from "@/lib/PopupFirewall";
+import Button from "@/components/Button";
+import CardImage from "@/components/CardImage";
 import { ArrowLeft, Play, Star, Clock, CalendarBlank, FilmSlate, DownloadSimple, ShareNetwork, CaretDown, CaretCircleRight, CaretCircleLeft } from "@phosphor-icons/react";
 
 function WatchContent() {
@@ -417,46 +419,22 @@ function WatchContent() {
     : null;
 
   const showPlayerSkeleton = (streamLoading || !playerItem) && !streamUnavailable;
-  const showPageSkeleton = pageLoading && !item;
 
-  if (showPageSkeleton) {
+  if (!pageLoading && !item) {
     return (
-      <div className="min-h-screen bg-[#09090B] text-white">
-        <div className="pt-[72px] pb-16 lg:pb-24 px-4 sm:px-6 md:px-12 lg:px-[4%] space-y-6">
-          <div className="w-full aspect-video bg-zinc-900 rounded-2xl sm:rounded-3xl animate-pulse" />
-          <div className="space-y-3">
-            <div className="flex gap-2">
-              <div className="h-5 w-14 bg-zinc-800 rounded-full animate-pulse" />
-              <div className="h-5 w-20 bg-zinc-800 rounded-full animate-pulse" />
-            </div>
-            <div className="h-9 bg-zinc-800 rounded-xl w-2/3 animate-pulse" />
-            <div className="h-4 bg-zinc-800 rounded w-1/3 animate-pulse" />
-            <div className="flex gap-3">
-              <div className="h-4 bg-zinc-800 rounded w-20 animate-pulse" />
-              <div className="h-4 bg-zinc-800 rounded w-16 animate-pulse" />
-              <div className="h-4 bg-zinc-800 rounded w-12 animate-pulse" />
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!item) {
-    return (
-      <div className="min-h-screen bg-[#09090B] text-white flex items-center justify-center px-4">
+      <div className="min-h-screen bg-[#09090B] text-white flex items-center justify-center px-4 pt-16">
         <div className="text-center space-y-4 max-w-md">
           <FilmSlate className="h-16 w-16 text-zinc-700 mx-auto" />
           <h1 className="text-xl font-bold text-white">{_("watch.contentNotFound")}</h1>
           <p className="text-zinc-400 text-sm">
             {_("watch.contentNotFoundDesc")}
           </p>
-          <button
+          <Button
             onClick={() => router.push("/")}
-            className="px-6 py-2.5 rounded-full bg-brand-primary text-white text-sm font-bold hover:bg-brand-primary/90 transition-colors"
-          >
-            {_("watch.backToHome")}
-          </button>
+            variant="primary"
+            size="md"
+            text={_("watch.backToHome")}
+          />
         </div>
       </div>
     );
@@ -467,15 +445,15 @@ function WatchContent() {
   return (
     <div className="min-h-screen bg-[#09090B] text-white">
       <div
-        className={`pt-0 pb-16 sm:pb-20 lg:pb-24 ${
+        className={`pt-[64px] sm:pt-[70px] pb-16 sm:pb-20 lg:pb-24 ${
           hasEpisodes ? "lg:pr-[24rem] xl:pr-[28rem]" : ""
         }`}
       >
         {/* Main Video Player Section */}
-        <div ref={playerRef} className="w-full">
-          <div className="w-full min-h-[200px] sm:min-h-[340px] md:min-h-[420px] aspect-video bg-black relative mx-auto overflow-hidden">
+        <div ref={playerRef} className="w-full bg-black">
+          <div className="w-full relative mx-auto">
             {streamUnavailable ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-6 bg-zinc-950/90">
+              <div className="w-full min-h-[220px] sm:min-h-[360px] aspect-video max-h-[75dvh] flex flex-col items-center justify-center gap-4 px-6 bg-zinc-950/90">
                 <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-zinc-800/80 flex items-center justify-center border border-zinc-700/50">
                   <FilmSlate className="h-8 w-8 sm:h-10 sm:w-10 text-zinc-500" />
                 </div>
@@ -501,7 +479,7 @@ function WatchContent() {
                 </div>
               </div>
             ) : showPlayerSkeleton ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-zinc-500 bg-zinc-950">
+              <div className="w-full min-h-[220px] sm:min-h-[360px] aspect-video max-h-[75dvh] flex flex-col items-center justify-center gap-3 text-zinc-500 bg-zinc-950">
                 <div className="animate-spin h-8 w-8 sm:h-10 sm:w-10 border-4 border-brand-primary border-t-transparent rounded-full" />
                 <p className="text-[10px] sm:text-xs uppercase tracking-widest font-bold">
                   {seasonLoading
@@ -511,24 +489,24 @@ function WatchContent() {
               </div>
             ) : (
               <>
-              <VideoPlayer
-                key={`${currentEpisode?.id ?? item.id}-${streamUrl}`}
-                item={playerItem!}
-                episode={currentEpisode}
-                onBack={() => router.back()}
-                onOpenDetails={(it) =>
-                  router.push(
-                    `/media/${it.id}?type=${
-                      it.type === "series" || it.type === "anime" ? "tv" : "movie"
-                    }`
-                  )
-                }
-              />
-              {isFullscreen && (
-                <span className="pointer-events-none absolute top-4 left-4 z-50 text-xs sm:text-sm font-black tracking-widest uppercase text-[#D70466] drop-shadow-lg">
-                  CHILLERS
-                </span>
-              )}
+                <VideoPlayer
+                  key={`${currentEpisode?.id ?? item?.id ?? id}-${streamUrl}`}
+                  item={playerItem!}
+                  episode={currentEpisode}
+                  onBack={() => router.back()}
+                  onOpenDetails={(it) =>
+                    router.push(
+                      `/media/${it.id}?type=${
+                        it.type === "series" || it.type === "anime" ? "tv" : "movie"
+                      }`
+                    )
+                  }
+                />
+                {isFullscreen && (
+                  <span className="pointer-events-none absolute top-4 left-4 z-50 text-xs sm:text-sm font-black tracking-widest uppercase text-[#D70466] drop-shadow-lg">
+                    CHILLERS
+                  </span>
+                )}
               </>
             )}
           </div>
@@ -569,99 +547,113 @@ function WatchContent() {
           )}
 
           {/* Title Header */}
-          <div className="space-y-1">
-            <span className="text-brand-primary font-black tracking-widest text-[9px] sm:text-xs uppercase">
-              CHILLERS {isTV ? "SÉRIE" : "FILM"}
-            </span>
+          {/* Title Header */}
+          {item ? (
+            <div className="space-y-1">
+              <span className="text-brand-primary font-black tracking-widest text-[9px] sm:text-xs uppercase">
+                CHILLERS {isTV ? "SÉRIE" : "FILM"}
+              </span>
 
-            <h1 className="text-lg sm:text-2xl md:text-3xl lg:text-4xl font-black text-white leading-tight break-words">
-              {item.title}
-            </h1>
+              <h1 className="text-lg sm:text-2xl md:text-3xl lg:text-4xl font-black text-white leading-tight break-words">
+                {item.title}
+              </h1>
 
-            {currentEpisode && (
-              <p className="text-zinc-400 text-[11px] sm:text-sm font-medium flex items-center gap-1.5 flex-wrap">
-                <span className="text-white font-bold">
-                  S{currentSeason} · E{currentEpisode.number}
-                </span>
-                <span className="text-zinc-600">·</span>
-                <span className="text-zinc-300 truncate max-w-[200px] sm:max-w-md">
-                  {currentEpisode.title}
-                </span>
-              </p>
-            )}
-          </div>
+              {currentEpisode && (
+                <p className="text-zinc-400 text-[11px] sm:text-sm font-medium flex items-center gap-1.5 flex-wrap">
+                  <span className="text-white font-bold">
+                    S{currentSeason} · E{currentEpisode.number}
+                  </span>
+                  <span className="text-zinc-600">·</span>
+                  <span className="text-zinc-300 truncate max-w-[200px] sm:max-w-md">
+                    {currentEpisode.title}
+                  </span>
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-2 animate-pulse">
+              <div className="h-3 w-20 bg-zinc-800 rounded" />
+              <div className="h-7 w-2/3 bg-zinc-800 rounded-lg" />
+            </div>
+          )}
 
           {/* Metadata Badges */}
-          <div className="flex flex-wrap items-center gap-1.5 sm:gap-3 text-[11px] sm:text-sm text-zinc-400 font-medium">
-            {item.rating > 0 && (
-              <span className="text-brand-primary font-bold flex items-center gap-1">
-                <Star className="h-3.5 w-3.5 sm:h-4 sm:w-4 fill-brand-primary" />
-                {Math.round(item.rating * 10)}%
+          {item ? (
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-3 text-[11px] sm:text-sm text-zinc-400 font-medium">
+              {item.rating > 0 && (
+                <span className="text-brand-primary font-bold flex items-center gap-1">
+                  <Star className="h-3.5 w-3.5 sm:h-4 sm:w-4 fill-brand-primary" />
+                  {Math.round(item.rating * 10)}%
+                </span>
+              )}
+              {item.year > 0 && (
+                <span className="flex items-center gap-1">
+                  <CalendarBlank className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-zinc-500" />
+                  {item.year}
+                </span>
+              )}
+              <span className="px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-[9px] sm:text-[10px] uppercase font-bold text-zinc-200">
+                HD
               </span>
-            )}
-            {item.year > 0 && (
               <span className="flex items-center gap-1">
-                <CalendarBlank className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-zinc-500" />
-                {item.year}
+                <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-zinc-500" />
+                {currentEpisode ? currentEpisode.duration : item.duration}
               </span>
-            )}
-            <span className="px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-[9px] sm:text-[10px] uppercase font-bold text-zinc-200">
-              HD
-            </span>
-            <span className="flex items-center gap-1">
-              <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-zinc-500" />
-              {currentEpisode ? currentEpisode.duration : item.duration}
-            </span>
-            {isTV && availableSeasons.length > 0 && (
-              <span className="text-[11px] sm:text-xs text-zinc-400">
-                {availableSeasons.length} saison{availableSeasons.length > 1 ? "s" : ""}
-              </span>
-            )}
-          </div>
+              {isTV && availableSeasons.length > 0 && (
+                <span className="text-[11px] sm:text-xs text-zinc-400">
+                  {availableSeasons.length} saison{availableSeasons.length > 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
+          ) : null}
 
           {/* Action Download Buttons */}
-          <div className="flex items-center gap-2 sm:gap-2.5 py-1 flex-wrap sm:flex-nowrap">
-            <button
-              onClick={() => handleDownloadSingle(currentEpisode)}
-              disabled={streamUnavailable}
-              className={`flex-1 min-w-[140px] flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 px-3 sm:px-4 rounded-xl font-bold text-xs sm:text-sm transition-all ${
-                streamUnavailable
-                  ? "bg-zinc-800/50 text-zinc-500 cursor-not-allowed"
-                  : "bg-zinc-800 text-white hover:bg-zinc-700 shadow-md active:scale-95"
-              }`}
-            >
-              <DownloadSimple className="h-4 w-4 text-zinc-300" />
-              <span className="truncate">{_("download.single")}</span>
-            </button>
+          {item ? (
+            <div className="flex items-center gap-2 sm:gap-2.5 py-1 flex-wrap sm:flex-nowrap">
+              <Button
+                onClick={() => handleDownloadSingle(currentEpisode)}
+                disabled={streamUnavailable}
+                variant="dark"
+                size="md"
+                text={_("download.single")}
+                leftIcon={<DownloadSimple className="h-4 w-4 text-zinc-300" />}
+                ariaLabel={_("download.single")}
+                className="flex-1 min-w-[140px]"
+              />
 
-            {isTV ? (
-              <button
-                onClick={() => setShowBatchDownloadModal(true)}
-                className="flex-1 min-w-[140px] flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 px-3 sm:px-4 rounded-xl font-bold text-xs sm:text-sm bg-brand-primary/20 border border-brand-primary/30 text-brand-primary hover:bg-brand-primary/30 transition-all active:scale-95"
-              >
-                <DownloadSimple className="h-4 w-4" />
-                <span className="truncate">{_("download.series")}</span>
-              </button>
-            ) : (
-              <button
-                onClick={handleShare}
-                className="flex-1 min-w-[120px] flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 px-3 sm:px-4 rounded-xl font-bold text-xs sm:text-sm bg-white/5 border border-white/10 text-zinc-300 hover:bg-white/10 hover:text-white transition-all active:scale-95"
-              >
-                <ShareNetwork className="h-4 w-4" />
-                <span className="truncate">{_("media.share")}</span>
-              </button>
-            )}
-          </div>
+              {isTV ? (
+                <Button
+                  onClick={() => setShowBatchDownloadModal(true)}
+                  variant="primary"
+                  size="md"
+                  text={_("download.series")}
+                  leftIcon={<DownloadSimple className="h-4 w-4" />}
+                  ariaLabel={_("download.series")}
+                  className="flex-1 min-w-[140px]"
+                />
+              ) : (
+                <Button
+                  onClick={handleShare}
+                  variant="outline"
+                  size="md"
+                  text={_("media.share")}
+                  leftIcon={<ShareNetwork className="h-4 w-4" />}
+                  ariaLabel={_("media.share")}
+                  className="flex-1 min-w-[120px]"
+                />
+              )}
+            </div>
+          ) : null}
 
           {/* Synopsis */}
-          {(currentEpisode?.synopsis || item.synopsis || item.description) && (
+          {(currentEpisode?.synopsis || item?.synopsis || item?.description) && (
             <p className="text-zinc-200 text-xs sm:text-sm leading-relaxed max-w-3xl">
-              {currentEpisode?.synopsis || item.synopsis || item.description}
+              {currentEpisode?.synopsis || item?.synopsis || item?.description}
             </p>
           )}
 
           {/* Cast */}
-          {item.cast && item.cast.length > 0 && item.cast[0] !== "Cast Info Unavailable" && (
+          {item?.cast && item.cast.length > 0 && item.cast[0] !== "Cast Info Unavailable" && (
             <div className="text-[11px] sm:text-sm text-zinc-400">
               <span className="text-zinc-500 font-semibold">{_("media.cast")}: </span>
               {item.cast.join(", ")}
@@ -874,22 +866,16 @@ function EpisodeCard({
       }`}
     >
       <div className="flex-none w-24 sm:w-28 md:w-32 aspect-video rounded-lg overflow-hidden bg-zinc-800 relative">
-        {ep.thumbnail ? (
-          <Image
-            src={ep.thumbnail}
-            alt={ep.title}
-            fill
-            className="object-cover transition-transform group-hover:scale-105"
-            sizes="128px"
-            loading="lazy"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <FilmSlate className="h-5 w-5 text-zinc-600" />
-          </div>
-        )}
+        <CardImage
+          src={ep.thumbnail}
+          alt={ep.title}
+          fill
+          className="object-cover transition-transform group-hover:scale-105"
+          sizes="128px"
+          fallbackText={`Épisode ${ep.number}`}
+        />
         {active && (
-          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-20 pointer-events-none">
             <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-brand-primary flex items-center justify-center shadow-lg">
               <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white fill-white ml-0.5" />
             </div>

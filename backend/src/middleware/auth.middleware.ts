@@ -27,3 +27,17 @@ export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction)
     res.status(401).json({ success: false, message: 'Non autorisé: Token invalide' });
   }
 };
+
+export const optionalAuth = (req: AuthRequest, res: Response, next: NextFunction): void => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      const decoded = jwt.verify(token, JWT_SECRET) as { id: string; role: string };
+      req.user = decoded;
+    }
+  } catch (error) {
+    // Ignore invalid token for optional auth
+  }
+  next();
+};

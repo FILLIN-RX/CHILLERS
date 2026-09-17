@@ -83,16 +83,17 @@ export default function DownloadFloatingBar() {
     dragRef.current.isDragging = false;
   }, []);
 
-  // Tasks: active + queued + paused (reload) + recently done
+  // Tasks: active + queued + recently done in current session (never stuck on old rehydrated tasks)
   const active = tasks.filter(
     (t) => t.status === "downloading" || t.status === "resolving",
   );
   const queued = tasks.filter((t) => t.status === "queued");
   const paused = tasks.filter((t) => t.status === "paused");
   const recentDone = tasks.filter(
-    (t) => t.status === "done" && Date.now() - t.updatedAt < 8_000,
+    (t) => t.status === "done" && Date.now() - t.updatedAt < 5_000,
   );
-  const visible = [...active, ...queued, ...paused, ...recentDone];
+  // Only show the floating bar if there are actively ongoing or queued tasks, or actively completed in this moment
+  const visible = active.length > 0 || queued.length > 0 ? [...active, ...queued, ...paused] : recentDone;
 
   if (visible.length === 0 || dismissed) return null;
 

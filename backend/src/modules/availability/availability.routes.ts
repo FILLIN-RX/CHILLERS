@@ -29,11 +29,12 @@ router.get('/status', adminMiddleware, (_req: AuthRequest, res: Response) => {
 router.get('/batch', async (req: Request, res: Response) => {
   try {
     const type = (req.query.type as string) === 'tv' ? 'tv' : 'movie';
+    const title = (req.query.title as string) || undefined;
     const ids = String(req.query.ids || '')
       .split(',')
       .map((s: string) => parseInt(s.trim(), 10))
       .filter((n: number) => !isNaN(n));
-    const data = await getBatchAvailability(type, ids);
+    const data = await getBatchAvailability(type, ids, title);
     res.json({ success: true, data, message: null });
   } catch (err: any) {
     res.status(500).json({ success: false, data: null, message: err.message });

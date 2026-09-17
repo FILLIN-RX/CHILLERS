@@ -75,43 +75,43 @@ export default function NetworkStatusBanner() {
       className="fixed bottom-20 sm:bottom-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 animate-in fade-in slide-in-from-bottom-3 max-w-[92vw]"
     >
       {isOffline ? (
-        <div className="flex items-center gap-2.5 pl-3.5 pr-2 py-2 rounded-full bg-zinc-900/95 border border-red-500/40 text-white text-xs font-semibold shadow-2xl backdrop-blur-md">
+        <div className="flex items-center gap-2.5 pl-3.5 pr-2 py-2 rounded-[2px] bg-zinc-900/95 border border-red-500/40 text-white text-xs font-semibold shadow-2xl backdrop-blur-md">
           <WifiSlash className="h-4 w-4 text-red-400 animate-pulse shrink-0" />
           <span className="truncate">Hors-ligne</span>
           <Link
             href="/downloads"
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-brand-primary hover:bg-brand-primary/90 text-white text-[11px] font-bold shadow transition-transform active:scale-95 shrink-0"
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[2px] bg-brand-primary hover:bg-brand-primary/90 text-white text-[11px] font-bold shadow transition-transform active:scale-95 shrink-0"
           >
             <DownloadSimple className="w-3 h-3" />
             <span>Mes Téléchargements</span>
           </Link>
           <button
             onClick={() => setDismissed(true)}
-            className="p-1 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-colors ml-1 cursor-pointer shrink-0"
+            className="p-1 rounded-[2px] text-zinc-400 hover:text-white hover:bg-white/10 transition-colors ml-1 cursor-pointer shrink-0"
             aria-label="Fermer"
           >
             <X className="h-3.5 w-3.5" />
           </button>
         </div>
       ) : showRestored ? (
-        <div className="flex items-center gap-2.5 pl-3.5 pr-2 py-1.5 rounded-full bg-emerald-950/90 border border-emerald-500/40 text-emerald-200 text-xs font-semibold shadow-2xl backdrop-blur-md">
+        <div className="flex items-center gap-2.5 pl-3.5 pr-2 py-1.5 rounded-[2px] bg-emerald-950/90 border border-emerald-500/40 text-emerald-200 text-xs font-semibold shadow-2xl backdrop-blur-md">
           <WifiHigh className="h-4 w-4 text-emerald-400 shrink-0" />
           <span>Connexion rétablie</span>
           <button
             onClick={() => setDismissed(true)}
-            className="p-1 rounded-full text-emerald-300 hover:text-white hover:bg-emerald-900/60 transition-colors ml-1 cursor-pointer"
+            className="p-1 rounded-[2px] text-emerald-300 hover:text-white hover:bg-emerald-900/60 transition-colors ml-1 cursor-pointer"
             aria-label="Fermer"
           >
             <X className="h-3.5 w-3.5" />
           </button>
         </div>
       ) : isLowBandwidth ? (
-        <div className="flex items-center gap-2.5 pl-3.5 pr-2 py-1.5 rounded-full bg-amber-950/90 border border-amber-500/40 text-amber-200 text-xs font-semibold shadow-2xl backdrop-blur-md">
+        <div className="flex items-center gap-2.5 pl-3.5 pr-2 py-1.5 rounded-[2px] bg-amber-950/90 border border-amber-500/40 text-amber-200 text-xs font-semibold shadow-2xl backdrop-blur-md">
           <CellSignalHigh className="h-4 w-4 text-amber-400 shrink-0" />
           <span>Réseau faible · Streaming optimisé</span>
           <button
             onClick={() => setDismissed(true)}
-            className="p-1 rounded-full text-amber-300 hover:text-white hover:bg-amber-900/60 transition-colors ml-1 cursor-pointer"
+            className="p-1 rounded-[2px] text-amber-300 hover:text-white hover:bg-amber-900/60 transition-colors ml-1 cursor-pointer"
             aria-label="Fermer"
           >
             <X className="h-3.5 w-3.5" />

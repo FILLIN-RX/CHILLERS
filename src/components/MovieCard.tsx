@@ -18,7 +18,8 @@ interface MovieCardProps {
   item: MovieOrShow;
   onPlay: (item: MovieOrShow) => void;
   onOpenDetails: (item: MovieOrShow) => void;
-  variant?: "scroll" | "grid" | "poster";
+  variant?: "scroll" | "grid" | "poster" | "grid-poster";
+  className?: string;
 }
 
 function MovieCard({
@@ -26,6 +27,7 @@ function MovieCard({
   onPlay,
   onOpenDetails,
   variant = "scroll",
+  className = "",
 }: MovieCardProps) {
   const { translate: _ } = useLanguage();
   const isLoggedIn = useAuthStore((s) => Boolean(s.token));
@@ -41,6 +43,8 @@ function MovieCard({
 
   const [imgError, setImgError] = useState(false);
   const [backdropFailed, setBackdropFailed] = useState(false);
+  const [posterLoaded, setPosterLoaded] = useState(false);
+  const [landscapeLoaded, setLandscapeLoaded] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
 
@@ -72,14 +76,15 @@ function MovieCard({
   const overlayRef = useRef<HTMLDivElement>(null);
   const buttonsRef = useRef<HTMLDivElement>(null);
 
-  const isPoster = variant === "poster";
+  const isPoster = variant === "poster" || variant === "grid-poster";
+  const isGridPoster = variant === "grid-poster";
   const posterSrc = item.posterUrl || item.backdropUrl;
   const backdropSrc = (!backdropFailed && item.backdropUrl) ? item.backdropUrl : item.posterUrl;
   const primarySrc = isPoster ? posterSrc : backdropSrc;
   const hasImage = !!primarySrc && !imgError;
 
   const sizeClass =
-    variant === "grid"
+    variant === "grid" || isGridPoster
       ? "w-full"
       : isPoster
         ? "flex-none w-[165px] sm:w-[195px] md:w-[225px] lg:w-[255px]"
@@ -115,9 +120,8 @@ function MovieCard({
     return null;
   }, [item.langueAudio, item.title]);
 
-  // GSAP Smooth Hover Animations (Prime Video Cinematic Easing)
+  // Smooth Hover Animations (Fast, hardware-accelerated transforms without layout shift)
   const handleMouseEnter = useCallback(() => {
-    // Sur mobile / écran tactile (sans hover), on ne déclenche pas d'animation de survol
     if (typeof window !== "undefined" && window.matchMedia && !window.matchMedia("(hover: hover)").matches) {
       return;
     }
@@ -125,52 +129,31 @@ function MovieCard({
     if (cardRef.current && document.contains(cardRef.current)) {
       gsap.to(cardRef.current, {
         y: -6,
-        scale: 1.02,
+        scale: 1.04,
         zIndex: 30,
-        duration: 0.48,
+        duration: 0.35,
         ease: "power2.out",
         overwrite: "auto",
       });
     }
 
-    if (isPoster) {
-      // Crossfade from vertical poster to wide backdrop
-      if (backdropRef.current && document.contains(backdropRef.current)) {
-        gsap.to(backdropRef.current, {
-          opacity: 1,
-          scale: 1.05,
-          duration: 0.52,
-          ease: "power2.out",
-          overwrite: "auto",
-        });
-      }
-      if (posterRef.current && document.contains(posterRef.current)) {
-        gsap.to(posterRef.current, {
-          opacity: 0,
-          duration: 0.35,
-          ease: "power2.out",
-          overwrite: "auto",
-        });
-      }
-    } else {
-      if (posterRef.current && document.contains(posterRef.current)) {
-        gsap.to(posterRef.current, {
-          scale: 1.06,
-          duration: 0.5,
-          ease: "power2.out",
-          overwrite: "auto",
-        });
-      }
+    if (posterRef.current && document.contains(posterRef.current)) {
+      gsap.to(posterRef.current, {
+        scale: 1.05,
+        duration: 0.4,
+        ease: "power2.out",
+        overwrite: "auto",
+      });
     }
 
     if (overlayRef.current && document.contains(overlayRef.current)) {
       gsap.fromTo(
         overlayRef.current,
-        { opacity: 0, y: 12 },
+        { opacity: 0, y: 8 },
         {
           opacity: 1,
           y: 0,
-          duration: 0.42,
+          duration: 0.3,
           ease: "power2.out",
           overwrite: "auto",
         }
@@ -184,14 +167,14 @@ function MovieCard({
         {
           scale: 1,
           opacity: 1,
-          stagger: 0.05,
-          duration: 0.35,
+          stagger: 0.04,
+          duration: 0.28,
           ease: "back.out(1.4)",
           overwrite: "auto",
         }
       );
     }
-  }, [isPoster]);
+  }, []);
 
   const handleMouseLeave = useCallback(() => {
     if (cardRef.current && document.contains(cardRef.current)) {
@@ -199,54 +182,38 @@ function MovieCard({
         y: 0,
         scale: 1,
         zIndex: 1,
-        duration: 0.38,
+        duration: 0.28,
         ease: "power2.inOut",
         overwrite: "auto",
       });
     }
 
-    if (isPoster) {
-      if (backdropRef.current && document.contains(backdropRef.current)) {
-        gsap.to(backdropRef.current, {
-          opacity: 0,
-          scale: 1,
-          duration: 0.35,
-          ease: "power2.inOut",
-          overwrite: "auto",
-        });
-      }
-      if (posterRef.current && document.contains(posterRef.current)) {
-        gsap.to(posterRef.current, {
-          opacity: 1,
-          duration: 0.35,
-          ease: "power2.inOut",
-          overwrite: "auto",
-        });
-      }
-    } else {
-      if (posterRef.current && document.contains(posterRef.current)) {
-        gsap.to(posterRef.current, {
-          scale: 1,
-          duration: 0.35,
-          ease: "power2.inOut",
-          overwrite: "auto",
-        });
-      }
+    if (posterRef.current && document.contains(posterRef.current)) {
+      gsap.to(posterRef.current, {
+        scale: 1,
+        duration: 0.28,
+        ease: "power2.inOut",
+        overwrite: "auto",
+      });
     }
 
     if (overlayRef.current && document.contains(overlayRef.current)) {
       gsap.to(overlayRef.current, {
         opacity: 0,
         y: 8,
-        duration: 0.28,
+        duration: 0.2,
         ease: "power2.in",
         overwrite: "auto",
       });
     }
-  }, [isPoster]);
+  }, []);
 
-  // Prime Video Style Poster Card: Full-bleed wide expansion with overlayed details at bottom
+  // Premium Vertical Poster Card (Fluid, stable width without flex layout reflow)
   if (isPoster) {
+    const posterCardClass = isGridPoster
+      ? `group relative w-full aspect-[2/3] cursor-pointer rounded-2xl overflow-hidden bg-zinc-950 shadow-[0_8px_24px_rgba(0,0,0,0.6)] hover:shadow-[0_16px_40px_rgba(0,0,0,0.9)] transition-shadow duration-300 ${className}`
+      : `group relative flex-none h-[250px] sm:h-[295px] md:h-[340px] lg:h-[385px] w-[165px] sm:w-[195px] md:w-[225px] lg:w-[255px] cursor-pointer rounded-2xl overflow-hidden bg-zinc-950 shadow-[0_8px_24px_rgba(0,0,0,0.6)] hover:shadow-[0_16px_40px_rgba(0,0,0,0.9)] transition-shadow duration-300 ${className}`;
+
     return (
       <div
         ref={cardRef}
@@ -257,18 +224,38 @@ function MovieCard({
         }}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
-        className="group relative flex-none h-[250px] sm:h-[295px] md:h-[340px] lg:h-[385px] w-[165px] sm:w-[195px] md:w-[225px] lg:w-[255px] sm:hover:w-[380px] md:hover:w-[440px] lg:hover:w-[500px] transition-all duration-500 ease-out cursor-pointer rounded-2xl overflow-hidden bg-zinc-950 shadow-[0_12px_36px_rgba(0,0,0,0.7)] hover:shadow-[0_24px_60px_rgba(0,0,0,0.95)] hover:z-30"
+        className={posterCardClass}
       >
-        {/* 1. Base Vertical Poster Image (visible when not hovered) */}
-        <div ref={posterRef} className="absolute inset-0 w-full h-full bg-zinc-900 transition-opacity duration-300">
+        {/* 1. Base Vertical Poster Image */}
+        <div ref={posterRef} className="relative w-full h-full bg-zinc-900 overflow-hidden">
+          {/* Shimmer Placeholder */}
+          {!imgError && (
+            <div
+              className={`absolute inset-0 skeleton-loading z-10 pointer-events-none transition-opacity duration-500 ease-out ${
+                posterLoaded ? "opacity-0" : "opacity-100"
+              }`}
+              aria-hidden="true"
+            />
+          )}
           {posterSrc && !imgError ? (
             <Image
               src={posterSrc}
               alt={item.title}
               fill
-              className="object-cover object-top"
-              sizes="(max-width: 640px) 165px, (max-width: 768px) 195px, 255px"
+              className={`object-cover object-top transition-opacity duration-500 ease-out will-change-[opacity] ${
+                posterLoaded ? "opacity-100" : "opacity-0"
+              }`}
+              sizes={
+                isGridPoster
+                  ? "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+                  : "(max-width: 640px) 165px, (max-width: 768px) 195px, 255px"
+              }
               loading="lazy"
+              onLoad={() => setPosterLoaded(true)}
+              onError={() => {
+                setImgError(true);
+                setPosterLoaded(true);
+              }}
             />
           ) : (
             <div className={`w-full h-full flex flex-col items-center justify-center gap-2 bg-gradient-to-br ${gradients[gradientIndex]} p-3 text-center`}>
@@ -278,37 +265,19 @@ function MovieCard({
           )}
         </div>
 
-        {/* 2. Full-bleed Landscape Backdrop Image (crossfades on hover) */}
-        <div
-          ref={backdropRef}
-          style={{ opacity: 0 }}
-          className="hidden sm:block absolute inset-0 w-full h-full bg-zinc-900 pointer-events-none"
-        >
-          {backdropSrc ? (
-            <Image
-              src={backdropSrc}
-              alt={item.title}
-              fill
-              className="object-cover object-top"
-              sizes="(max-width: 1024px) 440px, 500px"
-              loading="lazy"
-            />
-          ) : null}
-        </div>
-
         {/* Top-right "NOUVEAU" or Type Badge & Audio & Bookmark */}
-        <div className="absolute top-3 right-3 z-20 flex flex-col items-end gap-1.5">
+        <div className="absolute top-2.5 right-2.5 z-20 flex flex-col items-end gap-1.5 pointer-events-auto">
           <div className="flex items-center gap-1">
             {audioBadge && (
-              <span className={`rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider shadow-lg ${
+              <span className={`rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider shadow-sm ${
                 audioBadge.isFrench 
-                  ? 'bg-[#D70466]/90 text-white border border-[#D70466]/30' 
-                  : 'bg-amber-600/90 text-white border border-amber-400/30'
+                  ? 'bg-brand-primary text-white' 
+                  : 'bg-amber-600 text-white'
               }`}>
                 {audioBadge.label}
               </span>
             )}
-            <span className="rounded-md glass-badge px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-zinc-200 shadow-lg">
+            <span className="rounded-md glass-badge px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-zinc-200 shadow-sm">
               {item.isTrending ? "NOUVEAU" : item.type === "series" ? "SÉRIE" : item.type === "anime" ? "ANIME" : "FILM"}
             </span>
           </div>
@@ -320,23 +289,19 @@ function MovieCard({
                   setShowPlaylistModal(true);
                 }}
                 title="Enregistrer dans..."
-                className="rounded-full p-1.5 shadow-lg backdrop-blur-md transition-all bg-black/40 text-cyan-400 hover:bg-black/70 border border-white/20 hover:scale-105"
+                className="rounded-full p-1.5 shadow-md backdrop-blur-md transition-all bg-black/50 text-cyan-400 hover:bg-black/80 hover:scale-105 cursor-pointer"
               >
-                <ListNumbers className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <ListNumbers className="w-3.5 h-3.5" />
               </button>
 
               <button 
                 onClick={toggleFavorite}
                 disabled={favoriteLoading}
-                className={`rounded-full p-1.5 shadow-lg backdrop-blur-md transition-all ${
-                  isFavorite ? 'bg-[#D70466]/90 text-white' : 'bg-black/40 text-white hover:bg-black/60 border border-white/20'
+                className={`rounded-full p-1.5 shadow-md backdrop-blur-md transition-all cursor-pointer ${
+                  isFavorite ? 'bg-brand-primary text-white' : 'bg-black/50 text-white hover:bg-black/80'
                 }`}
               >
-                {isFavorite ? (
-                  <BookmarkSimple className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                ) : (
-                  <BookmarkSimple className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                )}
+                <BookmarkSimple className="w-3.5 h-3.5" />
               </button>
             </div>
           )}
@@ -344,78 +309,85 @@ function MovieCard({
 
         {/* Top-left Rating Badge */}
         {Boolean(item.rating) && (
-          <div className="absolute top-3 left-3 z-10 flex items-center gap-1 rounded-md glass-badge px-2 py-0.5 text-[10px] font-bold">
+          <div className="absolute top-2.5 left-2.5 z-10 flex items-center gap-1 rounded-md glass-badge px-2 py-0.5 text-[10px] font-bold">
             <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
             <span className="text-amber-400">{item.rating}</span>
           </div>
         )}
 
         {/* Bottom Crown Badge (collapsed state) */}
-        <div className="absolute bottom-3 left-3 z-10 group-hover:opacity-0 transition-opacity duration-300">
-          <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-amber-500/90 text-xs shadow-md">
+        <div className="absolute bottom-2.5 left-2.5 z-10 group-hover:opacity-0 transition-opacity duration-200">
+          <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-amber-500 text-xs shadow-md">
             👑
           </span>
         </div>
 
-        {/* 3. Bottom Cinematic Gradient & Details Overlay (Visible on Hover like Prime Video) */}
+        {/* Bottom Cinematic Gradient & Details Overlay (Visible smoothly on Hover) */}
         <div
           ref={overlayRef}
           style={{ opacity: 0, transform: "translateY(8px)" }}
-          className="hidden sm:flex absolute inset-0 flex-col justify-end p-4 sm:p-5 bg-gradient-to-t from-black via-black/75 to-transparent z-20 pointer-events-none group-hover:pointer-events-auto"
+          className="absolute inset-0 flex flex-col justify-end p-3.5 sm:p-4 bg-gradient-to-t from-black via-black/85 to-transparent z-20 pointer-events-none group-hover:pointer-events-auto"
         >
-          <div className="space-y-2.5">
+          <div className="space-y-2">
             {/* Title */}
-            <h3 className="text-base sm:text-xl font-black text-white leading-tight line-clamp-1 drop-shadow-md">
+            <h3 className="text-sm sm:text-base font-bold text-white leading-tight line-clamp-1 drop-shadow-md">
               {item.title}
             </h3>
 
-            {/* Action Buttons (Prime Video style) */}
-            <div ref={buttonsRef} className="flex items-center gap-2.5 pt-1">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleMouseLeave();
-                  onOpenDetails(item);
-                }}
-                className="py-2 px-4 rounded-xl glass-button text-white font-bold text-xs transition-all text-center truncate cursor-pointer shadow-lg"
-              >
-                Plus d&apos;informations
-              </button>
-
+            {/* Action Buttons */}
+            <div ref={buttonsRef} className="flex items-center gap-2 pt-0.5">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   handleMouseLeave();
                   onPlay(item);
                 }}
-                aria-label={_("media.watch")}
-                className="h-8 w-8 rounded-xl bg-white text-black hover:bg-zinc-200 hover:scale-105 active:scale-95 flex items-center justify-center shrink-0 shadow-lg transition-all cursor-pointer"
+                className="flex-1 py-1.5 px-3 rounded-xl bg-brand-primary hover:bg-brand-primary/90 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer"
               >
-                <Play className="h-4 w-4 fill-black translate-x-[0.5px]" />
+                <Play className="h-3.5 w-3.5 fill-white translate-x-[0.5px]" />
+                <span>Regarder</span>
+              </button>
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleMouseLeave();
+                  onOpenDetails(item);
+                }}
+                title="Détails"
+                aria-label={_("media.details")}
+                className="h-8 w-8 rounded-xl glass-button text-white flex items-center justify-center shrink-0 active:scale-95 transition-all cursor-pointer"
+              >
+                <Info className="h-4 w-4" />
               </button>
             </div>
 
             {/* Metadata Tags */}
-            <div className="flex items-center gap-2 text-[11px] sm:text-xs text-zinc-300 font-medium flex-wrap pt-0.5">
+            <div className="flex items-center gap-1.5 text-[10px] text-zinc-300 font-medium flex-wrap pt-0.5">
               {item.rating && (
-                <span className="glass-badge px-1.5 py-0.5 rounded text-amber-400 font-bold">
-                  ★ {item.rating}
-                </span>
+                <span className="text-amber-400 font-bold">★ {item.rating}</span>
               )}
               {item.genres && item.genres.length > 0 && (
-                <span className="text-zinc-300">{item.genres.slice(0, 2).join(", ")}</span>
+                <span>• {item.genres[0]}</span>
               )}
-              {item.duration && <span>• {item.duration}</span>}
               {item.year && <span>• {item.year}</span>}
-            </div>
-
-            {/* Prime / Chillers Tagline */}
-            <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 font-medium pt-0.5">
-              <span className="text-amber-400">👑</span>
-              <span>Inclus avec Chillers</span>
             </div>
           </div>
         </div>
+
+        {showPlaylistModal && (
+          <AddToPlaylistModal
+            isOpen={showPlaylistModal}
+            onClose={() => setShowPlaylistModal(false)}
+            media={{
+              tmdbId: String(item.id),
+              mediaType: item.type === "series" ? "series" : item.type === "anime" ? "anime" : "movie",
+              title: item.title,
+              posterPath: item.posterUrl,
+              backdropPath: item.backdropUrl,
+            }}
+          />
+        )}
       </div>
     );
   }
@@ -431,24 +403,37 @@ function MovieCard({
       }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className={`group relative ${sizeClass} cursor-pointer`}
+      className={`group relative ${sizeClass} cursor-pointer ${className}`}
     >
       {/* Landscape 16:9 box */}
       <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-zinc-900 shadow-md transition-colors duration-300">
+        {/* Shimmer Placeholder with smooth crossfade */}
+        {!imgError && (
+          <div
+            className={`absolute inset-0 skeleton-loading z-10 pointer-events-none transition-opacity duration-700 ease-out ${
+              landscapeLoaded ? "opacity-0" : "opacity-100"
+            }`}
+            aria-hidden="true"
+          />
+        )}
         <div ref={posterRef} className="relative w-full h-full">
           {hasImage ? (
             <Image
               src={primarySrc}
               alt={item.title}
               fill
-              className="object-cover object-top"
+              className={`object-cover object-top transition-opacity duration-700 ease-out will-change-[opacity] ${
+                landscapeLoaded ? "opacity-100" : "opacity-0"
+              }`}
               loading="lazy"
+              onLoad={() => setLandscapeLoaded(true)}
               onError={() => {
                 if (!backdropFailed && item.posterUrl) {
                   setBackdropFailed(true);
                 } else {
                   setImgError(true);
                 }
+                setLandscapeLoaded(true);
               }}
               sizes={
                 variant === "grid"

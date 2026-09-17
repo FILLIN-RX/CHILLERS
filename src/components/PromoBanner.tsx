@@ -4,6 +4,7 @@ import React from "react";
 import Image from "next/image";
 import { Play, Info, Flame } from "@phosphor-icons/react";
 import type { MovieOrShow } from "@/types/media";
+import Button from "@/components/Button";
 
 interface PromoBannerProps {
   item: MovieOrShow;
@@ -58,20 +59,25 @@ export default function PromoBanner({ item, onWatchNow, onOpenDetails }: PromoBa
             </p>
 
             <div className="flex items-center gap-2.5">
-              <button
+              <Button
                 onClick={() => onWatchNow(item)}
-                className="flex items-center gap-2 rounded-full bg-white px-4 sm:px-5 py-2 text-sm sm:text-base font-bold text-black hover:bg-zinc-200 active:scale-95 transition-all"
+                variant="primary"
+                size="md"
+                leftIcon={<Play className="h-4 w-4 sm:h-5 sm:w-5 fill-current" />}
+                ariaLabel={`Regarder ${item.title}`}
               >
-                <Play className="h-4 w-4 sm:h-5 sm:w-5" fill="currentColor" />
                 Regarder
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={() => onOpenDetails(item)}
-                className="flex items-center gap-2 rounded-full bg-white/10 border border-white/20 px-4 sm:px-5 py-2 text-sm sm:text-base font-bold text-white backdrop-blur-sm hover:bg-white/20 active:scale-95 transition-all"
+                variant="outline"
+                size="md"
+                leftIcon={<Info className="h-4 w-4 sm:h-5 sm:w-5" />}
+                ariaLabel={`Détails de ${item.title}`}
+                className="backdrop-blur-sm bg-white/10 border-white/20 hover:bg-white/20"
               >
-                <Info className="h-4 w-4 sm:h-5 sm:w-5" />
                 Détails
-              </button>
+              </Button>
             </div>
           </div>
         </div>

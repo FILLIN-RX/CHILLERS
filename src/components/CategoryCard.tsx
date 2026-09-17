@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useCallback } from "react";
+import React, { useRef, useCallback, useState } from "react";
 import Image from "next/image";
 import gsap from "gsap";
 
@@ -19,9 +19,11 @@ export default function CategoryCard({ category, onClick }: CategoryCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const labelRef = useRef<HTMLHeadingElement>(null);
+  const [imgLoaded, setImgLoaded] = useState(false);
 
+  // GSAP 3D depth & scale hover
   const handleMouseEnter = useCallback(() => {
-    if (cardRef.current) {
+    if (cardRef.current && document.contains(cardRef.current)) {
       gsap.to(cardRef.current, {
         y: -4,
         scale: 1.03,
@@ -30,27 +32,26 @@ export default function CategoryCard({ category, onClick }: CategoryCardProps) {
         overwrite: "auto",
       });
     }
-    if (imgRef.current) {
+    if (imgRef.current && document.contains(imgRef.current)) {
       gsap.to(imgRef.current, {
         scale: 1.1,
-        duration: 0.6,
+        duration: 0.45,
         ease: "power2.out",
         overwrite: "auto",
       });
     }
-    if (labelRef.current) {
+    if (labelRef.current && document.contains(labelRef.current)) {
       gsap.to(labelRef.current, {
-        scale: 1.08,
-        y: -2,
+        scale: 1.05,
         duration: 0.3,
-        ease: "back.out(1.4)",
+        ease: "power2.out",
         overwrite: "auto",
       });
     }
   }, []);
 
   const handleMouseLeave = useCallback(() => {
-    if (cardRef.current) {
+    if (cardRef.current && document.contains(cardRef.current)) {
       gsap.to(cardRef.current, {
         y: 0,
         scale: 1,
@@ -59,18 +60,17 @@ export default function CategoryCard({ category, onClick }: CategoryCardProps) {
         overwrite: "auto",
       });
     }
-    if (imgRef.current) {
+    if (imgRef.current && document.contains(imgRef.current)) {
       gsap.to(imgRef.current, {
         scale: 1,
-        duration: 0.4,
+        duration: 0.35,
         ease: "power2.out",
         overwrite: "auto",
       });
     }
-    if (labelRef.current) {
+    if (labelRef.current && document.contains(labelRef.current)) {
       gsap.to(labelRef.current, {
         scale: 1,
-        y: 0,
         duration: 0.25,
         ease: "power2.out",
         overwrite: "auto",
@@ -86,15 +86,26 @@ export default function CategoryCard({ category, onClick }: CategoryCardProps) {
       onMouseLeave={handleMouseLeave}
       className="group relative aspect-[16/10] w-full rounded-2xl overflow-hidden bg-zinc-950 border border-white/10 hover:border-white/25 hover:shadow-[0_12px_36px_rgba(215,4,102,0.25)] cursor-pointer transition-colors duration-300"
     >
+      {/* Shimmer Placeholder with smooth crossfade */}
+      <div
+        className={`absolute inset-0 skeleton-loading z-10 pointer-events-none transition-opacity duration-700 ease-out ${
+          imgLoaded ? "opacity-0" : "opacity-100"
+        }`}
+        aria-hidden="true"
+      />
+
       {/* Category Image */}
       <Image
         ref={imgRef}
         src={category.imageUrl}
         alt={category.name}
         fill
-        className="object-cover brightness-75 group-hover:brightness-90 transition-all duration-300"
+        className={`object-cover brightness-75 group-hover:brightness-90 transition-opacity duration-700 ease-out will-change-[opacity] ${
+          imgLoaded ? "opacity-100" : "opacity-0"
+        }`}
         sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 20vw"
         loading="lazy"
+        onLoad={() => setImgLoaded(true)}
       />
 
       {/* Luxury Glass Cinematic Gradient Overlay */}

@@ -112,13 +112,7 @@ export default async function WatchPage({ params, searchParams }: Props) {
   } catch {}
 
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-[#09090B] flex items-center justify-center">
-          <div className="h-12 w-12 border-4 border-zinc-700 border-t-brand-primary rounded-full animate-spin" />
-        </div>
-      }
-    >
+    <Suspense fallback={null}>
       {jsonLd && (
         <script
           type="application/ld+json"

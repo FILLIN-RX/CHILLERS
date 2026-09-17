@@ -33,6 +33,7 @@ export default function ContinueWatchingCard({
 
   const { user } = useAuthStore();
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
 
   const imgSrc = item.backdropUrl || item.posterUrl || PLACEHOLDER_POSTER;
 
@@ -105,14 +106,23 @@ export default function ContinueWatchingCard({
     >
       {/* 16:9 landscape box with glass border & rounded corners */}
       <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-zinc-900 border border-white/10 group-hover:border-white/25 shadow-lg transition-colors duration-300">
+        <div
+          className={`absolute inset-0 skeleton-loading z-10 pointer-events-none transition-opacity duration-700 ease-out ${
+            imgLoaded ? "opacity-0" : "opacity-100"
+          }`}
+          aria-hidden="true"
+        />
         <div ref={imgRef} className="relative w-full h-full">
           <Image
             src={imgSrc}
             alt={item.title}
             fill
-            className="object-cover"
+            className={`object-cover transition-opacity duration-700 ease-out will-change-[opacity] ${
+              imgLoaded ? "opacity-100" : "opacity-0"
+            }`}
             sizes="(max-width: 640px) 250px, (max-width: 768px) 300px, (max-width: 1024px) 360px, 420px"
             loading="lazy"
+            onLoad={() => setImgLoaded(true)}
           />
         </div>
 

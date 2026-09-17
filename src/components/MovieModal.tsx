@@ -11,6 +11,7 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { acquireModalScrollLock, releaseModalScrollLock } from "@/lib/modalScrollLock";
 import { useAuthStore } from "@/stores/useAuthStore";
 import AddToPlaylistModal from "@/components/AddToPlaylistModal";
+import Button from "@/components/ui/Button";
 
 interface MovieModalProps {
   item: MovieOrShow | null;
@@ -264,35 +265,37 @@ export default function MovieModal({
           {/* Buttons + synopsis */}
           <div className="space-y-4">
             <div className="flex items-center gap-3 flex-wrap">
-              <button
+              <Button
                 onClick={() => onWatch(item)}
-                className="flex items-center gap-2 rounded-xl bg-brand-primary hover:bg-brand-primary/90 text-white px-6 py-2.5 font-bold text-sm transition-all shadow-lg shadow-brand-primary/25 cursor-pointer hover:scale-105 active:scale-95"
-              >
-                <Play className="h-4 w-4 fill-white" />
-                {_("media.watch")}
-              </button>
+                variant="primary"
+                size="md"
+                text={_("media.watch")}
+                leftIcon={<Play className="h-4 w-4 fill-white" />}
+                ariaLabel={`Regarder ${effective.title}`}
+              />
 
-              <button
+              <Button
                 onClick={() => {
                   handleClose();
                   const isTV = effective.type === "series" || effective.type === "anime";
                   router.push(isTV ? `/tv/${effective.id}` : `/media/${effective.id}`);
                 }}
-                className="flex items-center gap-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white px-4 py-2.5 font-bold text-sm transition-all cursor-pointer hover:scale-105 active:scale-95 backdrop-blur-md"
-              >
-                <Info className="h-4 w-4" />
-                <span>Voir la fiche</span>
-              </button>
+                variant="outline"
+                size="md"
+                text="Voir la fiche"
+                leftIcon={<Info className="h-4 w-4" />}
+                ariaLabel={`Voir la fiche complète de ${effective.title}`}
+              />
 
               {user && (
-                <button
+                <Button
                   onClick={() => setShowPlaylistModal(true)}
-                  title="Enregistrer dans une playlist ou À regarder plus tard"
-                  className="flex items-center gap-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-cyan-400 hover:text-white px-4 py-2.5 font-bold text-sm transition-all cursor-pointer hover:scale-105 active:scale-95 backdrop-blur-md"
-                >
-                  <ListNumbers className="h-4 w-4" />
-                  <span>Enregistrer</span>
-                </button>
+                  variant="outline"
+                  size="md"
+                  text="Enregistrer"
+                  leftIcon={<ListNumbers className="h-4 w-4 text-cyan-400" />}
+                  ariaLabel="Enregistrer dans une playlist"
+                />
               )}
             </div>
 

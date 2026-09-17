@@ -10,6 +10,7 @@ import ScrollRow from "@/components/ScrollRow";
 import SpotlightGrid from "@/components/SpotlightGrid";
 import MostViewedMovie from "@/components/MostViewedMovie";
 import LiveMatchesRow from "@/components/LiveMatchesRow";
+import Button from "@/components/Button";
 import { useLanguage } from "@/i18n/LanguageContext";
 import {
   MovieOrShow,
@@ -1050,28 +1051,26 @@ function Home() {
                   {africanMoviesData.length > 0 && (
                     <div className="space-y-3">
                       <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                        <button
+                        <Button
                           onClick={() => handleCountrySelect("")}
-                          className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${
-                            selectedAfricanCountry === ""
-                              ? "bg-brand-primary text-white"
-                              : "bg-zinc-800 text-zinc-400 hover:text-white"
-                          }`}
+                          variant={selectedAfricanCountry === "" ? "primary" : "dark"}
+                          size="xs"
+                          ariaLabel="Tous les pays"
+                          className="whitespace-nowrap rounded-full"
                         >
                           Tous les pays
-                        </button>
+                        </Button>
                         {AFRICAN_COUNTRIES.map((country) => (
-                          <button
+                          <Button
                             key={country.code}
                             onClick={() => handleCountrySelect(country.code)}
-                            className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${
-                              selectedAfricanCountry === country.code
-                                ? "bg-brand-primary text-white"
-                                : "bg-zinc-800 text-zinc-400 hover:text-white"
-                            }`}
+                            variant={selectedAfricanCountry === country.code ? "primary" : "dark"}
+                            size="xs"
+                            ariaLabel={country.name}
+                            className="whitespace-nowrap rounded-full"
                           >
                             {country.name}
-                          </button>
+                          </Button>
                         ))}
                       </div>
                       <ScrollRow title={selectedAfricanCountry ? `Films: ${AFRICAN_COUNTRIES.find((c) => c.code === selectedAfricanCountry)?.name}` : "Films Africains"} accentColor="secondary">
@@ -1130,28 +1129,26 @@ function Home() {
                   {africanSeriesData.length > 0 && (
                     <div className="space-y-3">
                       <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                        <button
+                        <Button
                           onClick={() => handleCountrySelect("")}
-                          className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${
-                            selectedAfricanCountry === ""
-                              ? "bg-brand-primary text-white"
-                              : "bg-zinc-800 text-zinc-400 hover:text-white"
-                          }`}
+                          variant={selectedAfricanCountry === "" ? "primary" : "dark"}
+                          size="xs"
+                          ariaLabel="Tous les pays"
+                          className="whitespace-nowrap rounded-full"
                         >
                           Tous les pays
-                        </button>
+                        </Button>
                         {AFRICAN_COUNTRIES.map((country) => (
-                          <button
+                          <Button
                             key={country.code}
                             onClick={() => handleCountrySelect(country.code)}
-                            className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${
-                              selectedAfricanCountry === country.code
-                                ? "bg-brand-primary text-white"
-                                : "bg-zinc-800 text-zinc-400 hover:text-white"
-                            }`}
+                            variant={selectedAfricanCountry === country.code ? "primary" : "dark"}
+                            size="xs"
+                            ariaLabel={country.name}
+                            className="whitespace-nowrap rounded-full"
                           >
                             {country.name}
-                          </button>
+                          </Button>
                         ))}
                       </div>
                       <ScrollRow title={selectedAfricanCountry ? `Séries: ${AFRICAN_COUNTRIES.find((c) => c.code === selectedAfricanCountry)?.name}` : "Séries Africaines"} accentColor="secondary">
