@@ -329,7 +329,7 @@ export default function ProfileClient() {
             <div className="pt-2">
               <button
                 onClick={handleLogout}
-                className="w-full flex items-center justify-center gap-2.5 p-3.5 sm:p-4 rounded-xl bg-brand-primary hover:bg-brand-primary/90 active:scale-[0.99] text-white font-bold text-sm transition-all cursor-pointer shadow-lg shadow-brand-primary/20"
+                className="w-full flex items-center justify-center gap-2.5 p-3.5 sm:p-4 rounded-xl bg-[#D70466] hover:bg-[#b5034f] border border-[#D70466] active:scale-[0.99] text-white font-bold text-sm transition-all cursor-pointer shadow-lg shadow-[#D70466]/20"
               >
                 <SignOut className="w-5 h-5" />
                 <span>{lang === 'fr' ? 'Se déconnecter' : 'Log Out'}</span>

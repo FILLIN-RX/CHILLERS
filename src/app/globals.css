@@ -320,3 +320,27 @@ textarea:focus-visible,
     scroll-behavior: auto !important;
   }
 }
+
+/* ====== OPTIMISATION PERFORMANCES MOBILE (iPhone 7 etc.) ====== */
+/* Désactiver le backdrop-filter sur petits écrans car ça tue le GPU des vieux iPhones */
+@media (max-width: 768px) {
+  .glass-panel, .glass-badge, .glass-button, .glass-nav, .glass-modal, .glass-card-overlay, .glass-card-poster-panel {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  .glass-badge {
+    background: rgba(16, 16, 20, 0.98) !important;
+    box-shadow: none !important;
+  }
+  .glass-button {
+    background: rgba(30, 30, 30, 0.95) !important;
+  }
+  .glass-nav, .glass-modal {
+    background: var(--background) !important;
+  }
+  /* Réduire les particules / glow */
+  .hover-glow:hover {
+    box-shadow: none !important;
+    transform: none !important;
+  }
+}

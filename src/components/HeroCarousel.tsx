@@ -37,15 +37,23 @@ export default function HeroCarousel({
   const [trailerMap, setTrailerMap] = useState<Record<string, string>>({});
   const [isVideoReady, setIsVideoReady] = useState(false);
   const [videoExpired, setVideoExpired] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const { translate: _ } = useLanguage();
+
+  useEffect(() => {
+    setIsMobile(window.innerWidth < 768);
+    const handler = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
 
   // Lazy loading fluide du trailer UNIQUEMENT pour la slide active avec debounce
   useEffect(() => {
     setIsVideoReady(false);
     setVideoExpired(false);
 
-    if (!slides || slides.length === 0 || isPaused) return;
+    if (!slides || slides.length === 0 || isPaused || isMobile) return;
     const currentSlide = slides[currentIndex];
     if (!currentSlide) return;
 
@@ -207,7 +215,7 @@ export default function HeroCarousel({
                 />
 
                 {/* Video / Trailer Overlay (Smooth Fade-in) */}
-                {isActive && activeTrailer && isVideoReady && !isPaused && !videoExpired && (
+                {isActive && activeTrailer && isVideoReady && !isPaused && !videoExpired && !isMobile && (
                   <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none z-[1] transition-opacity duration-1000 opacity-100 animate-in fade-in duration-700">
                     {ytKey ? (
                       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[100vw] min-w-[177.78vh] h-[56.25vw] min-h-full scale-125 sm:scale-115">

@@ -191,6 +191,8 @@ export default function DownloadFloatingBar() {
           <div className="relative w-7 h-7 rounded-full bg-[#D70466]/20 border border-[#D70466]/40 flex items-center justify-center flex-shrink-0">
             {totalActive > 0 ? (
               <DownloadSimple className="h-4 w-4 text-[#D70466] animate-bounce" />
+            ) : paused.length > 0 && recentDone.length === 0 ? (
+              <Warning className="h-4 w-4 text-amber-500" />
             ) : (
               <Check className="h-4 w-4 text-emerald-400 stroke-[3]" />
             )}
@@ -217,7 +219,7 @@ export default function DownloadFloatingBar() {
                 {currentTask ? currentTask.title : "Téléchargements"}
               </span>
               <span className="text-[10px] font-bold text-[#D70466] flex-shrink-0">
-                {percent != null ? `${percent}%` : totalActive > 0 ? `${totalActive}` : "Prêt"}
+                {percent != null ? `${percent}%` : totalActive > 0 ? `${totalActive}` : paused.length > 0 && recentDone.length === 0 ? "En pause" : "Prêt"}
               </span>
             </div>
             {/* Slim YouTube progress bar */}

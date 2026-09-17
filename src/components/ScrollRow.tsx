@@ -92,6 +92,8 @@ export default function ScrollRow({
   useEffect(() => {
     if (!autoScroll) return;
     if (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    // Désactiver l'auto-scroll sur mobile pour sauver le GPU et CPU (iPhone 7 etc.)
+    if (typeof window !== "undefined" && window.innerWidth < 768) return;
     const el = scrollRef.current;
     if (!el || !document.contains(el)) return;
 

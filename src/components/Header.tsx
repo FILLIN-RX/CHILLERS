@@ -308,7 +308,7 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
 
                     <button
                       onClick={logout}
-                      className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-brand-primary hover:bg-brand-primary/90 active:scale-95 text-white font-bold text-xs shadow-md transition-all cursor-pointer mt-1"
+                      className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-[#D70466] hover:bg-[#b5034f] border border-[#D70466] active:scale-95 text-white font-bold text-xs shadow-md transition-all cursor-pointer mt-1"
                     >
                       <SignOut className="w-4 h-4" />
                       <span>{lang === "fr" ? "Se déconnecter" : "Log out"}</span>
@@ -425,7 +425,7 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
                     setIsDrawerOpen(false);
                     logout();
                   }}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-brand-primary hover:bg-brand-primary/90 active:scale-95 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-[#D70466] hover:bg-[#b5034f] border border-[#D70466] active:scale-95 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
                 >
                   <SignOut className="w-4 h-4" />
                   <span>{lang === "fr" ? "Se déconnecter" : "Logout"}</span>
