@@ -1,199 +1,98 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { WifiSlash, WifiHigh, DownloadSimple, X, ArrowRight } from "@phosphor-icons/react";
-import { useNetworkStore } from "@/hooks/useOnlineStatus";
+import { useEffect, useRef, useState } from "react";
+import { WifiSlash, WifiHigh } from "@phosphor-icons/react";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
+/**
+ * NetworkStatusNotifier — Top bar réseau style iOS/Android.
+ *
+ * - Hors-ligne  → barre jaune/amber en haut, slide depuis le top, safe-area respecté
+ * - Connexion rétablie → passe en bleu, "Réseau rétabli", se ferme seule après 5s
+ * - Aucun setInterval, aucun ping, aucun blocage de clics
+ */
 export default function NetworkStatusNotifier() {
-  const [isOnline, setIsOnline] = useState<boolean>(true);
-  const [showRestored, setShowRestored] = useState<boolean>(false);
-  const [dismissedOffline, setDismissedOffline] = useState<boolean>(false);
-  const [redirectToast, setRedirectToast] = useState<string | null>(null);
+  const { isOnline } = useOnlineStatus();
 
-  const pathname = usePathname();
-  const router = useRouter();
-  const setStoreOnline = useNetworkStore((s) => s.setOnline);
+  // Tracks d'état pour contrôler l'affichage
+  const [visible, setVisible] = useState(false);
+  const [mode, setMode] = useState<"offline" | "restored">("offline");
+  const prevOnlineRef = useRef<boolean | null>(null);
+  const autoCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    // Initial check
-    const initialOnline = navigator.onLine;
-    setIsOnline(initialOnline);
-    setStoreOnline(initialOnline);
-
-    const checkRealConnectivity = async () => {
-      if (!navigator.onLine) {
-        setIsOnline((prev) => (prev ? false : prev));
-        setStoreOnline(false);
-        return;
+    // Premier rendu — initialiser sans animation
+    if (prevOnlineRef.current === null) {
+      prevOnlineRef.current = isOnline;
+      if (!isOnline) {
+        setMode("offline");
+        setVisible(true);
       }
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 4000);
-        const res = await fetch(`/favicon.ico?_ping=${Date.now()}`, {
-          method: "HEAD",
-          cache: "no-store",
-          signal: controller.signal,
-        });
-        clearTimeout(timeoutId);
-        const online = res.ok || res.status < 500;
-        setIsOnline((prev) => (prev !== online ? online : prev));
-        setStoreOnline(online);
-      } catch {
-        setIsOnline((prev) => (prev ? false : prev));
-        setStoreOnline(false);
-      }
-    };
+      return;
+    }
 
-    const handleOffline = () => {
-      setIsOnline(false);
-      setStoreOnline(false);
-      setDismissedOffline(false);
-      setShowRestored(false);
-    };
+    const wasOnline = prevOnlineRef.current;
+    prevOnlineRef.current = isOnline;
 
-    const handleOnline = () => {
-      checkRealConnectivity().then(() => {
-        setIsOnline(true);
-        setStoreOnline(true);
-        setShowRestored(true);
-        const timer = setTimeout(() => setShowRestored(false), 4000);
-        return () => clearTimeout(timer);
-      });
-    };
+    if (!isOnline && wasOnline) {
+      // Vient de perdre la connexion
+      if (autoCloseTimer.current) clearTimeout(autoCloseTimer.current);
+      setMode("offline");
+      setVisible(true);
+    }
 
-    window.addEventListener("offline", handleOffline);
-    window.addEventListener("online", handleOnline);
+    if (isOnline && !wasOnline) {
+      // Connexion rétablie
+      if (autoCloseTimer.current) clearTimeout(autoCloseTimer.current);
+      setMode("restored");
+      setVisible(true);
+      // Fermeture automatique après 5s
+      autoCloseTimer.current = setTimeout(() => {
+        setVisible(false);
+      }, 5000);
+    }
+  }, [isOnline]);
 
-    // Dynamic periodic ping check every 20s
-    const interval = setInterval(checkRealConnectivity, 20000);
+  // Cleanup timer on unmount
+  useEffect(() => () => {
+    if (autoCloseTimer.current) clearTimeout(autoCloseTimer.current);
+  }, []);
 
-    return () => {
-      window.removeEventListener("offline", handleOffline);
-      window.removeEventListener("online", handleOnline);
-      clearInterval(interval);
-    };
-  }, [setStoreOnline]);
+  if (!visible) return null;
 
-  // YouTube Style Interceptor : intercept click on links when offline to redirect to /downloads
-  useEffect(() => {
-    if (isOnline || typeof window === "undefined") return;
-
-    const handleAnchorClick = (e: MouseEvent) => {
-      const target = (e.target as HTMLElement).closest("a");
-      if (!target) return;
-
-      const href = target.getAttribute("href");
-      if (!href) return;
-
-      // Permit downloads link or hashes or external anchor
-      if (href.startsWith("/downloads") || href.startsWith("#") || href.startsWith("javascript:")) {
-        return;
-      }
-
-      // If offline and trying to navigate to online-only page
-      e.preventDefault();
-      setRedirectToast("Vous êtes hors-ligne. Seuls vos contenus téléchargés sont accessibles.");
-      router.push("/downloads");
-      setTimeout(() => setRedirectToast(null), 4000);
-    };
-
-    document.addEventListener("click", handleAnchorClick, true);
-    return () => {
-      document.removeEventListener("click", handleAnchorClick, true);
-    };
-  }, [isOnline, router]);
-
-  // Ne pas afficher la bannière si l'utilisateur est déjà sur la page /downloads
-  const isDownloadsPage = pathname === "/downloads";
+  const isRestored = mode === "restored";
 
   return (
-    <>
-      {/* Toast de redirection hors-ligne style YouTube */}
-      {redirectToast && (
-        <div className="fixed top-4 left-4 right-4 z-[100] max-w-md mx-auto animate-slide-down">
-          <div className="flex items-center justify-between gap-3 p-3.5 rounded-[2px] bg-zinc-900/95 border border-red-500/40 shadow-2xl backdrop-blur-xl text-white">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="flex items-center justify-center w-8 h-8 rounded-[2px] bg-red-500/20 text-red-400 shrink-0">
-                <WifiSlash className="w-4 h-4" />
-              </div>
-              <p className="text-xs font-semibold text-zinc-200 truncate">{redirectToast}</p>
-            </div>
-            <button
-              onClick={() => setRedirectToast(null)}
-              className="p-1 rounded-[2px] text-zinc-400 hover:text-white transition-colors shrink-0"
-              aria-label="Fermer"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Bannière Hors-Ligne Style YouTube */}
-      {!isOnline && !dismissedOffline && !isDownloadsPage && (
-        <div className="fixed bottom-4 left-4 right-4 z-[95] max-w-md mx-auto animate-slide-up">
-          <div className="relative flex items-center justify-between gap-3 p-3.5 rounded-[2px] bg-[#141414]/95 border border-red-500/30 shadow-2xl backdrop-blur-xl text-white">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="relative flex items-center justify-center w-9 h-9 rounded-[2px] bg-red-500/10 border border-red-500/20 text-red-500 shrink-0">
-                <WifiSlash className="w-5 h-5" />
-                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500 animate-ping" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-bold text-white truncate">Mode Hors-Ligne</p>
-                <p className="text-[11px] text-zinc-400 truncate">
-                  Passez à vos téléchargements pour visionner vos vidéos
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0">
-              <Link
-                href="/downloads"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-[2px] bg-brand-primary text-white text-xs font-bold hover:bg-brand-primary/90 transition-all shadow-md active:scale-95"
-              >
-                <DownloadSimple className="w-3.5 h-3.5" />
-                <span>Mes fichiers</span>
-                <ArrowRight className="w-3 h-3" />
-              </Link>
-              <button
-                onClick={() => setDismissedOffline(true)}
-                className="p-1 rounded-[2px] text-zinc-400 hover:text-white transition-colors"
-                aria-label="Fermer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Bannière Connexion Rétablie */}
-      {showRestored && (
-        <div className="fixed bottom-4 left-4 right-4 z-[95] max-w-md mx-auto animate-slide-up">
-          <div className="relative flex items-center justify-between gap-3 p-3.5 rounded-[2px] bg-[#141414]/95 border border-emerald-500/30 shadow-2xl backdrop-blur-xl text-white">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="flex items-center justify-center w-9 h-9 rounded-[2px] bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 shrink-0">
-                <WifiHigh className="w-5 h-5" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-bold text-white truncate">Connexion rétablie</p>
-                <p className="text-[11px] text-emerald-400 truncate">Vous êtes de nouveau en ligne</p>
-              </div>
-            </div>
-            <button
-              onClick={() => setShowRestored(false)}
-              className="p-1 rounded-[2px] text-zinc-400 hover:text-white transition-colors"
-              aria-label="Fermer"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
-    </>
+    <div
+      role="status"
+      aria-live="polite"
+      style={{ paddingTop: "env(safe-area-inset-top)" }}
+      className={[
+        "fixed top-0 left-0 right-0 z-[200]",
+        "transform transition-transform duration-300 ease-out",
+        visible ? "translate-y-0" : "-translate-y-full",
+        isRestored
+          ? "bg-blue-600"
+          : "bg-amber-500",
+      ].join(" ")}
+    >
+      <div className="flex items-center justify-center gap-2 px-4 py-2">
+        {isRestored ? (
+          <>
+            <WifiHigh weight="bold" className="w-4 h-4 text-white shrink-0" />
+            <span className="text-xs font-semibold text-white tracking-wide">
+              Réseau rétabli
+            </span>
+          </>
+        ) : (
+          <>
+            <WifiSlash weight="bold" className="w-4 h-4 text-white shrink-0" />
+            <span className="text-xs font-semibold text-white tracking-wide">
+              Pas de connexion internet
+            </span>
+          </>
+        )}
+      </div>
+    </div>
   );
 }

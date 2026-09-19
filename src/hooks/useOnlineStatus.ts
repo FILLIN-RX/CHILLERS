@@ -1,80 +1,52 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { useNetworkState } from "@uidotdev/usehooks";
 import { create } from "zustand";
 
 interface NetworkState {
   isOnline: boolean;
   isLowBandwidth: boolean;
+  networkType: string | null;
   setOnline: (online: boolean) => void;
   setLowBandwidth: (low: boolean) => void;
+  setNetworkType: (type: string | null) => void;
 }
 
 export const useNetworkStore = create<NetworkState>((set) => ({
   isOnline: typeof navigator !== "undefined" ? navigator.onLine : true,
   isLowBandwidth: false,
-  setOnline: (isOnline) => set((state) => (state.isOnline === isOnline ? state : { isOnline })),
-  setLowBandwidth: (isLowBandwidth) => set((state) => (state.isLowBandwidth === isLowBandwidth ? state : { isLowBandwidth })),
+  networkType: null,
+  setOnline: (isOnline) => set((s) => (s.isOnline === isOnline ? s : { isOnline })),
+  setLowBandwidth: (isLowBandwidth) => set((s) => (s.isLowBandwidth === isLowBandwidth ? s : { isLowBandwidth })),
+  setNetworkType: (networkType) => set({ networkType }),
 }));
 
 /**
- * Hook global pour écouter l'état du réseau (en ligne / hors ligne / bande passante faible)
+ * Hook global basé sur @uidotdev/usehooks → useNetworkState.
+ * Stable, SSR-safe, sans ping manuel ni setInterval.
+ * Synchronise l'état dans le store Zustand pour les composants qui en ont besoin.
  */
 export function useOnlineStatus() {
-  const isOnline = useNetworkStore((s) => s.isOnline);
-  const isLowBandwidth = useNetworkStore((s) => s.isLowBandwidth);
+  const network = useNetworkState();
   const setOnline = useNetworkStore((s) => s.setOnline);
   const setLowBandwidth = useNetworkStore((s) => s.setLowBandwidth);
+  const setNetworkType = useNetworkStore((s) => s.setNetworkType);
+
+  const isOnline = network.online ?? true;
+  const effectiveType = (network as any).effectiveType as string | undefined;
+  const saveData = (network as any).saveData as boolean | undefined;
+  const isLowBandwidth =
+    Boolean(saveData) ||
+    effectiveType === "slow-2g" ||
+    effectiveType === "2g" ||
+    effectiveType === "3g";
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    setOnline(isOnline);
+    setLowBandwidth(isLowBandwidth);
+    setNetworkType(effectiveType ?? null);
+  }, [isOnline, isLowBandwidth, effectiveType, setOnline, setLowBandwidth, setNetworkType]);
 
-    const checkNetwork = () => {
-      const online = navigator.onLine;
-      setOnline(online);
-
-      if (online) {
-        const nav = navigator as any;
-        const conn = nav.connection || nav.mozConnection || nav.webkitConnection;
-        if (conn) {
-          const slow =
-            conn.saveData ||
-            conn.effectiveType === "slow-2g" ||
-            conn.effectiveType === "2g" ||
-            conn.effectiveType === "3g";
-          setLowBandwidth(Boolean(slow));
-        }
-      }
-    };
-
-    const handleOnline = () => {
-      setOnline(true);
-      checkNetwork();
-    };
-
-    const handleOffline = () => {
-      setOnline(false);
-    };
-
-    checkNetwork();
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-
-    const nav = navigator as any;
-    const conn = nav.connection || nav.mozConnection || nav.webkitConnection;
-    if (conn) {
-      conn.addEventListener("change", checkNetwork);
-    }
-
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-      if (conn) {
-        conn.removeEventListener("change", checkNetwork);
-      }
-    };
-  }, [setOnline, setLowBandwidth]);
-
-  return { isOnline, isLowBandwidth };
+  return { isOnline, isLowBandwidth, networkType: effectiveType ?? null };
 }
