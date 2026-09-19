@@ -1,10 +1,25 @@
 "use client";
 
+import { API_BASE_PATH } from "@/services/http";
+
 /**
  * Service de stockage hors-ligne IndexedDB pour les vidéos CHILLERS
  * Permet de sauvegarder et récupérer automatiquement les blobs vidéos MP4
  * sans jamais demander à l'utilisateur de sélectionner un fichier manuellement.
  */
+
+/**
+ * Construit l'URL du proxy backend pour un téléchargement.
+ * Le proxy ajoute les headers nécessaires (User-Agent, Referer) et
+ * forwarde Content-Length + Accept-Ranges depuis le serveur source.
+ */
+function buildProxyUrl(directUrl: string, filename: string): string {
+  // Si l'URL passe déjà par le proxy, ne pas double-proxifier
+  if (directUrl.startsWith("/api/") || directUrl.startsWith(API_BASE_PATH)) {
+    return directUrl;
+  }
+  return `${API_BASE_PATH}/download/file?url=${encodeURIComponent(directUrl)}&filename=${encodeURIComponent(filename)}`;
+}
 
 const DB_NAME = "chillers_offline_db";
 const STORE_NAME = "offline_videos";
@@ -175,10 +190,25 @@ export async function streamVideoToIndexedDB(
         // Format : "CHILLERS_DL::<filename>::<title>"
         const bgTitle = `CHILLERS_DL::${filename}::${title}`;
 
-        const bgFetch = await (reg as any).backgroundFetch.fetch(id, [url], {
+        // Passer par le proxy backend au lieu de l'URL directe :
+        //  ✅ Le proxy ajoute User-Agent + Referer → le CDN ne coupe plus la connexion
+        //  ✅ Le proxy forwarde Content-Length → Chrome affiche la progression
+        //  ✅ Les Range requests sont supportées → reprise possible
+        const proxyUrl = buildProxyUrl(url, filename);
+
+        // Récupérer Content-Length via HEAD pour donner la taille à Chrome
+        // (optionnel — on ne bloque pas si le HEAD échoue)
+        let downloadTotal = 0;
+        try {
+          const headRes = await fetch(proxyUrl, { method: "HEAD" });
+          const cl = headRes.headers.get("content-length");
+          if (cl) downloadTotal = parseInt(cl, 10);
+        } catch { /* si HEAD échoue, downloadTotal reste 0 (barre indéterminée) */ }
+
+        const bgFetch = await (reg as any).backgroundFetch.fetch(id, [proxyUrl], {
           title: bgTitle,
           icons: [{ sizes: "192x192", src: "/android-chrome-192x192.png", type: "image/png" }],
-          // downloadTotal = 0 si inconnu (chunked). Le SW mettra à jour l'UI.
+          downloadTotal, // 0 = indéterminé, >0 = Chrome affiche le % et la taille
         });
 
         // Écouter la progression tant que le main thread est vivant.
