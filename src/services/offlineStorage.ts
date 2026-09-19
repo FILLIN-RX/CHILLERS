@@ -230,8 +230,10 @@ export async function streamVideoToIndexedDB(
     }
   }
 
-  // 3. Mode standard (fetch stream avec support d'arrière-plan de l'onglet)
-  const res = await fetch(url, { signal });
+  // 3. Mode standard (fetch stream via proxy backend)
+  // On passe par le proxy pour éviter les erreurs CORS et ajouter User-Agent/Referer.
+  const proxyUrlFallback = buildProxyUrl(url, filename);
+  const res = await fetch(proxyUrlFallback, { signal });
   if (!res.ok || !res.body) {
     throw new Error(`HTTP ${res.status} lors du téléchargement hors-ligne`);
   }

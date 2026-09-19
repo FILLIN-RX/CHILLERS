@@ -1,5 +1,7 @@
 "use client";
 
+import { API_BASE_PATH } from "@/services/http";
+
 // Thin wrapper around StreamSaver.js that initialises the MITM polyfill lazily
 // (browser-only) and exposes a single `streamDownloadToDisk` function.
 //
@@ -100,7 +102,14 @@ export async function streamDownloadToDisk(
   signal.addEventListener("abort", onExternalAbort, { once: true });
 
   try {
-    const res = await fetch(url, { signal: timeoutCtrl.signal });
+    // Passer par le proxy backend pour éviter CORS et bénéficier des bons headers.
+    // Si l'URL est déjà proxifiée (/api/...) on ne double-proxifie pas.
+    const fetchUrl =
+      url.startsWith("/api/") || url.startsWith(API_BASE_PATH)
+        ? url
+        : `${API_BASE_PATH}/download/file?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`;
+
+    const res = await fetch(fetchUrl, { signal: timeoutCtrl.signal });
     if (!res.ok || !res.body) {
       throw new Error(`HTTP ${res.status} while downloading`);
     }
