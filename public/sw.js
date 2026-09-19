@@ -1,9 +1,44 @@
-/* global self ReadableStream Response Headers fetch caches */
+/* global self ReadableStream Response Headers fetch caches IDBKeyRange */
 
 const CACHE_NAME = 'chillers-cache-v7';
 
 // ── StreamSaver map pour le streaming de téléchargement ────────
 const map = new Map();
+
+// ── IndexedDB helpers (miroir de offlineStorage.ts) ────────────
+// Le SW doit pouvoir écrire dans IndexedDB indépendamment du main thread.
+const IDB_NAME = 'chillers_offline_db';
+const IDB_STORE = 'offline_videos';
+const IDB_VERSION = 1;
+
+function swOpenOfflineDB() {
+  return new Promise((resolve, reject) => {
+    const req = self.indexedDB.open(IDB_NAME, IDB_VERSION);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(IDB_STORE)) {
+        db.createObjectStore(IDB_STORE, { keyPath: 'id' });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror  = () => reject(req.error);
+  });
+}
+
+async function swSaveOfflineVideo(id, blob, filename, title) {
+  try {
+    const db = await swOpenOfflineDB();
+    await new Promise((resolve, reject) => {
+      const tx  = db.transaction(IDB_STORE, 'readwrite');
+      const st  = tx.objectStore(IDB_STORE);
+      const req = st.put({ id, blob, filename, title, size: blob.size, savedAt: Date.now() });
+      req.onsuccess = () => resolve();
+      req.onerror   = () => reject(req.error);
+    });
+  } catch (err) {
+    console.warn('[SW] swSaveOfflineVideo failed:', err);
+  }
+}
 
 const OFFLINE_URL = '/offline.html';
 const PRECACHE_ASSETS = [
@@ -269,29 +304,61 @@ self.addEventListener('fetch', event => {
 });
 
 // ── Background Fetch API (YouTube-style background download) ─────
+//
+// IMPORTANT : la sauvegarde doit se faire ICI dans le SW, pas dans le main
+// thread. Le main thread peut être suspendu ou détruit avant la fin du
+// téléchargement. Le SW reçoit cet événement même si l'onglet est fermé.
 self.addEventListener('backgroundfetchsuccess', event => {
   const bgFetch = event.registration;
+
+  // bgFetch.id = le taskId passé lors de l'appel backgroundFetch.fetch(id, ...)
+  // On le décompose pour récupérer filename et title stockés en metadata.
+  const taskId = bgFetch.id;
+
   event.waitUntil(
     (async () => {
       try {
-        const cache = await caches.open(CACHE_NAME);
         const records = await bgFetch.matchAll();
+
         for (const record of records) {
-          const response = await record.responseReady;
+          let response;
           try {
-            await cache.put(record.request, response);
+            response = await record.responseReady;
           } catch (e) {
-            // réponse opaque/cross-origin non cachable — on ignore
+            console.warn('[SW] BG Fetch record not ready:', e);
+            continue;
           }
+
+          if (!response || !response.ok) continue;
+
+          let blob;
+          try {
+            blob = await response.blob();
+          } catch (e) {
+            console.warn('[SW] BG Fetch blob extraction failed:', e);
+            continue;
+          }
+
+          // Lire les métadonnées stockées dans le titre de la tâche
+          // Format du titre : "CHILLERS_DL::<filename>::<title>"
+          let filename = taskId + '.mp4';
+          let title    = taskId;
+          const rawTitle = bgFetch.title || '';
+          if (rawTitle.startsWith('CHILLERS_DL::')) {
+            const parts = rawTitle.slice('CHILLERS_DL::'.length).split('::');
+            filename = parts[0] || filename;
+            title    = parts[1] || title;
+          }
+
+          // Stocker dans IndexedDB — exactement le même schéma que offlineStorage.ts
+          await swSaveOfflineVideo(taskId, blob, filename, title);
         }
+
         await event.updateUI({ title: 'Téléchargement terminé · CHILLERS' });
 
         const clients = await self.clients.matchAll({ type: 'window' });
         for (const client of clients) {
-          client.postMessage({
-            type: 'BG_FETCH_SUCCESS',
-            id: bgFetch.id,
-          });
+          client.postMessage({ type: 'BG_FETCH_SUCCESS', id: taskId });
         }
       } catch (err) {
         console.error('[SW] Background Fetch success handling error:', err);

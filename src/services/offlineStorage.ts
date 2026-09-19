@@ -152,8 +152,16 @@ export async function streamVideoToIndexedDB(
 
   const { id, filename, title, signal, onProgress, throttleMs = 200 } = opts;
 
-  // 2. Si le navigateur supporte la Background Fetch API (Android Chrome, Edge, PWA installée)
-  // le téléchargement continue même si l'utilisateur quitte le navigateur ou verrouille l'écran !
+  // 2. Background Fetch API (Android Chrome, Edge, PWA installée)
+  //
+  // ARCHITECTURE YOUTUBE-STYLE :
+  //   - Le main thread ENREGISTRE la tâche et écoute la progression
+  //   - Le main thread RETOURNE immédiatement sans attendre la fin
+  //   - Le Service Worker (sw.js → backgroundfetchsuccess) gère la sauvegarde
+  //     dans IndexedDB, même si l'onglet/navigateur est fermé entretemps.
+  //
+  // On NE FAIT PAS bgFetch.match() / record.responseReady ici :
+  // ces appels bloqueraient le main thread (qui peut être suspendu sur mobile).
   if (
     typeof window !== "undefined" &&
     "serviceWorker" in navigator &&
@@ -162,34 +170,33 @@ export async function streamVideoToIndexedDB(
     try {
       const reg = await navigator.serviceWorker.ready;
       if (reg && "backgroundFetch" in reg) {
-        // Enregistrer la tâche de fond
+        // Encoder filename + title dans le titre de la tâche pour que le SW
+        // puisse les récupérer sans accès au main thread.
+        // Format : "CHILLERS_DL::<filename>::<title>"
+        const bgTitle = `CHILLERS_DL::${filename}::${title}`;
+
         const bgFetch = await (reg as any).backgroundFetch.fetch(id, [url], {
-          title: `Téléchargement: ${title}`,
+          title: bgTitle,
           icons: [{ sizes: "192x192", src: "/android-chrome-192x192.png", type: "image/png" }],
+          // downloadTotal = 0 si inconnu (chunked). Le SW mettra à jour l'UI.
         });
 
-        // Suivre la progression en direct depuis le SW
+        // Écouter la progression tant que le main thread est vivant.
+        // Si l'onglet est suspendu, le SW prend le relais.
         bgFetch.addEventListener("progress", () => {
-          if (onProgress && bgFetch.downloadTotal > 0) {
-            onProgress(bgFetch.downloaded, bgFetch.downloadTotal);
+          if (onProgress) {
+            const total = bgFetch.downloadTotal > 0 ? bgFetch.downloadTotal : null;
+            onProgress(bgFetch.downloaded, total);
           }
         });
 
-        const record = await bgFetch.match(url);
-        if (record) {
-          const response = await record.responseReady;
-          if (response && response.ok) {
-            const blob = await response.blob();
-            await saveOfflineVideoBlob(id, blob, filename, title);
-            if (onProgress) {
-              onProgress(blob.size, blob.size);
-            }
-            return { success: true, totalBytes: blob.size };
-          }
-        }
+        // Retourner immédiatement : le SW gère la sauvegarde IndexedDB
+        // via backgroundfetchsuccess (cf. public/sw.js).
+        return { success: true, totalBytes: null };
       }
     } catch (bgErr) {
-      console.log("[OfflineStorage] Background Fetch fallback vers flux normal:", bgErr);
+      console.log("[OfflineStorage] Background Fetch non disponible, fallback fetch standard:", bgErr);
+      // Continuer vers le fetch standard ci-dessous
     }
   }
 

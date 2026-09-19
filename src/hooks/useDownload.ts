@@ -99,6 +99,31 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
     taskRef.current = task;
   }, [task]);
 
+  // Listener Service Worker : reçoit BG_FETCH_SUCCESS / BG_FETCH_FAIL / BG_FETCH_ABORT
+  // envoyés par sw.js quand le téléchargement en arrière-plan se termine.
+  // Nécessaire pour mettre à jour le status quand l'onglet était fermé / suspendu.
+  useEffect(() => {
+    if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
+
+    const handler = (event: MessageEvent) => {
+      const { type, id: msgId } = event.data ?? {};
+      if (msgId !== id) return;
+
+      if (type === "BG_FETCH_SUCCESS") {
+        setStatus(id, "done");
+      } else if (type === "BG_FETCH_FAIL") {
+        setStatus(id, "error", "Échec du téléchargement en arrière-plan");
+      } else if (type === "BG_FETCH_ABORT") {
+        setStatus(id, "canceled");
+      }
+    };
+
+    navigator.serviceWorker.addEventListener("message", handler);
+    return () => {
+      navigator.serviceWorker.removeEventListener("message", handler);
+    };
+  }, [id, setStatus]);
+
   // Helper to ensure the task row exists only when a download is requested
   const ensureTaskExists = useCallback(() => {
     const existing = useDownloadsStore.getState().tasks.find((t) => t.id === id);
@@ -229,9 +254,15 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
             });
           },
         });
+
+        if (ctrl.signal.aborted) {
+          setStatus(id, "canceled");
+        } else {
+          setStatus(id, "done");
+        }
       } else {
-        // Utilisateur standard / gratuit : Méthode YouTube (Stocké dans IndexedDB pour lecture dans l'app)
-        await streamVideoToIndexedDB(url, {
+        // Utilisateur gratuit : Background Fetch (YouTube-style) ou fetch normal fallback
+        const result = await streamVideoToIndexedDB(url, {
           id,
           filename,
           title: titleStr,
@@ -247,12 +278,17 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
             });
           },
         });
-      }
 
-      if (ctrl.signal.aborted) {
-        setStatus(id, "canceled");
-      } else {
-        setStatus(id, "done");
+        if (ctrl.signal.aborted) {
+          setStatus(id, "canceled");
+        } else if (result.totalBytes === null) {
+          // Background Fetch enregistré → le SW finira et enverra BG_FETCH_SUCCESS
+          // Le status "done" sera mis par le listener SW ci-dessous.
+          // On laisse "downloading" pour l'instant (progression via bgFetch.progress).
+        } else {
+          // Fetch standard terminé en main thread
+          setStatus(id, "done");
+        }
       }
     } catch (err) {
       if (ctrl.signal.aborted || isCancelRequested(id)) {
