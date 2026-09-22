@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 @theme {
-  --color-brand-primary: #D70466;
+  --color-brand-primary: #F42A7C;
   --color-brand-secondary: #7C3AED;
   /* Card and component border radius strictly between 2px and 3px */
   --radius-DEFAULT: 2px;
@@ -329,7 +329,7 @@ html, body, a, button, [role="button"], input, select, textarea {
 /* s'affiche qu'à la navigation clavier, pas au clic/tap.)                    */
 a:focus-visible,
 button:focus-visible,
-input:focus-visible,
+input:not(.no-focus-outline):focus-visible,
 select:focus-visible,
 textarea:focus-visible,
 [tabindex]:focus-visible,
@@ -337,6 +337,13 @@ textarea:focus-visible,
   outline: 2px solid var(--color-brand-primary);
   outline-offset: 2px;
   border-radius: 2px;
+}
+
+.no-focus-outline,
+.no-focus-outline:focus,
+.no-focus-outline:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 /* Respecte la préférence système « animations réduites ». */

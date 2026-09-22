@@ -158,25 +158,13 @@ export default async function RootLayout({
             background:#09090b;
             pointer-events:none;
           }
-          #__chillers_splash .splash-spinner-box {
-            position:relative;
-            width:104px;height:104px;
-            display:flex;align-items:center;justify-content:center;
-            padding:0;margin:0;
-          }
           #__chillers_splash .splash-spinner {
-            position:absolute;inset:0;
+            width:56px;height:56px;
             border-radius:50%;
             border:3.5px solid rgba(255,255,255,0.08);
-            border-top-color:#d70466;
+            border-top-color:#f42a7c;
             animation:__spin 0.85s linear infinite;
             box-sizing:border-box;
-          }
-          #__chillers_splash .splash-logo {
-            width:72px;height:72px;
-            object-fit:contain;
-            display:block;
-            padding:0;margin:0;
           }
           @keyframes __spin {
             to { transform: rotate(360deg); }
@@ -189,7 +177,7 @@ export default async function RootLayout({
         <div
           suppressHydrationWarning
           dangerouslySetInnerHTML={{
-            __html: `<div id="__chillers_splash" aria-hidden="true"><div class="splash-spinner-box"><div class="splash-spinner"></div><img class="splash-logo" src="/logo-centered.png" alt="" /></div><script>setTimeout(function(){var s=document.getElementById("__chillers_splash");if(s){s.style.transition="opacity 0.4s ease";s.style.opacity="0";setTimeout(function(){if(s&&s.parentNode)s.parentNode.removeChild(s);},400);}},3500);</script></div>`,
+            __html: `<div id="__chillers_splash" aria-hidden="true"><div class="splash-spinner"></div><script>setTimeout(function(){var s=document.getElementById("__chillers_splash");if(s){s.style.transition="opacity 0.4s ease";s.style.opacity="0";setTimeout(function(){if(s&&s.parentNode)s.parentNode.removeChild(s);},400);}},3500);</script></div>`,
           }}
         />
         <SessionSyncProvider session={session}>

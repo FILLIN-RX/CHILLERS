@@ -78,10 +78,10 @@ export default function PWAInstallBanner() {
         <div className="relative flex items-center gap-3 p-3.5 rounded-2xl bg-[#141414]/95 border border-white/10 shadow-2xl backdrop-blur-xl">
           <div className="relative w-11 h-11 rounded-xl overflow-hidden flex-shrink-0 bg-black border border-white/10">
             <Image
-              src="/android-chrome-192x192.png"
+              src="/app-icon.webp"
               alt="CHILLERS App"
-              fill
-              sizes="44px"
+              width={44}
+              height={44}
               className="object-cover"
             />
           </div>

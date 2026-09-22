@@ -34,7 +34,7 @@ export default function Footer() {
             <p className="text-xs text-brand-text-muted font-light leading-relaxed max-w-xs">
               L{"'"}expérience ultime du streaming gratuit. Films, séries, anime — accès instantané, zéro pub.
             </p>
-            <p className="text-[10px] text-zinc-500 font-medium italic leading-relaxed">
+            <p className="text-[10px] text-zinc-300 font-medium italic leading-relaxed">
               Chillers ne stocke aucun fichier. Tout contenu est hébergé par des tiers non affiliés. À des fins éducatives uniquement.
             </p>
           </div>

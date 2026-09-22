@@ -381,7 +381,7 @@ async function fetchDirectTMDB<T>(
   try {
     const res = await fetch(url.toString(), {
       signal,
-      cache: "no-store", // Bust Next.js cache which might be clinging to empty arrays
+      next: { revalidate: 3600 },
       headers: {
         Accept: "application/json",
         Authorization: `Bearer ${token}`,

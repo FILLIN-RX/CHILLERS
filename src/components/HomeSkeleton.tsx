@@ -64,13 +64,6 @@ export default function HomeSkeleton() {
           </div>
         </div>
 
-        {/* Right Bottom Controls */}
-        <div className="absolute right-4 bottom-12 sm:bottom-16 z-20 flex items-center gap-2">
-          <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-black/50 border border-white/15 animate-pulse" />
-          <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-black/40 border border-white/10 animate-pulse" />
-          <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-black/40 border border-white/10 animate-pulse" />
-        </div>
-
         {/* Pagination Dots */}
         <div className="absolute left-1/2 -translate-x-1/2 bottom-5 sm:bottom-8 z-20 flex gap-2">
           <div className="h-2 w-7 rounded-full bg-brand-primary/60" />

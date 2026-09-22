@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import gsap from "gsap";
 import type { MovieOrShow, Season, Episode } from "@/types/media";
 import { getSeasonDetails, getMediaDetails } from "@/services/media";
-import { X, Play, Star, Info, ListNumbers } from '@phosphor-icons/react';
+import { X, Play, Star, Info, ListNumbers, CalendarBlank } from '@phosphor-icons/react';
 import { useLanguage } from "@/i18n/LanguageContext";
 import { acquireModalScrollLock, releaseModalScrollLock } from "@/lib/modalScrollLock";
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -270,8 +270,9 @@ export default function MovieModal({
             </h2>
             <div className="flex items-center gap-2 text-xs text-white/90 font-semibold flex-wrap">
               {isUpcoming && releaseDateLabel && (
-                <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-blue-600 text-white border-0 shadow-none">
-                  ⏳ Sortie le {releaseDateLabel}
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-blue-600 text-white border-0 shadow-none">
+                  <CalendarBlank className="h-3 w-3" />
+                  <span>Sortie le {releaseDateLabel}</span>
                 </span>
               )}
               {effective.rating && (
@@ -294,7 +295,8 @@ export default function MovieModal({
             <div className="flex items-center gap-3 flex-wrap">
               {isUpcoming ? (
                 <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600/20 border-0 text-blue-300 text-xs sm:text-sm font-bold shadow-none">
-                  <span>⏳ Bientôt disponible (Sortie le {releaseDateLabel})</span>
+                  <CalendarBlank className="h-4 w-4 text-blue-400" />
+                  <span>Bientôt dispo</span>
                 </div>
               ) : (
                 <Button

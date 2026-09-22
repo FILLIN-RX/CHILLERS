@@ -170,7 +170,7 @@ export default function HomeClientWrapper({
         "All time favorite",
       ].includes(title);
       const filtered = isCustomCategory ? items : items.filter((it) => !seen.has(it.id));
-      const fresh = filtered.slice(0, 16);
+      const fresh = filtered.slice(0, 10);
       
       fresh.forEach((it) => seen.add(it.id));
       if (fresh.length === 0) return;

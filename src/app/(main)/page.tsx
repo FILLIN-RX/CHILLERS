@@ -24,7 +24,7 @@ import {
 import HomeClientWrapper from "./HomeClientWrapper";
 import HomeSkeleton from "@/components/HomeSkeleton";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: "Accueil",

@@ -530,7 +530,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
             {isUnreleased ? (
               <div className="w-full min-h-[240px] sm:min-h-[380px] aspect-video max-h-[75dvh] flex flex-col items-center justify-center gap-4 px-6 bg-zinc-950/95 border-0">
                 <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-blue-600/15 flex items-center justify-center border-0 shadow-none">
-                  <span className="text-3xl sm:text-4xl">⏳</span>
+                  <Clock className="w-8 h-8 sm:w-10 sm:h-10 text-blue-400" />
                 </div>
                 <div className="text-center max-w-md space-y-2">
                   <span className="inline-block px-3 py-1 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wider bg-blue-500/20 text-blue-300 border-0 shadow-none">

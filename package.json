@@ -2,20 +2,13 @@
   "name": "chillers",
   "version": "0.1.0",
   "private": true,
-  "browserslist": {
-    "production": [
-      ">0.5%",
-      "not dead",
-      "not op_mini all",
-      "not ie 11",
-      "supports es6-module"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
-  },
+  "browserslist": [
+    "last 2 Chrome versions",
+    "last 2 Firefox versions",
+    "last 2 Safari versions",
+    "last 2 Edge versions",
+    "not dead"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",

@@ -292,7 +292,7 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
 
               {isUpcoming && releaseDateLabel ? (
                 <span className="px-3 py-1 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wider bg-blue-500/20 text-blue-300 border-0 flex items-center gap-1.5 shadow-none">
-                  <span>⏳</span>
+                  <CalendarBlank className="h-3.5 w-3.5 text-blue-400" />
                   <span>Sortie le {releaseDateLabel}</span>
                 </span>
               ) : item.statusLabel && (
@@ -376,7 +376,7 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
                   disabled
                   variant="dark"
                   size="md"
-                  text={`⏳ Bientôt disponible (Sortie le ${releaseDateLabel})`}
+                  text="Bientôt dispo"
                   leftIcon={<CalendarBlank className="h-4 w-4 text-blue-400" />}
                   ariaLabel={`Sortie prévue le ${releaseDateLabel}`}
                   className="opacity-90 cursor-not-allowed border-0 text-blue-200 font-bold bg-blue-600/20 shadow-none"

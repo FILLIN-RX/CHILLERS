@@ -71,7 +71,7 @@ export default function DonationModal({ isOpen, onClose }: DonationModalProps) {
         <button
           onClick={onClose}
           aria-label="Fermer"
-          className="absolute top-3 right-3 p-1.5 rounded-full hover:bg-zinc-800 text-zinc-500 hover:text-white transition-colors"
+          className="absolute top-3 right-3 p-1.5 rounded-full hover:bg-zinc-800 text-zinc-300 hover:text-white transition-colors"
         >
           <X className="h-4 w-4" />
         </button>
@@ -84,7 +84,7 @@ export default function DonationModal({ isOpen, onClose }: DonationModalProps) {
             <h3 className="text-lg font-bold text-white">
               Soutenir <span className="text-brand-primary">CHILLERS</span>
             </h3>
-            <p className="text-xs text-zinc-500 mt-1">
+            <p className="text-xs text-zinc-300 mt-1">
               Gratuit et sans abonnement. Votre soutien finance les serveurs.
             </p>
           </div>
