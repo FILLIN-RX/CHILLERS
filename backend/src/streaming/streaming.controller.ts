@@ -74,16 +74,7 @@ export const getMovieStream = async (req: Request, res: Response, next: NextFunc
       }
     }
 
-    // [PAYWALL CHECK]
     const movie = await Movie.findOne({ tmdbId: id });
-    if (movie?.isPremium && !isPremium) {
-      res.status(403).json({
-        success: false,
-        code: 'PREMIUM_REQUIRED',
-        message: 'Ce film nécessite un abonnement Premium ou un code promo valide.',
-      });
-      return;
-    }
 
     const result = await streamingService.getMovieStream({
       tmdbId: id,
@@ -159,16 +150,7 @@ export const getEpisodeStream = async (req: Request, res: Response, next: NextFu
       }
     }
 
-    // [PAYWALL CHECK]
     const serie = await Serie.findOne({ tmdbId: id });
-    if (serie?.isPremium && !isPremium) {
-      res.status(403).json({
-        success: false,
-        code: 'PREMIUM_REQUIRED',
-        message: 'Cette série nécessite un abonnement Premium ou un code promo valide.',
-      });
-      return;
-    }
 
     const result = await streamingService.getEpisodeStream({
       tmdbId: id,

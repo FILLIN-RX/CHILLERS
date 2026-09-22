@@ -9,7 +9,7 @@ function toEmbedUrl(lien: string): string {
   if (match) return `https://doodstream.com/e/${match[1]}`;
   const stMatch = lien.match(/streamtape\.com\/(?:e|v|f)\/([a-zA-Z0-9]+)/i);
   if (stMatch) return `https://streamtape.com/e/${stMatch[1]}`;
-  const vidzyMatch = lien.match(/vidzy\.(?:cc|org|xyz|co|tv|top)\/(?:embed-|d\/)?([a-zA-Z0-9]+)(?:_n)?(?:\.html)?/i);
+  const vidzyMatch = lien.match(/vidzy\.(?:cc|org|xyz|co|tv|top)\/(?:embed-|d\/)([a-zA-Z0-9]+)/i);
   if (vidzyMatch) return `https://vidzy.cc/embed-${vidzyMatch[1]}.html`;
   return lien;
 }

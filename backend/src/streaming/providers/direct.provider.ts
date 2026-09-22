@@ -65,24 +65,38 @@ export class DirectProvider implements StreamingProvider {
       console.log(`${TAG} ${label} → API Uqload échouée, fallback embed Doodstream`);
     }
 
-    // 2. Fallback : embed stocké (Doodstream/vidzy) scrapé en URL directe
-    const embedUrl = await this.findEmbedUrl(query);
-    if (!embedUrl) {
+    // 2. Fallback : embed ou flux direct stocké en MongoDB
+    const streamCandidate = await this.findEmbedUrl(query);
+    if (!streamCandidate) {
       console.log(`${TAG} ${label} → pas d'embed URL trouvée, skip`);
       return null;
     }
-    console.log(`${TAG} ${label} → embed URL trouvée: ${embedUrl.slice(0, 100)}`);
+    console.log(`${TAG} ${label} → URL trouvée: ${streamCandidate.slice(0, 100)}`);
 
-    // 3. Vérifie que c'est un embed scrapable (Doodstream ou Uqload)
-    if (!isScrapableUrl(embedUrl)) {
-      console.log(`${TAG} ${label} → URL non scrapable (ni Doodstream ni Uqload), skip`);
+    // Cas A : L'URL est DÉJÀ un flux vidéo direct (.mp4, .m3u8, CDN Vidzy direct)
+    if (this.isDirectVideo(streamCandidate)) {
+      const referer = this.getReferer(streamCandidate);
+      const proxyUrl = `/api/doodstream/stream?url=${encodeURIComponent(streamCandidate)}&referer=${encodeURIComponent(referer)}`;
+      console.log(`${TAG} ${label} → FLUX DIRECT déjà disponible, proxyfié: ${proxyUrl.slice(0, 120)}`);
+      return {
+        provider: this.name,
+        embedUrl: proxyUrl,
+        directUrl: streamCandidate,
+        directType: (/\.(m3u8)/i.test(streamCandidate) ? 'hls' : 'mp4') as 'mp4' | 'hls',
+        type: query.season !== undefined ? 'episode' : 'movie',
+      };
+    }
+
+    // Cas B : Vérifie que c'est un embed scrapable (Doodstream, Uqload, Vidzy)
+    if (!isScrapableUrl(streamCandidate)) {
+      console.log(`${TAG} ${label} → URL non scrapable, skip`);
       return null;
     }
 
-    // 4. Scrape pour extraire l'URL directe
-    console.log(`${TAG} ${label} → lancement du scrape de ${embedUrl.slice(0, 80)}...`);
+    // Scrape pour extraire l'URL directe
+    console.log(`${TAG} ${label} → lancement du scrape de ${streamCandidate.slice(0, 80)}...`);
     const t0 = Date.now();
-    const scraped = await scrapeDirectStream(embedUrl, true);
+    const scraped = await scrapeDirectStream(streamCandidate, true);
     const elapsed = Date.now() - t0;
 
     if (!scraped) {
@@ -90,7 +104,7 @@ export class DirectProvider implements StreamingProvider {
       return null;
     }
 
-    // 5. Construit l'URL proxy (backend pipe le flux avec les bons headers)
+    // Construit l'URL proxy (backend pipe le flux avec les bons headers)
     const proxyUrl = `/api/doodstream/stream?url=${encodeURIComponent(scraped.directUrl)}&referer=${encodeURIComponent(scraped.referer)}`;
 
     console.log(`${TAG} ${label} → SCRAPE RÉUSSI en ${elapsed}ms`);
@@ -106,6 +120,24 @@ export class DirectProvider implements StreamingProvider {
       directType: (scraped.type === 'mp4' ? 'mp4' : 'hls') as 'mp4' | 'hls',
       type: query.season !== undefined ? 'episode' : 'movie',
     };
+  }
+
+  private isDirectVideo(url: string): boolean {
+    if (!url || url === '#') return false;
+    return /\.(mp4|webm|mkv|m3u8)(\?|$)/i.test(url) || /u\d+\.vidzy\.cc/i.test(url);
+  }
+
+  private getReferer(url: string): string {
+    try {
+      const parsed = new URL(url);
+      if (parsed.hostname.includes('vidzy')) return 'https://vidzy.cc/';
+      if (parsed.hostname.includes('uqload')) return 'https://uqload.is/';
+      if (parsed.hostname.includes('dood') || parsed.hostname.includes('playmogo') || parsed.hostname.includes('d000')) return 'https://doodstream.com/';
+      if (parsed.hostname.includes('streamtape')) return 'https://streamtape.com/';
+      return `${parsed.protocol}//${parsed.host}/`;
+    } catch {
+      return 'https://vidzy.cc/';
+    }
   }
 
   private async findEmbedUrl(query: StreamQuery): Promise<string | null> {
@@ -125,7 +157,7 @@ export class DirectProvider implements StreamingProvider {
     if (m) return `https://doodstream.com/e/${m[1]}`;
     const uqload = lien.match(/uqload\.(?:is|com)\/(?:embed-?([a-zA-Z0-9]+)|([a-zA-Z0-9]+))/i);
     if (uqload) return `https://uqload.is/embed-${uqload[1] || uqload[2]}.html`;
-    const vidzy = lien.match(/vidzy\.(?:cc|org|xyz|co|tv|top)\/(?:embed-|d\/)?([a-zA-Z0-9]+)(?:_n)?(?:\.html)?/i);
+    const vidzy = lien.match(/vidzy\.(?:cc|org|xyz|co|tv|top)\/(?:embed-|d\/)([a-zA-Z0-9]+)/i);
     if (vidzy) return `https://vidzy.cc/embed-${vidzy[1]}.html`;
     const st = lien.match(/streamtape\.com\/(?:e|v|f)\/([a-zA-Z0-9]+)/i);
     if (st) return `https://streamtape.com/e/${st[1]}`;
@@ -191,6 +223,10 @@ export class DirectProvider implements StreamingProvider {
 
         for (const candidate of candidates) {
           if (isSignedLinkExpired(candidate)) continue;
+          if (this.isDirectVideo(candidate)) {
+            console.log(`${TAG} MongoDB: lien direct MP4/HLS trouvé pour S${query.season}E${query.episode}: ${candidate.slice(0, 80)}`);
+            return candidate;
+          }
           if (this.isDirectScrapable(candidate)) {
             console.log(`${TAG} MongoDB: lien scrapable trouvé pour S${query.season}E${query.episode}: ${candidate.slice(0, 80)}`);
             return this.toEmbedUrl(candidate);
@@ -221,6 +257,10 @@ export class DirectProvider implements StreamingProvider {
 
         for (const candidate of candidates) {
           if (isSignedLinkExpired(candidate)) continue;
+          if (this.isDirectVideo(candidate)) {
+            console.log(`${TAG} MongoDB: lien direct MP4/HLS trouvé pour "${movie.titre}": ${candidate.slice(0, 80)}`);
+            return candidate;
+          }
           if (this.isDirectScrapable(candidate)) {
             console.log(`${TAG} MongoDB: lien scrapable trouvé pour "${movie.titre}": ${candidate.slice(0, 80)}`);
             return this.toEmbedUrl(candidate);

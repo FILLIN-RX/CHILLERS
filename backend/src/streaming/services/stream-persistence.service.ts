@@ -98,7 +98,6 @@ async function persistMovieStream(
       existingMovie.lien = result.embedUrl;
       existingMovie.source = result.provider;
       existingMovie.quality = quality;
-      existingMovie.isPremium = isPremium;
     }
 
     existingMovie.disponible = true;
@@ -123,7 +122,6 @@ async function persistMovieStream(
       posterSource: posterUrl ? 'tmdb' : undefined,
       source: result.provider,
       quality,
-      isPremium,
       sources: [sourceEntry],
       disponible: true,
       disponibleCheckedAt: new Date(),

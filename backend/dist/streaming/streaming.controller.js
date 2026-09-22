@@ -103,16 +103,7 @@ const getMovieStream = async (req, res, next) => {
                 return;
             }
         }
-        // [PAYWALL CHECK]
         const movie = await Movie_1.default.findOne({ tmdbId: id });
-        if (movie?.isPremium && !isPremium) {
-            res.status(403).json({
-                success: false,
-                code: 'PREMIUM_REQUIRED',
-                message: 'Ce film nécessite un abonnement Premium ou un code promo valide.',
-            });
-            return;
-        }
         const result = await streamingService.getMovieStream({
             tmdbId: id,
             type: req.query.type || 'movie',
@@ -182,16 +173,7 @@ const getEpisodeStream = async (req, res, next) => {
                 return;
             }
         }
-        // [PAYWALL CHECK]
         const serie = await Serie_1.default.findOne({ tmdbId: id });
-        if (serie?.isPremium && !isPremium) {
-            res.status(403).json({
-                success: false,
-                code: 'PREMIUM_REQUIRED',
-                message: 'Cette série nécessite un abonnement Premium ou un code promo valide.',
-            });
-            return;
-        }
         const result = await streamingService.getEpisodeStream({
             tmdbId: id,
             type: req.query.type || 'tv',

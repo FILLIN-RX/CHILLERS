@@ -92,8 +92,18 @@ function isUqloadUrl(url: string): boolean {
 }
 
 function extractVidzyCode(url: string): string | null {
-  const m = url.match(/vidzy\.(?:cc|org|xyz|co|tv|top)\/(?:embed-|d\/)?([a-zA-Z0-9]+)(?:_n)?(?:\.html)?/i);
-  return m ? m[1] : null;
+  // If it's an embed URL or /d/ download page: vidzy.cc/embed-xxx.html or /d/xxx_n.html
+  const embedMatch = url.match(/vidzy\.(?:cc|org|xyz|co|tv|top)\/(?:embed-|d\/)([a-zA-Z0-9]+)/i);
+  if (embedMatch) return embedMatch[1];
+
+  // If it's a direct CDN URL: vidzy.cc/v/01/00047/zkd8rc6kkh2m_o/q9fu7dg3hcq9_n.mp4
+  const cdnMatch = url.match(/vidzy\.(?:cc|org|xyz|co|tv|top)\/v\/\d+\/\d+\/([a-zA-Z0-9]+)_[a-z]\/([a-zA-Z0-9]+)/i);
+  if (cdnMatch) return cdnMatch[1] || cdnMatch[2];
+
+  const generalMatch = url.match(/vidzy\.(?:cc|org|xyz|co|tv|top)\/([a-zA-Z0-9]{6,})/i);
+  if (generalMatch && !url.includes('/v/')) return generalMatch[1];
+
+  return null;
 }
 
 function isVidzyUrl(url: string): boolean {
