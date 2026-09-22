@@ -42,6 +42,7 @@ export interface ISerie extends Document {
     disponible?: boolean;
     disponibleCheckedAt?: Date;
     langueAudio?: string;
+    isPremium?: boolean;
 }
 
 const EpisodeSchema: Schema = new Schema({
@@ -89,6 +90,7 @@ const SerieSchema: Schema = new Schema({
     disponible: { type: Boolean },
     disponibleCheckedAt: { type: Date },
     langueAudio: { type: String, index: true },
+    isPremium: { type: Boolean, default: false },
 }, { timestamps: true });
 
 // Index composé pour accélérer le lookup du provider (titre + S/E)

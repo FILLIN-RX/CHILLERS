@@ -12,7 +12,16 @@ export const getTrending = async (language?: string) => {
 };
 
 export const getUpcoming = async (page: number = 1, language?: string) => {
-  const { data } = await tmdbClient.get('/movie/upcoming', { params: { page, language: toTMDBLanguage(language) } });
+  const today = new Date().toISOString().split('T')[0];
+  const { data } = await tmdbClient.get('/discover/movie', {
+    params: {
+      page,
+      language: toTMDBLanguage(language),
+      'primary_release_date.gte': today,
+      sort_by: 'popularity.desc',
+      include_adult: false,
+    },
+  });
   return data;
 };
 

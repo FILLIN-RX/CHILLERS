@@ -84,7 +84,7 @@ export default function CategoryCard({ category, onClick }: CategoryCardProps) {
       onClick={() => onClick(category)}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className="group relative aspect-[16/10] w-full rounded-2xl overflow-hidden bg-zinc-950 border border-white/10 hover:border-white/25 hover:shadow-[0_12px_36px_rgba(215,4,102,0.25)] cursor-pointer transition-colors duration-300"
+      className="group relative aspect-[16/10] w-full rounded-2xl overflow-hidden bg-zinc-950 hover:shadow-[0_12px_36px_rgba(215,4,102,0.25)] cursor-pointer transition-colors duration-300"
     >
       {/* Shimmer Placeholder with smooth crossfade */}
       <div
@@ -113,7 +113,7 @@ export default function CategoryCard({ category, onClick }: CategoryCardProps) {
 
       {/* Category Label with Glass Pill */}
       <div className="absolute inset-0 flex items-center justify-center p-4">
-        <div className="glass-panel px-4 py-2 rounded-xl backdrop-blur-md border border-white/15 shadow-xl">
+        <div className="glass-panel px-4 py-2 rounded-xl backdrop-blur-md shadow-xl">
           <h3
             ref={labelRef}
             className="text-base sm:text-lg font-black tracking-wider text-white uppercase text-center drop-shadow-md"

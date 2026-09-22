@@ -102,7 +102,19 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      frameSrc: ["'self'", "https://animekai.to", "https://*.vidlink.pro", "https://vidapi.xyz", "https://www.youtube.com", "https://doodstream.com", "https://*.doodstream.com", "https://d000d.com", "https://*.d000d.com", "https://d0000d.com", "https://playmogo.com", "https://*.playmogo.com", "https://*.dood.to", "https://*.vidzy.cc", "https://vidsrc.xyz", "https://embed.su", "https://uqload.is", "https://*.uqload.is", "https://www.google.com", "https://*.google.com"],
+      frameSrc: ["'self'", "https://animekai.to", "https://*.vidlink.pro", "https://vidapi.xyz", "https://www.youtube.com", "https://doodstream.com", "https://*.doodstream.com", "https://d000d.com", "https://*.d000d.com", "https://d0000d.com", "https://playmogo.com", "https://*.playmogo.com", "https://*.dood.to", "https://*.vidzy.cc", "https://fsvid.lol", "https://*.fsvid.lol", "https://trakx.lol", "https://*.trakx.lol", "https://vidsrc.in", "https://*.vidsrc.in", "https://vidsrc.xyz", "https://embed.su", "https://uqload.is", "https://*.uqload.is", "https://uqload.vc", "https://*.uqload.vc", "https://www.google.com", "https://*.google.com",
+        // Flemmix embed hosts
+        "https://luluvdo.com", "https://*.luluvdo.com",
+        "https://vidmoly.org", "https://*.vidmoly.org",
+        "https://savefiles.com", "https://*.savefiles.com",
+        "https://waaw1.tv", "https://*.waaw1.tv",
+        "https://vidara.to", "https://*.vidara.to",
+        "https://morencius.com", "https://*.morencius.com",
+        "https://hanerix.com", "https://*.hanerix.com",
+        "https://firestream.site", "https://*.firestream.site",
+        "https://tipfly.xyz", "https://*.tipfly.xyz",
+        "https://rebeccapracticeloss.com", "https://*.rebeccapracticeloss.com",
+      ],
       scriptSrc: ["'self'", "'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'", "https:"],
       imgSrc: ["'self'", "data:", "https:"],

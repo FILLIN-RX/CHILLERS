@@ -12,6 +12,9 @@ export interface UseStreamUrlArgs {
   season?: number;
   episode?: number;
   title?: string;
+  originalTitle?: string;
+  releaseDate?: string;
+  year?: number;
   /** Disable the request entirely (e.g. when the page isn't ready). */
   enabled?: boolean;
   /** Stale time (ms) before the cached URL is considered stale and refetched. */
@@ -20,9 +23,14 @@ export interface UseStreamUrlArgs {
 
 export interface StreamResolution {
   embedUrl: string;
-  provider: "primary" | "secondary";
+  provider: "primary" | "secondary" | "unreleased";
   /** URL same-origin du téléchargement direct (fournie par le fallback torrent). */
   downloadUrl?: string | null;
+  /** Type du lien direct : 'mp4' | 'hls' — utilisé par useDownload pour router vers le bon proxy. */
+  directType?: "mp4" | "hls" | null;
+  /** Indique que le film n'est pas encore sorti */
+  unreleased?: boolean;
+  releaseDate?: string | null;
 }
 
 const PRIMARY_TIMEOUT_MS = 8_000;
@@ -46,18 +54,25 @@ interface RaceContext {
 /**
  * Race the primary provider against the secondary provider, return whichever
  * resolves first with a usable URL. If both fail, return `null`.
- *
- * Implementation detail: we only short-circuit when a provider resolves with
- * a usable URL, NOT when it fails/times-out — otherwise a single broken
- * upstream would block the other one for the full timeout. The loser is
- * allowed to keep running in the background and we cache its result so the
- * *next* navigation starts instantly.
  */
 async function raceProviders(
   args: UseStreamUrlArgs,
   ctx: RaceContext,
   signal: AbortSignal,
 ): Promise<StreamResolution | null> {
+  // Early exit pour contenu inédit
+  if (args.releaseDate) {
+    const rel = new Date(args.releaseDate).getTime();
+    if (!isNaN(rel) && rel > Date.now()) {
+      return {
+        embedUrl: "",
+        provider: "unreleased",
+        unreleased: true,
+        releaseDate: args.releaseDate,
+      };
+    }
+  }
+
   const withTimeout = <T,>(p: Promise<T>, ms: number): Promise<T | null> =>
     Promise.race<T | null>([
       p,
@@ -74,11 +89,33 @@ async function raceProviders(
   };
 
   const primaryPromise = withTimeout(
-    getStreamUrl(args.id, args.type, args.season, args.episode, args.title, signal)
+    getStreamUrl(
+      args.id,
+      args.type,
+      args.season,
+      args.episode,
+      args.title,
+      signal,
+      args.originalTitle,
+      args.releaseDate,
+      args.year,
+    )
       .then<StreamResolution | null>((res) =>
-        res ? { embedUrl: res.embedUrl, provider: "primary" as const, downloadUrl: res.downloadUrl } : null,
+        res
+          ? {
+              embedUrl: res.embedUrl,
+              provider: (res.unreleased ? "unreleased" : "primary") as "primary" | "unreleased",
+              downloadUrl: res.downloadUrl,
+              directType: res.directType ?? null,
+              unreleased: res.unreleased,
+              releaseDate: res.releaseDate,
+            }
+          : null
       )
-      .catch(() => null),
+      .catch((err) => {
+        if (err?.name === "HttpError" && err.status === 403) throw err;
+        return null;
+      }),
     PRIMARY_TIMEOUT_MS,
   ).then((r) => {
     backgroundCache(r);
@@ -88,7 +125,10 @@ async function raceProviders(
   const secondaryPromise = withTimeout(
     getNexStreamUrl(args.id, args.type, args.season, args.episode, args.title)
       .then<StreamResolution | null>((url) => (url ? { embedUrl: url, provider: "secondary" as const } : null))
-      .catch(() => null),
+      .catch((err) => {
+        if (err?.name === "HttpError" && err.status === 403) throw err;
+        return null;
+      }),
     SECONDARY_TIMEOUT_MS,
   ).then((r) => {
     backgroundCache(r);
@@ -107,9 +147,23 @@ async function raceProviders(
     };
     primaryPromise.then((r) => {
       if (r) settle(r);
+    }).catch((err) => {
+      if (err?.name === "HttpError" && err.status === 403) {
+        if (!settled) {
+          settled = true;
+          resolve(Promise.reject(err));
+        }
+      }
     });
     secondaryPromise.then((r) => {
       if (r) settle(r);
+    }).catch((err) => {
+      if (err?.name === "HttpError" && err.status === 403) {
+        if (!settled) {
+          settled = true;
+          resolve(Promise.reject(err));
+        }
+      }
     });
     // Last-resort: if both timed out without resolving to a usable URL,
     // surface null after the slower timeout.

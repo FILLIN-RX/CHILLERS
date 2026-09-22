@@ -75,7 +75,7 @@ export default function NetworkStatusBanner() {
       className="fixed bottom-20 sm:bottom-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 animate-in fade-in slide-in-from-bottom-3 max-w-[92vw]"
     >
       {isOffline ? (
-        <div className="flex items-center gap-2.5 pl-3.5 pr-2 py-2 rounded-[2px] bg-zinc-900/95 border border-red-500/40 text-white text-xs font-semibold shadow-2xl backdrop-blur-md">
+        <div className="flex items-center gap-2.5 pl-3.5 pr-2 py-2 rounded-[2px] bg-zinc-900/95 text-white text-xs font-semibold shadow-2xl backdrop-blur-md">
           <WifiSlash className="h-4 w-4 text-red-400 animate-pulse shrink-0" />
           <span className="truncate">Hors-ligne</span>
           <Link
@@ -94,7 +94,7 @@ export default function NetworkStatusBanner() {
           </button>
         </div>
       ) : showRestored ? (
-        <div className="flex items-center gap-2.5 pl-3.5 pr-2 py-1.5 rounded-[2px] bg-emerald-950/90 border border-emerald-500/40 text-emerald-200 text-xs font-semibold shadow-2xl backdrop-blur-md">
+        <div className="flex items-center gap-2.5 pl-3.5 pr-2 py-1.5 rounded-[2px] bg-emerald-950/90 text-emerald-200 text-xs font-semibold shadow-2xl backdrop-blur-md">
           <WifiHigh className="h-4 w-4 text-emerald-400 shrink-0" />
           <span>Connexion rétablie</span>
           <button
@@ -106,7 +106,7 @@ export default function NetworkStatusBanner() {
           </button>
         </div>
       ) : isLowBandwidth ? (
-        <div className="flex items-center gap-2.5 pl-3.5 pr-2 py-1.5 rounded-[2px] bg-amber-950/90 border border-amber-500/40 text-amber-200 text-xs font-semibold shadow-2xl backdrop-blur-md">
+        <div className="flex items-center gap-2.5 pl-3.5 pr-2 py-1.5 rounded-[2px] bg-amber-950/90 text-amber-200 text-xs font-semibold shadow-2xl backdrop-blur-md">
           <CellSignalHigh className="h-4 w-4 text-amber-400 shrink-0" />
           <span>Réseau faible · Streaming optimisé</span>
           <button

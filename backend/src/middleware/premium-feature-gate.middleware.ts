@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { globalSubscriptionService } from '../services/global-subscription.service';
+import { hasPremiumAccess } from '../utils/premium-access';
 
 export interface PremiumGateRequest extends Request {
   user?: {
@@ -9,6 +10,11 @@ export interface PremiumGateRequest extends Request {
       plan: 'free' | 'standard' | 'premium';
       status: 'active' | 'inactive' | 'cancelled';
       expiresAt?: Date;
+    };
+    promo?: {
+      code: string;
+      isActive: boolean;
+      expiresAt: Date;
     };
   };
   userCanAccessPremium?: boolean;
@@ -42,8 +48,10 @@ export const premiumFeatureGate = async (
       return;
     }
 
-    // 3. If global state is ON, check user subscription
-    if (!req.user?.subscription) {
+    // 3. Check if user has active premium subscription or promo
+    const hasPremium = hasPremiumAccess(req.user as any);
+
+    if (!hasPremium) {
       req.userCanAccessPremium = false;
       res.status(403).json({
         success: false,
@@ -52,23 +60,6 @@ export const premiumFeatureGate = async (
       return;
     }
 
-    // 4. Check if user has active premium subscription
-    const subscription = req.user.subscription;
-    const hasActivePremium =
-      subscription.plan !== 'free' &&
-      subscription.status === 'active' &&
-      (!subscription.expiresAt || new Date(subscription.expiresAt) > new Date());
-
-    if (!hasActivePremium) {
-      req.userCanAccessPremium = false;
-      res.status(403).json({
-        success: false,
-        message: 'Premium subscription required',
-      });
-      return;
-    }
-
-    // 5. User has active premium - allow access
     req.userCanAccessPremium = true;
     next();
   } catch (error) {

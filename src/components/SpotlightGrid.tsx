@@ -24,7 +24,7 @@ function SpotlightCard({
   const bg = item.backdropOriginalUrl || item.backdropUrl;
 
   return (
-    <div className="relative group overflow-hidden sm:rounded-2xl border border-white/10 w-full">
+    <div className="relative group overflow-hidden sm:rounded-2xl border-0 w-full">
       <div className="relative w-full h-full min-h-[160px] sm:min-h-[420px]">
         {bg ? (
           <Image
@@ -65,7 +65,7 @@ function SpotlightCard({
               size="xs"
               leftIcon={<Info className="h-3 w-3" />}
               ariaLabel={`Détails de ${item.title}`}
-              className="backdrop-blur-sm bg-white/10 border-white/20 hover:bg-white/20"
+              className="backdrop-blur-sm bg-white/10 hover:bg-white/20 border-0"
             >
               Details
             </Button>
@@ -75,7 +75,7 @@ function SpotlightCard({
         <div className="absolute top-2 right-2 sm:top-3 sm:right-3 z-20">
           <button
             aria-label="Ajouter aux favoris"
-            className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm border border-white/10 text-white/70 hover:text-white hover:bg-black/60 transition-all"
+            className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm border-0 text-white/70 hover:text-white hover:bg-black/60 transition-all"
           >
             <svg className="h-3.5 w-3.5 sm:h-4 sm:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />

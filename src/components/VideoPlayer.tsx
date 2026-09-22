@@ -7,6 +7,7 @@ import type { MovieOrShow, Episode } from "@/types/media";
 import { X, DownloadSimple, Play, Pause, SpeakerSimpleHigh, SpeakerSimpleLow, SpeakerSimpleSlash, ArrowsOutSimple, PictureInPicture, Subtitles, SkipBack, SkipForward, Spinner, GearSix, ArrowsClockwise, Crown } from "@phosphor-icons/react";
 import NotificationModal from "./NotificationModal";
 import DownloadModal from "@/features/downloads/DownloadModal";
+import UpgradeModal from "./UpgradeModal";
 import { isIframeProviderUrl, toEmbedUrl } from "@/lib/providers";
 import { useDebouncedEffect } from "@/hooks/useDebouncedEffect";
 import { useStreamUrl } from "@/hooks/useStreamUrl";
@@ -60,6 +61,7 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
   const [dismissPortraitPrompt, setDismissPortraitPrompt] = useState(false);
   const [notification, setNotification] = useState<{ title: string; message: string } | null>(null);
   const [showSingleDownload, setShowSingleDownload] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [hoverTime, setHoverTime] = useState<number | null>(null);
   const [hoverPos, setHoverPos] = useState<number>(0);
@@ -206,6 +208,12 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
     title: item.title,
     enabled: !!item.id,
   });
+
+  useEffect(() => {
+    if (streamQuery.error && (streamQuery.error as any).status === 403) {
+      setShowUpgradeModal(true);
+    }
+  }, [streamQuery.error]);
 
   const resolvedStreamUrl = streamQuery.data?.embedUrl ?? null;
   // URL de téléchargement direct (fallback torrent) — type chillers-test :
@@ -1387,6 +1395,11 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
         title={notification?.title ?? ""}
         message={notification?.message ?? ""}
         onClose={() => setNotification(null)}
+      />
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        featureName={item.type === "movie" ? "La lecture de ce film" : "La lecture de ce contenu"}
       />
     </div>
   );

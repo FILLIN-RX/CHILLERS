@@ -209,8 +209,16 @@ export default function MovieModal({
         year: item.year || enhanced.year,
         rating: item.rating || enhanced.rating,
         type: item.type || enhanced.type,
+        releaseDate: enhanced.releaseDate || item.releaseDate,
       }
     : item;
+
+  const isUpcoming = effective.releaseDate ? new Date(effective.releaseDate).getTime() > Date.now() : false;
+  const releaseDateLabel = effective.releaseDate ? (() => {
+    try {
+      return new Date(effective.releaseDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+    } catch { return effective.releaseDate; }
+  })() : null;
 
   const heroSrc = effective.backdropUrl || effective.posterUrl;
 
@@ -261,8 +269,13 @@ export default function MovieModal({
               {effective.title}
             </h2>
             <div className="flex items-center gap-2 text-xs text-white/90 font-semibold flex-wrap">
+              {isUpcoming && releaseDateLabel && (
+                <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-blue-600 text-white border-0 shadow-none">
+                  ⏳ Sortie le {releaseDateLabel}
+                </span>
+              )}
               {effective.rating && (
-                <div className="flex items-center gap-1 text-amber-400 glass-badge px-2 py-0.5 rounded font-bold">
+                <div className="flex items-center gap-1 text-amber-400 glass-badge px-2 py-0.5 rounded font-bold border-0 shadow-none">
                   <Star className="h-3.5 w-3.5 fill-amber-400" />
                   <span>{effective.rating}</span>
                 </div>
@@ -279,14 +292,20 @@ export default function MovieModal({
           {/* Buttons + synopsis */}
           <div className="space-y-4">
             <div className="flex items-center gap-3 flex-wrap">
-              <Button
-                onClick={() => onWatch(item)}
-                variant="primary"
-                size="md"
-                text={_("media.watch")}
-                leftIcon={<Play className="h-4 w-4 fill-white" />}
-                ariaLabel={`Regarder ${effective.title}`}
-              />
+              {isUpcoming ? (
+                <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600/20 border-0 text-blue-300 text-xs sm:text-sm font-bold shadow-none">
+                  <span>⏳ Bientôt disponible (Sortie le {releaseDateLabel})</span>
+                </div>
+              ) : (
+                <Button
+                  onClick={() => onWatch(item)}
+                  variant="primary"
+                  size="md"
+                  text={_("media.watch")}
+                  leftIcon={<Play className="h-4 w-4 fill-white" />}
+                  ariaLabel={`Regarder ${effective.title}`}
+                />
+              )}
 
               <Button
                 onClick={() => {
@@ -355,7 +374,7 @@ export default function MovieModal({
                       onClick={() => isAvailable && handleSeasonChange(season)}
                       className={`flex-none flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                         !isAvailable
-                          ? "text-zinc-500 border border-zinc-700 cursor-default opacity-50"
+                          ? "text-zinc-500 border-0 bg-white/5 cursor-default opacity-50"
                           : activeSeason?.id === season.id
                             ? "bg-brand-primary text-white shadow-md shadow-brand-primary/30"
                             : "glass-button text-foreground/80 hover:text-white"

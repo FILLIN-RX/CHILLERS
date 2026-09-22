@@ -2,7 +2,7 @@ import axios from 'axios';
 import querystring from 'querystring';
 import Movie from '../../models/Movie';
 
-const BASE_URL = 'https://french-stream.one';
+const BASE_URL = 'https://french-stream.net';
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 export interface FrenchStreamSearchResult {

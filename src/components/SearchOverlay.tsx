@@ -73,8 +73,11 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
 
   const goToDetail = (item: MovieOrShow) => {
     onClose();
-    const typeParam = item.type === "series" || item.type === "anime" ? "tv" : item.type;
-    router.push(`/media/${item.id}?type=${typeParam}`, { scroll: false });
+    if (item.type === "series" || item.type === "anime") {
+      router.push(`/tv/${item.id}`);
+    } else {
+      router.push(`/media/${item.id}`);
+    }
   };
 
   const dedup = (items: MovieOrShow[]) => {
@@ -102,7 +105,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
             <ArrowLeft className="h-5 w-5" />
           </button>
 
-          <Link href="/" onClick={onClose} className="group flex items-center gap-2 focus:outline-none shrink-0">
+          <Link href="/" onClick={onClose} className="group flex items-center focus:outline-none shrink-0">
             <Image
               src="/android-chrome-512x512.png"
               alt="CHILLERS"
@@ -111,8 +114,8 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
               className="h-6 sm:h-7 w-auto object-contain transition-transform duration-300 group-hover:scale-105 drop-shadow-[0_0_12px_rgba(215,4,102,0.4)]"
               priority
             />
-            <span className="hidden xs:flex text-base sm:text-lg font-black tracking-tight text-white items-center font-sans">
-              CHILL<span className="text-brand-primary">ERS</span>
+            <span className="hidden xs:flex text-base sm:text-lg font-black tracking-tight text-white items-center font-sans -ml-1.5">
+              HILL<span className="text-brand-primary">ERS</span>
             </span>
           </Link>
         </div>

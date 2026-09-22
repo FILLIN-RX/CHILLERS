@@ -92,10 +92,18 @@ export class MongoDBProvider implements StreamingProvider {
     try {
       // Priority 1: exact tmdbId match
       let movie = query.tmdbId ? await Movie.findOne({ tmdbId: query.tmdbId }).exec() : null;
-      // Priority 2: exact title match fallback (anchored ^...$)
-      if (!movie && query.title) {
-        const escaped = query.title.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        movie = await Movie.findOne({ titre: { $regex: new RegExp(`^${escaped}$`, 'i') } }).exec();
+      // Priority 2: title & originalTitle match fallback
+      if (!movie) {
+        const titlesToTry = [query.title, query.originalTitle].filter(Boolean) as string[];
+        for (const t of titlesToTry) {
+          const escaped = t.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          movie = await Movie.findOne({ titre: { $regex: new RegExp(`^${escaped}$`, 'i') } }).exec();
+          if (!movie && t.length > 3) {
+            const fuzzyPattern = t.trim().replace(/[:\-_'"]/g, '.*');
+            movie = await Movie.findOne({ titre: { $regex: new RegExp(`^${fuzzyPattern}$`, 'i') } }).exec();
+          }
+          if (movie) break;
+        }
       }
       if (!movie) return null;
 
@@ -164,14 +172,22 @@ export class MongoDBProvider implements StreamingProvider {
 
     try {
       let serie = query.tmdbId ? await this.findSerie(query) : null;
-      if (!serie && query.title) {
-        const escaped = query.title.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const byTitle = await Serie.find({ titre: { $regex: new RegExp(`^${escaped}$`, 'i') } }).exec();
-        if (byTitle.length) {
-          const bySeason = byTitle.find(s => s.episodes?.some(
-            (e: any) => Number(e.season) === Number(query.season)
-          ));
-          serie = bySeason || byTitle[0];
+      if (!serie) {
+        const titlesToTry = [query.title, query.originalTitle].filter(Boolean) as string[];
+        for (const t of titlesToTry) {
+          const escaped = t.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          let byTitle = await Serie.find({ titre: { $regex: new RegExp(`^${escaped}$`, 'i') } }).exec();
+          if (!byTitle.length && t.length > 3) {
+            const fuzzyPattern = t.trim().replace(/[:\-_'"]/g, '.*');
+            byTitle = await Serie.find({ titre: { $regex: new RegExp(`^${fuzzyPattern}$`, 'i') } }).exec();
+          }
+          if (byTitle.length) {
+            const bySeason = byTitle.find(s => s.episodes?.some(
+              (e: any) => Number(e.season) === Number(query.season)
+            ));
+            serie = bySeason || byTitle[0];
+            break;
+          }
         }
       }
 

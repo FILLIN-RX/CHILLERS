@@ -28,6 +28,11 @@ export interface IUser extends Document {
     status: 'active' | 'inactive' | 'cancelled';
     expiresAt?: Date;
   };
+  promo?: {
+    code: string;
+    isActive: boolean;
+    expiresAt: Date;
+  };
   activeSessions: {
     deviceId: string;
     lastLogin: Date;
@@ -129,8 +134,23 @@ const UserSchema: Schema = new Schema(
       defaultSubtitle: { type: String },
     },
     subscription: {
-      plan: { type: String, enum: ['free', 'standard', 'premium'], default: 'free' },
-      status: { type: String, enum: ['active', 'inactive', 'cancelled'], default: 'active' },
+      plan: {
+        type: String,
+        enum: ['free', 'standard', 'premium'],
+        default: 'free',
+      },
+      status: {
+        type: String,
+        enum: ['active', 'inactive', 'cancelled'],
+        default: 'inactive',
+      },
+      expiresAt: {
+        type: Date,
+      },
+    },
+    promo: {
+      code: { type: String, trim: true },
+      isActive: { type: Boolean, default: false },
       expiresAt: { type: Date },
     },
     activeSessions: [

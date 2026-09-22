@@ -75,6 +75,8 @@ export interface MovieOrShow {
   similar?: MovieOrShow[];
   langueAudio?: string;
   isFrenchAudio?: boolean;
+  /** Date de sortie ISO (YYYY-MM-DD) — utilisé pour détecter les films "À venir" */
+  releaseDate?: string;
 }
 
 export interface Genre {

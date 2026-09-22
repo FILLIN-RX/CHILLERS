@@ -2,33 +2,44 @@ import { Metadata } from "next";
 import { Suspense } from "react";
 import { API_BASE, getServerApiHeaders } from "@/lib/server-api";
 import { buildMediaMetadata, buildMediaJsonLd, SITE_LOCALE, DEFAULT_OG_IMAGE } from "@/lib/seo";
-import { getPopularTV } from "@/services/media";
+import { getMediaDetails, getPopularTV, mapTMDBToMovieOrShow } from "@/services/media";
 import TvClientWrapper from "./TvClientWrapper";
+
+export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{ id: string }>;
 };
 
 async function fetchTvData(id: string) {
-  let d = null;
+  try {
+    const details = await getMediaDetails(id, true);
+    if (details) return details;
+  } catch (err) {
+    console.warn("getMediaDetails failed for tv details:", err);
+  }
+
+  // Direct TMDB fallback with proper MovieOrShow mapping
   const tmdbToken = process.env.TMDB_TOKEN || process.env.NEXT_PUBLIC_TMDB_TOKEN;
   if (tmdbToken) {
     try {
-      const tmdbRes = await fetch(`https://api.themoviedb.org/3/tv/${id}?language=fr-FR&append_to_response=credits,videos`, {
-        headers: { Authorization: `Bearer ${tmdbToken}` },
-        signal: AbortSignal.timeout(5000),
-      });
+      const tmdbRes = await fetch(
+        `https://api.themoviedb.org/3/tv/${id}?language=fr-FR&append_to_response=credits,videos,content_ratings,recommendations,similar`,
+        {
+          headers: { Authorization: `Bearer ${tmdbToken}` },
+          signal: AbortSignal.timeout(6000),
+        }
+      );
       const json = await tmdbRes.json();
       if (json && !json.status_code) {
-        d = json;
+        return mapTMDBToMovieOrShow(json, "series");
       }
     } catch (err) {
-      console.warn("TMDB fetch failed for tv details, falling back to backend...", err);
+      console.warn("TMDB direct fetch failed in fetchTvData:", err);
     }
   }
 
-  // Si on a pas les données complètes ou si on préfère utiliser notre propre mapper,
-  // on utilise l'API interne (c'est plus sûr car elle gère le mapping vers MovieOrShow).
+  // Internal backend API fallback with proper MovieOrShow mapping
   try {
     const res = await fetch(`${API_BASE}/tv/${id}?language=fr`, {
       headers: getServerApiHeaders(),
@@ -36,10 +47,10 @@ async function fetchTvData(id: string) {
     });
     const json = await res.json().catch(() => null);
     if (json && json.success && json.data) {
-      return json.data;
+      return mapTMDBToMovieOrShow(json.data, "series");
     }
   } catch (err) {
-    console.warn("Backend fetch failed for tv details", err);
+    console.warn("Backend fetch failed in fetchTvData:", err);
   }
   
   return null;

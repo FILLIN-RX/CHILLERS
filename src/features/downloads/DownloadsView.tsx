@@ -575,7 +575,7 @@ export default function DownloadsView({
       ) : tasks.length === 0 ? (
         /* ÉCRAN VIDE */
         <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
-          <div className="w-14 h-14 rounded-[3px] bg-zinc-900 border border-white/10 flex items-center justify-center text-brand-primary shadow-xl">
+          <div className="w-14 h-14 rounded-[3px] bg-zinc-900 flex items-center justify-center text-brand-primary shadow-xl">
             <DownloadSimple className="w-7 h-7" />
           </div>
           <div>

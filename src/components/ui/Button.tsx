@@ -70,7 +70,7 @@ const variantStyles: Record<ButtonVariant, string> = {
   ghost:
     "bg-transparent text-zinc-300 hover:text-white hover:bg-white/10 active:bg-white/15 border border-transparent",
   dark:
-    "bg-[#27272A] text-white hover:bg-[#3F3F46] active:bg-[#18181B] border border-white/10 shadow-sm",
+    "bg-[#27272A] text-white hover:bg-[#3F3F46] active:bg-[#18181B] border border-transparent shadow-sm",
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(

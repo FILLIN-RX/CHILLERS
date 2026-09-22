@@ -68,29 +68,51 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
   const [isRunning, setIsRunning] = useState(false);
 
   // Helper pour trouver une URL de téléchargement déjà en cache TanStack Query
-  const getCachedDownloadUrl = useCallback((): string | null => {
-    const cachedByStr = queryClient.getQueryData<{ downloadUrl?: string | null }>([
+  const getCachedStream = useCallback((): { downloadUrl: string; directType?: string | null } | null => {
+    const check = (cached: { downloadUrl?: string | null; directType?: string | null } | undefined) => {
+      if (cached?.downloadUrl) return { downloadUrl: cached.downloadUrl, directType: cached.directType };
+      return null;
+    };
+
+    const byStr = queryClient.getQueryData<{ downloadUrl?: string | null; directType?: string | null }>([
       "streamUrl",
       String(tmdbId),
       type,
       season ?? "_",
       episodeNumber ?? "_",
     ]);
-    if (cachedByStr?.downloadUrl) return cachedByStr.downloadUrl;
+    const r1 = check(byStr);
+    if (r1) return r1;
 
     const numId = Number(tmdbId);
     if (!isNaN(numId)) {
-      const cachedByNum = queryClient.getQueryData<{ downloadUrl?: string | null }>([
+      const byNum = queryClient.getQueryData<{ downloadUrl?: string | null; directType?: string | null }>([
         "streamUrl",
         numId as any,
         type,
         season ?? "_",
         episodeNumber ?? "_",
       ]);
-      if (cachedByNum?.downloadUrl) return cachedByNum.downloadUrl;
+      const r2 = check(byNum);
+      if (r2) return r2;
     }
     return null;
   }, [queryClient, tmdbId, type, season, episodeNumber]);
+
+  /** Construit l'URL proxy correcte selon le type de lien (HLS → FFmpeg, MP4 → file proxy). */
+  const buildFinalDownloadUrl = useCallback((rawUrl: string, directType?: string | null, filename?: string): string => {
+    const cleanName = (filename || `${title}.mp4`).replace(/[^a-zA-Z0-9_\-]/g, '_');
+    const isHls = directType === 'hls' || /\.m3u8(\?|$)/i.test(rawUrl);
+    const isMp4 = directType === 'mp4' || /\.mp4(\?|$)/i.test(rawUrl);
+
+    if (isHls) {
+      return `/api/download/stream?m3u8=${encodeURIComponent(rawUrl)}&filename=${encodeURIComponent(cleanName)}`;
+    }
+    if (isMp4 && rawUrl.startsWith('http')) {
+      return `/api/download/file?url=${encodeURIComponent(rawUrl)}&filename=${encodeURIComponent(cleanName)}`;
+    }
+    return rawUrl; // lien interne /api/... ou embed → tel quel
+  }, [title]);
 
   // Latest task ref so callbacks always read the freshest row without
   // re-creating on every store update (which would restart the download).
@@ -169,12 +191,12 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
     setIsRunning(true);
 
     // 1. Vérification préalable du cache de stream (Option C : 0ms latence)
-    const cachedUrl = getCachedDownloadUrl();
-    if (cachedUrl) {
-      updateTask(id, {
-        resolvedUrl: cachedUrl,
-        resolvedUrlAt: Date.now(),
-      });
+    //    On récupère aussi directType pour construire la bonne URL proxy
+    const cached = getCachedStream();
+    if (cached) {
+      const filename = buildEpisodeFilename({ title, season, episodeNumber, extension: "mp4" });
+      const finalUrl = buildFinalDownloadUrl(cached.downloadUrl, cached.directType, filename);
+      updateTask(id, { resolvedUrl: finalUrl, resolvedUrlAt: Date.now() });
       setStatus(id, "ready");
       setIsRunning(false);
       return;
@@ -204,6 +226,7 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
         return;
       }
 
+      // result.downloadUrl est déjà le bon proxy URL (HLS ou MP4) construit côté backend
       updateTask(id, {
         resolvedUrl: result.downloadUrl,
         resolvedUrlAt: Date.now(),
@@ -219,7 +242,7 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
     } finally {
       setIsRunning(false);
     }
-  }, [id, isRunning, isCancelRequested, setStatus, tmdbId, type, title, season, episodeNumber, updateTask, setController, clearCancelRequest, ensureTaskExists, getCachedDownloadUrl]);
+  }, [id, isRunning, isCancelRequested, setStatus, tmdbId, type, title, season, episodeNumber, updateTask, setController, clearCancelRequest, ensureTaskExists, getCachedStream, buildFinalDownloadUrl]);
 
   const streamCurrent = useCallback(async (url: string) => {
     setIsRunning(true);
@@ -317,14 +340,13 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
     }
 
     // Si l'URL de téléchargement est déjà en cache (stream déjà ouvert), démarrer immédiatement !
-    const cachedUrl = getCachedDownloadUrl();
-    if (cachedUrl) {
+    const cached2 = getCachedStream();
+    if (cached2) {
       ensureTaskExists();
-      updateTask(id, {
-        resolvedUrl: cachedUrl,
-        resolvedUrlAt: Date.now(),
-      });
-      await streamCurrent(cachedUrl);
+      const filename = buildEpisodeFilename({ title, season, episodeNumber, extension: "mp4" });
+      const finalUrl = buildFinalDownloadUrl(cached2.downloadUrl, cached2.directType, filename);
+      updateTask(id, { resolvedUrl: finalUrl, resolvedUrlAt: Date.now() });
+      await streamCurrent(finalUrl);
       return;
     }
 
@@ -333,7 +355,7 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
     if (afterResolve?.status === "ready" && afterResolve.resolvedUrl) {
       await streamCurrent(afterResolve.resolvedUrl);
     }
-  }, [isRunning, resolve, streamCurrent, getCachedDownloadUrl, ensureTaskExists, updateTask, id]);
+  }, [isRunning, resolve, streamCurrent, getCachedStream, buildFinalDownloadUrl, ensureTaskExists, updateTask, id, title, season, episodeNumber]);
 
   const retry = useCallback(() => {
     if (isRunning) return;

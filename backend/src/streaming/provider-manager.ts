@@ -8,6 +8,8 @@ import { DirectProvider } from './providers/direct.provider';
 import { OtakuProvider } from './providers/otaku.provider';
 import { FrenchStreamProvider } from './providers/frenchstream.provider';
 import { OmniSaveProvider } from './providers/omnisave.provider';
+import { VidLinkProvider } from './providers/vidlink.provider';
+import { FlemmixProvider } from './providers/flemmix.provider';
 import { persistDiscoveredStream } from './services/stream-persistence.service';
 import { CachedStream, streamCache, getCacheKey } from '../utils/stream-cache';
 
@@ -21,6 +23,8 @@ interface ProviderAttempt {
   provider: string;
   status: 'success' | 'skip' | 'fail' | 'error';
   reason?: string;
+  directUrl?: string;
+  directType?: 'mp4' | 'hls';
 }
 
 interface ProviderHealth {
@@ -43,14 +47,30 @@ export class ProviderManager {
     return [
       new DirectProvider(),
       new FrenchStreamProvider(),
+      new FlemmixProvider(),
       new OmniSaveProvider(),
       new MongoDBProvider(),
       new DoodStreamProvider(),
       new OtakuProvider(),
+      new VidLinkProvider(),
     ];
   }
 
   async getMovieStream(query: StreamQuery): Promise<CachedStream | null> {
+    // ── Early exit pour contenu inédit / pas encore sorti en salle/streaming ─────
+    if (query.releaseDate) {
+      const relTime = new Date(query.releaseDate).getTime();
+      if (!isNaN(relTime) && relTime > Date.now()) {
+        console.log(`[Stream] "${query.title || query.tmdbId}" n'est pas encore sorti (date de sortie: ${query.releaseDate}). Early exit.`);
+        return {
+          provider: 'unreleased',
+          embedUrl: '',
+          isUnreleased: true,
+          releaseDate: query.releaseDate,
+        };
+      }
+    }
+
     // ── Cache LRU ───────────────────────────────────────────────────────────
     const cacheKey = getCacheKey('movie', query.tmdbId, undefined, undefined, query.isPremium);
     const cached = streamCache.get(cacheKey);
@@ -69,7 +89,12 @@ export class ProviderManager {
         console.log(
           `[Stream] Movie stream found via "${provider.name}" after ${attempts.length} attempt(s)`
         );
-        const result: CachedStream = { provider: attempt.provider, embedUrl: attempt.reason! };
+        const result: CachedStream = {
+          provider: attempt.provider,
+          embedUrl: attempt.reason!,
+          directUrl: attempt.directUrl,
+          directType: attempt.directType,
+        };
         streamCache.set(cacheKey, result);
         return result;
       }
@@ -83,6 +108,20 @@ export class ProviderManager {
   }
 
   async getEpisodeStream(query: StreamQuery): Promise<CachedStream | null> {
+    // ── Early exit pour contenu inédit / pas encore sorti ───────────────────────
+    if (query.releaseDate) {
+      const relTime = new Date(query.releaseDate).getTime();
+      if (!isNaN(relTime) && relTime > Date.now()) {
+        console.log(`[Stream] Série/Épisode "${query.title || query.tmdbId}" n'est pas encore sorti (date: ${query.releaseDate}). Early exit.`);
+        return {
+          provider: 'unreleased',
+          embedUrl: '',
+          isUnreleased: true,
+          releaseDate: query.releaseDate,
+        };
+      }
+    }
+
     // Nettoyer les suffixes d'épisode polluant le titre de la série (ex: "Lanterns: The Official Podcast · E1" → "Lanterns: The Official Podcast")
     const cleanTitle = query.title
       ? query.title.replace(/\s*·\s*(?:S\d+)?E\d+.*$/i, '').trim()
@@ -111,7 +150,12 @@ export class ProviderManager {
         console.log(
           `[Stream] Episode stream found via "${provider.name}" after ${attempts.length} attempt(s)`
         );
-        const result: CachedStream = { provider: attempt.provider, embedUrl: attempt.reason! };
+        const result: CachedStream = {
+          provider: attempt.provider,
+          embedUrl: attempt.reason!,
+          directUrl: attempt.directUrl,
+          directType: attempt.directType,
+        };
         streamCache.set(cacheKey, result);
         return result;
       }
@@ -181,9 +225,21 @@ export class ProviderManager {
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     try {
-      const result = await (type === 'movie'
+      let result = await (type === 'movie'
         ? provider.getMovieStream(query)
         : provider.getEpisodeStream(query));
+
+      // ── Double Requête Titre : Si échec avec le titre principal, tester avec originalTitle ──
+      if ((!result || !result.embedUrl) && query.originalTitle && query.originalTitle.trim().toLowerCase() !== query.title?.trim().toLowerCase()) {
+        const altQuery = { ...query, title: query.originalTitle };
+        console.log(`[Stream] Provider "${provider.name}": tentative de secours avec titre original "${query.originalTitle}"`);
+        const altResult = await (type === 'movie'
+          ? provider.getMovieStream(altQuery)
+          : provider.getEpisodeStream(altQuery));
+        if (altResult && altResult.embedUrl) {
+          result = altResult;
+        }
+      }
 
       if (!result || !result.embedUrl) {
         // "Pas de résultat" = contenu absent de ce provider (cas NORMAL),
@@ -211,6 +267,8 @@ export class ProviderManager {
           provider: provider.name,
           status: 'success',
           reason: result.embedUrl,
+          directUrl: result.directUrl,
+          directType: result.directType,
         };
       } else {
         this.recordFailure(provider.name);
@@ -239,14 +297,39 @@ export class ProviderManager {
   private sortProviders(query: StreamQuery): StreamingProvider[] {
     const isPremium = !!query.isPremium;
 
+    const direct = this.providers.filter(p => p.name === 'direct' && p.supports(query));
+    const frenchStream = this.providers.filter(p => p.name === 'frenchstream' && p.supports(query));
+    const flemmix = this.providers.filter(p => p.name === 'flemmix' && p.supports(query));
+    const omniSave = this.providers.filter(p => p.name === 'omnisave' && p.supports(query));
+    const mongoDb = this.providers.filter(p => p.name === 'mongodb' && p.supports(query));
+    const doodstream = this.providers.filter(p => p.name === 'doodstream' && p.supports(query));
+    const otaku = this.providers.filter(p => p.name === 'otaku' && p.supports(query));
+    const vidlink = this.providers.filter(p => p.name === 'vidlink' && p.supports(query));
+
     if (isPremium) {
-      // Pour les utilisateurs Premium : FrenchStream (1080p Full HD) en priorité #1
-      const premiumProviders = this.providers.filter(p => p.name === 'frenchstream' && p.supports(query));
-      const otherProviders = this.providers.filter(p => p.name !== 'frenchstream');
-      return [...premiumProviders, ...otherProviders];
+      // Pour les utilisateurs Premium : FrenchStream (1080p Full HD) en priorité #1, Flemmix en #2
+      return [
+        ...frenchStream,
+        ...flemmix,
+        ...direct,
+        ...omniSave,
+        ...mongoDb,
+        ...doodstream,
+        ...otaku,
+        ...vidlink,
+      ];
     } else {
-      // Pour les utilisateurs Standards/Gratuits : flux normaux (Direct, MongoDB, Doodstream, Otaku)
-      return this.providers.filter(p => p.name !== 'frenchstream');
+      // Pour les utilisateurs Standards : Direct, MongoDB, OmniSave, Doodstream, puis FrenchStream + Flemmix, puis VidLink
+      return [
+        ...direct,
+        ...mongoDb,
+        ...omniSave,
+        ...doodstream,
+        ...otaku,
+        ...frenchStream,
+        ...flemmix,
+        ...vidlink,
+      ];
     }
   }
 

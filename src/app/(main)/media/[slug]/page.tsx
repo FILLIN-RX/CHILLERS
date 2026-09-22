@@ -4,6 +4,8 @@ import { buildMediaMetadata, buildMediaJsonLd, SITE_LOCALE, DEFAULT_OG_IMAGE } f
 import { getMediaDetails, getPopularTV, getPopularMovies } from "@/services/media";
 import MediaPageClient from "./client-page";
 
+import MediaListingSkeleton from "@/components/MediaListingSkeleton";
+
 const LISTING_TYPES = new Set(["movies", "series", "anime"]);
 
 type Props = {
@@ -84,7 +86,7 @@ export default async function Page({ params, searchParams }: Props) {
   const { slug } = await params;
   if (LISTING_TYPES.has(slug)) {
     return (
-      <Suspense fallback={<div className="min-h-screen bg-brand-dark" />}>
+      <Suspense fallback={<MediaListingSkeleton />}>
         <MediaPageClient />
       </Suspense>
     );

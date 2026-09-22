@@ -13,6 +13,12 @@ import { LRUCache } from 'lru-cache';
 export interface CachedStream {
   embedUrl: string;
   provider: string;
+  /** URL directe MP4 ou HLS (si disponible depuis le scrape initial). */
+  directUrl?: string;
+  directType?: 'mp4' | 'hls';
+  /** Indique que le contenu est inédit / pas encore sorti */
+  isUnreleased?: boolean;
+  releaseDate?: string;
 }
 
 const STREAM_CACHE_TTL = 10 * 60 * 1000; // 10 minutes

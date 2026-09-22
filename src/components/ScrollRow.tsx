@@ -175,10 +175,10 @@ export default function ScrollRow({
                 onClick={() => scroll("left")}
                 disabled={!canScrollLeft}
                 aria-label="Scroll left"
-                className={`flex h-8 w-8 items-center justify-center rounded-full border transition-all duration-200 focus:outline-none ${
+                className={`flex h-8 w-8 items-center justify-center rounded-full transition-all duration-200 focus:outline-none ${
                   canScrollLeft
-                    ? "border-zinc-600 bg-zinc-900 text-white hover:border-zinc-400 hover:bg-zinc-800 cursor-pointer"
-                    : "border-zinc-800 bg-zinc-950 text-zinc-700 cursor-not-allowed opacity-50"
+                    ? "bg-zinc-800 text-white hover:bg-zinc-700 cursor-pointer shadow-md"
+                    : "bg-zinc-950 text-zinc-700 cursor-not-allowed opacity-50"
                 }`}
               >
                 <CaretLeft className="h-4 w-4" />
@@ -187,10 +187,10 @@ export default function ScrollRow({
                 onClick={() => scroll("right")}
                 disabled={!canScrollRight}
                 aria-label="Scroll right"
-                className={`flex h-8 w-8 items-center justify-center rounded-full border transition-all duration-200 focus:outline-none ${
+                className={`flex h-8 w-8 items-center justify-center rounded-full transition-all duration-200 focus:outline-none ${
                   canScrollRight
-                    ? "border-zinc-600 bg-zinc-900 text-white hover:border-zinc-400 hover:bg-zinc-800 cursor-pointer"
-                    : "border-zinc-800 bg-zinc-950 text-zinc-700 cursor-not-allowed opacity-50"
+                    ? "bg-zinc-800 text-white hover:bg-zinc-700 cursor-pointer shadow-md"
+                    : "bg-zinc-950 text-zinc-700 cursor-not-allowed opacity-50"
                 }`}
               >
                 <CaretRight className="h-4 w-4" />
@@ -221,7 +221,7 @@ export default function ScrollRow({
             aria-label="Scroll left"
             className="sm:hidden absolute left-0 top-0 h-full w-10 z-20 flex items-center justify-start pl-1 bg-black/60 cursor-pointer"
           >
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/70 border border-white/20 backdrop-blur-sm">
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/70 backdrop-blur-sm shadow-md">
               <CaretLeft className="h-5 w-5 text-white" />
             </span>
           </button>
@@ -233,7 +233,7 @@ export default function ScrollRow({
             aria-label="Scroll right"
             className="sm:hidden absolute right-0 top-0 h-full w-10 z-20 flex items-center justify-end pr-1 bg-black/60 cursor-pointer"
           >
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/70 border border-white/20 backdrop-blur-sm">
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/70 backdrop-blur-sm shadow-md">
               <CaretRight className="h-5 w-5 text-white" />
             </span>
           </button>

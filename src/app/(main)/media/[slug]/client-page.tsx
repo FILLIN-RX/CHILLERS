@@ -33,7 +33,9 @@ import NotificationModal from "@/components/NotificationModal";
 import DownloadModal from "@/features/downloads/DownloadModal";
 import UpgradeModal from "@/components/UpgradeModal";
 import ScrollRow from "@/components/ScrollRow";
+import Top10Row from "@/components/Top10Row";
 import MovieCard from "@/components/MovieCard";
+import MovieCardSkeleton from "@/components/MovieCardSkeleton";
 import AddToPlaylistModal from "@/components/AddToPlaylistModal";
 import Button from "@/components/Button";
 import CardImage from "@/components/CardImage";
@@ -87,6 +89,15 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
   const castScrollRef = useRef<HTMLDivElement>(null);
   const [castCanScrollLeft, setCastCanScrollLeft] = useState(false);
   const [castCanScrollRight, setCastCanScrollRight] = useState(false);
+
+  /** true si le film n'est pas encore sorti (date de sortie dans le futur) */
+  const isUpcoming = Boolean(item?.releaseDate && new Date(item.releaseDate).getTime() > Date.now());
+  const releaseDateLabel = useMemo(() => {
+    if (!item?.releaseDate) return null;
+    try {
+      return new Date(item.releaseDate).toLocaleDateString(lang === "fr" ? 'fr-FR' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' });
+    } catch { return item.releaseDate; }
+  }, [item?.releaseDate, lang]);
 
   const checkCastScroll = useCallback(() => {
     const el = castScrollRef.current;
@@ -143,6 +154,13 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
         } else if (targetItem.videoUrl?.includes("youtube.com") || targetItem.videoUrl?.includes("embed")) {
           setTrailerUrl(targetItem.videoUrl);
         }
+      }
+
+      // Si le film n'est pas encore sorti, ne pas spammer /api/requests
+      const unreleased = targetItem.releaseDate && new Date(targetItem.releaseDate).getTime() > Date.now();
+      if (unreleased) {
+        if (!cancelled) setDisponible({ disponible: false, streaming: false, download: false });
+        return;
       }
 
       const dispo = await getDisponible(id, isTV ? 'series' : 'movie', targetItem.title);
@@ -466,11 +484,16 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
             <div className="flex-1 space-y-3 sm:space-y-4 min-w-0">
               {/* Badges : Disponibilité, Audio, Âge, Genres */}
               <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-xs font-bold">
-                {disponible && (
+                {isUpcoming && releaseDateLabel ? (
+                  <span className="px-3 py-1 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wider bg-blue-500/20 text-blue-300 border-0 flex items-center gap-1.5 shadow-none">
+                    <span>⏳</span>
+                    <span>Sortie au cinéma le {releaseDateLabel}</span>
+                  </span>
+                ) : disponible && (
                   <span
-                    className={`px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider border ${disponible.disponible
-                        ? "border-[#D70466]/40 text-[#D70466] bg-[#D70466]/10"
-                        : "border-red-500/40 text-red-400 bg-red-500/10"
+                    className={`px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider border-0 ${disponible.disponible
+                        ? "text-[#D70466] bg-[#D70466]/10"
+                        : "text-blue-300 bg-blue-500/15"
                       }`}
                   >
                     {disponible.disponible ? "● Disponible" : "● Bientôt disponible"}
@@ -479,16 +502,16 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
 
                 {/* Badge Audio */}
                 {(disponible?.langueAudio || item.langueAudio) && (disponible?.langueAudio !== 'UNKNOWN') && (
-                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider shadow-md ${disponible?.isFrenchAudio || item.isFrenchAudio
-                      ? 'bg-[#D70466]/90 text-white border border-[#D70466]/30'
-                      : 'bg-amber-600/90 text-white border border-amber-400/30'
+                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider border-0 shadow-none ${disponible?.isFrenchAudio || item.isFrenchAudio
+                      ? 'bg-[#D70466]/90 text-white'
+                      : 'bg-amber-600/90 text-white'
                     }`}>
                     {disponible?.langueAudio === 'VFF' ? 'VF (TrueFrench)' : disponible?.langueAudio === 'VFQ' ? 'VF (Québec)' : (disponible?.langueAudio || item.langueAudio)}
                   </span>
                 )}
 
                 {item.contentRating && (
-                  <span className="px-2 py-0.5 rounded bg-zinc-900/80 border border-zinc-700 text-zinc-300 text-[10px] sm:text-xs font-mono">
+                  <span className="px-2 py-0.5 rounded bg-zinc-900/80 border-0 text-zinc-300 text-[10px] sm:text-xs font-mono">
                     {item.contentRating}
                   </span>
                 )}
@@ -496,7 +519,7 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
                 {item.genres?.slice(0, 2).map((g) => (
                   <span
                     key={g}
-                    className="px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold text-zinc-300 bg-white/10 border border-white/10"
+                    className="px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold text-zinc-300 bg-white/10 border-0"
                   >
                     {g}
                   </span>
@@ -515,7 +538,7 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
                 </p>
               )}
 
-              {/* Métadonnées : Note, Année, Durée */}
+              {/* Métadonnées : Note, Année / Date de sortie, Durée */}
               <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-zinc-300 font-medium">
                 <div className="flex items-center gap-1 text-amber-400 font-bold">
                   <Star className="h-4 w-4 fill-amber-400" />
@@ -528,7 +551,7 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
                 <span className="text-zinc-600">•</span>
                 <div className="flex items-center gap-1">
                   <CalendarBlank className="h-4 w-4 text-zinc-500" />
-                  <span>{item.year}</span>
+                  <span>{isUpcoming && releaseDateLabel ? `Sortie le ${releaseDateLabel}` : item.year}</span>
                 </div>
                 <span className="text-zinc-600">•</span>
                 <div className="flex items-center gap-1">
@@ -544,16 +567,28 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
 
               {/* Actions avec le composant Button global */}
               <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-2">
-                <Button
-                  onClick={handleWatch}
-                  disabled={!item || loading}
-                  variant="primary"
-                  size="md"
-                  text={_("media.watch")}
-                  leftIcon={<Play className="h-4 w-4 fill-white" />}
-                  ariaLabel={`Regarder le film ${item?.title || ""}`}
-                  className="flex-1 sm:flex-initial"
-                />
+                {isUpcoming ? (
+                  <Button
+                    disabled
+                    variant="dark"
+                    size="md"
+                    text={`⏳ Bientôt disponible (Sortie le ${releaseDateLabel})`}
+                    leftIcon={<CalendarBlank className="h-4 w-4 text-blue-400" />}
+                    ariaLabel={`Sortie prévue le ${releaseDateLabel}`}
+                    className="flex-1 sm:flex-initial opacity-90 cursor-not-allowed border-0 text-blue-200 font-bold bg-blue-600/20 shadow-none"
+                  />
+                ) : (
+                  <Button
+                    onClick={handleWatch}
+                    disabled={!item || loading}
+                    variant="primary"
+                    size="md"
+                    text={_("media.watch")}
+                    leftIcon={<Play className="h-4 w-4 fill-white" />}
+                    ariaLabel={`Regarder le film ${item?.title || ""}`}
+                    className="flex-1 sm:flex-initial"
+                  />
+                )}
 
                 {item.trailerUrl && (
                   <Button
@@ -567,15 +602,17 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
                   />
                 )}
 
-                <Button
-                  onClick={handleDownload}
-                  disabled={!item || loading}
-                  variant="dark"
-                  size="md"
-                  text="Télécharger"
-                  leftIcon={<DownloadSimple className="h-4 w-4" />}
-                  ariaLabel={`Télécharger ${item.title}`}
-                />
+                {!isUpcoming && (
+                  <Button
+                    onClick={handleDownload}
+                    disabled={!item || loading}
+                    variant="dark"
+                    size="md"
+                    text="Télécharger"
+                    leftIcon={<DownloadSimple className="h-4 w-4" />}
+                    ariaLabel={`Télécharger ${item.title}`}
+                  />
+                )}
 
                 {user && (
                   <Button
@@ -854,42 +891,42 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
 }
 
 const MOVIE_ROWS_CONFIG = [
-  { id: 'recent', title: 'Films récents & Nouveautés', variant: 'scroll' as const },
-  { id: 'trending', title: 'Programmes exclusifs et popularités du moment', variant: 'poster' as const },
-  { id: '28', title: 'Action & Aventure - Films', genreId: '28', variant: 'scroll' as const },
-  { id: '35', title: 'Comédies - Films', genreId: '35', variant: 'scroll' as const },
-  { id: '878', title: 'Science-Fiction & Fantastique', genreId: '878', variant: 'scroll' as const },
-  { id: '99', title: 'Documentaires - Films', genreId: '99', variant: 'scroll' as const },
-  { id: '37', title: 'Western - Films', genreId: '37', variant: 'scroll' as const },
-  { id: '27', title: 'Horreur & Épouvante', genreId: '27', variant: 'scroll' as const },
-  { id: '16', title: 'Animation & Famille', genreId: '16', variant: 'scroll' as const },
-  { id: '18', title: 'Drames - Films', genreId: '18', variant: 'scroll' as const },
-  { id: '53', title: 'Mystère & Thrillers', genreId: '53', variant: 'scroll' as const },
-  { id: '10749', title: 'Romance - Films', genreId: '10749', variant: 'scroll' as const },
-  { id: '80', title: 'Films policiers & Crime', genreId: '80', variant: 'scroll' as const },
-  { id: '36', title: 'Histoire & Guerre', genreId: '36', variant: 'scroll' as const },
+  { id: 'recent', title: 'Films récents & Nouveautés', variant: 'poster' as const },
+  { id: 'trending', title: 'Tendances actuelles', variant: 'poster' as const },
+  { id: '28', title: 'Action & Aventure - Films', genreId: '28', variant: 'poster' as const },
+  { id: '35', title: 'Comédies - Films', genreId: '35', variant: 'poster' as const },
+  { id: '878', title: 'Science-Fiction & Fantastique', genreId: '878', variant: 'poster' as const },
+  { id: '99', title: 'Documentaires - Films', genreId: '99', variant: 'poster' as const },
+  { id: '37', title: 'Western - Films', genreId: '37', variant: 'poster' as const },
+  { id: '27', title: 'Horreur & Épouvante', genreId: '27', variant: 'poster' as const },
+  { id: '16', title: 'Animation & Famille', genreId: '16', variant: 'poster' as const },
+  { id: '18', title: 'Drames - Films', genreId: '18', variant: 'poster' as const },
+  { id: '53', title: 'Mystère & Thrillers', genreId: '53', variant: 'poster' as const },
+  { id: '10749', title: 'Romance - Films', genreId: '10749', variant: 'poster' as const },
+  { id: '80', title: 'Films policiers & Crime', genreId: '80', variant: 'poster' as const },
+  { id: '36', title: 'Histoire & Guerre', genreId: '36', variant: 'poster' as const },
 ];
 
 const SERIES_ROWS_CONFIG = [
-  { id: 'recent', title: 'Séries récentes & Nouveautés', variant: 'scroll' as const },
-  { id: 'trending', title: 'Programmes exclusifs et popularités du moment', variant: 'poster' as const },
-  { id: '10759', title: 'Action & Aventure - Séries', genreId: '10759', variant: 'scroll' as const },
-  { id: '18', title: 'Drames - Séries', genreId: '18', variant: 'scroll' as const },
-  { id: '35', title: 'Comédies - Séries', genreId: '35', variant: 'scroll' as const },
-  { id: '10765', title: 'Sci-Fi & Fantastique', genreId: '10765', variant: 'scroll' as const },
-  { id: '9648', title: 'Mystère & Enquêtes', genreId: '9648', variant: 'scroll' as const },
-  { id: '80', title: 'Crime & Séries policières', genreId: '80', variant: 'scroll' as const },
-  { id: '16', title: 'Animation - Séries', genreId: '16', variant: 'scroll' as const },
-  { id: '99', title: 'Documentaires - Séries', genreId: '99', variant: 'scroll' as const },
+  { id: 'recent', title: 'Séries récentes & Nouveautés', variant: 'poster' as const },
+  { id: 'trending', title: 'Séries populaires', variant: 'poster' as const },
+  { id: '10759', title: 'Action & Aventure - Séries', genreId: '10759', variant: 'poster' as const },
+  { id: '18', title: 'Drames - Séries', genreId: '18', variant: 'poster' as const },
+  { id: '35', title: 'Comédies - Séries', genreId: '35', variant: 'poster' as const },
+  { id: '10765', title: 'Sci-Fi & Fantastique', genreId: '10765', variant: 'poster' as const },
+  { id: '9648', title: 'Mystère & Enquêtes', genreId: '9648', variant: 'poster' as const },
+  { id: '80', title: 'Crime & Séries policières', genreId: '80', variant: 'poster' as const },
+  { id: '16', title: 'Animation - Séries', genreId: '16', variant: 'poster' as const },
+  { id: '99', title: 'Documentaires - Séries', genreId: '99', variant: 'poster' as const },
 ];
 
 const ANIME_ROWS_CONFIG = [
-  { id: 'recent', title: 'Anime récents & Tendances', variant: 'scroll' as const },
-  { id: 'trending', title: 'Grands Classiques & Exclusivités', variant: 'poster' as const },
-  { id: '10759', title: 'Shōnen & Action Aventure', genreId: '10759', variant: 'scroll' as const },
-  { id: '10765', title: 'Sci-Fi & Isekai / Fantastique', genreId: '10765', variant: 'scroll' as const },
-  { id: '16', title: 'Animation Japonaise', genreId: '16', variant: 'scroll' as const },
-  { id: '35', title: 'Comédie & Slice of Life', genreId: '35', variant: 'scroll' as const },
+  { id: 'recent', title: 'Anime récents & Tendances', variant: 'poster' as const },
+  { id: 'trending', title: 'Classiques incontournables', variant: 'poster' as const },
+  { id: '10759', title: 'Shōnen & Action Aventure', genreId: '10759', variant: 'poster' as const },
+  { id: '10765', title: 'Sci-Fi & Isekai / Fantastique', genreId: '10765', variant: 'poster' as const },
+  { id: '16', title: 'Animation Japonaise', genreId: '16', variant: 'poster' as const },
+  { id: '35', title: 'Comédie & Slice of Life', genreId: '35', variant: 'poster' as const },
 ];
 
 function MediaListingPage() {
@@ -900,6 +937,7 @@ function MediaListingPage() {
   const { translate: _ } = useLanguage();
 
   const [heroItems, setHeroItems] = useState<MovieOrShow[]>([]);
+  const [top10Items, setTop10Items] = useState<MovieOrShow[]>([]);
   const [categoryRows, setCategoryRows] = useState<Array<{ id: string; title: string; genreId?: string; variant: 'scroll' | 'poster'; items: MovieOrShow[] }>>([]);
   const [isLoadingCatalog, setIsLoadingCatalog] = useState(true);
 
@@ -915,8 +953,6 @@ function MediaListingPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [isLoadingGrid, setIsLoadingGrid] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const genreBarRef = useRef<HTMLDivElement>(null);
-  const lastScrollY = useRef(0);
 
   const hasMore = page < totalPages;
 
@@ -970,38 +1006,7 @@ function MediaListingPage() {
   const [selectedMovie, setSelectedMovie] = useState<MovieOrShow | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Sync genre bar sticky position with Header hide/show via GSAP
-  useEffect(() => {
-    const handleScroll = () => {
-      if (!genreBarRef.current) return;
-      const currentY = window.scrollY;
-      const direction = currentY > lastScrollY.current ? "down" : "up";
-      const delta = Math.abs(currentY - lastScrollY.current);
 
-      if (delta > 5) {
-        if (direction === "down" && currentY > 60) {
-          // Header is hiding → move genre bar to top-0
-          gsap.to(genreBarRef.current, {
-            top: 0,
-            duration: 0.35,
-            ease: "power2.inOut",
-            overwrite: "auto",
-          });
-        } else if (direction === "up") {
-          // Header is showing → move genre bar below header
-          gsap.to(genreBarRef.current, {
-            top: window.innerWidth < 640 ? 100 : 64,
-            duration: 0.3,
-            ease: "power2.out",
-            overwrite: "auto",
-          });
-        }
-        lastScrollY.current = currentY;
-      }
-    };
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
 
   // Genre filter state
   const [genres, setGenres] = useState<Genre[]>([]);
@@ -1056,6 +1061,7 @@ function MediaListingPage() {
         const heroes = await heroesPromise;
         if (cancelled) return;
         setHeroItems(heroes.slice(0, 6));
+        setTop10Items(heroes.slice(0, 10));
 
         // Initial 4 rows for fast paint
         const initialBatch = rowsConfig.slice(0, 4);
@@ -1241,19 +1247,27 @@ function MediaListingPage() {
   const activeGenreName = genres.find(g => String(g.id) === activeGenreId)?.name;
 
   return (
-    <main className="min-h-screen bg-brand-dark pt-16 sm:pt-20 pb-28">
+    <main className="min-h-screen bg-brand-dark pt-24 sm:pt-28 lg:pt-24 pb-28">
 
-      {/* ── Sticky genre filter bar ── */}
-      <div
-        ref={genreBarRef}
-        className="sticky z-30 bg-brand-dark/95 backdrop-blur-md border-b border-zinc-800/40 px-2 sm:px-6 md:px-12 lg:px-[3%] py-3 top-[100px] sm:top-[64px]"
-      >
-        <GenreFilterBar
-          genres={genres}
-          activeGenreId={activeGenreId}
-          onSelect={handleSelectGenre}
-          isLoading={genresLoading}
-        />
+      {/* ── Desktop Category Header (En haut de page, au scroll le header prend le relais) ── */}
+      <div className="hidden lg:block px-6 md:px-12 lg:px-[3%] py-2 mb-2">
+        <div className="flex items-center gap-6">
+          <h1 className="text-2xl font-black text-white tracking-tight shrink-0">
+            {type === "movies"
+              ? _("nav.movies") || "Films"
+              : type === "series"
+              ? _("nav.series") || "Séries"
+              : type === "anime"
+              ? _("nav.anime") || "Anime"
+              : title}
+          </h1>
+          <GenreFilterBar
+            genres={genres}
+            activeGenreId={activeGenreId}
+            onSelect={handleSelectGenre}
+            isLoading={genresLoading}
+          />
+        </div>
       </div>
 
       {/* ── MODE 1 : Multi-Category Carousel Catalog (Clean Prime Video Style) ── */}
@@ -1271,13 +1285,27 @@ function MediaListingPage() {
 
           {/* Category Carousel Rows */}
           <div className="px-2 sm:px-6 md:px-12 lg:px-[3%] space-y-6 sm:space-y-8">
+            {/* TOP 10 */}
+            {top10Items.length > 0 && (
+              <div className="-mx-2 sm:-mx-6 md:-mx-12 lg:-mx-[3%]">
+                <Top10Row
+                  title={type === "movies" ? "Top 10 Films" : type === "series" ? "Top 10 Séries" : "Top 10 Animes"}
+                  items={top10Items}
+                  className="mb-8"
+                />
+              </div>
+            )}
+
             {isLoadingCatalog && categoryRows.length === 0 ? (
               Array.from({ length: 4 }).map((_, rIdx) => (
                 <div key={rIdx} className="space-y-3">
-                  <div className="h-5 w-48 bg-zinc-800 rounded skeleton-loading" />
-                  <div className="flex gap-3 overflow-hidden">
-                    {Array.from({ length: 5 }).map((_, cIdx) => (
-                      <div key={cIdx} className="aspect-video flex-1 min-w-[160px] sm:min-w-[200px] bg-zinc-900 rounded-md skeleton-loading shrink-0" />
+                  <div className="flex items-center gap-2">
+                    <span className="h-3 w-1 bg-brand-primary rounded-full" />
+                    <div className="h-5 w-48 bg-zinc-800 rounded animate-pulse" />
+                  </div>
+                  <div className="flex gap-2 sm:gap-3 overflow-hidden pt-2 pb-5 px-1">
+                    {Array.from({ length: 7 }).map((_, cIdx) => (
+                      <MovieCardSkeleton key={cIdx} variant="poster" />
                     ))}
                   </div>
                 </div>
@@ -1304,7 +1332,6 @@ function MediaListingPage() {
               ))
             )}
           </div>
-
           {/* Infinite Scroll "Explorer plus" grid */}
           {catalogGridItems.length > 0 && (
             <div className="px-2 sm:px-6 md:px-12 lg:px-[3%] space-y-4 pb-4">
@@ -1321,16 +1348,16 @@ function MediaListingPage() {
                   <MovieCard
                     key={item.id}
                     item={item}
-                    variant="grid"
+                    variant="grid-poster"
                     onPlay={handlePlay}
                     onOpenDetails={handleOpenDetails}
                   />
                 ))}
                 {isLoadingCatalogMore &&
-                  Array.from({ length: 5 }).map((_, i) => (
-                    <div
+                  Array.from({ length: 10 }).map((_, i) => (
+                    <MovieCardSkeleton
                       key={`catalog-skeleton-${i}`}
-                      className="aspect-video rounded-xl bg-zinc-900/80 border border-white/5 skeleton-loading"
+                      variant="grid-poster"
                     />
                   ))}
               </div>
@@ -1385,16 +1412,16 @@ function MediaListingPage() {
               <MovieCard
                 key={item.id}
                 item={item}
-                variant="grid"
+                variant="grid-poster"
                 onPlay={handlePlay}
                 onOpenDetails={handleOpenDetails}
               />
             ))}
             {(isLoadingGrid || isLoadingMore) &&
-              Array.from({ length: isLoadingGrid ? 15 : 5 }).map((_, i) => (
-                <div
+              Array.from({ length: isLoadingGrid ? 15 : 10 }).map((_, i) => (
+                <MovieCardSkeleton
                   key={`skeleton-${i}`}
-                  className="aspect-video rounded-xl bg-zinc-900/80 border border-white/5 skeleton-loading"
+                  variant="grid-poster"
                 />
               ))}
           </div>

@@ -265,7 +265,7 @@ export default function HeroCarousel({
               <div className="absolute inset-0 z-10 flex flex-col justify-end px-4 sm:px-8 md:px-12 lg:px-[4%] pb-16 sm:pb-20 lg:pb-24">
                 <div className="space-y-3 md:space-y-5 max-w-3xl">
                   <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs md:text-sm text-zinc-300 font-medium">
-                    <span className="rounded bg-brand-primary/20 text-brand-primary font-extrabold border border-brand-primary/30 uppercase tracking-wider text-[10px] px-2.5 py-0.5">
+                    <span className="rounded bg-brand-primary/20 text-brand-primary font-extrabold border-0 uppercase tracking-wider text-[10px] px-2.5 py-0.5">
                       {_("hero.featured")}
                     </span>
                     {slide.year > 0 && <span>{slide.year}</span>}
@@ -299,7 +299,7 @@ export default function HeroCarousel({
                       {slide.genres.slice(0, 4).map((genre) => (
                         <span
                           key={genre}
-                          className="rounded-full bg-black/40 border border-white/10 px-2.5 py-0.5 text-[11px] text-zinc-300 font-medium backdrop-blur-sm"
+                          className="rounded-full bg-black/40 border-0 px-2.5 py-0.5 text-[11px] text-zinc-300 font-medium backdrop-blur-sm"
                         >
                           {genre}
                         </span>

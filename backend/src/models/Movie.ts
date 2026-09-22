@@ -2,7 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IMovie extends Document {
   titre: string;
-  pageUrl: string;
+  pageUrl?: string;
   lien: string;
   lienOriginal?: string;
   tmdbId?: number;
@@ -36,7 +36,7 @@ export interface IMovie extends Document {
 
 const MovieSchema: Schema = new Schema({
   titre: { type: String, required: true, unique: true },
-  pageUrl: { type: String, required: true },
+  pageUrl: { type: String, required: false },
   lien: { type: String, required: true },
   lienOriginal: { type: String },
   tmdbId: { type: Number, index: true },

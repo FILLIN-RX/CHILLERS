@@ -9,8 +9,22 @@ import {
   getAfricanMovies,
   getAfricanTV,
   getUpcomingMovies,
+  getMoviesByGenre,
+  getTVByGenrePage,
+  getBoxOfficeMovies,
+  getNewAnime,
+  getMartialArtsMovies,
+  getMadeInChina,
+  getTopRatedMovies,
+  getTopRatedTV,
+  getBarbieMovies,
+  getRealityShows,
+  getAllTimeFavorites,
 } from "@/app/api";
 import HomeClientWrapper from "./HomeClientWrapper";
+import HomeSkeleton from "@/components/HomeSkeleton";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Accueil",
@@ -28,6 +42,21 @@ export default async function HomePage() {
     africanM,
     africanS,
     newReleases,
+    topRatedMovies,
+    topRatedTV,
+    actionMovies,
+    comedyMovies,
+    actionSeries,
+    animationSeries,
+    boxOffice,
+    newAnime,
+    martialArts,
+    tvForYouPage,
+    saDrama,
+    madeInChina,
+    barbieMovies,
+    realityShows,
+    allTimeFavorites,
   ] = await Promise.all([
     getTrendingMovies().catch(() => []),
     getTrendingTV().catch(() => []),
@@ -37,9 +66,37 @@ export default async function HomePage() {
     getAfricanMovies(1).catch(() => []),
     getAfricanTV(1).catch(() => []),
     getUpcomingMovies(1).catch(() => []),
+    getTopRatedMovies().catch(() => []),
+    getTopRatedTV().catch(() => []),
+    getMoviesByGenre("28", 1).catch(() => []),
+    getMoviesByGenre("35", 1).catch(() => []),
+    getTVByGenrePage("10759", 1).catch(() => ({ results: [], totalPages: 1 })),
+    getTVByGenrePage("16", 1).catch(() => ({ results: [], totalPages: 1 })),
+    getBoxOfficeMovies(1).catch(() => []),
+    getNewAnime(1).catch(() => []),
+    getMartialArtsMovies(1).catch(() => []),
+    getPopularTVPage(2).catch(() => ({ results: [], totalPages: 1 })),
+    getAfricanTV(1, "ZA").catch(() => []), // SA Drama
+    getMadeInChina(1).catch(() => []),
+    getBarbieMovies(1).catch(() => []),
+    getRealityShows(1).catch(() => []),
+    getAllTimeFavorites(1).catch(() => []),
   ]);
 
   const trendingAll = [...trendingMovies, ...trendingTV];
+
+  console.log("FETCH RESULTS:", {
+    martialArts: martialArts.length,
+    newAnime: newAnime.length,
+    tvForYou: tvForYouPage.results?.length,
+    saDrama: saDrama.length,
+    madeInChina: madeInChina.length,
+    boxOffice: boxOffice.length,
+    barbieMovies: barbieMovies.length,
+    realityShows: realityShows.length,
+    allTimeFavorites: allTimeFavorites.length,
+  });
+
   const popularSeries = popularTVPage.results;
   const animeCollection = animeSeriesPage.results;
   const africanMovies = africanM;
@@ -60,51 +117,33 @@ export default async function HomePage() {
   const heroSlides = heroBase.slice(0, 10);
 
   return (
-    <Suspense fallback={<HomeFallback />}>
+    <Suspense fallback={<HomeSkeleton />}>
       <HomeClientWrapper
         heroSlides={heroSlides}
         trendingAll={trendingAll}
         newReleases={newReleases}
+        upcomingMovies={newReleases}
         popularSeries={popularSeries}
         animeCollection={animeCollection}
         africanMovies={africanMovies}
         africanSeries={africanSeries}
+        topRatedMovies={topRatedMovies}
+        topRatedTV={topRatedTV}
+        actionMovies={actionMovies}
+        comedyMovies={comedyMovies}
+        actionSeries={actionSeries.results || []}
+        animationSeries={animationSeries.results || []}
+        boxOffice={boxOffice}
+        newAnime={newAnime}
+        martialArts={martialArts}
+        tvForYou={tvForYouPage.results || []}
+        saDrama={saDrama}
+        madeInChina={madeInChina}
+        barbieMovies={barbieMovies}
+        realityShows={realityShows}
+        allTimeFavorites={allTimeFavorites}
       />
     </Suspense>
   );
 }
 
-function HomeFallback() {
-  return (
-    <div className="min-h-screen bg-brand-dark text-white pb-24">
-      {/* HERO CAROUSEL SKELETON */}
-      <div className="relative w-full aspect-[21/9] sm:aspect-[2.4/1] min-h-[420px] max-h-[680px] bg-zinc-900 animate-pulse overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-t from-brand-dark via-brand-dark/40 to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 px-4 sm:px-8 md:px-12 lg:px-16 pb-12 space-y-4">
-          <div className="flex gap-2">
-            <div className="h-6 w-20 rounded-full bg-zinc-800" />
-            <div className="h-6 w-28 rounded-full bg-zinc-800" />
-          </div>
-          <div className="h-10 sm:h-14 w-2/3 max-w-xl bg-zinc-800 rounded-2xl" />
-          <div className="h-4 w-1/2 max-w-md bg-zinc-800 rounded-lg" />
-        </div>
-      </div>
-
-      {/* CATEGORY ROWS SKELETONS */}
-      <div className="px-4 sm:px-8 md:px-12 lg:px-16 space-y-10 mt-8">
-        {Array.from({ length: 4 }).map((_, rowIdx) => (
-          <div key={rowIdx} className="space-y-4 animate-pulse">
-            <div className="flex justify-between items-center">
-              <div className="h-7 w-48 bg-zinc-800 rounded-lg" />
-            </div>
-            <div className="flex gap-3 sm:gap-4 overflow-hidden">
-              {Array.from({ length: 6 }).map((_, colIdx) => (
-                <div key={colIdx} className="flex-none w-[165px] h-[250px] sm:w-[195px] sm:h-[295px] rounded-2xl bg-zinc-800/80" />
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}

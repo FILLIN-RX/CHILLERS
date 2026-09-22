@@ -105,7 +105,7 @@ export default function ContinueWatchingCard({
       className="group relative flex-none w-[250px] sm:w-[300px] md:w-[360px] lg:w-[420px] cursor-pointer"
     >
       {/* 16:9 landscape box with glass border & rounded corners */}
-      <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-zinc-900 border border-white/10 group-hover:border-white/25 shadow-lg transition-colors duration-300">
+      <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-zinc-900 shadow-lg transition-colors duration-300">
         <div
           className={`absolute inset-0 skeleton-loading z-10 pointer-events-none transition-opacity duration-700 ease-out ${
             imgLoaded ? "opacity-0" : "opacity-100"
@@ -138,7 +138,7 @@ export default function ContinueWatchingCard({
                 setShowPlaylistModal(true);
               }}
               title="Enregistrer dans..."
-              className="p-1.5 rounded-full bg-black/60 hover:bg-black/85 text-cyan-400 hover:text-white border border-white/20 transition-all hover:scale-110 shadow-lg cursor-pointer"
+              className="p-1.5 rounded-full bg-black/60 hover:bg-black/85 text-cyan-400 hover:text-white transition-all hover:scale-110 shadow-lg cursor-pointer"
             >
               <ListNumbers className="w-3.5 h-3.5" />
             </button>

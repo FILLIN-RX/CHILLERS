@@ -355,6 +355,7 @@ export function mapTMDBToMovieOrShow(
     videoUrl: "",
     seasons: seasons.length > 0 ? seasons : undefined,
     similar: similar.length > 0 ? similar : undefined,
+    releaseDate: releaseDate || undefined,
   };
 }
 
@@ -382,6 +383,7 @@ async function fetchDirectTMDB<T>(
   try {
     const res = await fetch(url.toString(), {
       signal,
+      cache: "no-store", // Bust Next.js cache which might be clinging to empty arrays
       headers: {
         Accept: "application/json",
         Authorization: `Bearer ${token}`,
@@ -545,8 +547,29 @@ export function getTopRatedTV(page = 1, signal?: AbortSignal): Promise<MovieOrSh
 export function getAnimeSeries(page = 1, signal?: AbortSignal): Promise<MovieOrShow[]> {
   return getPage("/tv/anime", page, signal);
 }
-export function getUpcomingMovies(page = 1, signal?: AbortSignal): Promise<MovieOrShow[]> {
-  return getPage("/movies/upcoming", page, signal);
+export async function getUpcomingMovies(page = 1, signal?: AbortSignal): Promise<MovieOrShow[]> {
+  const today = new Date().toISOString().split("T")[0];
+  try {
+    const list = await getPage("/movies/upcoming", page, signal);
+    const future = list.filter((m) => Boolean(m.releaseDate && m.releaseDate >= today));
+    if (future.length > 0) return future;
+  } catch {}
+
+  try {
+    const direct = await fetchDirectTMDB<{ results: TmdbRawItem[] }>("/discover/movie", {
+      page,
+      "primary_release_date.gte": today,
+      sort_by: "popularity.desc",
+      include_adult: "false",
+    }, signal);
+    if (direct?.results) {
+      return direct.results
+        .map((r) => mapTMDBToMovieOrShow(r))
+        .filter((m) => Boolean(m.releaseDate && m.releaseDate >= today));
+    }
+  } catch {}
+
+  return [];
 }
 export function getTopRatedMovies(page = 1, signal?: AbortSignal): Promise<MovieOrShow[]> {
   return getPage("/movies/top-rated", page, signal);
@@ -570,14 +593,238 @@ export function getAfricanTV(page = 1, country?: string, signal?: AbortSignal): 
   return getPage(url, page, signal);
 }
 
-/* Paged variants that return totals (used by listings/genre pages). */
-
 export function getPopularMoviesPage(page = 1, signal?: AbortSignal) {
   return getPageWithTotal("/movies/popular", page, signal);
 }
 export function getPopularTVPage(page = 1, signal?: AbortSignal) {
   return getPageWithTotal("/tv/popular", page, signal);
 }
+
+export async function getAllTimeFavorites(page = 1, signal?: AbortSignal): Promise<MovieOrShow[]> {
+  try {
+    const [tvRes, mRes, tvdRes] = await Promise.all([
+      fetchDirectTMDB<{ results: TmdbRawItem[] }>("/discover/tv", {
+        page,
+        sort_by: "vote_count.desc",
+      }, signal),
+      fetchDirectTMDB<{ results: TmdbRawItem[] }>("/discover/movie", {
+        page,
+        sort_by: "vote_count.desc",
+      }, signal),
+      fetchDirectTMDB<{ results: TmdbRawItem[] }>("/search/tv", {
+        query: "The Vampire Diaries",
+      }, signal),
+    ]);
+    const tv = (tvRes?.results || []).map((r) => mapTMDBToMovieOrShow(r, "series"));
+    const movies = (mRes?.results || []).map((r) => mapTMDBToMovieOrShow(r, "movie"));
+    const tvd = tvdRes?.results?.[0] ? mapTMDBToMovieOrShow(tvdRes.results[0], "series") : null;
+
+    const list: MovieOrShow[] = [];
+    if (tvd) list.push(tvd);
+    const maxLen = Math.max(tv.length, movies.length);
+    for (let i = 0; i < maxLen; i++) {
+      if (tv[i] && tv[i].id !== tvd?.id) list.push(tv[i]);
+      if (movies[i]) list.push(movies[i]);
+    }
+    return list;
+  } catch (err) {
+    console.error("Error in getAllTimeFavorites:", err);
+    return [];
+  }
+}
+
+export async function getBoxOfficeMovies(page = 1, signal?: AbortSignal): Promise<MovieOrShow[]> {
+  try {
+    const direct = await fetchDirectTMDB<{ results: TmdbRawItem[] }>("/discover/movie", {
+      page,
+      sort_by: "revenue.desc",
+      "primary_release_date.gte": "2022-01-01",
+      "vote_count.gte": 50,
+      include_adult: "false",
+    }, signal);
+    if (direct?.results) return direct.results.filter((r) => Boolean(r.poster_path)).map((r) => mapTMDBToMovieOrShow(r, "movie"));
+  } catch (err) {
+    console.error("Error in getBoxOfficeMovies:", err);
+  }
+  return [];
+}
+
+export async function getNewAnime(page = 1, signal?: AbortSignal): Promise<MovieOrShow[]> {
+  try {
+    const today = new Date().toISOString().split("T")[0];
+    const [popRes, newestRes] = await Promise.all([
+      fetchDirectTMDB<{ results: TmdbRawItem[] }>(
+        "/discover/tv",
+        {
+          with_genres: "16",
+          with_original_language: "ja",
+          sort_by: "popularity.desc",
+          "first_air_date.gte": "2023-01-01",
+          page,
+        },
+        signal
+      ),
+      fetchDirectTMDB<{ results: TmdbRawItem[] }>(
+        "/discover/tv",
+        {
+          with_genres: "16",
+          with_original_language: "ja",
+          sort_by: "first_air_date.desc",
+          "first_air_date.lte": today,
+          "vote_count.gte": 5,
+          page,
+        },
+        signal
+      ),
+    ]);
+
+    const seen = new Set<number>();
+    const list: MovieOrShow[] = [];
+    for (const raw of [...(popRes?.results || []), ...(newestRes?.results || [])]) {
+      if (raw.poster_path && !seen.has(raw.id)) {
+        seen.add(raw.id);
+        list.push(mapTMDBToMovieOrShow(raw, "anime"));
+      }
+    }
+    return list;
+  } catch (err) {
+    console.error("Error in getNewAnime:", err);
+    return [];
+  }
+}
+
+export async function getMartialArtsMovies(page = 1, signal?: AbortSignal): Promise<MovieOrShow[]> {
+  try {
+    const franchises = [
+      "Ip Man",
+      "The Karate Kid",
+      "The Raid",
+      "Kung Fu Hustle",
+      "Enter the Dragon",
+      "Ong-Bak",
+      "Fearless",
+      "Drunken Master",
+      "Bloodsport",
+      "Kill Bill: Vol. 1",
+      "Cobra Kai",
+      "Ninja Assassin",
+    ];
+    const [searches, disc] = await Promise.all([
+      Promise.all(
+        franchises.map((f) =>
+          fetchDirectTMDB<{ results: TmdbRawItem[] }>("/search/multi", { query: f }, signal)
+        )
+      ),
+      fetchDirectTMDB<{ results: TmdbRawItem[] }>(
+        "/discover/movie",
+        {
+          with_genres: "28",
+          with_keywords: "9715|780",
+          without_genres: "878,14,16",
+          without_keywords: "9717|180730",
+          sort_by: "popularity.desc",
+          page,
+        },
+        signal
+      ),
+    ]);
+
+    const curated: MovieOrShow[] = searches
+      .map((s) => s?.results?.[0])
+      .filter((item): item is TmdbRawItem => Boolean(item && item.poster_path))
+      .map((r) => mapTMDBToMovieOrShow(r, "movie"));
+
+    const curatedIds = new Set(curated.map((c) => c.id));
+    const discovered: MovieOrShow[] = (disc?.results || [])
+      .filter((r) => r.poster_path && !curatedIds.has(String(r.id)))
+      .map((r) => mapTMDBToMovieOrShow(r, "movie"));
+
+    return [...curated, ...discovered];
+  } catch (err) {
+    console.error("Error in getMartialArtsMovies:", err);
+    return [];
+  }
+}
+
+export async function getBarbieMovies(page = 1, signal?: AbortSignal): Promise<MovieOrShow[]> {
+  try {
+    const direct = await fetchDirectTMDB<{ results: TmdbRawItem[] }>(
+      "/search/movie",
+      {
+        page,
+        query: "barbie",
+      },
+      signal
+    );
+    if (direct?.results) {
+      return direct.results
+        .filter((r) => Boolean(r.poster_path))
+        .map((r) => mapTMDBToMovieOrShow(r, "movie"));
+    }
+  } catch (err) {
+    console.error("Error in getBarbieMovies:", err);
+  }
+  return [];
+}
+
+export async function getRealityShows(page = 1, signal?: AbortSignal): Promise<MovieOrShow[]> {
+  try {
+    const [votedRes, popRes] = await Promise.all([
+      fetchDirectTMDB<{ results: TmdbRawItem[] }>(
+        "/discover/tv",
+        {
+          with_genres: "10764",
+          sort_by: "vote_count.desc",
+          page,
+        },
+        signal
+      ),
+      fetchDirectTMDB<{ results: TmdbRawItem[] }>(
+        "/discover/tv",
+        {
+          with_genres: "10764",
+          sort_by: "popularity.desc",
+          "vote_count.gte": 30,
+          page,
+        },
+        signal
+      ),
+    ]);
+
+    const seen = new Set<number>();
+    const list: MovieOrShow[] = [];
+    for (const raw of [...(votedRes?.results || []), ...(popRes?.results || [])]) {
+      if (raw.poster_path && !seen.has(raw.id)) {
+        seen.add(raw.id);
+        list.push(mapTMDBToMovieOrShow(raw, "series"));
+      }
+    }
+    return list;
+  } catch (err) {
+    console.error("Error in getRealityShows:", err);
+    return [];
+  }
+}
+
+export async function getMadeInChina(page = 1, signal?: AbortSignal): Promise<MovieOrShow[]> {
+  try {
+    const direct = await fetchDirectTMDB<{ results: TmdbRawItem[] }>("/discover/tv", {
+      page,
+      with_original_language: "zh",
+      sort_by: "popularity.desc",
+      "vote_count.gte": 5,
+    }, signal);
+    if (direct?.results) {
+      return direct.results
+        .filter((r) => Boolean(r.poster_path))
+        .map((r) => mapTMDBToMovieOrShow(r, "series"));
+    }
+  } catch (err) {
+    console.error("Error in getMadeInChina:", err);
+  }
+  return [];
+}
+
 export function getAnimeSeriesPage(page = 1, signal?: AbortSignal) {
   return getPageWithTotal("/tv/anime", page, signal);
 }
@@ -862,7 +1109,12 @@ export async function searchMedia(
 export interface StreamPayload {
   embedUrl: string;
   downloadUrl?: string | null;
+  directUrl?: string | null;
+  directType?: "mp4" | "hls" | null;
   provider?: string;
+  unreleased?: boolean;
+  releaseDate?: string | null;
+  message?: string | null;
 }
 
 async function getStreamOnce(
@@ -871,13 +1123,32 @@ async function getStreamOnce(
   title: string | undefined,
   signal?: AbortSignal,
   timeoutMs?: number,
+  originalTitle?: string,
+  releaseDate?: string,
+  year?: number,
 ): Promise<StreamPayload | null> {
   try {
-    const env = await httpJson<ApiEnvelope<StreamPayload>>(endpoint, {
-      query: { type, language: clientLang(), title },
+    const env = await httpJson<ApiEnvelope<StreamPayload> & { unreleased?: boolean; releaseDate?: string }>(endpoint, {
+      query: {
+        type,
+        language: clientLang(),
+        title,
+        originalTitle,
+        releaseDate,
+        year,
+      },
       signal,
       timeoutMs,
     });
+    if (env.unreleased) {
+      return {
+        embedUrl: "",
+        provider: "unreleased",
+        unreleased: true,
+        releaseDate: env.releaseDate || releaseDate,
+        message: env.message,
+      };
+    }
     if (env.success && env.data?.embedUrl) {
       if (env.data.provider === "torrserver") {
         console.log(
@@ -890,8 +1161,11 @@ async function getStreamOnce(
     if (!env.success) {
       console.warn(`Stream unavailable for "${title ?? endpoint}": ${env.message ?? "unknown reason"}`);
     }
-  } catch (err) {
+  } catch (err: any) {
     if (err instanceof DOMException && err.name === "AbortError") throw err;
+    if (err.name === "HttpError" && err.status === 403 && err.body && err.body.includes("PREMIUM_REQUIRED")) {
+      throw err; // Laisse remonter le 403 au hook pour déclencher la modale
+    }
     console.error("Error fetching stream URL:", err);
   }
   return null;
@@ -904,14 +1178,24 @@ export async function getStreamUrl(
   episode?: number,
   title?: string,
   signal?: AbortSignal,
-): Promise<{ embedUrl: string; provider: string; downloadUrl?: string | null } | null> {
+  originalTitle?: string,
+  releaseDate?: string,
+  year?: number,
+): Promise<{ embedUrl: string; provider: string; downloadUrl?: string | null; directType?: "mp4" | "hls" | null; unreleased?: boolean; releaseDate?: string | null } | null> {
   const isTv = type === "series" || type === "anime";
   const endpoint = isTv
     ? `/stream/tv/${id}/${season ?? 1}/${episode ?? 1}`
     : `/stream/movie/${id}`;
-  const payload = await getStreamOnce(endpoint, type, title, signal, 45_000);
+  const payload = await getStreamOnce(endpoint, type, title, signal, 45_000, originalTitle, releaseDate, year);
   if (payload) {
-    return { embedUrl: payload.embedUrl, provider: "primary", downloadUrl: payload.downloadUrl ?? null };
+    return {
+      embedUrl: payload.embedUrl,
+      provider: payload.unreleased ? "unreleased" : "primary",
+      downloadUrl: payload.downloadUrl ?? null,
+      directType: payload.directType ?? null,
+      unreleased: payload.unreleased,
+      releaseDate: payload.releaseDate,
+    };
   }
   return null;
 }

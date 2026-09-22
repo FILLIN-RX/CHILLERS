@@ -1,14 +1,16 @@
 "use client";
 
-import React, { useRef, useCallback } from "react";
+import React from "react";
 import type { Genre } from "@/types/media";
-import gsap from "gsap";
+import { CaretDown } from "@phosphor-icons/react";
+import { useLanguage } from "@/i18n/LanguageContext";
 
 interface GenreFilterBarProps {
   genres: Genre[];
   activeGenreId: string | null;
   onSelect: (genreId: string | null) => void;
   isLoading?: boolean;
+  compact?: boolean;
 }
 
 // Popular genres shown first (by ID), the rest follow
@@ -19,8 +21,10 @@ export default function GenreFilterBar({
   activeGenreId,
   onSelect,
   isLoading,
+  compact = false,
 }: GenreFilterBarProps) {
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const { lang } = useLanguage();
+  const allLabel = lang === "en" ? "All categories" : "Toutes les catégories";
 
   // Sort: priority genres first, then the rest alphabetically
   const sorted = [...genres].sort((a, b) => {
@@ -32,72 +36,47 @@ export default function GenreFilterBar({
     return a.name.localeCompare(b.name);
   });
 
-  // Scroll active pill into view with GSAP
-  const activeRef = useCallback(
-    (node: HTMLButtonElement | null) => {
-      if (node && scrollRef.current) {
-        const container = scrollRef.current;
-        const left = node.offsetLeft - container.clientWidth / 2 + node.clientWidth / 2;
-        gsap.to(container, {
-          scrollLeft: left,
-          duration: 0.4,
-          ease: "power2.out",
-          overwrite: "auto",
-        });
-      }
-    },
-    [activeGenreId] // eslint-disable-line react-hooks/exhaustive-deps
-  );
-
   if (isLoading || genres.length === 0) {
-    // Skeleton
     return (
-      <div className="flex gap-2 overflow-hidden px-2 sm:px-0 py-1">
-        {Array.from({ length: 8 }).map((_, i) => (
-          <div
-            key={i}
-            className="flex-none h-8 rounded-full bg-zinc-800 skeleton-loading"
-            style={{ width: `${60 + (i % 3) * 20}px` }}
-          />
-        ))}
-      </div>
+      <div
+        className={`${
+          compact ? "h-7 w-32 rounded-lg" : "h-9 sm:h-10 w-44 sm:w-52 rounded-xl"
+        } bg-zinc-800/70 skeleton-loading`}
+      />
     );
   }
 
   return (
-    <div
-      ref={scrollRef}
-      className="flex gap-2 overflow-x-auto no-scrollbar py-1 px-0"
-    >
-      {/* "All" pill */}
-      <button
-        onClick={() => onSelect(null)}
-        className={`flex-none px-4 min-h-[44px] rounded-full text-xs sm:text-sm font-semibold border transition-all duration-200 focus:outline-none whitespace-nowrap cursor-pointer active:scale-95 flex items-center ${
-          activeGenreId === null
-            ? "bg-brand-primary border-brand-primary text-white shadow-md shadow-brand-primary/30"
-            : "bg-zinc-900 border-zinc-700 text-zinc-300 hover:border-zinc-500 hover:text-white"
+    <div className="relative inline-flex items-center">
+      <select
+        value={activeGenreId || ""}
+        onChange={(e) => onSelect(e.target.value ? e.target.value : null)}
+        aria-label="Sélectionner une catégorie"
+        className={`appearance-none bg-zinc-900/95 hover:bg-zinc-800 text-white font-semibold cursor-pointer transition-all border border-zinc-700/80 hover:border-zinc-500 focus:outline-none focus:border-brand-primary shadow-md tracking-tight ${
+          compact
+            ? "text-xs py-1 pl-2.5 pr-7 rounded-lg min-w-[135px]"
+            : "text-xs sm:text-sm py-1.5 sm:py-2 pl-3 pr-8 rounded-xl min-w-[160px] sm:min-w-[200px]"
         }`}
       >
-        Tous
-      </button>
-
-      {sorted.map((genre) => {
-        const isActive = String(genre.id) === activeGenreId;
-        return (
-          <button
+        <option value="" className="bg-zinc-900 text-white font-medium">
+          {allLabel}
+        </option>
+        {sorted.map((genre) => (
+          <option
             key={genre.id}
-            ref={isActive ? activeRef : undefined}
-            onClick={() => onSelect(String(genre.id))}
-            className={`flex-none px-4 min-h-[44px] rounded-full text-xs sm:text-sm font-semibold border transition-all duration-200 focus:outline-none whitespace-nowrap cursor-pointer active:scale-95 flex items-center ${
-              isActive
-                ? "bg-brand-primary border-brand-primary text-white shadow-md shadow-brand-primary/30"
-                : "bg-zinc-900 border-zinc-700 text-zinc-300 hover:border-zinc-500 hover:text-white"
-            }`}
+            value={String(genre.id)}
+            className="bg-zinc-900 text-white font-medium"
           >
             {genre.name}
-          </button>
-        );
-      })}
+          </option>
+        ))}
+      </select>
+      <CaretDown
+        className={`absolute pointer-events-none text-zinc-400 ${
+          compact ? "right-2 top-1/2 -translate-y-1/2 h-3 w-3" : "right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5"
+        }`}
+        weight="bold"
+      />
     </div>
   );
 }

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { MagnifyingGlass, House, FilmSlate, Television, Star, Radio, User, ClockCounterClockwise, BookmarkSimple, SignOut, Crown, DownloadSimple, List, X, SquaresFour, CaretLeft, CaretRight, GearSix } from "@phosphor-icons/react";
 import gsap from "gsap";
 import { useLanguage } from "@/i18n/LanguageContext";
@@ -12,6 +12,9 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import { useDownloadsStore } from "@/store/downloads";
 import AuthModal from "@/components/AuthModal";
 import UserAvatar from "@/components/UserAvatar";
+import GenreFilterBar from "@/components/GenreFilterBar";
+import { getMovieGenres, getTVGenres } from "@/services/media";
+import type { Genre } from "@/types/media";
 
 interface HeaderProps {
   onSearchClick: () => void;
@@ -20,6 +23,7 @@ interface HeaderProps {
 function HeaderComponent({ onSearchClick }: HeaderProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { translate: _, lang } = useLanguage();
 
   const tabs = [
@@ -41,6 +45,37 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
     pathname.startsWith("/media/series") ||
     pathname.startsWith("/media/anime");
 
+  const listingType = pathname.startsWith("/media/movies")
+    ? "movies"
+    : pathname.startsWith("/media/series")
+    ? "series"
+    : pathname.startsWith("/media/anime")
+    ? "anime"
+    : null;
+
+  const [genres, setGenres] = useState<Genre[]>([]);
+  const [genresLoading, setGenresLoading] = useState(false);
+  const activeGenreId = searchParams?.get("genre") || null;
+
+  useEffect(() => {
+    if (!isListingPage || !listingType) return;
+    setGenresLoading(true);
+    const fetcher = listingType === "movies" ? getMovieGenres : getTVGenres;
+    fetcher()
+      .then(setGenres)
+      .catch(() => {})
+      .finally(() => setGenresLoading(false));
+  }, [isListingPage, listingType]);
+
+  const handleSelectGenreInHeader = (genreId: string | null) => {
+    if (!listingType) return;
+    if (genreId) {
+      router.push(`/media/${listingType}?genre=${genreId}`);
+    } else {
+      router.push(`/media/${listingType}`);
+    }
+  };
+
   const [isScrolled, setIsScrolled] = useState(false);
   const [hideMobile, setHideMobile] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -61,43 +96,13 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
 
   useEffect(() => {
     const handleScroll = () => {
-      const scrolled = window.scrollY > 20;
+      const scrolled = window.scrollY > 30;
       setIsScrolled(scrolled);
-
-      if (isListingPage && headerRef.current) {
-        const currentY = window.scrollY;
-        const direction = currentY > lastScrollY.current ? "down" : "up";
-        const delta = Math.abs(currentY - lastScrollY.current);
-
-        // Only animate if scrolled meaningfully (>5px) to avoid micro-jitter
-        if (delta > 5) {
-          if (direction === "down" && currentY > 60) {
-            // Scrolling down: hide header with GSAP
-            gsap.to(headerRef.current, {
-              y: "-100%",
-              duration: 0.35,
-              ease: "power2.inOut",
-              overwrite: "auto",
-            });
-            setHideMobile(true);
-          } else if (direction === "up") {
-            // Scrolling up: show header with GSAP
-            gsap.to(headerRef.current, {
-              y: "0%",
-              duration: 0.3,
-              ease: "power2.out",
-              overwrite: "auto",
-            });
-            setHideMobile(false);
-          }
-          lastScrollY.current = currentY;
-        }
-      }
     };
     window.addEventListener("scroll", handleScroll, { passive: true });
     handleScroll();
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [isListingPage]);
+  }, []);
 
   // Fermer le drawer lors d'une navigation
   useEffect(() => {
@@ -154,7 +159,7 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
               </div>
 
               {/* LOGO AVEC ICÔNE ET TEXTE */}
-              <Link href="/" className="group flex items-center gap-2 focus:outline-none shrink-0">
+              <Link href="/" className="group flex items-center focus:outline-none shrink-0">
                 <Image
                   src="/android-chrome-512x512.png"
                   alt="CHILLERS"
@@ -163,8 +168,8 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
                   className="h-7 sm:h-8 w-auto object-contain transition-transform duration-300 group-hover:scale-105 drop-shadow-[0_0_12px_rgba(215,4,102,0.4)]"
                   priority
                 />
-                <span className="text-lg sm:text-xl font-black tracking-tight text-white flex items-center font-sans">
-                  CHILL<span className="text-brand-primary">ERS</span>
+                <span className="text-lg sm:text-xl font-black tracking-tight text-white flex items-center font-sans -ml-1.5">
+                  HILL<span className="text-brand-primary">ERS</span>
                 </span>
               </Link>
 
@@ -190,17 +195,29 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
                     </Link>
                   );
                 })}
-                <Link
-                  href="/categories"
-                  aria-current={activeTab === "categories" ? "page" : undefined}
-                  className={`relative flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium transition-colors focus:outline-none ${
-                    activeTab === "categories"
-                      ? "text-brand-primary font-bold"
-                      : "text-zinc-400 hover:text-white"
-                  }`}
-                >
-                  {_("nav.categories")}
-                </Link>
+                {isListingPage && isScrolled ? (
+                  <div className="flex items-center pl-1 animate-in fade-in duration-200">
+                    <GenreFilterBar
+                      genres={genres}
+                      activeGenreId={activeGenreId}
+                      onSelect={handleSelectGenreInHeader}
+                      isLoading={genresLoading}
+                      compact
+                    />
+                  </div>
+                ) : (
+                  <Link
+                    href="/categories"
+                    aria-current={activeTab === "categories" ? "page" : undefined}
+                    className={`relative flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium transition-colors focus:outline-none ${
+                      activeTab === "categories"
+                        ? "text-brand-primary font-bold"
+                        : "text-zinc-400 hover:text-white"
+                    }`}
+                  >
+                    {_("nav.categories")}
+                  </Link>
+                )}
               </nav>
             </div>
 
@@ -327,6 +344,26 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
               )}
             </div>
           </div>
+
+          {/* SÉLECTEUR DE CATÉGORIES MOBILE (Au top sur mobile, directement dans le header) */}
+          {isListingPage && (
+            <div className="flex lg:hidden items-center justify-between pt-1.5 pb-0.5 border-t border-white/10 [app-region:no-drag]">
+              <span className="text-xs font-black text-white tracking-wide uppercase">
+                {listingType === "movies"
+                  ? _("nav.movies") || "Films"
+                  : listingType === "series"
+                  ? _("nav.series") || "Séries"
+                  : _("nav.anime") || "Anime"}
+              </span>
+              <GenreFilterBar
+                genres={genres}
+                activeGenreId={activeGenreId}
+                onSelect={handleSelectGenreInHeader}
+                isLoading={genresLoading}
+                compact
+              />
+            </div>
+          )}
         </div>
 
         <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
@@ -343,7 +380,7 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
             <div className="space-y-6">
               {/* Header drawer avec logo et bouton fermer */}
               <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                <Link href="/" onClick={() => setIsDrawerOpen(false)} className="flex items-center gap-2">
+                <Link href="/" onClick={() => setIsDrawerOpen(false)} className="flex items-center">
                   <Image
                     src="/android-chrome-512x512.png"
                     alt="CHILLERS"
@@ -351,8 +388,8 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
                     height={28}
                     className="h-7 w-auto object-contain"
                   />
-                  <span className="text-lg font-black text-white">
-                    CHILL<span className="text-brand-primary">ERS</span>
+                  <span className="text-lg font-black text-white -ml-1.5">
+                    HILL<span className="text-brand-primary">ERS</span>
                   </span>
                 </Link>
                 <button

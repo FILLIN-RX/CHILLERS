@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { getDisponible, AvailabilityEntry } from "@/services/media";
+import { getDisponible, AvailabilityEntry, mapTMDBToMovieOrShow } from "@/services/media";
 import { httpJson } from "@/services/http";
 import type { MovieOrShow, Episode } from "@/types/media";
 import { useLanguage } from "@/i18n/LanguageContext";
@@ -28,7 +28,32 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
   const { translate: _ } = useLanguage();
   const { user, token, updateUser } = useAuthStore();
 
-  const [item, setItem] = useState<MovieOrShow | null>(initialItem);
+  const normalizedInitial = useMemo(() => {
+    if (!initialItem) return null;
+    const raw = initialItem as any;
+    if (
+      raw.title &&
+      (raw.posterUrl || raw.poster_path) &&
+      Array.isArray(raw.genres) &&
+      typeof raw.genres[0] === "string" &&
+      raw.seasons?.[0]?.seasonNumber !== undefined
+    ) {
+      return initialItem;
+    }
+    try {
+      return mapTMDBToMovieOrShow(raw, "series");
+    } catch {
+      return initialItem;
+    }
+  }, [initialItem]);
+
+  const [item, setItem] = useState<MovieOrShow | null>(normalizedInitial);
+
+  useEffect(() => {
+    if (normalizedInitial) {
+      setItem(normalizedInitial);
+    }
+  }, [normalizedInitial]);
   const [similar, setSimilar] = useState<MovieOrShow[]>(initialSimilar);
   const [disponible, setDisponible] = useState<AvailabilityEntry | null>(null);
   const [trailerOpen, setTrailerOpen] = useState(false);
@@ -52,12 +77,28 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
     (f) => f.tmdbId === String(item?.id) && (f.mediaType === "series" || f.mediaType === "anime")
   );
 
+  /** true si la série n'est pas encore sortie */
+  const isUpcoming = Boolean(item?.releaseDate && new Date(item.releaseDate).getTime() > Date.now());
+  const releaseDateLabel = useMemo(() => {
+    if (!item?.releaseDate) return null;
+    try {
+      return new Date(item.releaseDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+    } catch { return item.releaseDate; }
+  }, [item?.releaseDate]);
+
   // Client-side polling for availability and automatic requests
   useEffect(() => {
     if (!item) return;
     let cancelled = false;
 
     const checkDispo = async () => {
+      // Si la série n'est pas encore sortie, ne pas spammer /api/requests
+      const unreleased = item.releaseDate && new Date(item.releaseDate).getTime() > Date.now();
+      if (unreleased) {
+        if (!cancelled) setDisponible({ disponible: false, streaming: false, download: false });
+        return;
+      }
+
       const dispo = await getDisponible(id, "series", item.title).catch(() => null);
       if (cancelled) return;
       if (dispo) setDisponible(dispo);
@@ -164,16 +205,36 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
 
   const audioTag = disponible?.langueAudio || item.langueAudio;
   const isFrench = disponible?.isFrenchAudio ?? (audioTag === "VF" || audioTag === "VFF" || audioTag === "VFQ");
-  const validSeasons = item.seasons?.filter((s) => s.seasonNumber > 0) || [];
+  
+  const rawItem = item as any;
+  const validSeasons = useMemo(() => {
+    if (!item?.seasons) return [];
+    return item.seasons
+      .map((s: any) => ({
+        ...s,
+        id: String(s.id || s.seasonNumber || s.season_number || 1),
+        name: s.name || `Saison ${s.seasonNumber ?? s.season_number ?? 1}`,
+        seasonNumber: Number(s.seasonNumber ?? s.season_number ?? 1),
+        episodeCount: Number(s.episodeCount ?? s.episode_count ?? 0),
+        posterUrl: s.posterUrl || (s.poster_path ? `https://image.tmdb.org/t/p/w500${s.poster_path}` : item?.posterUrl || ""),
+      }))
+      .filter((s) => s.seasonNumber > 0);
+  }, [item]);
+
   const firstSeasonNumber = validSeasons.length > 0 ? validSeasons[0].seasonNumber : 1;
+  const displayTitle = item.title || rawItem.name || "Série";
+  const displayRating = item.rating || (rawItem.vote_average ? Number(rawItem.vote_average).toFixed(1) : "8.0");
+  const displayYear = item.year || (rawItem.first_air_date ? new Date(rawItem.first_air_date).getFullYear() : "");
+  const displayPoster = item.posterUrl || (rawItem.poster_path ? `https://image.tmdb.org/t/p/original${rawItem.poster_path}` : "");
+  const displayBackdrop = item.backdropOriginalUrl || item.backdropUrl || (rawItem.backdrop_path ? `https://image.tmdb.org/t/p/original${rawItem.backdrop_path}` : "");
 
   return (
     <div className="min-h-screen bg-[#09090B] text-white select-none pb-20">
       <div className="relative w-full min-h-[65vh] sm:min-h-[75vh] lg:min-h-[82vh] overflow-hidden flex flex-col justify-end">
-        {item.backdropOriginalUrl || item.backdropUrl ? (
+        {displayBackdrop ? (
           <Image
-            src={item.backdropOriginalUrl || item.backdropUrl}
-            alt={item.title}
+            src={displayBackdrop}
+            alt={displayTitle}
             fill
             priority
             className="object-cover object-top filter brightness-[0.70] scale-100"
@@ -200,13 +261,13 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
         <div className="relative z-20 w-full px-4 sm:px-8 md:px-12 lg:px-16 pb-10 sm:pb-14 pt-24 flex flex-col md:flex-row md:items-end gap-6 sm:gap-8">
           <div className="relative w-[160px] sm:w-[200px] lg:w-[230px] aspect-[2/3] rounded-2xl overflow-hidden bg-zinc-900 border border-white/10 shrink-0 shadow-2xl">
             <CardImage
-              src={item.posterUrl}
-              alt={item.title}
+              src={displayPoster}
+              alt={displayTitle}
               fill
               className="object-cover object-top"
               sizes="(max-width: 768px) 160px, 230px"
               priority
-              fallbackText={item.title}
+              fallbackText={displayTitle}
             />
           </div>
 
@@ -229,12 +290,17 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
                 </div>
               )}
 
-              {item.statusLabel && (
+              {isUpcoming && releaseDateLabel ? (
+                <span className="px-3 py-1 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wider bg-blue-500/20 text-blue-300 border-0 flex items-center gap-1.5 shadow-none">
+                  <span>⏳</span>
+                  <span>Sortie le {releaseDateLabel}</span>
+                </span>
+              ) : item.statusLabel && (
                 <span
-                  className={`px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider ${
+                  className={`px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider border-0 ${
                     item.statusLabel === "En cours"
-                      ? "bg-[#D70466]/20 text-[#D70466] border border-[#D70466]/30"
-                      : "bg-zinc-800 text-zinc-300 border border-zinc-700"
+                      ? "bg-[#D70466]/20 text-[#D70466]"
+                      : "bg-white/10 text-zinc-300"
                   }`}
                 >
                   ● {item.statusLabel}
@@ -243,10 +309,10 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
 
               {audioTag && audioTag !== "UNKNOWN" && (
                 <span
-                  className={`px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider shadow-md ${
+                  className={`px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider border-0 shadow-none ${
                     isFrench
-                      ? "bg-[#D70466]/90 text-white border border-[#D70466]/30"
-                      : "bg-amber-600/90 text-white border border-amber-400/30"
+                      ? "bg-[#D70466]/90 text-white"
+                      : "bg-amber-600/90 text-white"
                   }`}
                 >
                   {audioTag === "VFF" ? "VF (TrueFrench)" : audioTag === "VFQ" ? "VF (Québec)" : audioTag}
@@ -254,14 +320,14 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
               )}
 
               {item.contentRating && (
-                <span className="px-2 py-0.5 rounded bg-zinc-900/80 border border-zinc-700 text-zinc-300 text-[10px] sm:text-xs font-mono">
+                <span className="px-2 py-0.5 rounded bg-zinc-900/80 border-0 text-zinc-300 text-[10px] sm:text-xs font-mono">
                   {item.contentRating}
                 </span>
               )}
             </div>
 
             <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight drop-shadow-2xl leading-tight">
-              {item.title}
+              {displayTitle}
             </h1>
 
             {item.tagline && (
@@ -271,16 +337,16 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
             )}
 
             <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm text-zinc-300 font-medium">
-              <div className="flex items-center gap-1.5 text-amber-400 font-bold bg-amber-400/10 px-2.5 py-0.5 rounded-full border border-amber-400/20">
+              <div className="flex items-center gap-1.5 text-amber-400 font-bold bg-amber-400/10 px-2.5 py-0.5 rounded-full border-0">
                 <Star className="h-3.5 w-3.5 fill-amber-400" />
-                <span>{item.rating}</span>
+                <span>{displayRating}</span>
                 <span className="text-zinc-500 text-[11px]">/10</span>
               </div>
 
               <span className="text-zinc-600">•</span>
               <div className="flex items-center gap-1">
                 <CalendarBlank className="h-4 w-4 text-zinc-500" />
-                <span>{item.year}</span>
+                <span>{isUpcoming && releaseDateLabel ? `Sortie le ${releaseDateLabel}` : displayYear}</span>
               </div>
 
               <span className="text-zinc-600">•</span>
@@ -289,7 +355,13 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
               {item.genres && item.genres.length > 0 && (
                 <>
                   <span className="text-zinc-600">•</span>
-                  <span className="text-zinc-400">{item.genres.slice(0, 3).join(", ")}</span>
+                  <span className="text-zinc-400">
+                    {item.genres
+                      .slice(0, 3)
+                      .map((g: any) => (typeof g === "string" ? g : g?.name || ""))
+                      .filter(Boolean)
+                      .join(", ")}
+                  </span>
                 </>
               )}
             </div>
@@ -299,15 +371,27 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
             </p>
 
             <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 pt-2">
-              <Link href={`/tv/${id}/season/${firstSeasonNumber}`}>
+              {isUpcoming ? (
                 <Button
-                  variant="primary"
+                  disabled
+                  variant="dark"
                   size="md"
-                  text={`Regarder Saison ${firstSeasonNumber}`}
-                  leftIcon={<Play className="h-4 w-4 fill-white" />}
-                  ariaLabel={`Regarder la saison ${firstSeasonNumber} de ${item.title}`}
+                  text={`⏳ Bientôt disponible (Sortie le ${releaseDateLabel})`}
+                  leftIcon={<CalendarBlank className="h-4 w-4 text-blue-400" />}
+                  ariaLabel={`Sortie prévue le ${releaseDateLabel}`}
+                  className="opacity-90 cursor-not-allowed border-0 text-blue-200 font-bold bg-blue-600/20 shadow-none"
                 />
-              </Link>
+              ) : (
+                <Link href={`/tv/${id}/season/${firstSeasonNumber}`}>
+                  <Button
+                    variant="primary"
+                    size="md"
+                    text={`Regarder Saison ${firstSeasonNumber}`}
+                    leftIcon={<Play className="h-4 w-4 fill-white" />}
+                    ariaLabel={`Regarder la saison ${firstSeasonNumber} de ${item.title}`}
+                  />
+                </Link>
+              )}
 
               {item.trailerUrl && (
                 <Button

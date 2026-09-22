@@ -26,14 +26,14 @@
   --background: #18181B; /* Lightened from #09090B */
   --foreground: #FAFAFA; /* Lightened from #F4F4F5 */
   --card-bg: #27272A; /* Lightened from #121214 */
-  --card-border: #3F3F46; /* Lightened from #1F1F23 */
+  --card-border: rgba(255, 255, 255, 0.06);
   --text-muted: #D4D4D8; /* Lightened from #A1A1AA */
   --glass-bg: rgba(39, 39, 42, 0.6);
-  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-border: rgba(255, 255, 255, 0.06);
   --glass-nav-bg: rgba(24, 24, 27, 0.75);
-  --glass-nav-border: rgba(255, 255, 255, 0.08);
+  --glass-nav-border: rgba(255, 255, 255, 0.06);
   --glass-modal-bg: rgba(30, 30, 33, 0.85);
-  --glass-modal-border: rgba(255, 255, 255, 0.12);
+  --glass-modal-border: rgba(255, 255, 255, 0.08);
   --overlay-base: 24, 24, 27;
   --skeleton-base: #27272A;
   --skeleton-shimmer: #3F3F46;
@@ -123,10 +123,11 @@ body {
 }
 
 .glass-badge {
-  background: rgba(12, 12, 16, 0.8);
+  background: rgba(18, 18, 24, 0.75);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  border: 0 !important;
+  box-shadow: none !important;
 }
 
 .glass-button {
@@ -140,7 +141,7 @@ body {
 .glass-button:hover {
   background: rgba(255, 255, 255, 0.22);
   transform: translateY(-1px);
-  box-shadow: 0 8px 24px rgba(215, 4, 102, 0.35);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
 
 .glass-nav {
@@ -162,8 +163,8 @@ body {
 
 .hover-glow:hover {
   transform: translateY(-4px) scale(1.02);
-  box-shadow: 0 12px 30px -10px rgba(215, 4, 102, 0.25);
-  border-color: rgba(215, 4, 102, 0.4);
+  box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.6);
+  border-color: transparent !important;
 }
 
 /* Skeleton Loading State Animations (Silky 60fps GPU-accelerated) */
@@ -179,26 +180,56 @@ body {
 .skeleton-loading {
   position: relative;
   overflow: hidden;
-  background-color: var(--skeleton-base);
+  background-color: var(--skeleton-base, #1f1f23);
 }
 
 .skeleton-loading::after {
   content: "";
   position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
+  inset: 0;
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(255, 255, 255, 0.03) 30%,
-    rgba(255, 255, 255, 0.1) 50%,
-    rgba(255, 255, 255, 0.03) 70%,
+    rgba(255, 255, 255, 0.03) 20%,
+    rgba(255, 255, 255, 0.13) 50%,
+    rgba(255, 255, 255, 0.03) 80%,
     transparent 100%
   );
-  animation: shimmer 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  animation: shimmer 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
   will-change: transform;
+  pointer-events: none;
+}
+
+/* Subtle card ambient shimmer / sheen on hover & display */
+.card-ambient-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.card-ambient-shimmer::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -150%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    115deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.02) 40%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.02) 60%,
+    transparent 100%
+  );
+  transform: skewX(-20deg);
+  transition: none;
+  pointer-events: none;
+  z-index: 15;
+}
+
+.card-ambient-shimmer:hover::before {
+  left: 150%;
+  transition: left 0.8s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Fade-in utilisé par les modales (MovieModal, DownloadModal, NotificationModal).

@@ -5,7 +5,7 @@ import Image from "next/image";
 import dynamic from "next/dynamic";
 import gsap from "gsap";
 import type { MovieOrShow } from "@/types/media";
-import { Play, Star, Info, FilmSlate, BookmarkSimple, ListNumbers } from '@phosphor-icons/react';
+import { Play, Star, Info, FilmSlate, BookmarkSimple, ListNumbers, HourglassSimple } from '@phosphor-icons/react';
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { userService } from "@/services/user";
@@ -120,6 +120,20 @@ function MovieCard({
     return null;
   }, [item.langueAudio, item.title]);
 
+  /** true si le film/série n'est pas encore sorti */
+  const isUpcoming = React.useMemo(() => {
+    if (!item.releaseDate) return false;
+    return new Date(item.releaseDate) > new Date();
+  }, [item.releaseDate]);
+
+  /** Date de sortie formatée lisiblement (ex: "25 sept. 2026") */
+  const releaseDateLabel = React.useMemo(() => {
+    if (!item.releaseDate) return null;
+    try {
+      return new Date(item.releaseDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+    } catch { return item.releaseDate; }
+  }, [item.releaseDate]);
+
   // Smooth Hover Animations (Fast, hardware-accelerated transforms without layout shift)
   const handleMouseEnter = useCallback(() => {
     if (typeof window !== "undefined" && window.matchMedia && !window.matchMedia("(hover: hover)").matches) {
@@ -211,8 +225,8 @@ function MovieCard({
   // Premium Vertical Poster Card (Fluid, stable width without flex layout reflow)
   if (isPoster) {
     const posterCardClass = isGridPoster
-      ? `group relative w-full aspect-[2/3] cursor-pointer rounded-2xl overflow-hidden bg-zinc-950 shadow-[0_8px_24px_rgba(0,0,0,0.6)] hover:shadow-[0_16px_40px_rgba(0,0,0,0.9)] transition-shadow duration-300 ${className}`
-      : `group relative flex-none h-[250px] sm:h-[295px] md:h-[340px] lg:h-[385px] w-[165px] sm:w-[195px] md:w-[225px] lg:w-[255px] cursor-pointer rounded-2xl overflow-hidden bg-zinc-950 shadow-[0_8px_24px_rgba(0,0,0,0.6)] hover:shadow-[0_16px_40px_rgba(0,0,0,0.9)] transition-shadow duration-300 ${className}`;
+      ? `group relative w-full aspect-[2/3] cursor-pointer rounded-2xl overflow-hidden bg-zinc-950 shadow-[0_8px_24px_rgba(0,0,0,0.6)] hover:shadow-[0_16px_40px_rgba(0,0,0,0.9)] transition-shadow duration-300 card-ambient-shimmer ${className}`
+      : `group relative flex-none h-[250px] sm:h-[295px] md:h-[340px] lg:h-[385px] w-[165px] sm:w-[195px] md:w-[225px] lg:w-[255px] cursor-pointer rounded-2xl overflow-hidden bg-zinc-950 shadow-[0_8px_24px_rgba(0,0,0,0.6)] hover:shadow-[0_16px_40px_rgba(0,0,0,0.9)] transition-shadow duration-300 card-ambient-shimmer ${className}`;
 
     return (
       <div
@@ -228,19 +242,17 @@ function MovieCard({
       >
         {/* 1. Base Vertical Poster Image */}
         <div ref={posterRef} className="relative w-full h-full bg-zinc-900 overflow-hidden">
-          {/* Shimmer Placeholder */}
-          {!imgError && (
+          {/* Shimmer Placeholder : affiché tant que l'image n'est pas prête ou si l'image est en cours */}
+          {(!posterLoaded || !posterSrc) && !imgError && (
             <div
-              className={`absolute inset-0 skeleton-loading z-10 pointer-events-none transition-opacity duration-500 ease-out ${
-                posterLoaded ? "opacity-0" : "opacity-100"
-              }`}
+              className="absolute inset-0 skeleton-loading z-10 pointer-events-none transition-opacity duration-500 ease-out"
               aria-hidden="true"
             />
           )}
           {posterSrc && !imgError ? (
             <Image
               src={posterSrc}
-              alt={item.title}
+              alt={item.title || ""}
               fill
               className={`object-cover object-top transition-opacity duration-500 ease-out will-change-[opacity] ${
                 posterLoaded ? "opacity-100" : "opacity-0"
@@ -257,6 +269,8 @@ function MovieCard({
                 setPosterLoaded(true);
               }}
             />
+          ) : !posterSrc && !imgError ? (
+            <div className="absolute inset-0 skeleton-loading" aria-hidden="true" />
           ) : (
             <div className={`w-full h-full flex flex-col items-center justify-center gap-2 bg-gradient-to-br ${gradients[gradientIndex]} p-3 text-center`}>
               <FilmSlate className="h-8 w-8 text-white/40" />
@@ -265,19 +279,40 @@ function MovieCard({
           )}
         </div>
 
-        {/* Top-right "NOUVEAU" or Type Badge & Audio & Bookmark */}
-        <div className="absolute top-2.5 right-2.5 z-20 flex flex-col items-end gap-1.5 pointer-events-auto">
+        {/* Skeleton Badges placeholders while image is loading */}
+        {!posterLoaded && !imgError && (
+          <div className="absolute inset-0 z-10 pointer-events-none">
+            <div className="absolute top-2.5 left-2.5 flex items-center gap-1 rounded-md px-2 py-0.5 bg-black/40 backdrop-blur-md">
+              <div className="h-2.5 w-2.5 rounded-full bg-amber-400/50" />
+              <div className="h-2 w-4 rounded bg-zinc-600/60" />
+            </div>
+            <div className="absolute top-2.5 right-2.5 flex items-center gap-1">
+              <div className="h-4 w-12 rounded-md bg-white/10 backdrop-blur-md" />
+            </div>
+          </div>
+        )}
+
+        {/* Top-right "NOUVEAU" or Type Badge & Audio & Bookmark (fades in when loaded) */}
+        <div className={`absolute top-2.5 right-2.5 z-20 flex flex-col items-end gap-1.5 pointer-events-auto transition-opacity duration-300 ${
+          posterLoaded || imgError ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`}>
           <div className="flex items-center gap-1">
             {audioBadge && (
-              <span className={`rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider shadow-sm ${
+              <span className={`rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider border-0 shadow-none ${
                 audioBadge.isFrench 
-                  ? 'bg-brand-primary text-white' 
-                  : 'bg-amber-600 text-white'
-              }`}>
+                ? 'bg-brand-primary text-white' 
+                : 'bg-amber-600 text-white'
+            }`}>
                 {audioBadge.label}
               </span>
             )}
-            <span className="rounded-md glass-badge px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-zinc-200 shadow-sm">
+            {isUpcoming && (
+              <span className="rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider border-0 shadow-none bg-blue-600 text-white flex items-center gap-1">
+                <HourglassSimple className="w-2.5 h-2.5" />
+                <span>À VENIR</span>
+              </span>
+            )}
+            <span className="rounded-md glass-badge px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-zinc-200 border-0 shadow-none">
               {item.isTrending ? "NOUVEAU" : item.type === "series" ? "SÉRIE" : item.type === "anime" ? "ANIME" : "FILM"}
             </span>
           </div>
@@ -307,20 +342,17 @@ function MovieCard({
           )}
         </div>
 
-        {/* Top-left Rating Badge */}
+        {/* Top-left Rating Badge (fades in when loaded) */}
         {Boolean(item.rating) && (
-          <div className="absolute top-2.5 left-2.5 z-10 flex items-center gap-1 rounded-md glass-badge px-2 py-0.5 text-[10px] font-bold">
+          <div className={`absolute top-2.5 left-2.5 z-10 flex items-center gap-1 rounded-md glass-badge px-2 py-0.5 text-[10px] font-bold border-0 shadow-none transition-opacity duration-300 ${
+            posterLoaded || imgError ? "opacity-100" : "opacity-0 pointer-events-none"
+          }`}>
             <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
             <span className="text-amber-400">{item.rating}</span>
           </div>
         )}
 
-        {/* Bottom Crown Badge (collapsed state) */}
-        <div className="absolute bottom-2.5 left-2.5 z-10 group-hover:opacity-0 transition-opacity duration-200">
-          <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-amber-500 text-xs shadow-md">
-            👑
-          </span>
-        </div>
+
 
         {/* Bottom Cinematic Gradient & Details Overlay (Visible smoothly on Hover) */}
         <div
@@ -370,7 +402,13 @@ function MovieCard({
               {item.genres && item.genres.length > 0 && (
                 <span>• {item.genres[0]}</span>
               )}
-              {item.year && <span>• {item.year}</span>}
+              {isUpcoming && releaseDateLabel
+                ? <span className="text-blue-400 font-semibold flex items-center gap-1">
+                    <HourglassSimple className="w-2.5 h-2.5" />
+                    <span>Sortie le {releaseDateLabel}</span>
+                  </span>
+                : item.year && <span>• {item.year}</span>
+              }
             </div>
           </div>
         </div>
@@ -403,24 +441,22 @@ function MovieCard({
       }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className={`group relative ${sizeClass} cursor-pointer ${className}`}
+      className={`group relative ${sizeClass} cursor-pointer card-ambient-shimmer ${className}`}
     >
       {/* Landscape 16:9 box */}
       <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-zinc-900 shadow-md transition-colors duration-300">
         {/* Shimmer Placeholder with smooth crossfade */}
-        {!imgError && (
+        {(!landscapeLoaded || !primarySrc) && !imgError && (
           <div
-            className={`absolute inset-0 skeleton-loading z-10 pointer-events-none transition-opacity duration-700 ease-out ${
-              landscapeLoaded ? "opacity-0" : "opacity-100"
-            }`}
+            className="absolute inset-0 skeleton-loading z-10 pointer-events-none transition-opacity duration-500 ease-out"
             aria-hidden="true"
           />
         )}
         <div ref={posterRef} className="relative w-full h-full">
-          {hasImage ? (
+          {primarySrc && !imgError ? (
             <Image
               src={primarySrc}
-              alt={item.title}
+              alt={item.title || ""}
               fill
               className={`object-cover object-top transition-opacity duration-700 ease-out will-change-[opacity] ${
                 landscapeLoaded ? "opacity-100" : "opacity-0"
@@ -441,6 +477,8 @@ function MovieCard({
                   : "(max-width: 640px) 240px, (max-width: 768px) 280px, 360px"
               }
             />
+          ) : !primarySrc && !imgError ? (
+            <div className="absolute inset-0 skeleton-loading" aria-hidden="true" />
           ) : (
             <div className={`absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-br ${gradients[gradientIndex]} p-3 text-center`}>
               <FilmSlate className="h-8 w-8 text-white/40" />
@@ -449,36 +487,54 @@ function MovieCard({
           )}
         </div>
 
-        {/* Top-left rating badge */}
+        {/* Skeleton Badges placeholders while landscape image is loading */}
+        {!landscapeLoaded && !imgError && (
+          <div className="absolute inset-0 z-10 pointer-events-none">
+            <div className="absolute top-2 left-2 flex items-center gap-1 rounded-md px-1.5 py-0.5 bg-black/40 backdrop-blur-md">
+              <div className="h-2.5 w-2.5 rounded-full bg-amber-400/50" />
+              <div className="h-2 w-4 rounded bg-zinc-600/60" />
+            </div>
+            <div className="absolute top-2 right-2 flex items-center gap-1">
+              <div className="h-3.5 w-11 rounded-md bg-white/10 backdrop-blur-md" />
+            </div>
+          </div>
+        )}
+
+        {/* Top-left rating badge (fades in when loaded) */}
         {Boolean(item.rating) && (
-          <div className="absolute top-2 left-2 z-10 flex items-center gap-1 rounded-md glass-badge px-1.5 py-0.5 text-[10px] font-bold">
+          <div className={`absolute top-2 left-2 z-10 flex items-center gap-1 rounded-md glass-badge px-1.5 py-0.5 text-[10px] font-bold border-0 shadow-none transition-opacity duration-300 ${
+            landscapeLoaded || imgError ? "opacity-100" : "opacity-0 pointer-events-none"
+          }`}>
             <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
             <span className="text-amber-400">{item.rating}</span>
           </div>
         )}
 
-        {/* Top-right type & audio badge */}
-        <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
+        {/* Top-right type & audio badge (fades in when loaded) */}
+        <div className={`absolute top-2 right-2 z-10 flex items-center gap-1 transition-opacity duration-300 ${
+          landscapeLoaded || imgError ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`}>
           {audioBadge && (
-            <span className={`rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider shadow-sm ${
+            <span className={`rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider border-0 shadow-none ${
               audioBadge.isFrench 
-                ? 'bg-[#D70466]/90 text-white border border-[#D70466]/30' 
-                : 'bg-amber-600/90 text-white border border-amber-400/30'
+                ? 'bg-[#D70466]/90 text-white' 
+                : 'bg-amber-600/90 text-white'
             }`}>
               {audioBadge.label}
             </span>
           )}
-          <span className="rounded-md glass-badge px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-zinc-200">
+          {isUpcoming && (
+            <span className="rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider border-0 shadow-none bg-blue-600 text-white flex items-center gap-1">
+              <HourglassSimple className="w-2.5 h-2.5" />
+              <span>À VENIR</span>
+            </span>
+          )}
+          <span className="rounded-md glass-badge px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-zinc-200 border-0 shadow-none">
             {item.type === "series" ? "SÉRIE" : item.type === "anime" ? "ANIME" : "FILM"}
           </span>
         </div>
 
-        {/* Bottom brand badge */}
-        <div className="absolute bottom-2 left-2 z-10">
-          <span className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-amber-500/90 text-[10px] shadow-sm">
-            👑
-          </span>
-        </div>
+
 
         {/* Mobile: always-visible title gradient */}
         <div className="absolute bottom-0 left-0 right-0 z-20 md:hidden">
@@ -542,13 +598,19 @@ function MovieCard({
           </div>
 
           <div className="flex items-center gap-2 text-[10px] text-zinc-400 font-medium">
-            {item.year && <span>{item.year}</span>}
+            {isUpcoming && releaseDateLabel
+              ? <span className="text-blue-400 font-semibold flex items-center gap-1">
+                  <HourglassSimple className="w-2.5 h-2.5" />
+                  <span>Sortie le {releaseDateLabel}</span>
+                </span>
+              : item.year && <span>{item.year}</span>
+            }
             {item.rating && (
               <span className="glass-badge px-1 py-0.2 rounded text-amber-400 font-bold">
                 ★ {item.rating}
               </span>
             )}
-            {item.duration && <span>• {item.duration}</span>}
+            {!isUpcoming && item.duration && <span>• {item.duration}</span>}
           </div>
         </div>
       </div>

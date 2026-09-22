@@ -9,12 +9,12 @@ import ContinueWatchingCard from "@/components/ContinueWatchingCard";
 import ScrollRow from "@/components/ScrollRow";
 import SpotlightGrid from "@/components/SpotlightGrid";
 import MostViewedMovie from "@/components/MostViewedMovie";
+import Top10Row from "@/components/Top10Row";
 import LiveMatchesRow from "@/components/LiveMatchesRow";
 import { useLanguage } from "@/i18n/LanguageContext";
 import type { MovieOrShow, Episode } from "@/types/media";
 import UpgradeModal from "@/components/UpgradeModal";
 import { useAuthStore } from "@/stores/useAuthStore";
-import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 
 const MovieModal = dynamic(() => import("@/components/MovieModal"), { ssr: false });
 
@@ -22,20 +22,52 @@ export interface HomeClientWrapperProps {
   heroSlides: MovieOrShow[];
   trendingAll: MovieOrShow[];
   newReleases: MovieOrShow[];
+  upcomingMovies?: MovieOrShow[];
   popularSeries: MovieOrShow[];
   animeCollection: MovieOrShow[];
   africanMovies: MovieOrShow[];
   africanSeries: MovieOrShow[];
+  topRatedMovies: MovieOrShow[];
+  topRatedTV: MovieOrShow[];
+  actionMovies: MovieOrShow[];
+  comedyMovies: MovieOrShow[];
+  actionSeries: MovieOrShow[];
+  animationSeries: MovieOrShow[];
+  boxOffice: MovieOrShow[];
+  newAnime: MovieOrShow[];
+  martialArts: MovieOrShow[];
+  tvForYou: MovieOrShow[];
+  saDrama: MovieOrShow[];
+  madeInChina: MovieOrShow[];
+  barbieMovies: MovieOrShow[];
+  realityShows: MovieOrShow[];
+  allTimeFavorites?: MovieOrShow[];
 }
 
 export default function HomeClientWrapper({
   heroSlides,
   trendingAll,
   newReleases,
+  upcomingMovies,
   popularSeries,
   animeCollection,
   africanMovies,
-  africanSeries
+  africanSeries,
+  topRatedMovies,
+  topRatedTV,
+  actionMovies,
+  comedyMovies,
+  actionSeries,
+  animationSeries,
+  boxOffice,
+  newAnime,
+  martialArts,
+  tvForYou,
+  saDrama,
+  madeInChina,
+  barbieMovies,
+  realityShows,
+  allTimeFavorites = [],
 }: HomeClientWrapperProps) {
   const router = useRouter();
   const { translate: _ } = useLanguage();
@@ -58,6 +90,14 @@ export default function HomeClientWrapper({
     [trendingAll]
   );
 
+  // Filter strictly unreleased upcoming movies with poster for the full-width spotlight banner
+  const upcomingList = useMemo(() => {
+    const list = upcomingMovies && upcomingMovies.length > 0 ? upcomingMovies : newReleases;
+    const today = new Date().toISOString().split("T")[0];
+    const unreleased = list.filter((m) => Boolean(m.posterUrl) && Boolean(m.releaseDate && m.releaseDate >= today));
+    return unreleased.length > 0 ? unreleased : list.filter((m) => Boolean(m.posterUrl));
+  }, [upcomingMovies, newReleases]);
+
   // Global Deduplication Logic
   const homeRows = useMemo(() => {
     const rows: Array<{
@@ -77,7 +117,24 @@ export default function HomeClientWrapper({
       autoScroll?: boolean,
       autoScrollSpeed?: number,
     ) => {
-      const fresh = items.filter((it) => !seen.has(it.id));
+      const isCustomCategory = [
+        "Box office",
+        "New Anime",
+        "Martial art",
+        "TV for you",
+        "SA Drama",
+        "Made in China",
+        "Séries d'Animation",
+        "Séries Action & Aventure",
+        "Comédies à voir",
+        "Films d'Action",
+        "Barbie World",
+        "Barbie Princess World",
+        "Reality Show",
+        "All time favorite",
+      ].includes(title);
+      const fresh = isCustomCategory ? items : items.filter((it) => !seen.has(it.id));
+      
       fresh.forEach((it) => seen.add(it.id));
       if (fresh.length === 0) return;
       rows.push({ title, items: fresh, accent, variant, autoScroll, autoScrollSpeed });
@@ -85,15 +142,42 @@ export default function HomeClientWrapper({
 
     push(_("home.trending"), trendingAll, "primary", "poster");
     push("Nouveautés", newReleases, "primary", "poster");
-    push(_("home.mostWatched"), mostWatched, "primary", undefined, true, 0.4);
-    push(_("home.trendingNow"), trendingNow, "secondary", undefined, true, 0.5);
-    push(_("home.popularSeries"), popularSeries, "primary");
-    push(_("home.animeCollection"), animeCollection, "secondary");
-    push("Films Africains", africanMovies, "secondary");
-    push("Séries Africaines", africanSeries, "secondary");
+    push("TV for you", tvForYou, "primary", "poster");
+    
+    // All time favorite: iconic classics (Game of Thrones, Vampire Diaries, Breaking Bad, etc.)
+    const favoritesList = allTimeFavorites && allTimeFavorites.length > 0 
+      ? allTimeFavorites 
+      : [...topRatedTV, ...topRatedMovies];
+    push("All time favorite", favoritesList, "secondary", "poster");
+
+    push("Box office", boxOffice, "primary", "poster");
+    push("New Anime", newAnime, "secondary", "poster");
+    push("Martial art", martialArts, "primary", "poster");
+    push("Reality Show", realityShows, "primary", "poster");
+    push("Barbie World", barbieMovies, "secondary", "poster");
+
+    push("Films d'Action", actionMovies, "primary", "poster");
+    push("Comédies à voir", comedyMovies, "secondary", "poster");
+    push("Séries Action & Aventure", actionSeries, "secondary", "poster");
+    push("Films Africains", africanMovies, "secondary", "poster");
+    push("Séries Africaines", africanSeries, "secondary", "poster");
+    push("SA Drama", saDrama, "secondary", "poster");
+    push("Made in China", madeInChina, "primary", "poster");
+
+    push(_("home.popularSeries"), popularSeries, "primary", "poster");
+    push(_("home.animeCollection"), animeCollection, "secondary", "poster");
+    push("Séries d'Animation", animationSeries, "primary", "poster");
+    push(_("home.mostWatched"), mostWatched, "primary", "poster", true, 0.4);
+    push(_("home.trendingNow"), trendingNow, "secondary", "poster", true, 0.5);
 
     return rows;
-  }, [trendingAll, newReleases, mostWatched, trendingNow, popularSeries, animeCollection, africanMovies, africanSeries, _]);
+  }, [
+    trendingAll, newReleases, mostWatched, trendingNow, popularSeries, 
+    animeCollection, africanMovies, africanSeries, topRatedMovies, topRatedTV, 
+    actionMovies, comedyMovies, actionSeries, animationSeries,
+    boxOffice, newAnime, martialArts, tvForYou, saDrama, madeInChina,
+    barbieMovies, realityShows, allTimeFavorites, _
+  ]);
 
   // Load Continue Watching
   useEffect(() => {
@@ -194,25 +278,6 @@ export default function HomeClientWrapper({
     handleWatchNow(item, episode?.season, episode?.number);
   };
 
-  // Infinite Scroll logic for rows
-  const [visibleRowsCount, setVisibleRowsCount] = useState(4);
-  const [rowsLoadingState, setRowsLoadingState] = useState<'idle' | 'loading'>('idle');
-
-  const handleLoadMoreRows = useCallback(() => {
-    setRowsLoadingState('loading');
-    setTimeout(() => {
-      setVisibleRowsCount((prev) => Math.min(prev + 4, homeRows.length));
-      setRowsLoadingState('idle');
-    }, 100);
-  }, [homeRows.length]);
-
-  const { sentinelRef } = useInfiniteScroll({
-    onLoadMore: handleLoadMoreRows,
-    hasMore: visibleRowsCount < homeRows.length,
-    isLoading: rowsLoadingState === 'loading',
-    rootMargin: "800px",
-  });
-
   return (
     <div className="flex-1 flex flex-col bg-brand-dark transition-colors duration-300">
       <main className="flex-grow transition-all duration-300">
@@ -266,13 +331,18 @@ export default function HomeClientWrapper({
               </ScrollRow>
             ))}
 
-            {trendingAll.length > 0 && (
+            {(upcomingList.length > 0 || trendingAll.length > 0) && (
               <MostViewedMovie
-                item={trendingAll[0]}
+                items={upcomingList.length > 0 ? upcomingList : trendingAll}
                 onWatchNow={handleWatchNow}
                 onOpenDetails={handleOpenDetails}
               />
             )}
+
+            <Top10Row
+              title="Top 10 : Ce que tout le monde regarde"
+              items={trendingAll}
+            />
 
             {homeRows.slice(2, 5).map((row) => (
               <ScrollRow
@@ -302,7 +372,7 @@ export default function HomeClientWrapper({
               />
             )}
 
-            {homeRows.slice(5, visibleRowsCount).map((row) => (
+            {homeRows.slice(5).map((row) => (
               <ScrollRow
                 key={row.title}
                 title={row.title}
@@ -321,8 +391,6 @@ export default function HomeClientWrapper({
                 ))}
               </ScrollRow>
             ))}
-
-            <div ref={sentinelRef} className="h-10 w-full pointer-events-none" />
           </div>
         </div>
       </main>

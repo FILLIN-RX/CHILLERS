@@ -54,6 +54,8 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
   const [streamUrl, setStreamUrl] = useState(initialStreamUrl || "");
   const [streamLoading, setStreamLoading] = useState(!initialStreamUrl && !initialStreamUnavailable);
   const [streamUnavailable, setStreamUnavailable] = useState(initialStreamUnavailable || false);
+  const [isUnreleased, setIsUnreleased] = useState(false);
+  const [unreleasedDate, setUnreleasedDate] = useState<string | null>(null);
   const [pageLoading, setPageLoading] = useState(!initialItem);
 
   const [episodes, setEpisodes] = useState<Episode[]>([]);
@@ -120,6 +122,18 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
         if (cancelled) return;
         if (detail) setItem(detail);
 
+        // ── Early exit si le contenu n'est pas encore sorti ──
+        if (detail?.releaseDate && new Date(detail.releaseDate).getTime() > Date.now()) {
+          setIsUnreleased(true);
+          setUnreleasedDate(detail.releaseDate);
+          setStreamUnavailable(true);
+          setStreamLoading(false);
+          setSeasonLoading(false);
+          return;
+        }
+
+        const originalTitle = (detail as any)?.originalTitle || (detail as any)?.original_title;
+
         if (isTV) {
           setSeasonLoading(true);
           const targetSeason = parseInt(initialSeasonParam) || 1;
@@ -133,7 +147,10 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
             targetSeason,
             targetEp,
             detail?.title || id,
-            signal
+            signal,
+            originalTitle,
+            detail?.releaseDate,
+            detail?.year,
           );
 
           const [seasonData, firstStream] = await Promise.all([
@@ -170,12 +187,22 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
               1,
               1,
               detail?.title || id,
-              signal
+              signal,
+              originalTitle,
+              detail?.releaseDate,
+              detail?.year,
             );
           }
           if (!cancelled) {
-            if (stream) setStreamUrl(stream.embedUrl);
-            else setStreamUnavailable(true);
+            if (stream?.unreleased) {
+              setIsUnreleased(true);
+              setUnreleasedDate(stream.releaseDate || detail?.releaseDate || null);
+              setStreamUnavailable(true);
+            } else if (stream) {
+              setStreamUrl(stream.embedUrl);
+            } else {
+              setStreamUnavailable(true);
+            }
           }
           setSeasonLoading(false);
         } else {
@@ -185,12 +212,21 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
             undefined,
             undefined,
             detail?.title || id,
-            signal
+            signal,
+            originalTitle,
+            detail?.releaseDate,
+            detail?.year,
           );
-          if (!cancelled && stream) {
-            setStreamUrl(stream.embedUrl);
-          } else if (!cancelled) {
-            setStreamUnavailable(true);
+          if (!cancelled) {
+            if (stream?.unreleased) {
+              setIsUnreleased(true);
+              setUnreleasedDate(stream.releaseDate || detail?.releaseDate || null);
+              setStreamUnavailable(true);
+            } else if (stream) {
+              setStreamUrl(stream.embedUrl);
+            } else {
+              setStreamUnavailable(true);
+            }
           }
         }
       } catch (err) {
@@ -310,7 +346,11 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
             "series",
             newSeason,
             firstEp ? firstEp.number : 1,
-            item?.title || id
+            item?.title || id,
+            undefined,
+            (item as any)?.originalTitle || (item as any)?.original_title,
+            item?.releaseDate,
+            item?.year,
           );
           if (stream) {
             setStreamUrl(stream.embedUrl);
@@ -354,7 +394,11 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
           "series",
           ep.season || currentSeason,
           ep.number,
-          item.title || id
+          item.title || id,
+          undefined,
+          (item as any)?.originalTitle || (item as any)?.original_title,
+          item?.releaseDate,
+          item?.year,
         );
         if (stream) {
           setStreamUrl(stream.embedUrl);
@@ -483,7 +527,40 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
         {/* Main Video Player Section */}
         <div ref={playerRef} className="w-full bg-black">
           <div className="w-full relative mx-auto">
-            {streamUnavailable ? (
+            {isUnreleased ? (
+              <div className="w-full min-h-[240px] sm:min-h-[380px] aspect-video max-h-[75dvh] flex flex-col items-center justify-center gap-4 px-6 bg-zinc-950/95 border-0">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-blue-600/15 flex items-center justify-center border-0 shadow-none">
+                  <span className="text-3xl sm:text-4xl">⏳</span>
+                </div>
+                <div className="text-center max-w-md space-y-2">
+                  <span className="inline-block px-3 py-1 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wider bg-blue-500/20 text-blue-300 border-0 shadow-none">
+                    Bientôt disponible
+                  </span>
+                  <h3 className="text-lg sm:text-2xl font-black text-white">
+                    {item?.title || "Ce titre"} n'est pas encore sorti
+                  </h3>
+                  <p className="text-zinc-400 text-xs sm:text-sm leading-relaxed">
+                    {unreleasedDate
+                      ? `La sortie officielle est prévue le ${new Date(unreleasedDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}. Le contenu sera disponible en streaming sur CHILLERS peu après sa sortie.`
+                      : "Ce contenu n'est pas encore disponible en streaming."}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 pt-2">
+                  <button
+                    onClick={() => router.back()}
+                    className="px-5 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs sm:text-sm transition-all active:scale-95 cursor-pointer"
+                  >
+                    Retour
+                  </button>
+                  <button
+                    onClick={() => router.push("/")}
+                    className="px-5 py-2 rounded-xl bg-brand-primary hover:bg-brand-primary/90 text-white font-bold text-xs sm:text-sm transition-all active:scale-95 shadow-lg shadow-brand-primary/30 cursor-pointer"
+                  >
+                    Explorer les nouveautés
+                  </button>
+                </div>
+              </div>
+            ) : streamUnavailable ? (
               <div className="w-full min-h-[220px] sm:min-h-[360px] aspect-video max-h-[75dvh] flex flex-col items-center justify-center gap-4 px-6 bg-zinc-950/90">
                 <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-zinc-800/80 flex items-center justify-center border border-zinc-700/50">
                   <FilmSlate className="h-8 w-8 sm:h-10 sm:w-10 text-zinc-500" />
@@ -746,7 +823,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
                 <MovieCard
                   key={sim.id}
                   item={sim}
-                  variant="grid"
+                  variant="grid-poster"
                   onPlay={(i) =>
                     router.push(
                       `/watch/${i.id}?type=${

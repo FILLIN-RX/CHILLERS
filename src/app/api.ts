@@ -52,6 +52,13 @@ export {
   mapTMDBToMovieOrShow,
   getMediaTrailerUrl,
   enrichHeroSlidesWithTrailers,
+  getBoxOfficeMovies,
+  getNewAnime,
+  getMartialArtsMovies,
+  getMadeInChina,
+  getBarbieMovies,
+  getRealityShows,
+  getAllTimeFavorites,
 } from "@/services/media";
 
 export type { TmdbRawItem } from "@/services/media";

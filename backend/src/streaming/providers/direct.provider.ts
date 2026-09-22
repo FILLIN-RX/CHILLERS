@@ -57,6 +57,8 @@ export class DirectProvider implements StreamingProvider {
         return {
           provider: this.name,
           embedUrl: uqloadEmbedUrl,
+          directUrl: scrapedU.directUrl,
+          directType: (scrapedU.type === 'mp4' ? 'mp4' : 'hls') as 'mp4' | 'hls',
           type: query.season !== undefined ? 'episode' : 'movie',
         };
       }
@@ -100,6 +102,8 @@ export class DirectProvider implements StreamingProvider {
     return {
       provider: this.name,
       embedUrl: proxyUrl,
+      directUrl: scraped.directUrl,
+      directType: (scraped.type === 'mp4' ? 'mp4' : 'hls') as 'mp4' | 'hls',
       type: query.season !== undefined ? 'episode' : 'movie',
     };
   }
@@ -237,10 +241,16 @@ export class DirectProvider implements StreamingProvider {
         return byId[0];
       }
     }
-    // Priority 2: exact title match fallback (anchored ^...$)
-    if (query.title) {
-      const escaped = query.title.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const byTitle = await Serie.find({ titre: { $regex: new RegExp(`^${escaped}$`, 'i') } }).exec();
+    // Priority 2: title & originalTitle match fallback (exact then fuzzy)
+    const titlesToTry = [query.title, query.originalTitle].filter(Boolean) as string[];
+    for (const t of titlesToTry) {
+      const escaped = t.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      let byTitle = await Serie.find({ titre: { $regex: new RegExp(`^${escaped}$`, 'i') } }).exec();
+      if (!byTitle.length && t.length > 3) {
+        // Match fuzzy sans ponctuation
+        const fuzzyPattern = t.trim().replace(/[:\-_'"]/g, '.*');
+        byTitle = await Serie.find({ titre: { $regex: new RegExp(`^${fuzzyPattern}$`, 'i') } }).exec();
+      }
       if (byTitle.length) {
         if (query.season !== undefined) {
           const bySeason = byTitle.find(s => s.episodes?.some(
@@ -248,7 +258,7 @@ export class DirectProvider implements StreamingProvider {
           ));
           if (bySeason) return bySeason;
         }
-        console.log(`${TAG} findSerie: matched by exact title "${byTitle[0].titre}" (tmdbId=${byTitle[0].tmdbId}) for query tmdbId=${query.tmdbId}`);
+        console.log(`${TAG} findSerie: matched by title "${byTitle[0].titre}" for query "${t}"`);
         return byTitle[0];
       }
     }
@@ -261,12 +271,17 @@ export class DirectProvider implements StreamingProvider {
       const byId = await Movie.findOne({ tmdbId: query.tmdbId }).exec();
       if (byId) return byId;
     }
-    // Priority 2: exact title match fallback (anchored ^...$)
-    if (query.title) {
-      const escaped = query.title.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const byTitle = await Movie.findOne({ titre: { $regex: new RegExp(`^${escaped}$`, 'i') } }).exec();
+    // Priority 2: title & originalTitle match fallback (exact then fuzzy)
+    const titlesToTry = [query.title, query.originalTitle].filter(Boolean) as string[];
+    for (const t of titlesToTry) {
+      const escaped = t.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      let byTitle = await Movie.findOne({ titre: { $regex: new RegExp(`^${escaped}$`, 'i') } }).exec();
+      if (!byTitle && t.length > 3) {
+        const fuzzyPattern = t.trim().replace(/[:\-_'"]/g, '.*');
+        byTitle = await Movie.findOne({ titre: { $regex: new RegExp(`^${fuzzyPattern}$`, 'i') } }).exec();
+      }
       if (byTitle) {
-        console.log(`${TAG} findMovie: matched by exact title "${byTitle.titre}" (tmdbId=${byTitle.tmdbId}) for query tmdbId=${query.tmdbId}`);
+        console.log(`${TAG} findMovie: matched title "${byTitle.titre}" (tmdbId=${byTitle.tmdbId}) for query "${t}"`);
         return byTitle;
       }
     }
