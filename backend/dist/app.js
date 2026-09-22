@@ -102,7 +102,7 @@ app.use((0, helmet_1.default)({
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'"],
-            frameSrc: ["'self'", "https://animekai.to", "https://*.vidlink.pro", "https://vidapi.xyz", "https://www.youtube.com", "https://doodstream.com", "https://*.doodstream.com", "https://d000d.com", "https://*.d000d.com", "https://d0000d.com", "https://playmogo.com", "https://*.playmogo.com", "https://*.dood.to", "https://*.vidzy.cc", "https://fsvid.lol", "https://*.fsvid.lol", "https://trakx.lol", "https://*.trakx.lol", "https://vidsrc.in", "https://*.vidsrc.in", "https://vidsrc.xyz", "https://embed.su", "https://uqload.is", "https://*.uqload.is", "https://uqload.vc", "https://*.uqload.vc", "https://www.google.com", "https://*.google.com",
+            frameSrc: ["'self'", "https://animekai.to", "https://vidlink.pro", "https://*.vidlink.pro", "https://vidapi.xyz", "https://*.vidapi.xyz", "https://www.youtube.com", "https://doodstream.com", "https://*.doodstream.com", "https://d000d.com", "https://*.d000d.com", "https://d0000d.com", "https://*.d0000d.com", "https://playmogo.com", "https://*.playmogo.com", "https://*.dood.to", "https://vidzy.cc", "https://*.vidzy.cc", "https://luluvid.com", "https://*.luluvid.com", "https://fsvid.lol", "https://*.fsvid.lol", "https://trakx.lol", "https://*.trakx.lol", "https://vidsrc.in", "https://*.vidsrc.in", "https://vidsrc.xyz", "https://*.vidsrc.xyz", "https://embed.su", "https://*.embed.su", "https://uqload.is", "https://*.uqload.is", "https://uqload.vc", "https://*.uqload.vc", "https://uqload.ws", "https://*.uqload.ws", "https://uqload.to", "https://*.uqload.to", "https://uqload.co", "https://*.uqload.co", "https://uqload.net", "https://*.uqload.net", "https://uqload.com", "https://*.uqload.com", "https://uqload.io", "https://*.uqload.io", "https://www.google.com", "https://*.google.com",
                 // Flemmix embed hosts
                 "https://luluvdo.com", "https://*.luluvdo.com",
                 "https://vidmoly.org", "https://*.vidmoly.org",
@@ -118,7 +118,7 @@ app.use((0, helmet_1.default)({
             scriptSrc: ["'self'", "'unsafe-inline'"],
             styleSrc: ["'self'", "'unsafe-inline'", "https:"],
             imgSrc: ["'self'", "data:", "https:"],
-            mediaSrc: ["'self'", "https:", "blob:"],
+            mediaSrc: ["'self'", "https:", "blob:", "http:"],
         },
     },
 }));
