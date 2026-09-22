@@ -22,15 +22,20 @@ export const IFRAME_PROVIDERS: ProviderMatch[] = [
   { id: "playmogo", test: (u) => u.includes("playmogo.com") },
   { id: "d000d", test: (u) => u.includes("d000d.com") },
   { id: "d0000d", test: (u) => u.includes("d0000d.com") },
-  { id: "uqload", test: (u) => u.includes("uqload.is/embed") },
+  { id: "uqload", test: (u) => u.includes("uqload.is/embed") || u.includes("uqload.com/embed") },
   { id: "dood", test: (u) => /dood\.(to|sh|so|cx|la|wf|pm)\/e\//i.test(u) },
   { id: "vidapi", test: (u) => u.includes("vidapi") },
+  { id: "vidzy", test: (u) => /vidzy\.(?:cc|org|xyz|co|tv|top)\/(?:embed|d\/)/i.test(u) },
+  { id: "streamtape", test: (u) => u.includes("streamtape.com/e/") || u.includes("streamtape.com/v/") },
 ];
 
 /** Hosts that look like iframe providers but are actually direct-file proxies. */
 const DIRECT_PROXY_OVERRIDES: Array<(u: string) => boolean> = [
-  (u) => u.includes("vidzy.cc"),
   (u) => u.includes("/api/doodstream/stream"),
+  (u) => u.includes("/api/omnisave/proxy"),
+  (u) => u.includes("/api/torrents/stream"),
+  (u) => u.includes("/api/download/stream"),
+  (u) => /\.(mp4|webm|mkv|m3u8)(\?|$)/i.test(u) && !u.includes("/embed"),
 ];
 
 /**
@@ -53,5 +58,10 @@ export function toEmbedUrl(url?: string | null): string | undefined {
   const m = url.match(
     new RegExp(`${DOODSTREAM_HOST_RE.source}\\/(?:d|e)\\/([a-zA-Z0-9]+)`, "i"),
   );
-  return m ? `https://doodstream.com/e/${m[1]}` : url;
+  if (m) return `https://doodstream.com/e/${m[1]}`;
+
+  const vidzy = url.match(/vidzy\.(?:cc|org|xyz|co|tv|top)\/(?:embed-|d\/)?([a-zA-Z0-9]+)(?:_n)?(?:\.html)?/i);
+  if (vidzy && !url.includes('/api/')) return `https://vidzy.cc/embed-${vidzy[1]}.html`;
+
+  return url;
 }

@@ -161,7 +161,7 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
               {/* LOGO AVEC ICÔNE ET TEXTE */}
               <Link href="/" className="group flex items-center focus:outline-none shrink-0">
                 <Image
-                  src="/android-chrome-192x192.png"
+                  src="/favicon-32x32.png"
                   alt="CHILLERS"
                   width={32}
                   height={32}
@@ -383,7 +383,7 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
               <div className="flex items-center justify-between border-b border-white/10 pb-4">
                 <Link href="/" onClick={() => setIsDrawerOpen(false)} className="flex items-center">
                   <Image
-                    src="/android-chrome-192x192.png"
+                    src="/favicon-32x32.png"
                     alt="CHILLERS"
                     width={28}
                     height={28}

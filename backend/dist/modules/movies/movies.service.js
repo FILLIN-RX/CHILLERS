@@ -17,7 +17,16 @@ const getTrending = async (language) => {
 };
 exports.getTrending = getTrending;
 const getUpcoming = async (page = 1, language) => {
-    const { data } = await tmdb_1.default.get('/movie/upcoming', { params: { page, language: (0, language_1.toTMDBLanguage)(language) } });
+    const today = new Date().toISOString().split('T')[0];
+    const { data } = await tmdb_1.default.get('/discover/movie', {
+        params: {
+            page,
+            language: (0, language_1.toTMDBLanguage)(language),
+            'primary_release_date.gte': today,
+            sort_by: 'popularity.desc',
+            include_adult: false,
+        },
+    });
     return data;
 };
 exports.getUpcoming = getUpcoming;
@@ -59,10 +68,28 @@ const getRecommendations = async (id, language) => {
 };
 exports.getRecommendations = getRecommendations;
 const getTrailer = async (id, language) => {
-    const { data } = await tmdb_1.default.get(`/movie/${id}/videos`, { params: { language: (0, language_1.toTMDBLanguage)(language) } });
-    const results = data.results || [];
-    const trailer = results.find((v) => v.site === 'YouTube' && v.type === 'Trailer' && v.official === true);
-    return trailer || results.find((v) => v.site === 'YouTube' && v.type === 'Trailer') || null;
+    try {
+        const { data } = await tmdb_1.default.get(`/movie/${id}/videos`, { params: { language: (0, language_1.toTMDBLanguage)(language) } });
+        let results = data.results || [];
+        // Si aucun trailer en français, repli automatique sur en-US ou toutes les vidéos
+        if (results.length === 0) {
+            const fallback = await tmdb_1.default.get(`/movie/${id}/videos`, { params: { language: 'en-US' } });
+            results = fallback.data?.results || [];
+        }
+        if (results.length === 0) {
+            const fallbackAll = await tmdb_1.default.get(`/movie/${id}/videos`);
+            results = fallbackAll.data?.results || [];
+        }
+        const trailer = results.find((v) => v.site === 'YouTube' && v.type === 'Trailer' && v.official === true) ||
+            results.find((v) => v.site === 'YouTube' && v.type === 'Trailer') ||
+            results.find((v) => v.site === 'YouTube' && v.type === 'Teaser') ||
+            results.find((v) => v.site === 'YouTube') ||
+            null;
+        return trailer;
+    }
+    catch {
+        return null;
+    }
 };
 exports.getTrailer = getTrailer;
 const getByGenre = async (genreId, page = 1, language) => {

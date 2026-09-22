@@ -107,8 +107,9 @@ async function persistMovieStream(
     console.log(`[AutoPersist] Film mis à jour en MongoDB: "${existingMovie.titre}" [${result.provider} ${quality}]`);
 
     // Upload en arrière-plan vers Uqload si aucun uqloadCode n'est présent
-    if (!existingMovie.uqloadCode && existingMovie.lien) {
-      triggerBackgroundUqloadUpload(existingMovie._id.toString(), existingMovie.lien, existingMovie.titre);
+    const directVideoUrl = result.directUrl || (result.embedUrl.startsWith('http') ? result.embedUrl : null);
+    if (!existingMovie.uqloadCode && directVideoUrl) {
+      triggerBackgroundUqloadUpload(existingMovie._id.toString(), directVideoUrl, existingMovie.titre);
     }
   } else {
     // Créer un nouveau film
@@ -133,8 +134,9 @@ async function persistMovieStream(
     console.log(`[AutoPersist] Nouveau film créé en MongoDB: "${title}" [${result.provider} ${quality}]`);
 
     // Upload en arrière-plan vers Uqload
-    if (newMovie.lien) {
-      triggerBackgroundUqloadUpload(newMovie._id.toString(), newMovie.lien, newMovie.titre);
+    const directVideoUrl = result.directUrl || (result.embedUrl.startsWith('http') ? result.embedUrl : null);
+    if (directVideoUrl) {
+      triggerBackgroundUqloadUpload(newMovie._id.toString(), directVideoUrl, newMovie.titre);
     }
   }
 }

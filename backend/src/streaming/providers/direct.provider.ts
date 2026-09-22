@@ -125,14 +125,16 @@ export class DirectProvider implements StreamingProvider {
     if (m) return `https://doodstream.com/e/${m[1]}`;
     const uqload = lien.match(/uqload\.(?:is|com)\/(?:embed-?([a-zA-Z0-9]+)|([a-zA-Z0-9]+))/i);
     if (uqload) return `https://uqload.is/embed-${uqload[1] || uqload[2]}.html`;
+    const vidzy = lien.match(/vidzy\.(?:cc|org|xyz|co|tv|top)\/(?:embed-|d\/)?([a-zA-Z0-9]+)(?:_n)?(?:\.html)?/i);
+    if (vidzy) return `https://vidzy.cc/embed-${vidzy[1]}.html`;
     const st = lien.match(/streamtape\.com\/(?:e|v|f)\/([a-zA-Z0-9]+)/i);
     if (st) return `https://streamtape.com/e/${st[1]}`;
     return lien;
   }
 
-  private isDoodOrUqload(url: string | undefined | null): boolean {
+  private isDirectScrapable(url: string | undefined | null): boolean {
     if (!url || url === '#') return false;
-    return /doodstream\.com|dood\.(to|sh|so|cx|la|wf|pm)|playmogo\.com|d000d\.com|d0000d\.com|uqload\.(is|com)/i.test(url);
+    return /doodstream\.com|dood\.(to|sh|so|cx|la|wf|pm)|playmogo\.com|d000d\.com|d0000d\.com|uqload\.(is|com)|vidzy\.(cc|org|xyz|co|tv|top)|luluvid\./i.test(url);
   }
 
   private async findUqloadCode(query: StreamQuery): Promise<string | null> {
@@ -177,21 +179,26 @@ export class DirectProvider implements StreamingProvider {
           return null;
         }
 
-        const lien = ep.lien;
-        if (!lien || lien === '#') {
-          console.log(`${TAG} MongoDB: lien vide/mort pour S${query.season}E${query.episode}`);
-          return null;
-        }
-        if (isSignedLinkExpired(lien)) {
-          console.log(`${TAG} MongoDB: lien expiré pour S${query.season}E${query.episode}: ${lien.slice(0, 80)}`);
-          return null;
-        }
-        if (!this.isDoodOrUqload(lien)) {
-          console.log(`${TAG} MongoDB: lien non-Doodstream/Uqload pour S${query.season}E${query.episode}: ${lien.slice(0, 80)}`);
-          return null;
+        const candidates: string[] = [];
+        if (ep.lien && ep.lien !== '#') candidates.push(ep.lien);
+        if (ep.sources && Array.isArray(ep.sources)) {
+          for (const s of ep.sources) {
+            if (s?.url && s.url !== '#' && !candidates.includes(s.url)) {
+              candidates.push(s.url);
+            }
+          }
         }
 
-        return this.toEmbedUrl(lien);
+        for (const candidate of candidates) {
+          if (isSignedLinkExpired(candidate)) continue;
+          if (this.isDirectScrapable(candidate)) {
+            console.log(`${TAG} MongoDB: lien scrapable trouvé pour S${query.season}E${query.episode}: ${candidate.slice(0, 80)}`);
+            return this.toEmbedUrl(candidate);
+          }
+        }
+
+        console.log(`${TAG} MongoDB: aucun lien Dood/Uqload/Vidzy scrapable pour S${query.season}E${query.episode}`);
+        return null;
       } else {
         const movie = await this.findMovie(query);
 
@@ -202,21 +209,26 @@ export class DirectProvider implements StreamingProvider {
 
         console.log(`${TAG} MongoDB: film trouvé "${movie.titre}" (tmdbId=${movie.tmdbId})`);
 
-        const lien = movie.lien;
-        if (!lien || lien === '#') {
-          console.log(`${TAG} MongoDB: lien vide/mort pour "${movie.titre}"`);
-          return null;
-        }
-        if (isSignedLinkExpired(lien)) {
-          console.log(`${TAG} MongoDB: lien expiré pour "${movie.titre}": ${lien.slice(0, 80)}`);
-          return null;
-        }
-        if (!this.isDoodOrUqload(lien)) {
-          console.log(`${TAG} MongoDB: lien non-Doodstream/Uqload pour "${movie.titre}": ${lien.slice(0, 80)}`);
-          return null;
+        const candidates: string[] = [];
+        if (movie.lien && movie.lien !== '#') candidates.push(movie.lien);
+        if (movie.sources && Array.isArray(movie.sources)) {
+          for (const s of movie.sources) {
+            if (s?.url && s.url !== '#' && !candidates.includes(s.url)) {
+              candidates.push(s.url);
+            }
+          }
         }
 
-        return this.toEmbedUrl(lien);
+        for (const candidate of candidates) {
+          if (isSignedLinkExpired(candidate)) continue;
+          if (this.isDirectScrapable(candidate)) {
+            console.log(`${TAG} MongoDB: lien scrapable trouvé pour "${movie.titre}": ${candidate.slice(0, 80)}`);
+            return this.toEmbedUrl(candidate);
+          }
+        }
+
+        console.log(`${TAG} MongoDB: aucun lien Dood/Uqload/Vidzy scrapable pour "${movie.titre}"`);
+        return null;
       }
     } catch (err) {
       console.error(`${TAG} MongoDB lookup error:`, err);

@@ -41,6 +41,9 @@ const streamingService = __importStar(require("./streaming.service"));
 const types_1 = require("../types");
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const User_1 = require("../models/User");
+const Movie_1 = __importDefault(require("../models/Movie"));
+const Serie_1 = __importDefault(require("../models/Serie"));
+const premium_access_1 = require("../utils/premium-access");
 const JWT_SECRET = process.env.JWT_SECRET || 'chillers-super-secret-key-change-me';
 async function isRequestPremium(req) {
     try {
@@ -48,18 +51,13 @@ async function isRequestPremium(req) {
         if (req.headers['x-is-premium'] === 'true' || req.query.is_premium === 'true') {
             return true;
         }
-        // 2. Vérification par Token JWT utilisateur
         const authHeader = req.headers.authorization;
         if (authHeader && authHeader.startsWith('Bearer ')) {
             const token = authHeader.split(' ')[1];
             const decoded = jsonwebtoken_1.default.verify(token, JWT_SECRET);
-            if (decoded?.role === 'admin')
-                return true;
             if (decoded?.id) {
-                const user = await User_1.User.findById(decoded.id).select('subscription role');
-                if (user?.role === 'admin' || user?.subscription?.plan === 'premium') {
-                    return true;
-                }
+                const user = await User_1.User.findById(decoded.id).select('subscription promo role');
+                return (0, premium_access_1.hasPremiumAccess)(user);
             }
         }
     }
@@ -88,18 +86,52 @@ const getMovieStream = async (req, res, next) => {
             throw new types_1.AppError('Valid TMDB movie ID is required', 400);
         const isPremium = await isRequestPremium(req);
         const title = req.query.title;
+        const originalTitle = (req.query.originalTitle || req.query.original_title);
+        const releaseDate = (req.query.releaseDate || req.query.release_date);
+        const year = req.query.year ? parseInt(req.query.year, 10) : undefined;
+        // ── Early exit si la date de sortie est future ──
+        if (releaseDate) {
+            const relTime = new Date(releaseDate).getTime();
+            if (!isNaN(relTime) && relTime > Date.now()) {
+                res.json({
+                    success: false,
+                    unreleased: true,
+                    releaseDate,
+                    data: null,
+                    message: `Ce film n'est pas encore disponible en streaming (sortie le ${releaseDate}).`,
+                });
+                return;
+            }
+        }
+        // [PAYWALL CHECK]
+        const movie = await Movie_1.default.findOne({ tmdbId: id });
+        if (movie?.isPremium && !isPremium) {
+            res.status(403).json({
+                success: false,
+                code: 'PREMIUM_REQUIRED',
+                message: 'Ce film nécessite un abonnement Premium ou un code promo valide.',
+            });
+            return;
+        }
         const result = await streamingService.getMovieStream({
             tmdbId: id,
             type: req.query.type || 'movie',
             title,
+            originalTitle,
+            releaseDate,
+            year: year || movie?.year,
             language: req.query.language || 'fr',
             isPremium,
         });
-        if (!result) {
+        if (!result || result.isUnreleased) {
             res.json({
                 success: false,
+                unreleased: !!result?.isUnreleased,
+                releaseDate: result?.releaseDate || releaseDate,
                 data: null,
-                message: 'Aucun flux disponible. Tous les fournisseurs ont échoué.',
+                message: result?.isUnreleased
+                    ? `Ce film n'est pas encore disponible en streaming.`
+                    : 'Aucun flux disponible. Tous les fournisseurs ont échoué.',
             });
             return;
         }
@@ -108,7 +140,9 @@ const getMovieStream = async (req, res, next) => {
             success: true,
             data: {
                 embedUrl: result.embedUrl,
-                downloadUrl,
+                downloadUrl: downloadUrl ?? result.directUrl ?? null,
+                directUrl: result.directUrl ?? null,
+                directType: result.directType ?? null,
                 quality: isPremium && result.provider === 'frenchstream' ? '1080p' : 'standard',
                 isPremiumStream: isPremium && result.provider === 'frenchstream',
             },
@@ -131,20 +165,54 @@ const getEpisodeStream = async (req, res, next) => {
         }
         const isPremium = await isRequestPremium(req);
         const title = req.query.title;
+        const originalTitle = (req.query.originalTitle || req.query.original_title);
+        const releaseDate = (req.query.releaseDate || req.query.release_date);
+        const year = req.query.year ? parseInt(req.query.year, 10) : undefined;
+        // ── Early exit si la date de sortie est future ──
+        if (releaseDate) {
+            const relTime = new Date(releaseDate).getTime();
+            if (!isNaN(relTime) && relTime > Date.now()) {
+                res.json({
+                    success: false,
+                    unreleased: true,
+                    releaseDate,
+                    data: null,
+                    message: `Cet épisode n'est pas encore disponible en streaming (sortie le ${releaseDate}).`,
+                });
+                return;
+            }
+        }
+        // [PAYWALL CHECK]
+        const serie = await Serie_1.default.findOne({ tmdbId: id });
+        if (serie?.isPremium && !isPremium) {
+            res.status(403).json({
+                success: false,
+                code: 'PREMIUM_REQUIRED',
+                message: 'Cette série nécessite un abonnement Premium ou un code promo valide.',
+            });
+            return;
+        }
         const result = await streamingService.getEpisodeStream({
             tmdbId: id,
             type: req.query.type || 'tv',
             title,
+            originalTitle,
+            releaseDate,
+            year: year || serie?.year,
             season,
             episode,
             language: req.query.language || 'fr',
             isPremium,
         });
-        if (!result) {
+        if (!result || result.isUnreleased) {
             res.json({
                 success: false,
+                unreleased: !!result?.isUnreleased,
+                releaseDate: result?.releaseDate || releaseDate,
                 data: null,
-                message: 'Aucun flux disponible. Tous les fournisseurs ont échoué.',
+                message: result?.isUnreleased
+                    ? `Cette série n'est pas encore disponible en streaming.`
+                    : 'Aucun flux disponible. Tous les fournisseurs ont échoué.',
             });
             return;
         }
@@ -153,7 +221,9 @@ const getEpisodeStream = async (req, res, next) => {
             success: true,
             data: {
                 embedUrl: result.embedUrl,
-                downloadUrl,
+                downloadUrl: downloadUrl ?? result.directUrl ?? null,
+                directUrl: result.directUrl ?? null,
+                directType: result.directType ?? null,
                 quality: isPremium && result.provider === 'frenchstream' ? '1080p' : 'standard',
                 isPremiumStream: isPremium && result.provider === 'frenchstream',
             },

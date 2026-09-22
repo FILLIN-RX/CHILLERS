@@ -55,7 +55,7 @@ export function getTmdbImageUrl(
   const weak = isSlowConnection();
 
   if (original && !weak && !ultraLow) {
-    return `https://image.tmdb.org/t/p/original${path}`;
+    return `https://image.tmdb.org/t/p/w1280${path}`;
   }
 
   if (ultraLow) {
@@ -65,10 +65,10 @@ export function getTmdbImageUrl(
   }
 
   if (type === "backdrop") {
-    return `https://image.tmdb.org/t/p/${weak ? "w780" : "w1280"}${path}`;
+    return `https://image.tmdb.org/t/p/${weak ? "w300" : "w500"}${path}`;
   }
   if (type === "still") {
-    return `https://image.tmdb.org/t/p/${weak ? "w300" : "w500"}${path}`;
+    return `https://image.tmdb.org/t/p/${weak ? "w185" : "w300"}${path}`;
   }
   return `https://image.tmdb.org/t/p/${weak ? "w185" : "w342"}${path}`;
 }

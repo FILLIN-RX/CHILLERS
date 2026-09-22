@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import "@mantine/core/styles.css";
 
 @theme {
   --color-brand-primary: #D70466;

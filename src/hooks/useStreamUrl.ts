@@ -33,7 +33,7 @@ export interface StreamResolution {
   releaseDate?: string | null;
 }
 
-const PRIMARY_TIMEOUT_MS = 8_000;
+const PRIMARY_TIMEOUT_MS = 18_000;
 const SECONDARY_TIMEOUT_MS = 6_000;
 
 function buildKey(args: UseStreamUrlArgs) {

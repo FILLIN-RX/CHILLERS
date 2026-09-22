@@ -3,7 +3,6 @@
 import React, { useState, useEffect, Suspense } from "react";
 import { usePathname } from "next/navigation";
 import dynamic from "next/dynamic";
-import { MantineProvider, createTheme } from "@mantine/core";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import BottomNav from "@/components/BottomNav";
@@ -20,25 +19,6 @@ const DownloadSuccessToast = dynamic(
   () => import("@/features/downloads/DownloadSuccessToast"),
   { ssr: false },
 );
-
-const theme = createTheme({
-  primaryColor: "pink",
-  colors: {
-    pink: [
-      "#f0bdd0", "#e88fb3", "#df6196", "#d73379", "#d70466",
-      "#b5034f", "#90023c", "#6b0129", "#47011b", "#23000d",
-    ],
-  },
-  fontFamily: "var(--font-geist-sans), Arial, sans-serif",
-  defaultRadius: "md",
-  components: {
-    Autocomplete: {
-      defaultProps: {
-        size: "lg",
-      },
-    },
-  },
-});
 
 const SearchOverlay = dynamic(() => import("@/components/SearchOverlay"), {
   ssr: false,
@@ -113,7 +93,7 @@ export default function AppShell({ children, showBottomNav }: AppShellProps) {
   const isAuthPage = pathname === "/login" || pathname === "/register";
 
   return (
-    <MantineProvider theme={theme} forceColorScheme="dark">
+    <>
       <SearchOverlay
         isOpen={isSearchOpen}
         onClose={() => setIsSearchOpen(false)}
@@ -134,6 +114,6 @@ export default function AppShell({ children, showBottomNav }: AppShellProps) {
         <DownloadSuccessToast />
       </Suspense>
       {shouldShowBottomNav && !isAuthPage && !isPlayerRoute && <BottomNav onSearchClick={() => setIsSearchOpen(true)} />}
-    </MantineProvider>
+    </>
   );
 }

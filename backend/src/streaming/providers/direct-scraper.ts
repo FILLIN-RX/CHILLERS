@@ -1,5 +1,6 @@
 import axios from 'axios';
 import https from 'https';
+import querystring from 'querystring';
 
 const ipv4Agent = new https.Agent({ family: 4, keepAlive: true });
 
@@ -88,6 +89,115 @@ function isDoodstreamUrl(url: string): boolean {
 
 function isUqloadUrl(url: string): boolean {
   return /uqload\.(is|com)/i.test(url);
+}
+
+function extractVidzyCode(url: string): string | null {
+  const m = url.match(/vidzy\.(?:cc|org|xyz|co|tv|top)\/(?:embed-|d\/)?([a-zA-Z0-9]+)(?:_n)?(?:\.html)?/i);
+  return m ? m[1] : null;
+}
+
+function isVidzyUrl(url: string): boolean {
+  return /vidzy\.(cc|org|xyz|co|tv|top)/i.test(url);
+}
+
+function isLuluvidUrl(url: string): boolean {
+  return /luluvid\./i.test(url);
+}
+
+// ─── Vidzy Scraper ────────────────────────────────────────────────────────────
+
+async function scrapeVidzyEmbed(embedUrl: string): Promise<DirectStreamResult | null> {
+  const code = extractVidzyCode(embedUrl);
+  if (!code) {
+    console.log(`${TAG} Vidzy: impossible d'extraire le code de "${embedUrl}"`);
+    return null;
+  }
+
+  const dlPageUrl = `https://vidzy.cc/d/${code}_n.html`;
+  console.log(`${TAG} Vidzy: code=${code}, fetch de ${dlPageUrl}`);
+
+  try {
+    const t0 = Date.now();
+    const { data: html } = await axios.get(dlPageUrl, {
+      headers: {
+        'User-Agent': UA,
+        'Referer': 'https://vidzy.cc/',
+      },
+      timeout: 15000,
+    });
+
+    const opMatch = html.match(/name="op"\s+value="([^"]+)"/i);
+    const idMatch = html.match(/name="id"\s+value="([^"]+)"/i);
+    const modeMatch = html.match(/name="mode"\s+value="([^"]+)"/i);
+    const hashMatch = html.match(/name="hash"\s+value="([^"]+)"/i);
+
+    if (hashMatch) {
+      const form = {
+        op: opMatch ? opMatch[1] : 'download_orig',
+        id: idMatch ? idMatch[1] : '',
+        mode: modeMatch ? modeMatch[1] : 'o',
+        hash: hashMatch[1],
+      };
+
+      let origin = 'https://vidzy.cc';
+      try {
+        const u = new URL(embedUrl);
+        origin = `${u.protocol}//${u.host}`;
+      } catch {}
+
+      const postData = querystring.stringify(form);
+      const postRes = await axios.post(dlPageUrl, postData, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Length': Buffer.byteLength(postData),
+          'User-Agent': UA,
+          'Referer': dlPageUrl,
+          'Origin': origin,
+        },
+        timeout: 15000,
+      });
+
+      const directLinks = postRes.data.match(/https?:\/\/[^"'\s\)]+\.(?:mp4|m3u8)[^"'\s\)]*/gi);
+      if (directLinks && directLinks[0]) {
+        console.log(`${TAG} Vidzy: ✅ direct MP4 trouvé en ${Date.now() - t0}ms → ${directLinks[0].slice(0, 120)}`);
+        return {
+          directUrl: directLinks[0],
+          type: 'mp4',
+          referer: 'https://vidzy.cc/',
+        };
+      }
+
+      const aMatch = postRes.data.match(/href="([^"]+\.mp4[^"]*)"/i);
+      if (aMatch && aMatch[1]) {
+        console.log(`${TAG} Vidzy: ✅ direct MP4 (href) trouvé en ${Date.now() - t0}ms → ${aMatch[1].slice(0, 120)}`);
+        return {
+          directUrl: aMatch[1],
+          type: 'mp4',
+          referer: 'https://vidzy.cc/',
+        };
+      }
+    }
+
+    // Fallback: check if the embed page directly has video source or mp4 url
+    const embedPageUrl = `https://vidzy.cc/embed-${code}.html`;
+    const { data: embedHtml } = await axios.get(embedPageUrl, {
+      headers: { 'User-Agent': UA, 'Referer': 'https://vidzy.cc/' },
+      timeout: 10000,
+    });
+    const anyVideo = embedHtml.match(/(https?:\/\/[^\s"']+\.(?:mp4|m3u8)[^\s"']*)/i);
+    if (anyVideo && isDirectVideoUrl(anyVideo[1])) {
+      console.log(`${TAG} Vidzy: ✅ trouvé dans embedHtml → ${anyVideo[1].slice(0, 120)}`);
+      return {
+        directUrl: anyVideo[1],
+        type: /\.(m3u8)/i.test(anyVideo[1]) ? 'hls' : 'mp4',
+        referer: 'https://vidzy.cc/',
+      };
+    }
+  } catch (err: any) {
+    console.error(`${TAG} Vidzy: ERREUR code=${code}:`, err.message);
+  }
+
+  return null;
 }
 
 // ─── Doodstream Scraper ───────────────────────────────────────────────────────
@@ -440,6 +550,10 @@ async function getUqloadDirectLink(fileCode: string, preferHls = false): Promise
 export async function scrapeDirectStream(embedUrl: string, preferHls = false): Promise<DirectStreamResult | null> {
   console.log(`${TAG} scrapeDirectStream("${embedUrl.slice(0, 100)}")`);
 
+  if (isVidzyUrl(embedUrl)) {
+    console.log(`${TAG} → détecté comme Vidzy`);
+    return scrapeVidzyEmbed(embedUrl);
+  }
   if (isDoodstreamUrl(embedUrl)) {
     console.log(`${TAG} → détecté comme Doodstream`);
     return scrapeDoodstreamEmbed(embedUrl);
@@ -448,7 +562,7 @@ export async function scrapeDirectStream(embedUrl: string, preferHls = false): P
     console.log(`${TAG} → détecté comme Uqload`);
     return scrapeUqloadEmbed(embedUrl, preferHls);
   }
-  console.log(`${TAG} → URL non scrapable (ni Doodstream ni Uqload)`);
+  console.log(`${TAG} → URL non scrapable (ni Vidzy, Doodstream, ni Uqload)`);
   return null;
 }
 
@@ -531,7 +645,7 @@ export async function scrapeUqloadEmbedDirect(fileCode: string): Promise<DirectS
 }
 
 export function isScrapableUrl(url: string): boolean {
-  return isDoodstreamUrl(url) || isUqloadUrl(url);
+  return isDoodstreamUrl(url) || isUqloadUrl(url) || isVidzyUrl(url) || isLuluvidUrl(url);
 }
 
 export const DirectScraper = {
@@ -539,4 +653,4 @@ export const DirectScraper = {
   isScrapable: isScrapableUrl,
 };
 
-export { isDoodstreamUrl, isUqloadUrl, extractCodeFromUrl, extractUqloadCode, getUqloadDirectLink };
+export { isDoodstreamUrl, isUqloadUrl, isVidzyUrl, isLuluvidUrl, extractCodeFromUrl, extractUqloadCode, extractVidzyCode, scrapeVidzyEmbed, getUqloadDirectLink };

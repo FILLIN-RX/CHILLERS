@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAfrican = exports.getSeasonDetails = exports.getDetails = exports.getAnime = exports.getAnimeByGenre = exports.getByGenre = exports.getTopRated = exports.getTrending = exports.getPopular = void 0;
+exports.getTrailer = exports.getAfrican = exports.getSeasonDetails = exports.getDetails = exports.getAnime = exports.getAnimeByGenre = exports.getByGenre = exports.getTopRated = exports.getTrending = exports.getPopular = void 0;
 const tvService = __importStar(require("./tv.service"));
 const types_1 = require("../../types");
 function getLang(req) {
@@ -149,3 +149,16 @@ const getAfrican = async (req, res, next) => {
     }
 };
 exports.getAfrican = getAfrican;
+const getTrailer = async (req, res, next) => {
+    try {
+        const id = req.params.id;
+        if (!id)
+            throw new types_1.AppError('TV show ID is required', 400);
+        const data = await tvService.getTrailer(id, getLang(req));
+        res.json({ success: true, data, message: null });
+    }
+    catch (error) {
+        next(error);
+    }
+};
+exports.getTrailer = getTrailer;

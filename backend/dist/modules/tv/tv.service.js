@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getSeasonDetails = exports.getDetails = exports.getAfrican = exports.getAnime = exports.getAnimeByGenre = exports.getByGenre = exports.getTopRated = exports.getTrending = exports.getPopular = void 0;
+exports.getTrailer = exports.getSeasonDetails = exports.getDetails = exports.getAfrican = exports.getAnime = exports.getAnimeByGenre = exports.getByGenre = exports.getTopRated = exports.getTrending = exports.getPopular = void 0;
 const tmdb_1 = __importDefault(require("../../config/tmdb"));
 const language_1 = require("../../config/language");
 const getPopular = async (page = 1, language) => {
@@ -112,3 +112,28 @@ const getSeasonDetails = async (id, seasonNumber, language) => {
     return data;
 };
 exports.getSeasonDetails = getSeasonDetails;
+const getTrailer = async (id, language) => {
+    try {
+        const { data } = await tmdb_1.default.get(`/tv/${id}/videos`, { params: { language: (0, language_1.toTMDBLanguage)(language) } });
+        let results = data.results || [];
+        // Si aucun trailer en français, repli automatique sur en-US ou toutes les vidéos
+        if (results.length === 0) {
+            const fallback = await tmdb_1.default.get(`/tv/${id}/videos`, { params: { language: 'en-US' } });
+            results = fallback.data?.results || [];
+        }
+        if (results.length === 0) {
+            const fallbackAll = await tmdb_1.default.get(`/tv/${id}/videos`);
+            results = fallbackAll.data?.results || [];
+        }
+        const trailer = results.find((v) => v.site === 'YouTube' && v.type === 'Trailer' && v.official === true) ||
+            results.find((v) => v.site === 'YouTube' && v.type === 'Trailer') ||
+            results.find((v) => v.site === 'YouTube' && v.type === 'Teaser') ||
+            results.find((v) => v.site === 'YouTube') ||
+            null;
+        return trailer;
+    }
+    catch {
+        return null;
+    }
+};
+exports.getTrailer = getTrailer;

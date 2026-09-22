@@ -33,11 +33,56 @@ const ai_routes_1 = __importDefault(require("./modules/ai/ai.routes"));
 const auth_routes_1 = __importDefault(require("./modules/auth/auth.routes"));
 const user_routes_1 = __importDefault(require("./modules/user/user.routes"));
 const omnisave_routes_1 = __importDefault(require("./modules/omnisave/omnisave.routes"));
+const requests_routes_1 = __importDefault(require("./modules/requests/requests.routes"));
 const compression_1 = __importDefault(require("compression"));
 const path_1 = __importDefault(require("path"));
 dotenv_1.default.config({ path: path_1.default.join(__dirname, '../.env') });
 const app = (0, express_1.default)();
-app.use((0, cors_1.default)());
+const allowedOrigins = [
+    'https://chillers-pi.vercel.app',
+    ...(process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map(o => o.trim().replace(/\/$/, '')) : []),
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://127.0.0.1:3000',
+];
+const corsOptions = {
+    origin: (origin, callback) => {
+        if (!origin)
+            return callback(null, true);
+        const normalizedOrigin = origin.replace(/\/$/, '');
+        if (allowedOrigins.includes(normalizedOrigin) || normalizedOrigin === 'https://chillers-pi.vercel.app') {
+            return callback(null, true);
+        }
+        return callback(new Error(`CORS non autorisé pour l'origine: ${origin}`));
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'],
+    allowedHeaders: [
+        'Content-Type',
+        'Authorization',
+        'X-Requested-With',
+        'Accept',
+        'Origin',
+        'Range',
+        'X-Session-ID',
+        'X-Forwarded-For',
+        'x-csrf-token',
+        'X-CSRF-Token',
+        'x-no-compression',
+        'Cache-Control',
+        'Pragma',
+    ],
+    exposedHeaders: [
+        'Content-Range',
+        'Accept-Ranges',
+        'Content-Length',
+        'Content-Type',
+        'ETag',
+        'X-Total-Count',
+    ],
+    maxAge: 86400,
+};
+app.use((0, cors_1.default)(corsOptions));
 app.use((0, compression_1.default)({
     filter: (req, res) => {
         if (req.headers['x-no-compression']) {
@@ -52,10 +97,24 @@ app.use((0, compression_1.default)({
     threshold: 512, // Compress payloads larger than 512 bytes
 }));
 app.use((0, helmet_1.default)({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginEmbedderPolicy: false,
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'"],
-            frameSrc: ["'self'", "https://animekai.to", "https://*.vidlink.pro", "https://vidapi.xyz", "https://www.youtube.com", "https://doodstream.com", "https://*.doodstream.com", "https://d000d.com", "https://*.d000d.com", "https://d0000d.com", "https://playmogo.com", "https://*.playmogo.com", "https://*.dood.to", "https://*.vidzy.cc", "https://vidsrc.xyz", "https://embed.su", "https://uqload.is", "https://*.uqload.is", "https://www.google.com", "https://*.google.com"],
+            frameSrc: ["'self'", "https://animekai.to", "https://*.vidlink.pro", "https://vidapi.xyz", "https://www.youtube.com", "https://doodstream.com", "https://*.doodstream.com", "https://d000d.com", "https://*.d000d.com", "https://d0000d.com", "https://playmogo.com", "https://*.playmogo.com", "https://*.dood.to", "https://*.vidzy.cc", "https://fsvid.lol", "https://*.fsvid.lol", "https://trakx.lol", "https://*.trakx.lol", "https://vidsrc.in", "https://*.vidsrc.in", "https://vidsrc.xyz", "https://embed.su", "https://uqload.is", "https://*.uqload.is", "https://uqload.vc", "https://*.uqload.vc", "https://www.google.com", "https://*.google.com",
+                // Flemmix embed hosts
+                "https://luluvdo.com", "https://*.luluvdo.com",
+                "https://vidmoly.org", "https://*.vidmoly.org",
+                "https://savefiles.com", "https://*.savefiles.com",
+                "https://waaw1.tv", "https://*.waaw1.tv",
+                "https://vidara.to", "https://*.vidara.to",
+                "https://morencius.com", "https://*.morencius.com",
+                "https://hanerix.com", "https://*.hanerix.com",
+                "https://firestream.site", "https://*.firestream.site",
+                "https://tipfly.xyz", "https://*.tipfly.xyz",
+                "https://rebeccapracticeloss.com", "https://*.rebeccapracticeloss.com",
+            ],
             scriptSrc: ["'self'", "'unsafe-inline'"],
             styleSrc: ["'self'", "'unsafe-inline'", "https:"],
             imgSrc: ["'self'", "data:", "https:"],
@@ -106,6 +165,9 @@ app.use('/api/torrents', torrents_routes_1.default);
 app.use('/api/auth', auth_routes_1.default);
 app.use('/api/user', user_routes_1.default);
 app.use('/api/omnisave', omnisave_routes_1.default);
+app.use('/api/requests', requests_routes_1.default);
+app.use('/api/admin/requests', requests_routes_1.default);
+app.use('/api/internal/requests', requests_routes_1.default);
 app.use((_req, res) => {
     res.status(404).json({
         success: false,
