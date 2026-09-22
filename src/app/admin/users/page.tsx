@@ -196,7 +196,7 @@ export default function AdminUsersPage() {
       title: 'Utilisateur',
       key: 'user',
       render: (_: any, record: AdminUser) => (
-        <Space direction="horizontal" size="middle">
+        <Space size="middle">
           <Avatar
             src={record.avatarUrl}
             icon={<UserOutlined />}

@@ -80,6 +80,13 @@ export function verifyCsrfToken(req: CsrfRequest, res: Response, next: NextFunct
       return;
     }
 
+    // Skip CSRF verification for requests authenticated via Bearer token (JWT in Authorization header)
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      next();
+      return;
+    }
+
     const sessionId = (req.headers['x-session-id'] as string) || req.sessionID;
     const clientToken = (req.headers['x-csrf-token'] as string) || req.body?.csrfToken;
 
