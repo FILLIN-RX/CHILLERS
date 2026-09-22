@@ -54,25 +54,23 @@ export function getTmdbImageUrl(
   const ultraLow = isUltraLowBandwidth();
   const weak = isSlowConnection();
 
-  // Si on force "original" mais que le réseau est faible, on rétrograde à une taille adaptée
   if (original && !weak && !ultraLow) {
     return `https://image.tmdb.org/t/p/original${path}`;
   }
 
-  // En 2G ultra-faible : w300 / w342 (images 5x à 10x plus légères, ~20-40Ko au lieu de 200Ko+)
   if (ultraLow) {
     if (type === "backdrop") return `https://image.tmdb.org/t/p/w300${path}`;
-    if (type === "still") return `https://image.tmdb.org/t/p/w300${path}`;
-    return `https://image.tmdb.org/t/p/w342${path}`;
+    if (type === "still") return `https://image.tmdb.org/t/p/w185${path}`;
+    return `https://image.tmdb.org/t/p/w185${path}`;
   }
 
   if (type === "backdrop") {
-    return `https://image.tmdb.org/t/p/${weak ? "w780" : "original"}${path}`;
+    return `https://image.tmdb.org/t/p/${weak ? "w780" : "w1280"}${path}`;
   }
   if (type === "still") {
-    return `https://image.tmdb.org/t/p/${weak ? "w500" : "original"}${path}`;
+    return `https://image.tmdb.org/t/p/${weak ? "w300" : "w500"}${path}`;
   }
-  return `https://image.tmdb.org/t/p/${weak ? "w500" : "original"}${path}`;
+  return `https://image.tmdb.org/t/p/${weak ? "w185" : "w342"}${path}`;
 }
 
 function clientLang(): string {

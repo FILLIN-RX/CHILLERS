@@ -145,6 +145,8 @@ export default async function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
     >
       <head>
+        <link rel="preconnect" href="https://image.tmdb.org" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://image.tmdb.org" />
         {/*
           Splash natif : injecté AVANT React pour s'afficher immédiatement au lancement de la PWA.
           Le composant React SplashScreen.tsx gère ensuite la disparition animée.

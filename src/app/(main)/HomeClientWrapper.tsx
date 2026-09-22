@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback, startTransition } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback, startTransition } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import HeroCarousel from "@/components/HeroCarousel";
@@ -17,6 +17,42 @@ import UpgradeModal from "@/components/UpgradeModal";
 import { useAuthStore } from "@/stores/useAuthStore";
 
 const MovieModal = dynamic(() => import("@/components/MovieModal"), { ssr: false });
+
+function LazyRow({ children, title }: { children: React.ReactNode; title: string }) {
+  const [isVisible, setIsVisible] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isVisible) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setIsVisible(true);
+        }
+      },
+      { rootMargin: "400px" }
+    );
+    if (ref.current) observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, [isVisible]);
+
+  return (
+    <div ref={ref} className="min-h-[250px]">
+      {isVisible ? (
+        children
+      ) : (
+        <div className="space-y-3 py-3">
+          <div className="h-4 w-36 rounded bg-white/10 animate-pulse" />
+          <div className="flex gap-4 overflow-hidden">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-[250px] w-[165px] shrink-0 rounded-2xl bg-zinc-900/60 animate-pulse" />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export interface HomeClientWrapperProps {
   heroSlides: MovieOrShow[];
@@ -373,23 +409,24 @@ export default function HomeClientWrapper({
             )}
 
             {homeRows.slice(5).map((row) => (
-              <ScrollRow
-                key={row.title}
-                title={row.title}
-                accentColor={row.accent}
-                autoScroll={row.autoScroll}
-                autoScrollSpeed={row.autoScrollSpeed}
-              >
-                {row.items.map((item) => (
-                  <MovieCard
-                    key={item.id}
-                    item={item}
-                    variant={row.variant}
-                    onPlay={handleWatchNow}
-                    onOpenDetails={handleOpenDetails}
-                  />
-                ))}
-              </ScrollRow>
+              <LazyRow key={row.title} title={row.title}>
+                <ScrollRow
+                  title={row.title}
+                  accentColor={row.accent}
+                  autoScroll={row.autoScroll}
+                  autoScrollSpeed={row.autoScrollSpeed}
+                >
+                  {row.items.map((item) => (
+                    <MovieCard
+                      key={item.id}
+                      item={item}
+                      variant={row.variant}
+                      onPlay={handleWatchNow}
+                      onOpenDetails={handleOpenDetails}
+                    />
+                  ))}
+                </ScrollRow>
+              </LazyRow>
             ))}
           </div>
         </div>

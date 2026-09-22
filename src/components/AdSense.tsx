@@ -29,14 +29,18 @@ export default function AdSense() {
       return;
     }
 
-    // Sinon, injecter le script Google AdSense s'il n'est pas déjà présent
+    // Sinon, injecter le script Google AdSense après le premier rendu critique (3s delay)
     const existing = document.querySelector(`script[src*="${ADSENSE_CLIENT_ID}"]`);
     if (!existing) {
-      const script = document.createElement('script');
-      script.async = true;
-      script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT_ID}`;
-      script.crossOrigin = 'anonymous';
-      document.head.appendChild(script);
+      const timer = setTimeout(() => {
+        if (document.querySelector(`script[src*="${ADSENSE_CLIENT_ID}"]`)) return;
+        const script = document.createElement('script');
+        script.async = true;
+        script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT_ID}`;
+        script.crossOrigin = 'anonymous';
+        document.head.appendChild(script);
+      }, 3000);
+      return () => clearTimeout(timer);
     }
   }, [isSubscriber]);
 

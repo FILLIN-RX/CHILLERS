@@ -144,14 +144,6 @@ export default function HeroCarousel({
     }
   }, [isPaused, currentIndex]);
 
-  if (!hydrated) {
-    return (
-      <section className="relative w-full h-[70vh] sm:h-[80vh] lg:h-[88vh] bg-black">
-        <div className="absolute inset-0 bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-900 animate-pulse" />
-      </section>
-    );
-  }
-
   if (!slides || slides.length === 0) {
     if (!timedOut) {
       return (
@@ -212,6 +204,7 @@ export default function HeroCarousel({
                   sizes="100vw"
                   priority={index === 0}
                   loading={index === 0 ? "eager" : "lazy"}
+                  {...(index === 0 ? { fetchPriority: "high" } : {})}
                 />
 
                 {/* Video / Trailer Overlay (Smooth Fade-in) */}

@@ -134,33 +134,35 @@ function MovieCard({
     } catch { return item.releaseDate; }
   }, [item.releaseDate]);
 
-  // Smooth Hover Animations (Fast, hardware-accelerated transforms without layout shift)
+  // Hardware-accelerated, zero-reflow GSAP Hover Animations
   const handleMouseEnter = useCallback(() => {
     if (typeof window !== "undefined" && window.matchMedia && !window.matchMedia("(hover: hover)").matches) {
       return;
     }
 
-    if (cardRef.current && document.contains(cardRef.current)) {
+    if (cardRef.current) {
       gsap.to(cardRef.current, {
         y: -6,
         scale: 1.04,
         zIndex: 30,
         duration: 0.35,
         ease: "power2.out",
+        force3D: true,
         overwrite: "auto",
       });
     }
 
-    if (posterRef.current && document.contains(posterRef.current)) {
+    if (posterRef.current) {
       gsap.to(posterRef.current, {
         scale: 1.05,
         duration: 0.4,
         ease: "power2.out",
+        force3D: true,
         overwrite: "auto",
       });
     }
 
-    if (overlayRef.current && document.contains(overlayRef.current)) {
+    if (overlayRef.current) {
       gsap.fromTo(
         overlayRef.current,
         { opacity: 0, y: 8 },
@@ -169,12 +171,13 @@ function MovieCard({
           y: 0,
           duration: 0.3,
           ease: "power2.out",
+          force3D: true,
           overwrite: "auto",
         }
       );
     }
 
-    if (buttonsRef.current && document.contains(buttonsRef.current)) {
+    if (buttonsRef.current) {
       gsap.fromTo(
         buttonsRef.current.children,
         { scale: 0.9, opacity: 0 },
@@ -184,6 +187,7 @@ function MovieCard({
           stagger: 0.04,
           duration: 0.28,
           ease: "back.out(1.4)",
+          force3D: true,
           overwrite: "auto",
         }
       );
@@ -191,32 +195,35 @@ function MovieCard({
   }, []);
 
   const handleMouseLeave = useCallback(() => {
-    if (cardRef.current && document.contains(cardRef.current)) {
+    if (cardRef.current) {
       gsap.to(cardRef.current, {
         y: 0,
         scale: 1,
         zIndex: 1,
         duration: 0.28,
         ease: "power2.inOut",
+        force3D: true,
         overwrite: "auto",
       });
     }
 
-    if (posterRef.current && document.contains(posterRef.current)) {
+    if (posterRef.current) {
       gsap.to(posterRef.current, {
         scale: 1,
         duration: 0.28,
         ease: "power2.inOut",
+        force3D: true,
         overwrite: "auto",
       });
     }
 
-    if (overlayRef.current && document.contains(overlayRef.current)) {
+    if (overlayRef.current) {
       gsap.to(overlayRef.current, {
         opacity: 0,
         y: 8,
         duration: 0.2,
         ease: "power2.in",
+        force3D: true,
         overwrite: "auto",
       });
     }
