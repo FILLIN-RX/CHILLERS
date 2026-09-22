@@ -330,20 +330,23 @@ function MovieCard({
                   e.stopPropagation();
                   setShowPlaylistModal(true);
                 }}
-                title="Enregistrer dans..."
-                className="rounded-full p-1.5 shadow-md backdrop-blur-md transition-all bg-black/50 text-cyan-400 hover:bg-black/80 hover:scale-105 cursor-pointer"
+                title="Enregistrer dans une playlist"
+                aria-label="Enregistrer dans une playlist"
+                className="rounded-full p-2 shadow-md backdrop-blur-md transition-all bg-black/50 text-cyan-400 hover:bg-black/80 hover:scale-105 cursor-pointer min-h-[36px] min-w-[36px] flex items-center justify-center"
               >
-                <ListNumbers className="w-3.5 h-3.5" />
+                <ListNumbers className="w-4 h-4" />
               </button>
 
               <button 
                 onClick={toggleFavorite}
                 disabled={favoriteLoading}
-                className={`rounded-full p-1.5 shadow-md backdrop-blur-md transition-all cursor-pointer ${
+                title={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
+                aria-label={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
+                className={`rounded-full p-2 shadow-md backdrop-blur-md transition-all cursor-pointer min-h-[36px] min-w-[36px] flex items-center justify-center ${
                   isFavorite ? 'bg-brand-primary text-white' : 'bg-black/50 text-white hover:bg-black/80'
                 }`}
               >
-                <BookmarkSimple className="w-3.5 h-3.5" />
+                <BookmarkSimple className="w-4 h-4" />
               </button>
             </div>
           )}
@@ -571,10 +574,11 @@ function MovieCard({
                     e.stopPropagation();
                     setShowPlaylistModal(true);
                   }}
-                  title="Enregistrer dans..."
-                  className="pointer-events-auto flex h-7 w-7 items-center justify-center rounded-full glass-button text-cyan-400 hover:text-white cursor-pointer"
+                  title="Enregistrer dans une playlist"
+                  aria-label="Enregistrer dans une playlist"
+                  className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full glass-button text-cyan-400 hover:text-white cursor-pointer"
                 >
-                  <ListNumbers className="h-3.5 w-3.5" />
+                  <ListNumbers className="h-4 w-4" />
                 </button>
               )}
 
@@ -584,10 +588,10 @@ function MovieCard({
                   handleMouseLeave();
                   onPlay(item);
                 }}
-                className="pointer-events-auto flex h-7 w-7 items-center justify-center rounded-full bg-white text-black hover:bg-zinc-200 hover:scale-110 active:scale-95 transition-all shadow-md cursor-pointer"
+                className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full bg-white text-black hover:bg-zinc-200 hover:scale-110 active:scale-95 transition-all shadow-md cursor-pointer"
                 aria-label={_("media.watch")}
               >
-                <Play className="h-3.5 w-3.5 fill-black translate-x-[0.5px]" />
+                <Play className="h-4 w-4 fill-black translate-x-[0.5px]" />
               </button>
 
               <button
@@ -596,15 +600,15 @@ function MovieCard({
                   handleMouseLeave();
                   onOpenDetails(item);
                 }}
-                className="pointer-events-auto flex h-7 w-7 items-center justify-center rounded-full glass-button text-white cursor-pointer"
+                className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full glass-button text-white cursor-pointer"
                 aria-label={_("media.details")}
               >
-                <Info className="h-3.5 w-3.5" />
+                <Info className="h-4 w-4" />
               </button>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-[10px] text-zinc-400 font-medium">
+          <div className="flex items-center gap-2 text-[10px] text-zinc-300 font-medium">
             {isUpcoming && releaseDateLabel
               ? <span className="text-blue-400 font-semibold flex items-center gap-1">
                   <HourglassSimple className="w-2.5 h-2.5" />

@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { API_BASE, getServerApiHeaders } from "@/lib/server-api";
 import { buildMediaMetadata, buildMediaJsonLd } from "@/lib/seo";
 import { getMediaDetails, getSeasonDetails, getStreamUrl } from "@/services/media";
+import WatchSkeleton from "@/components/WatchSkeleton";
 import WatchContent from "./watch-content";
 
 type Props = {
@@ -100,7 +101,7 @@ export default async function WatchPage({ params, searchParams }: Props) {
   } catch {}
 
   return (
-    <Suspense fallback={<div className="min-h-screen bg-brand-dark" />}>
+    <Suspense fallback={<WatchSkeleton />}>
       {jsonLd && (
         <script
           type="application/ld+json"

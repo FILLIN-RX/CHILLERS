@@ -169,7 +169,8 @@ export default function HomeClientWrapper({
         "Reality Show",
         "All time favorite",
       ].includes(title);
-      const fresh = isCustomCategory ? items : items.filter((it) => !seen.has(it.id));
+      const filtered = isCustomCategory ? items : items.filter((it) => !seen.has(it.id));
+      const fresh = filtered.slice(0, 16);
       
       fresh.forEach((it) => seen.add(it.id));
       if (fresh.length === 0) return;

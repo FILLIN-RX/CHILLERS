@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import type { MovieOrShow } from "@/types/media";
-import { Play, Pause, CaretLeft, CaretRight, Star } from "@phosphor-icons/react";
+import { Play, Star } from "@phosphor-icons/react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useHydrated } from "@/hooks/useHydrated";
 import Button from "@/components/Button";
@@ -329,33 +329,10 @@ export default function HeroCarousel({
         })}
       </div>
 
-      {/* Control Buttons (Right Bottom) */}
-      <div className="absolute right-4 bottom-12 sm:bottom-16 z-20 flex items-center gap-2">
-        <button
-          onClick={togglePause}
-          aria-label={isPaused ? _("player.play") : _("player.pause")}
-          className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-black/50 border border-white/15 text-white hover:bg-brand-primary/40 hover:border-brand-primary/50 backdrop-blur-md transition-all duration-300 cursor-pointer"
-        >
-          {isPaused ? <Play className="h-4 w-4 sm:h-5 sm:w-5 ml-0.5" /> : <Pause className="h-4 w-4 sm:h-5 sm:w-5" />}
-        </button>
-        <button
-          onClick={handlePrev}
-          aria-label={_("common.previous")}
-          className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-black/40 border border-white/10 text-zinc-300 hover:text-white hover:bg-black/60 backdrop-blur-sm transition-all duration-300 cursor-pointer"
-        >
-          <CaretLeft className="h-4 w-4 sm:h-5 sm:w-5" />
-        </button>
-        <button
-          onClick={handleNext}
-          aria-label={_("common.next")}
-          className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-black/40 border border-white/10 text-zinc-300 hover:text-white hover:bg-black/60 backdrop-blur-sm transition-all duration-300 cursor-pointer"
-        >
-          <CaretRight className="h-4 w-4 sm:h-5 sm:w-5" />
-        </button>
-      </div>
+
 
       {/* Pagination Dots (Bottom Center) */}
-      <div className="absolute left-1/2 -translate-x-1/2 bottom-5 sm:bottom-8 z-20 flex gap-2">
+      <div className="absolute left-1/2 -translate-x-1/2 bottom-3 sm:bottom-6 z-20 flex items-center gap-1">
         {slides.map((_s, index) => (
           <button
             key={index}
@@ -363,13 +340,17 @@ export default function HeroCarousel({
               setCurrentIndex(index);
               setIsPaused(false);
             }}
-            className={`h-2 rounded-full transition-all duration-500 cursor-pointer ${
-              index === currentIndex
-                ? "w-7 bg-brand-primary shadow-lg shadow-brand-primary/50"
-                : "w-2 bg-white/30 hover:bg-white/50"
-            }`}
-            title={`${_("common.page")} ${index + 1}`}
-          />
+            aria-label={`${_("common.page")} ${index + 1}`}
+            className="flex min-h-[44px] min-w-[28px] items-center justify-center cursor-pointer p-1"
+          >
+            <span
+              className={`h-2 rounded-full transition-all duration-500 block ${
+                index === currentIndex
+                  ? "w-7 bg-brand-primary shadow-lg shadow-brand-primary/50"
+                  : "w-2 bg-white/40 hover:bg-white/70"
+              }`}
+            />
+          </button>
         ))}
       </div>
     </section>

@@ -68,6 +68,18 @@ export function verifyCsrfToken(req: CsrfRequest, res: Response, next: NextFunct
       return;
     }
 
+    // Skip CSRF verification for authentication / login / register endpoints
+    const url = req.originalUrl || req.url || '';
+    if (
+      url.includes('/auth/login') ||
+      url.includes('/auth/signin') ||
+      url.includes('/auth/register') ||
+      url.includes('/admin/auth/login')
+    ) {
+      next();
+      return;
+    }
+
     const sessionId = (req.headers['x-session-id'] as string) || req.sessionID;
     const clientToken = (req.headers['x-csrf-token'] as string) || req.body?.csrfToken;
 

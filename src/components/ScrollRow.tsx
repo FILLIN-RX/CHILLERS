@@ -37,22 +37,28 @@ export default function ScrollRow({
   const scrollTween = useRef<gsap.core.Tween | null>(null);
 
   const updateScrollState = useCallback(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    setCanScrollLeft(el.scrollLeft > 8);
-    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 8);
+    if (typeof window === "undefined") return;
+    requestAnimationFrame(() => {
+      const el = scrollRef.current;
+      if (!el) return;
+      const atLeft = el.scrollLeft > 8;
+      const atRight = el.scrollLeft < el.scrollWidth - el.clientWidth - 8;
+      setCanScrollLeft((prev) => (prev !== atLeft ? atLeft : prev));
+      setCanScrollRight((prev) => (prev !== atRight ? atRight : prev));
+    });
   }, []);
 
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    updateScrollState();
+    
+    // Defer initial calculation to not block the main thread during hydration
+    const timer = setTimeout(updateScrollState, 150);
     el.addEventListener("scroll", updateScrollState, { passive: true });
-    const ro = new ResizeObserver(updateScrollState);
-    ro.observe(el);
+    
     return () => {
+      clearTimeout(timer);
       el.removeEventListener("scroll", updateScrollState);
-      ro.disconnect();
     };
   }, [updateScrollState]);
 
@@ -155,7 +161,7 @@ export default function ScrollRow({
             {seeAllHref ? (
               <Link
                 href={seeAllHref}
-                className="text-xs sm:text-sm font-semibold text-zinc-400 hover:text-white flex items-center gap-0.5 group transition-colors focus:outline-none"
+                className="text-xs sm:text-sm font-semibold text-zinc-300 hover:text-white flex items-center gap-0.5 py-1 px-1.5 rounded-lg group transition-colors focus:outline-none"
               >
                 <span>{seeAllText}</span>
                 <CaretRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
@@ -163,7 +169,7 @@ export default function ScrollRow({
             ) : onSeeAll ? (
               <button
                 onClick={onSeeAll}
-                className="text-xs sm:text-sm font-semibold text-zinc-400 hover:text-white flex items-center gap-0.5 group transition-colors focus:outline-none cursor-pointer"
+                className="text-xs sm:text-sm font-semibold text-zinc-300 hover:text-white flex items-center gap-0.5 py-1 px-1.5 rounded-lg group transition-colors focus:outline-none cursor-pointer"
               >
                 <span>{seeAllText}</span>
                 <CaretRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
@@ -174,8 +180,8 @@ export default function ScrollRow({
               <button
                 onClick={() => scroll("left")}
                 disabled={!canScrollLeft}
-                aria-label="Scroll left"
-                className={`flex h-8 w-8 items-center justify-center rounded-full transition-all duration-200 focus:outline-none ${
+                aria-label="Défiler vers la gauche"
+                className={`flex h-9 w-9 items-center justify-center rounded-full transition-all duration-200 focus:outline-none ${
                   canScrollLeft
                     ? "bg-zinc-800 text-white hover:bg-zinc-700 cursor-pointer shadow-md"
                     : "bg-zinc-950 text-zinc-700 cursor-not-allowed opacity-50"
@@ -186,8 +192,8 @@ export default function ScrollRow({
               <button
                 onClick={() => scroll("right")}
                 disabled={!canScrollRight}
-                aria-label="Scroll right"
-                className={`flex h-8 w-8 items-center justify-center rounded-full transition-all duration-200 focus:outline-none ${
+                aria-label="Défiler vers la droite"
+                className={`flex h-9 w-9 items-center justify-center rounded-full transition-all duration-200 focus:outline-none ${
                   canScrollRight
                     ? "bg-zinc-800 text-white hover:bg-zinc-700 cursor-pointer shadow-md"
                     : "bg-zinc-950 text-zinc-700 cursor-not-allowed opacity-50"
@@ -218,10 +224,10 @@ export default function ScrollRow({
         {canScrollLeft && (
           <button
             onClick={() => scroll("left")}
-            aria-label="Scroll left"
-            className="sm:hidden absolute left-0 top-0 h-full w-10 z-20 flex items-center justify-start pl-1 bg-black/60 cursor-pointer"
+            aria-label="Défiler vers la gauche"
+            className="sm:hidden absolute left-0 top-0 h-full min-w-[48px] z-20 flex items-center justify-start pl-1 bg-black/60 cursor-pointer"
           >
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/70 backdrop-blur-sm shadow-md">
+            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-black/70 backdrop-blur-sm shadow-md">
               <CaretLeft className="h-5 w-5 text-white" />
             </span>
           </button>
@@ -230,10 +236,10 @@ export default function ScrollRow({
         {canScrollRight && (
           <button
             onClick={() => scroll("right")}
-            aria-label="Scroll right"
-            className="sm:hidden absolute right-0 top-0 h-full w-10 z-20 flex items-center justify-end pr-1 bg-black/60 cursor-pointer"
+            aria-label="Défiler vers la droite"
+            className="sm:hidden absolute right-0 top-0 h-full min-w-[48px] z-20 flex items-center justify-end pr-1 bg-black/60 cursor-pointer"
           >
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/70 backdrop-blur-sm shadow-md">
+            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-black/70 backdrop-blur-sm shadow-md">
               <CaretRight className="h-5 w-5 text-white" />
             </span>
           </button>

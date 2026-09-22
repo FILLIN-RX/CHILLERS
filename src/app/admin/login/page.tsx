@@ -45,7 +45,7 @@ export default function AdminLogin() {
             <Title level={4} style={{ marginBottom: '0.25rem' }}>Admin</Title>
             <Text type="secondary">Connectez-vous pour accéder au panneau d&apos;administration</Text>
           </div>
-          {error && <Alert type="error" showIcon message={error} style={{ marginBottom: '1rem' }} />}
+          {error && <Alert type="error" showIcon description={error} style={{ marginBottom: '1rem' }} />}
           <Form layout="vertical" onFinish={handleSubmit} requiredMark={false}>
             <Form.Item
               name="username"

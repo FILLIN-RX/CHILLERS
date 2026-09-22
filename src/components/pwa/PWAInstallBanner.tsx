@@ -88,21 +88,22 @@ export default function PWAInstallBanner() {
 
           <div className="flex-1 min-w-0">
             <h3 className="text-sm font-bold text-white truncate">Installer l'application</h3>
-            <p className="text-xs text-white/60 truncate">Streaming fluide, hors-ligne et sans pub</p>
+            <p className="text-xs text-zinc-300 truncate">Streaming fluide, hors-ligne et sans pub</p>
           </div>
 
           <button
             onClick={handleInstallClick}
-            className="flex-shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-white text-black hover:bg-zinc-200 active:scale-95 transition-all cursor-pointer shadow-md"
+            aria-label="Installer l'application CHILLERS"
+            className="flex-shrink-0 flex items-center gap-1.5 px-3.5 py-2.5 min-h-[40px] rounded-xl text-xs font-bold bg-white text-black hover:bg-zinc-200 active:scale-95 transition-all cursor-pointer shadow-md"
           >
-            <DownloadSimple className="w-3.5 h-3.5" />
+            <DownloadSimple className="w-4 h-4" />
             Installer
           </button>
 
           <button
             onClick={handleDismiss}
-            className="flex-shrink-0 p-1 text-white/40 hover:text-white transition-colors"
-            aria-label="Fermer"
+            className="flex-shrink-0 p-2 min-h-[44px] min-w-[44px] flex items-center justify-center text-zinc-400 hover:text-white transition-colors cursor-pointer"
+            aria-label="Fermer la bannière d'installation"
           >
             <X className="w-4 h-4" />
           </button>
