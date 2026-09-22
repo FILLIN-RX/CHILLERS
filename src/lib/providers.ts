@@ -31,6 +31,8 @@ export const IFRAME_PROVIDERS: ProviderMatch[] = [
 
 /** Hosts that look like iframe providers but are actually direct-file proxies. */
 const DIRECT_PROXY_OVERRIDES: Array<(u: string) => boolean> = [
+  (u) => u.includes("/api/afroland"),
+  (u) => u.includes("cdnapisec.kaltura.com"),
   (u) => u.includes("/api/doodstream/stream"),
   (u) => u.includes("/api/omnisave/proxy"),
   (u) => u.includes("/api/torrents/stream"),
