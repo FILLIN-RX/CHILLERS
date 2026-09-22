@@ -63,6 +63,7 @@ export default function DonationModal({ isOpen, onClose }: DonationModalProps) {
         ref={modalRef}
         role="dialog"
         aria-modal="true"
+        aria-label="Faire un don"
         className="w-full sm:max-w-sm bg-zinc-900 border-t sm:border border-white/10 rounded-t-2xl sm:rounded-2xl p-5 sm:p-6 shadow-2xl relative"
       >
         <div className="w-10 h-1 bg-zinc-700 rounded-full mx-auto mb-4 sm:hidden" />

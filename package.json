@@ -4,11 +4,11 @@
   "private": true,
   "browserslist": {
     "production": [
-      ">0.3%",
+      ">0.5%",
       "not dead",
       "not op_mini all",
-      "iOS >= 15",
-      "Safari >= 15"
+      "not ie 11",
+      "supports es6-module"
     ],
     "development": [
       "last 1 chrome version",

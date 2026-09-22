@@ -368,44 +368,51 @@ export default function HomeClientWrapper({
             ))}
 
             {(upcomingList.length > 0 || trendingAll.length > 0) && (
-              <MostViewedMovie
-                items={upcomingList.length > 0 ? upcomingList : trendingAll}
-                onWatchNow={handleWatchNow}
-                onOpenDetails={handleOpenDetails}
-              />
+              <LazyRow title="Most Viewed Movie">
+                <MostViewedMovie
+                  items={upcomingList.length > 0 ? upcomingList : trendingAll}
+                  onWatchNow={handleWatchNow}
+                  onOpenDetails={handleOpenDetails}
+                />
+              </LazyRow>
             )}
 
-            <Top10Row
-              title="Top 10 : Ce que tout le monde regarde"
-              items={trendingAll}
-            />
+            <LazyRow title="Top 10">
+              <Top10Row
+                title="Top 10 : Ce que tout le monde regarde"
+                items={trendingAll}
+              />
+            </LazyRow>
 
             {homeRows.slice(2, 5).map((row) => (
-              <ScrollRow
-                key={row.title}
-                title={row.title}
-                accentColor={row.accent}
-                autoScroll={row.autoScroll}
-                autoScrollSpeed={row.autoScrollSpeed}
-              >
-                {row.items.map((item) => (
-                  <MovieCard
-                    key={item.id}
-                    item={item}
-                    variant={row.variant}
-                    onPlay={handleWatchNow}
-                    onOpenDetails={handleOpenDetails}
-                  />
-                ))}
-              </ScrollRow>
+              <LazyRow key={row.title} title={row.title}>
+                <ScrollRow
+                  title={row.title}
+                  accentColor={row.accent}
+                  autoScroll={row.autoScroll}
+                  autoScrollSpeed={row.autoScrollSpeed}
+                >
+                  {row.items.map((item) => (
+                    <MovieCard
+                      key={item.id}
+                      item={item}
+                      variant={row.variant}
+                      onPlay={handleWatchNow}
+                      onOpenDetails={handleOpenDetails}
+                    />
+                  ))}
+                </ScrollRow>
+              </LazyRow>
             ))}
 
             {trendingAll.length >= 6 && (
-              <SpotlightGrid
-                items={trendingAll.slice(1, 6)}
-                onWatchNow={handleWatchNow}
-                onOpenDetails={handleOpenDetails}
-              />
+              <LazyRow title="Spotlight Grid">
+                <SpotlightGrid
+                  items={trendingAll.slice(1, 6)}
+                  onWatchNow={handleWatchNow}
+                  onOpenDetails={handleOpenDetails}
+                />
+              </LazyRow>
             )}
 
             {homeRows.slice(5).map((row) => (

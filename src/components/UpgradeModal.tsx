@@ -19,7 +19,12 @@ export default function UpgradeModal({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md transition-all animate-fade-in select-none">
-      <div className="bg-[#121215] rounded-[3px] p-6 sm:p-7 max-w-sm w-full border border-white/15 shadow-2xl relative animate-in fade-in zoom-in duration-200">
+      <div 
+        role="dialog" 
+        aria-modal="true" 
+        aria-label="Devenir VIP" 
+        className="bg-[#121215] rounded-[3px] p-6 sm:p-7 max-w-sm w-full border border-white/15 shadow-2xl relative animate-in fade-in zoom-in duration-200"
+      >
         <button 
           onClick={onClose}
           aria-label="Fermer"
