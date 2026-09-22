@@ -260,10 +260,10 @@ export default function AdminAddMedia() {
         />
       </div>
 
-      <Space direction="vertical" size="large" style={{ width: '100%', marginBottom: '1.25rem' }}>
+      <Space orientation="vertical" size="large" style={{ width: '100%', marginBottom: '1.25rem' }}>
         <Card size="small">
           <SectionTitle>Informations</SectionTitle>
-          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+          <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0.75rem' }}>
               <div>
                 <Text type="secondary" style={{ display: 'block', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.35rem' }}>Titre</Text>
@@ -367,7 +367,7 @@ export default function AdminAddMedia() {
               <Button type="primary" icon={<PlusOutlined />} onClick={addSeason}>Ajouter une saison</Button>
             </div>
 
-            <Space direction="vertical" size="large" style={{ width: '100%' }}>
+            <Space orientation="vertical" size="large" style={{ width: '100%' }}>
               {seasons.map((s, sIdx) => (
                 <div key={sIdx} style={{ background: '#0f1219', border: '1px solid #242a38', borderRadius: 10, padding: '1rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
@@ -403,7 +403,7 @@ export default function AdminAddMedia() {
                     <span />
                   </div>
 
-                  <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                  <Space orientation="vertical" size={8} style={{ width: '100%' }}>
                     {s.episodes.map((ep, eIdx) => (
                       <div key={eIdx} style={{ display: 'grid', gridTemplateColumns: '52px minmax(0, 1.1fr) minmax(0, 1fr) 36px', gap: '0.5rem', alignItems: 'center' }}>
                         <Input

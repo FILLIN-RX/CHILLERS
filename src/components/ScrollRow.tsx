@@ -52,12 +52,8 @@ export default function ScrollRow({
     const el = scrollRef.current;
     if (!el) return;
     
-    // Defer initial calculation to not block the main thread during hydration
-    const timer = setTimeout(updateScrollState, 150);
     el.addEventListener("scroll", updateScrollState, { passive: true });
-    
     return () => {
-      clearTimeout(timer);
       el.removeEventListener("scroll", updateScrollState);
     };
   }, [updateScrollState]);

@@ -14,6 +14,7 @@ import SessionSyncProvider from "@/components/providers/SessionSyncProvider";
 import QueryProvider from "@/components/QueryProvider";
 import { auth } from "@/auth";
 import "./globals.css";
+import Script from "next/script";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -145,8 +146,6 @@ export default async function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
     >
       <head>
-        <link rel="preconnect" href="https://image.tmdb.org" crossOrigin="anonymous" />
-        <link rel="dns-prefetch" href="https://image.tmdb.org" />
         {/*
           Splash natif : injecté AVANT React pour s'afficher immédiatement au lancement de la PWA/Web.
           Le composant React SplashScreen.tsx gère ensuite la disparition animée.
@@ -159,9 +158,9 @@ export default async function RootLayout({
             pointer-events:none;
           }
           #__chillers_splash .splash-spinner {
-            width:56px;height:56px;
+            width:72px;height:72px;
             border-radius:50%;
-            border:3.5px solid rgba(255,255,255,0.08);
+            border:4px solid rgba(255,255,255,0.08);
             border-top-color:#f42a7c;
             animation:__spin 0.85s linear infinite;
             box-sizing:border-box;
@@ -170,6 +169,33 @@ export default async function RootLayout({
             to { transform: rotate(360deg); }
           }
         `}} />
+
+        {/* Google Tag (gtag.js) avec Consent Mode */}
+        <Script
+          strategy="afterInteractive"
+          src="https://www.googletagmanager.com/gtag/js?id=G-07EF63R64Y"
+        />
+        <Script
+          id="google-analytics"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              
+              // Configuration par défaut du Mode Consentement (EEE)
+              gtag('consent', 'default', {
+                'ad_storage': 'denied',
+                'ad_user_data': 'denied',
+                'ad_personalization': 'denied',
+                'analytics_storage': 'denied'
+              });
+              
+              gtag('js', new Date());
+              gtag('config', 'G-07EF63R64Y');
+            `,
+          }}
+        />
       </head>
       <body suppressHydrationWarning className="min-h-screen flex flex-col bg-brand-dark text-foreground selection:bg-brand-primary selection:text-white">
         {/* Splash pré-React — retiré par SplashScreen.tsx une fois les données chargées */}

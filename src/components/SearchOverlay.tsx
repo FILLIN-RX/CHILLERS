@@ -125,7 +125,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
         <div className="flex-1 max-w-3xl flex items-center min-w-0">
           <div
             onClick={() => inputRef.current?.focus()}
-            className="relative w-full bg-zinc-900/90 hover:bg-zinc-900 border border-white/15 focus-within:border-white/50 focus-within:ring-2 focus-within:ring-white/20 rounded-xl px-3 sm:px-4 py-2 sm:py-2.5 flex items-center gap-2.5 transition-all shadow-sm cursor-text"
+            className="relative w-full bg-zinc-900/90 hover:bg-zinc-800 border border-white/15 focus-within:border-white/70 focus-within:bg-zinc-800 rounded-xl px-3 sm:px-4 py-2 sm:py-2.5 flex items-center gap-2.5 transition-all cursor-text"
           >
             <MagnifyingGlass className="h-4 w-4 sm:h-5 sm:w-5 text-zinc-400 shrink-0" />
             

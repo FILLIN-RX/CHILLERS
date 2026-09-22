@@ -171,7 +171,7 @@ export default function AdminCron() {
             <span style={{ fontWeight: 600 }}>Crontab système active — l&apos;admin n&apos;a pas le contrôle total</span>
           }
           description={
-            <Space direction="vertical" size={8} style={{ width: '100%' }}>
+            <Space orientation="vertical" size={8} style={{ width: '100%' }}>
               <Text>Une crontab lance des scripts toutes les minutes sans passer par cette interface. Supprimez-la pour garder le contrôle :</Text>
               <pre style={{
                 background: '#0f1219', color: '#fbbf24', padding: '0.5rem 0.75rem',
@@ -194,7 +194,7 @@ export default function AdminCron() {
           style={{ marginBottom: '1rem' }}
           message={<span style={{ fontWeight: 600 }}>{orphanProcesses.length} process non-géré(s) détecté(s) sur le serveur</span>}
           description={
-            <Space direction="vertical" size={6} style={{ width: '100%' }}>
+            <Space orientation="vertical" size={6} style={{ width: '100%' }}>
               {orphanProcesses.map(p => (
                 <div key={p.pid} style={{
                   display: 'flex', alignItems: 'center', gap: '0.5rem',
@@ -216,7 +216,7 @@ export default function AdminCron() {
         />
       )}
 
-      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+      <Space orientation="vertical" size="large" style={{ width: '100%' }}>
         <Card
           title="Cron (planification automatique)"
           size="small"

@@ -173,7 +173,7 @@ export default function AdminScrapper() {
         />
       )}
 
-      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+      <Space orientation="vertical" size="large" style={{ width: '100%' }}>
         {scraperState && (
           <Card size="small" title="État du scraping">
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>

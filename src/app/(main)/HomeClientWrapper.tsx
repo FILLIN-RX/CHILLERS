@@ -116,15 +116,6 @@ export default function HomeClientWrapper({
     { item: MovieOrShow; progress: number; remaining: string; episodeName?: string; season?: number; episode?: number }[]
   >([]);
 
-  // Calculate animated rows
-  const mostWatched = useMemo(
-    () => [...trendingAll].filter((m) => m.rating > 0).sort((a, b) => b.rating - a.rating).slice(0, 10),
-    [trendingAll]
-  );
-  const trendingNow = useMemo(
-    () => [...trendingAll].filter((m) => m.year > 0).sort((a, b) => b.year - a.year).slice(0, 10),
-    [trendingAll]
-  );
 
   // Filter strictly unreleased upcoming movies with poster for the full-width spotlight banner
   const upcomingList = useMemo(() => {
@@ -145,14 +136,30 @@ export default function HomeClientWrapper({
       autoScrollSpeed?: number;
     }> = [];
     const seen = new Set<string>();
+    const seenRowSignatures = new Set<string>();
+
     const push = (
       title: string,
-      items: MovieOrShow[],
+      items: MovieOrShow[] = [],
       accent: "primary" | "secondary",
       variant?: "poster",
       autoScroll?: boolean,
       autoScrollSpeed?: number,
     ) => {
+      if (!Array.isArray(items) || items.length === 0) return;
+
+      // 1. Déduplication interne absolue : pas de cartes dupliquées au sein de la même ligne
+      const internalMap = new Map<string, MovieOrShow>();
+      for (const it of items) {
+        if (it && it.id && it.posterUrl && !internalMap.has(String(it.id))) {
+          internalMap.set(String(it.id), it);
+        }
+      }
+      const uniqueItems = Array.from(internalMap.values());
+
+      // 2. Si la ligne a moins de 3 éléments distincts valides, on ne l'affiche pas (évite les rangées vides ou cassées)
+      if (uniqueItems.length < 3) return;
+
       const isCustomCategory = [
         "Box office",
         "New Anime",
@@ -169,11 +176,19 @@ export default function HomeClientWrapper({
         "Reality Show",
         "All time favorite",
       ].includes(title);
-      const filtered = isCustomCategory ? items : items.filter((it) => !seen.has(it.id));
+
+      const filtered = isCustomCategory ? uniqueItems : uniqueItems.filter((it) => !seen.has(String(it.id)));
       const fresh = filtered.slice(0, 10);
-      
-      fresh.forEach((it) => seen.add(it.id));
-      if (fresh.length === 0) return;
+
+      // Si le filtrage global laisse moins de 3 items, on ignore pour garder un affichage propre
+      if (fresh.length < 3) return;
+
+      // 3. Signature de ligne : évite d'afficher 2 lignes qui ont les mêmes films
+      const signature = fresh.map((it) => it.id).slice(0, 5).sort().join(":");
+      if (seenRowSignatures.has(signature)) return;
+      seenRowSignatures.add(signature);
+
+      fresh.forEach((it) => seen.add(String(it.id)));
       rows.push({ title, items: fresh, accent, variant, autoScroll, autoScrollSpeed });
     };
 
@@ -181,7 +196,7 @@ export default function HomeClientWrapper({
     push("Nouveautés", newReleases, "primary", "poster");
     push("TV for you", tvForYou, "primary", "poster");
     
-    // All time favorite: iconic classics (Game of Thrones, Vampire Diaries, Breaking Bad, etc.)
+    // All time favorite: classiques intemporels
     const favoritesList = allTimeFavorites && allTimeFavorites.length > 0 
       ? allTimeFavorites 
       : [...topRatedTV, ...topRatedMovies];
@@ -204,12 +219,10 @@ export default function HomeClientWrapper({
     push(_("home.popularSeries"), popularSeries, "primary", "poster");
     push(_("home.animeCollection"), animeCollection, "secondary", "poster");
     push("Séries d'Animation", animationSeries, "primary", "poster");
-    push(_("home.mostWatched"), mostWatched, "primary", "poster", true, 0.4);
-    push(_("home.trendingNow"), trendingNow, "secondary", "poster", true, 0.5);
 
     return rows;
   }, [
-    trendingAll, newReleases, mostWatched, trendingNow, popularSeries, 
+    trendingAll, newReleases, popularSeries, 
     animeCollection, africanMovies, africanSeries, topRatedMovies, topRatedTV, 
     actionMovies, comedyMovies, actionSeries, animationSeries,
     boxOffice, newAnime, martialArts, tvForYou, saDrama, madeInChina,

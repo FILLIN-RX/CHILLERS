@@ -487,8 +487,7 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
               {/* Badges : Disponibilité, Audio, Âge, Genres */}
               <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-xs font-bold">
                 {isUpcoming && releaseDateLabel ? (
-                  <span className="px-3 py-1 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wider bg-blue-500/20 text-blue-300 border-0 flex items-center gap-1.5 shadow-none">
-                    <CalendarBlank className="h-3.5 w-3.5 text-blue-400" />
+                  <span className="px-3 py-1 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wider bg-blue-500/20 text-blue-300 border-0 flex items-center shadow-none">
                     <span>Sortie au cinéma le {releaseDateLabel}</span>
                   </span>
                 ) : disponible && (
@@ -552,8 +551,7 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
                 </div>
                 <span className="text-zinc-600">•</span>
                 <div className="flex items-center gap-1">
-                  <CalendarBlank className="h-4 w-4 text-zinc-500" />
-                  <span>{isUpcoming && releaseDateLabel ? `Sortie le ${releaseDateLabel}` : item.year}</span>
+                  <span>{isUpcoming ? "Bientôt dispo" : item.year}</span>
                 </div>
                 <span className="text-zinc-600">•</span>
                 <div className="flex items-center gap-1">
@@ -575,7 +573,6 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
                     variant="dark"
                     size="md"
                     text="Bientôt dispo"
-                    leftIcon={<CalendarBlank className="h-4 w-4 text-blue-400" />}
                     ariaLabel={`Sortie prévue le ${releaseDateLabel}`}
                     className="flex-1 sm:flex-initial opacity-90 cursor-not-allowed border-0 text-blue-200 font-bold bg-blue-600/20 shadow-none"
                   />

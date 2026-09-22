@@ -113,7 +113,7 @@ export default function AdminLogs() {
           <Spin /> Chargement...
         </div>
       ) : logs ? (
-        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        <Space orientation="vertical" size="large" style={{ width: '100%' }}>
           {logs.series && <LogBlock title="Erreurs TMDB - Séries" lines={logs.series} color="#f87171" />}
           {logs.movies && <LogBlock title="Erreurs TMDB - Films" lines={logs.movies} color="#f87171" />}
           {logs.cron && <LogBlock title="Logs Cron" lines={logs.cron} color="#34d399" />}

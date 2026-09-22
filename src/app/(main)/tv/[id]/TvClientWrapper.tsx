@@ -291,8 +291,7 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
               )}
 
               {isUpcoming && releaseDateLabel ? (
-                <span className="px-3 py-1 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wider bg-blue-500/20 text-blue-300 border-0 flex items-center gap-1.5 shadow-none">
-                  <CalendarBlank className="h-3.5 w-3.5 text-blue-400" />
+                <span className="px-3 py-1 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wider bg-blue-500/20 text-blue-300 border-0 flex items-center shadow-none">
                   <span>Sortie le {releaseDateLabel}</span>
                 </span>
               ) : item.statusLabel && (
@@ -345,8 +344,8 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
 
               <span className="text-zinc-600">•</span>
               <div className="flex items-center gap-1">
-                <CalendarBlank className="h-4 w-4 text-zinc-500" />
-                <span>{isUpcoming && releaseDateLabel ? `Sortie le ${releaseDateLabel}` : displayYear}</span>
+                <span>{isUpcoming ? "Bientôt dispo" : firstYear}</span>
+                {lastYear && lastYear !== firstYear && <span> - {lastYear}</span>}
               </div>
 
               <span className="text-zinc-600">•</span>
@@ -377,7 +376,6 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
                   variant="dark"
                   size="md"
                   text="Bientôt dispo"
-                  leftIcon={<CalendarBlank className="h-4 w-4 text-blue-400" />}
                   ariaLabel={`Sortie prévue le ${releaseDateLabel}`}
                   className="opacity-90 cursor-not-allowed border-0 text-blue-200 font-bold bg-blue-600/20 shadow-none"
                 />

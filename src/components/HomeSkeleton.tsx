@@ -64,14 +64,7 @@ export default function HomeSkeleton() {
           </div>
         </div>
 
-        {/* Pagination Dots */}
-        <div className="absolute left-1/2 -translate-x-1/2 bottom-5 sm:bottom-8 z-20 flex gap-2">
-          <div className="h-2 w-7 rounded-full bg-brand-primary/60" />
-          <div className="h-2 w-2 rounded-full bg-white/20" />
-          <div className="h-2 w-2 rounded-full bg-white/20" />
-          <div className="h-2 w-2 rounded-full bg-white/20" />
-          <div className="h-2 w-2 rounded-full bg-white/20" />
-        </div>
+        {/* Pagination Dots removed as per request */}
       </section>
 
       {/* ========================================================
