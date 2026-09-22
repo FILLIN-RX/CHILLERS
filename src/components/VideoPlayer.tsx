@@ -13,6 +13,7 @@ import { useDebouncedEffect } from "@/hooks/useDebouncedEffect";
 import { useStreamUrl } from "@/hooks/useStreamUrl";
 import { useTorrentPlayback } from "@/hooks/useTorrentPlayback";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { useSubscriptionStore, isUserPro } from "@/stores/useSubscriptionStore";
 import { userService } from "@/services/user";
 import { isSlowConnection } from "@/services/media";
 import { getAntiBotHeaders } from "@/lib/antibot";
@@ -33,7 +34,8 @@ const VOLUME_STEP = 0.1;
 export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps) {
   const { lang, translate: _ } = useLanguage();
   const { token, user, updateUser } = useAuthStore();
-  const isPro = user?.subscription?.plan === "premium" || user?.role === "admin";
+  const globalSubscriptionEnabled = useSubscriptionStore((s) => s.globalSubscriptionEnabled);
+  const isPro = isUserPro(user, globalSubscriptionEnabled);
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);

@@ -5,6 +5,7 @@ import { httpJson } from '@/app/api';
 import { message } from 'antd';
 import Spinner from '@/components/Spinner';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { useSubscriptionStore } from '@/stores/useSubscriptionStore';
 
 interface GlobalSubscriptionToggleProps {
   onToggle?: (newState: boolean) => void;
@@ -137,6 +138,7 @@ export default function GlobalSubscriptionToggle({ onToggle }: GlobalSubscriptio
       );
 
       if (res?.success) {
+        useSubscriptionStore.getState().setGlobalSubscriptionEnabled(res.globalSubscriptionEnabled);
         setState(prev => ({
           ...prev,
           enabled: res.globalSubscriptionEnabled,
@@ -229,7 +231,7 @@ export default function GlobalSubscriptionToggle({ onToggle }: GlobalSubscriptio
       </div>
 
       <div className="text-xs text-gray-500 px-1">
-        Cliquez sur le bouton pour basculer l'état des abonnements. Quand les abonnements sont désactivés, tous les utilisateurs sont traités comme utilisateurs gratuits.
+        Cliquez sur le bouton pour basculer l'état des abonnements. Quand les abonnements sont désactivés, <strong>tous les utilisateurs (y compris non connectés)</strong> bénéficient d'un accès PRO gratuit à toutes les fonctionnalités sans restriction.
       </div>
     </div>
   );

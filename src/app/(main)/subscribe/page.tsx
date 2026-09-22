@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { useSubscriptionStore } from '@/stores/useSubscriptionStore';
 import { httpJson } from '@/app/api';
 import { Check, X, UploadSimple, Copy, ListChecks, Crown, WarningCircle, Spinner, PhoneCall, ArrowLeft, ArrowRight, DeviceMobile, ShieldCheck } from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
@@ -23,6 +24,7 @@ interface Plan {
 
 export default function SubscribePage() {
   const { user, token } = useAuthStore();
+  const globalSubscriptionEnabled = useSubscriptionStore((s) => s.globalSubscriptionEnabled);
   const router = useRouter();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);

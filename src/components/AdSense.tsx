@@ -2,16 +2,15 @@
 
 import { useEffect } from 'react';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { useSubscriptionStore, isUserSubscriber } from '@/stores/useSubscriptionStore';
 
 const ADSENSE_CLIENT_ID = 'ca-pub-8325042872748312';
 
 export default function AdSense() {
   const { user } = useAuthStore();
+  const globalSubscriptionEnabled = useSubscriptionStore((s) => s.globalSubscriptionEnabled);
 
-  const isSubscriber =
-    user?.role === 'admin' ||
-    ((user?.subscription?.plan === 'standard' || user?.subscription?.plan === 'premium') &&
-      user?.subscription?.status === 'active');
+  const isSubscriber = isUserSubscriber(user, globalSubscriptionEnabled);
 
   useEffect(() => {
     if (isSubscriber) {

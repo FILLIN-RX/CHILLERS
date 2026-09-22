@@ -9,6 +9,7 @@ import type { DownloadTask } from "@/types/download";
 import type { Episode } from "@/types/media";
 import { useDownloadsStore } from "@/store/downloads";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { useSubscriptionStore, isUserSubscriber } from "@/stores/useSubscriptionStore";
 
 const MAX_CONCURRENT = 2;
 const MAX_RETRIES = 2;
@@ -183,9 +184,8 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
       setStatus(task.id, "downloading");
 
       const user = useAuthStore.getState().user;
-      const isSubscriber =
-        user?.subscription?.status === "active" &&
-        (user.subscription.plan === "standard" || user.subscription.plan === "premium");
+      const globalSubEnabled = useSubscriptionStore.getState().globalSubscriptionEnabled;
+      const isSubscriber = isUserSubscriber(user, globalSubEnabled);
 
       try {
         if (isSubscriber) {

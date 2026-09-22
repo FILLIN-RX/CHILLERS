@@ -9,6 +9,7 @@ import { buildEpisodeFilename, downloadTaskId } from "@/lib/format";
 import type { DownloadTask, DownloadStatus } from "@/types/download";
 import { useDownloadsStore } from "@/store/downloads";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { useSubscriptionStore, isUserSubscriber } from "@/stores/useSubscriptionStore";
 
 /**
  * useDownload — drives a single-file download lifecycle.
@@ -253,9 +254,8 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
     const filename = taskRef.current?.filename ?? `download-${id}.mp4`;
     const titleStr = taskRef.current?.title ?? title;
     const user = useAuthStore.getState().user;
-    const isSubscriber =
-      user?.subscription?.status === "active" &&
-      (user.subscription.plan === "standard" || user.subscription.plan === "premium");
+    const globalSubEnabled = useSubscriptionStore.getState().globalSubscriptionEnabled;
+    const isSubscriber = isUserSubscriber(user, globalSubEnabled);
 
     try {
       setStatus(id, "downloading");
