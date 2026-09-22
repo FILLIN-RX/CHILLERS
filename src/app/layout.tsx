@@ -148,49 +148,46 @@ export default async function RootLayout({
         <link rel="preconnect" href="https://image.tmdb.org" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://image.tmdb.org" />
         {/*
-          Splash natif : injecté AVANT React pour s'afficher immédiatement au lancement de la PWA.
+          Splash natif : injecté AVANT React pour s'afficher immédiatement au lancement de la PWA/Web.
           Le composant React SplashScreen.tsx gère ensuite la disparition animée.
         */}
         <style dangerouslySetInnerHTML={{ __html: `
           #__chillers_splash {
             position:fixed;inset:0;z-index:99999;
-            display:flex;flex-direction:column;
-            align-items:center;justify-content:center;
+            display:flex;align-items:center;justify-content:center;
             background:#09090b;
             pointer-events:none;
           }
-          #__chillers_splash img {
+          #__chillers_splash .splash-spinner-box {
+            position:relative;
             width:96px;height:96px;
-            filter:drop-shadow(0 0 28px rgba(215,4,102,0.6));
-            animation:__csp 2s ease-in-out infinite;
+            border-radius:50%;
+            display:flex;align-items:center;justify-content:center;
+            padding:0;margin:0;
+            overflow:hidden;
           }
-          #__chillers_splash h1 {
-            margin:20px 0 32px;
-            font-size:28px;font-weight:900;
-            letter-spacing:.18em;text-transform:uppercase;
-            background:#d70466;
-            -webkit-background-clip:text;-webkit-text-fill-color:transparent;
-            background-clip:text;
+          #__chillers_splash .splash-spinner {
+            position:absolute;inset:0;
+            border-radius:50%;
+            border:3.5px solid rgba(255,255,255,0.08);
+            border-top-color:#d70466;
+            animation:__spin 0.85s linear infinite;
+            box-sizing:border-box;
+            z-index:2;
+            pointer-events:none;
           }
-          #__chillers_splash .bar-track {
-            width:120px;height:3px;
-            background:rgba(255,255,255,.1);
-            border-radius:99px;overflow:hidden;
+          #__chillers_splash .splash-logo {
+            width:100%;height:100%;
+            border-radius:50%;
+            object-fit:contain;
+            display:block;
+            padding:0;margin:0;
+            transform:scale(1.55) translateX(1px);
+            transform-origin:center center;
+            z-index:1;
           }
-          #__chillers_splash .bar-fill {
-            height:100%;
-            background:#d70466;
-            border-radius:99px;
-            animation:__clb 1.8s ease-in-out infinite;
-          }
-          @keyframes __csp {
-            0%,100%{transform:scale(1);filter:drop-shadow(0 0 28px rgba(215,4,102,.55));}
-            50%{transform:scale(1.07);filter:drop-shadow(0 0 44px rgba(215,4,102,.9));}
-          }
-          @keyframes __clb {
-            0%{width:0%;margin-left:0%}
-            50%{width:75%;margin-left:12%}
-            100%{width:0%;margin-left:100%}
+          @keyframes __spin {
+            to { transform: rotate(360deg); }
           }
         `}} />
       </head>
@@ -200,7 +197,7 @@ export default async function RootLayout({
         <div
           suppressHydrationWarning
           dangerouslySetInnerHTML={{
-            __html: `<div id="__chillers_splash" aria-hidden="true"><img src="/android-chrome-192x192.png" alt="" /><h1>CHILLERS</h1><div class="bar-track"><div class="bar-fill"></div></div><script>setTimeout(function(){var s=document.getElementById("__chillers_splash");if(s){s.style.transition="opacity 0.6s ease";s.style.opacity="0";setTimeout(function(){if(s&&s.parentNode)s.parentNode.removeChild(s);},600);}},3500);</script></div>`,
+            __html: `<div id="__chillers_splash" aria-hidden="true"><div class="splash-spinner-box"><div class="splash-spinner"></div><img class="splash-logo" src="/android-chrome-192x192.png" alt="" /></div><script>setTimeout(function(){var s=document.getElementById("__chillers_splash");if(s){s.style.transition="opacity 0.4s ease";s.style.opacity="0";setTimeout(function(){if(s&&s.parentNode)s.parentNode.removeChild(s);},400);}},3500);</script></div>`,
           }}
         />
         <SessionSyncProvider session={session}>

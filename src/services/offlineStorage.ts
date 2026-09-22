@@ -233,8 +233,18 @@ export async function streamVideoToIndexedDB(
   // 3. Mode standard (fetch stream via proxy backend)
   // On passe par le proxy pour éviter les erreurs CORS et ajouter User-Agent/Referer.
   const proxyUrlFallback = buildProxyUrl(url, filename);
+
+  // Demander la mise en veille de l'écran (Screen Wake Lock) pour éviter la suspension du JS sur iOS/mobile
+  let wakeLock: any = null;
+  if (typeof navigator !== "undefined" && "wakeLock" in navigator) {
+    try {
+      wakeLock = await (navigator as any).wakeLock.request("screen");
+    } catch (_) {}
+  }
+
   const res = await fetch(proxyUrlFallback, { signal });
   if (!res.ok || !res.body) {
+    if (wakeLock) { try { await wakeLock.release(); } catch (_) {} }
     throw new Error(`HTTP ${res.status} lors du téléchargement hors-ligne`);
   }
 
@@ -245,6 +255,7 @@ export async function streamVideoToIndexedDB(
   if (totalBytes && totalBytes > 0) {
     const quota = await getStorageQuota();
     if (quota && quota.availableBytes < totalBytes) {
+      if (wakeLock) { try { await wakeLock.release(); } catch (_) {} }
       throw new Error(`Espace insuffisant sur votre appareil (requis: ${Math.round(totalBytes / (1024 * 1024))} Mo)`);
     }
   }
@@ -285,6 +296,11 @@ export async function streamVideoToIndexedDB(
 
     return { success: true, totalBytes: bytesDownloaded };
   } finally {
+    if (wakeLock) {
+      try {
+        await wakeLock.release();
+      } catch (_) {}
+    }
     reader.releaseLock();
   }
 }
