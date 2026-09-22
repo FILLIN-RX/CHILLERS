@@ -157,8 +157,10 @@ export class DirectProvider implements StreamingProvider {
     if (m) return `https://doodstream.com/e/${m[1]}`;
     const uqload = lien.match(/uqload\.(?:is|com)\/(?:embed-?([a-zA-Z0-9]+)|([a-zA-Z0-9]+))/i);
     if (uqload) return `https://uqload.is/embed-${uqload[1] || uqload[2]}.html`;
-    const vidzy = lien.match(/vidzy\.(?:cc|org|xyz|co|tv|top)\/(?:embed-|d\/)([a-zA-Z0-9]+)/i);
-    if (vidzy) return `https://vidzy.cc/embed-${vidzy[1]}.html`;
+    if (!lien.includes('/v/')) {
+      const vidzy = lien.match(/vidzy\.(?:cc|org|xyz|co|tv|top)\/(?:embed-|d\/)([a-zA-Z0-9_-]{4,})/i);
+      if (vidzy) return `https://vidzy.cc/embed-${vidzy[1]}.html`;
+    }
     const st = lien.match(/streamtape\.com\/(?:e|v|f)\/([a-zA-Z0-9]+)/i);
     if (st) return `https://streamtape.com/e/${st[1]}`;
     return lien;

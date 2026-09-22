@@ -8,9 +8,10 @@ function toEmbedUrl(lien: string): string {
   const match = lien.match(/(?:doodstream\.com|playmogo\.com|d000d\.com|d0000d\.com|dood\.(?:to|sh|so|cx|la|wf|pm))\/(?:d|e)\/([a-zA-Z0-9]+)/i);
   if (match) return `https://doodstream.com/e/${match[1]}`;
   const stMatch = lien.match(/streamtape\.com\/(?:e|v|f)\/([a-zA-Z0-9]+)/i);
-  if (stMatch) return `https://streamtape.com/e/${stMatch[1]}`;
-  const vidzyMatch = lien.match(/vidzy\.(?:cc|org|xyz|co|tv|top)\/(?:embed-|d\/)([a-zA-Z0-9]+)/i);
-  if (vidzyMatch) return `https://vidzy.cc/embed-${vidzyMatch[1]}.html`;
+  if (!lien.includes('/v/')) {
+    const vidzyMatch = lien.match(/vidzy\.(?:cc|org|xyz|co|tv|top)\/(?:embed-|d\/)([a-zA-Z0-9_-]{4,})/i);
+    if (vidzyMatch) return `https://vidzy.cc/embed-${vidzyMatch[1]}.html`;
+  }
   return lien;
 }
 
