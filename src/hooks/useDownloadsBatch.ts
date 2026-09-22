@@ -162,7 +162,18 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
         return;
       }
 
-      updateTask(task.id, { resolvedUrl: result.downloadUrl });
+      const cleanName = (task.filename || `${seriesTitle}.mp4`).replace(/[^a-zA-Z0-9_\-]/g, '_');
+      const rawUrl = result.downloadUrl;
+      const isHls = /\.m3u8(\?|$)/i.test(rawUrl);
+      const isMp4 = /\.mp4(\?|$)/i.test(rawUrl);
+      let finalUrl = rawUrl;
+      if (isHls) {
+        finalUrl = `/api/download/stream?m3u8=${encodeURIComponent(rawUrl)}&filename=${encodeURIComponent(cleanName)}`;
+      } else if (isMp4 && rawUrl.startsWith('http')) {
+        finalUrl = `/api/download/file?url=${encodeURIComponent(rawUrl)}&filename=${encodeURIComponent(cleanName)}`;
+      }
+
+      updateTask(task.id, { resolvedUrl: finalUrl });
 
       if (argsRef.current.gated) {
         setStatus(task.id, "ready");
@@ -179,7 +190,7 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
       try {
         if (isSubscriber) {
           // Utilisateur Abonné : téléchargement fichier direct sur disque
-          await streamDownloadToDisk(result.downloadUrl, {
+          await streamDownloadToDisk(finalUrl, {
             filename: task.filename,
             signal: ctrl.signal,
             saveBlob: false,
@@ -196,7 +207,7 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
           });
         } else {
           // Utilisateur Gratuit : méthode YouTube dans IndexedDB
-          await streamVideoToIndexedDB(result.downloadUrl, {
+          await streamVideoToIndexedDB(finalUrl, {
             id: task.id,
             filename: task.filename,
             title: task.title,
@@ -220,7 +231,7 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
         console.warn(`[Download] Erreur stream pour ${task.filename}:`, streamErr);
         // Fallback sécurisé pour les abonnés : déclenchement du téléchargement direct navigateur
         if (isSubscriber && typeof window !== "undefined") {
-          const href = proxyDownloadHref(result.downloadUrl, task.filename);
+          const href = proxyDownloadHref(finalUrl, task.filename);
           const a = document.createElement("a");
           a.href = href;
           a.download = task.filename;
