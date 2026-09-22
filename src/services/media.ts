@@ -54,22 +54,23 @@ export function getTmdbImageUrl(
   const ultraLow = isUltraLowBandwidth();
   const weak = isSlowConnection();
 
-  if (original && !weak && !ultraLow) {
-    return `https://image.tmdb.org/t/p/w1280${path}`;
-  }
-
-  if (ultraLow) {
-    if (type === "backdrop") return `https://image.tmdb.org/t/p/w300${path}`;
-    if (type === "still") return `https://image.tmdb.org/t/p/w185${path}`;
-    return `https://image.tmdb.org/t/p/w185${path}`;
+  if (type === "poster") {
+    if (original && !weak && !ultraLow) return `https://image.tmdb.org/t/p/w780${path}`;
+    if (ultraLow) return `https://image.tmdb.org/t/p/w185${path}`;
+    return `https://image.tmdb.org/t/p/${weak ? "w185" : "w342"}${path}`;
   }
 
   if (type === "backdrop") {
-    return `https://image.tmdb.org/t/p/${weak ? "w300" : "w500"}${path}`;
+    if (original && !weak && !ultraLow) return `https://image.tmdb.org/t/p/w1280${path}`;
+    if (ultraLow) return `https://image.tmdb.org/t/p/w300${path}`;
+    return `https://image.tmdb.org/t/p/${weak ? "w300" : "w780"}${path}`;
   }
+
   if (type === "still") {
+    if (ultraLow) return `https://image.tmdb.org/t/p/w185${path}`;
     return `https://image.tmdb.org/t/p/${weak ? "w185" : "w300"}${path}`;
   }
+
   return `https://image.tmdb.org/t/p/${weak ? "w185" : "w342"}${path}`;
 }
 

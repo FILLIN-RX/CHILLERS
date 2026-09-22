@@ -12,11 +12,15 @@ const nextConfig: NextConfig = {
     ],
   },
   images: {
+    unoptimized: true,
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 86400,
     remotePatterns: [
       { protocol: "https", hostname: "image.tmdb.org" },
       { protocol: "https", hostname: "images.unsplash.com" },
+      { protocol: "https", hostname: "img.static-ottera.com" },
+      { protocol: "https", hostname: "img2.static-ottera.com" },
+      { protocol: "https", hostname: "cdnapisec.kaltura.com" },
     ],
   },
   async rewrites() {
