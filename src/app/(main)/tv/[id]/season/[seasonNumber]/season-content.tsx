@@ -9,6 +9,7 @@ import VideoPlayer from "@/components/VideoPlayer";
 import MovieCard from "@/components/MovieCard";
 import SeriesDownloadModal from "@/features/downloads/SeriesDownloadModal";
 import DownloadModal from "@/features/downloads/DownloadModal";
+import AuthModal from "@/components/AuthModal";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { userService } from "@/services/user";
@@ -34,6 +35,7 @@ export default function SeasonContent() {
   const [similar, setSimilar] = useState<MovieOrShow[]>([]);
   const [showSingleDownload, setShowSingleDownload] = useState(false);
   const [showBatchDownload, setShowBatchDownload] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
@@ -333,7 +335,13 @@ export default function SeasonContent() {
               {/* Boutons d'Action */}
               <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 pt-1">
                 <Button
-                  onClick={() => setShowSingleDownload(true)}
+                  onClick={() => {
+                    if (!user) {
+                      setIsAuthModalOpen(true);
+                      return;
+                    }
+                    setShowSingleDownload(true);
+                  }}
                   disabled={!currentEpisode}
                   variant="primary"
                   size="md"
@@ -343,7 +351,13 @@ export default function SeasonContent() {
                 />
 
                 <Button
-                  onClick={() => setShowBatchDownload(true)}
+                  onClick={() => {
+                    if (!user) {
+                      setIsAuthModalOpen(true);
+                      return;
+                    }
+                    setShowBatchDownload(true);
+                  }}
                   variant="dark"
                   size="md"
                   text="Télécharger la saison"
@@ -533,6 +547,10 @@ export default function SeasonContent() {
         />
       )}
 
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+      />
     </div>
   );
 }

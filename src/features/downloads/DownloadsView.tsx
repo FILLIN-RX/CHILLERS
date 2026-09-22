@@ -573,23 +573,36 @@ export default function DownloadsView({
           })}
         </div>
       ) : tasks.length === 0 ? (
-        /* ÉCRAN VIDE */
+        /* ÉCRAN VIDE / NON CONNECTÉ */
         <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
-          <div className="w-14 h-14 rounded-[3px] bg-zinc-900 flex items-center justify-center text-brand-primary shadow-xl">
+          <div className="w-14 h-14 rounded-full bg-brand-primary/15 border border-brand-primary/25 flex items-center justify-center text-brand-primary shadow-xl">
             <DownloadSimple className="w-7 h-7" />
           </div>
           <div>
-            <h3 className="text-base sm:text-lg font-bold text-white">Aucun téléchargement</h3>
+            <h3 className="text-base sm:text-lg font-bold text-white">
+              {!user ? "Connexion requise pour télécharger" : "Aucun téléchargement"}
+            </h3>
             <p className="text-xs text-zinc-400 mt-1 max-w-sm mx-auto">
-              Téléchargez vos films et épisodes pour les regarder partout sans connexion internet.
+              {!user
+                ? "Vous devez être connecté à votre compte CHILLERS pour télécharger des films et séries. Le streaming reste accessible gratuitement sans compte."
+                : "Téléchargez vos films et épisodes pour les regarder partout sans connexion internet."}
             </p>
           </div>
-          <Link
-            href="/"
-            className="px-4 py-2 rounded-[3px] bg-brand-primary hover:bg-[#b5034f] text-white text-xs font-bold transition-all shadow-md active:scale-95"
-          >
-            Explorer les films & séries
-          </Link>
+          {!user ? (
+            <button
+              onClick={() => router.push("/login")}
+              className="px-5 py-2.5 rounded-xl bg-brand-primary hover:bg-brand-primary/90 text-white text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer"
+            >
+              Se connecter
+            </button>
+          ) : (
+            <Link
+              href="/"
+              className="px-4 py-2 rounded-xl bg-brand-primary hover:bg-[#b5034f] text-white text-xs font-bold transition-all shadow-md active:scale-95"
+            >
+              Explorer les films & séries
+            </Link>
+          )}
         </div>
       ) : (
         /* AUCUN RÉSULTAT POUR LE FILTRE */

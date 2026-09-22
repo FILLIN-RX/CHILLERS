@@ -14,6 +14,7 @@ import {
 import type { MovieOrShow, Episode } from "@/types/media";
 import VideoPlayer from "@/components/VideoPlayer";
 import NotificationModal from "@/components/NotificationModal";
+import AuthModal from "@/components/AuthModal";
 import SeriesDownloadModal from "@/features/downloads/SeriesDownloadModal";
 import DownloadModal from "@/features/downloads/DownloadModal";
 import MovieCard from "@/components/MovieCard";
@@ -38,7 +39,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
   const searchParams = useSearchParams();
   const router = useRouter();
   const { translate: _ } = useLanguage();
-  const { token, updateUser } = useAuthStore();
+  const { token, user, updateUser } = useAuthStore();
 
   const id = params?.id as string;
   const typeParam = searchParams?.get("type");
@@ -68,6 +69,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
   const [showSingleDownload, setShowSingleDownload] = useState(false);
   const [selectedDownloadEpisode, setSelectedDownloadEpisode] = useState<Episode | null>(null);
   const [showBatchDownloadModal, setShowBatchDownloadModal] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [notification, setNotification] = useState<{ title: string; message: string } | null>(null);
 
   const playerRef = useRef<HTMLDivElement>(null);
@@ -440,6 +442,10 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
   }, [currentEpisodeIndex, playEpisode]);
 
   const handleDownloadSingle = (ep?: Episode) => {
+    if (!user) {
+      setIsAuthModalOpen(true);
+      return;
+    }
     if (ep) {
       setSelectedDownloadEpisode(ep);
     } else if (currentEpisode) {
@@ -731,7 +737,13 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
 
               {isTV ? (
                 <Button
-                  onClick={() => setShowBatchDownloadModal(true)}
+                  onClick={() => {
+                    if (!user) {
+                      setIsAuthModalOpen(true);
+                      return;
+                    }
+                    setShowBatchDownloadModal(true);
+                  }}
                   variant="primary"
                   size="md"
                   text={_("download.series")}
@@ -949,6 +961,11 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
           episode={isTV ? (selectedDownloadEpisode?.number || currentEpisode?.number || 1) : undefined}
         />
       )}
+
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+      />
     </div>
   );
 }

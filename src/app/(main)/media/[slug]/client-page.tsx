@@ -30,6 +30,7 @@ import { httpJson } from "@/services/http";
 import type { Genre, MovieOrShow } from "@/types/media";
 import GenreFilterBar from "@/components/GenreFilterBar";
 import NotificationModal from "@/components/NotificationModal";
+import AuthModal from "@/components/AuthModal";
 import DownloadModal from "@/features/downloads/DownloadModal";
 import UpgradeModal from "@/components/UpgradeModal";
 import ScrollRow from "@/components/ScrollRow";
@@ -214,6 +215,7 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
   const [showSingleDownload, setShowSingleDownload] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -252,8 +254,8 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
   };
 
   const handleDownload = () => {
-    if (!user || (user?.subscription?.features && !user.subscription.features.hasDownloads)) {
-      setShowUpgradeModal(true);
+    if (!user) {
+      setIsAuthModalOpen(true);
       return;
     }
     setShowSingleDownload(true);
@@ -864,6 +866,11 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
           backdropUrl={item.backdropUrl}
         />
       )}
+
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+      />
 
       {item && (
         <UpgradeModal
