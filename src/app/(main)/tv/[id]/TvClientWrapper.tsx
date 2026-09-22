@@ -344,8 +344,7 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
 
               <span className="text-zinc-600">•</span>
               <div className="flex items-center gap-1">
-                <span>{isUpcoming ? "Bientôt dispo" : firstYear}</span>
-                {lastYear && lastYear !== firstYear && <span> - {lastYear}</span>}
+                <span>{isUpcoming ? "Bientôt dispo" : displayYear}</span>
               </div>
 
               <span className="text-zinc-600">•</span>
