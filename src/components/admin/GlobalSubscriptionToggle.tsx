@@ -43,20 +43,19 @@ export default function GlobalSubscriptionToggle({ onToggle }: GlobalSubscriptio
   // Fetch current state on mount
   useEffect(() => {
     const fetchCurrentState = async () => {
-      if (!token) {
-        setState(prev => ({ ...prev, loading: false, error: 'Non autorisé' }));
-        return;
-      }
-
       try {
-        const res = await httpJson<GlobalStateResponse>(
-          '/admin/subscriptions/global-state',
-          {
-            headers: { Authorization: `Bearer ${token}` }
-          }
-        );
+        let res: GlobalStateResponse | null = null;
+        try {
+          res = await httpJson<GlobalStateResponse>(
+            '/admin/subscriptions/global-state',
+            token ? { headers: { Authorization: `Bearer ${token}` } } : {}
+          );
+        } catch {
+          res = await httpJson<GlobalStateResponse>('/api/subscriptions/global-state');
+        }
 
         if (res?.success) {
+          useSubscriptionStore.getState().setGlobalSubscriptionEnabled(res.globalSubscriptionEnabled);
           setState(prev => ({
             ...prev,
             enabled: res.globalSubscriptionEnabled,
@@ -67,15 +66,13 @@ export default function GlobalSubscriptionToggle({ onToggle }: GlobalSubscriptio
           setState(prev => ({
             ...prev,
             loading: false,
-            error: 'Erreur lors de la récupération de l\'état',
           }));
         }
       } catch (err) {
-        console.error('Error fetching global subscription state:', err);
+        console.warn('Fallback fetching global subscription state:', err);
         setState(prev => ({
           ...prev,
           loading: false,
-          error: 'Erreur lors de la récupération de l\'état',
         }));
       }
     };
@@ -128,14 +125,25 @@ export default function GlobalSubscriptionToggle({ onToggle }: GlobalSubscriptio
     }
 
     try {
-      const res = await httpJson<SetGlobalStateResponse>(
-        '/admin/subscriptions/global-state',
-        {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
-          body: { enabled: newState }
-        }
-      );
+      let res: SetGlobalStateResponse | null = null;
+      try {
+        res = await httpJson<SetGlobalStateResponse>(
+          '/admin/subscriptions/global-state',
+          {
+            method: 'POST',
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            body: { enabled: newState }
+          }
+        );
+      } catch {
+        res = await httpJson<SetGlobalStateResponse>(
+          '/api/subscriptions/global-state',
+          {
+            method: 'POST',
+            body: { enabled: newState }
+          }
+        );
+      }
 
       if (res?.success) {
         useSubscriptionStore.getState().setGlobalSubscriptionEnabled(res.globalSubscriptionEnabled);
@@ -147,7 +155,6 @@ export default function GlobalSubscriptionToggle({ onToggle }: GlobalSubscriptio
           error: undefined,
         }));
         onToggle?.(res.globalSubscriptionEnabled);
-        message.success(`Abonnements ${res.globalSubscriptionEnabled ? 'activés' : 'désactivés'} avec succès`);
       } else {
         // Revert on failure
         setState(prev => ({
@@ -156,7 +163,6 @@ export default function GlobalSubscriptionToggle({ onToggle }: GlobalSubscriptio
           loading: false,
           error: res?.message || 'Erreur lors de la mise à jour',
         }));
-        message.error('Erreur lors de la mise à jour');
       }
     } catch (err) {
       console.error('Error toggling subscription state:', err);
@@ -167,7 +173,6 @@ export default function GlobalSubscriptionToggle({ onToggle }: GlobalSubscriptio
         loading: false,
         error: 'Erreur lors de la mise à jour',
       }));
-      message.error('Erreur lors de la mise à jour');
     }
   };
 

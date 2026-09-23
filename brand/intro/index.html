@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>CHILLERS — Brand intro 3.5s</title>
+<script>if (new URLSearchParams(location.search).has('render')) document.documentElement.dataset.render = 'render';</script>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: #000; color: #e9e9ee;
+    font: 500 13px/1.5 ui-sans-serif, system-ui, Arial, sans-serif;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px;
+  }
+  #stage { position: relative; width: min(1100px, 92vw); aspect-ratio: 16 / 9; background: #0a0a0a;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.07), 0 40px 120px -30px rgba(244,42,124,.28); overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+  #ui { display: flex; align-items: center; gap: 12px; width: min(1100px, 92vw); }
+  button {
+    appearance: none; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.05);
+    color: #fff; font: inherit; font-weight: 700; padding: 8px 14px; border-radius: 2px; cursor: pointer;
+  }
+  button:hover { background: rgba(244,42,124,.18); border-color: #f42a7c; }
+  input[type=range] { flex: 1; accent-color: #f42a7c; }
+  #time { font-variant-numeric: tabular-nums; width: 92px; color: #9a9aa6; }
+  #hint { color: #6c6c78; font-size: 12px; }
+  #overlay { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.55);
+    backdrop-filter: blur(3px); cursor: pointer; }
+  #overlay div { border: 1px solid rgba(255,255,255,.2); padding: 14px 26px; border-radius: 2px; letter-spacing: .18em;
+    text-transform: uppercase; font-size: 12px; font-weight: 800; }
+  [hidden] { display: none !important; }
+  /* frame-exact rendering mode: the canvas fills the viewport 1:1 with its backing store */
+  html[data-render] body { display: block; padding: 0; margin: 0; min-height: 0; }
+  html[data-render] #stage { width: 100vw; height: 100vh; aspect-ratio: auto; box-shadow: none; }
+  html[data-render] #ui, html[data-render] #hint, html[data-render] #overlay { display: none; }
+</style>
+</head>
+<body>
+  <div id="stage">
+    <canvas id="c" width="1920" height="1080"></canvas>
+    <div id="overlay"><div>Lecture &nbsp;▶</div></div>
+  </div>
+  <div id="ui">
+    <button id="replay">Rejouer</button>
+    <input id="scrub" type="range" min="0" max="3.5" step="0.001" value="0" />
+    <span id="time">0.000 s</span>
+  </div>
+  <p id="hint">3,5 s · 16:9 · 60 fps · son de signature synthétisé (Web Audio)</p>
+
+<script src="./intro.js"></script>
+<script src="./audio.js"></script>
+<script>
+(async () => {
+  const RENDER_MODE = new URLSearchParams(location.search).has('render');
+  const canvas = document.getElementById('c');
+  await Intro.init(canvas);
+  window.__introReady = true;
+
+  if (RENDER_MODE) {
+    window.__seek = (t) => { Intro.seek(t); return t; };
+    window.__size = () => [canvas.width, canvas.height];
+    return;
+  }
+
+  const overlay = document.getElementById('overlay');
+  const scrub = document.getElementById('scrub');
+  const time = document.getElementById('time');
+  let raf = 0, t0 = 0, playing = false;
+
+  function show(t) {
+    Intro.seek(t);
+    scrub.value = t;
+    time.textContent = t.toFixed(3) + ' s';
+  }
+  function loop(now) {
+    const t = Math.min(Intro.duration, (now - t0) / 1000);
+    show(t);
+    if (t >= Intro.duration) { playing = false; return; }
+    raf = requestAnimationFrame(loop);
+  }
+  function start() {
+    cancelAnimationFrame(raf);
+    overlay.hidden = true;
+    IntroAudio.play().catch(() => {});
+    t0 = performance.now(); playing = true;
+    raf = requestAnimationFrame(loop);
+  }
+  overlay.addEventListener('click', start);
+  document.getElementById('replay').addEventListener('click', start);
+  scrub.addEventListener('input', (e) => { cancelAnimationFrame(raf); playing = false; show(+e.target.value); });
+  show(0);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="launch_black">#FF040406</color>
+    <color name="launch_core">#FF1B0715</color>
+    <color name="launch_mid">#FF0A030A</color>
+</resources>

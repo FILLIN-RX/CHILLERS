@@ -1,0 +1,39 @@
+// CHILLERS - playback + entitlement flow (current state, evidence-backed)
+// Generated 2026-09-22 by architecture-visualization:flow-visualizer + graphviz
+// Solid = confirmed by code. Dashed/red = the gap that makes the paywall cosmetic.
+digraph playback {
+    rankdir=TB;
+    fontname="Helvetica"; node [fontname="Helvetica", fontsize=11]; edge [fontname="Helvetica", fontsize=10];
+
+    seed [shape=box, label="User clicks Play\nsrc/app/(main)/watch/[id]/watch-content.tsx"];
+    hook [shape=box, label="useStreamUrl (client)\nhooks/useStreamUrl.ts:56-165\nraces 2 resolvers, first non-null wins"];
+    next [shape=box, label="Next.js rewrite\nnext.config.ts:55-57\n/api/:path* -> backendUrl"];
+    route [shape=box, label="GET /api/stream/movie/:id\nstreaming/streaming.routes.ts:7-8\nNO auth middleware"];
+    gate [shape=diamond, label="isRequestPremium()?\nstreaming.controller.ts:12-30"];
+    hdr [shape=box, style=filled, fillcolor="#ffb3b3", label="ATTACKER PATH\nheader x-is-premium: true\nOR ?is_premium=true\nline 15 -> returns true"];
+    jwt [shape=box, label="decode backend JWT\nauth.middleware.ts:13-43\nfallback secret 'change-me'"];
+    order [shape=box, label="sortProviders(isPremium)\nprovider-manager.ts:309-333\npremium => 1080p FrenchStream first"];
+    loop [shape=box, label="serial first-success scrape\nprovider-manager.ts:85-101\nLRU cache + circuit breaker :171-208"];
+    upstream [shape=cylinder, label="Upstream host\nFrenchStream / Flemmix / Otaku /\nDoodstream / Vidlink / AfrolandTV"];
+    heal [shape=box, label="self-heal on dead URL\nspawn('npx tsx on-demand-fetch.ts')\nprovider-manager.ts:345-369"];
+    play [shape=box, label="Player gets URL + quality\nVideoPlayer.tsx / hls.js"];
+    dead [shape=box, style=filled, fillcolor="#e6e6e6", label="UI gate (cosmetic only)\nUpgradeModal on HTTP 403\nVideoPlayer.tsx:211-216"];
+    unused [shape=box, style=dashed, color=red, label="premiumFeatureGate middleware\npremium-feature-gate.middleware.ts:32-74\nIMPORTED NOWHERE (dead code)"];
+
+    seed -> hook -> next -> route -> gate;
+    gate -> hdr [label="header present", color=red, penwidth=2.0, style=dashed];
+    gate -> jwt [label="else"];
+    hdr -> order [color=red, penwidth=2.0];
+    jwt -> order;
+    order -> loop -> upstream -> play;
+    loop -> heal [label="dead link", style=dashed];
+    heal -> upstream [label="re-scrape", style=dashed];
+    route -> dead [label="403 never fires for\na forged header", style=dashed, color=red];
+    jwt -> unused [label="would gate here\nif wired", style=dashed, color=red];
+
+    subgraph cluster_notes {
+        label="Evidence boundary"; style=rounded;
+        dl [shape=box, label="Download path has no auth either:\nGET /download/premium?title= -> res.redirect(streamUrl)\ndownload.routes.ts:250-275"];
+        ssrf [shape=box, label="SSRF surface:\nsrc/app/api/live/proxy/route.ts:10-40 (?url=, CORS *)\nsrc/lib/providers/afroland.ts:42 (unanchored regex)"];
+    }
+}

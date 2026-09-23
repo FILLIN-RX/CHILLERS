@@ -169,7 +169,8 @@ export default async function RootLayout({
             to { transform: rotate(360deg); }
           }
         `}} />
-
+      </head>
+      <body suppressHydrationWarning className="min-h-screen flex flex-col bg-brand-dark text-foreground selection:bg-brand-primary selection:text-white">
         {/* Google Tag (gtag.js) avec Consent Mode */}
         <Script
           strategy="afterInteractive"
@@ -196,8 +197,6 @@ export default async function RootLayout({
             `,
           }}
         />
-      </head>
-      <body suppressHydrationWarning className="min-h-screen flex flex-col bg-brand-dark text-foreground selection:bg-brand-primary selection:text-white">
         {/* Splash pré-React — retiré par SplashScreen.tsx une fois les données chargées */}
         {/* dangerouslySetInnerHTML : React ne touche JAMAIS aux enfants → zéro erreur insertBefore/removeChild */}
         <div

@@ -1,12 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Modify this file to customize your launch splash screen -->
+<!-- Chillers launch screen: radial cinematic stage matching the Flutter splash. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="?android:colorBackground" />
-
-    <!-- You can insert your own image assets here -->
-    <!-- <item>
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="radial"
+                android:centerX="0.5"
+                android:centerY="0.5"
+                android:gradientRadius="72%p"
+                android:startColor="@color/launch_core"
+                android:centerColor="@color/launch_mid"
+                android:endColor="@color/launch_black" />
+        </shape>
+    </item>
+    <item>
         <bitmap
+            android:src="@mipmap/launch_mark"
             android:gravity="center"
-            android:src="@mipmap/launch_image" />
-    </item> -->
+            android:dither="true" />
+    </item>
 </layer-list>

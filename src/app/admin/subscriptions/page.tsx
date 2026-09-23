@@ -8,8 +8,8 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import GlobalSubscriptionToggle from '@/components/admin/GlobalSubscriptionToggle';
 
 const toast = {
-  error: (msg: string) => message.error(msg),
-  success: (msg: string) => message.success(msg),
+  error: (msg: string) => console.error('[Toast Error]', msg),
+  success: (msg: string) => console.log('[Toast Success]', msg),
 };
 
 interface AuditLog {
@@ -37,7 +37,10 @@ export default function AdminSubscriptionsPage() {
   const { token } = useAuthStore();
 
   const fetchPlans = async () => {
-    if (!token) return;
+    if (!token) {
+      setLoading(false);
+      return;
+    }
     try {
       const res = await httpJson<{ success: boolean; plans: any[] }>('/admin/subscriptions', {
         headers: { Authorization: `Bearer ${token}` }
@@ -46,7 +49,7 @@ export default function AdminSubscriptionsPage() {
         setPlans(res.plans);
       }
     } catch (err) {
-      toast.error('Erreur lors de la récupération des abonnements');
+      console.warn('Erreur ou non autorisé pour la récupération des abonnements:', err);
     } finally {
       setLoading(false);
     }
@@ -63,7 +66,7 @@ export default function AdminSubscriptionsPage() {
         setAuditLogs(res.auditLogs);
       }
     } catch (err) {
-      console.error('Erreur lors de la récupération de l\'historique d\'audit', err);
+      console.warn('Erreur ou non autorisé pour l\'historique d\'audit:', err);
     } finally {
       setLoadingAudit(false);
     }
