@@ -194,7 +194,7 @@ export default function HomeSkeleton() {
             </div>
           </div>
 
-          <div className="flex gap-4 sm:gap-6 pl-3 sm:pl-5 overflow-hidden py-4">
+          <div className="flex gap-4 sm:gap-6 px-1 overflow-hidden pt-3 pb-6">
             {[1, 2, 3, 4, 5].map((num) => (
               <MovieCardSkeleton key={num} variant="top10" rank={num} />
             ))}
@@ -228,27 +228,36 @@ export default function HomeSkeleton() {
 
         {/* --------------------------------------------------------
             7. SPOTLIGHT GRID SKELETON
-            Mirrors SpotlightGrid.tsx (2x2 grid of wide cards)
+            Mirrors SpotlightGrid.tsx (2x2 grid of wide banner cards with poster on left)
             -------------------------------------------------------- */}
         <div className="w-full">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             {Array.from({ length: 4 }).map((_, i) => (
               <div
                 key={i}
-                className="relative overflow-hidden sm:rounded-2xl border-0 w-full min-h-[160px] sm:min-h-[340px] bg-zinc-900"
+                className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-white/5 bg-zinc-950/80 w-full flex flex-row items-stretch p-3 sm:p-4 gap-3 sm:gap-4"
               >
-                <div className="absolute inset-0 skeleton-loading" aria-hidden="true" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-90" />
+                {/* Left vertical poster skeleton */}
+                <div className="relative flex-none w-24 xs:w-28 sm:w-32 md:w-36 aspect-[2/3] rounded-xl sm:rounded-2xl overflow-hidden bg-zinc-900 shrink-0">
+                  <div className="absolute inset-0 skeleton-loading" aria-hidden="true" />
+                </div>
 
-                <div className="absolute inset-0 flex flex-col justify-end p-3 sm:p-5 z-10 space-y-2">
-                  <div className="h-5 sm:h-7 w-1/2 rounded bg-zinc-700/60 animate-pulse" />
-                  <div className="hidden sm:block space-y-1.5 max-w-sm">
-                    <div className="h-3.5 w-full rounded bg-zinc-700/40 animate-pulse" />
-                    <div className="h-3.5 w-2/3 rounded bg-zinc-700/40 animate-pulse" />
+                {/* Right metadata skeleton */}
+                <div className="flex-1 flex flex-col justify-between py-1 min-w-0 space-y-2">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className="h-4 w-12 rounded bg-zinc-800 animate-pulse" />
+                      <div className="h-4 w-10 rounded bg-zinc-800 animate-pulse" />
+                    </div>
+                    <div className="h-5 sm:h-6 w-3/4 rounded bg-zinc-700/60 animate-pulse" />
+                    <div className="space-y-1 pt-1">
+                      <div className="h-3 w-full rounded bg-zinc-800/60 animate-pulse" />
+                      <div className="h-3 w-4/5 rounded bg-zinc-800/40 animate-pulse" />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 pt-1">
-                    <div className="h-7 w-20 rounded bg-brand-primary/50 animate-pulse" />
-                    <div className="h-7 w-20 rounded bg-white/10 animate-pulse" />
+                  <div className="flex items-center gap-2 pt-2">
+                    <div className="h-7 w-20 rounded-lg bg-brand-primary/40 animate-pulse" />
+                    <div className="h-7 w-16 rounded-lg bg-white/10 animate-pulse" />
                   </div>
                 </div>
               </div>

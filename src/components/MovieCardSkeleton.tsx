@@ -20,17 +20,17 @@ export default function MovieCardSkeleton({
   if (isTop10) {
     return (
       <div
-        className={`relative flex-none w-[180px] sm:w-[220px] md:w-[260px] flex items-end shrink-0 snap-start select-none ${className}`}
+        className={`relative flex-none flex items-end shrink-0 snap-start select-none ${className}`}
       >
         {/* Number outline */}
-        <div className="absolute left-[-20px] sm:left-[-30px] bottom-[-20px] sm:bottom-[-25px] z-10 select-none pointer-events-none">
-          <span className="text-[120px] sm:text-[160px] font-black leading-none -tracking-[0.08em] text-transparent [-webkit-text-stroke:3px_rgba(255,255,255,0.25)] drop-shadow-2xl">
+        <div className="relative z-10 select-none flex items-end leading-none pointer-events-none">
+          <span className="text-[100px] sm:text-[130px] md:text-[150px] font-black leading-[0.75] -tracking-[0.08em] text-transparent [-webkit-text-stroke:3px_rgba(255,255,255,0.2)] drop-shadow-2xl">
             {rank}
           </span>
         </div>
 
         {/* Poster Skeleton */}
-        <div className="relative z-20 w-[120px] sm:w-[150px] md:w-[170px] aspect-[2/3] ml-[60px] sm:ml-[80px] rounded-xl overflow-hidden shadow-2xl bg-zinc-950">
+        <div className="relative z-20 w-[115px] sm:w-[135px] md:w-[155px] aspect-[2/3] -ml-5 sm:-ml-7 md:-ml-8 rounded-xl overflow-hidden shadow-2xl bg-zinc-950 border border-white/5">
           <div className="absolute inset-0 skeleton-loading" aria-hidden="true" />
           <div className="absolute top-2 right-2 z-10 h-3.5 w-10 rounded bg-white/10 backdrop-blur-md" />
         </div>
