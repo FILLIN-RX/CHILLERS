@@ -201,6 +201,12 @@ Priority: MEDIUM
 - Error handling with fail-safe defaults
 
 ### Not Yet Implemented ⏳
+- [ ] **Scraper Matchs Multi-Sources & Refonte Streaming Live (PRIORITÉ HAUTE)** :
+  - Créer un scraper multi-fournisseurs (LiveBall + SportSurge + StreamEast + FootyBite + KooraLive / YallaShoot + DaddyLive) pour ne plus dépendre uniquement de LiveBall
+  - Système de bascule automatique (Failover / Multi-CDN) en cas de flux mort ou lent
+  - Optimisation du relais HLS : contourner le transit lourd des segments vidéo (.ts) par le backend Render pour éliminer la latence et le buffering
+  - Extraction de flux multi-langues (commentaires en Français, Arabe, Anglais)
+  - Détection automatique des statuts de diffusion (Live réel vs Iframe publicitaire)
 - [ ] Real-time WebSocket updates for subscription state changes (optional)
 - [ ] Distributed Redis caching (can use in-memory for now)
 - [ ] Multi-instance load balancing (use Render's auto-scaling)

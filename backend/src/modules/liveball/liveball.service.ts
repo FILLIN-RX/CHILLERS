@@ -58,50 +58,98 @@ function xorDecodeToken(token: string): string {
   return out;
 }
 
-// liveball.sx est derrière un challenge Cloudflare (JA3/TLS fingerprinting) :
-// axios/node-fetch sont systématiquement bloqués (403 "Just a moment..."),
-// alors que curl (HTTP/2) avec des headers correct passe souvent.
-// On essaie curl d'abord, puis axios comme fallback.
-async function fetchHtmlWithCurl(url: string): Promise<string> {
+const FLARESOLVERR_URL = process.env.FLARESOLVERR_URL;
+const LIVEBALL_PROXY = process.env.LIVEBALL_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
+export const LIVEBALL_BASE_DOMAINS = [
+  process.env.LIVEBALL_DOMAIN || 'liveball.sx',
+  'liveball.im',
+  'liveball.uno',
+  'liveball.is',
+];
+
+/**
+ * Tente de résoudre une requête via une instance FlareSolverr si configurée
+ */
+async function fetchWithFlareSolverr(
+  url: string,
+  method: 'GET' | 'POST' = 'GET',
+  postData?: Record<string, any>
+): Promise<string | null> {
+  if (!FLARESOLVERR_URL) return null;
   try {
-    // Try curl with comprehensive browser-like headers
-    const { stdout } = await execFileAsync(
-      'curl',
-      [
-        '-sSL',
-        '--http2',  // Use HTTP/2
-        '-A', USER_AGENT,
-        '-H', 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-        '-H', 'Accept-Language: en-US,en;q=0.9,fr;q=0.8,ru;q=0.7',
-        '-H', 'Accept-Encoding: gzip, deflate, br',
-        '-H', 'DNT: 1',
-        '-H', 'Connection: keep-alive',
-        '-H', 'Upgrade-Insecure-Requests: 1',
-        '-H', 'Sec-Fetch-Dest: document',
-        '-H', 'Sec-Fetch-Mode: navigate',
-        '-H', 'Sec-Fetch-Site: none',
-        '-H', 'Sec-Fetch-User: ?1',
-        '-H', 'Sec-Ch-Ua: "Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
-        '-H', 'Sec-Ch-Ua-Mobile: ?0',
-        '-H', 'Sec-Ch-Ua-Platform: "Linux"',
-        '-H', 'Cache-Control: max-age=0',
-        '--compressed',
-        '--max-time', '20',
-        url,
-      ],
-      { maxBuffer: 4 * 1024 * 1024 }
-    );
-    
+    const payload: Record<string, any> = {
+      cmd: method === 'POST' ? 'request.post' : 'request.get',
+      url,
+      maxTimeout: 30_000,
+    };
+    if (method === 'POST' && postData) {
+      payload.postData = typeof postData === 'string' ? postData : JSON.stringify(postData);
+      payload.headers = { 'Content-Type': 'application/json' };
+    }
+
+    const { data } = await axios.post(FLARESOLVERR_URL, payload, { timeout: 35_000 });
+    if (data?.status === 'ok' && data.solution?.response) {
+      return data.solution.response;
+    }
+  } catch (err: any) {
+    console.warn(`[LiveBall] FlareSolverr request failed for ${url}:`, err?.message || err);
+  }
+  return null;
+}
+
+// liveball.sx est derrière un challenge Cloudflare (JA3/TLS fingerprinting) :
+// On essaie : 1) FlareSolverr si présent, 2) curl avec proxy (si défini) ou direct, 3) axios
+async function fetchHtmlWithCurl(url: string): Promise<string> {
+  // 1. FlareSolverr si configuré
+  if (FLARESOLVERR_URL) {
+    const solverRes = await fetchWithFlareSolverr(url, 'GET');
+    if (solverRes && solverRes.length > 500 && !solverRes.includes('Just a moment')) {
+      return solverRes;
+    }
+  }
+
+  // 2. cURL avec proxy si configuré
+  try {
+    const curlArgs = [
+      '-sSL',
+      '--http2',
+      '-A', USER_AGENT,
+      '-H', 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+      '-H', 'Accept-Language: en-US,en;q=0.9,fr;q=0.8,ru;q=0.7',
+      '-H', 'Accept-Encoding: gzip, deflate, br',
+      '-H', 'DNT: 1',
+      '-H', 'Connection: keep-alive',
+      '-H', 'Upgrade-Insecure-Requests: 1',
+      '-H', 'Sec-Fetch-Dest: document',
+      '-H', 'Sec-Fetch-Mode: navigate',
+      '-H', 'Sec-Fetch-Site: none',
+      '-H', 'Sec-Fetch-User: ?1',
+      '-H', 'Sec-Ch-Ua: "Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+      '-H', 'Sec-Ch-Ua-Mobile: ?0',
+      '-H', 'Sec-Ch-Ua-Platform: "Linux"',
+      '-H', 'Cache-Control: max-age=0',
+      '--compressed',
+      '--max-time', '20',
+    ];
+
+    if (LIVEBALL_PROXY) {
+      curlArgs.push('-x', LIVEBALL_PROXY);
+    }
+
+    curlArgs.push(url);
+
+    const { stdout } = await execFileAsync('curl', curlArgs, { maxBuffer: 4 * 1024 * 1024 });
+
     // Check if we got Cloudflare challenge instead of real content
     if (stdout.includes('Just a moment') || stdout.includes('challenges.cloudflare.com') || stdout.includes('error code') || stdout.trim().length < 500) {
       throw new Error('Cloudflare challenge or empty response detected');
     }
-    
+
     return stdout;
   } catch (curlErr) {
-    // Fallback: try axios with different user agent
+    // 3. Fallback: try axios with different user agent
     try {
-      const { data } = await axios.get<string>(url, {
+      const axiosConfig: any = {
         headers: {
           'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
           Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
@@ -117,16 +165,31 @@ async function fetchHtmlWithCurl(url: string): Promise<string> {
         timeout: 15_000,
         responseType: 'text',
         maxRedirects: 10,
-      });
-      
+      };
+
+      if (LIVEBALL_PROXY) {
+        // Axios proxy URL parsing
+        try {
+          const u = new URL(LIVEBALL_PROXY);
+          axiosConfig.proxy = {
+            protocol: u.protocol.replace(':', ''),
+            host: u.hostname,
+            port: parseInt(u.port || (u.protocol === 'https:' ? '443' : '80'), 10),
+            auth: u.username ? { username: u.username, password: u.password } : undefined,
+          };
+        } catch {}
+      }
+
+      const { data } = await axios.get<string>(url, axiosConfig);
+
       if (data.includes('Just a moment') || data.includes('challenges.cloudflare.com')) {
         throw new Error('Cloudflare challenge detected in axios response');
       }
-      
+
       return data;
     } catch (axiosErr) {
-      console.error(`[LiveBall] Fetch failed. curl: ${curlErr instanceof Error ? curlErr.message : 'unknown'}, axios: ${axiosErr instanceof Error ? axiosErr.message : 'unknown'}`);
-      throw new Error('Unable to bypass Cloudflare - LiveBall.sx is blocking access');
+      console.error(`[LiveBall] Fetch failed for ${url}. curl: ${curlErr instanceof Error ? curlErr.message : 'unknown'}, axios: ${axiosErr instanceof Error ? axiosErr.message : 'unknown'}`);
+      throw new Error('Unable to bypass Cloudflare - LiveBall is blocking access');
     }
   }
 }
@@ -680,14 +743,17 @@ export async function resolveLiveBallStream(matchId: string, forceRefresh = fals
     // Try resolving with each candidate token until one succeeds
     for (const token of candidateTokens) {
       const body = JSON.stringify({ t: token, f: '0' });
-
       let stdout: string | null = null;
 
-      // Try curl with HTTP/2 and proper headers first
-      try {
-        const result = await execFileAsync(
-          'curl',
-          [
+      // 1. FlareSolverr si configuré
+      if (FLARESOLVERR_URL) {
+        stdout = await fetchWithFlareSolverr('https://liveball.sx/api/c/r', 'POST', { t: token, f: '0' });
+      }
+
+      // 2. Try curl with HTTP/2, proxy and proper headers
+      if (!stdout) {
+        try {
+          const curlArgs = [
             '-sSL',
             '--http2',
             '--compressed',
@@ -705,18 +771,20 @@ export async function resolveLiveBallStream(matchId: string, forceRefresh = fals
             '-X', 'POST',
             '--data-raw', body,
             '--max-time', '12',
-            'https://liveball.sx/api/c/r',
-          ],
-          { maxBuffer: 2 * 1024 * 1024 }
-        );
-        stdout = result.stdout;
-      } catch (curlErr) {
-        // Fallback to axios
-        try {
-          const { data } = await axios.post<string | StreamResponse>(
-            'https://liveball.sx/api/c/r',
-            { t: token, f: '0' },
-            {
+          ];
+
+          if (LIVEBALL_PROXY) {
+            curlArgs.push('-x', LIVEBALL_PROXY);
+          }
+
+          curlArgs.push('https://liveball.sx/api/c/r');
+
+          const result = await execFileAsync('curl', curlArgs, { maxBuffer: 2 * 1024 * 1024 });
+          stdout = result.stdout;
+        } catch (curlErr) {
+          // 3. Fallback to axios
+          try {
+            const axiosConfig: any = {
               headers: {
                 'User-Agent': USER_AGENT,
                 'Content-Type': 'application/json',
@@ -727,10 +795,28 @@ export async function resolveLiveBallStream(matchId: string, forceRefresh = fals
                 'DNT': '1',
               },
               timeout: 12_000,
+            };
+
+            if (LIVEBALL_PROXY) {
+              try {
+                const u = new URL(LIVEBALL_PROXY);
+                axiosConfig.proxy = {
+                  protocol: u.protocol.replace(':', ''),
+                  host: u.hostname,
+                  port: parseInt(u.port || (u.protocol === 'https:' ? '443' : '80'), 10),
+                  auth: u.username ? { username: u.username, password: u.password } : undefined,
+                };
+              } catch {}
             }
-          );
-          stdout = typeof data === 'string' ? data : JSON.stringify(data);
-        } catch (_) {}
+
+            const { data } = await axios.post<string | StreamResponse>(
+              'https://liveball.sx/api/c/r',
+              { t: token, f: '0' },
+              axiosConfig
+            );
+            stdout = typeof data === 'string' ? data : JSON.stringify(data);
+          } catch (_) {}
+        }
       }
 
       if (!stdout) continue;
