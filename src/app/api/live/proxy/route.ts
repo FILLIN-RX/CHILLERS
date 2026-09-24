@@ -6,6 +6,25 @@ export const runtime = "nodejs";
 const USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36";
 
+function extractTargetUrl(rawParam: string): string {
+  let cur = rawParam.trim();
+  // Unwrap any nested proxy wrappers
+  while (cur.includes("/api/live/proxy?url=") || cur.includes("proxy%3Furl%3D")) {
+    try {
+      const decoded = decodeURIComponent(cur);
+      const match = decoded.match(/proxy\?url=(https?:\/\/[^\s&]+)/i);
+      if (match && match[1]) {
+        cur = match[1];
+      } else {
+        break;
+      }
+    } catch {
+      break;
+    }
+  }
+  return cur;
+}
+
 export async function GET(request: NextRequest) {
   const urlParam = request.nextUrl.searchParams.get("url");
 
@@ -13,9 +32,11 @@ export async function GET(request: NextRequest) {
     return new NextResponse("Missing url parameter", { status: 400 });
   }
 
+  const cleanUrl = extractTargetUrl(urlParam);
+
   let targetUrl: URL;
   try {
-    targetUrl = new URL(urlParam);
+    targetUrl = new URL(cleanUrl);
   } catch {
     return new NextResponse("Invalid URL parameter", { status: 400 });
   }
@@ -26,13 +47,8 @@ export async function GET(request: NextRequest) {
     const headers: Record<string, string> = {
       "User-Agent": USER_AGENT,
       Accept: "*/*",
+      Referer: refererParam || `${targetUrl.protocol}//${targetUrl.host}/`,
     };
-
-    if (refererParam) {
-      headers["Referer"] = refererParam;
-    } else {
-      headers["Referer"] = `${targetUrl.protocol}//${targetUrl.host}/`;
-    }
 
     const response = await fetch(targetUrl.toString(), {
       headers,

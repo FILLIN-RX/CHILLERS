@@ -18,6 +18,8 @@ interface LivePlayerProps {
 const PROXY_BASE = "/api/live/proxy";
 
 function buildProxyUrl(url: string): string {
+  if (!url) return "";
+  if (url.includes("/api/live/proxy")) return url;
   return `${PROXY_BASE}?url=${encodeURIComponent(url)}`;
 }
 
@@ -25,7 +27,9 @@ const BaseLoader: any = (Hls as any).DefaultConfig?.loader;
 
 class ProxiedHlsLoader extends BaseLoader {
   load(context: any, config: any, callbacks: any) {
-    if (context?.url) context.url = buildProxyUrl(context.url);
+    if (context?.url && !context.url.includes("/api/live/proxy")) {
+      context.url = buildProxyUrl(context.url);
+    }
     super.load(context, config, callbacks);
   }
 }
@@ -207,17 +211,18 @@ export default function LivePlayer({
       liveSyncDurationCount: lowLatency ? 1 : 3,
       liveMaxLatencyDurationCount: lowLatency ? 2 : 6,
     };
-    if (proxyMode && BaseLoader) {
-      config.loader = ProxiedHlsLoader;
-      config.pLoader = ProxiedHlsLoader;
-    }
-
     const isCorsRestricted = Boolean(
       (channel as any).proxy ||
       channel.streamUrl?.includes('amagi.tv') ||
       channel.streamUrl?.includes('wurl.com') ||
       channel.streamUrl?.includes('edgesuite.net')
     );
+
+    if ((proxyMode || isCorsRestricted) && BaseLoader) {
+      config.loader = ProxiedHlsLoader;
+      config.pLoader = ProxiedHlsLoader;
+    }
+
     const effectiveUrl = (proxyMode || isCorsRestricted)
       ? buildProxyUrl(channel.streamUrl)
       : channel.streamUrl;

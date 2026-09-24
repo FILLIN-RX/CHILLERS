@@ -186,9 +186,20 @@ function isBlockedUrl(raw) {
         host.endsWith('.internal'));
 }
 export async function proxyStream(url, opts = {}) {
+    // Si l'URL a été doublement encapsulée, on extrait l'URL cible
+    while (typeof url === 'string' && url.includes('/api/live/proxy?url=')) {
+        const m = url.match(/\/api\/live\/proxy\?url=(.+)$/);
+        if (m) {
+            url = decodeURIComponent(m[1]);
+        } else {
+            break;
+        }
+    }
+
     if (!/^https?:\/\//i.test(url) || isBlockedUrl(url)) {
         throw new Error('URL invalide ou interdite');
     }
+
     const headers = {
         'User-Agent': opts.userAgent || DEFAULT_UA,
         Accept: '*/*',

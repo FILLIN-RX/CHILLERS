@@ -213,25 +213,93 @@ function extractMinute(block: string): string | undefined {
 // LiveBall affiche les noms d'équipes en russe (cyrillique). On mappe les
 // clubs connus vers leur nom officiel, puis on translittère le reste.
 const TEAM_NAMES: Record<string, string> = {
-  // UEFA Champions League (matchs actuels)
-  'АЕК Афины': 'AEK Athens',
+  // Sélections Nationales & Pays (Noms populaires FR/EN)
+  'Южная Корея': 'Corée du Sud',
+  'Северная Корея': 'Corée du Nord',
+  'Нидерланды': 'Pays-Bas',
+  'Бельгия': 'Belgique',
+  'Китай': 'Chine',
+  'Мальдивы': 'Maldives',
+  'Намибия': 'Namibie',
+  'Конго': 'Congo',
+  'ДР Конго': 'RD Congo',
+  'Узбекистан': 'Ouzbékistan',
+  'Иран': 'Iran',
+  'Румыния': 'Roumanie',
+  'Венгрия': 'Hongrie',
+  'ОАЭ': 'Émirats Arabes Unis',
+  'Йемен': 'Yémen',
+  'Андорра': 'Andorre',
+  'Мальта': 'Malte',
+  'Эквадор': 'Équateur',
+  'Экваториальная Гвинея': 'Guinée Équatoriale',
+  'Ливия': 'Libye',
+  'Ботсвана': 'Botswana',
+  'Мавритания': 'Mauritanie',
+  'ЦАР': 'Centrafrique',
+  'Франция': 'France',
+  'Испания': 'Espagne',
+  'Германия': 'Allemagne',
+  'Италия': 'Italie',
+  'Англия': 'Angleterre',
+  'Португалия': 'Portugal',
+  'Бразиlia': 'Brésil',
+  'Бразилия': 'Brésil',
+  'Аргентина': 'Argentine',
+  'Марокко': 'Maroc',
+  'Алжир': 'Algérie',
+  'Тунис': 'Tunisie',
+  'Сенегал': 'Sénégal',
+  'Кот-д’Ивуар': "Côte d'Ivoire",
+  'Кот-д-Ивуар': "Côte d'Ivoire",
+  'Камерун': 'Cameroun',
+  'Нигерия': 'Nigéria',
+  'Гана': 'Ghana',
+  'Египет': 'Égypte',
+  'Колумбия': 'Colombie',
+  'Уругвай': 'Uruguay',
+  'Чили': 'Chili',
+  'Перу': 'Pérou',
+  'Мексика': 'Mexique',
+  'США': 'USA',
+  'Канада': 'Canada',
+  'Япония': 'Japon',
+  'Швейцария': 'Suisse',
+  'Швеция': 'Suède',
+  'Норвегия': 'Norvège',
+  'Дания': 'Danemark',
+  'Польша': 'Pologne',
+  'Хорватия': 'Croatie',
+  'Сербия': 'Serbie',
+  'Турция': 'Turquie',
+  'Греция': 'Grèce',
+  'Австрия': 'Autriche',
+  'Чехия': 'Tchéquie',
+  'Украина': 'Ukraine',
+  'Уэльс': 'Pays de Galles',
+  'Шотландия': 'Écosse',
+
+  // UEFA Champions League & Grands Clubs
+  'АЕК Афины': 'AEK Athènes',
   'Ласк': 'LASK',
-  'Брюгге': 'Club Brugge',
+  'Брюгге': 'Club Bruges',
   'Астон Вилла': 'Aston Villa',
   'Боруссия Д': 'Borussia Dortmund',
+  'Боруссия Дортмунд': 'Borussia Dortmund',
   'Вильярреал': 'Villarreal',
   'Порту': 'FC Porto',
   'Манчестер Сити': 'Manchester City',
-  'Лилль': 'Lille',
+  'Лилль': 'Lille OSC',
   'Реал Бетис': 'Real Betis',
   'Реал Мадрид': 'Real Madrid',
   'Интер': 'Inter Milan',
-  'Барселона': 'Barcelona',
+  'Барселона': 'FC Barcelone',
   'Фейеноорд': 'Feyenoord',
   'Штутгарт': 'VfB Stuttgart',
   'Викинг': 'Viking',
   'Ливерпуль': 'Liverpool',
-  'Атлетико Мадрид': 'Atlético Madrid',
+  'Атлетико Мадрид': 'Atlético de Madrid',
+  'Атлетико': 'Atlético de Madrid',
   'Наполи': 'Napoli',
   'Арсенал': 'Arsenal',
   'ПСЖ': 'Paris Saint-Germain',
@@ -239,7 +307,7 @@ const TEAM_NAMES: Record<string, string> = {
   'Спортинг': 'Sporting CP',
   'Галатасарай': 'Galatasaray',
   'Фенербахче': 'Fenerbahçe',
-  'Рома': 'Roma',
+  'Рома': 'AS Roma',
   'ПСВ': 'PSV Eindhoven',
   'Шахтер': 'Shakhtar Donetsk',
   'Бавария': 'Bayern Munich',
@@ -249,82 +317,72 @@ const TEAM_NAMES: Record<string, string> = {
   'Манчестер Юнайтед': 'Manchester United',
   'Сабах': 'Sabah',
   'Славия Прага': 'Slavia Prague',
-  'Ланс': 'Lens',
-  // Équipes de jeunes (suffixe U-XX)
-  'Брюгге (U-19)': 'Club Brugge (U-19)',
-  'Астон Вилла (U-19)': 'Aston Villa (U-19)',
-  'Лилль (U-19)': 'Lille (U-19)',
-  'Реал Бетис (U-19)': 'Real Betis (U-19)',
-  'Боруссия Д (U-19)': 'Borussia Dortmund (U-19)',
-  'Вильярреал (U-19)': 'Villarreal (U-19)',
-  'Реал Мадрид (U-19)': 'Real Madrid (U-19)',
-  'Интер (U-19)': 'Inter Milan (U-19)',
-  // Sélections (jeunes femmes)
-  'Бенин U-20 (жен)': 'Benin U-20 (Women)',
-  'Аргентина U-20 (жен)': 'Argentina U-20 (Women)',
-  'Бразилия U-20 (жен)': 'Brazil U-20 (Women)',
-  'Канада U-20 (жен)': 'Canada U-20 (Women)',
-  'Англия U-20 (жен)': 'England U-20 (Women)',
-  'Танзания U-20 (жен)': 'Tanzania U-20 (Women)',
-  // Autres ligues / coupes vues sur la homepage
-  'Равшан': 'Ravshan',
-  'Регар-ТадАЗ': 'Regar-TadAZ',
-  'Худжанд': 'Khujand',
-  'Рязань': 'Ryazan',
-  'Спартак Кострома': 'Spartak Kostroma',
-  'Вардарац': 'Vardarac',
-  'Хайдук': 'Hajduk Split',
-  'Истра': 'Istra',
+  'Ланс': 'RC Lens',
+  'Марсель': 'Olympique de Marseille',
+  'Лион': 'Olympique Lyonnais',
+  'Ницца': 'OGC Nice',
+  'Ренн': 'Stade Rennais',
+  'Монако': 'AS Monaco',
+  'Ювентус': 'Juventus',
+  'Милан': 'AC Milan',
+  'Лацио': 'Lazio Rome',
+  'Аталанта': 'Atalanta Bergame',
+  'Фиорентина': 'Fiorentina',
+  'Тоттенхэм': 'Tottenham Hotspur',
+  'Челси': 'Chelsea FC',
+  'Эвертон': 'Everton',
+  'Ньюкасл': 'Newcastle United',
+  'Вест Хэм': 'West Ham',
+  'Аякс': 'Ajax Amsterdam',
+  'АЗ Алкмар': 'AZ Alkmaar',
+  'Твенте': 'Twente',
+  'Реал Сосьедад': 'Real Sociedad',
+  'Севилья': 'FC Séville',
+  'Валенсия': 'Valence CF',
+  'Атлетик Бильбао': 'Athletic Bilbao',
+  'Бенфика': 'Benfica Lisbonne',
+  'Байер': 'Bayer Leverkusen',
+  'Боруссия М': 'Borussia Mönchengladbach',
+  'Вольфсбург': 'VfL Wolfsburg',
+  'Франкфурт': 'Eintracht Francfort',
+  'Бешикташ': 'Beşiktaş',
+  'Трабзонспор': 'Trabzonspor',
+  'Базель': 'FC Bâle',
+  'Янг Бойз': 'Young Boys',
+  'Црвена Звезда': 'Étoile Rouge de Belgrade',
+  'Партизан': 'Partizan Belgrade',
+  'Рейнджерс': 'Rangers FC',
+  'Селтик': 'Celtic Glasgow',
+  'Гент': 'La Gantoise',
+  'Андерлехт': 'Anderlecht',
+  'Динамо Киев': 'Dynamo Kiev',
+  'Динамо Загреб': 'Dinamo Zagreb',
+  'Зенит': 'Zénith Saint-Pétersbourg',
+  'ЦСКА': 'CSKA Moscou',
+  'Спартак Москва': 'Spartak Moscou',
+  'Локомотив Москва': 'Lokomotiv Moscou',
+  'Краснодар': 'FC Krasnodar',
+  'Ростов': 'FK Rostov',
+
+  // Clubs saoudiens & Moyen-Orient
   'Аль-Иттифак': 'Al-Ettifaq',
   'Аль-Фейсали': 'Al-Faisaly',
   'Аль-Хазм': 'Al-Hazem',
   'Аль-Таавун': 'Al-Taawoun',
-  // Clubs majeurs (couverture courante)
-  'Динамо Киев': 'Dynamo Kyiv',
-  'Динамо Загреб': 'Dinamo Zagreb',
-  'Зенит': 'Zenit',
-  'ЦСКА': 'CSKA Moscow',
-  'Спартак Москва': 'Spartak Moscow',
-  'Локомотив Москва': 'Lokomotiv Moscow',
-  'Краснодар': 'Krasnodar',
-  'Ростов': 'Rostov',
-  'Ювентус': 'Juventus',
-  'Милан': 'AC Milan',
-  'Лацио': 'Lazio',
-  'Аталанта': 'Atalanta',
-  'Фиорентина': 'Fiorentina',
-  'Тоттенхэм': 'Tottenham',
-  'Челси': 'Chelsea',
-  'Эвертон': 'Everton',
-  'Ньюкасл': 'Newcastle',
-  'Вест Хэм': 'West Ham',
-  'Аякс': 'Ajax',
-  'АЗ Алкмар': 'AZ Alkmaar',
-  'Твенте': 'Twente',
-  'Реал Сосьедад': 'Real Sociedad',
-  'Севилья': 'Sevilla',
-  'Валенсия': 'Valencia',
-  'Атлетик Бильбао': 'Athletic Bilbao',
-  'Бенфика': 'Benfica',
-  'Байер': 'Bayer Leverkusen',
-  'Боруссия М': 'Borussia Mönchengladbach',
-  'Вольфсбург': 'Wolfsburg',
-  'Франкфурт': 'Eintracht Frankfurt',
-  'Монако': 'Monaco',
-  'Марсель': 'Marseille',
-  'Лион': 'Lyon',
-  'Ницца': 'Nice',
-  'Ренн': 'Rennes',
-  'Бешикташ': 'Beşiktaş',
-  'Трабзонспор': 'Trabzonspor',
-  'Базель': 'Basel',
-  'Янг Бойз': 'Young Boys',
-  'Црвена Звезда': 'Red Star Belgrade',
-  'Партизан': 'Partizan Belgrade',
-  'Рейнджерс': 'Rangers',
-  'Селтик': 'Celtic',
-  'Гент': 'Gent',
-  'Андерлехт': 'Anderlecht',
+  'Аль-Хиляль': 'Al-Hilal',
+  'Аль-Наср': 'Al-Nassr',
+  'Аль-Иттихад': 'Al-Ittihad',
+  'Аль-Ахли': 'Al-Ahli',
+
+  // Clubs israéliens (Хапоэль / Маккаби)
+  'Хапоэль Акко': 'Hapoel Acre',
+  'Хапоэль Афула': 'Hapoel Afula',
+  'Хапоэль Ришон-ле-Цион': 'Hapoel Rishon LeZion',
+  'Маккаби Ахи Назарет': 'Maccabi Ahi Nazareth',
+  'Маккаби Тель-Авив': 'Maccabi Tel-Aviv',
+  'Маккаби Хайфа': 'Maccabi Haïfa',
+  'Хапоэль Тель-Авив': 'Hapoel Tel-Aviv',
+  'Хапоэль Беэр-Шева': 'Hapoel Beer-Sheva',
 };
 
 const CYRILLIC_MAP: Record<string, string> = {
@@ -341,20 +399,34 @@ function transliterate(name: string): string {
   });
 }
 
-// Traduit les noms d'équipes russes vers leurs noms officiels :
-// dictionnaire d'abord, puis translittération, puis suffixes (U-19, féminin).
+// Traduit les noms d'équipes russes vers leurs noms populaires et officiels
 function normalizeTeamName(name: string): string {
   const trimmed = name.trim();
   if (TEAM_NAMES[trimmed]) return TEAM_NAMES[trimmed];
 
-  let n = trimmed
-    .replace(/\(жен\)/g, '(Women)')
-    .replace(/\(мол\)/g, '(U-21)');
+  const uMatch = trimmed.match(/\s*\((U-?\d+)\)/i);
+  const isWomen = trimmed.includes('(жен)') || trimmed.toLowerCase().includes('(women)');
+  const isU21 = trimmed.includes('(мол)');
 
-  const translit = transliterate(n);
-  if (translit === n) return n;
-  // Met en majuscule le premier caractère de chaque mot translittéré.
-  return translit.replace(/(^|\s|-)([a-z])/g, (m, p, c) => p + c.toUpperCase());
+  const baseName = trimmed
+    .replace(/\s*\((U-?\d+)\)/gi, '')
+    .replace(/\s*\(жен\)/gi, '')
+    .replace(/\s*\(мол\)/gi, '')
+    .replace(/\s*\(Women\)/gi, '')
+    .trim();
+
+  let translatedBase = TEAM_NAMES[baseName];
+  if (!translatedBase) {
+    const translit = transliterate(baseName);
+    translatedBase = translit.replace(/(^|\s|-)([a-z])/g, (m, p, c) => p + c.toUpperCase());
+  }
+
+  let suffix = '';
+  if (uMatch) suffix += ` (${uMatch[1].toUpperCase()})`;
+  if (isU21) suffix += ' (U-21)';
+  if (isWomen) suffix += ' (Féminin)';
+
+  return `${translatedBase}${suffix}`.trim();
 }
 
 // Sur les pages /league/... les logos sont lazy-loadés : `src` est un GIF

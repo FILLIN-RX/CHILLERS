@@ -3,12 +3,108 @@
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
+import { ArrowRight } from "@phosphor-icons/react";
 import {
   getLiveBallMatches,
   getLiveBallLeagueMatches,
   getLiveBallLiveAvailable,
 } from "@/services/liveball";
 import type { LiveBallMatch } from "@/types/liveball";
+
+function SoccerBallIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <polygon points="12 7 15 9.5 14 13.5 10 13.5 9 9.5 12 7" fill="currentColor" fillOpacity="0.25" />
+      <path d="M12 2v5" />
+      <path d="M21.5 8.5l-4.5 1" />
+      <path d="M18.5 19.5l-3.5-3" />
+      <path d="M5.5 19.5l3.5-3" />
+      <path d="M2.5 8.5l4.5 1" />
+    </svg>
+  );
+}
+
+function LivePulseIcon() {
+  return (
+    <span className="relative flex h-2 w-2 shrink-0">
+      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+      <span className="relative inline-flex rounded-full h-2 w-2 bg-red-600" />
+    </span>
+  );
+}
+
+function TrophyIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+      <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+      <path d="M4 22h16" />
+      <path d="M10 14.66V17c0 .55-.45 1-1 1H8c-.55 0-1 .45-1 1v1c0 .55.45 1 1 1h8c.55 0 1-.45 1-1v-1c0-.55-.45-1-1-1h-1c-.55 0-1-.45-1-1v-2.34" />
+      <path d="M6 2v7a6 6 0 0 0 12 0V2H6z" fill="#00E5FF" fillOpacity="0.2" />
+    </svg>
+  );
+}
+
+function EnglandFlagIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={`${className} rounded-full overflow-hidden shrink-0 shadow-sm`} viewBox="0 0 512 512">
+      <circle cx="256" cy="256" r="256" fill="#f5f5f5" />
+      <path d="M216 0h80v512h-80z" fill="#ce1124" />
+      <path d="M0 216h512v80H0z" fill="#ce1124" />
+    </svg>
+  );
+}
+
+function SpainFlagIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={`${className} rounded-full overflow-hidden shrink-0 shadow-sm`} viewBox="0 0 512 512">
+      <circle cx="256" cy="256" r="256" fill="#c60b1e" />
+      <path d="M0 128h512v256H0z" fill="#ffc400" />
+    </svg>
+  );
+}
+
+function ItalyFlagIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={`${className} rounded-full overflow-hidden shrink-0 shadow-sm`} viewBox="0 0 512 512">
+      <circle cx="256" cy="256" r="256" fill="#009246" />
+      <path d="M170.6 0h170.8v512H170.6z" fill="#f5f5f5" />
+      <path d="M341.4 0H512v512H341.4z" fill="#ce2b37" />
+    </svg>
+  );
+}
+
+function GermanyFlagIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={`${className} rounded-full overflow-hidden shrink-0 shadow-sm`} viewBox="0 0 512 512">
+      <circle cx="256" cy="256" r="256" fill="#ffcc00" />
+      <path d="M0 0h512v341.4H0z" fill="#ff0000" />
+      <path d="M0 0h512v170.6H0z" fill="#1a1a1a" />
+    </svg>
+  );
+}
+
+function FranceFlagIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={`${className} rounded-full overflow-hidden shrink-0 shadow-sm`} viewBox="0 0 512 512">
+      <circle cx="256" cy="256" r="256" fill="#002395" />
+      <path d="M170.6 0h170.8v512H170.6z" fill="#f5f5f5" />
+      <path d="M341.4 0H512v512H341.4z" fill="#ed2939" />
+    </svg>
+  );
+}
+
+const LEAGUE_TABS = [
+  { id: "all", label: "Tous les Matchs", icon: SoccerBallIcon },
+  { id: "live", label: "En Direct", icon: LivePulseIcon },
+  { id: "cl", label: "Champions League", icon: TrophyIcon, slug: "champions-league" },
+  { id: "pl", label: "Premier League", icon: EnglandFlagIcon, slug: "premier-league" },
+  { id: "liga", label: "La Liga", icon: SpainFlagIcon, slug: "la-liga" },
+  { id: "seriea", label: "Serie A", icon: ItalyFlagIcon, slug: "serie-a" },
+  { id: "bundesliga", label: "Bundesliga", icon: GermanyFlagIcon, slug: "bundesliga" },
+  { id: "ligue1", label: "Ligue 1", icon: FranceFlagIcon, slug: "ligue-1" },
+];
 
 function formatMatchTime(ts?: number): string {
   if (!ts) return "Bientôt";
@@ -66,17 +162,6 @@ function TeamCrest({ src, alt }: { src?: string; alt: string }) {
     />
   );
 }
-
-const LEAGUE_TABS = [
-  { id: "all", label: "Tous les Matchs", icon: "⚽" },
-  { id: "live", label: "En Direct", icon: "🔴" },
-  { id: "cl", label: "Champions League", icon: "🏆", slug: "champions-league" },
-  { id: "pl", label: "Premier League", icon: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", slug: "premier-league" },
-  { id: "liga", label: "La Liga", icon: "🇪🇸", slug: "la-liga" },
-  { id: "seriea", label: "Serie A", icon: "🇮🇹", slug: "serie-a" },
-  { id: "bundesliga", label: "Bundesliga", icon: "🇩🇪", slug: "bundesliga" },
-  { id: "ligue1", label: "Ligue 1", icon: "🇫🇷", slug: "ligue-1" },
-];
 
 export default function LiveMatchesRow({
   title = "Matchs de Football en Direct",
@@ -161,18 +246,19 @@ export default function LiveMatchesRow({
             {title}
           </h2>
           {liveCount > 0 && (
-            <span className="text-[11px] font-black uppercase tracking-wider text-red-500 animate-pulse">
-              • {liveCount} En Direct
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-red-500">
+              <span className="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+              {liveCount} En Direct
             </span>
           )}
         </div>
 
         <Link
           href="/live"
-          className="text-xs sm:text-sm font-semibold text-zinc-400 hover:text-white flex items-center gap-1 group transition-colors focus:outline-none shrink-0 self-end sm:self-auto"
+          className="text-xs sm:text-sm font-semibold text-zinc-400 hover:text-white flex items-center gap-1.5 group transition-colors focus:outline-none shrink-0 self-end sm:self-auto"
         >
           <span>Voir tout le Live</span>
-          <span className="transition-transform group-hover:translate-x-0.5">→</span>
+          <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
         </Link>
       </div>
 
@@ -180,17 +266,18 @@ export default function LiveMatchesRow({
       <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2 pt-0.5 px-1">
         {LEAGUE_TABS.map((tab) => {
           const isSelected = activeLeague === tab.id;
+          const TabIcon = tab.icon;
           return (
             <button
               key={tab.id}
               onClick={() => setActiveLeague(tab.id)}
-              className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 focus:outline-none cursor-pointer ${
+              className={`shrink-0 flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 focus:outline-none cursor-pointer ${
                 isSelected
-                  ? "bg-brand-primary text-white shadow-md shadow-brand-primary/20 scale-[1.02]"
+                  ? "bg-red-600 text-white shadow-md shadow-red-600/30 scale-[1.02]"
                   : "bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10"
               }`}
             >
-              <span>{tab.icon}</span>
+              <TabIcon className="w-4 h-4" />
               <span>{tab.label}</span>
             </button>
           );
@@ -200,7 +287,7 @@ export default function LiveMatchesRow({
       {/* Match Cards Row - No background on cards, pure red live indicator */}
       {isLoadingLeague && leagueSlug ? (
         <div className="py-8 px-4 rounded-2xl bg-zinc-900/40 text-center flex items-center justify-center gap-2">
-          <span className="w-4 h-4 border-2 border-brand-primary border-t-transparent rounded-full animate-spin" />
+          <span className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
           <p className="text-xs text-zinc-400 font-medium">Chargement des matchs de la compétition...</p>
         </div>
       ) : filteredMatches.length === 0 ? (
@@ -235,11 +322,18 @@ export default function LiveMatchesRow({
                   <span
                     className={`text-[10px] font-black uppercase tracking-wider ${
                       isLive
-                        ? "text-red-500 animate-pulse"
+                        ? "text-red-500 flex items-center gap-1"
                         : "text-zinc-500"
                     }`}
                   >
-                    {isLive ? "● DIRECT" : formatMatchTime(m.startTs)}
+                    {isLive ? (
+                      <>
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                        DIRECT
+                      </>
+                    ) : (
+                      formatMatchTime(m.startTs)
+                    )}
                   </span>
                 </div>
 
@@ -248,7 +342,7 @@ export default function LiveMatchesRow({
                   {/* Home Team */}
                   <div className="flex-1 flex flex-col items-center text-center min-w-0">
                     <TeamCrest src={m.homeLogo} alt={m.home} />
-                    <p className="mt-1.5 text-[11px] font-bold text-white truncate w-full group-hover:text-brand-primary transition-colors">
+                    <p className="mt-1.5 text-[11px] font-bold text-white truncate w-full group-hover:text-red-400 transition-colors">
                       {m.home}
                     </p>
                   </div>
@@ -267,7 +361,7 @@ export default function LiveMatchesRow({
                   {/* Away Team */}
                   <div className="flex-1 flex flex-col items-center text-center min-w-0">
                     <TeamCrest src={m.awayLogo} alt={m.away} />
-                    <p className="mt-1.5 text-[11px] font-bold text-white truncate w-full group-hover:text-brand-primary transition-colors">
+                    <p className="mt-1.5 text-[11px] font-bold text-white truncate w-full group-hover:text-red-400 transition-colors">
                       {m.away}
                     </p>
                   </div>
@@ -276,9 +370,9 @@ export default function LiveMatchesRow({
                 {/* Card Bottom: Watch CTA for Live, or Date & Time for non-live */}
                 <div className="mt-2.5 pt-2 flex items-center justify-center text-center">
                   {isLive ? (
-                    <div className="flex items-center gap-1 text-[11px] font-bold text-red-500 group-hover:text-red-400 transition-colors">
+                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-red-500 group-hover:text-red-400 transition-colors">
                       <span>Regarder le direct</span>
-                      <span>→</span>
+                      <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
                     </div>
                   ) : (
                     <span className="text-[11px] font-semibold text-zinc-400 group-hover:text-zinc-200 transition-colors">

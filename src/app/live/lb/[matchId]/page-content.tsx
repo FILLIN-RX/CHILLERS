@@ -210,7 +210,7 @@ export default function LiveBallMatchContent() {
             <div className="flex flex-wrap items-center justify-center gap-3">
               <button
                 onClick={retry}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-[#D70466] hover:bg-[#b5034f] text-white text-xs font-black uppercase tracking-wider transition-all"
+                className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-red-600 hover:bg-red-700 text-white text-xs font-black uppercase tracking-wider transition-all"
               >
                 <ArrowsClockwise className="h-4 w-4" />
                 Actualiser
@@ -220,7 +220,7 @@ export default function LiveBallMatchContent() {
                 className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-wider transition-all"
               >
                 {shareCopied ? (
-                  <Check className="h-4 w-4 text-[#D70466]" />
+                  <Check className="h-4 w-4 text-red-500" />
                 ) : (
                   <ShareNetwork className="h-4 w-4" />
                 )}
@@ -235,20 +235,8 @@ export default function LiveBallMatchContent() {
               </a>
             </div>
 
-            <div className="flex flex-wrap items-center justify-center gap-3">
-              <a
-                href={`https://liveball.sx/match/${matchId}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-wider transition-all"
-              >
-                <Television className="h-4 w-4" />
-                Voir sur liveball.sx
-              </a>
-            </div>
-
             <p className="text-[11px] text-zinc-600 flex items-center gap-1.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#D70466] animate-pulse" />
+              <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
               Vérification automatique du flux toutes les 30 secondes
             </p>
           </div>
@@ -256,31 +244,41 @@ export default function LiveBallMatchContent() {
       )}
 
       {/* ── Match sans flux disponible / introuvable ─────────────────── */}
-      {!isLoading && !stream && !isUpcoming && !liveFallbackMode && (
-        <div className="w-full h-full flex flex-col items-center justify-center gap-4 bg-black/90 px-6 text-center">
-          <div className="h-16 w-16 rounded-full bg-red-600/20 border border-red-500/30 flex items-center justify-center">
-            <Television className="h-8 w-8 text-red-500" />
+      {!isLoading && !stream && !isUpcoming && (
+        <div className="w-full h-full flex flex-col items-center justify-center gap-6 bg-black/95 px-6 text-center">
+          <div className="h-20 w-20 rounded-full bg-red-600/15 border border-red-500/30 flex items-center justify-center text-red-500 shadow-2xl">
+            <Television className="h-10 w-10" />
           </div>
-          <h3 className="text-xl font-bold text-white">Aucune diffusion disponible</h3>
-          <p className="text-sm text-zinc-400 max-w-md">
-            {match ? `${match.home} - ${match.away} : ` : "Match introuvable. "}
-            aucun flux n&apos;a pu être trouvé pour ce match. Il est peut-être terminé, ou
-            la diffusion n&apos;a pas encore commencé.
-          </p>
+
+          <div className="max-w-lg space-y-2">
+            <h3 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">
+              Flux vidéo non détecté
+            </h3>
+            <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
+              {match ? (
+                <>
+                  La diffusion directe pour <strong className="text-white">{match.home} vs {match.away}</strong> n&apos;est pas encore disponible ou le signal source est momentanément interrompu.
+                </>
+              ) : (
+                "Aucun flux vidéo direct actif n'a pu être extrait pour cette rencontre."
+              )}
+            </p>
+          </div>
+
           <div className="flex flex-wrap items-center justify-center gap-3">
             <button
               onClick={retry}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-[#D70466] hover:bg-[#b5034f] text-white text-xs font-black uppercase tracking-wider transition-all"
+              className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-red-600 hover:bg-red-700 text-white text-xs font-black uppercase tracking-wider transition-all shadow-lg shadow-red-600/20"
             >
               <ArrowsClockwise className="h-4 w-4" />
-              Réessayer
+              Réessayer la connexion
             </button>
             <button
               onClick={handleShare}
               className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-wider transition-all"
             >
               {shareCopied ? (
-                <Check className="h-4 w-4 text-[#D70466]" />
+                <Check className="h-4 w-4 text-red-500" />
               ) : (
                 <ShareNetwork className="h-4 w-4" />
               )}
@@ -294,19 +292,15 @@ export default function LiveBallMatchContent() {
               Retour aux directs
             </a>
           </div>
-          <a
-            href={`https://liveball.sx/match/${matchId}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-wider transition-all"
-          >
-            <Television className="h-4 w-4" />
-            Voir la diffusion sur liveball.sx
-          </a>
+
+          <p className="text-[11px] text-zinc-500 flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-red-500 animate-ping" />
+            Nouvelle tentative automatique de détection du signal toutes les 30s
+          </p>
         </div>
       )}
 
-      {/* ── Flux au format "player à embarquer" (iframe) ────────────── */}
+      {/* ── Flux au format "player à embarquer" (iframe directe sans pub) ────────────── */}
       {embedUrl && (
         <div className="absolute inset-0 bg-black">
           <iframe
@@ -319,48 +313,7 @@ export default function LiveBallMatchContent() {
         </div>
       )}
 
-      {/* ── Dernier recours : match live mais résolution backend échouée ── */}
-      {/* La page liveball.sx complète n'est PAS en plein écran : contenu dans
-          un lecteur 16:9, bord énoncé, avec la barre "En direct" au-dessus. */}
-      {liveFallbackMode && (
-        <div className="absolute inset-0 bg-black">
-          <div className="h-full w-full flex flex-col sm:justify-center gap-4 px-4 py-6 sm:py-10 overflow-y-auto no-scrollbar">
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              {match && (
-                <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full bg-white/10 text-zinc-300 border border-white/10">
-                  {leagueLabel(match.league)}
-                </span>
-              )}
-              <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full bg-[#D70466] text-white">
-                En direct
-              </span>
-            </div>
-
-            <div className="relative w-full max-w-5xl mx-auto aspect-video rounded-xl overflow-hidden border border-white/10 bg-black shadow-2xl ring-1 ring-white/5">
-              <iframe
-                src={`https://liveball.sx/match/${matchId}`}
-                title={match ? `${match.home} - ${match.away} · En direct` : "Match en direct"}
-                className="h-full w-full border-0"
-                allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-                allowFullScreen
-              />
-            </div>
-
-            <div className="flex flex-wrap items-center justify-center gap-3">
-              <a
-                href={`https://liveball.sx/match/${matchId}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-wider transition-all"
-              >
-                <ShareNetwork className="h-4 w-4" />
-                Voir sur liveball.sx
-              </a>
-            </div>
-          </div>
-        </div>
-      )}
-
+      {/* ── Flux natif HLS via LivePlayer ────────────────────────────── */}
       {channel && (
         <div className="absolute inset-0">
           <LivePlayer channel={channel} fill onBack={() => (window.location.href = "/live")} />
