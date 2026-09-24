@@ -42,6 +42,8 @@ const app = express();
 
 const allowedOrigins = [
   'https://chillers-pi.vercel.app',
+  'https://chillers.site',
+  'https://www.chillers.site',
   ...(process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map(o => o.trim().replace(/\/$/, '')) : []),
   'http://localhost:3000',
   'http://localhost:3001',
@@ -52,7 +54,14 @@ const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
     const normalizedOrigin = origin.replace(/\/$/, '');
-    if (allowedOrigins.includes(normalizedOrigin) || normalizedOrigin === 'https://chillers-pi.vercel.app') {
+    
+    // Vérification directe ou wildcard chillers.site / vercel.app
+    if (
+      allowedOrigins.includes(normalizedOrigin) ||
+      normalizedOrigin.endsWith('.chillers.site') ||
+      normalizedOrigin.endsWith('.vercel.app') ||
+      normalizedOrigin.endsWith('chillers.onrender.com')
+    ) {
       return callback(null, true);
     }
     return callback(new Error(`CORS non autorisé pour l'origine: ${origin}`));

@@ -59,7 +59,7 @@ function xorDecodeToken(token: string): string {
 }
 
 const FLARESOLVERR_URL = process.env.FLARESOLVERR_URL;
-const LIVEBALL_PROXY = process.env.LIVEBALL_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
+const LIVEBALL_PROXY = (process.env.LIVEBALL_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY || '').trim();
 export const LIVEBALL_BASE_DOMAINS = [
   process.env.LIVEBALL_DOMAIN || 'liveball.sx',
   'liveball.im',
