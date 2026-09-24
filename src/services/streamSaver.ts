@@ -87,12 +87,6 @@ export async function streamDownloadToDisk(
     return { totalBytes: null };
   }
 
-  await ensureStreamSaverReady();
-  const ss = await getStreamSaver();
-
-  const fileStream = (ss as any).createWriteStream(filename);
-  const writer = fileStream.getWriter();
-
   // Combine the caller's signal with an internal timeout so a stuck server
   // doesn't hang the download forever.
   const timeoutCtrl = new AbortController();
@@ -115,6 +109,17 @@ export async function streamDownloadToDisk(
     }
 
     const totalBytes = parseContentLength(res.headers.get("content-length"));
+
+    await ensureStreamSaverReady();
+    const ss = await getStreamSaver();
+
+    // Fournir la taille totale exacte (size & Content-Length) pour que le gestionnaire de téléchargement
+    // du navigateur (Chrome / Edge / Firefox) affiche la barre de progression native au lieu de "Resuming..."
+    const fileStream = (ss as any).createWriteStream(filename, {
+      size: totalBytes || undefined,
+      headers: totalBytes ? { 'Content-Length': String(totalBytes) } : undefined,
+    });
+    const writer = fileStream.getWriter();
 
     // Throttled progress reporting & chunk accumulation if saveBlob requested
     let lastEmit = 0;

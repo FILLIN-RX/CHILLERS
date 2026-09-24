@@ -587,9 +587,9 @@ export async function scrapeDirectStream(embedUrl: string, preferHls = false): P
  *
  * Retourne le lien HLS (master.m3u8) si trouvé, null sinon.
  */
-export async function scrapeUqloadEmbedDirect(fileCode: string): Promise<DirectStreamResult | null> {
+export async function scrapeUqloadEmbedDirect(fileCode: string, preferHls = false): Promise<DirectStreamResult | null> {
   const embedPageUrl = `https://uqload.is/embed-${fileCode}.html`;
-  console.log(`${TAG} scrapeUqloadEmbedDirect: code=${fileCode}, fetch de ${embedPageUrl}`);
+  console.log(`${TAG} scrapeUqloadEmbedDirect: code=${fileCode}, preferHls=${preferHls}, fetch de ${embedPageUrl}`);
 
   try {
     const t0 = Date.now();
@@ -600,51 +600,69 @@ export async function scrapeUqloadEmbedDirect(fileCode: string): Promise<DirectS
     });
     console.log(`${TAG} scrapeUqloadEmbedDirect: page reçue en ${Date.now() - t0}ms (status=${status}, length=${html.length})`);
 
-    // Priority 1: P.A.C.K.E.R. obfuscated JS — contient les URLs HLS signées
+    // Priority 1: P.A.C.K.E.R. obfuscated JS
     console.log(`${TAG} scrapeUqloadEmbedDirect: S1 — décodage P.A.C.K.E.R...`);
     const decoded = decodePacker(html);
     if (decoded) {
-      // Cherche d'abord les .m3u8 (HLS) dans le PACKER
-      const hlsUrls = decoded.match(/(https?:\/\/[^\s"'<>]+\.m3u8[^\s"'<>]*)/gi) || [];
-      for (const raw of hlsUrls) {
-        const urlMatch = raw.match(/(https?:\/\/[^\s"'<>]+)/i);
-        if (urlMatch) {
-          console.log(`${TAG} scrapeUqloadEmbedDirect: S1 ✅ HLS trouvé dans P.A.C.K.E.R. → ${urlMatch[1].slice(0, 150)}`);
-          return { directUrl: urlMatch[1], type: 'hls', referer: embedPageUrl };
+      if (preferHls) {
+        // Mode Streaming : HLS en priorité
+        const hlsUrls = decoded.match(/(https?:\/\/[^\s"'<>]+\.m3u8[^\s"'<>]*)/gi) || [];
+        for (const raw of hlsUrls) {
+          const urlMatch = raw.match(/(https?:\/\/[^\s"'<>]+)/i);
+          if (urlMatch) {
+            console.log(`${TAG} scrapeUqloadEmbedDirect: S1 ✅ HLS trouvé dans P.A.C.K.E.R. → ${urlMatch[1].slice(0, 150)}`);
+            return { directUrl: urlMatch[1], type: 'hls', referer: embedPageUrl };
+          }
         }
       }
-      // Fallback : MP4 dans le PACKER
+
+      // Mode Download ou fallback : MP4 direct
       const mp4Urls = decoded.match(/(?:file|src)\s*[:=]\s*["']?(https?:\/\/[^\s"'<>]+\.mp4[^\s"'<>]*)/gi) || [];
       for (const raw of mp4Urls) {
         const urlMatch = raw.match(/(https?:\/\/[^\s"'<>]+)/i);
         if (urlMatch) {
-          console.log(`${TAG} scrapeUqloadEmbedDirect: S1 MP4 trouvé dans P.A.C.K.E.R. → ${urlMatch[1].slice(0, 150)}`);
+          console.log(`${TAG} scrapeUqloadEmbedDirect: S1 ✅ MP4 direct trouvé dans P.A.C.K.E.R. → ${urlMatch[1].slice(0, 150)}`);
           return { directUrl: urlMatch[1], type: 'mp4', referer: embedPageUrl };
         }
       }
-      console.log(`${TAG} scrapeUqloadEmbedDirect: S1 ❌ P.A.C.K.E.R. décodé mais pas d'URL HLS/MP4 vidéo`);
-    } else {
-      console.log(`${TAG} scrapeUqloadEmbedDirect: S1 ❌ pas de bloc P.A.C.K.E.R.`);
+
+      if (!preferHls) {
+        // Fallback HLS si aucun MP4 trouvé dans P.A.C.K.E.R.
+        const hlsUrls = decoded.match(/(https?:\/\/[^\s"'<>]+\.m3u8[^\s"'<>]*)/gi) || [];
+        for (const raw of hlsUrls) {
+          const urlMatch = raw.match(/(https?:\/\/[^\s"'<>]+)/i);
+          if (urlMatch) {
+            console.log(`${TAG} scrapeUqloadEmbedDirect: S1 ✅ HLS (fallback) trouvé dans P.A.C.K.E.R. → ${urlMatch[1].slice(0, 150)}`);
+            return { directUrl: urlMatch[1], type: 'hls', referer: embedPageUrl };
+          }
+        }
+      }
     }
 
-    // Priority 2: .m3u8 directement dans le HTML brut
-    console.log(`${TAG} scrapeUqloadEmbedDirect: S2 — recherche regex .m3u8 dans le HTML...`);
+    // Priority 2: Balise <source> ou file: dans JS (MP4 direct)
+    if (!preferHls) {
+      const sourceMatch = html.match(/<source[^>]+src\s*=\s*["']([^"']+\.mp4[^"']*)/i)
+        || html.match(/file\s*:\s*["'](https?:\/\/[^"']+\.mp4[^"']*)/i);
+      if (sourceMatch) {
+        console.log(`${TAG} scrapeUqloadEmbedDirect: S2 ✅ MP4 trouvé → ${sourceMatch[1].slice(0, 150)}`);
+        return { directUrl: sourceMatch[1], type: 'mp4', referer: embedPageUrl };
+      }
+    }
+
+    // Priority 3: .m3u8 directement dans le HTML brut
     const anyHls = html.match(/(https?:\/\/[^\s"'<>]+\.m3u8[^\s"'<>]*)/i);
     if (anyHls) {
-      console.log(`${TAG} scrapeUqloadEmbedDirect: S2 ✅ HLS trouvé → ${anyHls[1].slice(0, 150)}`);
+      console.log(`${TAG} scrapeUqloadEmbedDirect: S3 ✅ HLS trouvé → ${anyHls[1].slice(0, 150)}`);
       return { directUrl: anyHls[1], type: 'hls', referer: embedPageUrl };
     }
-    console.log(`${TAG} scrapeUqloadEmbedDirect: S2 ❌ pas de .m3u8`);
 
-    // Priority 3: balise <source> ou file: dans JS (MP4 fallback)
-    console.log(`${TAG} scrapeUqloadEmbedDirect: S3 — balise <source> / file: ...`);
+    // Priority 4: Balise <source> / file: MP4 (si pas déjà testé)
     const sourceMatch = html.match(/<source[^>]+src\s*=\s*["']([^"']+\.mp4[^"']*)/i)
       || html.match(/file\s*:\s*["'](https?:\/\/[^"']+\.mp4[^"']*)/i);
     if (sourceMatch) {
-      console.log(`${TAG} scrapeUqloadEmbedDirect: S3 ✅ MP4 trouvé → ${sourceMatch[1].slice(0, 150)}`);
+      console.log(`${TAG} scrapeUqloadEmbedDirect: S4 ✅ MP4 trouvé → ${sourceMatch[1].slice(0, 150)}`);
       return { directUrl: sourceMatch[1], type: 'mp4', referer: embedPageUrl };
     }
-    console.log(`${TAG} scrapeUqloadEmbedDirect: S3 ❌ pas trouvé`);
 
     console.log(`${TAG} scrapeUqloadEmbedDirect: ⚠ Aucune strategie n'a fonctionné. HTML[0..500]:\n${html.slice(0, 500)}`);
   } catch (err: any) {

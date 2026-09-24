@@ -66,39 +66,39 @@ router.get('/resolve', async (req: Request, res: Response) => {
     }
 
     let downloadUrl = streamResult.directUrl || streamResult.embedUrl;
+    let directType = streamResult.directType || (/\.m3u8(\?|$)/i.test(downloadUrl) ? 'hls' : /\.mp4(\?|$)/i.test(downloadUrl) ? 'mp4' : 'embed');
 
-    // Si on a déjà une URL directe MP4/HLS depuis le cache → on l'utilise directement (0 scrape)
-    if (streamResult.directUrl && streamResult.directUrl.startsWith('http')) {
-      console.log(`[Download Resolve] ✅ directUrl depuis cache (${streamResult.directType || 'direct'}) → pas de re-scrape`);
-      downloadUrl = streamResult.directUrl;
-    } else if (downloadUrl.startsWith('http://') || downloadUrl.startsWith('https://')) {
-      // Sinon, fallback : scrape l'embed pour extraire le MP4/HLS
+    // Pour le téléchargement : si on a reçu du HLS ou une URL embed, tenter d'extraire le MP4 direct (avec vraie taille et débit max)
+    if (directType !== 'mp4' && (streamResult.embedUrl || downloadUrl)) {
+      const targetUrl = streamResult.embedUrl || downloadUrl;
       try {
-        const direct = await DirectScraper.resolve(downloadUrl);
-        if (direct && direct.directUrl && direct.directUrl.startsWith('http')) {
+        const direct = await DirectScraper.resolve(targetUrl, false);
+        if (direct?.directUrl && direct.type === 'mp4') {
           downloadUrl = direct.directUrl;
+          directType = 'mp4';
+          console.log(`[Download Resolve] ✅ MP4 direct extrait avec succès pour download: ${downloadUrl.slice(0, 80)}...`);
         }
       } catch (err: any) {
-        console.warn(`[Download Resolve] Échec DirectScraper sur "${downloadUrl}":`, err.message);
+        console.warn(`[Download Resolve] Échec extraction MP4 direct:`, err.message);
       }
     }
 
     const cleanFilename = `${(title || 'video').replace(/[^a-zA-Z0-9_\-]/g, '_')}${isTv ? `_S${season || 1}E${episode || 1}` : ''}.mp4`;
 
     // Déterminer le type de lien final pour construire la bonne URL de téléchargement
-    const isHls = streamResult.directType === 'hls' || /\.m3u8(\?|$)/i.test(downloadUrl);
-    const isMp4Direct = streamResult.directType === 'mp4' || /\.mp4(\?|$)/i.test(downloadUrl);
+    const isHls = directType === 'hls' || /\.m3u8(\?|$)/i.test(downloadUrl);
+    const isMp4Direct = directType === 'mp4' || /\.mp4(\?|$)/i.test(downloadUrl);
 
     let finalDownloadUrl: string;
 
-    if (isHls) {
-      // HLS → FFmpeg convertit le flux en MP4 à la volée
-      finalDownloadUrl = `/api/download/stream?m3u8=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(cleanFilename)}`;
-      console.log(`[Download Resolve] HLS → FFmpeg proxy: ${downloadUrl.slice(0, 80)}...`);
-    } else if (isMp4Direct && downloadUrl.startsWith('http')) {
-      // MP4 direct → proxy simple avec Range support
+    if (isMp4Direct && downloadUrl.startsWith('http')) {
+      // MP4 direct → proxy avec Range support et Content-Length d'origine (vitesse max + vraie taille)
       finalDownloadUrl = `/api/download/file?url=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(cleanFilename)}`;
       console.log(`[Download Resolve] MP4 direct → file proxy: ${downloadUrl.slice(0, 80)}...`);
+    } else if (isHls) {
+      // HLS de secours → FFmpeg convertit le flux en MP4 à la volée
+      finalDownloadUrl = `/api/download/stream?m3u8=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(cleanFilename)}`;
+      console.log(`[Download Resolve] HLS fallback → FFmpeg proxy: ${downloadUrl.slice(0, 80)}...`);
     } else {
       // Embed ou URL interne → on renvoie tel quel
       finalDownloadUrl = downloadUrl;
@@ -109,7 +109,7 @@ router.get('/resolve', async (req: Request, res: Response) => {
       data: {
         downloadUrl: finalDownloadUrl,
         rawUrl: downloadUrl,
-        directType: streamResult.directType || (isHls ? 'hls' : isMp4Direct ? 'mp4' : 'embed'),
+        directType: directType,
         provider: streamResult.provider,
         type: isTv ? 'episode' : 'movie',
         filename: cleanFilename,
@@ -125,7 +125,7 @@ router.get('/resolve', async (req: Request, res: Response) => {
 /**
  * GET /api/download/file
  *
- * Proxy de téléchargement haute vitesse avec gestion des noms de fichiers et en-têtes Range
+ * Proxy de téléchargement haute vitesse avec gestion des noms de fichiers, referers et en-têtes Range
  */
 router.get('/file', async (req: Request, res: Response) => {
   try {
@@ -140,6 +140,16 @@ router.get('/file', async (req: Request, res: Response) => {
 
     if (url.includes('videodownloader') || url.includes('hakunaymatata')) {
       headers['Referer'] = 'https://videodownloader.site/';
+    } else if (url.includes('uqload')) {
+      headers['Referer'] = 'https://uqload.is/';
+    } else if (url.includes('vidzy')) {
+      headers['Referer'] = 'https://vidzy.cc/';
+    } else if (url.includes('dood') || url.includes('playmogo') || url.includes('d000')) {
+      headers['Referer'] = 'https://doodstream.com/';
+    } else if (url.includes('voe')) {
+      headers['Referer'] = 'https://voe.sx/';
+    } else if (url.includes('streamtape')) {
+      headers['Referer'] = 'https://streamtape.com/';
     }
 
     if (req.headers.range) {

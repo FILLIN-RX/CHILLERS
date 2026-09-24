@@ -157,6 +157,9 @@ self.addEventListener('fetch', event => {
     });
 
     let headers = new Headers(data.headers || {});
+    if (data.size) {
+      responseHeaders.set('Content-Length', String(data.size));
+    }
     if (headers.has('Content-Length')) {
       responseHeaders.set('Content-Length', headers.get('Content-Length'));
     }
