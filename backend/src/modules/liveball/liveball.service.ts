@@ -128,6 +128,38 @@ async function fetchWithFlareSolverr(
   return null;
 }
 
+// Une page HTML n'est exploitable que si elle contient réellement les blocs de
+// matches liveball. Cloudflare renvoie des pages 403/Challenge (Turnstile,
+// "Attention Required! | Cloudflare", etc.) même en HTTP 200, qui passaient
+// les anciens tests "taille > 500 && pas 'Just a moment'" et faisaient
+// abandonner la recherche avant d'utiliser le proxy. On rejette donc toute
+// page qui ressemble à un blocage Cloudflare.
+function isUsableLiveBallHtml(html: string | null | undefined): html is string {
+  if (!html) return false;
+  const h = html.trim();
+  if (h.length < 500) return false;
+  const lower = h.toLowerCase();
+  const BLOCKED_MARKERS = [
+    'just a moment',
+    'attention required',
+    'challenges.cloudflare.com',
+    'cf-chl',
+    'cf-turnstile',
+    'cf-error-details',
+    '/cdn-cgi/challenge',
+    'access denied',
+    'verify you are human',
+    'enable javascript and cookies to continue',
+    'grant_fra_2',
+    'corporate networks',
+    'virtual private network',
+    '기상 악화',
+  ];
+  if (BLOCKED_MARKERS.some((m) => lower.includes(m))) return false;
+  if (/<title>\s*(403|error|forbidden|blocked|pardon)[^<]*<\/title>/i.test(h)) return false;
+  return true;
+}
+
 // Récupération HTML : Direct d'abord (ultra rapide en local/résidentiel), puis Proxy/FlareSolverr en fallback
 async function fetchHtmlWithCurl(url: string): Promise<string> {
   // 1. Essai direct avec cloudscraper
@@ -139,7 +171,7 @@ async function fetchHtmlWithCurl(url: string): Promise<string> {
         'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
       },
     });
-    if (typeof csRes === 'string' && csRes.length > 500 && !csRes.includes('Just a moment')) {
+    if (isUsableLiveBallHtml(csRes)) {
       return csRes;
     }
   } catch (_) {}
@@ -170,7 +202,7 @@ async function fetchHtmlWithCurl(url: string): Promise<string> {
     ];
 
     const { stdout } = await execFileAsync('curl', curlArgs, { maxBuffer: 4 * 1024 * 1024 });
-    if (stdout && !stdout.includes('Just a moment') && !stdout.includes('challenges.cloudflare.com') && stdout.trim().length >= 500) {
+    if (isUsableLiveBallHtml(stdout)) {
       return stdout;
     }
   } catch (_) {}
@@ -185,7 +217,7 @@ async function fetchHtmlWithCurl(url: string): Promise<string> {
         proxy,
       });
       if (typeof csRes === 'string' && csRes.length > 500 && !csRes.includes('Just a moment')) {
-        return csRes;
+        if (isUsableLiveBallHtml(csRes)) return csRes;
       }
     } catch (_) {}
   }
@@ -193,23 +225,35 @@ async function fetchHtmlWithCurl(url: string): Promise<string> {
   // 4. FlareSolverr si configuré
   if (FLARESOLVERR_URL) {
     const solverRes = await fetchWithFlareSolverr(url, 'GET');
-    if (solverRes && solverRes.length > 500 && !solverRes.includes('Just a moment')) {
+    if (isUsableLiveBallHtml(solverRes)) {
       return solverRes;
     }
   }
 
   // 5. Fallback axios
   try {
-    const { data } = await axios.get<string>(url, {
+    const axiosConfig: any = {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'User-Agent': USER_AGENT,
         Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.9',
       },
       timeout: 12_000,
-      responseType: 'text',
-    });
-    if (data && !data.includes('Just a moment') && !data.includes('challenges.cloudflare.com')) {
+      responseType: 'text' as const,
+    };
+    if (proxy) {
+      try {
+        const u = new URL(proxy);
+        axiosConfig.proxy = {
+          protocol: u.protocol.replace(':', ''),
+          host: u.hostname,
+          port: parseInt(u.port || '80', 10),
+          auth: u.username ? { username: u.username, password: u.password } : undefined,
+        };
+      } catch {}
+    }
+    const { data } = await axios.get<string>(url, axiosConfig);
+    if (isUsableLiveBallHtml(data)) {
       return data;
     }
   } catch (_) {}
@@ -465,24 +509,37 @@ function teamLogo(block: string, side: 'left' | 'right'): string | undefined {
 }
 
 export async function fetchLiveBallHomepage(): Promise<string> {
+  const proxy = await getEffectiveProxy();
   for (const domain of LIVEBALL_BASE_DOMAINS) {
     try {
       const html = await fetchHtmlWithCurl(`https://${domain}/`);
-      if (html && (html.includes('live_block2') || html.includes('live_section') || html.length > 1000)) {
+      if (isUsableLiveBallHtml(html) && (html.includes('live_block2') || html.includes('live_section'))) {
         return html;
       }
     } catch {
       try {
-        const { data } = await axios.get<string>(`https://${domain}/`, {
+        const axiosConfig: any = {
           headers: {
             'User-Agent': USER_AGENT,
             Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
             'Accept-Language': 'ru-RU,ru;q=0.9,en;q=0.8',
           },
           timeout: 12_000,
-          responseType: 'text',
-        });
-        if (data && (data.includes('live_block2') || data.includes('live_section') || data.length > 1000)) {
+          responseType: 'text' as const,
+        };
+        if (proxy) {
+          try {
+            const u = new URL(proxy);
+            axiosConfig.proxy = {
+              protocol: u.protocol.replace(':', ''),
+              host: u.hostname,
+              port: parseInt(u.port || '80', 10),
+              auth: u.username ? { username: u.username, password: u.password } : undefined,
+            };
+          } catch {}
+        }
+        const { data } = await axios.get<string>(`https://${domain}/`, axiosConfig);
+        if (isUsableLiveBallHtml(data) && (data.includes('live_block2') || data.includes('live_section'))) {
           return data;
         }
       } catch {}
@@ -834,13 +891,29 @@ export async function resolveLiveBallStream(matchId: string, forceRefresh = fals
 
     if (streamMatch) {
       try {
-        const streams = JSON.parse(streamMatch[1]) as Record<string, { t?: string; msg?: string }>;
+        const streams = JSON.parse(streamMatch[1]) as Record<string, any>;
         for (const key of Object.keys(streams)) {
-          const rawT = streams[key]?.t;
+          const item = streams[key];
+          if (!item) continue;
+
+          // Direct URL / Player embed inside _lbStreams
+          const directUrl = item.u || item.p || item.src || item.url || item.stream;
+          if (directUrl && typeof directUrl === 'string' && directUrl.length > 5) {
+            let u = directUrl.trim();
+            if (u.startsWith('//')) u = `https:${u}`;
+            else if (u.startsWith('/')) u = `https://${activeDomain}${u}`;
+            const type = /\.m3u8($|\?)/i.test(u) ? 'hls' : 'iframe';
+            const stream: ResolvedStream = { url: u, type };
+            STREAM_CACHE.set(matchId, stream);
+            console.log(`[LiveBall] ✓ Direct stream found in _lbStreams for match ${matchId} (${type}): ${u}`);
+            return stream;
+          }
+
+          const rawT = item.t;
           if (rawT && typeof rawT === 'string') {
             try {
               const decoded = xorDecodeToken(rawT);
-              if (decoded && decoded.length > 10) {
+              if (decoded && decoded.length > 5 && !candidateTokens.includes(decoded)) {
                 candidateTokens.push(decoded);
               }
             } catch (decErr) {
@@ -866,150 +939,132 @@ export async function resolveLiveBallStream(matchId: string, forceRefresh = fals
       }
     }
 
-    if (candidateTokens.length === 0) {
-      const iframeMatch = html.match(/<iframe[^>]+src=["']([^"']+)["']/i);
-      if (iframeMatch && iframeMatch[1] && !iframeMatch[1].includes('about:blank')) {
-        let u = iframeMatch[1];
-        if (u.startsWith('//')) u = `https:${u}`;
-        const stream: ResolvedStream = { url: u, type: 'iframe' };
-        STREAM_CACHE.set(matchId, stream);
-        return stream;
-      }
-      const m3u8Match = html.match(/(https?:\/\/[^"'\s<>]+\.m3u8[^"'\s<>]*)/i);
-      if (m3u8Match && m3u8Match[1]) {
-        const stream: ResolvedStream = { url: m3u8Match[1], type: 'hls' };
-        STREAM_CACHE.set(matchId, stream);
-        return stream;
-      }
-      console.warn(`[LiveBall] No valid stream token or iframe found for match ${matchId}`);
-      return null;
-    }
-
     console.log(`[LiveBall] Found ${candidateTokens.length} stream token candidate(s) for match ${matchId}`);
     const proxy = await getEffectiveProxy();
 
-    // Try resolving with each candidate token until one succeeds
+    // Try resolving with candidate tokens
     for (const token of candidateTokens) {
-      const body = JSON.stringify({ t: token, f: '0' });
-      let stdout: string | null = null;
+      for (const formatFlag of ['0', '1']) {
+        const body = JSON.stringify({ t: token, f: formatFlag });
+        let stdout: string | null = null;
 
-      // 1. Cloudscraper natif
-      try {
-        const csData = await (cloudscraper as any).post({
-          uri: `https://${activeDomain}/api/c/r`,
-          body: { t: token, f: '0' },
-          json: true,
-          headers: {
-            Referer: `https://${activeDomain}/match/${matchId}`,
-            Origin: `https://${activeDomain}`,
-            'User-Agent': USER_AGENT,
-          },
-          proxy: proxy || undefined,
-        });
-        if (csData) {
-          stdout = typeof csData === 'string' ? csData : JSON.stringify(csData);
-        }
-      } catch (_) {}
-
-      // 2. FlareSolverr si configuré
-      if (!stdout && FLARESOLVERR_URL) {
-        stdout = await fetchWithFlareSolverr(`https://${activeDomain}/api/c/r`, 'POST', { t: token, f: '0' });
-      }
-
-      // 3. Try curl with HTTP/2, proxy and proper headers
-      if (!stdout) {
+        // 1. Cloudscraper direct (sans proxy d'abord)
         try {
-          const curlArgs = [
-            '-sSL',
-            '--http2',
-            '--compressed',
-            '-A', USER_AGENT,
-            '-H', 'Accept: application/json, text/plain, */*',
-            '-H', 'Accept-Language: en-US,en;q=0.9',
-            '-H', 'Accept-Encoding: gzip, deflate, br',
-            '-H', 'Content-Type: application/json',
-            '-H', `Referer: https://${activeDomain}/match/${matchId}`,
-            '-H', `Origin: https://${activeDomain}`,
-            '-H', 'Sec-Fetch-Dest: empty',
-            '-H', 'Sec-Fetch-Mode: cors',
-            '-H', 'Sec-Fetch-Site: same-origin',
-            '-H', 'DNT: 1',
-            '-X', 'POST',
-            '--data-raw', body,
-            '--max-time', '12',
-          ];
-
-          if (proxy) {
-            curlArgs.push('-x', proxy);
+          const csData = await (cloudscraper as any).post({
+            uri: `https://${activeDomain}/api/c/r`,
+            body: { t: token, f: formatFlag },
+            json: true,
+            headers: {
+              Referer: `https://${activeDomain}/match/${matchId}`,
+              Origin: `https://${activeDomain}`,
+              'User-Agent': USER_AGENT,
+            },
+          });
+          if (csData) {
+            stdout = typeof csData === 'string' ? csData : JSON.stringify(csData);
           }
+        } catch (_) {}
 
-          curlArgs.push(`https://${activeDomain}/api/c/r`);
-
-          const result = await execFileAsync('curl', curlArgs, { maxBuffer: 2 * 1024 * 1024 });
-          stdout = result.stdout;
-        } catch (curlErr) {
-          // 3. Fallback to axios
+        // 2. cURL direct
+        if (!stdout) {
           try {
-            const axiosConfig: any = {
-              headers: {
-                'User-Agent': USER_AGENT,
-                'Content-Type': 'application/json',
-                'Accept': 'application/json, text/plain, */*',
-                'Accept-Language': 'en-US,en;q=0.9',
-                'Referer': `https://${activeDomain}/match/${matchId}`,
-                'Origin': `https://${activeDomain}`,
-                'DNT': '1',
-              },
-              timeout: 12_000,
-            };
-
-            if (proxy) {
-              try {
-                const u = new URL(proxy);
-                axiosConfig.proxy = {
-                  protocol: u.protocol.replace(':', ''),
-                  host: u.hostname,
-                  port: parseInt(u.port || (u.protocol === 'https:' ? '443' : '80'), 10),
-                  auth: u.username ? { username: u.username, password: u.password } : undefined,
-                };
-              } catch {}
-            }
-
-            const { data } = await axios.post<string | StreamResponse>(
+            const curlArgs = [
+              '-sSL',
+              '--http2',
+              '--compressed',
+              '-A', USER_AGENT,
+              '-H', 'Accept: application/json, text/plain, */*',
+              '-H', 'Accept-Language: en-US,en;q=0.9',
+              '-H', 'Content-Type: application/json',
+              '-H', `Referer: https://${activeDomain}/match/${matchId}`,
+              '-H', `Origin: https://${activeDomain}`,
+              '-H', 'Sec-Fetch-Dest: empty',
+              '-H', 'Sec-Fetch-Mode: cors',
+              '-H', 'Sec-Fetch-Site: same-origin',
+              '-X', 'POST',
+              '--data-raw', body,
+              '--max-time', '10',
               `https://${activeDomain}/api/c/r`,
-              { t: token, f: '0' },
-              axiosConfig
-            );
-            stdout = typeof data === 'string' ? data : JSON.stringify(data);
+            ];
+            const result = await execFileAsync('curl', curlArgs, { maxBuffer: 2 * 1024 * 1024 });
+            if (result.stdout && result.stdout.includes('{')) {
+              stdout = result.stdout;
+            }
           } catch (_) {}
         }
+
+        // 3. FlareSolverr si configuré
+        if (!stdout && FLARESOLVERR_URL) {
+          stdout = await fetchWithFlareSolverr(`https://${activeDomain}/api/c/r`, 'POST', { t: token, f: formatFlag });
+        }
+
+        // 4. Fallback avec proxy si direct n'a pas répondu
+        if (!stdout && proxy) {
+          try {
+            const csData = await (cloudscraper as any).post({
+              uri: `https://${activeDomain}/api/c/r`,
+              body: { t: token, f: formatFlag },
+              json: true,
+              headers: {
+                Referer: `https://${activeDomain}/match/${matchId}`,
+                Origin: `https://${activeDomain}`,
+                'User-Agent': USER_AGENT,
+              },
+              proxy,
+            });
+            if (csData) {
+              stdout = typeof csData === 'string' ? csData : JSON.stringify(csData);
+            }
+          } catch (_) {}
+        }
+
+        if (!stdout) continue;
+
+        let parsed: StreamResponse;
+        try {
+          parsed = JSON.parse(stdout) as StreamResponse;
+        } catch {
+          continue;
+        }
+
+        if (!parsed.d) continue;
+
+        const rawUrl = Buffer.from(parsed.d, 'base64').toString('utf8').trim();
+        let url = rawUrl;
+        if (url.startsWith('//')) url = `https:${url}`;
+        else if (url.startsWith('/')) url = `https://${activeDomain}${url}`;
+
+        const type: 'hls' | 'iframe' =
+          parsed.m === 'f' || !/\.m3u8($|\?)/i.test(url) ? 'iframe' : 'hls';
+
+        if (type === 'hls' && !/^https?:\/\//.test(url)) continue;
+        if (type === 'iframe' && !/^https?:\/\//i.test(url)) continue;
+
+        const stream: ResolvedStream = { url, type };
+        STREAM_CACHE.set(matchId, stream);
+        console.log(`[LiveBall] ✓ Stream resolved successfully for match ${matchId} (${type}): ${url.slice(0, 80)}...`);
+        return stream;
       }
+    }
 
-      if (!stdout) continue;
-
-      let parsed: StreamResponse;
-      try {
-        parsed = JSON.parse(stdout) as StreamResponse;
-      } catch {
-        continue;
-      }
-
-      if (!parsed.d) continue;
-
-      const rawUrl = Buffer.from(parsed.d, 'base64').toString('utf8').trim();
-      let url = rawUrl;
-      if (url.startsWith('//')) url = `https:${url}`;
-      else if (url.startsWith('/')) url = `https://${activeDomain}${url}`;
-
-      const type: 'hls' | 'iframe' =
-        parsed.m === 'f' || !/\.m3u8($|\?)/i.test(url) ? 'iframe' : 'hls';
-
-      if (type === 'hls' && !/^https?:\/\//.test(url)) continue;
-      if (type === 'iframe' && !/^https?:\/\//i.test(url)) continue;
-
-      const stream: ResolvedStream = { url, type };
+    // 3. ULTIMATE FALLBACK: inspect HTML for embedded iframe or direct stream URLs
+    const iframeMatch = html.match(/<iframe[^>]+src=["']([^"']+)["']/i);
+    if (iframeMatch && iframeMatch[1] && !iframeMatch[1].includes('about:blank')) {
+      let u = iframeMatch[1].trim();
+      if (u.startsWith('//')) u = `https:${u}`;
+      const stream: ResolvedStream = { url: u, type: 'iframe' };
       STREAM_CACHE.set(matchId, stream);
-      console.log(`[LiveBall] ✓ Stream resolved successfully for match ${matchId} (${type}): ${url.slice(0, 80)}...`);
+      console.log(`[LiveBall] ✓ Fallback iframe stream found for match ${matchId}: ${u}`);
+      return stream;
+    }
+
+    const regexStreamMatch = html.match(/(https?:\/\/[^"'\s<>]*(?:nhr|hayuhi|player|stream|live|m3u8)[^"'\s<>]*)/i);
+    if (regexStreamMatch && regexStreamMatch[1]) {
+      const u = regexStreamMatch[1].trim();
+      const type = /\.m3u8($|\?)/i.test(u) ? 'hls' : 'iframe';
+      const stream: ResolvedStream = { url: u, type };
+      STREAM_CACHE.set(matchId, stream);
+      console.log(`[LiveBall] ✓ Fallback regex stream found for match ${matchId} (${type}): ${u}`);
       return stream;
     }
 
