@@ -24,7 +24,7 @@ function getAdaptiveTimeout(): number {
 
 /** Read NEXT_PUBLIC_API_URL at runtime on the client to resolve the backend origin for /uploads and absolute image URLs. */
 export function getBackendOrigin(): string {
-  const raw = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === "production" ? "https://chillers.onrender.com/api" : "http://localhost:4000/api");
+  const raw = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === "production" ? "https://chillers-production-8e02.up.railway.app/api" : "http://localhost:4000/api");
   return raw.replace(/\/api\/?$/, "");
 }
 
@@ -54,7 +54,7 @@ function buildUrl(path: string, query?: HttpJsonOptions["query"]): string {
   if (!path.startsWith("http")) {
     const isServer = typeof window === "undefined";
     if (isServer) {
-      const backendApi = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === "production" ? "https://chillers.onrender.com/api" : "http://localhost:4000/api");
+      const backendApi = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === "production" ? "https://chillers-production-8e02.up.railway.app/api" : "http://localhost:4000/api");
       const cleanPath = path.startsWith(API_BASE_PATH) ? path.substring(API_BASE_PATH.length) : path;
       base = `${backendApi}${cleanPath.startsWith("/") ? cleanPath : `/${cleanPath}`}`;
     } else {

@@ -27,7 +27,7 @@ const nextConfig: NextConfig = {
     const isProd = process.env.NODE_ENV === "production";
     const rawApiUrl =
       process.env.NEXT_PUBLIC_API_URL ||
-      (isProd ? "https://chillers.onrender.com/api" : "http://localhost:4000/api");
+      (isProd ? "https://chillers-production-8e02.up.railway.app/api" : "http://localhost:4000/api");
     const backendUrl = rawApiUrl.replace(/\/api\/?$/, "");
 
     return [
