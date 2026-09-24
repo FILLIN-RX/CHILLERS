@@ -1,3 +1,4 @@
+import cloudscraper from 'cloudscraper';
 import axios from 'axios';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
@@ -99,10 +100,24 @@ async function fetchWithFlareSolverr(
   return null;
 }
 
-// liveball.sx est derrière un challenge Cloudflare (JA3/TLS fingerprinting) :
-// On essaie : 1) FlareSolverr si présent, 2) curl avec proxy (si défini) ou direct, 3) axios
+// Récupération HTML avec bypass automatique de Cloudflare (Cloudscraper, FlareSolverr, curl proxy, axios)
 async function fetchHtmlWithCurl(url: string): Promise<string> {
-  // 1. FlareSolverr si configuré
+  // 1. Cloudscraper natif (contourne automatiquement le challenge Cloudflare)
+  try {
+    const csRes = await (cloudscraper as any).get({
+      uri: url,
+      headers: {
+        'User-Agent': USER_AGENT,
+        'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
+      },
+      proxy: LIVEBALL_PROXY || undefined,
+    });
+    if (typeof csRes === 'string' && csRes.length > 500 && !csRes.includes('Just a moment')) {
+      return csRes;
+    }
+  } catch (_) {}
+
+  // 2. FlareSolverr si configuré
   if (FLARESOLVERR_URL) {
     const solverRes = await fetchWithFlareSolverr(url, 'GET');
     if (solverRes && solverRes.length > 500 && !solverRes.includes('Just a moment')) {
@@ -857,12 +872,30 @@ export async function resolveLiveBallStream(matchId: string, forceRefresh = fals
       const body = JSON.stringify({ t: token, f: '0' });
       let stdout: string | null = null;
 
-      // 1. FlareSolverr si configuré
-      if (FLARESOLVERR_URL) {
+      // 1. Cloudscraper natif
+      try {
+        const csData = await (cloudscraper as any).post({
+          uri: `https://${activeDomain}/api/c/r`,
+          body: { t: token, f: '0' },
+          json: true,
+          headers: {
+            Referer: `https://${activeDomain}/match/${matchId}`,
+            Origin: `https://${activeDomain}`,
+            'User-Agent': USER_AGENT,
+          },
+          proxy: LIVEBALL_PROXY || undefined,
+        });
+        if (csData) {
+          stdout = typeof csData === 'string' ? csData : JSON.stringify(csData);
+        }
+      } catch (_) {}
+
+      // 2. FlareSolverr si configuré
+      if (!stdout && FLARESOLVERR_URL) {
         stdout = await fetchWithFlareSolverr(`https://${activeDomain}/api/c/r`, 'POST', { t: token, f: '0' });
       }
 
-      // 2. Try curl with HTTP/2, proxy and proper headers
+      // 3. Try curl with HTTP/2, proxy and proper headers
       if (!stdout) {
         try {
           const curlArgs = [
