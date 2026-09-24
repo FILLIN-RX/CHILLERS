@@ -32,7 +32,8 @@ const segmentCache = new LRUCache<string, Buffer>({
   ttl: 60_000,
 });
 
-const refererFor = (matchId: string) => `https://liveball.sx/match/${matchId}`;
+const LIVEBALL_BASE_DOMAIN = process.env.LIVEBALL_DOMAIN || 'liveball.to';
+const refererFor = (matchId: string) => `https://${LIVEBALL_BASE_DOMAIN}/match/${matchId}`;
 
 async function fetchRemote(
   url: string,
@@ -50,7 +51,7 @@ async function fetchRemote(
       headers: {
         'User-Agent': USER_AGENT,
         Referer: refererFor(matchId),
-        Origin: 'https://liveball.sx',
+        Origin: `https://${LIVEBALL_BASE_DOMAIN}`,
         Accept: '*/*',
         'Accept-Language': 'en-US,en;q=0.9',
         Connection: 'keep-alive',

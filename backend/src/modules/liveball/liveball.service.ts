@@ -61,10 +61,12 @@ function xorDecodeToken(token: string): string {
 const FLARESOLVERR_URL = process.env.FLARESOLVERR_URL;
 const LIVEBALL_PROXY = (process.env.LIVEBALL_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY || '').trim();
 export const LIVEBALL_BASE_DOMAINS = [
-  process.env.LIVEBALL_DOMAIN || 'liveball.sx',
+  process.env.LIVEBALL_DOMAIN || 'liveball.to',
+  'liveball.to',
+  'liveball.net',
+  'liveball.org',
+  'liveball.sx',
   'liveball.im',
-  'liveball.uno',
-  'liveball.is',
 ];
 
 /**
@@ -639,28 +641,33 @@ export async function getLiveBallLeagueMatches(league: string): Promise<LiveBall
   let allMatches: LiveBallMatch[] = [];
 
   for (const slug of slugsToTry) {
-    try {
-      let html: string;
+    let found = false;
+    for (const domain of LIVEBALL_BASE_DOMAINS) {
       try {
-        html = await fetchHtmlWithCurl(`https://liveball.sx/league/${slug}`);
-      } catch {
-        const { data } = await axios.get<string>(`https://liveball.sx/league/${slug}`, {
-          headers: {
-            'User-Agent': USER_AGENT,
-            Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'ru-RU,ru;q=0.9,en;q=0.8',
-          },
-          timeout: 12_000,
-          responseType: 'text',
-        });
-        html = data;
-      }
-      const parsed = parseBlocks(html, leagueTitle);
-      if (parsed && parsed.length > 0) {
-        allMatches.push(...parsed);
-        break;
-      }
-    } catch (_) {}
+        let html: string;
+        try {
+          html = await fetchHtmlWithCurl(`https://${domain}/league/${slug}`);
+        } catch {
+          const { data } = await axios.get<string>(`https://${domain}/league/${slug}`, {
+            headers: {
+              'User-Agent': USER_AGENT,
+              Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+              'Accept-Language': 'ru-RU,ru;q=0.9,en;q=0.8',
+            },
+            timeout: 12_000,
+            responseType: 'text',
+          });
+          html = data;
+        }
+        const parsed = parseBlocks(html, leagueTitle);
+        if (parsed && parsed.length > 0) {
+          allMatches.push(...parsed);
+          found = true;
+          break;
+        }
+      } catch (_) {}
+    }
+    if (found) break;
   }
 
   // Mettre à jour avec les informations en direct (score, minute, live) depuis la page d'accueil
@@ -744,9 +751,8 @@ interface StreamResponse {
 }
 
 // Résout le flux réel d'un match live (HLS ou player iframe).
-// Résout le flux réel d'un match live (HLS ou player iframe).
 //
-// Côté liveball.sx, chaque page de match embarque un token signé soit via
+// Chaque page de match embarque un token signé soit via
 // `window._lbStreams = {"b0": {"t": "..."}, "b1": {"t": "..."}}`, soit via
 // `<script>_xrq("...")</script>`. cl.min.js le décode (XOR avec TOKEN_XOR_KEY)
 // puis POST `{t, f: '0'}` vers /api/c/r. La réponse contient :
@@ -763,12 +769,37 @@ export async function resolveLiveBallStream(matchId: string, forceRefresh = fals
   try {
     if (!/^\d+$/.test(matchId)) return null;
 
-    // Fetch page
-    let html: string;
-    try {
-      html = await fetchHtmlWithCurl(`https://liveball.sx/match/${matchId}`);
-    } catch (err) {
-      console.warn(`[LiveBall] Failed to fetch match page ${matchId}: ${err}`);
+    // Fetch page across active domains
+    let html: string | null = null;
+    let activeDomain = 'liveball.to';
+    for (const domain of LIVEBALL_BASE_DOMAINS) {
+      try {
+        html = await fetchHtmlWithCurl(`https://${domain}/match/${matchId}`);
+        if (html && (html.includes('_lbStreams') || html.includes('_xrq') || html.length > 1000)) {
+          activeDomain = domain;
+          break;
+        }
+      } catch {
+        try {
+          const { data } = await axios.get<string>(`https://${domain}/match/${matchId}`, {
+            headers: {
+              'User-Agent': USER_AGENT,
+              Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            },
+            timeout: 12_000,
+            responseType: 'text',
+          });
+          if (data && (data.includes('_lbStreams') || data.includes('_xrq') || data.length > 1000)) {
+            html = data;
+            activeDomain = domain;
+            break;
+          }
+        } catch (_) {}
+      }
+    }
+
+    if (!html) {
+      console.warn(`[LiveBall] Failed to fetch match page ${matchId} from all domains`);
       return null;
     }
 
@@ -828,7 +859,7 @@ export async function resolveLiveBallStream(matchId: string, forceRefresh = fals
 
       // 1. FlareSolverr si configuré
       if (FLARESOLVERR_URL) {
-        stdout = await fetchWithFlareSolverr('https://liveball.sx/api/c/r', 'POST', { t: token, f: '0' });
+        stdout = await fetchWithFlareSolverr(`https://${activeDomain}/api/c/r`, 'POST', { t: token, f: '0' });
       }
 
       // 2. Try curl with HTTP/2, proxy and proper headers
@@ -843,8 +874,8 @@ export async function resolveLiveBallStream(matchId: string, forceRefresh = fals
             '-H', 'Accept-Language: en-US,en;q=0.9',
             '-H', 'Accept-Encoding: gzip, deflate, br',
             '-H', 'Content-Type: application/json',
-            '-H', `Referer: https://liveball.sx/match/${matchId}`,
-            '-H', 'Origin: https://liveball.sx',
+            '-H', `Referer: https://${activeDomain}/match/${matchId}`,
+            '-H', `Origin: https://${activeDomain}`,
             '-H', 'Sec-Fetch-Dest: empty',
             '-H', 'Sec-Fetch-Mode: cors',
             '-H', 'Sec-Fetch-Site: same-origin',
@@ -858,7 +889,7 @@ export async function resolveLiveBallStream(matchId: string, forceRefresh = fals
             curlArgs.push('-x', LIVEBALL_PROXY);
           }
 
-          curlArgs.push('https://liveball.sx/api/c/r');
+          curlArgs.push(`https://${activeDomain}/api/c/r`);
 
           const result = await execFileAsync('curl', curlArgs, { maxBuffer: 2 * 1024 * 1024 });
           stdout = result.stdout;
@@ -871,8 +902,8 @@ export async function resolveLiveBallStream(matchId: string, forceRefresh = fals
                 'Content-Type': 'application/json',
                 'Accept': 'application/json, text/plain, */*',
                 'Accept-Language': 'en-US,en;q=0.9',
-                'Referer': `https://liveball.sx/match/${matchId}`,
-                'Origin': 'https://liveball.sx',
+                'Referer': `https://${activeDomain}/match/${matchId}`,
+                'Origin': `https://${activeDomain}`,
                 'DNT': '1',
               },
               timeout: 12_000,
@@ -891,7 +922,7 @@ export async function resolveLiveBallStream(matchId: string, forceRefresh = fals
             }
 
             const { data } = await axios.post<string | StreamResponse>(
-              'https://liveball.sx/api/c/r',
+              `https://${activeDomain}/api/c/r`,
               { t: token, f: '0' },
               axiosConfig
             );
@@ -914,7 +945,7 @@ export async function resolveLiveBallStream(matchId: string, forceRefresh = fals
       const rawUrl = Buffer.from(parsed.d, 'base64').toString('utf8').trim();
       let url = rawUrl;
       if (url.startsWith('//')) url = `https:${url}`;
-      else if (url.startsWith('/')) url = `https://liveball.sx${url}`;
+      else if (url.startsWith('/')) url = `https://${activeDomain}${url}`;
 
       const type: 'hls' | 'iframe' =
         parsed.m === 'f' || !/\.m3u8($|\?)/i.test(url) ? 'iframe' : 'hls';
