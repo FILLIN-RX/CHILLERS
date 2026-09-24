@@ -30,23 +30,23 @@ const geistMono = Geist_Mono({
   preload: false,
 });
 
-const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://chillers.vercel.app").replace(/\/$/, "");
+const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://chillers.site").replace(/\/$/, "");
 
 const defaultOgImage = {
   url: "/og-image.png",
   width: 1200,
   height: 630,
-  alt: "CHILLERS — Films et séries en streaming gratuit",
+  alt: "CHILLERS — Films, Séries & Matchs de Foot en Streaming HD Gratuit",
 };
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "CHILLERS",
+    default: "CHILLERS — Films, Séries, Anime & Foot en Direct HD Gratuit",
     template: "%s · CHILLERS",
   },
   description:
-    "Regardez vos films, séries et anime préférés en streaming gratuit et illimité sur CHILLERS, en VF et VOSTFR.",
+    "Regardez vos films, séries, anime et matchs de football en direct streaming HD gratuit sans pub sur CHILLERS en VF et VOSTFR.",
   applicationName: "CHILLERS",
   alternates: {
     canonical: "/",
@@ -61,6 +61,9 @@ export const metadata: Metadata = {
     "films gratuit",
     "séries streaming",
     "anime streaming",
+    "match en direct",
+    "football streaming",
+    "ligue des champions direct",
     "VF",
     "VOSTFR",
     "CHILLERS",
@@ -71,18 +74,18 @@ export const metadata: Metadata = {
     siteName: "CHILLERS",
     locale: "fr_FR",
     url: siteUrl,
-    title: "CHILLERS — Films et séries en streaming gratuit",
+    title: "CHILLERS — Films, Séries & Foot en Direct Streaming HD Gratuit",
     description:
-      "Regardez vos films, séries et anime préférés en streaming gratuit et illimité sur CHILLERS, en VF et VOSTFR.",
+      "Regardez vos films, séries, anime et matchs de football en streaming HD gratuit et illimité sur CHILLERS.",
     images: [defaultOgImage],
   },
   twitter: {
     card: "summary_large_image",
     site: "@chillers",
     creator: "@chillers",
-    title: "CHILLERS — Films et séries en streaming gratuit",
+    title: "CHILLERS — Films, Séries & Foot en Direct Streaming HD Gratuit",
     description:
-      "Regardez vos films, séries et anime préférés en streaming gratuit et illimité sur CHILLERS, en VF et VOSTFR.",
+      "Regardez vos films, séries, anime et matchs de football en streaming HD gratuit et illimité sur CHILLERS.",
     images: [defaultOgImage],
   },
   icons: {

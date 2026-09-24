@@ -3,7 +3,7 @@ import { SITE_URL, SITE_NAME, SITE_LOCALE } from "@/lib/seo";
 import LiveBallMatchContent from "./page-content";
 
 const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === "production" ? "https://chillers.onrender.com/api" : "http://localhost:4000/api");
+  process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === "production" ? "https://chillers-production-8e02.up.railway.app/api" : "http://localhost:4000/api");
 
 interface MatchInfo {
   id: string;
@@ -36,6 +36,12 @@ async function fetchMatch(matchId: string): Promise<MatchInfo | null> {
 function leagueLabel(slug?: string): string {
   const map: Record<string, string> = {
     "champions-league": "Champions League",
+    "uefa-champions-league": "Champions League",
+    "premier-league": "Premier League",
+    "la-liga": "La Liga",
+    "serie-a": "Serie A",
+    "bundesliga": "Bundesliga",
+    "ligue-1": "Ligue 1",
     "europa-league": "Europa League",
     "conference-league": "Conference League",
   };
@@ -52,18 +58,23 @@ export async function generateMetadata({
 
   const match = await fetchMatch(matchId);
   const isLive = match?.status === "live";
-  const statusLabel = isLive ? "EN DIRECT" : "À VENIR";
-
   const teamsLabel = match ? `${match.home} vs ${match.away}` : "Match de football";
-  const title = match ? `${teamsLabel} – ${statusLabel} · CHILLERS` : "Match en direct · CHILLERS";
+  const leagueTxt = match ? leagueLabel(match.league) : "Football";
+
+  const title = match
+    ? isLive
+      ? `🔴 EN DIRECT : ${teamsLabel} (${match.score || "Live"}) Streaming HD Gratuit · CHILLERS`
+      : `⚽ ${teamsLabel} en Direct Streaming HD Gratuit (${leagueTxt}) · CHILLERS`
+    : "Match de Football en Direct Streaming HD Gratuit · CHILLERS";
+
   const description = match
     ? isLive
-      ? `${teamsLabel} : regardez ce match de football en direct et gratuitement sur CHILLERS.`
-      : `${teamsLabel} – diffusion programmée. Regardez ce match de football gratuitement dès le coup d'envoi sur CHILLERS.`
-    : "Regardez ce match de football en direct et gratuitement sur CHILLERS.";
+      ? `🔥 Regardez ${teamsLabel} en direct streaming HD sans pub ! Score en live : ${match.score || "en cours"}. Diffusion fluide et 100% gratuite sur CHILLERS.`
+      : `⚡ Suivez le match ${teamsLabel} (${leagueTxt}) en direct streaming HD dès le coup d'envoi. Accès gratuit, fluide et sans inscription sur CHILLERS.`
+    : "Regardez ce match de football en direct streaming HD gratuitement sur CHILLERS.";
 
   const ogParams = new URLSearchParams({
-    home: match?.home || "Match LiveBall",
+    home: match?.home || "Match en Direct",
     away: match?.away || "",
     status: match?.status || "upcoming",
     league: match ? leagueLabel(match.league) : "",
@@ -74,9 +85,23 @@ export async function generateMetadata({
   });
   const ogImage = `${SITE_URL}/api/og/liveball?${ogParams.toString()}`;
 
+  const keywords = match
+    ? [
+        match.home,
+        match.away,
+        `${match.home} vs ${match.away}`,
+        "streaming foot gratuit",
+        "match en direct",
+        "football direct streaming",
+        "regarder match gratuit",
+        "chillers foot live",
+      ]
+    : ["match en direct", "streaming foot", "chillers"];
+
   return {
     title,
     description,
+    keywords,
     alternates: { canonical },
     openGraph: {
       type: "video.other",
