@@ -79,7 +79,7 @@ function extractCodeFromUrl(url: string): string | null {
 }
 
 function extractUqloadCode(url: string): string | null {
-  const m = url.match(/uqload\.(?:is|com)\/embed-?([a-zA-Z0-9]+)/i);
+  const m = url.match(/uqload\.(?:is|com|vc|ws|to|co|net|io|cx)\/embed-?([a-zA-Z0-9]+)/i);
   return m ? m[1] : null;
 }
 
@@ -88,7 +88,7 @@ function isDoodstreamUrl(url: string): boolean {
 }
 
 function isUqloadUrl(url: string): boolean {
-  return /uqload\.(is|com)/i.test(url);
+  return /uqload\.(is|com|vc|ws|to|co|net|io|cx)/i.test(url);
 }
 
 function extractVidzyCode(url: string): string | null {

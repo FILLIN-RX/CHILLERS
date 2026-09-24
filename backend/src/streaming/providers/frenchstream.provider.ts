@@ -1,5 +1,6 @@
 import { StreamingProvider, StreamQuery, StreamResult } from './provider.interface';
 import { getFrenchStreamMovie, getFrenchStreamEpisode } from '../../modules/frenchstream/frenchstream.service';
+import { DirectScraper } from './direct-scraper';
 import tmdbClient from '../../config/tmdb';
 
 function getRefererForStreamUrl(url: string): string {
@@ -42,17 +43,30 @@ export class FrenchStreamProvider implements StreamingProvider {
 
     if (result?.streamUrl) {
       console.log(`[FrenchStream Provider] Flux 1080p trouvé: ${result.streamUrl.slice(0, 80)}... (${result.fileSize})`);
-      const isDirectStream = /\.(mp4|webm|mkv|m3u8)(\?|$)/i.test(result.streamUrl) || /u\d+\.vidzy\.cc/i.test(result.streamUrl);
-      const referer = getRefererForStreamUrl(result.streamUrl);
+      
+      let directStreamUrl = result.streamUrl;
+      let directType: 'mp4' | 'hls' = /\.(m3u8)/i.test(result.streamUrl) ? 'hls' : 'mp4';
+      if (!/\.(mp4|webm|mkv|m3u8)(\?|$)/i.test(result.streamUrl)) {
+        try {
+          const directRes = await DirectScraper.resolve(result.streamUrl);
+          if (directRes?.directUrl) {
+            directStreamUrl = directRes.directUrl;
+            directType = directRes.type === 'hls' ? 'hls' : 'mp4';
+          }
+        } catch (_) {}
+      }
+
+      const isDirectStream = /\.(mp4|webm|mkv|m3u8)(\?|$)/i.test(directStreamUrl) || /u\d+\.vidzy\.cc/i.test(directStreamUrl);
+      const referer = getRefererForStreamUrl(directStreamUrl);
       const streamUrl = isDirectStream
-        ? `/api/doodstream/stream?url=${encodeURIComponent(result.streamUrl)}&referer=${encodeURIComponent(referer)}`
-        : result.streamUrl;
+        ? `/api/doodstream/stream?url=${encodeURIComponent(directStreamUrl)}&referer=${encodeURIComponent(referer)}`
+        : directStreamUrl;
 
       return {
         provider: this.name,
         embedUrl: streamUrl,
-        directUrl: result.streamUrl,
-        directType: /\.(m3u8)/i.test(result.streamUrl) ? 'hls' : 'mp4',
+        directUrl: directStreamUrl,
+        directType: isDirectStream ? directType : undefined,
         type: 'movie',
       };
     }
@@ -81,17 +95,30 @@ export class FrenchStreamProvider implements StreamingProvider {
 
     if (result?.streamUrl) {
       console.log(`[FrenchStream Provider] Flux série 1080p trouvé: ${result.streamUrl.slice(0, 80)}... (${result.fileSize})`);
-      const isDirectStream = /\.(mp4|webm|mkv|m3u8)(\?|$)/i.test(result.streamUrl) || /u\d+\.vidzy\.cc/i.test(result.streamUrl);
-      const referer = getRefererForStreamUrl(result.streamUrl);
+      
+      let directStreamUrl = result.streamUrl;
+      let directType: 'mp4' | 'hls' = /\.(m3u8)/i.test(result.streamUrl) ? 'hls' : 'mp4';
+      if (!/\.(mp4|webm|mkv|m3u8)(\?|$)/i.test(result.streamUrl)) {
+        try {
+          const directRes = await DirectScraper.resolve(result.streamUrl);
+          if (directRes?.directUrl) {
+            directStreamUrl = directRes.directUrl;
+            directType = directRes.type === 'hls' ? 'hls' : 'mp4';
+          }
+        } catch (_) {}
+      }
+
+      const isDirectStream = /\.(mp4|webm|mkv|m3u8)(\?|$)/i.test(directStreamUrl) || /u\d+\.vidzy\.cc/i.test(directStreamUrl);
+      const referer = getRefererForStreamUrl(directStreamUrl);
       const streamUrl = isDirectStream
-        ? `/api/doodstream/stream?url=${encodeURIComponent(result.streamUrl)}&referer=${encodeURIComponent(referer)}`
-        : result.streamUrl;
+        ? `/api/doodstream/stream?url=${encodeURIComponent(directStreamUrl)}&referer=${encodeURIComponent(referer)}`
+        : directStreamUrl;
 
       return {
         provider: this.name,
         embedUrl: streamUrl,
-        directUrl: result.streamUrl,
-        directType: /\.(m3u8)/i.test(result.streamUrl) ? 'hls' : 'mp4',
+        directUrl: directStreamUrl,
+        directType: isDirectStream ? directType : undefined,
         type: 'episode',
       };
     }

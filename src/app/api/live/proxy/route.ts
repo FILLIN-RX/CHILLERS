@@ -36,7 +36,9 @@ export async function GET(request: NextRequest) {
 
   let targetUrl: URL;
   try {
-    targetUrl = new URL(cleanUrl);
+    targetUrl = cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://")
+      ? new URL(cleanUrl)
+      : new URL(cleanUrl, request.nextUrl.origin);
   } catch {
     return new NextResponse("Invalid URL parameter", { status: 400 });
   }

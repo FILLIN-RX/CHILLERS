@@ -424,7 +424,6 @@ export default function LivePlayer({
           allowFullScreen
           referrerPolicy="origin"
           title={channel.name}
-          sandbox="allow-scripts allow-same-origin allow-forms allow-orientation-lock allow-presentation"
         />
       ) : (
         <video

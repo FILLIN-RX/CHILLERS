@@ -201,9 +201,11 @@ router.get('/stream', (req, res) => {
     const filename = req.query.filename || 'video.mp4';
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Content-Type', 'video/mp4');
+    const referer = m3u8Url.includes('uqload') ? 'https://uqload.is/' : m3u8Url.includes('vidzy') ? 'https://vidzy.cc/' : '';
+    const headers = `User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\r\n${referer ? `Referer: ${referer}\r\n` : ''}`;
     const ffmpeg = (0, child_process_1.spawn)('ffmpeg', [
         '-y',
-        '-http_multiple', '0',
+        '-headers', headers,
         '-i', m3u8Url,
         '-c', 'copy',
         '-bsf:a', 'aac_adtstoasc',

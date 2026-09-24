@@ -1,6 +1,7 @@
 import axios from 'axios';
 import querystring from 'querystring';
 import Movie from '../../models/Movie';
+import { DirectScraper } from '../../streaming/providers/direct-scraper';
 
 const BASE_URL = 'https://french-stream.net';
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
@@ -351,52 +352,100 @@ export async function extractEpisodeEmbedVersions(
 
     const versions: FrenchStreamVersion[] = [];
 
-    // 1. Interroger film_api.php avec le paramètre episode si newsId disponible
+    // 1. Interroger en priorité les endpoints de données séries de FrenchStream (/static/series/N.js, /data/eps_N.txt, /ep-data.php)
     if (newsIdMatch && newsIdMatch[1]) {
-      try {
-        const apiUrl = `${BASE_URL}/engine/ajax/film_api.php?id=${newsIdMatch[1]}&episode=${targetEpisode}`;
-        const { data: apiData } = await axios.get(apiUrl, {
-          headers: {
-            'User-Agent': USER_AGENT,
-            'Referer': pageUrl
-          },
-          timeout: 10000
-        });
+      const newsId = newsIdMatch[1];
+      const preferredHosts = ['vidzy', 'uqload', 'premium', 'dood', 'voe', 'netu', 'filmoon'];
+      const candidates = [
+        `${BASE_URL}/static/series/${newsId}.js`,
+        `${BASE_URL}/data/eps_${newsId}.txt`,
+        `${BASE_URL}/ep-data.php?id=${newsId}`
+      ];
 
-        if (apiData?.players && typeof apiData.players === 'object') {
-          const preferredHosts = ['vidzy', 'uqload', 'premium', 'dood', 'voe', 'filmoon'];
-          const allHosts = Object.keys(apiData.players).sort((a, b) => {
-            const idxA = preferredHosts.indexOf(a.toLowerCase());
-            const idxB = preferredHosts.indexOf(b.toLowerCase());
-            const scoreA = idxA === -1 ? 99 : idxA;
-            const scoreB = idxB === -1 ? 99 : idxB;
-            return scoreA - scoreB;
+      let seriesData: any = null;
+      for (const candUrl of candidates) {
+        try {
+          const { data } = await axios.get(candUrl, {
+            headers: { 'User-Agent': USER_AGENT, 'Referer': pageUrl },
+            timeout: 8000
           });
+          if (data) {
+            seriesData = typeof data === 'string' ? JSON.parse(data) : data;
+            break;
+          }
+        } catch (_) {}
+      }
 
-          for (const host of allHosts) {
-            const playerData = apiData.players[host];
-            if (!playerData || typeof playerData !== 'object') continue;
+      if (seriesData && typeof seriesData === 'object') {
+        const langKeys = ['vf', 'vostfr', 'vo'];
+        for (const lang of langKeys) {
+          const epObj = seriesData[lang]?.[String(targetEpisode)] || seriesData[lang]?.[targetEpisode];
+          if (epObj && typeof epObj === 'object') {
+            const hosts = Object.keys(epObj).sort((a, b) => {
+              const idxA = preferredHosts.indexOf(a.toLowerCase());
+              const idxB = preferredHosts.indexOf(b.toLowerCase());
+              const scoreA = idxA === -1 ? 99 : idxA;
+              const scoreB = idxB === -1 ? 99 : idxB;
+              return scoreA - scoreB;
+            });
 
-            const variants = [
-              { key: 'vff', label: `${host.toUpperCase()} (TRUEFRENCH)` },
-              { key: 'vf', label: `${host.toUpperCase()} (VF)` },
-              { key: 'vfq', label: `${host.toUpperCase()} (VFQ)` },
-              { key: 'default', label: isPageVostfr && !playerData.vf && !playerData.vff ? `${host.toUpperCase()} (VOSTFR)` : `${host.toUpperCase()} (FRENCH)` },
-              { key: 'vostfr', label: `${host.toUpperCase()} (VOSTFR)` },
-            ];
-
-            const addedUrls = new Set<string>();
-            for (const v of variants) {
-              const url = playerData[v.key];
-              if (url && typeof url === 'string' && !addedUrls.has(url)) {
-                addedUrls.add(url);
-                versions.push({ label: v.label, embedUrl: url });
+            for (const h of hosts) {
+              const u = epObj[h];
+              if (u && typeof u === 'string') {
+                const langLabel = lang.toUpperCase() === 'VF' ? (isPageVostfr ? 'VOSTFR' : 'VF') : lang.toUpperCase();
+                versions.push({ label: `${h.toUpperCase()} (${langLabel})`, embedUrl: u });
               }
             }
           }
         }
-      } catch (apiErr: any) {
-        console.error(`[FrenchStream] Erreur film_api.php série id=${newsIdMatch[1]} ep=${targetEpisode}:`, apiErr.message);
+      }
+
+      // 2. Fallback film_api.php si aucune version trouvée
+      if (versions.length === 0) {
+        try {
+          const apiUrl = `${BASE_URL}/engine/ajax/film_api.php?id=${newsId}&episode=${targetEpisode}`;
+          const { data: apiData } = await axios.get(apiUrl, {
+            headers: {
+              'User-Agent': USER_AGENT,
+              'Referer': pageUrl
+            },
+            timeout: 10000
+          });
+
+          if (apiData?.players && typeof apiData.players === 'object') {
+            const allHosts = Object.keys(apiData.players).sort((a, b) => {
+              const idxA = preferredHosts.indexOf(a.toLowerCase());
+              const idxB = preferredHosts.indexOf(b.toLowerCase());
+              const scoreA = idxA === -1 ? 99 : idxA;
+              const scoreB = idxB === -1 ? 99 : idxB;
+              return scoreA - scoreB;
+            });
+
+            for (const host of allHosts) {
+              const playerData = apiData.players[host];
+              if (!playerData || typeof playerData !== 'object') continue;
+
+              const variants = [
+                { key: 'vff', label: `${host.toUpperCase()} (TRUEFRENCH)` },
+                { key: 'vf', label: `${host.toUpperCase()} (VF)` },
+                { key: 'vfq', label: `${host.toUpperCase()} (VFQ)` },
+                { key: 'default', label: isPageVostfr && !playerData.vf && !playerData.vff ? `${host.toUpperCase()} (VOSTFR)` : `${host.toUpperCase()} (FRENCH)` },
+                { key: 'vostfr', label: `${host.toUpperCase()} (VOSTFR)` },
+              ];
+
+              const addedUrls = new Set<string>();
+              for (const v of variants) {
+                const url = playerData[v.key];
+                if (url && typeof url === 'string' && !addedUrls.has(url)) {
+                  addedUrls.add(url);
+                  versions.push({ label: v.label, embedUrl: url });
+                }
+              }
+            }
+          }
+        } catch (apiErr: any) {
+          console.error(`[FrenchStream] Erreur film_api.php série id=${newsId} ep=${targetEpisode}:`, apiErr.message);
+        }
       }
     }
 
@@ -478,27 +527,27 @@ export async function getFrenchStreamEpisode(
       return 6;
     };
 
-    // 1. Tenter la résolution directe Vidzy 1080p
-    const vidzyVersions = versions
-      .filter(v => v.embedUrl.includes('vidzy'))
-      .sort((a, b) => langRank(a.label) - langRank(b.label));
-
-    for (const v of vidzyVersions) {
-      const direct = await resolveVidzyDirectStream(v.embedUrl);
-      if (direct?.streamUrl) {
-        console.log(`[FrenchStream HQ] Flux série direct 1080p résolu (${v.label}): ${direct.streamUrl.slice(0, 70)}...`);
-        return {
-          title: resolvedTitle || `${best.title} S${targetSeason}E${targetEp}`,
-          quality: '1080p',
-          fileSize: direct.fileSize,
-          streamUrl: direct.streamUrl,
-          embedUrl: v.embedUrl,
-          source: 'frenchstream'
-        };
+    // 1. Tenter la résolution directe haute performance (Uqload HLS ou Vidzy MP4)
+    for (const v of versions) {
+      if (v.embedUrl.includes('uqload') || v.embedUrl.includes('vidzy')) {
+        try {
+          const direct = await DirectScraper.resolve(v.embedUrl);
+          if (direct?.directUrl) {
+            console.log(`[FrenchStream HQ] Flux série direct résolu (${v.label}): ${direct.directUrl.slice(0, 70)}...`);
+            return {
+              title: resolvedTitle || `${best.title} S${targetSeason}E${targetEp}`,
+              quality: '1080p',
+              fileSize: '1080p Full HD',
+              streamUrl: direct.directUrl,
+              embedUrl: v.embedUrl,
+              source: 'frenchstream'
+            };
+          }
+        } catch (_) {}
       }
     }
 
-    // 2. Fallback embed
+    // 2. Fallback embed si aucune extraction directe n'a abouti
     const sortedVersions = [...versions].sort((a, b) => langRank(a.label) - langRank(b.label));
     const chosen = sortedVersions[0];
     if (chosen?.embedUrl) {

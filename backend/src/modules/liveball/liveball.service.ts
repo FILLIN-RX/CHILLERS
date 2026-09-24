@@ -442,21 +442,30 @@ function teamLogo(block: string, side: 'left' | 'right'): string | undefined {
 }
 
 export async function fetchLiveBallHomepage(): Promise<string> {
-  try {
-    return await fetchHtmlWithCurl('https://liveball.sx/');
-  } catch {
-    // Fallback léger : essai axios au cas où le fingerprint curl change de statut.
-    const { data } = await axios.get<string>('https://liveball.sx/', {
-      headers: {
-        'User-Agent': USER_AGENT,
-        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'ru-RU,ru;q=0.9,en;q=0.8',
-      },
-      timeout: 15_000,
-      responseType: 'text',
-    });
-    return data;
+  for (const domain of LIVEBALL_BASE_DOMAINS) {
+    try {
+      const html = await fetchHtmlWithCurl(`https://${domain}/`);
+      if (html && (html.includes('live_block2') || html.includes('live_section') || html.length > 1000)) {
+        return html;
+      }
+    } catch {
+      try {
+        const { data } = await axios.get<string>(`https://${domain}/`, {
+          headers: {
+            'User-Agent': USER_AGENT,
+            Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'ru-RU,ru;q=0.9,en;q=0.8',
+          },
+          timeout: 12_000,
+          responseType: 'text',
+        });
+        if (data && (data.includes('live_block2') || data.includes('live_section') || data.length > 1000)) {
+          return data;
+        }
+      } catch {}
+    }
   }
+  throw new Error('All LiveBall domains failed to respond');
 }
 
 function parseSingleBlock(block: string, status: 'live' | 'upcoming', league?: string): LiveBallMatch | null {

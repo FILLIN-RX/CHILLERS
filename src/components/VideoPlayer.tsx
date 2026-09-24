@@ -17,6 +17,7 @@ import { useSubscriptionStore, isUserPro } from "@/stores/useSubscriptionStore";
 import { userService } from "@/services/user";
 import { isSlowConnection } from "@/services/media";
 import { getAntiBotHeaders } from "@/lib/antibot";
+import { PopupFirewall } from "@/lib/PopupFirewall";
 import Hls from "hls.js";
 
 interface VideoPlayerProps {
@@ -226,6 +227,15 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
     [resolvedStreamUrl, item.videoUrl],
   );
   const isIframe = isIframeProviderUrl(serverVideoUrl);
+
+  useEffect(() => {
+    if (isIframe) {
+      PopupFirewall.activate();
+      return () => {
+        PopupFirewall.deactivate();
+      };
+    }
+  }, [isIframe]);
 
   /* ───────── P2P client-side (WebTorrent) ─────────
      Privilégié quand aucun provider classique n'a de flux, ou quand le flux
@@ -695,7 +705,6 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
             referrerPolicy="origin"
             title={item.title}
             scrolling="no"
-            sandbox="allow-scripts allow-same-origin allow-forms allow-orientation-lock allow-presentation"
           />
           {/* iframe top bar on hover */}
           <div
