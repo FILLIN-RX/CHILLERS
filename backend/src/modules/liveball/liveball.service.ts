@@ -62,13 +62,41 @@ function xorDecodeToken(token: string): string {
 const FLARESOLVERR_URL = process.env.FLARESOLVERR_URL;
 const LIVEBALL_PROXY = (process.env.LIVEBALL_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY || '').trim();
 export const LIVEBALL_BASE_DOMAINS = [
-  process.env.LIVEBALL_DOMAIN || 'liveball.to',
+  process.env.LIVEBALL_DOMAIN || 'liveball.sx',
+  'liveball.sx',
   'liveball.to',
   'liveball.net',
   'liveball.org',
-  'liveball.sx',
   'liveball.im',
 ];
+
+let webshareProxies: string[] = [];
+let lastWebshareFetch = 0;
+
+async function getEffectiveProxy(): Promise<string | undefined> {
+  if (LIVEBALL_PROXY) return LIVEBALL_PROXY;
+  const apiKey = process.env.WEBSHARE_API_KEY || '7y3c7z8ycmfcrhloc2gwia16m76vuhod4r487muz';
+  if (!apiKey) return undefined;
+  const now = Date.now();
+  if (webshareProxies.length === 0 || now - lastWebshareFetch > 60 * 60 * 1000) {
+    try {
+      const { data } = await axios.get('https://proxy.webshare.io/api/v2/proxy/list/?mode=direct&page=1&page_size=10', {
+        headers: { Authorization: `Token ${apiKey}` },
+        timeout: 8000,
+      });
+      if (data?.results?.length > 0) {
+        webshareProxies = data.results.map((p: any) => `http://${p.username}:${p.password}@${p.proxy_address}:${p.port}`);
+        lastWebshareFetch = now;
+        console.log(`[LiveBall] ${webshareProxies.length} proxies Webshare initialisés`);
+      }
+    } catch (e: any) {
+      console.warn('[LiveBall] Échec fetch proxies Webshare:', e.message);
+    }
+  }
+  if (webshareProxies.length === 0) return undefined;
+  const idx = Math.floor(Math.random() * webshareProxies.length);
+  return webshareProxies[idx];
+}
 
 /**
  * Tente de résoudre une requête via une instance FlareSolverr si configurée
@@ -100,9 +128,9 @@ async function fetchWithFlareSolverr(
   return null;
 }
 
-// Récupération HTML avec bypass automatique de Cloudflare (Cloudscraper, FlareSolverr, curl proxy, axios)
+// Récupération HTML : Direct d'abord (ultra rapide en local/résidentiel), puis Proxy/FlareSolverr en fallback
 async function fetchHtmlWithCurl(url: string): Promise<string> {
-  // 1. Cloudscraper natif (contourne automatiquement le challenge Cloudflare)
+  // 1. Essai direct avec cloudscraper
   try {
     const csRes = await (cloudscraper as any).get({
       uri: url,
@@ -110,22 +138,13 @@ async function fetchHtmlWithCurl(url: string): Promise<string> {
         'User-Agent': USER_AGENT,
         'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
       },
-      proxy: LIVEBALL_PROXY || undefined,
     });
     if (typeof csRes === 'string' && csRes.length > 500 && !csRes.includes('Just a moment')) {
       return csRes;
     }
   } catch (_) {}
 
-  // 2. FlareSolverr si configuré
-  if (FLARESOLVERR_URL) {
-    const solverRes = await fetchWithFlareSolverr(url, 'GET');
-    if (solverRes && solverRes.length > 500 && !solverRes.includes('Just a moment')) {
-      return solverRes;
-    }
-  }
-
-  // 2. cURL avec proxy si configuré
+  // 2. Essai direct avec cURL
   try {
     const curlArgs = [
       '-sSL',
@@ -146,69 +165,56 @@ async function fetchHtmlWithCurl(url: string): Promise<string> {
       '-H', 'Sec-Ch-Ua-Platform: "Linux"',
       '-H', 'Cache-Control: max-age=0',
       '--compressed',
-      '--max-time', '20',
+      '--max-time', '15',
+      url,
     ];
 
-    if (LIVEBALL_PROXY) {
-      curlArgs.push('-x', LIVEBALL_PROXY);
-    }
-
-    curlArgs.push(url);
-
     const { stdout } = await execFileAsync('curl', curlArgs, { maxBuffer: 4 * 1024 * 1024 });
-
-    // Check if we got Cloudflare challenge instead of real content
-    if (stdout.includes('Just a moment') || stdout.includes('challenges.cloudflare.com') || stdout.includes('error code') || stdout.trim().length < 500) {
-      throw new Error('Cloudflare challenge or empty response detected');
+    if (stdout && !stdout.includes('Just a moment') && !stdout.includes('challenges.cloudflare.com') && stdout.trim().length >= 500) {
+      return stdout;
     }
+  } catch (_) {}
 
-    return stdout;
-  } catch (curlErr) {
-    // 3. Fallback: try axios with different user agent
+  // 3. Fallback via Proxy si disponible
+  const proxy = await getEffectiveProxy();
+  if (proxy) {
     try {
-      const axiosConfig: any = {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.9,fr;q=0.8,ru;q=0.7',
-          'Accept-Encoding': 'gzip, deflate, br',
-          DNT: '1',
-          Connection: 'keep-alive',
-          'Upgrade-Insecure-Requests': '1',
-          'Sec-Fetch-Dest': 'document',
-          'Sec-Fetch-Mode': 'navigate',
-          'Sec-Fetch-Site': 'none',
-        },
-        timeout: 15_000,
-        responseType: 'text',
-        maxRedirects: 10,
-      };
-
-      if (LIVEBALL_PROXY) {
-        // Axios proxy URL parsing
-        try {
-          const u = new URL(LIVEBALL_PROXY);
-          axiosConfig.proxy = {
-            protocol: u.protocol.replace(':', ''),
-            host: u.hostname,
-            port: parseInt(u.port || (u.protocol === 'https:' ? '443' : '80'), 10),
-            auth: u.username ? { username: u.username, password: u.password } : undefined,
-          };
-        } catch {}
+      const csRes = await (cloudscraper as any).get({
+        uri: url,
+        headers: { 'User-Agent': USER_AGENT },
+        proxy,
+      });
+      if (typeof csRes === 'string' && csRes.length > 500 && !csRes.includes('Just a moment')) {
+        return csRes;
       }
+    } catch (_) {}
+  }
 
-      const { data } = await axios.get<string>(url, axiosConfig);
-
-      if (data.includes('Just a moment') || data.includes('challenges.cloudflare.com')) {
-        throw new Error('Cloudflare challenge detected in axios response');
-      }
-
-      return data;
-    } catch (axiosErr) {
-      console.error(`[LiveBall] Fetch failed for ${url}. curl: ${curlErr instanceof Error ? curlErr.message : 'unknown'}, axios: ${axiosErr instanceof Error ? axiosErr.message : 'unknown'}`);
-      throw new Error('Unable to bypass Cloudflare - LiveBall is blocking access');
+  // 4. FlareSolverr si configuré
+  if (FLARESOLVERR_URL) {
+    const solverRes = await fetchWithFlareSolverr(url, 'GET');
+    if (solverRes && solverRes.length > 500 && !solverRes.includes('Just a moment')) {
+      return solverRes;
     }
   }
+
+  // 5. Fallback axios
+  try {
+    const { data } = await axios.get<string>(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+      },
+      timeout: 12_000,
+      responseType: 'text',
+    });
+    if (data && !data.includes('Just a moment') && !data.includes('challenges.cloudflare.com')) {
+      return data;
+    }
+  } catch (_) {}
+
+  throw new Error(`Unable to bypass Cloudflare for ${url}`);
 }
 
 function decodeEntities(s: string): string {
@@ -861,11 +867,26 @@ export async function resolveLiveBallStream(matchId: string, forceRefresh = fals
     }
 
     if (candidateTokens.length === 0) {
-      console.warn(`[LiveBall] No valid stream token found for match ${matchId}`);
+      const iframeMatch = html.match(/<iframe[^>]+src=["']([^"']+)["']/i);
+      if (iframeMatch && iframeMatch[1] && !iframeMatch[1].includes('about:blank')) {
+        let u = iframeMatch[1];
+        if (u.startsWith('//')) u = `https:${u}`;
+        const stream: ResolvedStream = { url: u, type: 'iframe' };
+        STREAM_CACHE.set(matchId, stream);
+        return stream;
+      }
+      const m3u8Match = html.match(/(https?:\/\/[^"'\s<>]+\.m3u8[^"'\s<>]*)/i);
+      if (m3u8Match && m3u8Match[1]) {
+        const stream: ResolvedStream = { url: m3u8Match[1], type: 'hls' };
+        STREAM_CACHE.set(matchId, stream);
+        return stream;
+      }
+      console.warn(`[LiveBall] No valid stream token or iframe found for match ${matchId}`);
       return null;
     }
 
     console.log(`[LiveBall] Found ${candidateTokens.length} stream token candidate(s) for match ${matchId}`);
+    const proxy = await getEffectiveProxy();
 
     // Try resolving with each candidate token until one succeeds
     for (const token of candidateTokens) {
@@ -883,7 +904,7 @@ export async function resolveLiveBallStream(matchId: string, forceRefresh = fals
             Origin: `https://${activeDomain}`,
             'User-Agent': USER_AGENT,
           },
-          proxy: LIVEBALL_PROXY || undefined,
+          proxy: proxy || undefined,
         });
         if (csData) {
           stdout = typeof csData === 'string' ? csData : JSON.stringify(csData);
@@ -918,8 +939,8 @@ export async function resolveLiveBallStream(matchId: string, forceRefresh = fals
             '--max-time', '12',
           ];
 
-          if (LIVEBALL_PROXY) {
-            curlArgs.push('-x', LIVEBALL_PROXY);
+          if (proxy) {
+            curlArgs.push('-x', proxy);
           }
 
           curlArgs.push(`https://${activeDomain}/api/c/r`);
@@ -942,9 +963,9 @@ export async function resolveLiveBallStream(matchId: string, forceRefresh = fals
               timeout: 12_000,
             };
 
-            if (LIVEBALL_PROXY) {
+            if (proxy) {
               try {
-                const u = new URL(LIVEBALL_PROXY);
+                const u = new URL(proxy);
                 axiosConfig.proxy = {
                   protocol: u.protocol.replace(':', ''),
                   host: u.hostname,
