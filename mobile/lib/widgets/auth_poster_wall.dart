@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
@@ -147,6 +146,8 @@ class _AuthPosterWallState extends State<AuthPosterWall>
               },
             ),
           ),
+        ),
+
         // ── 2. Light Cinematic Overlay Gradients (posters remain clearly visible) ──
         Positioned.fill(
           child: Container(

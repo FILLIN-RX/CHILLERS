@@ -21,6 +21,8 @@ class MediaItem {
   final List<String>? genres;
   final String? trailerUrl;
   final List<MediaItem>? recommendations;
+  final bool isPremium;
+  final String? releaseDate;
 
   MediaItem({
     required this.id,
@@ -43,6 +45,8 @@ class MediaItem {
     this.genres,
     this.trailerUrl,
     this.recommendations,
+    this.isPremium = false,
+    this.releaseDate,
   });
 
   static String? _parseImageUrl(dynamic rawUrl, {bool isBackdrop = false}) {
@@ -163,6 +167,8 @@ class MediaItem {
       genres: parsedGenres,
       trailerUrl: json['trailerUrl'] ?? json['trailer'],
       recommendations: recs,
+      isPremium: json['isPremium'] == true || json['is_premium'] == true,
+      releaseDate: (json['release_date'] ?? json['first_air_date'] ?? json['releaseDate'])?.toString(),
     );
   }
 
@@ -184,6 +190,8 @@ class MediaItem {
       'number_of_episodes': numberOfEpisodes,
       'genres': genres,
       'trailerUrl': trailerUrl,
+      'isPremium': isPremium,
+      'releaseDate': releaseDate,
     };
   }
 }

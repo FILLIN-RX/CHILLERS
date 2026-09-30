@@ -1,26 +1,28 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../config/theme.dart';
 import '../../models/live_channel.dart';
 import '../../models/live_match.dart';
-import '../../models/user_model.dart';
+import '../../models/media_item.dart';
 import '../../services/api_service.dart';
-import '../../services/storage_service.dart';
-import '../../widgets/app_video_player.dart';
-import '../../widgets/upgrade_modal.dart';
-import '../search/search_screen.dart';
-import '../profile/profile_screen.dart';
+import '../watch/watch_screen.dart';
+import '../search/optimized_search_screen.dart';
 
 class LiveScreen extends StatefulWidget {
   static final GlobalKey<LiveScreenState> liveKey = GlobalKey<LiveScreenState>();
 
   static void selectTab(int index) {
-    liveKey.currentState?.switchTab(index);
+    liveKey.currentState?.switchCategoryByIndex(index);
   }
 
   static void playMatch(LiveMatch match) {
-    liveKey.currentState?.selectMatch(match);
+    liveKey.currentState?.openMatchPlayer(match);
+  }
+
+  static void playChannel(LiveChannel channel) {
+    liveKey.currentState?.openChannelPlayer(channel);
   }
 
   const LiveScreen({super.key});
@@ -29,70 +31,133 @@ class LiveScreen extends StatefulWidget {
   State<LiveScreen> createState() => LiveScreenState();
 }
 
-class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMixin {
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+class LiveScreenState extends State<LiveScreen> {
   final ApiService _apiService = ApiService();
-  final StorageService _storage = StorageService();
 
-  UserModel? _user;
   List<LiveChannel> _channels = [];
   List<LiveMatch> _matches = [];
   bool _isLoading = true;
 
-  late TabController _tabController;
-  String _selectedChannelCategory = 'all';
-  String _selectedMatchFilter = 'all'; // 'all', 'uefa', 'live', 'upcoming'
+  String _selectedCategory = 'all';
+  String _selectedLeague = 'all';
+  String _viewMode = 'mosaic'; // 'mosaic' (Canal+ logos) or 'cards' (16:9 affiches)
+  String _searchQuery = '';
+  final Set<String> _favoriteSlugs = {};
 
-  LiveChannel? _activeChannel;
-  LiveMatch? _activeMatch;
-  String _currentStreamUrl = '';
-  String _currentTitle = 'Live TV & Foot';
-  String? _currentSubtitle;
+  final TextEditingController _searchController = TextEditingController();
 
-  final List<Map<String, dynamic>> _channelCategories = [
-    {'id': 'all', 'label': 'Toutes', 'icon': FontAwesomeIcons.sliders.data},
-    {'id': 'sport', 'label': 'Sports TV', 'icon': FontAwesomeIcons.futbol.data},
-    {'id': 'cinema', 'label': 'Cinéma', 'icon': FontAwesomeIcons.clapperboard.data},
-    {'id': 'news', 'label': 'Infos', 'icon': FontAwesomeIcons.newspaper.data},
-    {'id': 'general', 'label': 'Général', 'icon': FontAwesomeIcons.globe.data},
-    {'id': 'music', 'label': 'Musique', 'icon': FontAwesomeIcons.music.data},
+  // Hero Promo Carousel State
+  int _heroSlideIndex = 0;
+  Timer? _heroTimer;
+
+  static const List<Map<String, dynamic>> _heroPromos = [
+    {
+      'id': 'can-2027',
+      'badge': 'CAN 2027 QUALIFIERS',
+      'title': 'SUIVEZ LES QUALIFICATIONS DE LA CAN 2027',
+      'subtitle': 'EN DIRECT ET EN EXCLUSIVITÉ SUR CHILLERS',
+      'color': Color(0xFFFFCC00),
+      'textColor': Colors.black,
+      'badgeColor': Colors.black,
+      'badgeTextColor': Colors.white,
+      'icon': FontAwesomeIcons.trophy,
+    },
+    {
+      'id': 'ucl-2026',
+      'badge': 'UEFA CHAMPIONS LEAGUE',
+      'title': 'LA PLUS GRANDE DES COMPÉTITIONS EUROPÉENNES',
+      'subtitle': 'TOUS LES MATCHS DES PHASES DE GROUPES EN DIRECT',
+      'color': Color(0xFF0A192F),
+      'textColor': Colors.white,
+      'badgeColor': Color(0xFF0284C7),
+      'badgeTextColor': Colors.white,
+      'icon': FontAwesomeIcons.star,
+    },
+    {
+      'id': 'pl-2026',
+      'badge': 'PREMIER LEAGUE',
+      'title': 'LE MEILLEUR DU FOOTBALL ANGLAIS CHAQUE WEEK-END',
+      'subtitle': 'MAN CITY • LIVERPOOL • ARSENAL • CHELSEA • REAL',
+      'color': Color(0xFF38003C),
+      'textColor': Colors.white,
+      'badgeColor': Color(0xFF00FF87),
+      'badgeTextColor': Color(0xFF38003C),
+      'icon': FontAwesomeIcons.futbol,
+    },
+    {
+      'id': 'laliga-2026',
+      'badge': 'LA LIGA EA SPORTS',
+      'title': 'LE CHOC DES GÉANTS • REAL MADRID vs FC BARCELONE',
+      'subtitle': 'VIVEZ TOUS LES MATCHS DU CHAMPIONNAT ESPAGNOL',
+      'color': Color(0xFF7B0818),
+      'textColor': Colors.white,
+      'badgeColor': Color(0xFFFFD700),
+      'badgeTextColor': Colors.black,
+      'icon': FontAwesomeIcons.trophy,
+    },
+    {
+      'id': 'live-tv-hd',
+      'badge': 'DIRECT TV & SPORT HD',
+      'title': 'VOS CHAÎNES EN DIRECT ET EN EXCLUSIVITÉ',
+      'subtitle': 'SPORT EN DIRECT • CINÉMA • SÉRIES • INFOS 24/7',
+      'color': Color(0xFF003B6E),
+      'textColor': Colors.white,
+      'badgeColor': Color(0xFF22D3EE),
+      'badgeTextColor': Colors.black,
+      'icon': FontAwesomeIcons.tv,
+    },
   ];
 
-  final List<Map<String, dynamic>> _matchFilters = [
-    {'id': 'all', 'label': 'Tous les Matchs', 'icon': FontAwesomeIcons.futbol.data},
-    {'id': 'live', 'label': 'En Direct', 'icon': FontAwesomeIcons.circle.data},
-    {'id': 'uefa', 'label': 'Champions League', 'icon': FontAwesomeIcons.trophy.data},
-    {'id': 'premier-league', 'label': 'Premier League', 'icon': FontAwesomeIcons.futbol.data},
-    {'id': 'la-liga', 'label': 'La Liga', 'icon': FontAwesomeIcons.futbol.data},
-    {'id': 'serie-a', 'label': 'Serie A', 'icon': FontAwesomeIcons.futbol.data},
-    {'id': 'bundesliga', 'label': 'Bundesliga', 'icon': FontAwesomeIcons.futbol.data},
-    {'id': 'ligue-1', 'label': 'Ligue 1', 'icon': FontAwesomeIcons.futbol.data},
-    {'id': 'upcoming', 'label': 'À Venir', 'icon': FontAwesomeIcons.clock.data},
+  static const List<Map<String, dynamic>> _categories = [
+    {'id': 'all', 'label': 'Toutes', 'icon': FontAwesomeIcons.tv},
+    {'id': 'sports', 'label': 'Sport', 'icon': FontAwesomeIcons.trophy},
+    {'id': 'cinema', 'label': 'Cinéma', 'icon': FontAwesomeIcons.film},
+    {'id': 'series', 'label': 'Séries', 'icon': FontAwesomeIcons.video},
+    {'id': 'kids', 'label': 'Jeunesse', 'icon': FontAwesomeIcons.child},
+    {'id': 'news', 'label': 'Infos', 'icon': FontAwesomeIcons.newspaper},
+    {'id': 'documentary', 'label': 'Découverte', 'icon': FontAwesomeIcons.compass},
+    {'id': 'music', 'label': 'Musique', 'icon': FontAwesomeIcons.music},
+    {'id': 'favorites', 'label': 'Favoris', 'icon': FontAwesomeIcons.solidStar},
+  ];
+
+  static const List<Map<String, dynamic>> _leagueFilters = [
+    {'id': 'all', 'label': 'Tous', 'icon': FontAwesomeIcons.futbol},
+    {'id': 'live', 'label': 'En Direct', 'icon': FontAwesomeIcons.circle},
+    {'id': 'uefa', 'label': 'Champions League', 'icon': FontAwesomeIcons.trophy},
+    {'id': 'premier-league', 'label': 'Premier League', 'icon': FontAwesomeIcons.futbol},
+    {'id': 'la-liga', 'label': 'La Liga', 'icon': FontAwesomeIcons.futbol},
+    {'id': 'serie-a', 'label': 'Serie A', 'icon': FontAwesomeIcons.futbol},
+    {'id': 'bundesliga', 'label': 'Bundesliga', 'icon': FontAwesomeIcons.futbol},
+    {'id': 'ligue-1', 'label': 'Ligue 1', 'icon': FontAwesomeIcons.futbol},
   ];
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _loadData();
+    _startHeroTimer();
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _heroTimer?.cancel();
+    _searchController.dispose();
     super.dispose();
   }
 
-  void switchTab(int index) {
-    if (mounted && index >= 0 && index < 2) {
-      _tabController.animateTo(index);
-    }
+  void _startHeroTimer() {
+    _heroTimer?.cancel();
+    _heroTimer = Timer.periodic(const Duration(seconds: 6), (_) {
+      if (mounted) {
+        setState(() {
+          _heroSlideIndex = (_heroSlideIndex + 1) % _heroPromos.length;
+        });
+      }
+    });
   }
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
-
-    final cachedUser = await _storage.getUser();
 
     try {
       final channelsFuture = _apiService.getLiveChannels();
@@ -105,110 +170,171 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
       final matches = results[1] as List<LiveMatch>;
       final uefa = results[2] as List<LiveMatch>;
 
-      // Dédoublonnage des matches
+      // Deduplicate matches
       final allMatchesMap = <String, LiveMatch>{};
       for (final m in [...matches, ...uefa]) {
         allMatchesMap[m.id] = m;
       }
-      final allMatches = allMatchesMap.values.toList();
 
       if (!mounted) return;
 
       setState(() {
-        _user = cachedUser;
         _channels = channels;
-        _matches = allMatches;
+        _matches = allMatchesMap.values.toList();
         _isLoading = false;
-
-        if (channels.isNotEmpty && _activeChannel == null && _activeMatch == null) {
-          _selectChannel(channels.first);
-        }
       });
     } catch (_) {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  void _selectChannel(LiveChannel channel) {
-    final cat = channel.categories.isNotEmpty ? channel.categories.first.toUpperCase() : 'DIRECT';
+  void switchCategoryByIndex(int index) {
+    if (index >= 0 && index < _categories.length) {
+      setState(() {
+        _selectedCategory = _categories[index]['id'] as String;
+      });
+    }
+  }
+
+  void _toggleFavorite(String slug) {
     setState(() {
-      _activeMatch = null;
-      _activeChannel = channel;
-      _currentStreamUrl = channel.streamUrl;
-      _currentTitle = channel.name;
-      _currentSubtitle = cat;
+      if (_favoriteSlugs.contains(slug)) {
+        _favoriteSlugs.remove(slug);
+      } else {
+        _favoriteSlugs.add(slug);
+      }
     });
   }
 
-  Future<void> selectMatch(LiveMatch match) async {
-    setState(() {
-      _activeChannel = null;
-      _activeMatch = match;
-      _currentTitle = '${match.home} vs ${match.away}';
-      _currentSubtitle = '${match.league ?? 'Football'} • ${match.minute ?? (match.status == 'live' ? 'En Direct' : 'Bientôt')}';
-      _tabController.animateTo(1);
-    });
+  // ── Open Player for a Channel (no auto-play on load, user selects first!) ──
+  void openChannelPlayer(LiveChannel channel) {
+    final media = MediaItem(
+      id: channel.id,
+      title: channel.name,
+      poster: channel.logo,
+      type: 'channel',
+      streamUrl: channel.streamUrl,
+      genres: channel.categories,
+    );
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => WatchScreen(
+          item: media,
+          initialVideoUrl: channel.streamUrl,
+        ),
+      ),
+    );
+  }
+
+  // ── Open Player for a Live Match ──
+  Future<void> openMatchPlayer(LiveMatch match) async {
+    // Show quick loading snackbar if needed
+    final scaffold = ScaffoldMessenger.of(context);
+    scaffold.showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Text('Chargement du match ${match.home} vs ${match.away}...')),
+          ],
+        ),
+        duration: const Duration(seconds: 2),
+        backgroundColor: const Color(0xFF18181B),
+      ),
+    );
 
     final streamUrl = await _apiService.getMatchStreamUrl(match.id);
+    scaffold.hideCurrentSnackBar();
 
     if (!mounted) return;
 
-    if (streamUrl != null && streamUrl.isNotEmpty) {
-      setState(() {
-        _currentStreamUrl = streamUrl;
-      });
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Flux direct du match en cours d\'initialisation.')),
-      );
-    }
+    final media = MediaItem(
+      id: 'match_${match.id}',
+      title: '${match.home} vs ${match.away}',
+      poster: match.homeLogo ?? match.awayLogo,
+      type: 'match',
+      streamUrl: streamUrl ?? '',
+      genres: [match.league ?? 'Football', match.status == 'live' ? 'En Direct' : 'Match'],
+    );
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => WatchScreen(
+          item: media,
+          initialVideoUrl: streamUrl,
+        ),
+      ),
+    );
   }
 
   List<LiveChannel> get _filteredChannels {
-    if (_selectedChannelCategory == 'all') return _channels;
-    return _channels.where((c) {
-      final cats = c.categories.map((cat) => cat.toLowerCase()).toList();
-      if (_selectedChannelCategory == 'sport') return cats.any((cat) => cat.contains('sport') || cat.contains('football'));
-      if (_selectedChannelCategory == 'news') return cats.any((cat) => cat.contains('info') || cat.contains('news'));
-      if (_selectedChannelCategory == 'cinema') return cats.any((cat) => cat.contains('cine') || cat.contains('film') || cat.contains('movie'));
-      if (_selectedChannelCategory == 'music') return cats.any((cat) => cat.contains('music'));
-      return cats.any((cat) => cat.contains(_selectedChannelCategory));
-    }).toList();
+    List<LiveChannel> list = _channels;
+
+    if (_selectedCategory == 'favorites') {
+      list = list.where((c) => _favoriteSlugs.contains(c.slug)).toList();
+    } else if (_selectedCategory != 'all') {
+      list = list.where((c) {
+        final cats = c.categories.map((cat) => cat.toLowerCase()).toList();
+        if (_selectedCategory == 'sports') return cats.any((cat) => cat.contains('sport') || cat.contains('football'));
+        if (_selectedCategory == 'news') return cats.any((cat) => cat.contains('info') || cat.contains('news') || cat.contains('polit'));
+        if (_selectedCategory == 'cinema') return cats.any((cat) => cat.contains('cine') || cat.contains('film') || cat.contains('movie'));
+        if (_selectedCategory == 'series') return cats.any((cat) => cat.contains('serie'));
+        if (_selectedCategory == 'kids') return cats.any((cat) => cat.contains('kid') || cat.contains('enfant') || cat.contains('jeunesse') || cat.contains('anim'));
+        if (_selectedCategory == 'music') return cats.any((cat) => cat.contains('music') || cat.contains('musique'));
+        if (_selectedCategory == 'documentary') return cats.any((cat) => cat.contains('doc') || cat.contains('decouverte'));
+        return cats.any((cat) => cat.contains(_selectedCategory));
+      }).toList();
+    }
+
+    if (_searchQuery.trim().isNotEmpty) {
+      final q = _searchQuery.trim().toLowerCase();
+      list = list.where((c) =>
+          c.name.toLowerCase().contains(q) ||
+          c.categories.any((cat) => cat.toLowerCase().contains(q))).toList();
+    }
+
+    return list;
   }
 
   List<LiveMatch> get _filteredMatches {
-    if (_selectedMatchFilter == 'live') {
+    if (_selectedLeague == 'all') return _matches;
+    if (_selectedLeague == 'live') {
       return _matches.where((m) => m.status == 'live').toList();
     }
-    if (_selectedMatchFilter == 'upcoming') {
-      return _matches.where((m) => m.status == 'upcoming').toList();
-    }
-    if (_selectedMatchFilter == 'uefa') {
+    if (_selectedLeague == 'uefa') {
       return _matches.where((m) =>
           m.league != null &&
           (m.league!.toLowerCase().contains('champion') || m.league!.toLowerCase().contains('uefa'))).toList();
     }
-    if (_selectedMatchFilter == 'premier-league') {
+    if (_selectedLeague == 'premier-league') {
       return _matches.where((m) =>
           m.league != null &&
           (m.league!.toLowerCase().contains('premier') || m.league!.toLowerCase().contains('epl') || m.league!.toLowerCase().contains('england'))).toList();
     }
-    if (_selectedMatchFilter == 'la-liga') {
+    if (_selectedLeague == 'la-liga') {
       return _matches.where((m) =>
           m.league != null &&
           (m.league!.toLowerCase().contains('liga') || m.league!.toLowerCase().contains('spain') || m.league!.toLowerCase().contains('primera'))).toList();
     }
-    if (_selectedMatchFilter == 'serie-a') {
+    if (_selectedLeague == 'serie-a') {
       return _matches.where((m) =>
           m.league != null &&
           (m.league!.toLowerCase().contains('serie a') || m.league!.toLowerCase().contains('italy') || m.league!.toLowerCase().contains('italia'))).toList();
     }
-    if (_selectedMatchFilter == 'bundesliga') {
+    if (_selectedLeague == 'bundesliga') {
       return _matches.where((m) =>
           m.league != null &&
           (m.league!.toLowerCase().contains('bundesliga') || m.league!.toLowerCase().contains('germany'))).toList();
     }
-    if (_selectedMatchFilter == 'ligue-1') {
+    if (_selectedLeague == 'ligue-1') {
       return _matches.where((m) =>
           m.league != null &&
           (m.league!.toLowerCase().contains('ligue 1') || m.league!.toLowerCase().contains('france'))).toList();
@@ -218,782 +344,285 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isDesktop = screenWidth >= 850;
-    final isVip = _user?.subscription?.status == 'active';
-    final liveMatchesCount = _matches.where((m) => m.status == 'live').length;
-    final isMatchActive = _activeMatch != null;
-
     return Scaffold(
-      key: _scaffoldKey,
       backgroundColor: AppTheme.background,
-      body: SafeArea(
-        top: !isDesktop,
-        child: Column(
-          children: [
-            // ── TOP APP HEADER (Mobile Only) ──
-            if (!isDesktop)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: const BoxDecoration(
-                  color: Color(0xFF0C0C0E),
-                  border: Border(bottom: BorderSide(color: Colors.white10)),
-                ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Row(
-                        children: [
-                          ClipRRect(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
+          : RefreshIndicator(
+              color: AppTheme.primary,
+              onRefresh: _loadData,
+              child: CustomScrollView(
+                slivers: [
+                  // ── TOP FLOATING HEADER (AVEC RECHERCHE) ──
+                  SliverAppBar(
+                    floating: true,
+                    pinned: false,
+                    backgroundColor: Colors.black.withValues(alpha: 0.9),
+                    elevation: 0,
+                    title: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primary,
                             borderRadius: BorderRadius.circular(6),
-                            child: Image.asset(
-                              'assets/logo.png',
-                              width: 28,
-                              height: 28,
-                              errorBuilder: (context, error, stackTrace) => Container(
-                                width: 28,
-                                height: 28,
-                                decoration: BoxDecoration(
-                                  color: AppTheme.primary,
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: const FaIcon(FontAwesomeIcons.play, color: Colors.white, size: 18),
-                              ),
+                          ),
+                          child: const Text(
+                            'LIVE TV',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1.0,
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          RichText(
-                            text: const TextSpan(
-                              children: [
-                                TextSpan(
-                                  text: 'CHILL',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 0.8,
-                                  ),
-                                ),
-                                TextSpan(
-                                  text: 'ERS',
-                                  style: TextStyle(
-                                    color: AppTheme.primary,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 0.8,
-                                  ),
-                                ),
-                              ],
-                            ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Direct & Sport',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
                           ),
-                        ],
+                        ),
+                      ],
+                    ),
+                    actions: [
+                      IconButton(
+                        icon: const FaIcon(FontAwesomeIcons.magnifyingGlass, color: Colors.white70, size: 18),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const OptimizedSearchScreen()),
+                          );
+                        },
                       ),
+                      IconButton(
+                        icon: const FaIcon(FontAwesomeIcons.arrowsRotate, color: Colors.white70, size: 16),
+                        onPressed: _loadData,
+                      ),
+                      const SizedBox(width: 4),
                     ],
                   ),
 
-                  Row(
+                  // ── 1. HERO PROMO BANNERS CAROUSEL (STYLE WEB CAN & SPORTS) ──
+                  if (_searchQuery.isEmpty && _selectedCategory == 'all')
+                    SliverToBoxAdapter(
+                      child: _buildHeroPromoCarousel(),
+                    ),
+
+                  // ── 2. MATCHS DE FOOTBALL EN DIRECT & EVENEMENTS SPORTIFS ──
+                  if (_matches.isNotEmpty && _selectedCategory != 'favorites' && _searchQuery.isEmpty)
+                    SliverToBoxAdapter(
+                      child: _buildSportsMatchesSection(),
+                    ),
+
+                  // ── 3. CONTROLS & FILTER BAR (CATEGORIES + VIEW MODE + SEARCH) ──
+                  SliverToBoxAdapter(
+                    child: _buildControlsAndFilterBar(),
+                  ),
+
+                  // ── 4. CHANNELS GRID (MOSAÏQUE CANAL+ / AFFICHES 16:9) ──
+                  _buildChannelsSliverGrid(),
+
+                  const SliverToBoxAdapter(
+                    child: SizedBox(height: 80),
+                  ),
+                ],
+              ),
+            ),
+    );
+  }
+
+  // ── 1. Hero Promo Banner ──
+  Widget _buildHeroPromoCarousel() {
+    final promo = _heroPromos[_heroSlideIndex];
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 6, 12, 12),
+      decoration: BoxDecoration(
+        color: promo['color'] as Color,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.4),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: [
+                // Left Emblem
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: FaIcon(
+                      promo['icon'],
+                      color: promo['textColor'] as Color,
+                      size: 26,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 14),
+
+                // Text
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const SearchScreen()),
-                          );
-                        },
-                        child: Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.08),
-                            shape: BoxShape.circle,
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: promo['badgeColor'] as Color,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          promo['badge'] as String,
+                          style: TextStyle(
+                            color: promo['badgeTextColor'] as Color,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.5,
                           ),
-                          child: const FaIcon(FontAwesomeIcons.magnifyingGlass, color: Colors.white, size: 20),
                         ),
                       ),
-                      const SizedBox(width: 8),
-
-                      GestureDetector(
-                        onTap: () => UpgradeModal.show(context),
-                        child: Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            color: Colors.amber,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.amber.withValues(alpha: 0.4),
-                                blurRadius: 8,
-                                spreadRadius: 1,
-                              ),
-                            ],
-                          ),
-                          child: const FaIcon(FontAwesomeIcons.award, color: Colors.black, size: 20),
+                      const SizedBox(height: 4),
+                      Text(
+                        promo['title'] as String,
+                        style: TextStyle(
+                          color: promo['textColor'] as Color,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w900,
+                          height: 1.15,
                         ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(width: 8),
-
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const ProfileScreen()),
-                          );
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.all(2),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: isVip ? Colors.amber : Colors.white24,
-                              width: isVip ? 2 : 1,
-                            ),
-                          ),
-                          child: CircleAvatar(
-                            radius: 14,
-                            backgroundColor: AppTheme.card,
-                            child: Text(
-                              (_user?.username?.isNotEmpty == true
-                                      ? _user!.username![0]
-                                      : (_user?.email.isNotEmpty == true ? _user!.email[0] : 'U'))
-                                  .toUpperCase(),
-                              style: TextStyle(
-                                color: isVip ? Colors.amber : Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
+                      const SizedBox(height: 2),
+                      Text(
+                        promo['subtitle'] as String,
+                        style: TextStyle(
+                          color: (promo['textColor'] as Color).withValues(alpha: 0.85),
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
-                ],
+                ),
+              ],
+            ),
+          ),
+
+          // Slide indicator dots in bottom right
+          Positioned(
+            right: 12,
+            bottom: 8,
+            child: Row(
+              children: List.generate(
+                _heroPromos.length,
+                (i) => Container(
+                  margin: const EdgeInsets.only(left: 3),
+                  width: _heroSlideIndex == i ? 14 : 4,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: _heroSlideIndex == i
+                        ? (promo['textColor'] as Color)
+                        : (promo['textColor'] as Color).withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
               ),
             ),
-
-            // ── TOP PLAYER 16:9 (DIRECT CHANNELS & MATCHS) ──
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final screenH = MediaQuery.of(context).size.height;
-                final maxH = screenH > 500 ? screenH * 0.35 : 220.0;
-
-                return ConstrainedBox(
-                  constraints: BoxConstraints(maxHeight: maxH),
-                  child: AspectRatio(
-                    aspectRatio: 16 / 9,
-                    child: Container(
-                      color: Colors.black,
-                      child: _currentStreamUrl.isNotEmpty
-                          ? Stack(
-                              children: [
-                                AppVideoPlayer(
-                                  key: ValueKey(_currentStreamUrl),
-                                  videoUrl: _currentStreamUrl,
-                                  title: _currentTitle,
-                                  subtitle: _currentSubtitle,
-                                  isLive: true,
-                                  autoPlay: true,
-                                ),
-                                Positioned(
-                                  top: 10,
-                                  left: 10,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: Colors.redAccent,
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const FaIcon(FontAwesomeIcons.circle, color: Colors.white, size: 7),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          isMatchActive ? 'DIRECT FOOT' : 'EN DIRECT',
-                                          style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            )
-                          : Center(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(isMatchActive ? FontAwesomeIcons.futbol.data : FontAwesomeIcons.tv.data,
-                                      color: Colors.white24, size: 48),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    isMatchActive
-                                        ? '${_activeMatch!.home} vs ${_activeMatch!.away}'
-                                        : 'Sélectionnez un flux pour regarder',
-                                    style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold),
-                                  ),
-                                ],
-                              ),
-                            ),
-                    ),
-                  ),
-                );
-              },
-            ),
-
-            // ── INFOS FLUX EN COURS ──
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              color: AppTheme.surface,
-              child: Row(
-                children: [
-                  if (_activeChannel != null && _activeChannel!.logo.isNotEmpty)
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
-                      child: CachedNetworkImage(
-                        imageUrl: _activeChannel!.logo,
-                        width: 32,
-                        height: 32,
-                        fit: BoxFit.contain,
-                        errorWidget: (context, url, error) => const FaIcon(FontAwesomeIcons.tv, color: Colors.white70, size: 24),
-                      ),
-                    )
-                  else if (_activeMatch != null)
-                    _buildTeamLogo(_activeMatch!.homeLogo, _activeMatch!.home, size: 30)
-                  else
-                    const FaIcon(FontAwesomeIcons.tv, color: AppTheme.primary, size: 24),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _currentTitle,
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        if (_currentSubtitle != null)
-                          Text(
-                            _currentSubtitle!,
-                            style: const TextStyle(color: AppTheme.primary, fontSize: 11, fontWeight: FontWeight.w600),
-                          ),
-                      ],
-                    ),
-                  ),
-                  if (_activeMatch != null) ...[
-                    const SizedBox(width: 6),
-                    _buildTeamLogo(_activeMatch!.awayLogo, _activeMatch!.away, size: 30),
-                  ],
-                  const SizedBox(width: 6),
-                  IconButton(
-                    icon: const FaIcon(FontAwesomeIcons.arrowsRotate, color: Colors.white70),
-                    onPressed: _loadData,
-                    tooltip: 'Recharger',
-                  ),
-                ],
-              ),
-            ),
-
-            // ── ONGLETS : CHAÎNES TV & MATCHS DE FOOT ──
-            Container(
-              height: 48,
-              decoration: const BoxDecoration(
-                color: Color(0xFF101014),
-                border: Border(bottom: BorderSide(color: Colors.white10)),
-              ),
-              child: TabBar(
-                controller: _tabController,
-                indicatorColor: AppTheme.primary,
-                indicatorWeight: 3,
-                labelColor: Colors.white,
-                unselectedLabelColor: Colors.white54,
-                labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                tabs: [
-                  const Tab(
-                    icon: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        FaIcon(FontAwesomeIcons.tv, size: 16),
-                        SizedBox(width: 6),
-                        Text('Chaînes TV'),
-                      ],
-                    ),
-                  ),
-                  Tab(
-                    icon: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const FaIcon(FontAwesomeIcons.futbol, size: 16),
-                        const SizedBox(width: 6),
-                        const Text('Matchs de Foot'),
-                        if (liveMatchesCount > 0) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                            decoration: BoxDecoration(
-                              color: Colors.redAccent,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              '$liveMatchesCount',
-                              style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // ── VUES DES ONGLETS ──
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  // ONGLET 1 : GRILLE DES CHAÎNES TV
-                  _buildChannelsTab(),
-
-                  // ONGLET 2 : MATCHS DE FOOT COMPLET & LIGUE DES CHAMPIONS
-                  _buildMatchesTab(),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildChannelsTab() {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator(color: AppTheme.primary));
-    }
+  // ── 2. Sports Matches Section ──
+  Widget _buildSportsMatchesSection() {
+    final matches = _filteredMatches;
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── Category Chips Filter Row (YouTube Style) ─────────────────
-        Container(
-          height: 48,
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: _channelCategories.length,
-            itemBuilder: (context, index) {
-              final cat = _channelCategories[index];
-              final isSelected = cat['id'] == _selectedChannelCategory;
-
-              return GestureDetector(
-                onTap: () => setState(() => _selectedChannelCategory = cat['id']!),
-                child: Container(
-                  margin: const EdgeInsets.only(right: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: isSelected ? Colors.white : const Color(0xFF27272A),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: isSelected ? Colors.white : Colors.white10,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        cat['icon'] as IconData,
-                        size: 14,
-                        color: isSelected ? Colors.black : Colors.white70,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        cat['label'] as String,
-                        style: TextStyle(
-                          color: isSelected ? Colors.black : Colors.white,
-                          fontSize: 12,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
+          child: Row(
+            children: [
+              const FaIcon(FontAwesomeIcons.futbol, color: AppTheme.primary, size: 16),
+              const SizedBox(width: 8),
+              const Text(
+                'Matchs de Football en Direct',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Colors.white),
+              ),
+              const Spacer(),
+              Text(
+                '${_matches.length} matchs',
+                style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11, fontWeight: FontWeight.bold),
+              ),
+            ],
           ),
         ),
 
-        // ── Responsive 16:9 Channel Cards Grid (YouTube Style) ─────────
-        Expanded(
-          child: _filteredChannels.isEmpty
-              ? const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(32.0),
-                    child: Text(
-                      'Aucune chaîne trouvée dans cette catégorie.',
-                      style: TextStyle(color: Colors.white54, fontSize: 13),
-                    ),
-                  ),
-                )
-              : LayoutBuilder(
-                  builder: (context, constraints) {
-                    final width = constraints.maxWidth;
-                    int crossAxisCount = 1;
-                    double childAspectRatio = 1.18;
-
-                    if (width >= 1300) {
-                      crossAxisCount = 4;
-                      childAspectRatio = 1.22;
-                    } else if (width >= 950) {
-                      crossAxisCount = 3;
-                      childAspectRatio = 1.20;
-                    } else if (width >= 600) {
-                      crossAxisCount = 2;
-                      childAspectRatio = 1.16;
-                    } else {
-                      crossAxisCount = 1;
-                      childAspectRatio = 1.35;
-                    }
-
-                    return GridView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _filteredChannels.length,
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: crossAxisCount,
-                        childAspectRatio: childAspectRatio,
-                        crossAxisSpacing: 16,
-                        mainAxisSpacing: 20,
-                      ),
-                      itemBuilder: (context, index) {
-                        final channel = _filteredChannels[index];
-                        final isActive = _activeChannel?.id == channel.id;
-                        final catLabel = channel.categories.isNotEmpty ? channel.categories.first : 'Direct';
-
-                        return GestureDetector(
-                          onTap: () => _selectChannel(channel),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.transparent,
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // 16:9 Landscape Video Preview Banner
-                                AspectRatio(
-                                  aspectRatio: 16 / 9,
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF18181B),
-                                      borderRadius: BorderRadius.circular(18),
-                                      border: Border.all(
-                                        color: isActive ? AppTheme.primary : Colors.white10,
-                                        width: isActive ? 2 : 1,
-                                      ),
-                                    ),
-                                    child: Stack(
-                                      children: [
-                                        // Background Image / Gradient
-                                        Positioned.fill(
-                                          child: ClipRRect(
-                                            borderRadius: BorderRadius.circular(13),
-                                            child: Container(
-                                              decoration: BoxDecoration(
-                                                gradient: LinearGradient(
-                                                  begin: Alignment.topLeft,
-                                                  end: Alignment.bottomRight,
-                                                  colors: [
-                                                    const Color(0xFF27272A),
-                                                    const Color(0xFF18181B),
-                                                    channel.categories.contains('sport')
-                                                        ? const Color(0xFF3F1522)
-                                                        : const Color(0xFF1E1B2E),
-                                                  ],
-                                                ),
-                                              ),
-                                              child: Center(
-                                                child: channel.logo.isNotEmpty
-                                                    ? CachedNetworkImage(
-                                                        imageUrl: channel.logo,
-                                                        width: 64,
-                                                        height: 64,
-                                                        fit: BoxFit.contain,
-                                                        errorWidget: (context, url, error) => const FaIcon(
-                                                          FontAwesomeIcons.tv,
-                                                          color: Colors.white24,
-                                                          size: 44,
-                                                        ),
-                                                      )
-                                                    : const FaIcon(
-                                                        FontAwesomeIcons.tv,
-                                                        color: Colors.white24,
-                                                        size: 44,
-                                                      ),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-
-                                        // Dark gradient overlay on bottom
-                                        Positioned(
-                                          bottom: 0,
-                                          left: 0,
-                                          right: 0,
-                                          height: 40,
-                                          child: ClipRRect(
-                                            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(13)),
-                                            child: Container(
-                                              decoration: const BoxDecoration(
-                                                gradient: LinearGradient(
-                                                  begin: Alignment.topCenter,
-                                                  end: Alignment.bottomCenter,
-                                                  colors: [Colors.transparent, Colors.black87],
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-
-                                        // Red "● EN DIRECT" Badge
-                                        Positioned(
-                                          bottom: 8,
-                                          right: 8,
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFFCC0000),
-                                              borderRadius: BorderRadius.circular(4),
-                                            ),
-                                            child: const Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                FaIcon(FontAwesomeIcons.circle, color: Colors.white, size: 6),
-                                                SizedBox(width: 4),
-                                                Text(
-                                                  'EN DIRECT',
-                                                  style: TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 10,
-                                                    fontWeight: FontWeight.w900,
-                                                    letterSpacing: 0.5,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-
-                                        // Playing Equalizer indicator if active
-                                        if (isActive)
-                                          Positioned(
-                                            top: 8,
-                                            left: 8,
-                                            child: Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                                              decoration: BoxDecoration(
-                                                color: AppTheme.primary,
-                                                borderRadius: BorderRadius.circular(6),
-                                              ),
-                                              child: const Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  FaIcon(FontAwesomeIcons.sliders, color: Colors.white, size: 12),
-                                                  SizedBox(width: 4),
-                                                  Text(
-                                                    'En cours',
-                                                    style: TextStyle(
-                                                      color: Colors.white,
-                                                      fontSize: 10,
-                                                      fontWeight: FontWeight.bold,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-
-                                const SizedBox(height: 10),
-
-                                // Channel Info Metadata Below Thumbnail
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // Channel Avatar
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(20),
-                                      child: Container(
-                                        width: 36,
-                                        height: 36,
-                                        color: const Color(0xFF27272A),
-                                        padding: const EdgeInsets.all(4),
-                                        child: channel.logo.isNotEmpty
-                                            ? CachedNetworkImage(
-                                                imageUrl: channel.logo,
-                                                fit: BoxFit.contain,
-                                                errorWidget: (context, url, error) => const FaIcon(
-                                                  FontAwesomeIcons.tv,
-                                                  color: Colors.white54,
-                                                  size: 16,
-                                                ),
-                                              )
-                                            : const FaIcon(
-                                                FontAwesomeIcons.tv,
-                                                color: Colors.white54,
-                                                size: 16,
-                                              ),
-                                      ),
-                                    ),
-
-                                    const SizedBox(width: 10),
-
-                                    // Title, Name & Details
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            channel.name,
-                                            style: TextStyle(
-                                              color: isActive ? AppTheme.primary : Colors.white,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 13,
-                                              height: 1.2,
-                                            ),
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Row(
-                                            children: [
-                                              Flexible(
-                                                child: Text(
-                                                  catLabel.toUpperCase(),
-                                                  style: const TextStyle(
-                                                    color: Colors.white60,
-                                                    fontSize: 11,
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                  maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 4),
-                                              const FaIcon(
-                                                FontAwesomeIcons.circleCheck,
-                                                color: Colors.white54,
-                                                size: 12,
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            'Streaming HD · Chillers Live',
-                                            style: TextStyle(
-                                              color: Colors.white.withValues(alpha: 0.4),
-                                              fontSize: 11,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-
-                                    // 3-dots Menu Button
-                                    IconButton(
-                                      icon: const FaIcon(FontAwesomeIcons.ellipsisVertical, color: Colors.white54, size: 18),
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(),
-                                      onPressed: () {},
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    );
-                  },
-                ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMatchesTab() {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator(color: AppTheme.primary));
-    }
-
-    final filtered = _filteredMatches;
-
-    return Column(
-      children: [
-        // Filtres Matchs (Ligue des Champions, En Direct, etc.)
-        Container(
-          height: 44,
-          padding: const EdgeInsets.symmetric(vertical: 6),
+        // League Filters
+        SizedBox(
+          height: 34,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 12),
-            itemCount: _matchFilters.length,
+            itemCount: _leagueFilters.length,
             itemBuilder: (context, index) {
-              final filter = _matchFilters[index];
-              final isSelected = filter['id'] == _selectedMatchFilter;
-              final isUefa = filter['id'] == 'uefa';
+              final item = _leagueFilters[index];
+              final isSelected = _selectedLeague == item['id'];
 
-              return GestureDetector(
-                onTap: () => setState(() => _selectedMatchFilter = filter['id']!),
-                child: Container(
-                  margin: const EdgeInsets.only(right: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? (isUefa ? Colors.amber : AppTheme.primary)
-                        : AppTheme.card,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: isSelected
-                          ? (isUefa ? Colors.amber : AppTheme.primary)
-                          : (isUefa ? Colors.amber.withValues(alpha: 0.4) : Colors.white12),
+              return Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: InkWell(
+                  onTap: () => setState(() => _selectedLeague = item['id'] as String),
+                  borderRadius: BorderRadius.circular(14),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: isSelected ? AppTheme.primary : AppTheme.card,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: isSelected ? AppTheme.primary : Colors.white10),
                     ),
-                    boxShadow: isSelected
-                        ? [
-                            BoxShadow(
-                              color: (isUefa ? Colors.amber : AppTheme.primary).withValues(alpha: 0.4),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ]
-                        : null,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        filter['icon'] as IconData,
-                        size: 14,
-                        color: isSelected
-                            ? (isUefa ? Colors.black : Colors.white)
-                            : (isUefa ? Colors.amber : (filter['id'] == 'live' ? Colors.redAccent : Colors.white70)),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        filter['label'] as String,
-                        style: TextStyle(
-                          color: isSelected
-                              ? (isUefa ? Colors.black : Colors.white)
-                              : (isUefa ? Colors.amber : Colors.white70),
-                          fontSize: 12,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        FaIcon(
+                          item['icon'],
+                          size: 11,
+                          color: isSelected ? Colors.white : (item['id'] == 'live' ? Colors.redAccent : Colors.white60),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 5),
+                        Text(
+                          item['label'] as String,
+                          style: TextStyle(
+                            color: isSelected ? Colors.white : Colors.white70,
+                            fontSize: 10.5,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               );
@@ -1001,272 +630,158 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
           ),
         ),
 
-        // Liste des matchs
-        Expanded(
-          child: filtered.isEmpty
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(32.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const FaIcon(FontAwesomeIcons.futbol, size: 56, color: AppTheme.textSecondary),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'Aucun match trouvé',
-                          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 6),
-                        const Text(
-                          'Les flux vidéo des matchs apparaîtront dès le début des diffusions.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primary,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                          ),
-                          onPressed: _loadData,
-                          icon: const FaIcon(FontAwesomeIcons.arrowsRotate),
-                          label: const Text('Actualiser'),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              : RefreshIndicator(
-                  color: AppTheme.primary,
-                  onRefresh: _loadData,
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final isWide = constraints.maxWidth >= 750;
-                      final crossAxisCount = constraints.maxWidth >= 1200 ? 3 : 2;
+        const SizedBox(height: 8),
 
-                      if (isWide) {
-                        return GridView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: filtered.length,
-                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: crossAxisCount,
-                            childAspectRatio: 2.1,
-                            crossAxisSpacing: 14,
-                            mainAxisSpacing: 14,
-                          ),
-                          itemBuilder: (context, index) {
-                            final m = filtered[index];
-                            return _buildMatchCard(m);
-                          },
-                        );
-                      }
-
-                      return ListView.builder(
-                        padding: const EdgeInsets.all(12),
-                        itemCount: filtered.length,
-                        itemBuilder: (context, index) {
-                          final m = filtered[index];
-                          return _buildMatchCard(m);
-                        },
-                      );
-                    },
+        // Matches Horizontal List
+        matches.isEmpty
+            ? Container(
+                height: 80,
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: AppTheme.card,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Center(
+                  child: Text(
+                    'Aucun match disponible pour ce filtre.',
+                    style: TextStyle(color: Colors.white54, fontSize: 11),
                   ),
                 ),
-        ),
+              )
+            : SizedBox(
+                height: 125,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  itemCount: matches.length,
+                  itemBuilder: (context, index) {
+                    final match = matches[index];
+                    final isLive = match.status == 'live';
+
+                    return GestureDetector(
+                      onTap: () => openMatchPlayer(match),
+                      child: Container(
+                        width: 235,
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppTheme.card,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isLive ? Colors.redAccent.withValues(alpha: 0.6) : Colors.white10,
+                            width: isLive ? 1.5 : 1,
+                          ),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            // League + Live tag
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    match.league ?? 'Football',
+                                    style: const TextStyle(
+                                      color: AppTheme.primary,
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: isLive ? Colors.redAccent : Colors.white10,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    isLive ? 'DIRECT' : (match.minute ?? 'Bientôt'),
+                                    style: TextStyle(
+                                      color: isLive ? Colors.white : Colors.white70,
+                                      fontSize: 8.5,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                            // Teams
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      _buildTeamLogo(match.homeLogo, match.home),
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        match.home,
+                                        style: const TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.bold),
+                                        textAlign: TextAlign.center,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                                  child: Text(
+                                    (match.score != null && match.score!.isNotEmpty) ? match.score! : 'VS',
+                                    style: TextStyle(
+                                      color: isLive ? Colors.amber : Colors.white54,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      _buildTeamLogo(match.awayLogo, match.away),
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        match.away,
+                                        style: const TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.bold),
+                                        textAlign: TextAlign.center,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+        const SizedBox(height: 12),
       ],
     );
   }
 
-  Widget _buildMatchCard(LiveMatch m) {
-    final isLive = m.status == 'live';
-    final isActive = _activeMatch?.id == m.id;
-    final isUefa = m.league != null &&
-        (m.league!.toLowerCase().contains('champion') || m.league!.toLowerCase().contains('uefa'));
-
-    return GestureDetector(
-      onTap: () => selectMatch(m),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: isActive ? AppTheme.primary.withValues(alpha: 0.16) : AppTheme.card,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: isActive
-                ? AppTheme.primary
-                : (isLive ? AppTheme.primary.withValues(alpha: 0.4) : Colors.white10),
-            width: isActive ? 1.5 : 1,
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Header Ligue + Statut
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    if (isUefa) ...[
-                      const FaIcon(FontAwesomeIcons.trophy, color: Colors.amber, size: 15),
-                      const SizedBox(width: 4),
-                    ],
-                    Text(
-                      m.league ?? 'Football',
-                      style: TextStyle(
-                        color: isUefa ? Colors.amber : AppTheme.primary,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: isLive ? Colors.redAccent : Colors.white10,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    isLive ? 'DIRECT' : (m.minute ?? 'Bientôt'),
-                    style: TextStyle(
-                      color: isLive ? Colors.white : Colors.white70,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 10),
-
-            // Rangée des équipes avec LOGOS
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // Home team
-                Expanded(
-                  flex: 4,
-                  child: Row(
-                    children: [
-                      _buildTeamLogo(m.homeLogo, m.home, size: 36),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          m.home,
-                          style: TextStyle(
-                            color: isActive ? AppTheme.primary : Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Score ou VS
-                Expanded(
-                  flex: 2,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.4),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.white12),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      (m.score != null && m.score!.isNotEmpty) ? m.score! : 'VS',
-                      style: TextStyle(
-                        color: isLive ? Colors.amber : Colors.white70,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                ),
-
-                // Away team
-                Expanded(
-                  flex: 4,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          m.away,
-                          textAlign: TextAlign.right,
-                          style: TextStyle(
-                            color: isActive ? AppTheme.primary : Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      _buildTeamLogo(m.awayLogo, m.away, size: 36),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 8),
-
-            // Action Lancer le match
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  isActive ? FontAwesomeIcons.volumeHigh.data : FontAwesomeIcons.circlePlay.data,
-                  color: isActive ? AppTheme.primary : Colors.white70,
-                  size: 15,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  isActive ? 'Diffusion en cours' : 'Regarder le match en direct',
-                  style: TextStyle(
-                    color: isActive ? AppTheme.primary : Colors.white70,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTeamLogo(String? logoUrl, String teamName, {double size = 32}) {
+  Widget _buildTeamLogo(String? logoUrl, String teamName) {
     if (logoUrl != null && logoUrl.isNotEmpty) {
       return ClipRRect(
-        borderRadius: BorderRadius.circular(size / 2),
+        borderRadius: BorderRadius.circular(14),
         child: CachedNetworkImage(
           imageUrl: logoUrl,
-          width: size,
-          height: size,
+          width: 26,
+          height: 26,
           fit: BoxFit.contain,
-          placeholder: (context, url) => Container(
-            width: size,
-            height: size,
-            decoration: const BoxDecoration(
-              color: Colors.white10,
-              shape: BoxShape.circle,
-            ),
-            child: FaIcon(FontAwesomeIcons.shield, color: Colors.white24, size: size * 0.5),
-          ),
           errorWidget: (context, url, error) => Container(
-            width: size,
-            height: size,
+            width: 26,
+            height: 26,
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.08),
               shape: BoxShape.circle,
@@ -1274,7 +789,7 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
             child: Center(
               child: Text(
                 teamName.isNotEmpty ? teamName[0].toUpperCase() : '?',
-                style: TextStyle(color: Colors.white70, fontSize: size * 0.4, fontWeight: FontWeight.bold),
+                style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold),
               ),
             ),
           ),
@@ -1282,8 +797,8 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
       );
     }
     return Container(
-      width: size,
-      height: size,
+      width: 26,
+      height: 26,
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.08),
         shape: BoxShape.circle,
@@ -1291,7 +806,423 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
       child: Center(
         child: Text(
           teamName.isNotEmpty ? teamName[0].toUpperCase() : '?',
-          style: TextStyle(color: Colors.white70, fontSize: size * 0.4, fontWeight: FontWeight.bold),
+          style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold),
+        ),
+      ),
+    );
+  }
+
+  // ── 3. Controls & Filter Bar ──
+  Widget _buildControlsAndFilterBar() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Category Pills (YouTube / Web Style)
+        SizedBox(
+          height: 40,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            itemCount: _categories.length,
+            itemBuilder: (context, index) {
+              final cat = _categories[index];
+              final isSelected = _selectedCategory == cat['id'];
+
+              return Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: InkWell(
+                  onTap: () => setState(() => _selectedCategory = cat['id'] as String),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isSelected ? const Color(0xFFDC2626) : const Color(0xFF18181B),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isSelected ? const Color(0xFFDC2626) : Colors.white12,
+                      ),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: const Color(0xFFDC2626).withValues(alpha: 0.4),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        FaIcon(
+                          cat['icon'],
+                          size: 11,
+                          color: isSelected ? Colors.white : Colors.white60,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          cat['label'] as String,
+                          style: TextStyle(
+                            color: isSelected ? Colors.white : Colors.white70,
+                            fontSize: 11.5,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+
+        const SizedBox(height: 10),
+
+        // Search Bar & View Mode Toggle Row
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12.0),
+          child: Row(
+            children: [
+              // Search Input
+              Expanded(
+                child: Container(
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF18181B),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white12),
+                  ),
+                  child: Row(
+                    children: [
+                      const SizedBox(width: 10),
+                      const FaIcon(FontAwesomeIcons.magnifyingGlass, color: Colors.white38, size: 13),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: _searchController,
+                          style: const TextStyle(color: Colors.white, fontSize: 12),
+                          decoration: const InputDecoration(
+                            hintText: 'Filtrer les chaînes...',
+                            hintStyle: TextStyle(color: Colors.white38, fontSize: 12),
+                            border: InputBorder.none,
+                            isDense: true,
+                          ),
+                          onChanged: (val) {
+                            setState(() => _searchQuery = val);
+                          },
+                        ),
+                      ),
+                      if (_searchQuery.isNotEmpty)
+                        GestureDetector(
+                          onTap: () {
+                            _searchController.clear();
+                            setState(() => _searchQuery = '');
+                          },
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 8),
+                            child: FaIcon(FontAwesomeIcons.xmark, color: Colors.white60, size: 14),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(width: 8),
+
+              // View Mode Toggle (Mosaïque vs Cartes 16:9)
+              Container(
+                height: 38,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF18181B),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white12),
+                ),
+                padding: const EdgeInsets.all(3),
+                child: Row(
+                  children: [
+                    InkWell(
+                      onTap: () => setState(() => _viewMode = 'mosaic'),
+                      borderRadius: BorderRadius.circular(9),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: _viewMode == 'mosaic' ? const Color(0xFFDC2626) : Colors.transparent,
+                          borderRadius: BorderRadius.circular(9),
+                        ),
+                        child: const Row(
+                          children: [
+                            FaIcon(FontAwesomeIcons.tableCellsLarge, color: Colors.white, size: 12),
+                            SizedBox(width: 4),
+                            Text('Logos', style: TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+                    ),
+                    InkWell(
+                      onTap: () => setState(() => _viewMode = 'cards'),
+                      borderRadius: BorderRadius.circular(9),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: _viewMode == 'cards' ? const Color(0xFFDC2626) : Colors.transparent,
+                          borderRadius: BorderRadius.circular(9),
+                        ),
+                        child: const Row(
+                          children: [
+                            FaIcon(FontAwesomeIcons.film, color: Colors.white, size: 12),
+                            SizedBox(width: 4),
+                            Text('Affiches', style: TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 12),
+      ],
+    );
+  }
+
+  // ── 4. Channels Grid ──
+  Widget _buildChannelsSliverGrid() {
+    final channels = _filteredChannels;
+
+    if (channels.isEmpty) {
+      return const SliverToBoxAdapter(
+        child: Center(
+          child: Padding(
+            padding: EdgeInsets.all(40.0),
+            child: Text(
+              'Aucune chaîne trouvée.',
+              style: TextStyle(color: Colors.white54, fontSize: 13),
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (_viewMode == 'mosaic') {
+      // ── Mosaïque de Logos Canal+ (Aspect 4:3, Dark Grey #242424) ──
+      return SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        sliver: SliverGrid(
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            childAspectRatio: 1.3,
+            crossAxisSpacing: 8,
+            mainAxisSpacing: 8,
+          ),
+          delegate: SliverChildBuilderDelegate(
+            (context, index) {
+              final channel = channels[index];
+              final isFav = _favoriteSlugs.contains(channel.slug);
+
+              return _buildCanalPlusLogoTile(channel, isFav);
+            },
+            childCount: channels.length,
+          ),
+        ),
+      );
+    } else {
+      // ── Cartes 16:9 Affiches ──
+      return SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        sliver: SliverGrid(
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            childAspectRatio: 1.15,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+          ),
+          delegate: SliverChildBuilderDelegate(
+            (context, index) {
+              final channel = channels[index];
+              final isFav = _favoriteSlugs.contains(channel.slug);
+
+              return _buildLandscapeChannelCard(channel, isFav);
+            },
+            childCount: channels.length,
+          ),
+        ),
+      );
+    }
+  }
+
+  // ── Canal+ Logo Tile (Mosaïque 4:3) ──
+  Widget _buildCanalPlusLogoTile(LiveChannel channel, bool isFav) {
+    return GestureDetector(
+      onTap: () => openChannelPlayer(channel),
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF242424),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          children: [
+            // Center Logo
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(10.0),
+                child: channel.logo.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: channel.logo,
+                        fit: BoxFit.contain,
+                        placeholder: (context, url) => Container(color: const Color(0xFF242424)),
+                        errorWidget: (context, url, error) => Text(
+                          channel.name,
+                          style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold),
+                          textAlign: TextAlign.center,
+                        ),
+                      )
+                    : Text(
+                        channel.name,
+                        style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                      ),
+              ),
+            ),
+
+            // Favorite Star
+            Positioned(
+              top: 4,
+              right: 4,
+              child: GestureDetector(
+                onTap: () => _toggleFavorite(channel.slug),
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.6),
+                    shape: BoxShape.circle,
+                  ),
+                  child: FaIcon(
+                    isFav ? FontAwesomeIcons.solidStar : FontAwesomeIcons.star,
+                    color: isFav ? Colors.amber : Colors.white38,
+                    size: 10,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── 16:9 Landscape Channel Card ──
+  Widget _buildLandscapeChannelCard(LiveChannel channel, bool isFav) {
+    final cat = channel.categories.isNotEmpty ? channel.categories.first : 'Direct';
+
+    return GestureDetector(
+      onTap: () => openChannelPlayer(channel),
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF18181B),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.white10),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 16:9 Top preview banner
+            Expanded(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Container(
+                    color: const Color(0xFF27272A),
+                    child: Center(
+                      child: channel.logo.isNotEmpty
+                          ? CachedNetworkImage(
+                              imageUrl: channel.logo,
+                              width: 50,
+                              height: 50,
+                              fit: BoxFit.contain,
+                              errorWidget: (context, url, error) => const FaIcon(FontAwesomeIcons.tv, color: Colors.white24, size: 28),
+                            )
+                          : const FaIcon(FontAwesomeIcons.tv, color: Colors.white24, size: 28),
+                    ),
+                  ),
+
+                  // Red DIRECT Tag
+                  Positioned(
+                    top: 6,
+                    left: 6,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFDC2626),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          FaIcon(FontAwesomeIcons.circle, color: Colors.white, size: 5),
+                          SizedBox(width: 3),
+                          Text(
+                            'DIRECT',
+                            style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w900),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Favorite Star
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: GestureDetector(
+                      onTap: () => _toggleFavorite(channel.slug),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.6),
+                          shape: BoxShape.circle,
+                        ),
+                        child: FaIcon(
+                          isFav ? FontAwesomeIcons.solidStar : FontAwesomeIcons.star,
+                          color: isFav ? Colors.amber : Colors.white38,
+                          size: 10,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Card text info
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    channel.name,
+                    style: const TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.bold),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    cat.toUpperCase(),
+                    style: const TextStyle(color: AppTheme.primary, fontSize: 9, fontWeight: FontWeight.bold),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

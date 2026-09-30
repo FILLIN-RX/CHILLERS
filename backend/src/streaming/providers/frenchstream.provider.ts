@@ -38,8 +38,8 @@ export class FrenchStreamProvider implements StreamingProvider {
 
     if (!movieTitle) return null;
 
-    console.log(`[FrenchStream Provider] Recherche film 1080p pour: "${movieTitle}" (isPremium=${!!query.isPremium})`);
-    const result = await getFrenchStreamMovie(movieTitle);
+    console.log(`[FrenchStream Provider] Recherche film 1080p pour: "${movieTitle}" (lang=${query.language || 'fr'}, isPremium=${!!query.isPremium})`);
+    const result = await getFrenchStreamMovie(movieTitle, (query.language as any) || 'fr');
 
     if (result?.streamUrl) {
       console.log(`[FrenchStream Provider] Flux 1080p trouvé: ${result.streamUrl.slice(0, 80)}... (${result.fileSize})`);

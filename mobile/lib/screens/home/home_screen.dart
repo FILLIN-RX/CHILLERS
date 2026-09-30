@@ -6,10 +6,11 @@ import '../../models/media_item.dart';
 import '../../models/live_match.dart';
 import '../../services/api_service.dart';
 import '../../services/storage_service.dart';
-import '../../services/pagination_service.dart';
 import '../../widgets/hero_carousel.dart';
-import '../../widgets/infinite_media_section.dart';
 import '../../widgets/top_10_section.dart';
+import '../../widgets/upcoming_section.dart';
+import '../../widgets/spotlight_grid.dart';
+import '../../widgets/media_scroll_row.dart';
 import '../detail/detail_screen.dart';
 import '../watch/watch_screen.dart';
 import '../live/live_screen.dart';
@@ -27,45 +28,66 @@ class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final ApiService _apiService = ApiService();
   final StorageService _storage = StorageService();
-  final PaginationService _paginationService = PaginationService();
 
+  // All Sections data synchronized with Web App
   List<MediaItem> _heroSlides = [];
-  List<MediaItem> _top10Items = [];
   List<Map<String, dynamic>> _continueWatching = [];
   List<LiveMatch> _liveMatches = [];
+  List<MediaItem> _trendingAll = [];
+  List<MediaItem> _newReleases = [];
+  List<MediaItem> _upcomingMovies = [];
+  List<MediaItem> _top10Items = [];
+  List<MediaItem> _tvForYou = [];
+  List<MediaItem> _allTimeFavorites = [];
+  List<MediaItem> _boxOffice = [];
+  List<MediaItem> _newAnime = [];
+  List<MediaItem> _martialArts = [];
+  List<MediaItem> _realityShows = [];
+  List<MediaItem> _barbieMovies = [];
+  List<MediaItem> _actionMovies = [];
+  List<MediaItem> _comedyMovies = [];
+  List<MediaItem> _actionSeries = [];
+  List<MediaItem> _africanMovies = [];
+  List<MediaItem> _africanSeries = [];
+  List<MediaItem> _saDrama = [];
+  List<MediaItem> _madeInChina = [];
+  List<MediaItem> _popularSeries = [];
+  List<MediaItem> _animeCollection = [];
+  List<MediaItem> _animationSeries = [];
+
+  // Infinite Discovery Feed
   List<MediaItem> _infiniteFeedItems = [];
   int _infiniteFeedPage = 1;
   bool _isLoadingMoreFeed = false;
   bool _hasMoreFeed = true;
+
   String _selectedMatchLeague = 'all';
-
-  final List<Map<String, dynamic>> _homeLeagueFilters = [
-    {'id': 'all', 'label': 'Tous', 'icon': FontAwesomeIcons.futbol.data},
-    {'id': 'live', 'label': 'En Direct', 'icon': FontAwesomeIcons.circle.data},
-    {'id': 'uefa', 'label': 'Champions League', 'icon': FontAwesomeIcons.trophy.data},
-    {'id': 'premier-league', 'label': 'Premier League', 'icon': FontAwesomeIcons.futbol.data},
-    {'id': 'la-liga', 'label': 'La Liga', 'icon': FontAwesomeIcons.futbol.data},
-    {'id': 'serie-a', 'label': 'Serie A', 'icon': FontAwesomeIcons.futbol.data},
-    {'id': 'bundesliga', 'label': 'Bundesliga', 'icon': FontAwesomeIcons.futbol.data},
-    {'id': 'ligue-1', 'label': 'Ligue 1', 'icon': FontAwesomeIcons.futbol.data},
-  ];
-
   bool _isLoading = true;
   late ScrollController _mainScrollController;
+
+  final List<Map<String, dynamic>> _homeLeagueFilters = [
+    {'id': 'all', 'label': 'Tous', 'icon': FontAwesomeIcons.futbol},
+    {'id': 'live', 'label': 'En Direct', 'icon': FontAwesomeIcons.circle},
+    {'id': 'uefa', 'label': 'Champions League', 'icon': FontAwesomeIcons.trophy},
+    {'id': 'premier-league', 'label': 'Premier League', 'icon': FontAwesomeIcons.futbol},
+    {'id': 'la-liga', 'label': 'La Liga', 'icon': FontAwesomeIcons.futbol},
+    {'id': 'serie-a', 'label': 'Serie A', 'icon': FontAwesomeIcons.futbol},
+    {'id': 'bundesliga', 'label': 'Bundesliga', 'icon': FontAwesomeIcons.futbol},
+    {'id': 'ligue-1', 'label': 'Ligue 1', 'icon': FontAwesomeIcons.futbol},
+  ];
 
   @override
   void initState() {
     super.initState();
     _mainScrollController = ScrollController();
     _mainScrollController.addListener(_onMainScroll);
-    _loadData();
+    _loadAllHomeData();
   }
 
   @override
   void dispose() {
     _mainScrollController.removeListener(_onMainScroll);
     _mainScrollController.dispose();
-    _paginationService.resetAll();
     super.dispose();
   }
 
@@ -87,7 +109,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _loadData() async {
+  Future<void> _loadAllHomeData() async {
     setState(() {
       _isLoading = true;
       _infiniteFeedPage = 1;
@@ -95,44 +117,155 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     try {
-      final continueWatchingRes = await _storage.getContinueWatching();
-
-      // Load all matches + champions league matches
+      // 1. Load Continue Watching and Matches
+      final continueWatchingFuture = _storage.getContinueWatching();
       final allMatchesFuture = _safeCall(() => _apiService.getLiveMatches());
       final uefaMatchesFuture = _safeCall(() => _apiService.getChampionsLeagueMatches());
 
-      final results = await Future.wait([allMatchesFuture, uefaMatchesFuture]);
-      final allMatches = results[0] ?? [];
-      final uefaMatches = results[1] ?? [];
+      // 2. Load Core Sections matching Web
+      final trendingMoviesFuture = _safeCall(() => _apiService.getTrendingMovies());
+      final trendingTvFuture = _safeCall(() => _apiService.getTrendingSeries());
+      final popularMoviesFuture = _safeCall(() => _apiService.getPopularMovies(page: 1));
+      final popularSeriesFuture = _safeCall(() => _apiService.getPopularSeries(page: 1));
+      final animeFuture = _safeCall(() => _apiService.getAnimeSeries(page: 1));
+      final upcomingFuture = _safeCall(() => _apiService.getUpcomingMovies(page: 1));
+
+      // 3. Load Additional Web Categories in Parallel
+      final tvForYouFuture = _safeCall(() => _apiService.getTVForYou(page: 2));
+      final allTimeFavoritesFuture = _safeCall(() => _apiService.getAllTimeFavorites(page: 1));
+      final boxOfficeFuture = _safeCall(() => _apiService.getBoxOfficeMovies(page: 1));
+      final newAnimeFuture = _safeCall(() => _apiService.getNewAnime(page: 1));
+      final martialArtsFuture = _safeCall(() => _apiService.getMartialArtsMovies(page: 1));
+      final realityShowsFuture = _safeCall(() => _apiService.getRealityShows(page: 1));
+      final barbieMoviesFuture = _safeCall(() => _apiService.getBarbieMovies(page: 1));
+      final actionMoviesFuture = _safeCall(() => _apiService.getActionMovies(page: 1));
+      final comedyMoviesFuture = _safeCall(() => _apiService.getComedyMovies(page: 1));
+      final actionSeriesFuture = _safeCall(() => _apiService.getActionSeries(page: 1));
+      final africanMoviesFuture = _safeCall(() => _apiService.getAfricanMovies(page: 1));
+      final africanSeriesFuture = _safeCall(() => _apiService.getAfricanSeries(page: 1));
+      final saDramaFuture = _safeCall(() => _apiService.getSADrama(page: 1));
+      final madeInChinaFuture = _safeCall(() => _apiService.getMadeInChina(page: 1));
+      final animationSeriesFuture = _safeCall(() => _apiService.getAnimationSeries(page: 1));
+
+      final results = await Future.wait([
+        continueWatchingFuture,
+        allMatchesFuture,
+        uefaMatchesFuture,
+        trendingMoviesFuture,
+        trendingTvFuture,
+        popularMoviesFuture,
+        popularSeriesFuture,
+        animeFuture,
+        upcomingFuture,
+        tvForYouFuture,
+        allTimeFavoritesFuture,
+        boxOfficeFuture,
+        newAnimeFuture,
+        martialArtsFuture,
+        realityShowsFuture,
+        barbieMoviesFuture,
+        actionMoviesFuture,
+        comedyMoviesFuture,
+        actionSeriesFuture,
+        africanMoviesFuture,
+        africanSeriesFuture,
+        saDramaFuture,
+        madeInChinaFuture,
+        animationSeriesFuture,
+      ]);
+
+      final cw = results[0] as List<Map<String, dynamic>>? ?? [];
+      final matches1 = (results[1] as List<LiveMatch>?) ?? [];
+      final matches2 = (results[2] as List<LiveMatch>?) ?? [];
+      final trendM = (results[3] as List<MediaItem>?) ?? [];
+      final trendTV = (results[4] as List<MediaItem>?) ?? [];
+      final popM = (results[5] as List<MediaItem>?) ?? [];
+      final popTV = (results[6] as List<MediaItem>?) ?? [];
+      final animes = (results[7] as List<MediaItem>?) ?? [];
+      final upcoming = (results[8] as List<MediaItem>?) ?? [];
+      final tvForYou = (results[9] as List<MediaItem>?) ?? [];
+      final allTimeFav = (results[10] as List<MediaItem>?) ?? [];
+      final boxOffice = (results[11] as List<MediaItem>?) ?? [];
+      final newAnime = (results[12] as List<MediaItem>?) ?? [];
+      final martialArts = (results[13] as List<MediaItem>?) ?? [];
+      final realityShows = (results[14] as List<MediaItem>?) ?? [];
+      final barbie = (results[15] as List<MediaItem>?) ?? [];
+      final actionM = (results[16] as List<MediaItem>?) ?? [];
+      final comedyM = (results[17] as List<MediaItem>?) ?? [];
+      final actionS = (results[18] as List<MediaItem>?) ?? [];
+      final africanM = (results[19] as List<MediaItem>?) ?? [];
+      final africanS = (results[20] as List<MediaItem>?) ?? [];
+      final saDrama = (results[21] as List<MediaItem>?) ?? [];
+      final madeInChina = (results[22] as List<MediaItem>?) ?? [];
+      final animSeries = (results[23] as List<MediaItem>?) ?? [];
 
       // Merge and deduplicate matches
-      final matchesMap = <String, LiveMatch>{};
-      for (final m in [...allMatches, ...uefaMatches]) {
-        matchesMap[m.id] = m;
+      final matchMap = <String, LiveMatch>{};
+      for (final m in [...matches1, ...matches2]) {
+        matchMap[m.id] = m;
       }
-      final mergedMatches = matchesMap.values.toList();
+      final mergedMatches = matchMap.values.toList();
 
-      // Load initial trending data for hero slides & Top 10
-      final trendingRes = await _paginationService.loadInitial(MediaSection.trending);
-      final heroSlides = trendingRes.take(7).toList();
-      final top10Items = trendingRes.take(10).toList();
+      // Combined Trending
+      final trendingAll = <MediaItem>[];
+      final maxTrend = trendM.length > trendTV.length ? trendM.length : trendTV.length;
+      for (int i = 0; i < maxTrend; i++) {
+        if (i < trendM.length) trendingAll.add(trendM[i]);
+        if (i < trendTV.length) trendingAll.add(trendTV[i]);
+      }
 
-      // Load initial infinite discovery feed
-      final feedRes = await _safeCall(() => _apiService.getPopularMovies(page: 1)) ?? [];
+      // Hero Carousel balanced mix (matching web HeroBase logic)
+      final heroList = <MediaItem>[];
+      final mSlice = popM.take(5).toList();
+      final sSlice = popTV.take(4).toList();
+      final aSlice = animes.take(3).toList();
+      final maxHero = [mSlice.length, sSlice.length, aSlice.length].reduce((a, b) => a > b ? a : b);
+      for (int i = 0; i < maxHero; i++) {
+        if (i < mSlice.length) heroList.add(mSlice[i]);
+        if (i < sSlice.length) heroList.add(sSlice[i]);
+        if (i < aSlice.length) heroList.add(aSlice[i]);
+      }
+      final heroSlides = heroList.isNotEmpty ? heroList.take(10).toList() : trendingAll.take(7).toList();
+
+      // Top 10 items
+      final top10Items = trendingAll.isNotEmpty ? trendingAll.take(10).toList() : popM.take(10).toList();
+
+      // Upcoming movies
+      final upcomingMovies = upcoming.isNotEmpty ? upcoming : popM.take(8).toList();
 
       if (!mounted) return;
 
       setState(() {
-        _continueWatching = continueWatchingRes;
+        _continueWatching = cw;
         _liveMatches = mergedMatches;
         _heroSlides = heroSlides;
         _top10Items = top10Items;
-        _infiniteFeedItems = feedRes;
-        _hasMoreFeed = feedRes.isNotEmpty;
+        _trendingAll = trendingAll.isNotEmpty ? trendingAll : popM;
+        _newReleases = popM;
+        _upcomingMovies = upcomingMovies;
+        _tvForYou = tvForYou.isNotEmpty ? tvForYou : popTV;
+        _allTimeFavorites = allTimeFav.isNotEmpty ? allTimeFav : trendM;
+        _boxOffice = boxOffice.isNotEmpty ? boxOffice : popM;
+        _newAnime = newAnime.isNotEmpty ? newAnime : animes;
+        _martialArts = martialArts.isNotEmpty ? martialArts : actionM;
+        _realityShows = realityShows.isNotEmpty ? realityShows : popTV;
+        _barbieMovies = barbie.isNotEmpty ? barbie : comedyM;
+        _actionMovies = actionM;
+        _comedyMovies = comedyM;
+        _actionSeries = actionS;
+        _africanMovies = africanM;
+        _africanSeries = africanS;
+        _saDrama = saDrama;
+        _madeInChina = madeInChina;
+        _popularSeries = popTV;
+        _animeCollection = animes;
+        _animationSeries = animSeries;
+        _infiniteFeedItems = popM;
+        _hasMoreFeed = popM.isNotEmpty;
         _isLoading = false;
       });
 
-      // Enrich hero slides with trailers in background
+      // Background enrichment for hero slides with trailers
       if (heroSlides.isNotEmpty) {
         _apiService.enrichHeroSlidesWithTrailers(heroSlides).then((enriched) {
           if (mounted && enriched.isNotEmpty) {
@@ -227,17 +360,17 @@ class _HomeScreenState extends State<HomeScreen> {
           ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
           : Stack(
               children: [
-                // Main Scrollable Content with Infinite Scroll
+                // Main Scrollable Body
                 RefreshIndicator(
                   color: AppTheme.primary,
-                  onRefresh: _loadData,
+                  onRefresh: _loadAllHomeData,
                   child: SingleChildScrollView(
                     controller: _mainScrollController,
                     physics: const AlwaysScrollableScrollPhysics(),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // HERO CAROUSEL
+                        // 1. HERO CAROUSEL (AVEC LECTEUR VIDÉO INTÉGRÉ)
                         if (_heroSlides.isNotEmpty)
                           HeroCarousel(
                             slides: _heroSlides,
@@ -247,15 +380,47 @@ class _HomeScreenState extends State<HomeScreen> {
                         else
                           SizedBox(height: MediaQuery.of(context).padding.top + 70),
 
-                        // Continue Watching
+                        // 2. REPRENDRE LA LECTURE (CONTINUE WATCHING)
                         if (_continueWatching.isNotEmpty)
                           _buildContinueWatchingSection(),
 
-                        // Champions League Matches (if available)
+                        // 3. MATCHS EN DIRECT (SPORTS ROW)
                         if (_liveMatches.isNotEmpty)
                           _buildLiveMatchesRow(_liveMatches),
 
-                        // ── TOP 10 : CE QUE TOUT LE MONDE REGARDE (STYLE WEB AVEC GRANDS CHIFFRES) ──
+                        // 4. ROW 1 : TENDANCE ACTUELLEMENT (TRENDING ALL)
+                        if (_trendingAll.isNotEmpty) ...[
+                          MediaScrollRow(
+                            title: 'Tendance actuellement',
+                            items: _trendingAll,
+                            onItemTap: _onWatchMedia,
+                            onDetailsTap: _onOpenMediaDetails,
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+
+                        // 5. ROW 2 : NOUVEAUTÉS (NEW RELEASES)
+                        if (_newReleases.isNotEmpty) ...[
+                          MediaScrollRow(
+                            title: 'Nouveautés',
+                            items: _newReleases,
+                            onItemTap: _onWatchMedia,
+                            onDetailsTap: _onOpenMediaDetails,
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+
+                        // 6. FILMS À VENIR / PROCHAINEMENT (UPCOMING SPOTLIGHT SECTION)
+                        if (_upcomingMovies.isNotEmpty) ...[
+                          UpcomingSection(
+                            items: _upcomingMovies,
+                            onWatchNow: _onWatchMedia,
+                            onOpenDetails: _onOpenMediaDetails,
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+
+                        // 7. TOP 10 : CE QUE TOUT LE MONDE REGARDE (GRANDS NUMÉROS 1 À 10)
                         if (_top10Items.isNotEmpty) ...[
                           Top10Section(
                             title: 'Top 10 : Ce que tout le monde regarde',
@@ -263,81 +428,213 @@ class _HomeScreenState extends State<HomeScreen> {
                             onItemTap: _onWatchMedia,
                             onDetailsTap: _onOpenMediaDetails,
                           ),
+                          const SizedBox(height: 14),
+                        ],
+
+                        // 8. ROW 3 : TV FOR YOU
+                        if (_tvForYou.isNotEmpty) ...[
+                          MediaScrollRow(
+                            title: 'TV for you',
+                            items: _tvForYou,
+                            onItemTap: _onWatchMedia,
+                            onDetailsTap: _onOpenMediaDetails,
+                          ),
                           const SizedBox(height: 12),
                         ],
 
-                        // Infinite Scroll Sections
-                        InfiniteMediaSection(
-                          section: MediaSection.trending,
-                          title: 'Tendance actuellement',
-                          onItemTap: _onWatchMedia,
-                          onDetailsTab: _onOpenMediaDetails,
-                        ),
-                        const SizedBox(height: 12),
+                        // 9. ROW 4 : ALL TIME FAVORITE
+                        if (_allTimeFavorites.isNotEmpty) ...[
+                          MediaScrollRow(
+                            title: 'All time favorite',
+                            items: _allTimeFavorites,
+                            onItemTap: _onWatchMedia,
+                            onDetailsTap: _onOpenMediaDetails,
+                          ),
+                          const SizedBox(height: 12),
+                        ],
 
-                        InfiniteMediaSection(
-                          section: MediaSection.upcoming,
-                          title: 'Nouveautés & Sorties',
-                          onItemTap: _onWatchMedia,
-                          onDetailsTab: _onOpenMediaDetails,
-                        ),
-                        const SizedBox(height: 12),
+                        // 10. ROW 5 : BOX OFFICE
+                        if (_boxOffice.isNotEmpty) ...[
+                          MediaScrollRow(
+                            title: 'Box office',
+                            items: _boxOffice,
+                            onItemTap: _onWatchMedia,
+                            onDetailsTap: _onOpenMediaDetails,
+                          ),
+                          const SizedBox(height: 14),
+                        ],
 
-                        InfiniteMediaSection(
-                          section: MediaSection.series,
-                          title: 'Séries TV Populaires',
-                          onItemTap: _onWatchMedia,
-                          onDetailsTab: _onOpenMediaDetails,
-                        ),
-                        const SizedBox(height: 12),
+                        // 11. SPOTLIGHT GRID (COUPS DE CŒUR & SÉLECTION 4-CARTES)
+                        if (_trendingAll.length >= 5) ...[
+                          SpotlightGrid(
+                            items: _trendingAll.skip(1).take(4).toList(),
+                            onWatchNow: _onWatchMedia,
+                            onOpenDetails: _onOpenMediaDetails,
+                          ),
+                          const SizedBox(height: 16),
+                        ],
 
-                        InfiniteMediaSection(
-                          section: MediaSection.animes,
-                          title: 'Animes & Mangas',
-                          onItemTap: _onWatchMedia,
-                          onDetailsTab: _onOpenMediaDetails,
-                        ),
-                        const SizedBox(height: 12),
+                        // 12. ROW 6 : NEW ANIME
+                        if (_newAnime.isNotEmpty) ...[
+                          MediaScrollRow(
+                            title: 'New Anime',
+                            items: _newAnime,
+                            onItemTap: _onWatchMedia,
+                            onDetailsTap: _onOpenMediaDetails,
+                          ),
+                          const SizedBox(height: 12),
+                        ],
 
-                        InfiniteMediaSection(
-                          section: MediaSection.african,
-                          title: 'Cinéma & Séries Africains',
-                          onItemTap: _onWatchMedia,
-                          onDetailsTab: _onOpenMediaDetails,
-                        ),
-                        const SizedBox(height: 12),
+                        // 13. ROW 7 : MARTIAL ART
+                        if (_martialArts.isNotEmpty) ...[
+                          MediaScrollRow(
+                            title: 'Martial art',
+                            items: _martialArts,
+                            onItemTap: _onWatchMedia,
+                            onDetailsTap: _onOpenMediaDetails,
+                          ),
+                          const SizedBox(height: 12),
+                        ],
 
-                        InfiniteMediaSection(
-                          section: MediaSection.actionMovies,
-                          title: 'Films d\'Action & Aventure',
-                          onItemTap: _onWatchMedia,
-                          onDetailsTab: _onOpenMediaDetails,
-                        ),
-                        const SizedBox(height: 12),
+                        // 14. ROW 8 : REALITY SHOW
+                        if (_realityShows.isNotEmpty) ...[
+                          MediaScrollRow(
+                            title: 'Reality Show',
+                            items: _realityShows,
+                            onItemTap: _onWatchMedia,
+                            onDetailsTap: _onOpenMediaDetails,
+                          ),
+                          const SizedBox(height: 12),
+                        ],
 
-                        InfiniteMediaSection(
-                          section: MediaSection.comedyMovies,
-                          title: 'Films de Comédie',
-                          onItemTap: _onWatchMedia,
-                          onDetailsTab: _onOpenMediaDetails,
-                        ),
-                        const SizedBox(height: 12),
+                        // 15. ROW 9 : BARBIE WORLD
+                        if (_barbieMovies.isNotEmpty) ...[
+                          MediaScrollRow(
+                            title: 'Barbie World',
+                            items: _barbieMovies,
+                            onItemTap: _onWatchMedia,
+                            onDetailsTap: _onOpenMediaDetails,
+                          ),
+                          const SizedBox(height: 12),
+                        ],
 
-                        InfiniteMediaSection(
-                          section: MediaSection.horrorMovies,
-                          title: 'Films d\'Horreur & Thriller',
-                          onItemTap: _onWatchMedia,
-                          onDetailsTab: _onOpenMediaDetails,
-                        ),
-                        const SizedBox(height: 16),
+                        // 16. ROW 10 : FILMS D'ACTION
+                        if (_actionMovies.isNotEmpty) ...[
+                          MediaScrollRow(
+                            title: 'Films d\'Action',
+                            items: _actionMovies,
+                            onItemTap: _onWatchMedia,
+                            onDetailsTap: _onOpenMediaDetails,
+                          ),
+                          const SizedBox(height: 12),
+                        ],
 
-                        // ── INFINITE DISCOVERY FEED (EXPLORER SANS FIN) ──
+                        // 17. ROW 11 : COMÉDIES À VOIR
+                        if (_comedyMovies.isNotEmpty) ...[
+                          MediaScrollRow(
+                            title: 'Comédies à voir',
+                            items: _comedyMovies,
+                            onItemTap: _onWatchMedia,
+                            onDetailsTap: _onOpenMediaDetails,
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+
+                        // 18. ROW 12 : SÉRIES ACTION & AVENTURE
+                        if (_actionSeries.isNotEmpty) ...[
+                          MediaScrollRow(
+                            title: 'Séries Action & Aventure',
+                            items: _actionSeries,
+                            onItemTap: _onWatchMedia,
+                            onDetailsTap: _onOpenMediaDetails,
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+
+                        // 19. ROW 13 : FILMS AFRICAINS
+                        if (_africanMovies.isNotEmpty) ...[
+                          MediaScrollRow(
+                            title: 'Films Africains',
+                            items: _africanMovies,
+                            onItemTap: _onWatchMedia,
+                            onDetailsTap: _onOpenMediaDetails,
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+
+                        // 20. ROW 14 : SÉRIES AFRICAINES
+                        if (_africanSeries.isNotEmpty) ...[
+                          MediaScrollRow(
+                            title: 'Séries Africaines',
+                            items: _africanSeries,
+                            onItemTap: _onWatchMedia,
+                            onDetailsTap: _onOpenMediaDetails,
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+
+                        // 21. ROW 15 : SA DRAMA
+                        if (_saDrama.isNotEmpty) ...[
+                          MediaScrollRow(
+                            title: 'SA Drama',
+                            items: _saDrama,
+                            onItemTap: _onWatchMedia,
+                            onDetailsTap: _onOpenMediaDetails,
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+
+                        // 22. ROW 16 : MADE IN CHINA
+                        if (_madeInChina.isNotEmpty) ...[
+                          MediaScrollRow(
+                            title: 'Made in China',
+                            items: _madeInChina,
+                            onItemTap: _onWatchMedia,
+                            onDetailsTap: _onOpenMediaDetails,
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+
+                        // 23. ROW 17 : SÉRIES POPULAIRES
+                        if (_popularSeries.isNotEmpty) ...[
+                          MediaScrollRow(
+                            title: 'Séries Populaires',
+                            items: _popularSeries,
+                            onItemTap: _onWatchMedia,
+                            onDetailsTap: _onOpenMediaDetails,
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+
+                        // 24. ROW 18 : COLLECTION ANIME
+                        if (_animeCollection.isNotEmpty) ...[
+                          MediaScrollRow(
+                            title: 'Collection Anime',
+                            items: _animeCollection,
+                            onItemTap: _onWatchMedia,
+                            onDetailsTap: _onOpenMediaDetails,
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+
+                        // 25. ROW 19 : SÉRIES D'ANIMATION
+                        if (_animationSeries.isNotEmpty) ...[
+                          MediaScrollRow(
+                            title: 'Séries d\'Animation',
+                            items: _animationSeries,
+                            onItemTap: _onWatchMedia,
+                            onDetailsTap: _onOpenMediaDetails,
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+
+                        // 26. INFINITE DISCOVERY FEED (EXPLORER SANS FIN)
                         if (_infiniteFeedItems.isNotEmpty) ...[
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                             child: Row(
                               children: [
-                                const FaIcon(FontAwesomeIcons.wandMagicSparkles, color: AppTheme.primary, size: 20),
+                                const FaIcon(FontAwesomeIcons.wandMagicSparkles, color: AppTheme.primary, size: 18),
                                 const SizedBox(width: 8),
                                 const Text(
                                   'Explorer sans fin',
@@ -363,7 +660,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             padding: const EdgeInsets.symmetric(horizontal: 12.0),
                             child: LayoutBuilder(
                               builder: (context, constraints) {
-                                final crossAxisCount = (constraints.maxWidth / 120).floor().clamp(3, 8);
+                                final crossAxisCount = (constraints.maxWidth / 115).floor().clamp(3, 8);
                                 return GridView.builder(
                                   shrinkWrap: true,
                                   physics: const NeverScrollableScrollPhysics(),
@@ -383,7 +680,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                         children: [
                                           Expanded(
                                             child: ClipRRect(
-                                              borderRadius: BorderRadius.circular(16),
+                                              borderRadius: BorderRadius.circular(14),
                                               child: (item.poster != null && item.poster!.isNotEmpty)
                                                   ? CachedNetworkImage(
                                                       imageUrl: item.poster!,
@@ -433,7 +730,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
 
-                        const SizedBox(height: 60),
+                        const SizedBox(height: 70),
                       ],
                     ),
                   ),
@@ -451,7 +748,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                           colors: [
-                            Colors.black.withValues(alpha: 0.6),
+                            Colors.black.withValues(alpha: 0.65),
                             Colors.transparent,
                           ],
                         ),
@@ -465,8 +762,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Row(
                         children: [
                           const Spacer(),
-
-                          // Search Button
                           GestureDetector(
                             onTap: _openSearch,
                             child: Container(
@@ -478,7 +773,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 color: Colors.white.withValues(alpha: 0.08),
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.1),
+                                  color: Colors.white.withValues(alpha: 0.12),
                                 ),
                               ),
                               child: const Row(
@@ -487,7 +782,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   FaIcon(
                                     FontAwesomeIcons.magnifyingGlass,
                                     color: AppTheme.primary,
-                                    size: 18,
+                                    size: 16,
                                   ),
                                   SizedBox(width: 6),
                                   Text(
@@ -558,11 +853,11 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
           child: Row(
             children: [
-              const FaIcon(FontAwesomeIcons.futbol, color: AppTheme.primary, size: 20),
+              const FaIcon(FontAwesomeIcons.futbol, color: AppTheme.primary, size: 18),
               const SizedBox(width: 8),
               const Text(
                 'Matchs de Football en Direct',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: Colors.white),
               ),
               const Spacer(),
               GestureDetector(
@@ -578,9 +873,9 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
 
-        // ── LEAGUE FILTER PILLS ──
+        // League Filter Pills
         SizedBox(
-          height: 38,
+          height: 36,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -610,9 +905,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          filter['icon'] as IconData,
-                          size: 14,
+                        FaIcon(
+                          filter['icon'],
+                          size: 13,
                           color: isSelected ? Colors.white : (filter['id'] == 'live' ? Colors.redAccent : Colors.white60),
                         ),
                         const SizedBox(width: 6),
@@ -636,14 +931,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
         displayedMatches.isEmpty
             ? Container(
-                height: 100,
+                height: 90,
                 margin: const EdgeInsets.symmetric(horizontal: 16),
                 decoration: BoxDecoration(
                   color: AppTheme.card,
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: Colors.white10),
                 ),
-                child: Center(
+                child: const Center(
                   child: Text(
                     'Aucun match programmé pour ce championnat en ce moment',
                     style: TextStyle(color: Colors.white54, fontSize: 12),
@@ -652,7 +947,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               )
             : SizedBox(
-                height: 135,
+                height: 130,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -669,12 +964,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         MainNavigation.switchTab(context, 2, subTab: 1);
                       },
                       child: Container(
-                        width: 250,
+                        width: 245,
                         margin: const EdgeInsets.symmetric(horizontal: 4),
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
                           color: AppTheme.card,
-                          borderRadius: BorderRadius.circular(18),
+                          borderRadius: BorderRadius.circular(16),
                           border: Border.all(
                             color: isLive ? AppTheme.primary.withValues(alpha: 0.6) : Colors.white10,
                             width: isLive ? 1.5 : 1,
@@ -691,7 +986,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     if (isUefa) ...[
-                                      const FaIcon(FontAwesomeIcons.trophy, color: Colors.amber, size: 14),
+                                      const FaIcon(FontAwesomeIcons.trophy, color: Colors.amber, size: 13),
                                       const SizedBox(width: 4),
                                     ],
                                     Text(
@@ -725,66 +1020,61 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
 
                             // Teams with logos
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          // Home Team
-                          Expanded(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: [
-                                _buildTeamLogo(match.homeLogo, match.home),
-                                const SizedBox(height: 4),
-                                Text(
-                                  match.home,
-                                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                                  textAlign: TextAlign.center,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                                Expanded(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      _buildTeamLogo(match.homeLogo, match.home),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        match.home,
+                                        style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                                        textAlign: TextAlign.center,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                                  child: Text(
+                                    (match.score != null && match.score!.isNotEmpty) ? match.score! : 'VS',
+                                    style: TextStyle(
+                                      color: isLive ? Colors.amber : Colors.white54,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      _buildTeamLogo(match.awayLogo, match.away),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        match.away,
+                                        style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                                        textAlign: TextAlign.center,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),
-                          ),
-
-                          // Score
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            child: Text(
-                              (match.score != null && match.score!.isNotEmpty) ? match.score! : 'VS',
-                              style: TextStyle(
-                                color: isLive ? Colors.amber : Colors.white54,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                          ),
-
-                          // Away Team
-                          Expanded(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                _buildTeamLogo(match.awayLogo, match.away),
-                                const SizedBox(height: 4),
-                                Text(
-                                  match.away,
-                                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                                  textAlign: TextAlign.center,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
-              );
-            },
-          ),
-        ),
+              ),
       ],
     );
   }
@@ -795,21 +1085,21 @@ class _HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.circular(16),
         child: CachedNetworkImage(
           imageUrl: logoUrl,
-          width: 32,
-          height: 32,
+          width: 28,
+          height: 28,
           fit: BoxFit.contain,
           placeholder: (context, url) => Container(
-            width: 32,
-            height: 32,
+            width: 28,
+            height: 28,
             decoration: const BoxDecoration(
               color: Colors.white10,
               shape: BoxShape.circle,
             ),
-            child: const FaIcon(FontAwesomeIcons.shield, color: Colors.white24, size: 16),
+            child: const FaIcon(FontAwesomeIcons.shield, color: Colors.white24, size: 14),
           ),
           errorWidget: (context, url, error) => Container(
-            width: 32,
-            height: 32,
+            width: 28,
+            height: 28,
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.08),
               shape: BoxShape.circle,
@@ -817,7 +1107,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Center(
               child: Text(
                 teamName.isNotEmpty ? teamName[0].toUpperCase() : '?',
-                style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
+                style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold),
               ),
             ),
           ),
@@ -825,8 +1115,8 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
     return Container(
-      width: 32,
-      height: 32,
+      width: 28,
+      height: 28,
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.08),
         shape: BoxShape.circle,
@@ -834,7 +1124,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Center(
         child: Text(
           teamName.isNotEmpty ? teamName[0].toUpperCase() : '?',
-          style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
+          style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold),
         ),
       ),
     );
@@ -848,12 +1138,12 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
           child: Row(
             children: [
-              const FaIcon(FontAwesomeIcons.circlePlay, color: AppTheme.primary, size: 20),
+              const FaIcon(FontAwesomeIcons.circlePlay, color: AppTheme.primary, size: 18),
               const SizedBox(width: 8),
               const Text(
                 'Reprendre la lecture',
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: 17,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),
@@ -878,7 +1168,7 @@ class _HomeScreenState extends State<HomeScreen> {
               final isSeries = item['type'] == 'series' || item['type'] == 'anime' || item['season'] != null;
 
               return Container(
-                width: 200,
+                width: 195,
                 margin: const EdgeInsets.symmetric(horizontal: 4),
                 child: GestureDetector(
                   onTap: () => _resumeContinueWatching(item),
@@ -888,7 +1178,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           ClipRRect(
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(14),
                             child: Stack(
                               alignment: Alignment.center,
                               children: [
@@ -896,7 +1186,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ? CachedNetworkImage(
                                         imageUrl: item['poster'] as String,
                                         height: 100,
-                                        width: 200,
+                                        width: 195,
                                         fit: BoxFit.cover,
                                         placeholder: (context, url) => Container(color: AppTheme.card),
                                         errorWidget: (context, url, error) => Container(
@@ -907,23 +1197,23 @@ class _HomeScreenState extends State<HomeScreen> {
                                       )
                                     : Container(
                                         height: 100,
-                                        width: 200,
+                                        width: 195,
                                         color: AppTheme.card,
                                         child: const FaIcon(FontAwesomeIcons.film, color: Colors.white24),
                                       ),
                                 Container(
                                   height: 100,
-                                  width: 200,
+                                  width: 195,
                                   color: Colors.black.withValues(alpha: 0.35),
                                 ),
                                 Container(
-                                  padding: const EdgeInsets.all(8),
+                                  padding: const EdgeInsets.all(7),
                                   decoration: BoxDecoration(
                                     color: Colors.black.withValues(alpha: 0.6),
                                     shape: BoxShape.circle,
                                     border: Border.all(color: Colors.white30),
                                   ),
-                                  child: const FaIcon(FontAwesomeIcons.play, color: Colors.white, size: 22),
+                                  child: const FaIcon(FontAwesomeIcons.play, color: Colors.white, size: 20),
                                 ),
                                 Positioned(
                                   bottom: 0,
@@ -939,7 +1229,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               ],
                             ),
                           ),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 5),
                           Text(
                             item['title']?.toString() ?? 'Titre',
                             maxLines: 1,
@@ -967,7 +1257,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: GestureDetector(
                           onTap: () async {
                             await _storage.removeWatchProgress(item['id'].toString());
-                            _loadData();
+                            _loadAllHomeData();
                           },
                           child: Container(
                             padding: const EdgeInsets.all(4),
@@ -975,7 +1265,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               color: Colors.black.withValues(alpha: 0.7),
                               shape: BoxShape.circle,
                             ),
-                            child: const FaIcon(FontAwesomeIcons.xmark, color: Colors.white70, size: 14),
+                            child: const FaIcon(FontAwesomeIcons.xmark, color: Colors.white70, size: 13),
                           ),
                         ),
                       ),
@@ -1008,6 +1298,6 @@ class _HomeScreenState extends State<HomeScreen> {
           initialVideoUrl: item['streamUrl'] as String?,
         ),
       ),
-    ).then((_) => _loadData());
+    ).then((_) => _loadAllHomeData());
   }
 }

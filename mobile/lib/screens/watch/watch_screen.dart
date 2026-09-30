@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../../config/theme.dart';
 import '../../models/media_item.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
@@ -33,12 +32,14 @@ class WatchScreen extends StatefulWidget {
 class _WatchScreenState extends State<WatchScreen> {
   final ApiService _apiService = ApiService();
   final StorageService _storage = StorageService();
+  final GlobalKey<AppVideoPlayerState> _playerKey = GlobalKey<AppVideoPlayerState>();
 
   late MediaItem _currentMedia;
   UserModel? _user;
   String _currentVideoUrl = '';
   bool _isLoadingStream = true;
   bool _streamUnavailable = false;
+  bool _isPlaying = true;
 
   // Séries & Épisodes
   bool get _isSeries =>
@@ -175,11 +176,25 @@ class _WatchScreenState extends State<WatchScreen> {
     }
   }
 
+  List<MediaItem> _similarTitles = [];
+
   Future<void> _loadMediaDetails() async {
     final detail = await _apiService.getMediaDetail(_currentMedia.id, isSeries: _isSeries);
     if (detail != null && mounted) {
+      List<MediaItem> recs = detail.recommendations ?? [];
+      if (recs.length < 15) {
+        try {
+          final extra = _isSeries
+              ? await _apiService.getPopularSeries(page: 1)
+              : await _apiService.getPopularMovies(page: 1);
+          final existingIds = {detail.id, ...recs.map((r) => r.id)};
+          final additional = extra.where((m) => !existingIds.contains(m.id)).toList();
+          recs = [...recs, ...additional];
+        } catch (_) {}
+      }
       setState(() {
         _currentMedia = detail;
+        _similarTitles = recs.take(15).toList();
       });
     }
   }
@@ -443,7 +458,7 @@ class _WatchScreenState extends State<WatchScreen> {
                     )
                   : _currentVideoUrl.isNotEmpty
                       ? AppVideoPlayer(
-                          key: ValueKey(_currentVideoUrl),
+                          key: _playerKey,
                           videoUrl: _currentVideoUrl,
                           title: _currentMedia.title,
                           subtitle: _isSeries && _currentEpisodeNumber != null
@@ -451,6 +466,11 @@ class _WatchScreenState extends State<WatchScreen> {
                               : null,
                           initialPosition: _savedResumePosition,
                           onProgress: _onPlaybackProgress,
+                          onPlayingChanged: (playing) {
+                            if (mounted) {
+                              setState(() => _isPlaying = playing);
+                            }
+                          },
                           autoPlay: true,
                           hasNextEpisode: _hasNextEpisode,
                           hasPrevEpisode: _hasPrevEpisode,
@@ -491,26 +511,38 @@ class _WatchScreenState extends State<WatchScreen> {
     final castNames = _currentMedia.cast?.take(4).map((c) => c.name).join(', ') ?? '';
 
     return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       children: [
-        // ── BRAND LABEL (CHILLERS) ──
-        Row(
-          children: const [
-            Text(
-              'CHILLERS',
-              style: TextStyle(
-                color: Color(0xFFE50914),
-                fontSize: 11,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 2.0,
-              ),
+        // ── 1. PROGRESS BAR REMONTÉE DIRECTEMENT SOUS LA VIDÉO ──
+        if (progressPercent > 0.0) ...[
+          Padding(
+            padding: const EdgeInsets.only(top: 2.0, bottom: 10.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(2),
+                    child: LinearProgressIndicator(
+                      value: progressPercent,
+                      backgroundColor: Colors.white24,
+                      valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFE50914)),
+                      minHeight: 3.5,
+                    ),
+                  ),
+                ),
+                if (remainingText != null) ...[
+                  const SizedBox(width: 10),
+                  Text(
+                    remainingText,
+                    style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
 
-        const SizedBox(height: 4),
-
-        // ── TITLE ──
+        // ── 2. TITRE DU MÉDIA (SANS LE MOT CHILLERS) ──
         Text(
           _currentMedia.title,
           style: const TextStyle(
@@ -587,62 +619,84 @@ class _WatchScreenState extends State<WatchScreen> {
 
         const SizedBox(height: 14),
 
-        // ── BOUTONS PRINCIPAUX (STACKED FULL WIDTH) ──
-        // 1. Bouton Blanc "Reprendre" / "Lecture"
-        SizedBox(
-          width: double.infinity,
-          height: 44,
-          child: ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: Colors.black,
-              elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        // ── BOUTONS PRINCIPAUX EN GRILLE DE 2 (CÔTE À CÔTE) ──
+        Row(
+          children: [
+            // 1. Bouton Blanc Synchronisé "Lecture" / "Pause" / "Reprendre"
+            Expanded(
+              child: SizedBox(
+                height: 44,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.black,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                  ),
+                  icon: FaIcon(
+                    _isPlaying ? FontAwesomeIcons.pause : FontAwesomeIcons.play,
+                    size: 13,
+                    color: Colors.black,
+                  ),
+                  label: Text(
+                    _isPlaying
+                        ? 'Pause'
+                        : (_savedResumePosition != null || (_currentPosition != null && _currentPosition! > Duration.zero)
+                            ? 'Reprendre'
+                            : 'Lecture'),
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  onPressed: () {
+                    if (_currentVideoUrl.isNotEmpty && _playerKey.currentState != null) {
+                      _playerKey.currentState!.togglePlayPause();
+                    } else {
+                      if (_isSeries && _episodes.isNotEmpty) {
+                        final currentEp = _episodes.firstWhere(
+                          (e) => e.episodeNumber == _currentEpisodeNumber,
+                          orElse: () => _episodes.first,
+                        );
+                        _playEpisode(currentEp);
+                      } else {
+                        _resolveMovieStream();
+                      }
+                    }
+                  },
+                ),
+              ),
             ),
-            icon: const FaIcon(FontAwesomeIcons.play, size: 14, color: Colors.black),
-            label: Text(
-              _savedResumePosition != null ? 'Reprendre' : 'Lecture',
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-            ),
-            onPressed: () {
-              if (_isSeries && _episodes.isNotEmpty) {
-                final currentEp = _episodes.firstWhere(
-                  (e) => e.episodeNumber == _currentEpisodeNumber,
-                  orElse: () => _episodes.first,
-                );
-                _playEpisode(currentEp);
-              } else {
-                _resolveMovieStream();
-              }
-            },
-          ),
-        ),
 
-        const SizedBox(height: 8),
+            const SizedBox(width: 10),
 
-        // 2. Bouton Gris "Télécharger"
-        SizedBox(
-          width: double.infinity,
-          height: 44,
-          child: ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF262626),
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+            // 2. Bouton Gris "Télécharger"
+            Expanded(
+              child: SizedBox(
+                height: 44,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF262626),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                  ),
+                  icon: const FaIcon(FontAwesomeIcons.download, size: 13, color: Colors.white),
+                  label: const Text(
+                    'Télécharger',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  onPressed: () => _onDownload(),
+                ),
+              ),
             ),
-            icon: const FaIcon(FontAwesomeIcons.download, size: 14, color: Colors.white),
-            label: const Text(
-              'Télécharger',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-            ),
-            onPressed: () => _onDownload(),
-          ),
+          ],
         ),
 
         const SizedBox(height: 14),
 
-        // ── TITRE ÉPISODE COURANT & PROGRESS BAR ──
+        // ── TITRE ÉPISODE COURANT (SI SÉRIE) ──
         if (_isSeries && _currentEpisodeNumber != null) ...[
           Text(
             _currentEpisodeTitle != null && _currentEpisodeTitle!.isNotEmpty
@@ -654,34 +708,7 @@ class _WatchScreenState extends State<WatchScreen> {
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 6),
-        ],
-
-        // Progress bar si position enregistrée
-        if (progressPercent > 0.0) ...[
-          Row(
-            children: [
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(2),
-                  child: LinearProgressIndicator(
-                    value: progressPercent,
-                    backgroundColor: Colors.white24,
-                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFE50914)),
-                    minHeight: 3,
-                  ),
-                ),
-              ),
-              if (remainingText != null) ...[
-                const SizedBox(width: 10),
-                Text(
-                  remainingText,
-                  style: const TextStyle(color: Colors.white60, fontSize: 11),
-                ),
-              ],
-            ],
-          ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
         ],
 
         // ── SYNOPSIS & CASTING ──
@@ -708,7 +735,7 @@ class _WatchScreenState extends State<WatchScreen> {
 
         const SizedBox(height: 18),
 
-        // ── BOUTONS D'ACTION HORIZONTAUX (Ma Liste, J'aime, Partager, Playlist) ──
+        // ── 3. BOUTONS D'ACTION (AVEC COEUR POUR J'AIME) ──
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
@@ -719,7 +746,7 @@ class _WatchScreenState extends State<WatchScreen> {
               onTap: _toggleWatchlist,
             ),
             _buildIconAction(
-              icon: _isFavorite ? Icons.thumb_up : Icons.thumb_up_outlined,
+              icon: _isFavorite ? Icons.favorite : Icons.favorite_border_rounded,
               label: 'J\'aime',
               isActive: _isFavorite,
               onTap: _toggleFavorite,
@@ -745,16 +772,14 @@ class _WatchScreenState extends State<WatchScreen> {
         const Divider(color: Colors.white12, height: 1),
         const SizedBox(height: 12),
 
-        // ── ONGLETS (Épisodes, Titres similaires, Plus) ──
+        // ── 4. ONGLETS (ÉPISODES & TITRES SIMILAIRES UNIQUEMENT - BANDE-ANNONCE SUPPRIMÉE) ──
         Row(
           children: [
             if (_isSeries) ...[
               _buildTabItem(title: 'Épisodes', index: 0),
-              const SizedBox(width: 20),
+              const SizedBox(width: 24),
             ],
             _buildTabItem(title: 'Titres similaires', index: 1),
-            const SizedBox(width: 20),
-            _buildTabItem(title: 'Bandes-annonces', index: 2),
           ],
         ),
 
@@ -950,92 +975,64 @@ class _WatchScreenState extends State<WatchScreen> {
                 );
               },
             ),
-        ] else if (_selectedTabIndex == 1) ...[
-          // Titres similaires (Grille 3 colonnes)
-          if (_currentMedia.recommendations != null && _currentMedia.recommendations!.isNotEmpty)
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _currentMedia.recommendations!.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                crossAxisSpacing: 8,
-                mainAxisSpacing: 8,
-                childAspectRatio: 0.68,
-              ),
-              itemBuilder: (context, index) {
-                final rec = _currentMedia.recommendations![index];
-                return GestureDetector(
-                  onTap: () {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => WatchScreen(item: rec),
-                      ),
-                    );
-                  },
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
-                    child: rec.poster != null && rec.poster!.isNotEmpty
-                        ? CachedNetworkImage(
-                            imageUrl: rec.poster!,
-                            fit: BoxFit.cover,
-                            errorWidget: (context, url, error) => Container(color: const Color(0xFF1C1C1E)),
-                          )
-                        : Container(color: const Color(0xFF1C1C1E)),
+        ] else ...[
+          // ── 5. TITRES SIMILAIRES (15 TITRES EN GRILLE 3 COLONNES) ──
+          Builder(
+            builder: (context) {
+              final displayRecs = _similarTitles.isNotEmpty
+                  ? _similarTitles
+                  : (_currentMedia.recommendations?.take(15).toList() ?? []);
+
+              if (displayRecs.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 30.0),
+                  child: Center(
+                    child: Text('Aucun titre similaire disponible.', style: TextStyle(color: Colors.white38)),
                   ),
                 );
-              },
-            )
-          else
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 30.0),
-              child: Center(
-                child: Text('Aucun titre similaire disponible.', style: TextStyle(color: Colors.white38)),
-              ),
-            ),
-        ] else ...[
-          // Bandes-annonces & Détails
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (_currentMedia.trailerUrl != null && _currentMedia.trailerUrl!.isNotEmpty) ...[
-                  const Text(
-                    'Bande-annonce officielle',
-                    style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _currentMedia.trailerUrl!,
-                    style: const TextStyle(color: AppTheme.primary, fontSize: 12),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-                if (_currentMedia.genres != null && _currentMedia.genres!.isNotEmpty) ...[
-                  const Text(
-                    'Genres',
-                    style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: _currentMedia.genres!.map((g) {
-                      return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF262626),
-                          borderRadius: BorderRadius.circular(4),
+              }
+
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: displayRecs.length,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 8,
+                  childAspectRatio: 0.68,
+                ),
+                itemBuilder: (context, index) {
+                  final rec = displayRecs[index];
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => WatchScreen(item: rec),
                         ),
-                        child: Text(g, style: const TextStyle(color: Colors.white70, fontSize: 11)),
                       );
-                    }).toList(),
-                  ),
-                ],
-              ],
-            ),
+                    },
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: rec.poster != null && rec.poster!.isNotEmpty
+                          ? CachedNetworkImage(
+                              imageUrl: rec.poster!,
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) => Container(color: const Color(0xFF1C1C1E)),
+                              errorWidget: (context, url, error) => Container(
+                                color: const Color(0xFF1C1C1E),
+                                child: const Center(
+                                  child: FaIcon(FontAwesomeIcons.film, color: Colors.white24, size: 20),
+                                ),
+                              ),
+                            )
+                          : Container(color: const Color(0xFF1C1C1E)),
+                    ),
+                  );
+                },
+              );
+            },
           ),
         ],
 

@@ -72,10 +72,10 @@ export class ProviderManager {
     }
 
     // ── Cache LRU ───────────────────────────────────────────────────────────
-    const cacheKey = getCacheKey('movie', query.tmdbId, undefined, undefined, query.isPremium);
+    const cacheKey = getCacheKey('movie', query.tmdbId, undefined, undefined, query.isPremium, query.language);
     const cached = streamCache.get(cacheKey);
     if (cached) {
-      console.log(`[Stream] Cache hit for movie ${query.tmdbId} (premium=${!!query.isPremium})`);
+      console.log(`[Stream] Cache hit for movie ${query.tmdbId} (premium=${!!query.isPremium}, lang=${query.language || 'fr'})`);
       return cached;
     }
 
@@ -87,7 +87,7 @@ export class ProviderManager {
       attempts.push(attempt);
       if (attempt.status === 'success') {
         console.log(
-          `[Stream] Movie stream found via "${provider.name}" after ${attempts.length} attempt(s)`
+          `[Stream] Movie stream found via "${provider.name}" after ${attempts.length} attempt(s) [lang=${query.language || 'fr'}]`
         );
         const result: CachedStream = {
           provider: attempt.provider,
@@ -133,10 +133,10 @@ export class ProviderManager {
     };
 
     // ── Cache LRU ───────────────────────────────────────────────────────────
-    const cacheKey = getCacheKey('episode', normalizedQuery.tmdbId, normalizedQuery.season, normalizedQuery.episode, normalizedQuery.isPremium);
+    const cacheKey = getCacheKey('episode', normalizedQuery.tmdbId, normalizedQuery.season, normalizedQuery.episode, normalizedQuery.isPremium, normalizedQuery.language);
     const cached = streamCache.get(cacheKey);
     if (cached) {
-      console.log(`[Stream] Cache hit for episode ${normalizedQuery.tmdbId} S${normalizedQuery.season}E${normalizedQuery.episode} (premium=${!!normalizedQuery.isPremium})`);
+      console.log(`[Stream] Cache hit for episode ${normalizedQuery.tmdbId} S${normalizedQuery.season}E${normalizedQuery.episode} (premium=${!!normalizedQuery.isPremium}, lang=${normalizedQuery.language || 'fr'})`);
       return cached;
     }
 
@@ -296,39 +296,65 @@ export class ProviderManager {
 
   private sortProviders(query: StreamQuery): StreamingProvider[] {
     const isPremium = !!query.isPremium;
+    const lang = (query.language || 'fr').toLowerCase();
 
-    const direct = this.providers.filter(p => p.name === 'direct' && p.supports(query));
-    const frenchStream = this.providers.filter(p => p.name === 'frenchstream' && p.supports(query));
-    const flemmix = this.providers.filter(p => p.name === 'flemmix' && p.supports(query));
-    const omniSave = this.providers.filter(p => p.name === 'omnisave' && p.supports(query));
-    const mongoDb = this.providers.filter(p => p.name === 'mongodb' && p.supports(query));
-    const doodstream = this.providers.filter(p => p.name === 'doodstream' && p.supports(query));
-    const otaku = this.providers.filter(p => p.name === 'otaku' && p.supports(query));
-    const vidlink = this.providers.filter(p => p.name === 'vidlink' && p.supports(query));
+    const direct = this.providers.filter((p) => p.name === 'direct' && p.supports(query));
+    const frenchStream = this.providers.filter((p) => p.name === 'frenchstream' && p.supports(query));
+    const flemmix = this.providers.filter((p) => p.name === 'flemmix' && p.supports(query));
+    const omniSave = this.providers.filter((p) => p.name === 'omnisave' && p.supports(query));
+    const mongoDb = this.providers.filter((p) => p.name === 'mongodb' && p.supports(query));
+    const doodstream = this.providers.filter((p) => p.name === 'doodstream' && p.supports(query));
+    const otaku = this.providers.filter((p) => p.name === 'otaku' && p.supports(query));
+    const vidlink = this.providers.filter((p) => p.name === 'vidlink' && p.supports(query));
 
+    // 1. Si l'utilisateur demande explicitement la version originale anglaise (VO)
+    if (lang === 'en' || lang === 'vo') {
+      return [
+        ...vidlink,
+        ...doodstream,
+        ...direct,
+        ...mongoDb,
+        ...omniSave,
+        ...frenchStream,
+        ...flemmix,
+        ...otaku,
+      ];
+    }
+
+    // 2. Si l'utilisateur demande explicitement VOSTFR (Sous-titres FR)
+    if (lang === 'vostfr') {
+      return [
+        ...frenchStream,
+        ...otaku,
+        ...flemmix,
+        ...vidlink,
+        ...direct,
+        ...mongoDb,
+        ...doodstream,
+        ...omniSave,
+      ];
+    }
+
+    // 3. Par défaut (VF / Français) : UNIQUEMENT les sources francophones en priorité
     if (isPremium) {
       // Pour les utilisateurs Premium : FrenchStream (1080p Full HD) en priorité #1, Flemmix en #2
       return [
         ...frenchStream,
         ...flemmix,
         ...direct,
-        ...omniSave,
         ...mongoDb,
         ...doodstream,
         ...otaku,
-        ...vidlink,
       ];
     } else {
-      // Pour les utilisateurs Standards : Direct, MongoDB, OmniSave, Doodstream, puis FrenchStream + Flemmix, puis VidLink
+      // Pour les utilisateurs Standards : FrenchStream, Flemmix, Direct, MongoDB, Doodstream, Otaku
       return [
-        ...direct,
-        ...mongoDb,
-        ...omniSave,
-        ...doodstream,
-        ...otaku,
         ...frenchStream,
         ...flemmix,
-        ...vidlink,
+        ...direct,
+        ...mongoDb,
+        ...doodstream,
+        ...otaku,
       ];
     }
   }

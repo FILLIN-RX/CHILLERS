@@ -83,7 +83,7 @@ export const getMovieStream = async (req: Request, res: Response, next: NextFunc
       originalTitle,
       releaseDate,
       year: year || movie?.year,
-      language: (req.query.language as string) || 'fr',
+      language: ((req.query.language || req.query.lang) as string) || 'fr',
       isPremium,
     });
 
@@ -161,7 +161,7 @@ export const getEpisodeStream = async (req: Request, res: Response, next: NextFu
       year: year || serie?.year,
       season,
       episode,
-      language: (req.query.language as string) || 'fr',
+      language: ((req.query.language || req.query.lang) as string) || 'fr',
       isPremium,
     });
 

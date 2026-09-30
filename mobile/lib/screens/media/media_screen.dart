@@ -36,11 +36,11 @@ class _MediaScreenState extends State<MediaScreen> {
   int _currentPage = 1;
 
   final List<Map<String, dynamic>> _types = [
-    {'id': 'all', 'label': 'Tout Explorer', 'icon': FontAwesomeIcons.compass.data},
-    {'id': 'movie', 'label': 'Films', 'icon': FontAwesomeIcons.clapperboard.data},
-    {'id': 'tv', 'label': 'Séries', 'icon': FontAwesomeIcons.tv.data},
-    {'id': 'anime', 'label': 'Animes', 'icon': FontAwesomeIcons.wandMagicSparkles.data},
-    {'id': 'african', 'label': 'Nollywood & Afrique', 'icon': FontAwesomeIcons.globe.data},
+    {'id': 'all', 'label': 'Tout Explorer', 'icon': FontAwesomeIcons.compass},
+    {'id': 'movie', 'label': 'Films', 'icon': FontAwesomeIcons.clapperboard},
+    {'id': 'tv', 'label': 'Séries', 'icon': FontAwesomeIcons.tv},
+    {'id': 'anime', 'label': 'Animes', 'icon': FontAwesomeIcons.wandMagicSparkles},
+    {'id': 'african', 'label': 'Nollywood & Afrique', 'icon': FontAwesomeIcons.globe},
   ];
 
   final List<Map<String, String>> _sortOptions = const [
@@ -223,8 +223,8 @@ class _MediaScreenState extends State<MediaScreen> {
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: ChoiceChip(
-                    avatar: Icon(
-                      type['icon'] as IconData,
+                    avatar: FaIcon(
+                      type['icon'],
                       size: 16,
                       color: isSelected ? Colors.white : AppTheme.primary,
                     ),

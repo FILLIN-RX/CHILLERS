@@ -25,7 +25,7 @@ import { userService } from "@/services/user";
 import { PopupFirewall } from "@/lib/PopupFirewall";
 import Button from "@/components/Button";
 import CardImage from "@/components/CardImage";
-import { ArrowLeft, Play, Star, Clock, CalendarBlank, FilmSlate, DownloadSimple, ShareNetwork, CaretDown, CaretCircleRight, CaretCircleLeft } from "@phosphor-icons/react";
+import { ArrowLeft, Play, Star, Clock, CalendarBlank, FilmSlate, DownloadSimple, ShareNetwork, CaretDown, CaretCircleRight, CaretCircleLeft, Translate } from "@phosphor-icons/react";
 
 interface WatchContentProps {
   initialItem?: MovieOrShow | null;
@@ -52,6 +52,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
 
   const [item, setItem] = useState<MovieOrShow | null>(initialItem || null);
   const [currentSeason, setCurrentSeason] = useState<number>(parseInt(initialSeasonParam) || 1);
+  const [audioVersion, setAudioVersion] = useState<"fr" | "vostfr">("fr");
   const [streamUrl, setStreamUrl] = useState(initialStreamUrl || "");
   const [streamLoading, setStreamLoading] = useState(!initialStreamUrl && !initialStreamUnavailable);
   const [streamUnavailable, setStreamUnavailable] = useState(initialStreamUnavailable || false);
@@ -153,6 +154,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
             originalTitle,
             detail?.releaseDate,
             detail?.year,
+            audioVersion,
           );
 
           const [seasonData, firstStream] = await Promise.all([
@@ -193,6 +195,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
               originalTitle,
               detail?.releaseDate,
               detail?.year,
+              audioVersion,
             );
           }
           if (!cancelled) {
@@ -218,6 +221,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
             originalTitle,
             detail?.releaseDate,
             detail?.year,
+            audioVersion,
           );
           if (!cancelled) {
             if (stream?.unreleased) {
@@ -353,6 +357,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
             (item as any)?.originalTitle || (item as any)?.original_title,
             item?.releaseDate,
             item?.year,
+            audioVersion,
           );
           if (stream) {
             setStreamUrl(stream.embedUrl);
@@ -377,7 +382,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
         setStreamLoading(false);
       }
     },
-    [id, currentSeason, item, _]
+    [id, currentSeason, item, audioVersion, _]
   );
 
   // Play Specific Episode Handler
@@ -401,6 +406,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
           (item as any)?.originalTitle || (item as any)?.original_title,
           item?.releaseDate,
           item?.year,
+          audioVersion,
         );
         if (stream) {
           setStreamUrl(stream.embedUrl);
@@ -425,7 +431,66 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
         100
       );
     },
-    [episodes, id, item, currentSeason]
+    [episodes, id, item, currentSeason, audioVersion]
+  );
+
+  // Switch Audio Version (VF vs VOSTFR)
+  const handleLanguageChange = useCallback(
+    async (newLang: "fr" | "vostfr") => {
+      if (newLang === audioVersion || !item) return;
+      setAudioVersion(newLang);
+      setStreamLoading(true);
+      setStreamUnavailable(false);
+      setStreamUrl("");
+
+      try {
+        const originalTitle = (item as any)?.originalTitle || (item as any)?.original_title;
+        if (isTV) {
+          const ep = episodes[currentEpisodeIndex];
+          const stream = await getStreamUrl(
+            id,
+            "series",
+            ep?.season || currentSeason,
+            ep?.number || 1,
+            item?.title || id,
+            undefined,
+            originalTitle,
+            item?.releaseDate,
+            item?.year,
+            newLang,
+          );
+          if (stream) {
+            setStreamUrl(stream.embedUrl);
+          } else {
+            setStreamUnavailable(true);
+          }
+        } else {
+          const stream = await getStreamUrl(
+            id,
+            "movie",
+            undefined,
+            undefined,
+            item?.title || id,
+            undefined,
+            originalTitle,
+            item?.releaseDate,
+            item?.year,
+            newLang,
+          );
+          if (stream) {
+            setStreamUrl(stream.embedUrl);
+          } else {
+            setStreamUnavailable(true);
+          }
+        }
+      } catch (err) {
+        console.error("Language switch stream error:", err);
+        setStreamUnavailable(true);
+      } finally {
+        setStreamLoading(false);
+      }
+    },
+    [audioVersion, id, isTV, episodes, currentEpisodeIndex, currentSeason, item]
   );
 
   // Next / Prev Episode Navigation
@@ -660,7 +725,42 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
             </div>
           )}
 
-          {/* Title Header */}
+          {/* Language Version Selector (Français VF vs Version Originale VO) */}
+          <div className="flex items-center justify-between gap-2 p-2 rounded-2xl bg-zinc-900/80 border border-white/5 backdrop-blur-md">
+            <div className="flex items-center gap-2 px-2">
+              <Translate className="h-4 w-4 text-brand-primary" />
+              <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-zinc-300 hidden xs:inline">
+                Version Audio :
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => handleLanguageChange("fr")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  audioVersion === "fr"
+                    ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/30 ring-1 ring-white/20"
+                    : "bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10"
+                }`}
+              >
+                <span>🇫🇷</span>
+                <span>Français (VF)</span>
+              </button>
+
+              <button
+                onClick={() => handleLanguageChange("vostfr")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  audioVersion === "vostfr"
+                    ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/30 ring-1 ring-white/20"
+                    : "bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10"
+                }`}
+              >
+                <span>🌐</span>
+                <span>Version Originale (VO)</span>
+              </button>
+            </div>
+          </div>
+
           {/* Title Header */}
           {item ? (
             <div className="space-y-1">

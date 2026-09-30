@@ -28,6 +28,7 @@ class AppVideoPlayer extends StatefulWidget {
   final bool isFullScreen;
   final Duration? initialPosition;
   final void Function(Duration position, Duration duration)? onProgress;
+  final ValueChanged<bool>? onPlayingChanged;
   final VoidCallback? onNextEpisode;
   final VoidCallback? onPrevEpisode;
   final bool hasNextEpisode;
@@ -43,6 +44,7 @@ class AppVideoPlayer extends StatefulWidget {
     this.isFullScreen = false,
     this.initialPosition,
     this.onProgress,
+    this.onPlayingChanged,
     this.onNextEpisode,
     this.onPrevEpisode,
     this.hasNextEpisode = false,
@@ -50,10 +52,10 @@ class AppVideoPlayer extends StatefulWidget {
   });
 
   @override
-  State<AppVideoPlayer> createState() => _AppVideoPlayerState();
+  State<AppVideoPlayer> createState() => AppVideoPlayerState();
 }
 
-class _AppVideoPlayerState extends State<AppVideoPlayer> with TickerProviderStateMixin {
+class AppVideoPlayerState extends State<AppVideoPlayer> with TickerProviderStateMixin {
   // MediaKit engine
   Player? _mediaKitPlayer;
   VideoController? _mediaKitController;
@@ -216,7 +218,10 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> with TickerProviderStat
         });
 
         _mediaKitPlayingSub = player.stream.playing.listen((playing) {
-          if (mounted) setState(() => _isPlaying = playing);
+          if (mounted) {
+            setState(() => _isPlaying = playing);
+            widget.onPlayingChanged?.call(playing);
+          }
         });
 
         _mediaKitBufferingSub = player.stream.buffering.listen((buffering) {
@@ -225,7 +230,12 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> with TickerProviderStat
 
         _mediaKitErrorSub = player.stream.error.listen((err) {
           debugPrint('[AppVideoPlayer] MediaKit error: $err');
-          _handlePlaybackFailure(err.toString());
+          if (_videoPlayerController == null && !err.toString().contains('cancelled')) {
+            debugPrint('[AppVideoPlayer] MediaKit échec, tentative fallback video_player...');
+            _initFallbackVideoPlayer();
+          } else {
+            _handlePlaybackFailure(err.toString());
+          }
         });
 
         await player.open(
@@ -280,6 +290,12 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> with TickerProviderStat
             widget.videoUrl.contains('vidsrc') ||
             widget.videoUrl.contains('/embed'))) {
       _initMobileWebView();
+      return;
+    }
+
+    if (_useMediaKit && _videoPlayerController == null) {
+      debugPrint('[AppVideoPlayer] Erreur MediaKit, basculement vers video_player...');
+      _initFallbackVideoPlayer();
       return;
     }
 
@@ -360,19 +376,30 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> with TickerProviderStat
   Map<String, String> _getHeadersForUrl(String url) {
     final headers = <String, String>{
       'User-Agent':
-          'Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
     };
     final lower = url.toLowerCase();
-    if (lower.contains('vidzy')) {
+    if (lower.contains('hakunaymatata') || lower.contains('bcdn') || lower.contains('videodownloader')) {
+      headers['Referer'] = 'https://videodownloader.site/';
+      headers['Origin'] = 'https://videodownloader.site';
+    } else if (lower.contains('vidzy')) {
       headers['Referer'] = 'https://vidzy.cc/';
       headers['Origin'] = 'https://vidzy.cc';
     } else if (lower.contains('uqload')) {
       headers['Referer'] = 'https://uqload.is/';
       headers['Origin'] = 'https://uqload.is';
-    } else if (lower.contains('dood') || lower.contains('ds2play') || lower.contains('playmogo')) {
+    } else if (lower.contains('dood') || lower.contains('ds2play') || lower.contains('playmogo') || lower.contains('d000')) {
       headers['Referer'] = 'https://doodstream.com/';
-    } else if (lower.contains('luluvid') || lower.contains('luluvdo')) {
+    } else if (lower.contains('luluvid') || lower.contains('luluvdo') || lower.contains('lulutv')) {
       headers['Referer'] = 'https://luluvid.com/';
+    } else if (lower.contains('voe') || lower.contains('rebeccapracticeloss')) {
+      headers['Referer'] = 'https://voe.sx/';
+    } else if (lower.contains('streamtape')) {
+      headers['Referer'] = 'https://streamtape.com/';
+    } else if (lower.contains('flemmix')) {
+      headers['Referer'] = 'https://flemmix.party/';
+    } else if (lower.contains('french-stream') || lower.contains('frenchstream')) {
+      headers['Referer'] = 'https://french-stream.net/';
     }
     return headers;
   }
@@ -408,6 +435,7 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> with TickerProviderStat
           _totalDuration = _videoPlayerController!.value.duration;
           _isPlaying = _videoPlayerController!.value.isPlaying;
         });
+        widget.onPlayingChanged?.call(_isPlaying);
       }
     } catch (e) {
       if (mounted) {
@@ -430,6 +458,7 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> with TickerProviderStat
           _isPlaying = playing;
           _isBuffering = buffering;
         });
+        widget.onPlayingChanged?.call(playing);
       }
       if (widget.onProgress != null && dur > Duration.zero) {
         widget.onProgress!(pos, dur);
@@ -481,6 +510,18 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> with TickerProviderStat
   }
 
   // ── Contrôles de Lecture (Play, Pause, Seek, Rate) ──
+
+  bool get isPlaying => _isPlaying;
+
+  void togglePlayPause() => _togglePlayPause();
+
+  void play() {
+    if (!_isPlaying) _togglePlayPause();
+  }
+
+  void pause() {
+    if (_isPlaying) _togglePlayPause();
+  }
 
   void _togglePlayPause() {
     NativeBridge.instance.selectionHaptic();

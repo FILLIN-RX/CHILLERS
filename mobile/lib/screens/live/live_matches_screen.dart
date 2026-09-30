@@ -32,10 +32,10 @@ class _LiveMatchesScreenState extends State<LiveMatchesScreen> {
   String? _currentSubtitle;
 
   final List<Map<String, dynamic>> _filters = [
-    {'id': 'all', 'label': 'Tous les Matchs', 'icon': FontAwesomeIcons.futbol.data},
-    {'id': 'uefa', 'label': 'Ligue des Champions', 'icon': FontAwesomeIcons.trophy.data},
-    {'id': 'live', 'label': 'En Direct', 'icon': FontAwesomeIcons.circle.data},
-    {'id': 'upcoming', 'label': 'À Venir', 'icon': FontAwesomeIcons.clock.data},
+    {'id': 'all', 'label': 'Tous les Matchs', 'icon': FontAwesomeIcons.futbol},
+    {'id': 'uefa', 'label': 'Ligue des Champions', 'icon': FontAwesomeIcons.trophy},
+    {'id': 'live', 'label': 'En Direct', 'icon': FontAwesomeIcons.circle},
+    {'id': 'upcoming', 'label': 'À Venir', 'icon': FontAwesomeIcons.clock},
   ];
 
   @override
@@ -341,8 +341,8 @@ class _LiveMatchesScreenState extends State<LiveMatchesScreen> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
-                            filter['icon'] as IconData,
+                          FaIcon(
+                            filter['icon'],
                             size: 14,
                             color: isSelected
                                 ? (isUefa ? Colors.black : Colors.white)

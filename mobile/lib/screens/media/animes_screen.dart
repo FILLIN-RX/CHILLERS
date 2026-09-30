@@ -24,10 +24,10 @@ class _AnimesScreenState extends State<AnimesScreen> {
   int _currentPage = 1;
 
   final List<Map<String, dynamic>> _filterOptions = [
-    {'id': 'all', 'label': 'Tous les Animes', 'icon': FontAwesomeIcons.wandMagicSparkles.data},
-    {'id': 'action', 'label': 'Action & Shōnen', 'icon': FontAwesomeIcons.fire.data},
-    {'id': 'fantasy', 'label': 'Fantaisie & Isekai', 'icon': FontAwesomeIcons.wandSparkles.data},
-    {'id': 'trending', 'label': 'Tendances', 'icon': FontAwesomeIcons.arrowTrendUp.data},
+    {'id': 'all', 'label': 'Tous les Animes', 'icon': FontAwesomeIcons.wandMagicSparkles},
+    {'id': 'action', 'label': 'Action & Shōnen', 'icon': FontAwesomeIcons.fire},
+    {'id': 'fantasy', 'label': 'Fantaisie & Isekai', 'icon': FontAwesomeIcons.wandSparkles},
+    {'id': 'trending', 'label': 'Tendances', 'icon': FontAwesomeIcons.arrowTrendUp},
   ];
 
   @override
@@ -140,8 +140,8 @@ class _AnimesScreenState extends State<AnimesScreen> {
                 return Padding(
                   padding: const EdgeInsets.only(right: 6),
                   child: ChoiceChip(
-                    avatar: Icon(
-                      filter['icon'] as IconData,
+                    avatar: FaIcon(
+                      filter['icon'],
                       size: 16,
                       color: isSelected ? Colors.white : AppTheme.primary,
                     ),

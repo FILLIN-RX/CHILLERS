@@ -111,7 +111,7 @@ const getMovieStream = async (req, res, next) => {
             originalTitle,
             releaseDate,
             year: year || movie?.year,
-            language: req.query.language || 'fr',
+            language: (req.query.language || req.query.lang) || 'fr',
             isPremium,
         });
         if (!result || result.isUnreleased) {
@@ -183,7 +183,7 @@ const getEpisodeStream = async (req, res, next) => {
             year: year || serie?.year,
             season,
             episode,
-            language: req.query.language || 'fr',
+            language: (req.query.language || req.query.lang) || 'fr',
             isPremium,
         });
         if (!result || result.isUnreleased) {

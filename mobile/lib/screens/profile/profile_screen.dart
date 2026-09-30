@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import '../../config/theme.dart';
 import '../../models/user_model.dart';
 import '../../models/subscription_plan.dart';
 import '../../services/storage_service.dart';
@@ -28,10 +27,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
   List<SubscriptionPlanModel> _plans = [];
   bool _isLoading = true;
 
+  // Settings
+  bool _biometricEnabled = false;
+  bool _notificationsEnabled = true;
+  bool _cellularDataSaver = false;
+  String _streamingQuality = 'Automatique (HD)';
+
   @override
   void initState() {
     super.initState();
     _loadData();
+    _loadSettings();
   }
 
   Future<void> _loadData() async {
@@ -45,6 +51,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _currentUser = freshUser ?? user;
         _plans = plans;
         _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loadSettings() async {
+    final bio = BiometricService().isEnabled;
+    if (mounted) {
+      setState(() {
+        _biometricEnabled = bio;
       });
     }
   }
@@ -64,11 +79,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppTheme.card,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        backgroundColor: const Color(0xFF1E1E24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: const Text('Déconnexion', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         content: const Text(
-          'Êtes-vous sûr de vouloir vous déconnecter ?',
+          'Voulez-vous vraiment vous déconnecter de votre compte ?',
           style: TextStyle(color: Colors.white70),
         ),
         actions: [
@@ -78,7 +93,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.redAccent,
+              backgroundColor: const Color(0xFFE50914),
               foregroundColor: Colors.white,
             ),
             onPressed: () => Navigator.pop(ctx, true),
@@ -96,525 +111,405 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  void _showQualityPicker() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF18181C),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: Text(
+                  'Qualité vidéo de streaming',
+                  style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold),
+                ),
+              ),
+              const Divider(color: Colors.white12),
+              ...['Automatique (Recommandé)', 'Standard (Économie 720p)', 'Haute Définition (1080p)', 'Ultra HD 4K (VIP)'].map(
+                (q) => ListTile(
+                  title: Text(
+                    q,
+                    style: TextStyle(
+                      color: _streamingQuality == q ? const Color(0xFFE50914) : Colors.white,
+                      fontWeight: _streamingQuality == q ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                  trailing: _streamingQuality == q
+                      ? const Icon(Icons.check, color: Color(0xFFE50914), size: 20)
+                      : null,
+                  onTap: () {
+                    setState(() => _streamingQuality = q);
+                    Navigator.pop(ctx);
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isGuest = _currentUser == null;
     final isVip = _currentUser?.subscription?.status == 'active';
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: const Color(0xFF000000),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF000000),
+        elevation: 0,
+        title: const Text(
+          'Profil et Compte',
+          style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications_none_rounded, color: Colors.white70),
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Aucune nouvelle notification.')),
+              );
+            },
+          ),
+        ],
+      ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFFE50914), strokeWidth: 2))
           : RefreshIndicator(
-              color: AppTheme.primary,
+              color: const Color(0xFFE50914),
               onRefresh: _loadData,
-              child: CustomScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                slivers: [
-                  // YouTube-style Profile Header
-                  SliverAppBar(
-                    expandedHeight: 260,
-                    floating: false,
-                    pinned: true,
-                    backgroundColor: AppTheme.background,
-                    elevation: 0,
-                    flexibleSpace: FlexibleSpaceBar(
-                      background: Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              isVip
-                                  ? Colors.amber.withValues(alpha: 0.15)
-                                  : AppTheme.primary.withValues(alpha: 0.08),
-                              AppTheme.background,
+              child: ListView(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                children: [
+                  // ── 1. NETFLIX PROFILE HERO ──
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Row(
+                      children: [
+                        // Avatar carré style Netflix
+                        Container(
+                          width: 68,
+                          height: 68,
+                          decoration: BoxDecoration(
+                            color: isVip ? const Color(0xFFE50914) : const Color(0xFF1F449B),
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.5),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
                             ],
                           ),
-                        ),
-                        child: SafeArea(
-                          child: SingleChildScrollView(
-                            physics: const NeverScrollableScrollPhysics(),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const SizedBox(height: 20),
-                                // Avatar
-                                CircleAvatar(
-                                  radius: 45,
-                                  backgroundColor: isVip
-                                      ? Colors.amber.withValues(alpha: 0.3)
-                                      : AppTheme.primary.withValues(alpha: 0.2),
-                                  child: Text(
-                                    isGuest
-                                        ? '?'
-                                        : (_currentUser!.username?.isNotEmpty == true
-                                                ? _currentUser!.username![0]
-                                                : _currentUser!.email[0])
-                                            .toUpperCase(),
-                                    style: TextStyle(
-                                      fontSize: 40,
-                                      fontWeight: FontWeight.bold,
-                                      color: isVip ? Colors.amber : (isGuest ? Colors.white70 : AppTheme.primary),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                // Username
-                                Text(
-                                  isGuest ? 'Mode Visiteur' : (_currentUser!.username ?? _currentUser!.email.split('@')[0]),
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                                if (!isGuest) ...[
-                                  const SizedBox(height: 2),
-                                  // Email
-                                  Text(
-                                    _currentUser!.email,
+                          child: Center(
+                            child: isGuest
+                                ? const FaIcon(FontAwesomeIcons.user, color: Colors.white70, size: 28)
+                                : Text(
+                                    (_currentUser?.username?.isNotEmpty == true
+                                            ? _currentUser!.username![0]
+                                            : _currentUser?.email.isNotEmpty == true
+                                                ? _currentUser!.email[0]
+                                                : 'U')
+                                        .toUpperCase(),
                                     style: const TextStyle(
-                                      fontSize: 12,
-                                      color: AppTheme.textSecondary,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ],
-                                const SizedBox(height: 10),
-                                // Status Badge
-                                if (isVip)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: Colors.amber,
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: const [
-                                        FaIcon(FontAwesomeIcons.award, color: Colors.black, size: 12),
-                                        SizedBox(width: 4),
-                                        Text(
-                                          'MEMBRE VIP',
-                                          style: TextStyle(
-                                            color: Colors.black,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w900,
-                                          ),
-                                        ),
-                                      ],
+                                      color: Colors.white,
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.w900,
                                     ),
                                   ),
-                              ],
-                            ),
                           ),
                         ),
-                      ),
-                    ),
-                    actions: [
-                      if (!isGuest)
-                        IconButton(
-                          icon: const FaIcon(FontAwesomeIcons.rightFromBracket, color: Colors.redAccent, size: 20),
-                          tooltip: 'Déconnexion',
-                          onPressed: _logout,
-                        )
-                      else
                         const SizedBox(width: 16),
-                    ],
-                  ),
 
-                  // Content
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Auth Buttons (Guest Mode)
-                          if (isGuest) ...[
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: ElevatedButton.icon(
-                                    icon: const FaIcon(FontAwesomeIcons.rightToBracket),
-                                    label: const Text('Connexion'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppTheme.primary,
-                                      foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(vertical: 12),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(16),
+                        // Nom & Statut du compte
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                isGuest ? 'Invité' : (_currentUser?.username ?? _currentUser?.email ?? 'Membre CHILLERS'),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: -0.3,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: isVip ? const Color(0xFFE50914) : const Color(0xFF262626),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      isVip ? 'CHILLERS VIP' : 'STANDARD HD',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w800,
                                       ),
                                     ),
-                                    onPressed: () => _openAuth(isRegister: false),
                                   ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: OutlinedButton.icon(
-                                    icon: const FaIcon(FontAwesomeIcons.userPlus),
-                                    label: const Text('S\'inscrire'),
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: Colors.white,
-                                      side: const BorderSide(color: Colors.white30),
-                                      padding: const EdgeInsets.symmetric(vertical: 12),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(16),
-                                      ),
-                                    ),
-                                    onPressed: () => _openAuth(isRegister: true),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 24),
-                          ],
-
-                          // Main Menu Items
-                          _buildMenuSection(
-                            items: [
-                              _MenuItem(
-                                icon: FontAwesomeIcons.clockRotateLeft.data,
-                                title: 'Lectures Récentes',
-                                subtitle: 'Votre historique de visionnage',
-                                onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (_) => const HistoryScreen()),
-                                ),
-                              ),
-                              _MenuItem(
-                                icon: FontAwesomeIcons.solidHeart.data,
-                                title: 'Favoris & À regarder plus tard',
-                                subtitle: 'Vos titres enregistrés',
-                                onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (_) => const FavoritesScreen()),
-                                ),
-                              ),
-                              _MenuItem(
-                                icon: FontAwesomeIcons.listUl.data,
-                                title: 'Mes Playlists',
-                                subtitle: 'Collections personnalisées',
-                                onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (_) => const PlaylistsScreen()),
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          const SizedBox(height: 24),
-
-                          // Premium Section
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.amber.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(18),
-                              border: Border.all(
-                                color: Colors.amber.withValues(alpha: 0.3),
-                              ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Row(
-                                  children: [
-                                    FaIcon(FontAwesomeIcons.award, color: Colors.amber, size: 24),
-                                    SizedBox(width: 10),
-                                    Text(
-                                      'CHILLERS VIP',
-                                      style: TextStyle(
-                                        color: Colors.amber,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
+                                  if (!isGuest && !isVip) ...[
+                                    const SizedBox(width: 8),
+                                    GestureDetector(
+                                      onTap: () => UpgradeModal.show(context),
+                                      child: const Text(
+                                        'Passer VIP',
+                                        style: TextStyle(
+                                          color: Color(0xFFE50914),
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                     ),
                                   ],
-                                ),
-                                const SizedBox(height: 12),
-                                const Text(
-                                  '• Streaming HD/4K illimité\n• Sans publicités\n• Téléchargements rapides\n• Accès exclusif aux nouveautés',
-                                  style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 13,
-                                    height: 1.6,
-                                  ),
-                                ),
-                                const SizedBox(height: 14),
-                                if (_plans.isNotEmpty)
-                                  SizedBox(
-                                    height: 100,
-                                    child: ListView.builder(
-                                      scrollDirection: Axis.horizontal,
-                                      itemCount: _plans.length,
-                                      itemBuilder: (context, index) {
-                                        final plan = _plans[index];
-                                        return Container(
-                                          width: 130,
-                                          margin: const EdgeInsets.only(right: 8),
-                                          padding: const EdgeInsets.all(12),
-                                          decoration: BoxDecoration(
-                                            color: AppTheme.card,
-                                            borderRadius: BorderRadius.circular(16),
-                                            border: Border.all(
-                                              color: Colors.amber.withValues(alpha: 0.4),
-                                            ),
-                                          ),
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              Text(
-                                                plan.name,
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 13,
-                                                ),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                              Text(
-                                                '${plan.price} ${plan.currency}',
-                                                style: const TextStyle(
-                                                  color: Colors.amber,
-                                                  fontWeight: FontWeight.w900,
-                                                  fontSize: 15,
-                                                ),
-                                              ),
-                                              Text(
-                                                '${plan.durationDays}j',
-                                                style: const TextStyle(
-                                                  color: AppTheme.textSecondary,
-                                                  fontSize: 11,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                const SizedBox(height: 12),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.amber,
-                                      foregroundColor: Colors.black,
-                                      padding: const EdgeInsets.symmetric(vertical: 12),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(16),
-                                      ),
-                                    ),
-                                    onPressed: () => UpgradeModal.show(context),
-                                    child: const Text(
-                                      'Découvrir les offres',
-                                      style: TextStyle(fontWeight: FontWeight.bold),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          const SizedBox(height: 24),
-
-                          // Settings Section
-                          _buildMenuSection(
-                            title: 'PARAMÈTRES',
-                            items: [
-                              if (BiometricService().isAvailable)
-                                _MenuItem(
-                                  icon: FontAwesomeIcons.fingerprint.data,
-                                  title: 'Sécurité Biométrique',
-                                  subtitle: 'Verrou ${BiometricService().biometricName}',
-                                  onTap: () async {
-                                    final newValue = !BiometricService().isEnabled;
-                                    final success = await BiometricService().setBiometricEnabled(newValue);
-                                    if (mounted && !success && newValue) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
-                                          content: Text('Validation biométrique échouée'),
-                                        ),
-                                      );
-                                    } else if (mounted) {
-                                      setState(() {});
-                                    }
-                                  },
-                                ),
-                              _MenuItem(
-                                icon: FontAwesomeIcons.bell.data,
-                                title: 'Notifications',
-                                subtitle: 'Gérer les alertes',
-                                onTap: _showNotificationSettingsModal,
-                              ),
-                              _MenuItem(
-                                icon: FontAwesomeIcons.circleInfo.data,
-                                title: 'À propos',
-                                subtitle: 'Version 1.0.0',
-                                onTap: () {
-                                  showAboutDialog(
-                                    context: context,
-                                    applicationName: 'CHILLERS',
-                                    applicationVersion: '1.0.0',
-                                    applicationLegalese: '© 2025 CHILLERS Streaming',
-                                  );
-                                },
+                                ],
                               ),
                             ],
                           ),
+                        ),
 
-                          const SizedBox(height: 32),
-                        ],
-                      ),
+                        // Bouton Connexion si Invité
+                        if (isGuest)
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFE50914),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                            ),
+                            onPressed: () => _openAuth(),
+                            child: const Text('Connexion', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                          ),
+                      ],
                     ),
                   ),
+
+                  const SizedBox(height: 12),
+                  const Divider(color: Colors.white10, height: 1),
+
+                  // ── 2. MON ESPACE & CONTENUS ──
+                  _buildSectionTitle('Mon Espace'),
+                  _buildNetflixTile(
+                    icon: Icons.bookmark_border_rounded,
+                    title: 'Ma Liste',
+                    subtitle: 'Films et séries enregistrés',
+                    onTap: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const FavoritesScreen()));
+                    },
+                  ),
+                  _buildNetflixTile(
+                    icon: Icons.history_rounded,
+                    title: 'Historique de lecture',
+                    subtitle: 'Reprendre vos vidéos en cours',
+                    onTap: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const HistoryScreen()));
+                    },
+                  ),
+                  _buildNetflixTile(
+                    icon: Icons.playlist_play_rounded,
+                    title: 'Mes Playlists',
+                    subtitle: 'Vos sélections personnalisées',
+                    onTap: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const PlaylistsScreen()));
+                    },
+                  ),
+
+                  const SizedBox(height: 12),
+                  const Divider(color: Colors.white10, height: 1),
+
+                  // ── 3. PARAMÈTRES DE L'APPLICATION ──
+                  _buildSectionTitle('Paramètres de lecture & App'),
+                  _buildNetflixTile(
+                    icon: Icons.hd_outlined,
+                    title: 'Qualité vidéo de streaming',
+                    trailingText: _streamingQuality,
+                    onTap: _showQualityPicker,
+                  ),
+                  _buildNetflixSwitchTile(
+                    icon: Icons.data_usage_rounded,
+                    title: 'Économiseur de données mobiles',
+                    subtitle: 'Réduit la consommation sur réseau cellulaire',
+                    value: _cellularDataSaver,
+                    onChanged: (val) => setState(() => _cellularDataSaver = val),
+                  ),
+                  _buildNetflixSwitchTile(
+                    icon: Icons.fingerprint_rounded,
+                    title: 'Sécurité & Verrouillage biométrique',
+                    subtitle: 'Protéger l\'accès avec Face ID / Empreinte',
+                    value: _biometricEnabled,
+                    onChanged: (val) async {
+                      await BiometricService().setBiometricEnabled(val);
+                      setState(() => _biometricEnabled = val);
+                    },
+                  ),
+                  _buildNetflixSwitchTile(
+                    icon: Icons.notifications_active_outlined,
+                    title: 'Notifications & Nouveautés',
+                    subtitle: 'Alertes pour les nouveaux épisodes',
+                    value: _notificationsEnabled,
+                    onChanged: (val) => setState(() => _notificationsEnabled = val),
+                  ),
+
+                  const SizedBox(height: 12),
+                  const Divider(color: Colors.white10, height: 1),
+
+                  // ── 4. ABONNEMENT & AVANTAGES ──
+                  _buildSectionTitle('Abonnement & Avantages'),
+                  _buildNetflixTile(
+                    icon: Icons.card_membership_rounded,
+                    title: isVip ? 'Gérer mon abonnement VIP' : 'Découvrir les forfaits VIP',
+                    subtitle: isVip ? 'Actif - 4K Ultra HD & Téléchargements' : 'Téléchargements sans limites & 0 pub',
+                    trailingWidget: isVip
+                        ? null
+                        : Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE50914),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text('VOIR LES OFFRES', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                          ),
+                    onTap: () => UpgradeModal.show(context),
+                  ),
+
+                  const SizedBox(height: 12),
+                  const Divider(color: Colors.white10, height: 1),
+
+                  // ── 5. ASSISTANCE & LÉGAL ──
+                  _buildSectionTitle('Assistance & Informations'),
+                  _buildNetflixTile(
+                    icon: Icons.help_outline_rounded,
+                    title: 'Centre d\'aide & FAQ',
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Support CHILLERS : support@chillers.app')),
+                      );
+                    },
+                  ),
+                  _buildNetflixTile(
+                    icon: Icons.privacy_tip_outlined,
+                    title: 'Confidentialité et Conditions',
+                    onTap: () {},
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // ── 6. DÉCONNEXION & VERSION ──
+                  if (!isGuest)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: TextButton(
+                        onPressed: _logout,
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFFE50914),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        child: const Text(
+                          'Se déconnecter',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFFE50914),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                  const SizedBox(height: 12),
+                  const Center(
+                    child: Text(
+                      'CHILLERS v2.4.0 (Build 2026)',
+                      style: TextStyle(color: Colors.white24, fontSize: 11),
+                    ),
+                  ),
+                  const SizedBox(height: 30),
                 ],
               ),
             ),
     );
   }
 
-  Widget _buildMenuSection({
-    String? title,
-    required List<_MenuItem> items,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (title != null) ...[
-          Padding(
-            padding: const EdgeInsets.only(left: 4, bottom: 12),
-            child: Text(
-              title,
-              style: const TextStyle(
-                color: Colors.white54,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.5,
-              ),
-            ),
-          ),
-        ],
-        ...items.asMap().entries.map((e) {
-          final isLast = e.key == items.length - 1;
-          return Padding(
-            padding: EdgeInsets.only(bottom: isLast ? 0 : 8),
-            child: Material(
-              color: AppTheme.card,
-              borderRadius: BorderRadius.circular(16),
-              child: ListTile(
-                leading: Icon(e.value.icon, color: AppTheme.primary, size: 24),
-                title: Text(
-                  e.value.title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                subtitle: Text(
-                  e.value.subtitle,
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 12,
-                  ),
-                ),
-                trailing: const FaIcon(
-                  FontAwesomeIcons.chevronRight,
-                  color: Colors.white30,
-                  size: 14,
-                ),
-                onTap: e.value.onTap,
-              ),
-            ),
-          );
-        }),
-      ],
-    );
-  }
-
-  void _showNotificationSettingsModal() {
-    final notif = NotificationService();
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModalState) => Container(
-          padding: const EdgeInsets.all(20),
-          decoration: const BoxDecoration(
-            color: AppTheme.surface,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.white24,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Row(
-                  children: [
-                    FaIcon(FontAwesomeIcons.solidBell, color: AppTheme.primary, size: 24),
-                    SizedBox(width: 10),
-                    Text(
-                      'Notifications',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                SwitchListTile(
-                  secondary: const FaIcon(FontAwesomeIcons.film, color: AppTheme.primary, size: 22),
-                  title: const Text(
-                    'Nouveaux contenus',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
-                  ),
-                  activeThumbColor: AppTheme.primary,
-                  activeTrackColor: AppTheme.primary.withValues(alpha: 0.5),
-                  value: notif.releaseAlertsEnabled,
-                  onChanged: (val) async {
-                    await notif.setReleaseAlertsEnabled(val);
-                    setModalState(() {});
-                  },
-                ),
-                const SizedBox(height: 12),
-              ],
-            ),
-          ),
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
+      child: Text(
+        title.toUpperCase(),
+        style: const TextStyle(
+          color: Colors.white38,
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 1.1,
         ),
       ),
     );
   }
-}
 
-class _MenuItem {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
+  Widget _buildNetflixTile({
+    required IconData icon,
+    required String title,
+    String? subtitle,
+    String? trailingText,
+    Widget? trailingWidget,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      leading: Icon(icon, color: Colors.white70, size: 22),
+      title: Text(
+        title,
+        style: const TextStyle(color: Colors.white, fontSize: 14.5, fontWeight: FontWeight.w500),
+      ),
+      subtitle: subtitle != null
+          ? Text(subtitle, style: const TextStyle(color: Colors.white38, fontSize: 11.5))
+          : null,
+      trailing: trailingWidget ??
+          (trailingText != null
+              ? Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(trailingText, style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.chevron_right, color: Colors.white30, size: 18),
+                  ],
+                )
+              : const Icon(Icons.chevron_right, color: Colors.white30, size: 18)),
+      onTap: onTap,
+    );
+  }
 
-  _MenuItem({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
+  Widget _buildNetflixSwitchTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return SwitchListTile(
+      secondary: Icon(icon, color: Colors.white70, size: 22),
+      title: Text(
+        title,
+        style: const TextStyle(color: Colors.white, fontSize: 14.5, fontWeight: FontWeight.w500),
+      ),
+      subtitle: Text(subtitle, style: const TextStyle(color: Colors.white38, fontSize: 11.5)),
+      value: value,
+      activeColor: const Color(0xFFE50914),
+      onChanged: onChanged,
+    );
+  }
 }

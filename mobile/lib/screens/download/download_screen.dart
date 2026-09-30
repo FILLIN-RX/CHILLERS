@@ -2,14 +2,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../../config/theme.dart';
 import '../../models/media_item.dart';
 import '../../models/user_model.dart';
 import '../../services/download_service.dart';
 import '../../services/storage_service.dart';
 import '../../services/native_bridge.dart';
 import '../watch/watch_screen.dart';
-import '../../widgets/upgrade_modal.dart';
+import '../main_navigation.dart';
 import '../../features/offline_transfer/ui/screens/transfer_receiver_screen.dart';
 import '../../features/offline_transfer/ui/screens/transfer_sender_screen.dart';
 
@@ -20,18 +19,17 @@ class DownloadScreen extends StatefulWidget {
   State<DownloadScreen> createState() => _DownloadScreenState();
 }
 
-class _DownloadScreenState extends State<DownloadScreen> with SingleTickerProviderStateMixin {
+class _DownloadScreenState extends State<DownloadScreen> {
   final DownloadService _downloadService = DownloadService();
   final StorageService _storage = StorageService();
-  
+
   UserModel? _user;
-  late TabController _tabController;
   int _freeSpace = -1;
+  bool _smartDownloads = true;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _downloadService.addListener(_onServiceUpdate);
     _loadUser();
     _loadFreeSpace();
@@ -49,7 +47,6 @@ class _DownloadScreenState extends State<DownloadScreen> with SingleTickerProvid
 
   @override
   void dispose() {
-    _tabController.dispose();
     _downloadService.removeListener(_onServiceUpdate);
     super.dispose();
   }
@@ -66,185 +63,68 @@ class _DownloadScreenState extends State<DownloadScreen> with SingleTickerProvid
     return '${gb.toStringAsFixed(1)} Go';
   }
 
-  void _showInfoModal() {
-    final isPremium = _user?.subscription?.isPremium ?? false;
+  void _confirmDeleteTask(DownloadTask task) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.all(20),
-        decoration: const BoxDecoration(
-          color: AppTheme.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.white24,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Icon(
-                      isPremium ? FontAwesomeIcons.award.data : FontAwesomeIcons.circleInfo.data,
-                      color: isPremium ? Colors.amber : AppTheme.primary,
-                      size: 28,
-                    ),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Text(
-                        'Modes de Téléchargement',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                _buildInfoCard(
-                  icon: FontAwesomeIcons.mobile.data,
-                  title: 'Téléchargement In-App',
-                  description: 'Fichiers sauvegardés dans CHILLERS uniquement. Lecture hors-ligne fluide et optimisée.',
-                  features: ['Lecture dans l\'app', 'Optimisé pour le streaming', 'Sécurisé'],
-                  color: AppTheme.primary,
-                  badge: isPremium ? null : 'Mode Gratuit',
-                ),
-                const SizedBox(height: 12),
-                _buildInfoCard(
-                  icon: FontAwesomeIcons.folder.data,
-                  title: 'Téléchargement Externe',
-                  description: 'Fichiers MP4 dans votre dossier Téléchargements. Accessible avec n\'importe quel lecteur.',
-                  features: ['Dossier Téléchargements', 'Lecture avec VLC/MX Player', 'Transférable par USB'],
-                  color: Colors.amber,
-                  badge: isPremium ? 'Mode VIP' : 'Réservé VIP',
-                ),
-                if (!isPremium) ...[
-                  const SizedBox(height: 20),
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: Colors.amber.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
-                    ),
-                    child: Row(
-                      children: [
-                        const FaIcon(FontAwesomeIcons.arrowUpFromBracket, color: Colors.amber, size: 20),
-                        const SizedBox(width: 10),
-                        const Expanded(
-                          child: Text(
-                            'Passez VIP pour télécharger dans votre dossier public',
-                            style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.amber,
-                        foregroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        UpgradeModal.show(context);
-                      },
-                      child: const Text('Découvrir les offres VIP', style: TextStyle(fontWeight: FontWeight.bold)),
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 16),
-              ],
-            ),
-          ),
-        ),
+      backgroundColor: const Color(0xFF18181C),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-    );
-  }
-
-  Widget _buildInfoCard({
-    required IconData icon,
-    required String title,
-    required String description,
-    required List<String> features,
-    required Color color,
-    String? badge,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppTheme.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(icon, color: color, size: 20),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                 child: Text(
-                  title,
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                  task.title,
+                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              if (badge != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    badge,
-                    style: TextStyle(color: color, fontSize: 9, fontWeight: FontWeight.bold),
-                  ),
+              const Divider(color: Colors.white12),
+              ListTile(
+                leading: const Icon(Icons.play_circle_outline, color: Colors.white),
+                title: const Text('Lire la vidéo', style: TextStyle(color: Colors.white)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _playOffline(task);
+                },
+              ),
+              if (task.localFilePath != null)
+                ListTile(
+                  leading: const Icon(Icons.share_outlined, color: Colors.white),
+                  title: const Text('Partager hors-ligne (P2P)', style: TextStyle(color: Colors.white)),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    final media = MediaItem(
+                      id: task.mediaId,
+                      title: task.title,
+                      poster: task.poster,
+                      type: task.type ?? 'movie',
+                      streamUrl: task.localFilePath,
+                      quality: task.quality,
+                    );
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => TransferSenderScreen(media: media)),
+                    );
+                  },
                 ),
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: Color(0xFFE50914)),
+                title: const Text('Supprimer le téléchargement', style: TextStyle(color: Color(0xFFE50914), fontWeight: FontWeight.bold)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _downloadService.removeDownload(task.id);
+                },
+              ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            description,
-            style: const TextStyle(color: Colors.white70, fontSize: 11, height: 1.4),
-          ),
-          const SizedBox(height: 8),
-          ...features.map((f) => Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Row(
-                  children: [
-                    FaIcon(FontAwesomeIcons.circleCheck, color: color, size: 14),
-                    const SizedBox(width: 6),
-                    Text(
-                      f,
-                      style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600),
-                    ),
-                  ],
-                ),
-              )),
-        ],
+        ),
       ),
     );
   }
@@ -253,11 +133,11 @@ class _DownloadScreenState extends State<DownloadScreen> with SingleTickerProvid
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppTheme.card,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Effacer les téléchargements', style: TextStyle(color: Colors.white)),
+        backgroundColor: const Color(0xFF1E1E24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: const Text('Supprimer tous les téléchargements ?', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         content: const Text(
-          'Voulez-vous supprimer tous les fichiers téléchargés ?',
+          'Tous les fichiers téléchargés seront définitivement supprimés de votre appareil.',
           style: TextStyle(color: Colors.white70),
         ),
         actions: [
@@ -266,7 +146,10 @@ class _DownloadScreenState extends State<DownloadScreen> with SingleTickerProvid
             child: const Text('Annuler', style: TextStyle(color: Colors.white60)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFE50914),
+              foregroundColor: Colors.white,
+            ),
             onPressed: () {
               _downloadService.clearAll();
               Navigator.pop(ctx);
@@ -285,9 +168,9 @@ class _DownloadScreenState extends State<DownloadScreen> with SingleTickerProvid
       if (!opened && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            backgroundColor: AppTheme.card,
+            backgroundColor: Color(0xFF262626),
             content: Text(
-              'Aucune application trouvée. Le fichier est dans Téléchargements/CHILLERS.',
+              'Fichier disponible dans Téléchargements/CHILLERS.',
               style: TextStyle(color: Colors.white, fontSize: 12),
             ),
           ),
@@ -329,27 +212,21 @@ class _DownloadScreenState extends State<DownloadScreen> with SingleTickerProvid
   @override
   Widget build(BuildContext context) {
     final tasks = _downloadService.tasks;
-    final inAppTasks = _downloadService.inAppDownloads;
-    final externalTasks = _downloadService.externalDownloads;
-    final isPremium = _user?.subscription?.isPremium ?? false;
-    
-    final totalSize = tasks
-        .where((t) => t.localFilePath != null)
-        .fold<int>(0, (sum, t) => sum + t.downloadedBytes);
+    final totalBytes = tasks.fold<int>(0, (sum, t) => sum + t.downloadedBytes);
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: const Color(0xFF000000),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0C0C0E),
+        backgroundColor: const Color(0xFF000000),
         elevation: 0,
         title: const Text(
           'Téléchargements',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 18),
+          style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900),
         ),
         actions: [
           IconButton(
-            icon: const FaIcon(FontAwesomeIcons.wifi, color: Colors.white, size: 22),
-            tooltip: 'Recevoir en P2P',
+            icon: const FaIcon(FontAwesomeIcons.wifi, color: Colors.white70, size: 18),
+            tooltip: 'Réception P2P',
             onPressed: () {
               Navigator.push(
                 context,
@@ -357,450 +234,306 @@ class _DownloadScreenState extends State<DownloadScreen> with SingleTickerProvid
               );
             },
           ),
-          IconButton(
-            icon: const FaIcon(FontAwesomeIcons.circleInfo, color: Colors.white70, size: 22),
-            tooltip: 'Informations',
-            onPressed: _showInfoModal,
-          ),
           if (tasks.isNotEmpty)
             IconButton(
-              icon: const FaIcon(FontAwesomeIcons.trashCanArrowUp, color: Colors.white70),
+              icon: const Icon(Icons.delete_outline, color: Colors.white70),
               tooltip: 'Tout effacer',
               onPressed: _confirmClearAll,
             ),
         ],
-        bottom: tasks.isEmpty ? null : TabBar(
-          controller: _tabController,
-          indicatorColor: AppTheme.primary,
-          labelColor: AppTheme.primary,
-          unselectedLabelColor: Colors.white60,
-          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-          tabs: [
-            Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const FaIcon(FontAwesomeIcons.mobile, size: 16),
-                  const SizedBox(width: 6),
-                  Text('In-App (${inAppTasks.length})'),
-                ],
-              ),
-            ),
-            Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const FaIcon(FontAwesomeIcons.folder, size: 16),
-                  const SizedBox(width: 6),
-                  Text('Externe (${externalTasks.length})'),
-                ],
-              ),
-            ),
-          ],
-        ),
       ),
       body: tasks.isEmpty
-          ? _buildEmptyState(isPremium)
-          : Column(
-              children: [
-                // Info Espace Stockage
-                Container(
-                  margin: const EdgeInsets.all(16),
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: AppTheme.card,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        isPremium ? FontAwesomeIcons.award.data : FontAwesomeIcons.sdCard.data,
-                        color: isPremium ? Colors.amber : AppTheme.primary,
-                        size: 24,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Text(
-                                  '${tasks.length} fichier${tasks.length > 1 ? 's' : ''}',
-                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                                ),
-                                if (isPremium) ...[
-                                  const SizedBox(width: 6),
-                                  const FaIcon(FontAwesomeIcons.checkDouble, color: Colors.amber, size: 14),
-                                ],
-                              ],
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'In-App : ${_formatBytes(totalSize)} • Libre : ${_freeSpace > 0 ? _formatBytes(_freeSpace) : 'N/A'}',
-                              style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Tabs Content
-                Expanded(
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _buildTasksList(inAppTasks, isInApp: true),
-                      _buildTasksList(externalTasks, isInApp: false),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+          ? _buildNetflixEmptyState()
+          : _buildNetflixDownloadsList(tasks, totalBytes),
     );
   }
 
-  Widget _buildEmptyState(bool isPremium) {
+  // ── 1. ÉTAT VIDE PUR STYLE NETFLIX ──
+  Widget _buildNetflixEmptyState() {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32.0),
+        padding: const EdgeInsets.symmetric(horizontal: 32.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            // Icône circulaire Netflix
             Container(
-              padding: const EdgeInsets.all(24),
+              width: 120,
+              height: 120,
               decoration: BoxDecoration(
-                color: AppTheme.card,
+                color: const Color(0xFF18181C),
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+                border: Border.all(color: Colors.white10, width: 1),
               ),
-              child: const FaIcon(
-                FontAwesomeIcons.download,
-                size: 64,
-                color: AppTheme.primary,
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Aucun téléchargement',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              isPremium
-                  ? 'Téléchargez en mode VIP : fichiers dans votre dossier public ou in-app !'
-                  : 'Téléchargez vos contenus préférés pour les regarder hors-ligne !',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 13,
-                color: AppTheme.textSecondary,
-                height: 1.4,
-              ),
-            ),
-            const SizedBox(height: 20),
-            Wrap(
-              spacing: 12,
-              runSpacing: 10,
-              alignment: WrapAlignment.center,
-              children: [
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  ),
-                  icon: const FaIcon(FontAwesomeIcons.circleInfo, size: 18),
-                  label: const Text('En savoir plus'),
-                  onPressed: _showInfoModal,
-                ),
-                OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white24),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  ),
-                  icon: const FaIcon(FontAwesomeIcons.wifi, size: 18),
-                  label: const Text('Recevoir en P2P'),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const TransferReceiverScreen()),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTasksList(List<DownloadTask> tasks, {required bool isInApp}) {
-    if (tasks.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                isInApp ? FontAwesomeIcons.mobile.data : FontAwesomeIcons.folderOpen.data,
-                size: 48,
-                color: Colors.white24,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                isInApp ? 'Aucun téléchargement In-App' : 'Aucun téléchargement Externe',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
+              child: const Center(
+                child: Icon(
+                  Icons.file_download_outlined,
+                  size: 54,
                   color: Colors.white54,
                 ),
               ),
-              const SizedBox(height: 6),
-              Text(
-                isInApp
-                    ? 'Les fichiers In-App sont lisibles uniquement dans CHILLERS'
-                    : 'Les fichiers Externes sont dans votre dossier Téléchargements',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: AppTheme.textSecondary,
-                  height: 1.4,
+            ),
+            const SizedBox(height: 24),
+
+            const Text(
+              'Les films et séries que vous téléchargez s\'affichent ici.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                height: 1.3,
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            const Text(
+              'Téléchargez vos programmes préférés pour les regarder hors connexion lors de vos déplacements.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white60,
+                fontSize: 13,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 28),
+
+            // Bouton Blanc Netflix
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: Colors.black,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                ),
+                onPressed: () {
+                  MainNavigation.switchTab(context, 0); // Basculer sur Accueil
+                },
+                child: const Text(
+                  'Trouver des vidéos à télécharger',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                 ),
               ),
-            ],
-          ),
-        ),
-      );
-    }
+            ),
 
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      itemCount: tasks.length,
-      itemBuilder: (context, index) => _buildTaskItem(tasks[index]),
+            const SizedBox(height: 14),
+
+            TextButton.icon(
+              style: TextButton.styleFrom(foregroundColor: Colors.white70),
+              icon: const FaIcon(FontAwesomeIcons.wifi, size: 14),
+              label: const Text('Recevoir un fichier en P2P sans Internet'),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const TransferReceiverScreen()),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 
-  Widget _buildTaskItem(DownloadTask task) {
+  // ── 2. LISTE DES TÉLÉCHARGEMENTS PUR STYLE NETFLIX ──
+  Widget _buildNetflixDownloadsList(List<DownloadTask> tasks, int totalBytes) {
+    // Calcul de l'espace de stockage
+    final totalUsedMb = totalBytes / (1024 * 1024);
+    final freeSpaceMb = _freeSpace > 0 ? _freeSpace / (1024 * 1024) : 10000.0;
+    final progress = (totalUsedMb / (totalUsedMb + freeSpaceMb)).clamp(0.02, 1.0);
+
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      children: [
+        // Netflix Smart Downloads Bar
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.settings_outlined, color: Colors.white70, size: 18),
+                const SizedBox(width: 8),
+                const Text(
+                  'Téléchargements automatiques',
+                  style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+            Switch(
+              value: _smartDownloads,
+              activeColor: const Color(0xFFE50914),
+              onChanged: (val) => setState(() => _smartDownloads = val),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 6),
+
+        // Storage Progress Bar
+        ClipRRect(
+          borderRadius: BorderRadius.circular(2),
+          child: LinearProgressIndicator(
+            value: progress,
+            backgroundColor: Colors.white12,
+            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFE50914)),
+            minHeight: 4,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'CHILLERS : ${_formatBytes(totalBytes)}',
+              style: const TextStyle(color: Colors.white54, fontSize: 11),
+            ),
+            Text(
+              'Espace libre : ${_freeSpace > 0 ? _formatBytes(_freeSpace) : 'Disponible'}',
+              style: const TextStyle(color: Colors.white54, fontSize: 11),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 16),
+        const Divider(color: Colors.white10, height: 1),
+        const SizedBox(height: 12),
+
+        // Liste des cartes de téléchargement
+        ...tasks.map((task) => _buildNetflixDownloadTile(task)),
+      ],
+    );
+  }
+
+  Widget _buildNetflixDownloadTile(DownloadTask task) {
     final isDone = task.status == 'completed';
     final isDownloading = task.status == 'downloading';
+    final isPaused = task.status == 'paused';
+    final progressVal = task.progress;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF18181B),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isDownloading
-              ? AppTheme.primary.withValues(alpha: 0.4)
-              : Colors.white.withValues(alpha: 0.06),
-          width: 1.2,
-        ),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              // Poster
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: task.poster != null && task.poster!.isNotEmpty
-                    ? CachedNetworkImage(
-                        imageUrl: task.poster!,
-                        width: 58,
-                        height: 82,
-                        fit: BoxFit.cover,
-                        errorWidget: (context, url, error) => Container(
-                          width: 58,
-                          height: 82,
-                          color: Colors.white12,
-                          child: const FaIcon(FontAwesomeIcons.film, color: Colors.white38),
+    return InkWell(
+      onTap: () {
+        if (isDone) {
+          _playOffline(task);
+        } else if (isDownloading) {
+          _downloadService.pauseDownload(task.id);
+        } else if (isPaused) {
+          _downloadService.resumeDownload(task.id);
+        }
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10.0),
+        child: Row(
+          children: [
+            // Vignette Poster 16:9 avec icône play
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: Stack(
+                children: [
+                  Container(
+                    width: 112,
+                    height: 64,
+                    color: const Color(0xFF1C1C1E),
+                    child: task.poster != null && task.poster!.isNotEmpty
+                        ? CachedNetworkImage(
+                            imageUrl: task.poster!,
+                            fit: BoxFit.cover,
+                            errorWidget: (_, __, ___) => const Center(
+                              child: FaIcon(FontAwesomeIcons.film, color: Colors.white24, size: 20),
+                            ),
+                          )
+                        : const Center(
+                            child: FaIcon(FontAwesomeIcons.film, color: Colors.white24, size: 20),
+                          ),
+                  ),
+                  if (isDone)
+                    Positioned.fill(
+                      child: Center(
+                        child: Container(
+                          width: 28,
+                          height: 28,
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.6),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 18),
                         ),
-                      )
-                    : Container(
-                        width: 58,
-                        height: 82,
-                        color: Colors.white12,
-                        child: const FaIcon(FontAwesomeIcons.film, color: Colors.white38),
                       ),
+                    ),
+                  if (isDownloading)
+                    Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      child: LinearProgressIndicator(
+                        value: progressVal,
+                        backgroundColor: Colors.black45,
+                        valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFE50914)),
+                        minHeight: 3,
+                      ),
+                    ),
+                ],
               ),
+            ),
 
-              const SizedBox(width: 12),
+            const SizedBox(width: 14),
 
-              // Info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+            // Métadonnées
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    task.title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  if (task.episodeNumber != null) ...[
                     Text(
-                      task.title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
+                      'S${task.seasonNumber ?? 1}:E${task.episodeNumber}${task.episodeTitle != null ? ' - ${task.episodeTitle}' : ''}',
+                      style: const TextStyle(color: Colors.white70, fontSize: 11),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    if (task.episodeNumber != null) ...[
-                      const SizedBox(height: 3),
-                      Text(
-                        'S${task.seasonNumber ?? 1}:E${task.episodeNumber}${task.episodeTitle != null ? ' - ${task.episodeTitle}' : ''}',
-                        style: const TextStyle(color: AppTheme.primary, fontSize: 11, fontWeight: FontWeight.w600),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                    const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 4,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primary.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            task.quality ?? 'HD',
-                            style: const TextStyle(color: AppTheme.primary, fontSize: 10, fontWeight: FontWeight.w900),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            _formatBytes(task.totalBytes),
-                            style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                        if (task.isExternal)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.amber.withValues(alpha: 0.18),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: const Text(
-                              'VIP',
-                              style: TextStyle(color: Colors.amber, fontSize: 10, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                      ],
-                    ),
+                    const SizedBox(height: 2),
                   ],
-                ),
-              ),
-
-              // Actions
-              if (isDone) ...[
-                if (task.localFilePath != null)
-                  IconButton(
-                    icon: const FaIcon(FontAwesomeIcons.shareNodes, color: Colors.white70, size: 20),
-                    tooltip: 'Partager hors ligne (P2P)',
-                    onPressed: () {
-                      final media = MediaItem(
-                        id: task.mediaId,
-                        title: task.title,
-                        poster: task.poster,
-                        type: task.type ?? 'movie',
-                        streamUrl: task.localFilePath,
-                        quality: task.quality,
-                      );
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => TransferSenderScreen(media: media)),
-                      );
-                    },
+                  Row(
+                    children: [
+                      Text(
+                        isDone
+                            ? _formatBytes(task.totalBytes > 0 ? task.totalBytes : task.downloadedBytes)
+                            : (isDownloading ? '${(progressVal * 100).toInt()}% téléchargé' : 'En pause'),
+                        style: TextStyle(
+                          color: isDownloading ? const Color(0xFFE50914) : Colors.white38,
+                          fontSize: 11,
+                          fontWeight: isDownloading ? FontWeight.bold : FontWeight.normal,
+                        ),
+                      ),
+                      if (task.quality != null) ...[
+                        const SizedBox(width: 6),
+                        Text('• ${task.quality}', style: const TextStyle(color: Colors.white38, fontSize: 11)),
+                      ],
+                    ],
                   ),
-                IconButton(
-                  icon: Icon(
-                    task.publicUri != null ? FontAwesomeIcons.arrowUpRightFromSquare.data : FontAwesomeIcons.circlePlay.data,
-                    color: AppTheme.primary,
-                    size: 32,
-                  ),
-                  onPressed: () => _playOffline(task),
-                ),
-              ]
-              else if (isDownloading)
-                IconButton(
-                  icon: const FaIcon(FontAwesomeIcons.circlePause, color: Colors.amber, size: 30),
-                  onPressed: () => _downloadService.pauseDownload(task.id),
-                )
-              else
-                IconButton(
-                  icon: const FaIcon(FontAwesomeIcons.circlePlay, color: AppTheme.primary, size: 30),
-                  onPressed: () => _downloadService.resumeDownload(task.id),
-                ),
-
-              IconButton(
-                icon: const FaIcon(FontAwesomeIcons.xmark, color: Colors.white38, size: 18),
-                onPressed: () => _downloadService.removeDownload(task.id),
-              ),
-            ],
-          ),
-
-          if (task.status == 'error') ...[
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                const FaIcon(FontAwesomeIcons.triangleExclamation, color: Colors.redAccent, size: 14),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    task.errorMessage ?? 'Le téléchargement a échoué.',
-                    style: const TextStyle(color: Colors.redAccent, fontSize: 11),
-                  ),
-                ),
-              ],
-            ),
-          ] else if (!isDone) ...[
-            const SizedBox(height: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: LinearProgressIndicator(
-                value: task.progress > 0 ? task.progress : null,
-                backgroundColor: Colors.white12,
-                color: isDownloading ? AppTheme.primary : Colors.amber,
-                minHeight: 5,
+                ],
               ),
             ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  isDownloading
-                      ? 'Téléchargement ${(task.progress * 100).toInt()}%'
-                      : 'En pause (${(task.progress * 100).toInt()}%)',
-                  style: TextStyle(
-                    color: isDownloading ? AppTheme.primary : Colors.amber,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                Text(
-                  '${_formatBytes(task.downloadedBytes)} / ${_formatBytes(task.totalBytes)}',
-                  style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11, fontWeight: FontWeight.w600),
-                ),
-              ],
+
+            // Bouton d'options 3 points
+            IconButton(
+              icon: const Icon(Icons.more_vert, color: Colors.white54, size: 20),
+              onPressed: () => _confirmDeleteTask(task),
             ),
           ],
-        ],
+        ),
       ),
     );
   }

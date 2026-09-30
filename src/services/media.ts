@@ -1125,12 +1125,13 @@ async function getStreamOnce(
   originalTitle?: string,
   releaseDate?: string,
   year?: number,
+  language?: string,
 ): Promise<StreamPayload | null> {
   try {
     const env = await httpJson<ApiEnvelope<StreamPayload> & { unreleased?: boolean; releaseDate?: string }>(endpoint, {
       query: {
         type,
-        language: clientLang(),
+        language: language || clientLang(),
         title,
         originalTitle,
         releaseDate,
@@ -1180,12 +1181,13 @@ export async function getStreamUrl(
   originalTitle?: string,
   releaseDate?: string,
   year?: number,
+  language?: string,
 ): Promise<{ embedUrl: string; provider: string; downloadUrl?: string | null; directType?: "mp4" | "hls" | null; unreleased?: boolean; releaseDate?: string | null } | null> {
   const isTv = type === "series" || type === "anime";
   const endpoint = isTv
     ? `/stream/tv/${id}/${season ?? 1}/${episode ?? 1}`
     : `/stream/movie/${id}`;
-  const payload = await getStreamOnce(endpoint, type, title, signal, 45_000, originalTitle, releaseDate, year);
+  const payload = await getStreamOnce(endpoint, type, title, signal, 45_000, originalTitle, releaseDate, year, language);
   if (payload) {
     return {
       embedUrl: payload.embedUrl,

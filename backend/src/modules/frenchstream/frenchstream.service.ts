@@ -240,9 +240,12 @@ export async function resolveVidzyDirectStream(embedUrl: string): Promise<{ stre
 /**
  * Recherche et résout directement un film en Haute Résolution (1080p)
  */
-export async function getFrenchStreamMovie(title: string): Promise<FrenchStreamDirectResult | null> {
+export async function getFrenchStreamMovie(
+  title: string,
+  preferredLang: 'fr' | 'vostfr' | 'en' | 'vo' = 'fr'
+): Promise<FrenchStreamDirectResult | null> {
   try {
-    console.log(`[FrenchStream HQ] Recherche film 1080p: "${title}"`);
+    console.log(`[FrenchStream HQ] Recherche film 1080p: "${title}" (lang=${preferredLang})`);
     const searchResults = await searchFrenchStream(title);
     if (searchResults.length === 0) return null;
 
@@ -261,10 +264,20 @@ export async function getFrenchStreamMovie(title: string): Promise<FrenchStreamD
     const { title: resolvedTitle, versions } = await extractEmbedVersions(best.url);
     if (versions.length === 0) return null;
 
-    // 1. Tenter d'abord la résolution directe MP4 1080p sur les versions Vidzy
-    // Trier les versions Vidzy par priorité audio : TRUEFRENCH > FRENCH / VF > VFQ > VOSTFR
+    const isVO = preferredLang === 'vostfr' || preferredLang === 'en' || preferredLang === 'vo';
+
+    // Priorité audio selon la langue demandée :
+    // - Si VO / VOSTFR demandé : VOSTFR > MULTI > TRUEFRENCH > FRENCH / VF
+    // - Si VF demandé : TRUEFRENCH > FRENCH / VF > VFQ > VOSTFR
     const langRank = (lbl: string) => {
       const u = lbl.toUpperCase();
+      if (isVO) {
+        if (u.includes('VOSTFR') || u.includes('VO')) return 1;
+        if (u.includes('MULTI')) return 2;
+        if (u.includes('TRUEFRENCH')) return 3;
+        if (u.includes('FRENCH') || u.includes('VF')) return 4;
+        return 5;
+      }
       if (u.includes('TRUEFRENCH')) return 1;
       if (u.includes('FRENCH')) return 2;
       if (u.includes('VF')) return 3;
@@ -280,7 +293,7 @@ export async function getFrenchStreamMovie(title: string): Promise<FrenchStreamD
     for (const v of vidzyVersions) {
       const direct = await resolveVidzyDirectStream(v.embedUrl);
       if (direct?.streamUrl) {
-        console.log(`[FrenchStream HQ] Flux direct 1080p résolu (${v.label}): ${direct.streamUrl.slice(0, 70)}...`);
+        console.log(`[FrenchStream HQ] Flux direct 1080p résolu (${v.label}) [isVO=${isVO}]: ${direct.streamUrl.slice(0, 70)}...`);
         return {
           title: resolvedTitle || best.title,
           quality: '1080p',
@@ -292,21 +305,7 @@ export async function getFrenchStreamMovie(title: string): Promise<FrenchStreamD
       }
     }
 
-    // 2. Si pas de direct Vidzy, trier toutes les versions disponibles :
-    // Priorité langue : TRUEFRENCH > FRENCH > VF > VFQ > VOSTFR
-    // Priorité hébergeur : Vidzy > Uqload > Premium > Dood > Voe > Filmoon
-    const sortedVersions = [...versions].sort((a, b) => {
-      const langRank = (lbl: string) => {
-        const u = lbl.toUpperCase();
-        if (u.includes('TRUEFRENCH')) return 1;
-        if (u.includes('FRENCH')) return 2;
-        if (u.includes('VFQ')) return 4;
-        if (u.includes('VF')) return 3;
-        if (u.includes('VOSTFR')) return 5;
-        return 6;
-      };
-      return langRank(a.label) - langRank(b.label);
-    });
+    const sortedVersions = [...versions].sort((a, b) => langRank(a.label) - langRank(b.label));
 
     const chosenVersion = sortedVersions[0];
     if (chosenVersion?.embedUrl) {
@@ -323,10 +322,12 @@ export async function getFrenchStreamMovie(title: string): Promise<FrenchStreamD
 
     return null;
   } catch (error: any) {
-    console.error(`[FrenchStream HQ] Erreur globale pour "${title}":`, error.message);
+    console.error(`[FrenchStream HQ] Erreur résolution film "${title}":`, error.message);
     return null;
   }
 }
+
+
 
 /**
  * Extrait les lecteurs pour un épisode spécifique d'une série

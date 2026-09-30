@@ -48,11 +48,11 @@ class _UpgradeModalState extends State<UpgradeModal> {
   ];
 
   final List<Map<String, dynamic>> _paymentMethods = [
-    {'id': 'wave', 'name': 'Wave Mobile Money', 'icon': FontAwesomeIcons.wallet.data, 'color': Color(0xFF1DC7EA)},
-    {'id': 'orange', 'name': 'Orange Money', 'icon': FontAwesomeIcons.mobileScreenButton.data, 'color': Color(0xFFFF7900)},
-    {'id': 'mtn', 'name': 'MTN MoMo', 'icon': FontAwesomeIcons.bolt.data, 'color': Color(0xFFFFCC00)},
-    {'id': 'card', 'name': 'Carte Visa / Mastercard', 'icon': FontAwesomeIcons.creditCard.data, 'color': Color(0xFF6C5CE7)},
-    {'id': 'crypto', 'name': 'Crypto (USDT / BTC)', 'icon': FontAwesomeIcons.bitcoinSign.data, 'color': Color(0xFFF7931A)},
+    {'id': 'wave', 'name': 'Wave Mobile Money', 'icon': FontAwesomeIcons.wallet, 'color': Color(0xFF1DC7EA)},
+    {'id': 'orange', 'name': 'Orange Money', 'icon': FontAwesomeIcons.mobileScreenButton, 'color': Color(0xFFFF7900)},
+    {'id': 'mtn', 'name': 'MTN MoMo', 'icon': FontAwesomeIcons.bolt, 'color': Color(0xFFFFCC00)},
+    {'id': 'card', 'name': 'Carte Visa / Mastercard', 'icon': FontAwesomeIcons.creditCard, 'color': Color(0xFF6C5CE7)},
+    {'id': 'crypto', 'name': 'Crypto (USDT / BTC)', 'icon': FontAwesomeIcons.bitcoinSign, 'color': Color(0xFFF7931A)},
   ];
 
   void _handleSubscribe() async {
@@ -259,7 +259,7 @@ class _UpgradeModalState extends State<UpgradeModal> {
                     ),
                     child: Row(
                       children: [
-                        Icon(pm['icon'] as IconData, color: pm['color'] as Color, size: 22),
+                        FaIcon(pm['icon'], color: pm['color'] as Color, size: 22),
                         const SizedBox(width: 12),
                         Text(
                           pm['name'] as String,

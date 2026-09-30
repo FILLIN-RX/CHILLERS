@@ -374,6 +374,204 @@ class ApiService {
     return null;
   }
 
+  // ==================== WEB SYNCHRONIZED SECTIONS ====================
+
+  static const String _defaultTmdbToken =
+      'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI1ODY4ZjBmM2NmZTg1MTZmYmQ1NmE2YjNiNzJmOGYwZiIsIm5iZiI6MTc4Mzk0MDMzNi42ODMsInN1YiI6IjZhNTRjNGYwY2M4ZTIzNDZhNWI1MmUxYiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.33Zn39ASeHdHwv7jxe5-qaPhi-5uSvGqfAOPCSW8ddM';
+
+  Future<List<MediaItem>> _fetchDirectTMDB(String path, Map<String, String> queryParams, {String defaultType = 'movie'}) async {
+    try {
+      final uri = Uri.https('api.themoviedb.org', '/3$path', queryParams);
+      final res = await http.get(
+        uri,
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $_defaultTmdbToken',
+        },
+      ).timeout(const Duration(seconds: 12));
+
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        final list = _extractList(data);
+        return list.whereType<Map<String, dynamic>>().map((e) => MediaItem.fromJson({...e, 'type': defaultType})).toList();
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  Future<List<MediaItem>> getBoxOfficeMovies({int page = 1}) async {
+    final direct = await _fetchDirectTMDB('/discover/movie', {
+      'page': page.toString(),
+      'sort_by': 'revenue.desc',
+      'primary_release_date.gte': '2022-01-01',
+      'vote_count.gte': '50',
+      'include_adult': 'false',
+      'language': 'fr-FR',
+    });
+    if (direct.isNotEmpty) return direct;
+    return getPopularMovies(page: page);
+  }
+
+  Future<List<MediaItem>> getNewAnime({int page = 1}) async {
+    final direct = await _fetchDirectTMDB('/discover/tv', {
+      'with_genres': '16',
+      'with_original_language': 'ja',
+      'sort_by': 'popularity.desc',
+      'first_air_date.gte': '2023-01-01',
+      'page': page.toString(),
+      'language': 'fr-FR',
+    }, defaultType: 'anime');
+    if (direct.isNotEmpty) return direct;
+    return getAnimeSeries(page: page);
+  }
+
+  Future<List<MediaItem>> getMartialArtsMovies({int page = 1}) async {
+    final direct = await _fetchDirectTMDB('/discover/movie', {
+      'with_genres': '28',
+      'with_keywords': '9715|780',
+      'without_genres': '878,14,16',
+      'sort_by': 'popularity.desc',
+      'page': page.toString(),
+      'language': 'fr-FR',
+    });
+    if (direct.isNotEmpty) return direct;
+    return getMoviesByGenre('28', page: page);
+  }
+
+  Future<List<MediaItem>> getBarbieMovies({int page = 1}) async {
+    final direct = await _fetchDirectTMDB('/search/movie', {
+      'page': page.toString(),
+      'query': 'barbie',
+      'language': 'fr-FR',
+    });
+    if (direct.isNotEmpty) return direct;
+    return getMoviesByGenre('10751', page: page);
+  }
+
+  Future<List<MediaItem>> getRealityShows({int page = 1}) async {
+    final direct = await _fetchDirectTMDB('/discover/tv', {
+      'with_genres': '10764',
+      'sort_by': 'popularity.desc',
+      'page': page.toString(),
+      'language': 'fr-FR',
+    }, defaultType: 'serie');
+    if (direct.isNotEmpty) return direct;
+    return getPopularSeries(page: page);
+  }
+
+  Future<List<MediaItem>> getMadeInChina({int page = 1}) async {
+    final direct = await _fetchDirectTMDB('/discover/tv', {
+      'page': page.toString(),
+      'with_original_language': 'zh',
+      'sort_by': 'popularity.desc',
+      'vote_count.gte': '5',
+      'language': 'fr-FR',
+    }, defaultType: 'serie');
+    if (direct.isNotEmpty) return direct;
+    return getPopularSeries(page: page);
+  }
+
+  Future<List<MediaItem>> getAllTimeFavorites({int page = 1}) async {
+    final [tv, movies] = await Future.wait([
+      _fetchDirectTMDB('/discover/tv', {
+        'page': page.toString(),
+        'sort_by': 'vote_count.desc',
+        'language': 'fr-FR',
+      }, defaultType: 'serie'),
+      _fetchDirectTMDB('/discover/movie', {
+        'page': page.toString(),
+        'sort_by': 'vote_count.desc',
+        'language': 'fr-FR',
+      }, defaultType: 'movie'),
+    ]);
+
+    final merged = <MediaItem>[];
+    final maxLen = tv.length > movies.length ? tv.length : movies.length;
+    for (int i = 0; i < maxLen; i++) {
+      if (i < tv.length) merged.add(tv[i]);
+      if (i < movies.length) merged.add(movies[i]);
+    }
+    if (merged.isNotEmpty) return merged;
+    return getTopRatedMovies(page: page);
+  }
+
+  Future<List<MediaItem>> getSADrama({int page = 1}) async {
+    final direct = await _fetchDirectTMDB('/discover/tv', {
+      'with_origin_country': 'ZA',
+      'sort_by': 'popularity.desc',
+      'page': page.toString(),
+      'language': 'fr-FR',
+    }, defaultType: 'serie');
+    if (direct.isNotEmpty) return direct;
+    return getAfricanSeries(page: page);
+  }
+
+  Future<List<MediaItem>> getTVForYou({int page = 2}) async {
+    return getPopularSeries(page: page);
+  }
+
+  Future<List<MediaItem>> getActionMovies({int page = 1}) async {
+    return getMoviesByGenre('28', page: page);
+  }
+
+  Future<List<MediaItem>> getComedyMovies({int page = 1}) async {
+    return getMoviesByGenre('35', page: page);
+  }
+
+  Future<List<MediaItem>> getActionSeries({int page = 1}) async {
+    return getSeriesByGenre('10759', page: page);
+  }
+
+  Future<List<MediaItem>> getAnimationSeries({int page = 1}) async {
+    return getSeriesByGenre('16', page: page);
+  }
+
+  Future<String?> getMediaTrailerUrl(String id, {bool isTV = false}) async {
+    try {
+      final endpoint = isTV ? '/tv/$id/trailer' : '/movies/$id/trailer';
+      final res = await http.get(
+        Uri.parse('$_base/api$endpoint'),
+        headers: await _getHeaders(),
+      ).timeout(const Duration(seconds: 8));
+
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        final key = data['data']?['key'] ?? data['key'];
+        if (key != null && key.toString().isNotEmpty) {
+          return 'https://www.youtube.com/embed/$key';
+        }
+      }
+    } catch (_) {}
+
+    // Fallback direct TMDB video query
+    try {
+      final path = isTV ? '/tv/$id/videos' : '/movie/$id/videos';
+      final uri = Uri.https('api.themoviedb.org', '/3$path', {'language': 'fr-FR'});
+      final res = await http.get(
+        uri,
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $_defaultTmdbToken',
+        },
+      ).timeout(const Duration(seconds: 6));
+
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        final list = data['results'] as List?;
+        if (list != null && list.isNotEmpty) {
+          final trailer = list.firstWhere(
+            (v) => v['site'] == 'YouTube' && v['type'] == 'Trailer',
+            orElse: () => list.firstWhere((v) => v['site'] == 'YouTube', orElse: () => list.first),
+          );
+          if (trailer != null && trailer['key'] != null) {
+            return 'https://www.youtube.com/embed/${trailer['key']}';
+          }
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
   // ==================== TV SERIES & ANIMES ====================
 
   Future<List<MediaItem>> getTrendingSeries({int page = 1}) async {
