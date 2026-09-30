@@ -23,7 +23,7 @@ import {
 import { getLiveChannels, FALLBACK_CHANNELS } from "@/services/live";
 import type { LiveChannel } from "@/types/live";
 import LivePlayer from "@/components/LivePlayer";
-import LiveMatchesRow from "@/components/LiveMatchesRow";
+import SportsMatchesRow from "@/components/SportsMatchesRow";
 
 const PAGE_SIZE = 50;
 
@@ -752,7 +752,7 @@ export default function LivePageContent() {
 
       {/* ── 2. Football Matches Row (Live Scores) ─────────────────────────── */}
       <div className="mb-10">
-        <LiveMatchesRow noScrollMargin />
+        <SportsMatchesRow />
       </div>
 
       {/* ── 3. Controls & Filter Bar ───────────────────────────────────────── */}

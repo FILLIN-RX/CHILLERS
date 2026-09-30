@@ -9,6 +9,7 @@ import '../../services/storage_service.dart';
 import '../../services/pagination_service.dart';
 import '../../widgets/hero_carousel.dart';
 import '../../widgets/infinite_media_section.dart';
+import '../../widgets/top_10_section.dart';
 import '../detail/detail_screen.dart';
 import '../watch/watch_screen.dart';
 import '../live/live_screen.dart';
@@ -29,6 +30,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final PaginationService _paginationService = PaginationService();
 
   List<MediaItem> _heroSlides = [];
+  List<MediaItem> _top10Items = [];
   List<Map<String, dynamic>> _continueWatching = [];
   List<LiveMatch> _liveMatches = [];
   List<MediaItem> _infiniteFeedItems = [];
@@ -110,9 +112,10 @@ class _HomeScreenState extends State<HomeScreen> {
       }
       final mergedMatches = matchesMap.values.toList();
 
-      // Load initial trending data for hero slides
+      // Load initial trending data for hero slides & Top 10
       final trendingRes = await _paginationService.loadInitial(MediaSection.trending);
       final heroSlides = trendingRes.take(7).toList();
+      final top10Items = trendingRes.take(10).toList();
 
       // Load initial infinite discovery feed
       final feedRes = await _safeCall(() => _apiService.getPopularMovies(page: 1)) ?? [];
@@ -123,6 +126,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _continueWatching = continueWatchingRes;
         _liveMatches = mergedMatches;
         _heroSlides = heroSlides;
+        _top10Items = top10Items;
         _infiniteFeedItems = feedRes;
         _hasMoreFeed = feedRes.isNotEmpty;
         _isLoading = false;
@@ -250,6 +254,17 @@ class _HomeScreenState extends State<HomeScreen> {
                         // Champions League Matches (if available)
                         if (_liveMatches.isNotEmpty)
                           _buildLiveMatchesRow(_liveMatches),
+
+                        // ── TOP 10 : CE QUE TOUT LE MONDE REGARDE (STYLE WEB AVEC GRANDS CHIFFRES) ──
+                        if (_top10Items.isNotEmpty) ...[
+                          Top10Section(
+                            title: 'Top 10 : Ce que tout le monde regarde',
+                            items: _top10Items,
+                            onItemTap: _onWatchMedia,
+                            onDetailsTap: _onOpenMediaDetails,
+                          ),
+                          const SizedBox(height: 12),
+                        ],
 
                         // Infinite Scroll Sections
                         InfiniteMediaSection(

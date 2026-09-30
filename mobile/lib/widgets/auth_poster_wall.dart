@@ -147,9 +147,7 @@ class _AuthPosterWallState extends State<AuthPosterWall>
               },
             ),
           ),
-        ),
-
-        // ── 2. Dark Gradients & Cinematic Vignette Overlays ──
+        // ── 2. Light Cinematic Overlay Gradients (posters remain clearly visible) ──
         Positioned.fill(
           child: Container(
             decoration: const BoxDecoration(
@@ -157,10 +155,11 @@ class _AuthPosterWallState extends State<AuthPosterWall>
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Color(0xB3060608),
-                  Color(0x80060608),
-                  Color(0xEB060608),
+                  Color(0x66060608), // Top subtle darkening for status bar
+                  Color(0x22060608), // Center very transparent so posters pop
+                  Color(0x77060608), // Bottom soft gradient
                 ],
+                stops: [0.0, 0.45, 1.0],
               ),
             ),
           ),
@@ -171,23 +170,15 @@ class _AuthPosterWallState extends State<AuthPosterWall>
             decoration: const BoxDecoration(
               gradient: RadialGradient(
                 center: Alignment.center,
-                radius: 1.1,
+                radius: 1.2,
                 colors: [
-                  Color(0x40060608),
-                  Color(0xCC060608),
-                  Color(0xFF060608),
+                  Colors.transparent,
+                  Color(0x44060608),
+                  Color(0x88060608),
                 ],
-                stops: [0.0, 0.7, 1.0],
+                stops: [0.2, 0.7, 1.0],
               ),
             ),
-          ),
-        ),
-
-        // ── 3. Subtle Backdrop Blur ──
-        Positioned.fill(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 1.5, sigmaY: 1.5),
-            child: const SizedBox.expand(),
           ),
         ),
       ],

@@ -141,26 +141,13 @@ class _AuthScreenState extends State<AuthScreen> {
           // ── Background: 4 Columns Animated Poster Wall ──
           const AuthPosterWall(),
 
-          // ── Foreground: Glassmorphic Auth Card ──
+          // ── Foreground: Seamless Full-Page Auth Form (No Card Box) ──
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
-                child: Container(
-                  constraints: const BoxConstraints(maxWidth: 420),
-                  padding: const EdgeInsets.symmetric(horizontal: 22.0, vertical: 26.0),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF18181B).withValues(alpha: 0.88),
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.12), width: 1),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.8),
-                        blurRadius: 30,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
-                  ),
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 400),
                   child: Form(
                     key: _formKey,
                     child: Column(

@@ -10,7 +10,7 @@ import ScrollRow from "@/components/ScrollRow";
 import SpotlightGrid from "@/components/SpotlightGrid";
 import MostViewedMovie from "@/components/MostViewedMovie";
 import Top10Row from "@/components/Top10Row";
-import LiveMatchesRow from "@/components/LiveMatchesRow";
+import SportsMatchesRow from "@/components/SportsMatchesRow";
 import { useLanguage } from "@/i18n/LanguageContext";
 import type { MovieOrShow, Episode } from "@/types/media";
 import UpgradeModal from "@/components/UpgradeModal";
@@ -359,7 +359,7 @@ export default function HomeClientWrapper({
           )}
 
           <div className="max-w-full mx-auto px-2 lg:px-3 space-y-8">
-            <LiveMatchesRow />
+            <SportsMatchesRow />
 
             {homeRows.slice(0, 2).map((row) => (
               <ScrollRow
