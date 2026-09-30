@@ -211,10 +211,10 @@ class _OptimizedSearchScreenState extends State<OptimizedSearchScreen> {
                       child: Row(
                         children: [
                           const SizedBox(width: 14),
-                          const FaIcon(
-                            FontAwesomeIcons.magnifyingGlass,
+                          const Icon(
+                            Icons.search_rounded,
                             color: Colors.white38,
-                            size: 15,
+                            size: 18,
                           ),
                           const SizedBox(width: 10),
                           Expanded(
@@ -224,7 +224,7 @@ class _OptimizedSearchScreenState extends State<OptimizedSearchScreen> {
                               style: const TextStyle(color: Colors.white, fontSize: 14),
                               textInputAction: TextInputAction.search,
                               decoration: const InputDecoration(
-                                hintText: 'Search movies, TV shows...',
+                                hintText: 'Rechercher films, séries, animes...',
                                 hintStyle: TextStyle(color: Colors.white38, fontSize: 14),
                                 border: InputBorder.none,
                                 isCollapsed: true,
@@ -241,10 +241,10 @@ class _OptimizedSearchScreenState extends State<OptimizedSearchScreen> {
                               },
                               child: const Padding(
                                 padding: EdgeInsets.symmetric(horizontal: 12),
-                                child: FaIcon(
-                                  FontAwesomeIcons.circleXmark,
+                                child: Icon(
+                                  Icons.cancel_rounded,
                                   color: Colors.white38,
-                                  size: 15,
+                                  size: 18,
                                 ),
                               ),
                             ),
@@ -394,7 +394,7 @@ class _OptimizedSearchScreenState extends State<OptimizedSearchScreen> {
 
   Widget _buildHorizontalMediaList(List<MediaItem> items) {
     return SizedBox(
-      height: 235,
+      height: 215,
       child: ListView.separated(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         scrollDirection: Axis.horizontal,
@@ -402,7 +402,10 @@ class _OptimizedSearchScreenState extends State<OptimizedSearchScreen> {
         separatorBuilder: (_, __) => const SizedBox(width: 12),
         itemBuilder: (context, index) {
           final item = items[index];
-          return _buildMediaCard(item);
+          return SizedBox(
+            width: 118,
+            child: _buildMediaCard(item),
+          );
         },
       ),
     );
@@ -413,19 +416,17 @@ class _OptimizedSearchScreenState extends State<OptimizedSearchScreen> {
 
     return GestureDetector(
       onTap: () => _onItemTap(item),
-      child: SizedBox(
-        width: 118,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Poster avec coins arrondis et badge étoile
-            Stack(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Poster avec coins arrondis et badge étoile
+          Expanded(
+            child: Stack(
+              fit: StackFit.expand,
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: Container(
-                    width: 118,
-                    height: 168,
                     color: const Color(0xFF1A1A1E),
                     child: item.poster != null && item.poster!.isNotEmpty
                         ? CachedNetworkImage(
@@ -433,11 +434,11 @@ class _OptimizedSearchScreenState extends State<OptimizedSearchScreen> {
                             fit: BoxFit.cover,
                             placeholder: (_, __) => Container(color: const Color(0xFF1A1A1E)),
                             errorWidget: (_, __, ___) => const Center(
-                              child: FaIcon(FontAwesomeIcons.film, color: Colors.white24, size: 24),
+                              child: Icon(Icons.movie_rounded, color: Colors.white24, size: 24),
                             ),
                           )
                         : const Center(
-                            child: FaIcon(FontAwesomeIcons.film, color: Colors.white24, size: 24),
+                            child: Icon(Icons.movie_rounded, color: Colors.white24, size: 24),
                           ),
                   ),
                 ),
@@ -472,35 +473,35 @@ class _OptimizedSearchScreenState extends State<OptimizedSearchScreen> {
                   ),
               ],
             ),
+          ),
 
-            const SizedBox(height: 6),
+          const SizedBox(height: 5),
 
-            // Titre du média
-            Text(
-              item.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12.5,
-                fontWeight: FontWeight.bold,
-              ),
+          // Titre du média
+          Text(
+            item.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
             ),
+          ),
 
-            const SizedBox(height: 2),
+          const SizedBox(height: 2),
 
-            // Sous-titre (ex: TV Show • Drama ou 2024 • 2h 46m)
-            Text(
-              _formatSubtitle(item),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white54,
-                fontSize: 10.5,
-              ),
+          // Sous-titre (ex: TV Show • Drama ou 2024 • 2h 46m)
+          Text(
+            _formatSubtitle(item),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white54,
+              fontSize: 10,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -518,7 +519,7 @@ class _OptimizedSearchScreenState extends State<OptimizedSearchScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const FaIcon(FontAwesomeIcons.triangleExclamation, color: Colors.white38, size: 40),
+            const Icon(Icons.warning_amber_rounded, color: Colors.white38, size: 40),
             const SizedBox(height: 12),
             Text(_errorMessage!, style: const TextStyle(color: Colors.white70, fontSize: 13)),
           ],
@@ -531,7 +532,7 @@ class _OptimizedSearchScreenState extends State<OptimizedSearchScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const FaIcon(FontAwesomeIcons.film, color: Colors.white24, size: 48),
+            const Icon(Icons.movie_rounded, color: Colors.white24, size: 48),
             const SizedBox(height: 14),
             Text(
               'Aucun résultat pour "${_searchController.text}"',

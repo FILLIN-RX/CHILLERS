@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../config/theme.dart';
 import '../../models/live_channel.dart';
@@ -60,7 +59,7 @@ class LiveScreenState extends State<LiveScreen> {
       'textColor': Colors.black,
       'badgeColor': Colors.black,
       'badgeTextColor': Colors.white,
-      'icon': FontAwesomeIcons.trophy,
+      'icon': Icons.emoji_events_rounded,
     },
     {
       'id': 'ucl-2026',
@@ -71,7 +70,7 @@ class LiveScreenState extends State<LiveScreen> {
       'textColor': Colors.white,
       'badgeColor': Color(0xFF0284C7),
       'badgeTextColor': Colors.white,
-      'icon': FontAwesomeIcons.star,
+      'icon': Icons.star_rounded,
     },
     {
       'id': 'pl-2026',
@@ -82,7 +81,7 @@ class LiveScreenState extends State<LiveScreen> {
       'textColor': Colors.white,
       'badgeColor': Color(0xFF00FF87),
       'badgeTextColor': Color(0xFF38003C),
-      'icon': FontAwesomeIcons.futbol,
+      'icon': Icons.sports_soccer_rounded,
     },
     {
       'id': 'laliga-2026',
@@ -93,7 +92,7 @@ class LiveScreenState extends State<LiveScreen> {
       'textColor': Colors.white,
       'badgeColor': Color(0xFFFFD700),
       'badgeTextColor': Colors.black,
-      'icon': FontAwesomeIcons.trophy,
+      'icon': Icons.military_tech_rounded,
     },
     {
       'id': 'live-tv-hd',
@@ -104,31 +103,31 @@ class LiveScreenState extends State<LiveScreen> {
       'textColor': Colors.white,
       'badgeColor': Color(0xFF22D3EE),
       'badgeTextColor': Colors.black,
-      'icon': FontAwesomeIcons.tv,
+      'icon': Icons.live_tv_rounded,
     },
   ];
 
   static const List<Map<String, dynamic>> _categories = [
-    {'id': 'all', 'label': 'Toutes', 'icon': FontAwesomeIcons.tv},
-    {'id': 'sports', 'label': 'Sport', 'icon': FontAwesomeIcons.trophy},
-    {'id': 'cinema', 'label': 'Cinéma', 'icon': FontAwesomeIcons.film},
-    {'id': 'series', 'label': 'Séries', 'icon': FontAwesomeIcons.video},
-    {'id': 'kids', 'label': 'Jeunesse', 'icon': FontAwesomeIcons.child},
-    {'id': 'news', 'label': 'Infos', 'icon': FontAwesomeIcons.newspaper},
-    {'id': 'documentary', 'label': 'Découverte', 'icon': FontAwesomeIcons.compass},
-    {'id': 'music', 'label': 'Musique', 'icon': FontAwesomeIcons.music},
-    {'id': 'favorites', 'label': 'Favoris', 'icon': FontAwesomeIcons.solidStar},
+    {'id': 'all', 'label': 'Toutes', 'icon': Icons.tv_rounded},
+    {'id': 'sports', 'label': 'Sport', 'icon': Icons.sports_soccer_rounded},
+    {'id': 'cinema', 'label': 'Cinéma', 'icon': Icons.movie_rounded},
+    {'id': 'series', 'label': 'Séries', 'icon': Icons.video_collection_rounded},
+    {'id': 'kids', 'label': 'Jeunesse', 'icon': Icons.child_care_rounded},
+    {'id': 'news', 'label': 'Infos', 'icon': Icons.newspaper_rounded},
+    {'id': 'documentary', 'label': 'Découverte', 'icon': Icons.explore_rounded},
+    {'id': 'music', 'label': 'Musique', 'icon': Icons.music_note_rounded},
+    {'id': 'favorites', 'label': 'Favoris', 'icon': Icons.star_rounded},
   ];
 
   static const List<Map<String, dynamic>> _leagueFilters = [
-    {'id': 'all', 'label': 'Tous', 'icon': FontAwesomeIcons.futbol},
-    {'id': 'live', 'label': 'En Direct', 'icon': FontAwesomeIcons.circle},
-    {'id': 'uefa', 'label': 'Champions League', 'icon': FontAwesomeIcons.trophy},
-    {'id': 'premier-league', 'label': 'Premier League', 'icon': FontAwesomeIcons.futbol},
-    {'id': 'la-liga', 'label': 'La Liga', 'icon': FontAwesomeIcons.futbol},
-    {'id': 'serie-a', 'label': 'Serie A', 'icon': FontAwesomeIcons.futbol},
-    {'id': 'bundesliga', 'label': 'Bundesliga', 'icon': FontAwesomeIcons.futbol},
-    {'id': 'ligue-1', 'label': 'Ligue 1', 'icon': FontAwesomeIcons.futbol},
+    {'id': 'all', 'label': 'Tous', 'icon': Icons.sports_soccer_rounded},
+    {'id': 'live', 'label': 'En Direct', 'icon': Icons.circle},
+    {'id': 'uefa', 'label': 'Champions League', 'icon': Icons.emoji_events_rounded},
+    {'id': 'premier-league', 'label': 'Premier League', 'icon': Icons.sports_soccer_rounded},
+    {'id': 'la-liga', 'label': 'La Liga', 'icon': Icons.sports_soccer_rounded},
+    {'id': 'serie-a', 'label': 'Serie A', 'icon': Icons.sports_soccer_rounded},
+    {'id': 'bundesliga', 'label': 'Bundesliga', 'icon': Icons.sports_soccer_rounded},
+    {'id': 'ligue-1', 'label': 'Ligue 1', 'icon': Icons.sports_soccer_rounded},
   ];
 
   @override
@@ -390,7 +389,7 @@ class LiveScreenState extends State<LiveScreen> {
                     ),
                     actions: [
                       IconButton(
-                        icon: const FaIcon(FontAwesomeIcons.magnifyingGlass, color: Colors.white70, size: 18),
+                        icon: const Icon(Icons.search_rounded, color: Colors.white70, size: 22),
                         onPressed: () {
                           Navigator.push(
                             context,
@@ -399,7 +398,7 @@ class LiveScreenState extends State<LiveScreen> {
                         },
                       ),
                       IconButton(
-                        icon: const FaIcon(FontAwesomeIcons.arrowsRotate, color: Colors.white70, size: 16),
+                        icon: const Icon(Icons.refresh_rounded, color: Colors.white70, size: 20),
                         onPressed: _loadData,
                       ),
                       const SizedBox(width: 4),
@@ -468,8 +467,8 @@ class LiveScreenState extends State<LiveScreen> {
                     shape: BoxShape.circle,
                   ),
                   child: Center(
-                    child: FaIcon(
-                      promo['icon'],
+                    child: Icon(
+                      promo['icon'] as IconData,
                       color: promo['textColor'] as Color,
                       size: 26,
                     ),
@@ -566,7 +565,7 @@ class LiveScreenState extends State<LiveScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
           child: Row(
             children: [
-              const FaIcon(FontAwesomeIcons.futbol, color: AppTheme.primary, size: 16),
+              const Icon(Icons.sports_soccer_rounded, color: AppTheme.primary, size: 18),
               const SizedBox(width: 8),
               const Text(
                 'Matchs de Football en Direct',
@@ -607,9 +606,9 @@ class LiveScreenState extends State<LiveScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        FaIcon(
-                          item['icon'],
-                          size: 11,
+                        Icon(
+                          item['icon'] as IconData,
+                          size: 13,
                           color: isSelected ? Colors.white : (item['id'] == 'live' ? Colors.redAccent : Colors.white60),
                         ),
                         const SizedBox(width: 5),
@@ -649,7 +648,7 @@ class LiveScreenState extends State<LiveScreen> {
                 ),
               )
             : SizedBox(
-                height: 125,
+                height: 138,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -854,9 +853,9 @@ class LiveScreenState extends State<LiveScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        FaIcon(
-                          cat['icon'],
-                          size: 11,
+                        Icon(
+                          cat['icon'] as IconData,
+                          size: 13,
                           color: isSelected ? Colors.white : Colors.white60,
                         ),
                         const SizedBox(width: 6),
@@ -896,7 +895,7 @@ class LiveScreenState extends State<LiveScreen> {
                   child: Row(
                     children: [
                       const SizedBox(width: 10),
-                      const FaIcon(FontAwesomeIcons.magnifyingGlass, color: Colors.white38, size: 13),
+                      const Icon(Icons.search_rounded, color: Colors.white38, size: 16),
                       const SizedBox(width: 8),
                       Expanded(
                         child: TextField(
@@ -921,7 +920,7 @@ class LiveScreenState extends State<LiveScreen> {
                           },
                           child: const Padding(
                             padding: EdgeInsets.symmetric(horizontal: 8),
-                            child: FaIcon(FontAwesomeIcons.xmark, color: Colors.white60, size: 14),
+                            child: Icon(Icons.close_rounded, color: Colors.white60, size: 16),
                           ),
                         ),
                     ],
@@ -953,7 +952,7 @@ class LiveScreenState extends State<LiveScreen> {
                         ),
                         child: const Row(
                           children: [
-                            FaIcon(FontAwesomeIcons.tableCellsLarge, color: Colors.white, size: 12),
+                            Icon(Icons.grid_view_rounded, color: Colors.white, size: 14),
                             SizedBox(width: 4),
                             Text('Logos', style: TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.bold)),
                           ],
@@ -971,7 +970,7 @@ class LiveScreenState extends State<LiveScreen> {
                         ),
                         child: const Row(
                           children: [
-                            FaIcon(FontAwesomeIcons.film, color: Colors.white, size: 12),
+                            Icon(Icons.view_carousel_rounded, color: Colors.white, size: 14),
                             SizedBox(width: 4),
                             Text('Affiches', style: TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.bold)),
                           ],
@@ -1103,10 +1102,10 @@ class LiveScreenState extends State<LiveScreen> {
                     color: Colors.black.withValues(alpha: 0.6),
                     shape: BoxShape.circle,
                   ),
-                  child: FaIcon(
-                    isFav ? FontAwesomeIcons.solidStar : FontAwesomeIcons.star,
+                  child: Icon(
+                    isFav ? Icons.star_rounded : Icons.star_outline_rounded,
                     color: isFav ? Colors.amber : Colors.white38,
-                    size: 10,
+                    size: 14,
                   ),
                 ),
               ),
@@ -1147,9 +1146,9 @@ class LiveScreenState extends State<LiveScreen> {
                               width: 50,
                               height: 50,
                               fit: BoxFit.contain,
-                              errorWidget: (context, url, error) => const FaIcon(FontAwesomeIcons.tv, color: Colors.white24, size: 28),
+                              errorWidget: (context, url, error) => const Icon(Icons.live_tv_rounded, color: Colors.white24, size: 28),
                             )
-                          : const FaIcon(FontAwesomeIcons.tv, color: Colors.white24, size: 28),
+                          : const Icon(Icons.live_tv_rounded, color: Colors.white24, size: 28),
                     ),
                   ),
 
@@ -1166,7 +1165,7 @@ class LiveScreenState extends State<LiveScreen> {
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          FaIcon(FontAwesomeIcons.circle, color: Colors.white, size: 5),
+                          Icon(Icons.circle, color: Colors.white, size: 6),
                           SizedBox(width: 3),
                           Text(
                             'DIRECT',
@@ -1189,10 +1188,10 @@ class LiveScreenState extends State<LiveScreen> {
                           color: Colors.black.withValues(alpha: 0.6),
                           shape: BoxShape.circle,
                         ),
-                        child: FaIcon(
-                          isFav ? FontAwesomeIcons.solidStar : FontAwesomeIcons.star,
+                        child: Icon(
+                          isFav ? Icons.star_rounded : Icons.star_outline_rounded,
                           color: isFav ? Colors.amber : Colors.white38,
-                          size: 10,
+                          size: 14,
                         ),
                       ),
                     ),

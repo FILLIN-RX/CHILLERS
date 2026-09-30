@@ -82,11 +82,11 @@ class MainNavigationState extends State<MainNavigation> {
   ];
 
   final List<Map<String, dynamic>> _navItems = [
-    {'icon': FontAwesomeIcons.solidHouse.data, 'label': 'Accueil'},
-    {'icon': FontAwesomeIcons.compass.data, 'label': 'Explorer'},
-    {'icon': FontAwesomeIcons.tv.data, 'label': 'Live'},
-    {'icon': FontAwesomeIcons.download.data, 'label': 'Téléchargements'},
-    {'icon': FontAwesomeIcons.user.data, 'label': 'Profil'},
+    {'icon': Icons.home_rounded, 'label': 'Accueil'},
+    {'icon': Icons.explore_rounded, 'label': 'Explorer'},
+    {'icon': Icons.live_tv_rounded, 'label': 'Live'},
+    {'icon': Icons.download_rounded, 'label': 'Téléchargements'},
+    {'icon': Icons.person_rounded, 'label': 'Profil'},
   ];
 
   @override
@@ -405,23 +405,23 @@ class MainNavigationState extends State<MainNavigation> {
           selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
           items: const [
             BottomNavigationBarItem(
-              icon: FaIcon(FontAwesomeIcons.solidHouse),
+              icon: Icon(Icons.home_rounded),
               label: 'Accueil',
             ),
             BottomNavigationBarItem(
-              icon: FaIcon(FontAwesomeIcons.compass),
+              icon: Icon(Icons.explore_rounded),
               label: 'Explorer',
             ),
             BottomNavigationBarItem(
-              icon: FaIcon(FontAwesomeIcons.tv),
+              icon: Icon(Icons.live_tv_rounded),
               label: 'Live',
             ),
             BottomNavigationBarItem(
-              icon: FaIcon(FontAwesomeIcons.download),
+              icon: Icon(Icons.download_rounded),
               label: 'Téléchargements',
             ),
             BottomNavigationBarItem(
-              icon: FaIcon(FontAwesomeIcons.user),
+              icon: Icon(Icons.person_rounded),
               label: 'Profil',
             ),
           ],
