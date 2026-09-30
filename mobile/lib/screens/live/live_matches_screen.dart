@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../config/theme.dart';
 import '../../models/live_match.dart';
 import '../../services/api_service.dart';
 import '../../widgets/app_video_player.dart';
-import '../../widgets/app_drawer.dart';
 import '../../services/notification_service.dart';
 import '../main_navigation.dart';
 
@@ -31,11 +31,11 @@ class _LiveMatchesScreenState extends State<LiveMatchesScreen> {
   String _currentTitle = 'Matchs en Direct';
   String? _currentSubtitle;
 
-  final List<Map<String, dynamic>> _filters = const [
-    {'id': 'all', 'label': 'Tous les Matchs', 'icon': Icons.sports_soccer_rounded},
-    {'id': 'uefa', 'label': 'Ligue des Champions', 'icon': Icons.emoji_events_rounded},
-    {'id': 'live', 'label': 'En Direct', 'icon': Icons.circle_rounded},
-    {'id': 'upcoming', 'label': 'À Venir', 'icon': Icons.schedule_rounded},
+  final List<Map<String, dynamic>> _filters = [
+    {'id': 'all', 'label': 'Tous les Matchs', 'icon': FontAwesomeIcons.futbol.data},
+    {'id': 'uefa', 'label': 'Ligue des Champions', 'icon': FontAwesomeIcons.trophy.data},
+    {'id': 'live', 'label': 'En Direct', 'icon': FontAwesomeIcons.circle.data},
+    {'id': 'upcoming', 'label': 'À Venir', 'icon': FontAwesomeIcons.clock.data},
   ];
 
   @override
@@ -134,10 +134,6 @@ class _LiveMatchesScreenState extends State<LiveMatchesScreen> {
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: AppTheme.background,
-      drawer: AppDrawer(
-        activeCategory: 'En Direct',
-        onSelectCategory: (_) {},
-      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -152,16 +148,11 @@ class _LiveMatchesScreenState extends State<LiveMatchesScreen> {
                 children: [
                   if (canPop)
                     IconButton(
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+                      icon: const FaIcon(FontAwesomeIcons.chevronLeft, color: Colors.white, size: 20),
                       onPressed: () => Navigator.pop(context),
-                    )
-                  else
-                    IconButton(
-                      icon: const Icon(Icons.menu_rounded, color: Colors.white, size: 24),
-                      onPressed: () => _scaffoldKey.currentState?.openDrawer(),
                     ),
                   const SizedBox(width: 6),
-                  const Icon(Icons.sports_soccer_rounded, color: AppTheme.primary, size: 22),
+                  const FaIcon(FontAwesomeIcons.futbol, color: AppTheme.primary, size: 22),
                   const SizedBox(width: 8),
                   const Expanded(
                     child: Text(
@@ -180,12 +171,12 @@ class _LiveMatchesScreenState extends State<LiveMatchesScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: Colors.redAccent,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(16),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.circle, color: Colors.white, size: 6),
+                          const FaIcon(FontAwesomeIcons.circle, color: Colors.white, size: 6),
                           const SizedBox(width: 4),
                           Text(
                             '$liveCount LIVE',
@@ -195,7 +186,7 @@ class _LiveMatchesScreenState extends State<LiveMatchesScreen> {
                       ),
                     ),
                   IconButton(
-                    icon: const Icon(Icons.refresh_rounded, color: Colors.white70),
+                    icon: const FaIcon(FontAwesomeIcons.arrowsRotate, color: Colors.white70),
                     onPressed: _loadData,
                     tooltip: 'Actualiser les scores',
                   ),
@@ -238,7 +229,7 @@ class _LiveMatchesScreenState extends State<LiveMatchesScreen> {
                                     child: const Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Icon(Icons.circle, color: Colors.white, size: 8),
+                                        FaIcon(FontAwesomeIcons.circle, color: Colors.white, size: 8),
                                         SizedBox(width: 4),
                                         Text(
                                           'DIRECT FOOT',
@@ -254,7 +245,7 @@ class _LiveMatchesScreenState extends State<LiveMatchesScreen> {
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(Icons.sports_soccer_rounded, color: Colors.white24, size: 48),
+                                  const FaIcon(FontAwesomeIcons.futbol, color: Colors.white24, size: 48),
                                   const SizedBox(height: 8),
                                   Text(
                                     _activeMatch != null
@@ -387,7 +378,7 @@ class _LiveMatchesScreenState extends State<LiveMatchesScreen> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Icon(Icons.sports_soccer_rounded, size: 56, color: AppTheme.textSecondary),
+                                const FaIcon(FontAwesomeIcons.futbol, size: 56, color: AppTheme.textSecondary),
                                 const SizedBox(height: 12),
                                 const Text(
                                   'Aucun match trouvé',
@@ -407,7 +398,7 @@ class _LiveMatchesScreenState extends State<LiveMatchesScreen> {
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                                   ),
                                   onPressed: _loadData,
-                                  icon: const Icon(Icons.refresh_rounded),
+                                  icon: const FaIcon(FontAwesomeIcons.arrowsRotate),
                                   label: const Text('Actualiser'),
                                 ),
                               ],
@@ -434,7 +425,7 @@ class _LiveMatchesScreenState extends State<LiveMatchesScreen> {
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
                                     color: isActive ? AppTheme.primary.withValues(alpha: 0.16) : AppTheme.card,
-                                    borderRadius: BorderRadius.circular(14),
+                                    borderRadius: BorderRadius.circular(18),
                                     border: Border.all(
                                       color: isActive
                                           ? AppTheme.primary
@@ -451,7 +442,7 @@ class _LiveMatchesScreenState extends State<LiveMatchesScreen> {
                                           Row(
                                             children: [
                                               if (isUefa) ...[
-                                                const Icon(Icons.emoji_events_rounded, color: Colors.amber, size: 15),
+                                                const FaIcon(FontAwesomeIcons.trophy, color: Colors.amber, size: 15),
                                                 const SizedBox(width: 4),
                                               ],
                                               Text(
@@ -470,8 +461,8 @@ class _LiveMatchesScreenState extends State<LiveMatchesScreen> {
                                               IconButton(
                                                 icon: Icon(
                                                   NotificationService().isReminderActive(m.id)
-                                                      ? Icons.notifications_active_rounded
-                                                      : Icons.notifications_none_rounded,
+                                                      ? FontAwesomeIcons.solidBell.data
+                                                      : FontAwesomeIcons.bell.data,
                                                   color: NotificationService().isReminderActive(m.id)
                                                       ? Colors.amber
                                                       : Colors.white38,
@@ -611,7 +602,7 @@ class _LiveMatchesScreenState extends State<LiveMatchesScreen> {
                                         mainAxisAlignment: MainAxisAlignment.center,
                                         children: [
                                           Icon(
-                                            isActive ? Icons.volume_up_rounded : Icons.play_circle_fill_rounded,
+                                            isActive ? FontAwesomeIcons.volumeHigh.data : FontAwesomeIcons.circlePlay.data,
                                             color: isActive ? AppTheme.primary : Colors.white70,
                                             size: 16,
                                           ),
@@ -659,23 +650,23 @@ class _LiveMatchesScreenState extends State<LiveMatchesScreen> {
           selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
           items: const [
             BottomNavigationBarItem(
-              icon: Icon(Icons.home_filled),
+              icon: FaIcon(FontAwesomeIcons.solidHouse),
               label: 'Accueil',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.explore_rounded),
+              icon: FaIcon(FontAwesomeIcons.compass),
               label: 'Explorer',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.live_tv_rounded),
-              label: 'Live TV & Foot',
+              icon: FaIcon(FontAwesomeIcons.tv),
+              label: 'Live',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.download_rounded),
+              icon: FaIcon(FontAwesomeIcons.download),
               label: 'Téléchargements',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.person_rounded),
+              icon: FaIcon(FontAwesomeIcons.user),
               label: 'Profil',
             ),
           ],
@@ -700,7 +691,7 @@ class _LiveMatchesScreenState extends State<LiveMatchesScreen> {
               color: Colors.white10,
               shape: BoxShape.circle,
             ),
-            child: Icon(Icons.shield_outlined, color: Colors.white24, size: size * 0.5),
+            child: FaIcon(FontAwesomeIcons.shield, color: Colors.white24, size: size * 0.5),
           ),
           errorWidget: (context, url, error) => Container(
             width: size,

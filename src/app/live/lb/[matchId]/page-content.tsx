@@ -127,17 +127,15 @@ export default function LiveBallMatchContent() {
     refetchInterval: (query) => (query.state.data ? false : 30_000),
   });
 
+  const isInvalidEmbed = (url: string | null | undefined) => {
+    if (!url) return true;
+    return /liveball\.(sx|im|to|net|org|com)/i.test(url) || url.includes('/match/') || /1xbet|melbet|betting/i.test(url);
+  };
+
   // Deux types de flux renvoyés par le backend :
   //  - "hls"    → l'URL m3u8 est jouée dans le lecteur natif (LivePlayer).
-  //  - "iframe" → l'URL est un player à embarquer en iframe (format "f" du site,
-  //               utilisé par beaucoup de matchs dont ceux de la Champions League).
-  // On n'embarque QUE le player, pas la page liveball.sx.
-  const embedUrl = stream?.type === "iframe" ? stream.url : null;
-
-  // Dernier recours : si le match est en direct mais que la résolution backend a
-  // échoué, on embarque la page du match (le player du site, même IP/cookies,
-  // passe toujours). Tant que le flux n'est pas résolu, ~rien ne s'affiche.
-  const liveFallbackMode = match?.status === "live" && !stream && !isLoading;
+  //  - "iframe" → l'URL est un player propre à embarquer (pas la page du site).
+  const embedUrl = stream?.type === "iframe" && !isInvalidEmbed(stream.url) ? stream.url : null;
 
   // Construit un pseudo-canal HLS à partir du match pour alimenter LivePlayer
   // (uniquement pour les flux natifs m3u8). streamUrl passe par NOTRE relay HLS

@@ -1,6 +1,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../../../models/media_item.dart';
 import '../screens/transfer_sender_screen.dart';
 
@@ -19,7 +20,7 @@ class ShareOfflineButton extends StatelessWidget {
   Widget build(BuildContext context) {
     if (isCompact) {
       return IconButton(
-        icon: const Icon(Icons.share_rounded, color: Colors.white),
+        icon: const FaIcon(FontAwesomeIcons.shareNodes, color: Colors.white),
         tooltip: 'Partager hors ligne (P2P)',
         onPressed: () => _openSenderScreen(context),
       );
@@ -31,11 +32,11 @@ class ShareOfflineButton extends StatelessWidget {
         foregroundColor: Colors.white,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(18),
         ),
         elevation: 4,
       ),
-      icon: const Icon(Icons.wifi_tethering_rounded, size: 20),
+      icon: const FaIcon(FontAwesomeIcons.wifi, size: 20),
       label: const Text(
         'Partager Hors Ligne',
         style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),

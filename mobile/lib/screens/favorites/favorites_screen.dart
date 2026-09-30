@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../config/theme.dart';
 import '../../models/media_item.dart';
@@ -56,7 +57,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                isFavoriteTab ? Icons.favorite_border_rounded : Icons.bookmark_border_rounded,
+                isFavoriteTab ? FontAwesomeIcons.heart.data : FontAwesomeIcons.bookmark.data,
                 size: 64,
                 color: AppTheme.textSecondary,
               ),
@@ -113,7 +114,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
                 children: [
                   Expanded(
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(16),
                       child: media.poster != null && media.poster!.isNotEmpty
                           ? CachedNetworkImage(
                               imageUrl: media.poster!,
@@ -122,12 +123,12 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
                               placeholder: (context, url) => Container(color: AppTheme.card),
                               errorWidget: (context, url, error) => Container(
                                 color: AppTheme.card,
-                                child: const Icon(Icons.movie, color: Colors.white24),
+                                child: const FaIcon(FontAwesomeIcons.film, color: Colors.white24),
                               ),
                             )
                           : Container(
                               color: AppTheme.card,
-                              child: const Icon(Icons.movie, color: Colors.white24),
+                              child: const FaIcon(FontAwesomeIcons.film, color: Colors.white24),
                             ),
                     ),
                   ),
@@ -159,7 +160,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      isFavoriteTab ? Icons.favorite_rounded : Icons.bookmark_remove_rounded,
+                      isFavoriteTab ? FontAwesomeIcons.solidHeart.data : FontAwesomeIcons.xmark.data,
                       color: isFavoriteTab ? Colors.redAccent : AppTheme.primary,
                       size: 14,
                     ),
@@ -196,7 +197,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.favorite_rounded, size: 16),
+                  const FaIcon(FontAwesomeIcons.solidHeart, size: 16),
                   const SizedBox(width: 6),
                   Text('Favoris (${_favorites.length})'),
                 ],
@@ -206,7 +207,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.bookmark_rounded, size: 16),
+                  const FaIcon(FontAwesomeIcons.solidBookmark, size: 16),
                   const SizedBox(width: 6),
                   Text('Ma Liste (${_watchlist.length})'),
                 ],

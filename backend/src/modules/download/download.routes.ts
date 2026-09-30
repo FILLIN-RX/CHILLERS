@@ -8,6 +8,29 @@ import { DirectScraper } from '../../streaming/providers/direct-scraper';
 const router = Router();
 const providerManager = new ProviderManager();
 
+function unwrapUrl(url: string | undefined | null): string {
+  if (!url || typeof url !== 'string') return '';
+  let current = url.trim();
+  while (
+    current.includes('/api/doodstream/stream?url=') ||
+    current.includes('/api/download/file?url=') ||
+    current.includes('/api/download/stream?m3u8=') ||
+    current.includes('/api/omnisave/proxy?url=')
+  ) {
+    const match = current.match(/[?&](?:url|m3u8)=([^&]+)/);
+    if (match) {
+      try {
+        current = decodeURIComponent(match[1]);
+      } catch {
+        break;
+      }
+    } else {
+      break;
+    }
+  }
+  return current;
+}
+
 /**
  * GET /api/download/resolve
  *
@@ -65,14 +88,14 @@ router.get('/resolve', async (req: Request, res: Response) => {
       });
     }
 
-    let downloadUrl = streamResult.directUrl || streamResult.embedUrl;
+    const rawCandidate = streamResult.directUrl || streamResult.embedUrl;
+    let downloadUrl = unwrapUrl(rawCandidate) || rawCandidate;
     let directType = streamResult.directType || (/\.m3u8(\?|$)/i.test(downloadUrl) ? 'hls' : /\.mp4(\?|$)/i.test(downloadUrl) ? 'mp4' : 'embed');
 
     // Pour le téléchargement : si on a reçu du HLS ou une URL embed, tenter d'extraire le MP4 direct (avec vraie taille et débit max)
-    if (directType !== 'mp4' && (streamResult.embedUrl || downloadUrl)) {
-      const targetUrl = streamResult.embedUrl || downloadUrl;
+    if (directType !== 'mp4' && downloadUrl) {
       try {
-        const direct = await DirectScraper.resolve(targetUrl, false);
+        const direct = await DirectScraper.resolve(downloadUrl, false);
         if (direct?.directUrl && direct.type === 'mp4') {
           downloadUrl = direct.directUrl;
           directType = 'mp4';
@@ -95,7 +118,7 @@ router.get('/resolve', async (req: Request, res: Response) => {
       // MP4 direct → proxy avec Range support et Content-Length d'origine (vitesse max + vraie taille)
       finalDownloadUrl = `/api/download/file?url=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(cleanFilename)}`;
       console.log(`[Download Resolve] MP4 direct → file proxy: ${downloadUrl.slice(0, 80)}...`);
-    } else if (isHls) {
+    } else if (isHls && downloadUrl.startsWith('http')) {
       // HLS de secours → FFmpeg convertit le flux en MP4 à la volée
       finalDownloadUrl = `/api/download/stream?m3u8=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(cleanFilename)}`;
       console.log(`[Download Resolve] HLS fallback → FFmpeg proxy: ${downloadUrl.slice(0, 80)}...`);
@@ -129,9 +152,21 @@ router.get('/resolve', async (req: Request, res: Response) => {
  */
 router.get('/file', async (req: Request, res: Response) => {
   try {
-    const { url, filename = 'video.mp4' } = req.query as { url?: string; filename?: string };
+    let { url, filename = 'video.mp4' } = req.query as { url?: string; filename?: string };
     if (!url) {
       return res.status(400).json({ success: false, error: 'Paramètre ?url= requis' });
+    }
+
+    url = unwrapUrl(url);
+
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(url);
+      if (!parsedUrl.protocol.startsWith('http')) {
+        return res.status(400).json({ success: false, error: 'Protocole URL invalide' });
+      }
+    } catch {
+      return res.status(400).json({ success: false, error: 'URL invalide' });
     }
 
     const headers: Record<string, string> = {
@@ -150,6 +185,8 @@ router.get('/file', async (req: Request, res: Response) => {
       headers['Referer'] = 'https://voe.sx/';
     } else if (url.includes('streamtape')) {
       headers['Referer'] = 'https://streamtape.com/';
+    } else {
+      headers['Referer'] = `${parsedUrl.protocol}//${parsedUrl.host}/`;
     }
 
     if (req.headers.range) {
@@ -203,11 +240,13 @@ router.get('/file', async (req: Request, res: Response) => {
  * Proxy de téléchargement HLS vers MP4 via FFmpeg
  */
 router.get('/stream', (req: Request, res: Response) => {
-  const m3u8Url = req.query.m3u8 as string;
+  let m3u8Url = req.query.m3u8 as string;
   if (!m3u8Url) {
     res.status(400).json({ success: false, error: 'm3u8 query param required' });
     return;
   }
+
+  m3u8Url = unwrapUrl(m3u8Url);
 
   const filename = (req.query.filename as string) || 'video.mp4';
 

@@ -825,11 +825,11 @@ class ApiService {
             Uri.parse('$_base/api/stream/movie/$id?type=movie&title=${Uri.encodeComponent(title)}'),
             headers: await _getHeaders(),
           )
-          .timeout(const Duration(seconds: 8));
+          .timeout(const Duration(seconds: 20));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        String? url = data['data']?['embedUrl'] ?? data['embedUrl'] ?? data['url'];
+        String? url = data['data']?['directUrl'] ?? data['directUrl'] ?? data['data']?['embedUrl'] ?? data['embedUrl'] ?? data['url'];
         if (url != null && url.isNotEmpty) {
           if (url.startsWith('/')) url = '$_base$url';
           return url;
@@ -844,11 +844,11 @@ class ApiService {
             Uri.parse('$_base/api/nexstream/movie/$id?type=movie&title=${Uri.encodeComponent(title)}'),
             headers: await _getHeaders(),
           )
-          .timeout(const Duration(seconds: 6));
+          .timeout(const Duration(seconds: 10));
 
       if (res2.statusCode == 200) {
         final data2 = json.decode(res2.body);
-        String? url2 = data2['data']?['embedUrl'] ?? data2['embedUrl'] ?? data2['url'];
+        String? url2 = data2['data']?['directUrl'] ?? data2['directUrl'] ?? data2['data']?['embedUrl'] ?? data2['embedUrl'] ?? data2['url'];
         if (url2 != null && url2.isNotEmpty) {
           if (url2.startsWith('/')) url2 = '$_base$url2';
           return url2;
@@ -873,11 +873,11 @@ class ApiService {
                 '$_base/api/stream/tv/$id/$season/$episode?type=series&title=${Uri.encodeComponent(title)}'),
             headers: await _getHeaders(),
           )
-          .timeout(const Duration(seconds: 8));
+          .timeout(const Duration(seconds: 20));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        String? url = data['data']?['embedUrl'] ?? data['embedUrl'] ?? data['url'];
+        String? url = data['data']?['directUrl'] ?? data['directUrl'] ?? data['data']?['embedUrl'] ?? data['embedUrl'] ?? data['url'];
         if (url != null && url.isNotEmpty) {
           if (url.startsWith('/')) url = '$_base$url';
           return url;
@@ -893,11 +893,11 @@ class ApiService {
                 '$_base/api/nexstream/tv/$id/$season/$episode?type=series&title=${Uri.encodeComponent(title)}'),
             headers: await _getHeaders(),
           )
-          .timeout(const Duration(seconds: 6));
+          .timeout(const Duration(seconds: 10));
 
       if (res2.statusCode == 200) {
         final data2 = json.decode(res2.body);
-        String? url2 = data2['data']?['embedUrl'] ?? data2['embedUrl'] ?? data2['url'];
+        String? url2 = data2['data']?['directUrl'] ?? data2['directUrl'] ?? data2['data']?['embedUrl'] ?? data2['embedUrl'] ?? data2['url'];
         if (url2 != null && url2.isNotEmpty) {
           if (url2.startsWith('/')) url2 = '$_base$url2';
           return url2;
@@ -931,7 +931,7 @@ class ApiService {
 
       final uri = Uri.parse('$_base/api/download/resolve').replace(queryParameters: params);
       final headers = await _getHeaders();
-      final res = await http.get(uri, headers: headers).timeout(const Duration(seconds: 15));
+      final res = await http.get(uri, headers: headers).timeout(const Duration(seconds: 25));
 
       if (res.statusCode == 200) {
         final body = json.decode(res.body);

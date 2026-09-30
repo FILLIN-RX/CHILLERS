@@ -2,6 +2,7 @@ library;
 
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../../../models/media_item.dart';
 import '../../models/transfer_enums.dart';
 import '../../models/transfer_progress.dart';
@@ -121,7 +122,7 @@ class _TransferSenderScreenState extends State<TransferSenderScreen> {
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.white),
+          icon: const FaIcon(FontAwesomeIcons.xmark, color: Colors.white),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -144,7 +145,7 @@ class _TransferSenderScreenState extends State<TransferSenderScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 64),
+            const FaIcon(FontAwesomeIcons.triangleExclamation, color: Colors.redAccent, size: 64),
             const SizedBox(height: 16),
             Text(
               _errorMessage!,
@@ -155,7 +156,7 @@ class _TransferSenderScreenState extends State<TransferSenderScreen> {
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFE50914),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               ),
               onPressed: () => Navigator.of(context).pop(),
               child: const Text('Fermer', style: TextStyle(color: Colors.white)),
@@ -200,14 +201,14 @@ class _TransferSenderScreenState extends State<TransferSenderScreen> {
                             width: 50,
                             height: 70,
                             color: Colors.white10,
-                            child: const Icon(Icons.movie, color: Colors.white30),
+                            child: const FaIcon(FontAwesomeIcons.film, color: Colors.white30),
                           ),
                         )
                       : Container(
                           width: 50,
                           height: 70,
                           color: Colors.white10,
-                          child: const Icon(Icons.movie, color: Colors.white30),
+                          child: const FaIcon(FontAwesomeIcons.film, color: Colors.white30),
                         ),
                 ),
                 const SizedBox(width: 14),
@@ -252,7 +253,7 @@ class _TransferSenderScreenState extends State<TransferSenderScreen> {
             Container(
               decoration: BoxDecoration(
                 color: const Color(0xFF1E1E26),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(18),
               ),
               child: Row(
                 children: [
@@ -265,12 +266,12 @@ class _TransferSenderScreenState extends State<TransferSenderScreen> {
                           color: _selectedTabIndex == 0
                               ? const Color(0xFFE50914)
                               : Colors.transparent,
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(18),
                         ),
                         child: const Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.qr_code_scanner, size: 18, color: Colors.white),
+                            FaIcon(FontAwesomeIcons.qrcode, size: 18, color: Colors.white),
                             SizedBox(width: 8),
                             Text('QR Code', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                           ],
@@ -287,12 +288,12 @@ class _TransferSenderScreenState extends State<TransferSenderScreen> {
                           color: _selectedTabIndex == 1
                               ? const Color(0xFFE50914)
                               : Colors.transparent,
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(18),
                         ),
                         child: const Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.nfc, size: 18, color: Colors.white),
+                            FaIcon(FontAwesomeIcons.nfcSymbol, size: 18, color: Colors.white),
                             SizedBox(width: 8),
                             Text('NFC Tap', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                           ],
@@ -330,8 +331,8 @@ class _TransferSenderScreenState extends State<TransferSenderScreen> {
                         color: const Color(0xFFE50914).withValues(alpha: 0.15),
                         border: Border.all(color: const Color(0xFFE50914), width: 2),
                       ),
-                      child: const Icon(
-                        Icons.nfc,
+                      child: const FaIcon(
+                        FontAwesomeIcons.nfcSymbol,
                         color: Color(0xFFE50914),
                         size: 54,
                       ),

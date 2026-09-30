@@ -9,6 +9,16 @@ interface PersistOptions {
   isPremium?: boolean;
 }
 
+function getCleanPersistUrl(result: StreamResult): string | null {
+  if (result.directUrl && result.directUrl.startsWith('http')) {
+    return result.directUrl;
+  }
+  if (result.embedUrl && result.embedUrl.startsWith('http')) {
+    return result.embedUrl;
+  }
+  return null;
+}
+
 /**
  * Service d'auto-sauvegarde en arrière-plan des flux découverts par les providers externes
  */
@@ -20,7 +30,12 @@ export async function persistDiscoveredStream(
   // Exécution asynchrone non-bloquante
   setImmediate(async () => {
     try {
-      if (!result.embedUrl || result.provider === 'mongodb') {
+      if (!result.embedUrl || result.provider === 'mongodb' || result.provider === 'direct') {
+        return;
+      }
+
+      const cleanUrl = getCleanPersistUrl(result);
+      if (!cleanUrl) {
         return;
       }
 
@@ -29,9 +44,9 @@ export async function persistDiscoveredStream(
       const isPremium = options.isPremium ?? (quality === '1080p' || result.provider === 'frenchstream');
 
       if (isMovie) {
-        await persistMovieStream(query, result, quality, isPremium);
+        await persistMovieStream(query, result, cleanUrl, quality, isPremium);
       } else {
-        await persistEpisodeStream(query, result, quality, isPremium);
+        await persistEpisodeStream(query, result, cleanUrl, quality, isPremium);
       }
     } catch (err: any) {
       console.warn(`[AutoPersist] Erreur enregistrement ${result.provider} pour "${query.title || query.tmdbId}":`, err.message);
@@ -45,6 +60,7 @@ export async function persistDiscoveredStream(
 async function persistMovieStream(
   query: StreamQuery,
   result: StreamResult,
+  cleanUrl: string,
   quality: string,
   isPremium: boolean
 ): Promise<void> {
@@ -79,7 +95,7 @@ async function persistMovieStream(
 
   const sourceEntry = {
     source: result.provider,
-    url: result.embedUrl,
+    url: cleanUrl,
     quality,
     isPremium,
     addedAt: new Date(),
@@ -87,15 +103,15 @@ async function persistMovieStream(
 
   if (existingMovie) {
     // Vérifier si cette URL exacte existe déjà
-    const alreadyExists = existingMovie.sources?.some(s => s.url === result.embedUrl);
+    const alreadyExists = existingMovie.sources?.some(s => s.url === cleanUrl);
     if (!alreadyExists) {
       if (!existingMovie.sources) existingMovie.sources = [];
       existingMovie.sources.push(sourceEntry);
     }
 
-    // Mettre à jour le lien principal si c'est un flux de meilleure qualité
-    if (quality === '1080p' || !existingMovie.lien) {
-      existingMovie.lien = result.embedUrl;
+    // Mettre à jour le lien principal si c'est un flux de meilleure qualité ou si l'ancien était pollué
+    if (quality === '1080p' || !existingMovie.lien || existingMovie.lien.startsWith('/api/')) {
+      existingMovie.lien = cleanUrl;
       existingMovie.source = result.provider;
       existingMovie.quality = quality;
     }
@@ -106,7 +122,7 @@ async function persistMovieStream(
     console.log(`[AutoPersist] Film mis à jour en MongoDB: "${existingMovie.titre}" [${result.provider} ${quality}]`);
 
     // Upload en arrière-plan vers Uqload si aucun uqloadCode n'est présent
-    const directVideoUrl = result.directUrl || (result.embedUrl.startsWith('http') ? result.embedUrl : null);
+    const directVideoUrl = result.directUrl || (cleanUrl.startsWith('http') ? cleanUrl : null);
     if (!existingMovie.uqloadCode && directVideoUrl) {
       triggerBackgroundUqloadUpload(existingMovie._id.toString(), directVideoUrl, existingMovie.titre);
     }
@@ -114,8 +130,8 @@ async function persistMovieStream(
     // Créer un nouveau film
     const newMovie = new Movie({
       titre: title,
-      pageUrl: result.embedUrl,
-      lien: result.embedUrl,
+      pageUrl: cleanUrl,
+      lien: cleanUrl,
       tmdbId: query.tmdbId || undefined,
       year: year || undefined,
       posterUrl: posterUrl || undefined,
@@ -132,7 +148,7 @@ async function persistMovieStream(
     console.log(`[AutoPersist] Nouveau film créé en MongoDB: "${title}" [${result.provider} ${quality}]`);
 
     // Upload en arrière-plan vers Uqload
-    const directVideoUrl = result.directUrl || (result.embedUrl.startsWith('http') ? result.embedUrl : null);
+    const directVideoUrl = result.directUrl || (cleanUrl.startsWith('http') ? cleanUrl : null);
     if (directVideoUrl) {
       triggerBackgroundUqloadUpload(newMovie._id.toString(), directVideoUrl, newMovie.titre);
     }
@@ -145,6 +161,7 @@ async function persistMovieStream(
 async function persistEpisodeStream(
   query: StreamQuery,
   result: StreamResult,
+  cleanUrl: string,
   quality: string,
   isPremium: boolean
 ): Promise<void> {
@@ -178,7 +195,7 @@ async function persistEpisodeStream(
 
   const sourceEntry = {
     source: result.provider,
-    url: result.embedUrl,
+    url: cleanUrl,
     quality,
     isPremium,
     addedAt: new Date(),
@@ -187,7 +204,7 @@ async function persistEpisodeStream(
   if (!serie) {
     serie = new Serie({
       titre: title,
-      pageUrl: result.embedUrl,
+      pageUrl: cleanUrl,
       tmdbId: query.tmdbId || undefined,
       year: year || undefined,
       posterUrl: posterUrl || undefined,
@@ -207,12 +224,12 @@ async function persistEpisodeStream(
   if (epIndex >= 0) {
     const ep = serie.episodes[epIndex];
     if (!ep.sources) ep.sources = [];
-    const alreadyExists = ep.sources.some(s => s.url === result.embedUrl);
+    const alreadyExists = ep.sources.some(s => s.url === cleanUrl);
     if (!alreadyExists) {
       ep.sources.push(sourceEntry);
     }
-    if (quality === '1080p' || !ep.lien) {
-      ep.lien = result.embedUrl;
+    if (quality === '1080p' || !ep.lien || ep.lien.startsWith('/api/')) {
+      ep.lien = cleanUrl;
       ep.source = result.provider;
       ep.quality = quality;
       ep.isPremium = isPremium;
@@ -222,7 +239,7 @@ async function persistEpisodeStream(
       episode: episodeLabel,
       season,
       episodeNumber,
-      lien: result.embedUrl,
+      lien: cleanUrl,
       source: result.provider,
       quality,
       isPremium,

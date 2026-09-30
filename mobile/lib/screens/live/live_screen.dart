@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../config/theme.dart';
 import '../../models/live_channel.dart';
@@ -7,7 +8,6 @@ import '../../models/user_model.dart';
 import '../../services/api_service.dart';
 import '../../services/storage_service.dart';
 import '../../widgets/app_video_player.dart';
-import '../../widgets/app_drawer.dart';
 import '../../widgets/upgrade_modal.dart';
 import '../search/search_screen.dart';
 import '../profile/profile_screen.dart';
@@ -49,25 +49,25 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
   String _currentTitle = 'Live TV & Foot';
   String? _currentSubtitle;
 
-  final List<Map<String, dynamic>> _channelCategories = const [
-    {'id': 'all', 'label': 'Toutes', 'icon': Icons.tune_rounded},
-    {'id': 'sport', 'label': 'Sports TV', 'icon': Icons.sports_soccer_rounded},
-    {'id': 'cinema', 'label': 'Cinéma', 'icon': Icons.movie_creation_rounded},
-    {'id': 'news', 'label': 'Infos', 'icon': Icons.newspaper_rounded},
-    {'id': 'general', 'label': 'Général', 'icon': Icons.public_rounded},
-    {'id': 'music', 'label': 'Musique', 'icon': Icons.music_note_rounded},
+  final List<Map<String, dynamic>> _channelCategories = [
+    {'id': 'all', 'label': 'Toutes', 'icon': FontAwesomeIcons.sliders.data},
+    {'id': 'sport', 'label': 'Sports TV', 'icon': FontAwesomeIcons.futbol.data},
+    {'id': 'cinema', 'label': 'Cinéma', 'icon': FontAwesomeIcons.clapperboard.data},
+    {'id': 'news', 'label': 'Infos', 'icon': FontAwesomeIcons.newspaper.data},
+    {'id': 'general', 'label': 'Général', 'icon': FontAwesomeIcons.globe.data},
+    {'id': 'music', 'label': 'Musique', 'icon': FontAwesomeIcons.music.data},
   ];
 
-  final List<Map<String, dynamic>> _matchFilters = const [
-    {'id': 'all', 'label': 'Tous les Matchs', 'icon': Icons.sports_soccer_rounded},
-    {'id': 'live', 'label': 'En Direct', 'icon': Icons.circle_rounded},
-    {'id': 'uefa', 'label': 'Champions League', 'icon': Icons.emoji_events_rounded},
-    {'id': 'premier-league', 'label': 'Premier League', 'icon': Icons.sports_soccer_rounded},
-    {'id': 'la-liga', 'label': 'La Liga', 'icon': Icons.sports_soccer_rounded},
-    {'id': 'serie-a', 'label': 'Serie A', 'icon': Icons.sports_soccer_rounded},
-    {'id': 'bundesliga', 'label': 'Bundesliga', 'icon': Icons.sports_soccer_rounded},
-    {'id': 'ligue-1', 'label': 'Ligue 1', 'icon': Icons.sports_soccer_rounded},
-    {'id': 'upcoming', 'label': 'À Venir', 'icon': Icons.schedule_rounded},
+  final List<Map<String, dynamic>> _matchFilters = [
+    {'id': 'all', 'label': 'Tous les Matchs', 'icon': FontAwesomeIcons.futbol.data},
+    {'id': 'live', 'label': 'En Direct', 'icon': FontAwesomeIcons.circle.data},
+    {'id': 'uefa', 'label': 'Champions League', 'icon': FontAwesomeIcons.trophy.data},
+    {'id': 'premier-league', 'label': 'Premier League', 'icon': FontAwesomeIcons.futbol.data},
+    {'id': 'la-liga', 'label': 'La Liga', 'icon': FontAwesomeIcons.futbol.data},
+    {'id': 'serie-a', 'label': 'Serie A', 'icon': FontAwesomeIcons.futbol.data},
+    {'id': 'bundesliga', 'label': 'Bundesliga', 'icon': FontAwesomeIcons.futbol.data},
+    {'id': 'ligue-1', 'label': 'Ligue 1', 'icon': FontAwesomeIcons.futbol.data},
+    {'id': 'upcoming', 'label': 'À Venir', 'icon': FontAwesomeIcons.clock.data},
   ];
 
   @override
@@ -227,12 +227,6 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: AppTheme.background,
-      drawer: isDesktop
-          ? null
-          : AppDrawer(
-              activeCategory: 'En Direct',
-              onSelectCategory: (_) {},
-            ),
       body: SafeArea(
         top: !isDesktop,
         child: Column(
@@ -250,14 +244,6 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
                 children: [
                   Row(
                     children: [
-                      IconButton(
-                        icon: const Icon(Icons.menu_rounded, color: Colors.white, size: 24),
-                        onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-                        tooltip: 'Menu',
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
-                      const SizedBox(width: 12),
                       Row(
                         children: [
                           ClipRRect(
@@ -273,7 +259,7 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
                                   color: AppTheme.primary,
                                   borderRadius: BorderRadius.circular(6),
                                 ),
-                                child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 18),
+                                child: const FaIcon(FontAwesomeIcons.play, color: Colors.white, size: 18),
                               ),
                             ),
                           ),
@@ -323,7 +309,7 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
                             color: Colors.white.withValues(alpha: 0.08),
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.search_rounded, color: Colors.white, size: 20),
+                          child: const FaIcon(FontAwesomeIcons.magnifyingGlass, color: Colors.white, size: 20),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -344,7 +330,7 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
                               ),
                             ],
                           ),
-                          child: const Icon(Icons.workspace_premium_rounded, color: Colors.black, size: 20),
+                          child: const FaIcon(FontAwesomeIcons.award, color: Colors.black, size: 20),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -423,7 +409,7 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        const Icon(Icons.circle, color: Colors.white, size: 7),
+                                        const FaIcon(FontAwesomeIcons.circle, color: Colors.white, size: 7),
                                         const SizedBox(width: 4),
                                         Text(
                                           isMatchActive ? 'DIRECT FOOT' : 'EN DIRECT',
@@ -439,7 +425,7 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(isMatchActive ? Icons.sports_soccer_rounded : Icons.live_tv_rounded,
+                                  Icon(isMatchActive ? FontAwesomeIcons.futbol.data : FontAwesomeIcons.tv.data,
                                       color: Colors.white24, size: 48),
                                   const SizedBox(height: 8),
                                   Text(
@@ -471,13 +457,13 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
                         width: 32,
                         height: 32,
                         fit: BoxFit.contain,
-                        errorWidget: (context, url, error) => const Icon(Icons.tv, color: Colors.white70, size: 24),
+                        errorWidget: (context, url, error) => const FaIcon(FontAwesomeIcons.tv, color: Colors.white70, size: 24),
                       ),
                     )
                   else if (_activeMatch != null)
                     _buildTeamLogo(_activeMatch!.homeLogo, _activeMatch!.home, size: 30)
                   else
-                    const Icon(Icons.live_tv_rounded, color: AppTheme.primary, size: 24),
+                    const FaIcon(FontAwesomeIcons.tv, color: AppTheme.primary, size: 24),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
@@ -503,7 +489,7 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
                   ],
                   const SizedBox(width: 6),
                   IconButton(
-                    icon: const Icon(Icons.refresh_rounded, color: Colors.white70),
+                    icon: const FaIcon(FontAwesomeIcons.arrowsRotate, color: Colors.white70),
                     onPressed: _loadData,
                     tooltip: 'Recharger',
                   ),
@@ -530,7 +516,7 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
                     icon: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.tv_rounded, size: 16),
+                        FaIcon(FontAwesomeIcons.tv, size: 16),
                         SizedBox(width: 6),
                         Text('Chaînes TV'),
                       ],
@@ -540,7 +526,7 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
                     icon: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.sports_soccer_rounded, size: 16),
+                        const FaIcon(FontAwesomeIcons.futbol, size: 16),
                         const SizedBox(width: 6),
                         const Text('Matchs de Foot'),
                         if (liveMatchesCount > 0) ...[
@@ -701,7 +687,7 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
                                   child: Container(
                                     decoration: BoxDecoration(
                                       color: const Color(0xFF18181B),
-                                      borderRadius: BorderRadius.circular(14),
+                                      borderRadius: BorderRadius.circular(18),
                                       border: Border.all(
                                         color: isActive ? AppTheme.primary : Colors.white10,
                                         width: isActive ? 2 : 1,
@@ -734,14 +720,14 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
                                                         width: 64,
                                                         height: 64,
                                                         fit: BoxFit.contain,
-                                                        errorWidget: (context, url, error) => const Icon(
-                                                          Icons.tv_rounded,
+                                                        errorWidget: (context, url, error) => const FaIcon(
+                                                          FontAwesomeIcons.tv,
                                                           color: Colors.white24,
                                                           size: 44,
                                                         ),
                                                       )
-                                                    : const Icon(
-                                                        Icons.tv_rounded,
+                                                    : const FaIcon(
+                                                        FontAwesomeIcons.tv,
                                                         color: Colors.white24,
                                                         size: 44,
                                                       ),
@@ -783,7 +769,7 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
                                             child: const Row(
                                               mainAxisSize: MainAxisSize.min,
                                               children: [
-                                                Icon(Icons.circle, color: Colors.white, size: 6),
+                                                FaIcon(FontAwesomeIcons.circle, color: Colors.white, size: 6),
                                                 SizedBox(width: 4),
                                                 Text(
                                                   'EN DIRECT',
@@ -813,7 +799,7 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
                                               child: const Row(
                                                 mainAxisSize: MainAxisSize.min,
                                                 children: [
-                                                  Icon(Icons.equalizer_rounded, color: Colors.white, size: 12),
+                                                  FaIcon(FontAwesomeIcons.sliders, color: Colors.white, size: 12),
                                                   SizedBox(width: 4),
                                                   Text(
                                                     'En cours',
@@ -850,14 +836,14 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
                                             ? CachedNetworkImage(
                                                 imageUrl: channel.logo,
                                                 fit: BoxFit.contain,
-                                                errorWidget: (context, url, error) => const Icon(
-                                                  Icons.tv,
+                                                errorWidget: (context, url, error) => const FaIcon(
+                                                  FontAwesomeIcons.tv,
                                                   color: Colors.white54,
                                                   size: 16,
                                                 ),
                                               )
-                                            : const Icon(
-                                                Icons.tv,
+                                            : const FaIcon(
+                                                FontAwesomeIcons.tv,
                                                 color: Colors.white54,
                                                 size: 16,
                                               ),
@@ -898,8 +884,8 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
                                                 ),
                                               ),
                                               const SizedBox(width: 4),
-                                              const Icon(
-                                                Icons.check_circle_rounded,
+                                              const FaIcon(
+                                                FontAwesomeIcons.circleCheck,
                                                 color: Colors.white54,
                                                 size: 12,
                                               ),
@@ -919,7 +905,7 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
 
                                     // 3-dots Menu Button
                                     IconButton(
-                                      icon: const Icon(Icons.more_vert_rounded, color: Colors.white54, size: 18),
+                                      icon: const FaIcon(FontAwesomeIcons.ellipsisVertical, color: Colors.white54, size: 18),
                                       padding: EdgeInsets.zero,
                                       constraints: const BoxConstraints(),
                                       onPressed: () {},
@@ -1024,7 +1010,7 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.sports_soccer_rounded, size: 56, color: AppTheme.textSecondary),
+                        const FaIcon(FontAwesomeIcons.futbol, size: 56, color: AppTheme.textSecondary),
                         const SizedBox(height: 12),
                         const Text(
                           'Aucun match trouvé',
@@ -1044,7 +1030,7 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                           ),
                           onPressed: _loadData,
-                          icon: const Icon(Icons.refresh_rounded),
+                          icon: const FaIcon(FontAwesomeIcons.arrowsRotate),
                           label: const Text('Actualiser'),
                         ),
                       ],
@@ -1105,7 +1091,7 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: isActive ? AppTheme.primary.withValues(alpha: 0.16) : AppTheme.card,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: isActive
                 ? AppTheme.primary
@@ -1123,7 +1109,7 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
                 Row(
                   children: [
                     if (isUefa) ...[
-                      const Icon(Icons.emoji_events_rounded, color: Colors.amber, size: 15),
+                      const FaIcon(FontAwesomeIcons.trophy, color: Colors.amber, size: 15),
                       const SizedBox(width: 4),
                     ],
                     Text(
@@ -1239,7 +1225,7 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
-                  isActive ? Icons.volume_up_rounded : Icons.play_circle_fill_rounded,
+                  isActive ? FontAwesomeIcons.volumeHigh.data : FontAwesomeIcons.circlePlay.data,
                   color: isActive ? AppTheme.primary : Colors.white70,
                   size: 15,
                 ),
@@ -1276,7 +1262,7 @@ class LiveScreenState extends State<LiveScreen> with SingleTickerProviderStateMi
               color: Colors.white10,
               shape: BoxShape.circle,
             ),
-            child: Icon(Icons.shield_outlined, color: Colors.white24, size: size * 0.5),
+            child: FaIcon(FontAwesomeIcons.shield, color: Colors.white24, size: size * 0.5),
           ),
           errorWidget: (context, url, error) => Container(
             width: size,

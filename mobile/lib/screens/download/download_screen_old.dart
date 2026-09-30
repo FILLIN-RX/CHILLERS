@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../config/theme.dart';
 import '../../models/media_item.dart';
@@ -125,7 +126,7 @@ class _DownloadScreenState extends State<DownloadScreen> {
         actions: [
           if (tasks.isNotEmpty)
             IconButton(
-              icon: const Icon(Icons.delete_sweep_rounded, color: Colors.white70),
+              icon: const FaIcon(FontAwesomeIcons.trashCanArrowUp, color: Colors.white70),
               tooltip: 'Tout effacer',
               onPressed: () {
                 showDialog(
@@ -167,12 +168,12 @@ class _DownloadScreenState extends State<DownloadScreen> {
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: AppTheme.card,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.sd_storage_rounded, color: AppTheme.primary, size: 24),
+                      const FaIcon(FontAwesomeIcons.sdCard, color: AppTheme.primary, size: 24),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
@@ -223,8 +224,8 @@ class _DownloadScreenState extends State<DownloadScreen> {
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
               ),
-              child: const Icon(
-                Icons.download_for_offline_rounded,
+              child: const FaIcon(
+                FontAwesomeIcons.download,
                 size: 64,
                 color: AppTheme.primary,
               ),
@@ -263,7 +264,7 @@ class _DownloadScreenState extends State<DownloadScreen> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppTheme.card,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: isDone ? Colors.white.withValues(alpha: 0.08) : AppTheme.primary.withValues(alpha: 0.3),
         ),
@@ -285,14 +286,14 @@ class _DownloadScreenState extends State<DownloadScreen> {
                           width: 60,
                           height: 85,
                           color: Colors.white12,
-                          child: const Icon(Icons.movie, color: Colors.white38),
+                          child: const FaIcon(FontAwesomeIcons.film, color: Colors.white38),
                         ),
                       )
                     : Container(
                         width: 60,
                         height: 85,
                         color: Colors.white12,
-                        child: const Icon(Icons.movie, color: Colors.white38),
+                        child: const FaIcon(FontAwesomeIcons.film, color: Colors.white38),
                       ),
               ),
 
@@ -366,8 +367,8 @@ class _DownloadScreenState extends State<DownloadScreen> {
                 IconButton(
                   icon: Icon(
                     task.publicUri != null
-                        ? Icons.open_in_new_rounded
-                        : Icons.play_circle_filled_rounded,
+                        ? FontAwesomeIcons.arrowUpRightFromSquare.data
+                        : FontAwesomeIcons.circlePlay.data,
                     color: AppTheme.primary,
                     size: 36,
                   ),
@@ -376,17 +377,17 @@ class _DownloadScreenState extends State<DownloadScreen> {
                 )
               else if (isDownloading)
                 IconButton(
-                  icon: const Icon(Icons.pause_circle_filled_rounded, color: Colors.amber, size: 32),
+                  icon: const FaIcon(FontAwesomeIcons.circlePause, color: Colors.amber, size: 32),
                   onPressed: () => _downloadService.pauseDownload(task.id),
                 )
               else
                 IconButton(
-                  icon: const Icon(Icons.play_circle_outline_rounded, color: Colors.white70, size: 32),
+                  icon: const FaIcon(FontAwesomeIcons.circlePlay, color: Colors.white70, size: 32),
                   onPressed: () => _downloadService.resumeDownload(task.id),
                 ),
 
               IconButton(
-                icon: const Icon(Icons.close_rounded, color: Colors.white38, size: 20),
+                icon: const FaIcon(FontAwesomeIcons.xmark, color: Colors.white38, size: 20),
                 onPressed: () => _downloadService.removeDownload(task.id),
               ),
             ],
@@ -397,7 +398,7 @@ class _DownloadScreenState extends State<DownloadScreen> {
             const SizedBox(height: 10),
             Row(
               children: [
-                const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 14),
+                const FaIcon(FontAwesomeIcons.triangleExclamation, color: Colors.redAccent, size: 14),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(

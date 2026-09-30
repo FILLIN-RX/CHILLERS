@@ -145,10 +145,11 @@ class DownloadService extends ChangeNotifier {
   ));
 
   List<DownloadTask> get tasks => List.unmodifiable(_tasks);
-  List<DownloadTask> get activeTasks => _tasks.where((t) => t.status == 'downloading').toList();
+  List<DownloadTask> get activeTasks => _tasks.where((t) => t.status == 'downloading' || t.status == 'pending').toList();
+  List<DownloadTask> get inProgressTasks => _tasks.where((t) => t.status == 'downloading' || t.status == 'paused' || t.status == 'pending').toList();
   List<DownloadTask> get completedTasks => _tasks.where((t) => t.status == 'completed').toList();
-  List<DownloadTask> get inAppDownloads => _tasks.where((t) => !t.isExternal && t.status == 'completed').toList();
-  List<DownloadTask> get externalDownloads => _tasks.where((t) => t.isExternal && t.status == 'completed').toList();
+  List<DownloadTask> get inAppDownloads => _tasks.where((t) => !t.isExternal).toList();
+  List<DownloadTask> get externalDownloads => _tasks.where((t) => t.isExternal).toList();
   
   /// Obtenir le mode de téléchargement recommandé selon l'abonnement
   String getDownloadModeDescription(bool isPremium) {

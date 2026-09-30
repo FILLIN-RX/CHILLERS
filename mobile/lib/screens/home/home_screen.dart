@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../config/theme.dart';
 import '../../models/media_item.dart';
@@ -7,7 +8,6 @@ import '../../services/api_service.dart';
 import '../../services/storage_service.dart';
 import '../../services/pagination_service.dart';
 import '../../widgets/hero_carousel.dart';
-import '../../widgets/app_drawer.dart';
 import '../../widgets/infinite_media_section.dart';
 import '../detail/detail_screen.dart';
 import '../watch/watch_screen.dart';
@@ -37,15 +37,15 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _hasMoreFeed = true;
   String _selectedMatchLeague = 'all';
 
-  final List<Map<String, dynamic>> _homeLeagueFilters = const [
-    {'id': 'all', 'label': 'Tous', 'icon': Icons.sports_soccer_rounded},
-    {'id': 'live', 'label': 'En Direct', 'icon': Icons.circle_rounded},
-    {'id': 'uefa', 'label': 'Champions League', 'icon': Icons.emoji_events_rounded},
-    {'id': 'premier-league', 'label': 'Premier League', 'icon': Icons.sports_soccer_rounded},
-    {'id': 'la-liga', 'label': 'La Liga', 'icon': Icons.sports_soccer_rounded},
-    {'id': 'serie-a', 'label': 'Serie A', 'icon': Icons.sports_soccer_rounded},
-    {'id': 'bundesliga', 'label': 'Bundesliga', 'icon': Icons.sports_soccer_rounded},
-    {'id': 'ligue-1', 'label': 'Ligue 1', 'icon': Icons.sports_soccer_rounded},
+  final List<Map<String, dynamic>> _homeLeagueFilters = [
+    {'id': 'all', 'label': 'Tous', 'icon': FontAwesomeIcons.futbol.data},
+    {'id': 'live', 'label': 'En Direct', 'icon': FontAwesomeIcons.circle.data},
+    {'id': 'uefa', 'label': 'Champions League', 'icon': FontAwesomeIcons.trophy.data},
+    {'id': 'premier-league', 'label': 'Premier League', 'icon': FontAwesomeIcons.futbol.data},
+    {'id': 'la-liga', 'label': 'La Liga', 'icon': FontAwesomeIcons.futbol.data},
+    {'id': 'serie-a', 'label': 'Serie A', 'icon': FontAwesomeIcons.futbol.data},
+    {'id': 'bundesliga', 'label': 'Bundesliga', 'icon': FontAwesomeIcons.futbol.data},
+    {'id': 'ligue-1', 'label': 'Ligue 1', 'icon': FontAwesomeIcons.futbol.data},
   ];
 
   bool _isLoading = true;
@@ -219,16 +219,6 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: AppTheme.background,
-      drawer: isDesktop
-          ? null
-          : AppDrawer(
-              activeCategory: 'Tous',
-              onSelectCategory: (cat) {
-                if (cat == 'En Direct') {
-                  MainNavigation.switchTab(context, 2);
-                }
-              },
-            ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
           : Stack(
@@ -332,7 +322,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                             child: Row(
                               children: [
-                                const Icon(Icons.auto_awesome_rounded, color: AppTheme.primary, size: 20),
+                                const FaIcon(FontAwesomeIcons.wandMagicSparkles, color: AppTheme.primary, size: 20),
                                 const SizedBox(width: 8),
                                 const Text(
                                   'Explorer sans fin',
@@ -378,7 +368,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                         children: [
                                           Expanded(
                                             child: ClipRRect(
-                                              borderRadius: BorderRadius.circular(10),
+                                              borderRadius: BorderRadius.circular(16),
                                               child: (item.poster != null && item.poster!.isNotEmpty)
                                                   ? CachedNetworkImage(
                                                       imageUrl: item.poster!,
@@ -387,12 +377,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                                       placeholder: (context, url) => Container(color: AppTheme.card),
                                                       errorWidget: (context, url, error) => Container(
                                                         color: AppTheme.card,
-                                                        child: const Icon(Icons.movie, color: Colors.white24),
+                                                        child: const FaIcon(FontAwesomeIcons.film, color: Colors.white24),
                                                       ),
                                                     )
                                                   : Container(
                                                       color: AppTheme.card,
-                                                      child: const Icon(Icons.movie, color: Colors.white24),
+                                                      child: const FaIcon(FontAwesomeIcons.film, color: Colors.white24),
                                                     ),
                                             ),
                                           ),
@@ -459,15 +449,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       child: Row(
                         children: [
-                          // Menu Button
-                          GestureDetector(
-                            onTap: () => _scaffoldKey.currentState?.openDrawer(),
-                            child: const Icon(
-                              Icons.menu_rounded,
-                              color: Colors.white,
-                              size: 24,
-                            ),
-                          ),
                           const Spacer(),
 
                           // Search Button
@@ -488,8 +469,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               child: const Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(
-                                    Icons.search_rounded,
+                                  FaIcon(
+                                    FontAwesomeIcons.magnifyingGlass,
                                     color: AppTheme.primary,
                                     size: 18,
                                   ),
@@ -562,7 +543,7 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
           child: Row(
             children: [
-              const Icon(Icons.sports_soccer_rounded, color: AppTheme.primary, size: 20),
+              const FaIcon(FontAwesomeIcons.futbol, color: AppTheme.primary, size: 20),
               const SizedBox(width: 8),
               const Text(
                 'Matchs de Football en Direct',
@@ -644,7 +625,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 margin: const EdgeInsets.symmetric(horizontal: 16),
                 decoration: BoxDecoration(
                   color: AppTheme.card,
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(18),
                   border: Border.all(color: Colors.white10),
                 ),
                 child: Center(
@@ -678,7 +659,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
                           color: AppTheme.card,
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(18),
                           border: Border.all(
                             color: isLive ? AppTheme.primary.withValues(alpha: 0.6) : Colors.white10,
                             width: isLive ? 1.5 : 1,
@@ -695,7 +676,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     if (isUefa) ...[
-                                      const Icon(Icons.emoji_events_rounded, color: Colors.amber, size: 14),
+                                      const FaIcon(FontAwesomeIcons.trophy, color: Colors.amber, size: 14),
                                       const SizedBox(width: 4),
                                     ],
                                     Text(
@@ -809,7 +790,7 @@ class _HomeScreenState extends State<HomeScreen> {
               color: Colors.white10,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.shield_outlined, color: Colors.white24, size: 16),
+            child: const FaIcon(FontAwesomeIcons.shield, color: Colors.white24, size: 16),
           ),
           errorWidget: (context, url, error) => Container(
             width: 32,
@@ -852,7 +833,7 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
           child: Row(
             children: [
-              const Icon(Icons.play_circle_outline_rounded, color: AppTheme.primary, size: 20),
+              const FaIcon(FontAwesomeIcons.circlePlay, color: AppTheme.primary, size: 20),
               const SizedBox(width: 8),
               const Text(
                 'Reprendre la lecture',
@@ -892,7 +873,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(16),
                             child: Stack(
                               alignment: Alignment.center,
                               children: [
@@ -906,14 +887,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                         errorWidget: (context, url, error) => Container(
                                           height: 100,
                                           color: AppTheme.card,
-                                          child: const Icon(Icons.movie, color: Colors.white24),
+                                          child: const FaIcon(FontAwesomeIcons.film, color: Colors.white24),
                                         ),
                                       )
                                     : Container(
                                         height: 100,
                                         width: 200,
                                         color: AppTheme.card,
-                                        child: const Icon(Icons.movie, color: Colors.white24),
+                                        child: const FaIcon(FontAwesomeIcons.film, color: Colors.white24),
                                       ),
                                 Container(
                                   height: 100,
@@ -927,7 +908,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     shape: BoxShape.circle,
                                     border: Border.all(color: Colors.white30),
                                   ),
-                                  child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 22),
+                                  child: const FaIcon(FontAwesomeIcons.play, color: Colors.white, size: 22),
                                 ),
                                 Positioned(
                                   bottom: 0,
@@ -979,7 +960,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               color: Colors.black.withValues(alpha: 0.7),
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(Icons.close_rounded, color: Colors.white70, size: 14),
+                            child: const FaIcon(FontAwesomeIcons.xmark, color: Colors.white70, size: 14),
                           ),
                         ),
                       ),

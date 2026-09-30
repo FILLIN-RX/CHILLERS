@@ -1,6 +1,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../models/connection_credentials.dart';
@@ -78,13 +79,13 @@ class QRDisplayWidget extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           decoration: BoxDecoration(
             color: const Color(0xFF1E1E26),
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(18),
             border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.pin, color: Color(0xFFE50914), size: 20),
+              const FaIcon(FontAwesomeIcons.thumbtack, color: Color(0xFFE50914), size: 20),
               const SizedBox(width: 8),
               Text(
                 'Code PIN : ',
@@ -104,7 +105,7 @@ class QRDisplayWidget extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               IconButton(
-                icon: const Icon(Icons.copy, color: Colors.white70, size: 18),
+                icon: const FaIcon(FontAwesomeIcons.copy, color: Colors.white70, size: 18),
                 splashRadius: 20,
                 onPressed: () {
                   Clipboard.setData(ClipboardData(text: manualCode));

@@ -134,10 +134,26 @@ async function fetchWithFlareSolverr(
 // les anciens tests "taille > 500 && pas 'Just a moment'" et faisaient
 // abandonner la recherche avant d'utiliser le proxy. On rejette donc toute
 // page qui ressemble à un blocage Cloudflare.
+// Une page HTML est exploitable si elle contient les blocs de matches ou streams LiveBall,
+// ou si elle ne présente aucun marqueur de blocage Cloudflare.
 function isUsableLiveBallHtml(html: string | null | undefined): html is string {
   if (!html) return false;
   const h = html.trim();
   if (h.length < 500) return false;
+
+  // Si la page contient explicitement les structures LiveBall, c'est du HTML valide
+  if (
+    h.includes('live_block2') ||
+    h.includes('live_section') ||
+    h.includes('top_match_section') ||
+    h.includes('top_match') ||
+    h.includes('class="match_a') ||
+    h.includes('_lbStreams') ||
+    h.includes('_xrq(')
+  ) {
+    return true;
+  }
+
   const lower = h.toLowerCase();
   const BLOCKED_MARKERS = [
     'just a moment',
@@ -146,7 +162,6 @@ function isUsableLiveBallHtml(html: string | null | undefined): html is string {
     'cf-chl',
     'cf-turnstile',
     'cf-error-details',
-    '/cdn-cgi/challenge',
     'access denied',
     'verify you are human',
     'enable javascript and cookies to continue',
@@ -154,29 +169,18 @@ function isUsableLiveBallHtml(html: string | null | undefined): html is string {
     'corporate networks',
     'virtual private network',
     '기상 악화',
+    'challenge-form',
+    'challenge-running',
+    'cf-browser-verification',
   ];
   if (BLOCKED_MARKERS.some((m) => lower.includes(m))) return false;
   if (/<title>\s*(403|error|forbidden|blocked|pardon)[^<]*<\/title>/i.test(h)) return false;
   return true;
 }
 
-// Récupération HTML : Direct d'abord (ultra rapide en local/résidentiel), puis Proxy/FlareSolverr en fallback
+// Récupération HTML : Direct cURL d'abord (ultra rapide en local/résidentiel), puis Proxy/FlareSolverr en fallback
 async function fetchHtmlWithCurl(url: string): Promise<string> {
-  // 1. Essai direct avec cloudscraper
-  try {
-    const csRes = await (cloudscraper as any).get({
-      uri: url,
-      headers: {
-        'User-Agent': USER_AGENT,
-        'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
-      },
-    });
-    if (isUsableLiveBallHtml(csRes)) {
-      return csRes;
-    }
-  } catch (_) {}
-
-  // 2. Essai direct avec cURL
+  // 1. Essai direct avec cURL
   try {
     const curlArgs = [
       '-sSL',
@@ -207,6 +211,20 @@ async function fetchHtmlWithCurl(url: string): Promise<string> {
     }
   } catch (_) {}
 
+  // 2. Essai direct avec cloudscraper
+  try {
+    const csRes = await (cloudscraper as any).get({
+      uri: url,
+      headers: {
+        'User-Agent': USER_AGENT,
+        'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
+      },
+    });
+    if (isUsableLiveBallHtml(csRes)) {
+      return csRes;
+    }
+  } catch (_) {}
+
   // 3. Fallback via Proxy si disponible
   const proxy = await getEffectiveProxy();
   if (proxy) {
@@ -216,8 +234,8 @@ async function fetchHtmlWithCurl(url: string): Promise<string> {
         headers: { 'User-Agent': USER_AGENT },
         proxy,
       });
-      if (typeof csRes === 'string' && csRes.length > 500 && !csRes.includes('Just a moment')) {
-        if (isUsableLiveBallHtml(csRes)) return csRes;
+      if (typeof csRes === 'string' && isUsableLiveBallHtml(csRes)) {
+        return csRes;
       }
     } catch (_) {}
   }
@@ -829,7 +847,14 @@ interface StreamResponse {
 }
 
 // Résout le flux réel d'un match live (HLS ou player iframe).
-//
+function isForbiddenPageUrl(url: string | undefined | null): boolean {
+  if (!url || typeof url !== 'string') return true;
+  return (
+    /liveball\.(sx|im|to|net|org|com)/i.test(url) &&
+    (url.includes('/match/') || !url.includes('.m3u8'))
+  ) || /1xbet|melbet|betting/i.test(url);
+}
+
 // Chaque page de match embarque un token signé soit via
 // `window._lbStreams = {"b0": {"t": "..."}, "b1": {"t": "..."}}`, soit via
 // `<script>_xrq("...")</script>`. cl.min.js le décode (XOR avec TOKEN_XOR_KEY)
@@ -839,7 +864,7 @@ interface StreamResponse {
 export async function resolveLiveBallStream(matchId: string, forceRefresh = false): Promise<ResolvedStream | null> {
   if (!forceRefresh) {
     const cached = STREAM_CACHE.get(matchId);
-    if (cached) return cached;
+    if (cached && !isForbiddenPageUrl(cached.url)) return cached;
   } else {
     STREAM_CACHE.delete(matchId);
   }
@@ -849,7 +874,7 @@ export async function resolveLiveBallStream(matchId: string, forceRefresh = fals
 
     // Fetch page across active domains
     let html: string | null = null;
-    let activeDomain = 'liveball.to';
+    let activeDomain = process.env.LIVEBALL_DOMAIN || 'liveball.sx';
     for (const domain of LIVEBALL_BASE_DOMAINS) {
       try {
         html = await fetchHtmlWithCurl(`https://${domain}/match/${matchId}`);
@@ -896,17 +921,19 @@ export async function resolveLiveBallStream(matchId: string, forceRefresh = fals
           const item = streams[key];
           if (!item) continue;
 
-          // Direct URL / Player embed inside _lbStreams
-          const directUrl = item.u || item.p || item.src || item.url || item.stream;
-          if (directUrl && typeof directUrl === 'string' && directUrl.length > 5) {
+          // Direct URL / Player embed inside _lbStreams ONLY if it's a real direct video stream
+          const directUrl = item.src || item.stream || item.url;
+          if (directUrl && typeof directUrl === 'string' && directUrl.length > 5 && !isForbiddenPageUrl(directUrl)) {
             let u = directUrl.trim();
             if (u.startsWith('//')) u = `https:${u}`;
-            else if (u.startsWith('/')) u = `https://${activeDomain}${u}`;
-            const type = /\.m3u8($|\?)/i.test(u) ? 'hls' : 'iframe';
-            const stream: ResolvedStream = { url: u, type };
-            STREAM_CACHE.set(matchId, stream);
-            console.log(`[LiveBall] ✓ Direct stream found in _lbStreams for match ${matchId} (${type}): ${u}`);
-            return stream;
+            else if (u.startsWith('/') && /\.m3u8/i.test(u)) u = `https://${activeDomain}${u}`;
+            if (/^https?:\/\//i.test(u) && !isForbiddenPageUrl(u)) {
+              const type = /\.m3u8($|\?)/i.test(u) ? 'hls' : 'iframe';
+              const stream: ResolvedStream = { url: u, type };
+              STREAM_CACHE.set(matchId, stream);
+              console.log(`[LiveBall] ✓ Direct stream found in _lbStreams for match ${matchId} (${type}): ${u}`);
+              return stream;
+            }
           }
 
           const rawT = item.t;
@@ -1034,6 +1061,8 @@ export async function resolveLiveBallStream(matchId: string, forceRefresh = fals
         if (url.startsWith('//')) url = `https:${url}`;
         else if (url.startsWith('/')) url = `https://${activeDomain}${url}`;
 
+        if (isForbiddenPageUrl(url)) continue;
+
         const type: 'hls' | 'iframe' =
           parsed.m === 'f' || !/\.m3u8($|\?)/i.test(url) ? 'iframe' : 'hls';
 
@@ -1052,20 +1081,24 @@ export async function resolveLiveBallStream(matchId: string, forceRefresh = fals
     if (iframeMatch && iframeMatch[1] && !iframeMatch[1].includes('about:blank')) {
       let u = iframeMatch[1].trim();
       if (u.startsWith('//')) u = `https:${u}`;
-      const stream: ResolvedStream = { url: u, type: 'iframe' };
-      STREAM_CACHE.set(matchId, stream);
-      console.log(`[LiveBall] ✓ Fallback iframe stream found for match ${matchId}: ${u}`);
-      return stream;
+      if (!isForbiddenPageUrl(u)) {
+        const stream: ResolvedStream = { url: u, type: 'iframe' };
+        STREAM_CACHE.set(matchId, stream);
+        console.log(`[LiveBall] ✓ Fallback iframe stream found for match ${matchId}: ${u}`);
+        return stream;
+      }
     }
 
-    const regexStreamMatch = html.match(/(https?:\/\/[^"'\s<>]*(?:nhr|hayuhi|player|stream|live|m3u8)[^"'\s<>]*)/i);
+    const regexStreamMatch = html.match(/(https?:\/\/[^"'\s<>]*(?:nhr|hayuhi|player|m3u8)[^"'\s<>]*)/i);
     if (regexStreamMatch && regexStreamMatch[1]) {
       const u = regexStreamMatch[1].trim();
-      const type = /\.m3u8($|\?)/i.test(u) ? 'hls' : 'iframe';
-      const stream: ResolvedStream = { url: u, type };
-      STREAM_CACHE.set(matchId, stream);
-      console.log(`[LiveBall] ✓ Fallback regex stream found for match ${matchId} (${type}): ${u}`);
-      return stream;
+      if (!isForbiddenPageUrl(u)) {
+        const type = /\.m3u8($|\?)/i.test(u) ? 'hls' : 'iframe';
+        const stream: ResolvedStream = { url: u, type };
+        STREAM_CACHE.set(matchId, stream);
+        console.log(`[LiveBall] ✓ Fallback regex stream found for match ${matchId} (${type}): ${u}`);
+        return stream;
+      }
     }
 
     console.warn(`[LiveBall] All stream candidates failed to resolve for match ${matchId}`);

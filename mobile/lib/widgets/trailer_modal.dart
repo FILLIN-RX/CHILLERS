@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../config/theme.dart';
 import '../models/media_item.dart';
 import '../services/api_service.dart';
@@ -109,7 +110,7 @@ class _TrailerModalState extends State<TrailerModal> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             child: Row(
               children: [
-                const Icon(Icons.movie_creation_rounded, color: AppTheme.primary, size: 20),
+                const FaIcon(FontAwesomeIcons.clapperboard, color: AppTheme.primary, size: 20),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Column(
@@ -133,7 +134,7 @@ class _TrailerModalState extends State<TrailerModal> {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close_rounded, color: Colors.white70),
+                  icon: const FaIcon(FontAwesomeIcons.xmark, color: Colors.white70),
                   onPressed: () => Navigator.pop(context),
                   tooltip: 'Fermer',
                 ),
@@ -175,7 +176,7 @@ class _TrailerModalState extends State<TrailerModal> {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.videocam_off_rounded, color: Colors.white30, size: 48),
+                              const FaIcon(FontAwesomeIcons.videoSlash, color: Colors.white30, size: 48),
                               const SizedBox(height: 12),
                               Text(
                                 _error ?? 'Bande-annonce introuvable',
@@ -190,7 +191,7 @@ class _TrailerModalState extends State<TrailerModal> {
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                                 ),
                                 onPressed: _watchFullMedia,
-                                icon: const Icon(Icons.play_arrow_rounded),
+                                icon: const FaIcon(FontAwesomeIcons.play),
                                 label: const Text('Lancer le film directement'),
                               ),
                             ],
@@ -214,12 +215,12 @@ class _TrailerModalState extends State<TrailerModal> {
                       backgroundColor: AppTheme.primary,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                       elevation: 4,
                       shadowColor: AppTheme.primary.withValues(alpha: 0.5),
                     ),
                     onPressed: _watchFullMedia,
-                    icon: const Icon(Icons.play_circle_fill_rounded, size: 22),
+                    icon: const FaIcon(FontAwesomeIcons.circlePlay, size: 22),
                     label: const Text(
                       'REGARDER EN ENTIER',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 0.5),

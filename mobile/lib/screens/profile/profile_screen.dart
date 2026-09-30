@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../config/theme.dart';
 import '../../models/user_model.dart';
 import '../../models/subscription_plan.dart';
@@ -193,7 +194,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: const [
-                                        Icon(Icons.workspace_premium_rounded, color: Colors.black, size: 12),
+                                        FaIcon(FontAwesomeIcons.award, color: Colors.black, size: 12),
                                         SizedBox(width: 4),
                                         Text(
                                           'MEMBRE VIP',
@@ -215,7 +216,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     actions: [
                       if (!isGuest)
                         IconButton(
-                          icon: const Icon(Icons.logout_rounded, color: Colors.redAccent, size: 20),
+                          icon: const FaIcon(FontAwesomeIcons.rightFromBracket, color: Colors.redAccent, size: 20),
                           tooltip: 'Déconnexion',
                           onPressed: _logout,
                         )
@@ -237,14 +238,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               children: [
                                 Expanded(
                                   child: ElevatedButton.icon(
-                                    icon: const Icon(Icons.login_rounded),
+                                    icon: const FaIcon(FontAwesomeIcons.rightToBracket),
                                     label: const Text('Connexion'),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: AppTheme.primary,
                                       foregroundColor: Colors.white,
                                       padding: const EdgeInsets.symmetric(vertical: 12),
                                       shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
+                                        borderRadius: BorderRadius.circular(16),
                                       ),
                                     ),
                                     onPressed: () => _openAuth(isRegister: false),
@@ -253,14 +254,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: OutlinedButton.icon(
-                                    icon: const Icon(Icons.person_add_rounded),
+                                    icon: const FaIcon(FontAwesomeIcons.userPlus),
                                     label: const Text('S\'inscrire'),
                                     style: OutlinedButton.styleFrom(
                                       foregroundColor: Colors.white,
                                       side: const BorderSide(color: Colors.white30),
                                       padding: const EdgeInsets.symmetric(vertical: 12),
                                       shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
+                                        borderRadius: BorderRadius.circular(16),
                                       ),
                                     ),
                                     onPressed: () => _openAuth(isRegister: true),
@@ -275,7 +276,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           _buildMenuSection(
                             items: [
                               _MenuItem(
-                                icon: Icons.history_rounded,
+                                icon: FontAwesomeIcons.clockRotateLeft.data,
                                 title: 'Lectures Récentes',
                                 subtitle: 'Votre historique de visionnage',
                                 onTap: () => Navigator.push(
@@ -284,7 +285,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                               ),
                               _MenuItem(
-                                icon: Icons.favorite_rounded,
+                                icon: FontAwesomeIcons.solidHeart.data,
                                 title: 'Favoris & À regarder plus tard',
                                 subtitle: 'Vos titres enregistrés',
                                 onTap: () => Navigator.push(
@@ -293,7 +294,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                               ),
                               _MenuItem(
-                                icon: Icons.playlist_play_rounded,
+                                icon: FontAwesomeIcons.listUl.data,
                                 title: 'Mes Playlists',
                                 subtitle: 'Collections personnalisées',
                                 onTap: () => Navigator.push(
@@ -311,7 +312,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
                               color: Colors.amber.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(18),
                               border: Border.all(
                                 color: Colors.amber.withValues(alpha: 0.3),
                               ),
@@ -321,7 +322,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               children: [
                                 const Row(
                                   children: [
-                                    Icon(Icons.workspace_premium_rounded, color: Colors.amber, size: 24),
+                                    FaIcon(FontAwesomeIcons.award, color: Colors.amber, size: 24),
                                     SizedBox(width: 10),
                                     Text(
                                       'CHILLERS VIP',
@@ -357,7 +358,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           padding: const EdgeInsets.all(12),
                                           decoration: BoxDecoration(
                                             color: AppTheme.card,
-                                            borderRadius: BorderRadius.circular(10),
+                                            borderRadius: BorderRadius.circular(16),
                                             border: Border.all(
                                               color: Colors.amber.withValues(alpha: 0.4),
                                             ),
@@ -406,7 +407,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       foregroundColor: Colors.black,
                                       padding: const EdgeInsets.symmetric(vertical: 12),
                                       shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
+                                        borderRadius: BorderRadius.circular(16),
                                       ),
                                     ),
                                     onPressed: () => UpgradeModal.show(context),
@@ -428,7 +429,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             items: [
                               if (BiometricService().isAvailable)
                                 _MenuItem(
-                                  icon: Icons.fingerprint_rounded,
+                                  icon: FontAwesomeIcons.fingerprint.data,
                                   title: 'Sécurité Biométrique',
                                   subtitle: 'Verrou ${BiometricService().biometricName}',
                                   onTap: () async {
@@ -446,13 +447,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   },
                                 ),
                               _MenuItem(
-                                icon: Icons.notifications_rounded,
+                                icon: FontAwesomeIcons.bell.data,
                                 title: 'Notifications',
                                 subtitle: 'Gérer les alertes',
                                 onTap: _showNotificationSettingsModal,
                               ),
                               _MenuItem(
-                                icon: Icons.info_rounded,
+                                icon: FontAwesomeIcons.circleInfo.data,
                                 title: 'À propos',
                                 subtitle: 'Version 1.0.0',
                                 onTap: () {
@@ -505,7 +506,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             padding: EdgeInsets.only(bottom: isLast ? 0 : 8),
             child: Material(
               color: AppTheme.card,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
               child: ListTile(
                 leading: Icon(e.value.icon, color: AppTheme.primary, size: 24),
                 title: Text(
@@ -523,8 +524,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     fontSize: 12,
                   ),
                 ),
-                trailing: const Icon(
-                  Icons.arrow_forward_ios_rounded,
+                trailing: const FaIcon(
+                  FontAwesomeIcons.chevronRight,
                   color: Colors.white30,
                   size: 14,
                 ),
@@ -567,7 +568,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(height: 16),
                 const Row(
                   children: [
-                    Icon(Icons.notifications_active_rounded, color: AppTheme.primary, size: 24),
+                    FaIcon(FontAwesomeIcons.solidBell, color: AppTheme.primary, size: 24),
                     SizedBox(width: 10),
                     Text(
                       'Notifications',
@@ -581,7 +582,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 const SizedBox(height: 16),
                 SwitchListTile(
-                  secondary: const Icon(Icons.movie_rounded, color: AppTheme.primary, size: 22),
+                  secondary: const FaIcon(FontAwesomeIcons.film, color: AppTheme.primary, size: 22),
                   title: const Text(
                     'Nouveaux contenus',
                     style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500),

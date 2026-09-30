@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../config/theme.dart';
 import '../services/cast_service.dart';
 import '../services/native_bridge.dart';
@@ -69,13 +70,13 @@ class _CastModalState extends State<CastModal> with SingleTickerProviderStateMix
   IconData _getDeviceIcon(String deviceType) {
     final lower = deviceType.toLowerCase();
     if (lower.contains('samsung') || lower.contains('lg') || lower.contains('sony') || lower.contains('tv')) {
-      return Icons.tv_rounded;
+      return FontAwesomeIcons.tv.data;
     } else if (lower.contains('chromecast') || lower.contains('android')) {
-      return Icons.cast_connected_rounded;
+      return FontAwesomeIcons.chromecast.data;
     } else if (lower.contains('roku') || lower.contains('box')) {
-      return Icons.speaker_group_rounded;
+      return FontAwesomeIcons.speakerDeck.data;
     }
-    return Icons.devices_other_rounded;
+    return FontAwesomeIcons.desktop.data;
   }
 
   @override
@@ -123,7 +124,7 @@ class _CastModalState extends State<CastModal> with SingleTickerProviderStateMix
                   color: AppTheme.primary.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.cast_rounded, color: AppTheme.primary, size: 24),
+                child: const FaIcon(FontAwesomeIcons.chromecast, color: AppTheme.primary, size: 24),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -155,9 +156,9 @@ class _CastModalState extends State<CastModal> with SingleTickerProviderStateMix
                   icon: _castService.isSearching
                       ? RotationTransition(
                           turns: _radarController,
-                          child: const Icon(Icons.sync_rounded, color: AppTheme.primary),
+                          child: const FaIcon(FontAwesomeIcons.arrowsRotate, color: AppTheme.primary),
                         )
-                      : const Icon(Icons.refresh_rounded, color: Colors.white70),
+                      : const FaIcon(FontAwesomeIcons.arrowsRotate, color: Colors.white70),
                   onPressed: () {
                     NativeBridge.instance.selectionHaptic();
                     _castService.startDiscovery();
@@ -188,7 +189,7 @@ class _CastModalState extends State<CastModal> with SingleTickerProviderStateMix
                 title: widget.title,
               );
             },
-            icon: const Icon(Icons.open_in_new_rounded, size: 18, color: Colors.white70),
+            icon: const FaIcon(FontAwesomeIcons.arrowUpRightFromSquare, size: 18, color: Colors.white70),
             label: const Text(
               'Ouvrir avec VLC, MX Player ou BubbleUPnP',
               style: TextStyle(color: Colors.white70, fontSize: 13),
@@ -196,7 +197,7 @@ class _CastModalState extends State<CastModal> with SingleTickerProviderStateMix
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 12),
               side: const BorderSide(color: Colors.white12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
             ),
           ),
         ],
@@ -236,7 +237,7 @@ class _CastModalState extends State<CastModal> with SingleTickerProviderStateMix
                     color: AppTheme.primary.withValues(alpha: 0.2),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.wifi_tethering_rounded, color: AppTheme.primary, size: 28),
+                  child: const FaIcon(FontAwesomeIcons.wifi, color: AppTheme.primary, size: 28),
                 ),
               ],
             ),
@@ -261,7 +262,7 @@ class _CastModalState extends State<CastModal> with SingleTickerProviderStateMix
         padding: const EdgeInsets.symmetric(vertical: 30),
         child: Column(
           children: [
-            const Icon(Icons.tv_off_rounded, color: Colors.white30, size: 48),
+            const FaIcon(FontAwesomeIcons.powerOff, color: Colors.white30, size: 48),
             const SizedBox(height: 12),
             const Text(
               'Aucune TV détectée sur ce réseau Wi-Fi',
@@ -279,12 +280,12 @@ class _CastModalState extends State<CastModal> with SingleTickerProviderStateMix
                 NativeBridge.instance.selectionHaptic();
                 _castService.startDiscovery();
               },
-              icon: const Icon(Icons.refresh_rounded, size: 18),
+              icon: const FaIcon(FontAwesomeIcons.arrowsRotate, size: 18),
               label: const Text('Réessayer la recherche'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               ),
             ),
           ],
@@ -302,12 +303,12 @@ class _CastModalState extends State<CastModal> with SingleTickerProviderStateMix
           final device = devices[index];
           return ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
             leading: Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.06),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
               ),
               child: Icon(_getDeviceIcon(device.deviceType), color: Colors.white, size: 22),
             ),
@@ -319,7 +320,7 @@ class _CastModalState extends State<CastModal> with SingleTickerProviderStateMix
               '${device.deviceType} • ${device.host}',
               style: const TextStyle(color: Colors.white38, fontSize: 11),
             ),
-            trailing: const Icon(Icons.chevron_right_rounded, color: Colors.white38),
+            trailing: const FaIcon(FontAwesomeIcons.chevronRight, color: Colors.white38),
             onTap: () async {
               NativeBridge.instance.mediumHaptic();
               final success = await _castService.castToDevice(
@@ -380,7 +381,7 @@ class _CastModalState extends State<CastModal> with SingleTickerProviderStateMix
                   NativeBridge.instance.selectionHaptic();
                   _castService.stop();
                 },
-                icon: const Icon(Icons.stop_circle_rounded, color: Colors.redAccent, size: 18),
+                icon: const FaIcon(FontAwesomeIcons.circleStop, color: Colors.redAccent, size: 18),
                 label: const Text('Arrêter', style: TextStyle(color: Colors.redAccent, fontSize: 12)),
               ),
             ],
@@ -399,7 +400,7 @@ class _CastModalState extends State<CastModal> with SingleTickerProviderStateMix
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.all(16),
                 ),
-                icon: Icon(isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded),
+                icon: Icon(isPlaying ? FontAwesomeIcons.pause.data : FontAwesomeIcons.play.data),
                 onPressed: () {
                   NativeBridge.instance.lightHaptic();
                   if (isPlaying) {
@@ -417,7 +418,7 @@ class _CastModalState extends State<CastModal> with SingleTickerProviderStateMix
           // Contrôle Volume TV
           Row(
             children: [
-              const Icon(Icons.volume_down_rounded, color: Colors.white60, size: 20),
+              const FaIcon(FontAwesomeIcons.volumeLow, color: Colors.white60, size: 20),
               Expanded(
                 child: SliderTheme(
                   data: SliderTheme.of(context).copyWith(
@@ -435,7 +436,7 @@ class _CastModalState extends State<CastModal> with SingleTickerProviderStateMix
                   ),
                 ),
               ),
-              const Icon(Icons.volume_up_rounded, color: Colors.white60, size: 20),
+              const FaIcon(FontAwesomeIcons.volumeHigh, color: Colors.white60, size: 20),
               SizedBox(
                 width: 38,
                 child: Text(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../config/theme.dart';
 import '../../models/media_item.dart';
@@ -85,7 +86,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         actions: [
           if (_history.isNotEmpty)
             IconButton(
-              icon: const Icon(Icons.delete_sweep_rounded, color: Colors.white70),
+              icon: const FaIcon(FontAwesomeIcons.trashCanArrowUp, color: Colors.white70),
               tooltip: 'Tout effacer',
               onPressed: _clearAll,
             ),
@@ -100,7 +101,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.history_toggle_off_rounded, size: 64, color: AppTheme.textSecondary),
+                        const FaIcon(FontAwesomeIcons.clock, size: 64, color: AppTheme.textSecondary),
                         const SizedBox(height: 16),
                         const Text(
                           'Aucune lecture récente',
@@ -137,7 +138,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       margin: const EdgeInsets.only(bottom: 12),
                       decoration: BoxDecoration(
                         color: AppTheme.card,
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(18),
                         border: Border.all(color: Colors.white10),
                       ),
                       child: InkWell(
@@ -154,7 +155,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             ),
                           ).then((_) => _loadHistory());
                         },
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(18),
                         child: Row(
                           children: [
                             // Thumbnail 16:9 avec barre de progression
@@ -174,14 +175,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                             height: 90,
                                             width: 140,
                                             color: Colors.black26,
-                                            child: const Icon(Icons.movie, color: Colors.white24),
+                                            child: const FaIcon(FontAwesomeIcons.film, color: Colors.white24),
                                           ),
                                         )
                                       : Container(
                                           height: 90,
                                           width: 140,
                                           color: Colors.black26,
-                                          child: const Icon(Icons.movie, color: Colors.white24),
+                                          child: const FaIcon(FontAwesomeIcons.film, color: Colors.white24),
                                         ),
                                 ),
                                 Container(
@@ -189,7 +190,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                   width: 140,
                                   color: Colors.black.withValues(alpha: 0.3),
                                 ),
-                                const Icon(Icons.play_circle_fill_rounded, color: AppTheme.primary, size: 36),
+                                const FaIcon(FontAwesomeIcons.circlePlay, color: AppTheme.primary, size: 36),
                                 Positioned(
                                   bottom: 0,
                                   left: 0,
@@ -234,7 +235,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                     const SizedBox(height: 6),
                                     Row(
                                       children: [
-                                        const Icon(Icons.schedule_rounded, color: AppTheme.textSecondary, size: 14),
+                                        const FaIcon(FontAwesomeIcons.clock, color: AppTheme.textSecondary, size: 14),
                                         const SizedBox(width: 4),
                                         Text(
                                           '${_formatDuration(posMs)} / ${_formatDuration(durMs)} (${(percentage * 100).toInt()}%)',
@@ -249,7 +250,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
                             // Bouton supprimer l'élément
                             IconButton(
-                              icon: const Icon(Icons.close_rounded, color: Colors.white38, size: 18),
+                              icon: const FaIcon(FontAwesomeIcons.xmark, color: Colors.white38, size: 18),
                               onPressed: () async {
                                 await _storage.removeWatchProgress(item['id'].toString());
                                 _loadHistory();

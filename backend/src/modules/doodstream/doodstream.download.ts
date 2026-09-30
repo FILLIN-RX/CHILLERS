@@ -757,28 +757,73 @@ export const proxyDownload = async (req: Request, res: Response, next: NextFunct
 
 export const proxyStream = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { url, referer } = req.query as Record<string, string>;
+    let { url, referer, download, filename } = req.query as Record<string, string>;
 
     if (!url) {
       return res.status(400).json({ success: false, message: 'Missing ?url= param' });
     }
 
+    // Un-nest / unwrap nested proxy URLs if needed
+    let targetUrl = url.trim();
+    while (
+      targetUrl.includes('/api/doodstream/stream?url=') ||
+      targetUrl.includes('/api/download/file?url=') ||
+      targetUrl.includes('/api/download/stream?m3u8=') ||
+      targetUrl.includes('/api/omnisave/proxy?url=')
+    ) {
+      const match = targetUrl.match(/[?&](?:url|m3u8)=([^&]+)/);
+      if (match) {
+        try {
+          targetUrl = decodeURIComponent(match[1]);
+        } catch {
+          break;
+        }
+      } else {
+        break;
+      }
+    }
+
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(targetUrl);
+      if (!parsedUrl.protocol.startsWith('http')) {
+        return res.status(400).json({ success: false, message: 'Invalid target URL protocol' });
+      }
+    } catch {
+      return res.status(400).json({ success: false, message: `Invalid target URL: ${targetUrl}` });
+    }
+
+    let effectiveReferer = referer;
+    if (!effectiveReferer) {
+      if (parsedUrl.hostname.includes('vidzy')) effectiveReferer = 'https://vidzy.cc/';
+      else if (parsedUrl.hostname.includes('uqload')) effectiveReferer = 'https://uqload.is/';
+      else if (parsedUrl.hostname.includes('dood') || parsedUrl.hostname.includes('playmogo') || parsedUrl.hostname.includes('d000')) effectiveReferer = 'https://doodstream.com/';
+      else if (parsedUrl.hostname.includes('streamtape')) effectiveReferer = 'https://streamtape.com/';
+      else if (parsedUrl.hostname.includes('voe')) effectiveReferer = 'https://voe.sx/';
+      else if (parsedUrl.hostname.includes('french-stream')) effectiveReferer = 'https://french-stream.net/';
+      else effectiveReferer = `${parsedUrl.protocol}//${parsedUrl.host}/`;
+    }
+
     const headers: Record<string, string> = {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-      'Referer': referer || 'https://vidzy.cc/',
+      'Referer': effectiveReferer,
     };
 
     if (req.headers.range) {
       headers['Range'] = req.headers.range as string;
     }
+    if (req.headers['if-range']) {
+      headers['If-Range'] = req.headers['if-range'] as string;
+    }
 
-    const isSegment = /\.(ts|m4s|mp4|webm)(\?|$)/i.test(url) && !url.includes('.m3u8');
+    const isSegment = /\.(ts|m4s|mp4|webm)(\?|$)/i.test(targetUrl) && !targetUrl.includes('.m3u8');
 
-    const response = await axios.get(url, {
+    const response = await axios.get(targetUrl, {
       responseType: 'stream',
       timeout: 600000,
       maxRedirects: 5,
       headers,
+      validateStatus: (s) => s >= 200 && s < 400,
     });
 
     // Abort upstream stream if client disconnects
@@ -789,7 +834,7 @@ export const proxyStream = async (req: Request, res: Response, next: NextFunctio
     });
 
     const contentType = (response.headers['content-type'] as string || '').toLowerCase();
-    const isHls = contentType.includes('mpegurl') || url.endsWith('.m3u8') || url.includes('.m3u8?');
+    const isHls = contentType.includes('mpegurl') || targetUrl.endsWith('.m3u8') || targetUrl.includes('.m3u8?');
 
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
@@ -804,15 +849,14 @@ export const proxyStream = async (req: Request, res: Response, next: NextFunctio
       // Manifests must not be cached long, but allow small 5s caching to reduce storms on bad networks
       res.setHeader('Cache-Control', 'public, max-age=5, stale-while-revalidate=10');
 
-      const body = await axios.get(url, {
+      const body = await axios.get(targetUrl, {
         timeout: 30000,
         headers,
         responseType: 'text',
       });
 
-      const baseUrl = new URL(url);
-      const origin = baseUrl.origin;
-      const baseDir = url.substring(0, url.lastIndexOf('/') + 1);
+      const origin = parsedUrl.origin;
+      const baseDir = targetUrl.substring(0, targetUrl.lastIndexOf('/') + 1);
 
       const rewritten = (body.data as string).split('\n').map((line: string) => {
         const trimmed = line.trim();
@@ -828,7 +872,7 @@ export const proxyStream = async (req: Request, res: Response, next: NextFunctio
         }
 
         const encodedUrl = encodeURIComponent(absoluteUrl);
-        return `/api/doodstream/stream?url=${encodedUrl}&referer=${encodeURIComponent(referer || 'https://uqload.is/')}`;
+        return `/api/doodstream/stream?url=${encodedUrl}&referer=${encodeURIComponent(effectiveReferer)}`;
       }).join('\n');
 
       res.send(rewritten);
@@ -843,18 +887,28 @@ export const proxyStream = async (req: Request, res: Response, next: NextFunctio
       res.setHeader('Cache-Control', 'public, max-age=3600');
     }
 
-    const contentLength = response.headers['content-length'] as string | undefined;
-    if (contentLength) {
-      res.setHeader('Content-Length', contentLength);
+    const isDownload = download === '1' || download === 'true';
+    if (isDownload) {
+      const isIos = /iPhone|iPad|iPod/i.test(req.headers['user-agent'] || '');
+      const downloadFilename = (filename || 'video.mp4').replace(/[^a-zA-Z0-9_\-\.]/g, '_');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="${encodeURIComponent(downloadFilename)}"; filename*=UTF-8''${encodeURIComponent(downloadFilename)}`
+      );
+      if (isIos) {
+        res.setHeader('Content-Type', 'application/octet-stream');
+      } else {
+        res.setHeader('Content-Type', response.headers['content-type'] as string || 'video/mp4');
+      }
+    } else {
+      res.setHeader('Content-Type', response.headers['content-type'] as string || 'video/mp4');
     }
 
-    const contentRange = response.headers['content-range'] as string | undefined;
-    if (contentRange) {
-      res.setHeader('Content-Range', contentRange);
+    for (const [key, val] of Object.entries(response.headers)) {
+      if (['content-length', 'accept-ranges', 'content-range', 'etag', 'last-modified'].includes(key.toLowerCase())) {
+        res.setHeader(key, val as string);
+      }
     }
-
-    res.setHeader('Accept-Ranges', 'bytes');
-    res.setHeader('Content-Type', response.headers['content-type'] as string || 'video/mp4');
 
     res.status(response.status);
     response.data.pipe(res);

@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../config/theme.dart';
 import '../services/download_service.dart';
 import '../widgets/download_success_overlay.dart';
+import '../widgets/floating_download_bar.dart';
 import 'home/home_screen.dart';
 import 'media/media_screen.dart';
 import 'live/live_screen.dart';
@@ -80,11 +82,11 @@ class MainNavigationState extends State<MainNavigation> {
   ];
 
   final List<Map<String, dynamic>> _navItems = [
-    {'icon': Icons.home_filled, 'label': 'Accueil'},
-    {'icon': Icons.explore_rounded, 'label': 'Explorer'},
-    {'icon': Icons.live_tv_rounded, 'label': 'Live TV & Foot'},
-    {'icon': Icons.download_rounded, 'label': 'Téléchargements'},
-    {'icon': Icons.person_rounded, 'label': 'Profil'},
+    {'icon': FontAwesomeIcons.solidHouse.data, 'label': 'Accueil'},
+    {'icon': FontAwesomeIcons.compass.data, 'label': 'Explorer'},
+    {'icon': FontAwesomeIcons.tv.data, 'label': 'Live'},
+    {'icon': FontAwesomeIcons.download.data, 'label': 'Téléchargements'},
+    {'icon': FontAwesomeIcons.user.data, 'label': 'Profil'},
   ];
 
   @override
@@ -124,7 +126,7 @@ class MainNavigationState extends State<MainNavigation> {
                 children: [
                   // Left : Hamburger + Logo
                   IconButton(
-                    icon: const Icon(Icons.menu_rounded, color: Colors.white),
+                    icon: const FaIcon(FontAwesomeIcons.bars, color: Colors.white),
                     onPressed: () {
                       setState(() => _isSidebarExpanded = !_isSidebarExpanded);
                     },
@@ -179,6 +181,13 @@ class MainNavigationState extends State<MainNavigation> {
                               hintText: 'Rechercher un film, série, anime, chaîne en direct...',
                               hintStyle: TextStyle(color: Colors.white38, fontSize: 13),
                               border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              errorBorder: InputBorder.none,
+                              disabledBorder: InputBorder.none,
+                              focusedErrorBorder: InputBorder.none,
+                              filled: false,
+                              fillColor: Colors.transparent,
                               isDense: true,
                             ),
                             onSubmitted: (val) {
@@ -201,7 +210,7 @@ class MainNavigationState extends State<MainNavigation> {
                               borderRadius: BorderRadius.horizontal(right: Radius.circular(24)),
                               border: Border(left: BorderSide(color: Colors.white12)),
                             ),
-                            child: const Icon(Icons.search_rounded, color: Colors.white70, size: 20),
+                            child: const FaIcon(FontAwesomeIcons.magnifyingGlass, color: Colors.white70, size: 20),
                           ),
                         ),
                       ],
@@ -215,7 +224,7 @@ class MainNavigationState extends State<MainNavigation> {
                     onPressed: () {
                       _showDonationDialog(context);
                     },
-                    icon: const Icon(Icons.favorite_rounded, color: Colors.white, size: 16),
+                    icon: const FaIcon(FontAwesomeIcons.solidHeart, color: Colors.white, size: 16),
                     label: const Text(
                       'Faire un don',
                       style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
@@ -228,7 +237,7 @@ class MainNavigationState extends State<MainNavigation> {
                   ),
                   const SizedBox(width: 14),
                   IconButton(
-                    icon: const Icon(Icons.notifications_none_rounded, color: Colors.white70),
+                    icon: const FaIcon(FontAwesomeIcons.bell, color: Colors.white70),
                     onPressed: () {},
                   ),
                   const SizedBox(width: 8),
@@ -237,7 +246,7 @@ class MainNavigationState extends State<MainNavigation> {
                     child: const CircleAvatar(
                       radius: 16,
                       backgroundColor: Color(0xFF27272A),
-                      child: Icon(Icons.person_rounded, color: Colors.white, size: 18),
+                      child: FaIcon(FontAwesomeIcons.user, color: Colors.white, size: 18),
                     ),
                   ),
                 ],
@@ -268,12 +277,12 @@ class MainNavigationState extends State<MainNavigation> {
                             padding: const EdgeInsets.symmetric(vertical: 6),
                             child: InkWell(
                               onTap: () => switchTo(index),
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(16),
                               child: Container(
                                 padding: const EdgeInsets.symmetric(vertical: 10),
                                 decoration: BoxDecoration(
                                   color: isSelected ? AppTheme.primary.withValues(alpha: 0.15) : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(16),
                                   border: isSelected
                                       ? Border.all(color: AppTheme.primary.withValues(alpha: 0.4))
                                       : null,
@@ -308,12 +317,12 @@ class MainNavigationState extends State<MainNavigation> {
                           padding: const EdgeInsets.symmetric(vertical: 3),
                           child: InkWell(
                             onTap: () => switchTo(index),
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(16),
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                               decoration: BoxDecoration(
                                 color: isSelected ? AppTheme.primary.withValues(alpha: 0.18) : Colors.transparent,
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(16),
                                 border: isSelected
                                     ? Border.all(color: AppTheme.primary.withValues(alpha: 0.4))
                                     : null,
@@ -375,11 +384,15 @@ class MainNavigationState extends State<MainNavigation> {
         index: _currentIndex,
         children: _screens,
       ),
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFF0C0C0E),
-          border: Border(top: BorderSide(color: Colors.white10, width: 0.8)),
-        ),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const FloatingDownloadBar(),
+          Container(
+            decoration: const BoxDecoration(
+              color: Color(0xFF0C0C0E),
+              border: Border(top: BorderSide(color: Colors.white10, width: 0.8)),
+            ),
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
           onTap: (index) => setState(() => _currentIndex = index),
@@ -392,29 +405,31 @@ class MainNavigationState extends State<MainNavigation> {
           selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
           items: const [
             BottomNavigationBarItem(
-              icon: Icon(Icons.home_filled),
+              icon: FaIcon(FontAwesomeIcons.solidHouse),
               label: 'Accueil',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.explore_rounded),
+              icon: FaIcon(FontAwesomeIcons.compass),
               label: 'Explorer',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.live_tv_rounded),
-              label: 'Live TV & Foot',
+              icon: FaIcon(FontAwesomeIcons.tv),
+              label: 'Live',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.download_rounded),
+              icon: FaIcon(FontAwesomeIcons.download),
               label: 'Téléchargements',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.person_rounded),
+              icon: FaIcon(FontAwesomeIcons.user),
               label: 'Profil',
             ),
           ],
         ),
       ),
-    );
+    ],
+  ),
+);
   }
 
   void _showDonationDialog(BuildContext context) {
@@ -428,7 +443,7 @@ class MainNavigationState extends State<MainNavigation> {
         ),
         title: const Row(
           children: [
-            Icon(Icons.favorite_rounded, color: Color(0xFFD70466)),
+            FaIcon(FontAwesomeIcons.solidHeart, color: Color(0xFFD70466)),
             SizedBox(width: 10),
             Text(
               'Soutenir CHILLERS',
@@ -449,7 +464,7 @@ class MainNavigationState extends State<MainNavigation> {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: const Color(0xFF27272A),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(18),
                 border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
               ),
               child: const Row(
@@ -465,7 +480,7 @@ class MainNavigationState extends State<MainNavigation> {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: const Color(0xFF27272A),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(18),
                 border: Border.all(color: Colors.yellow.withValues(alpha: 0.3)),
               ),
               child: const Row(

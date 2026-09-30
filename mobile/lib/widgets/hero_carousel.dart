@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../config/theme.dart';
 import '../models/media_item.dart';
@@ -120,7 +121,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
                           placeholder: (context, url) => Container(color: AppTheme.surface),
                           errorWidget: (context, url, error) => Container(
                             color: AppTheme.surface,
-                            child: const Icon(Icons.movie, size: 64, color: Colors.white24),
+                            child: const FaIcon(FontAwesomeIcons.film, size: 64, color: Colors.white24),
                           ),
                         )
                       : Container(color: AppTheme.surface),
@@ -143,39 +144,10 @@ class _HeroCarouselState extends State<HeroCarousel> {
                     ),
                   ),
 
-                  // Bouton Play géant flottant sur la droite (Style Web Hero)
-                  Positioned(
-                    right: 18,
-                    top: heroHeight * 0.38,
-                    child: GestureDetector(
-                      onTap: () => widget.onWatchNow(slide),
-                      child: Container(
-                        width: 58,
-                        height: 58,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AppTheme.primary,
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppTheme.primary.withValues(alpha: 0.55),
-                              blurRadius: 20,
-                              spreadRadius: 3,
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.play_arrow_rounded,
-                          color: Colors.white,
-                          size: 38,
-                        ),
-                      ),
-                    ),
-                  ),
-
                   // Contenu texte et métadonnées (positionné dans le tiers inférieur)
                   Positioned(
                     left: 16,
-                    right: 80,
+                    right: 16,
                     bottom: 40,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -213,7 +185,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
                             ],
                             if (slide.rating != null && slide.rating!.isNotEmpty) ...[
                               const SizedBox(width: 8),
-                              const Icon(Icons.star_rounded, color: Colors.amber, size: 16),
+                              const FaIcon(FontAwesomeIcons.solidStar, color: Colors.amber, size: 16),
                               const SizedBox(width: 2),
                               Text(
                                 slide.rating!,
@@ -277,7 +249,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
                                   shadowColor: AppTheme.primary.withValues(alpha: 0.4),
                                 ),
                                 onPressed: () => widget.onWatchNow(slide),
-                                icon: const Icon(Icons.play_arrow_rounded, size: 20),
+                                icon: const FaIcon(FontAwesomeIcons.play, size: 20),
                                 label: const Text(
                                   'REGARDER',
                                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
@@ -297,7 +269,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
                                   ),
                                 ),
                                 onPressed: () => _openTrailer(slide),
-                                icon: const Icon(Icons.movie_creation_outlined, size: 16, color: Colors.amber),
+                                icon: const FaIcon(FontAwesomeIcons.clapperboard, size: 16, color: Colors.amber),
                                 label: const Text(
                                   'Bande-annonce',
                                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
@@ -316,7 +288,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
                                   ),
                                 ),
                                 onPressed: () => widget.onOpenDetails(slide),
-                                icon: const Icon(Icons.info_outline_rounded, size: 16),
+                                icon: const FaIcon(FontAwesomeIcons.circleInfo, size: 16),
                                 label: const Text('Détails', style: TextStyle(fontSize: 12)),
                               ),
                             ],
@@ -347,7 +319,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
                       border: Border.all(color: Colors.white12),
                     ),
                     child: Icon(
-                      _isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+                      _isPaused ? FontAwesomeIcons.play.data : FontAwesomeIcons.pause.data,
                       color: Colors.white,
                       size: 16,
                     ),
@@ -364,8 +336,8 @@ class _HeroCarouselState extends State<HeroCarousel> {
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.white12),
                     ),
-                    child: const Icon(
-                      Icons.chevron_left_rounded,
+                    child: const FaIcon(
+                      FontAwesomeIcons.chevronLeft,
                       color: Colors.white,
                       size: 16,
                     ),
@@ -382,8 +354,8 @@ class _HeroCarouselState extends State<HeroCarousel> {
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.white12),
                     ),
-                    child: const Icon(
-                      Icons.chevron_right_rounded,
+                    child: const FaIcon(
+                      FontAwesomeIcons.chevronRight,
                       color: Colors.white,
                       size: 16,
                     ),

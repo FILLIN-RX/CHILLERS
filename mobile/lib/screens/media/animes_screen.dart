@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../config/theme.dart';
 import '../../models/media_item.dart';
 import '../../services/api_service.dart';
@@ -22,11 +23,11 @@ class _AnimesScreenState extends State<AnimesScreen> {
   bool _hasMore = true;
   int _currentPage = 1;
 
-  final List<Map<String, dynamic>> _filterOptions = const [
-    {'id': 'all', 'label': 'Tous les Animes', 'icon': Icons.auto_awesome_rounded},
-    {'id': 'action', 'label': 'Action & Shōnen', 'icon': Icons.local_fire_department_rounded},
-    {'id': 'fantasy', 'label': 'Fantaisie & Isekai', 'icon': Icons.stars_rounded},
-    {'id': 'trending', 'label': 'Tendances', 'icon': Icons.trending_up_rounded},
+  final List<Map<String, dynamic>> _filterOptions = [
+    {'id': 'all', 'label': 'Tous les Animes', 'icon': FontAwesomeIcons.wandMagicSparkles.data},
+    {'id': 'action', 'label': 'Action & Shōnen', 'icon': FontAwesomeIcons.fire.data},
+    {'id': 'fantasy', 'label': 'Fantaisie & Isekai', 'icon': FontAwesomeIcons.wandSparkles.data},
+    {'id': 'trending', 'label': 'Tendances', 'icon': FontAwesomeIcons.arrowTrendUp.data},
   ];
 
   @override
@@ -113,7 +114,7 @@ class _AnimesScreenState extends State<AnimesScreen> {
         elevation: 0,
         title: const Row(
           children: [
-            Icon(Icons.auto_awesome_rounded, color: AppTheme.primary, size: 22),
+            FaIcon(FontAwesomeIcons.wandMagicSparkles, color: AppTheme.primary, size: 22),
             SizedBox(width: 8),
             Text(
               'Animes & Mangas',

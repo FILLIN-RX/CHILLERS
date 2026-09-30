@@ -30,6 +30,7 @@ const availability_routes_1 = __importDefault(require("./modules/availability/av
 const affiches_routes_1 = __importDefault(require("./modules/affiches/affiches.routes"));
 const live_routes_1 = __importDefault(require("./modules/live/live.routes"));
 const liveball_routes_1 = __importDefault(require("./modules/liveball/liveball.routes"));
+const sports_routes_1 = __importDefault(require("./modules/sports/sports.routes"));
 const subtitles_routes_1 = __importDefault(require("./modules/subtitles/subtitles.routes"));
 const torrents_routes_1 = __importDefault(require("./streaming/torrents/torrents.routes"));
 const ai_routes_1 = __importDefault(require("./modules/ai/ai.routes"));
@@ -172,6 +173,7 @@ app.use('/api/availability', availability_routes_1.default);
 app.use('/api/affiches', affiches_routes_1.default);
 app.use('/api/live', live_routes_1.default);
 app.use('/api/liveball', liveball_routes_1.default);
+app.use('/api/sports', sports_routes_1.default);
 app.use('/api/subtitles', subtitles_routes_1.default);
 app.use('/api/torrents', torrents_routes_1.default);
 app.use('/api/auth', auth_routes_1.default);

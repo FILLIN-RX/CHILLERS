@@ -8,10 +8,9 @@ function toEmbedUrl(lien: string): string {
   const match = lien.match(/(?:doodstream\.com|playmogo\.com|d000d\.com|d0000d\.com|dood\.(?:to|sh|so|cx|la|wf|pm))\/(?:d|e)\/([a-zA-Z0-9]+)/i);
   if (match) return `https://doodstream.com/e/${match[1]}`;
   const stMatch = lien.match(/streamtape\.com\/(?:e|v|f)\/([a-zA-Z0-9]+)/i);
-  if (!lien.includes('/v/')) {
-    const vidzyMatch = lien.match(/vidzy\.(?:cc|org|xyz|co|tv|top)\/(?:embed-|d\/)([a-zA-Z0-9_-]{4,})/i);
-    if (vidzyMatch) return `https://vidzy.cc/embed-${vidzyMatch[1]}.html`;
-  }
+  if (stMatch) return `https://streamtape.com/e/${stMatch[1]}`;
+  const vidzyMatch = lien.match(/vidzy\.(?:cc|org|xyz|co|tv|top)\/(?:embed-|d\/|v\/[^\/]+\/[^\/]+\/)([a-zA-Z0-9_-]{4,})(?:_n)?/i) || lien.match(/vidzy\.(?:cc|org|xyz|co|tv|top)\/.*\/([a-zA-Z0-9]{12,})(?:_n)?/i);
+  if (vidzyMatch) return `https://vidzy.cc/embed-${vidzyMatch[1]}.html`;
   return lien;
 }
 
@@ -20,10 +19,14 @@ function uqloadEmbedUrl(code: string): string {
   return `https://uqload.is/embed-${code}.html`;
 }
 
-/** Retourne l'URL si elle est valide et non expirée, sinon null. */
+/** Retourne l'URL si elle est valide et non expirée, sinon tente de la convertir en embed persistant. */
 function resolveUrl(url: string | undefined | null): string | null {
   if (!url || url === '#') return null;
-  if (isSignedLinkExpired(url)) return null;
+  if (isSignedLinkExpired(url)) {
+    const embed = toEmbedUrl(url);
+    if (embed && embed !== url) return embed;
+    return null;
+  }
   return url;
 }
 

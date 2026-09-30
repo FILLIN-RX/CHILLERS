@@ -2,6 +2,7 @@ library;
 
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 import '../../models/connection_credentials.dart';
@@ -115,7 +116,7 @@ class _TransferReceiverScreenState extends State<TransferReceiverScreen> {
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.white),
+          icon: const FaIcon(FontAwesomeIcons.xmark, color: Colors.white),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -140,12 +141,12 @@ class _TransferReceiverScreenState extends State<TransferReceiverScreen> {
               margin: const EdgeInsets.only(bottom: 16),
               decoration: BoxDecoration(
                 color: Colors.red.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.error_outline, color: Colors.redAccent, size: 20),
+                  const FaIcon(FontAwesomeIcons.triangleExclamation, color: Colors.redAccent, size: 20),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -171,7 +172,7 @@ class _TransferReceiverScreenState extends State<TransferReceiverScreen> {
             // Toggle to manual entry
             TextButton.icon(
               onPressed: () => setState(() => _isManualEntry = true),
-              icon: const Icon(Icons.keyboard, color: Colors.white70),
+              icon: const FaIcon(FontAwesomeIcons.keyboard, color: Colors.white70),
               label: const Text(
                 'Entrer un code à 6 chiffres manuellement',
                 style: TextStyle(color: Colors.white70),
@@ -212,7 +213,7 @@ class _TransferReceiverScreenState extends State<TransferReceiverScreen> {
                       fillColor: const Color(0xFF101015),
                       counterText: '',
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(18),
                         borderSide: BorderSide.none,
                       ),
                     ),
@@ -222,7 +223,7 @@ class _TransferReceiverScreenState extends State<TransferReceiverScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFE50914),
                       minimumSize: const Size.fromHeight(48),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     ),
                     onPressed: () {
                       if (_pinController.text.trim().length == 6) {
@@ -241,7 +242,7 @@ class _TransferReceiverScreenState extends State<TransferReceiverScreen> {
             const SizedBox(height: 16),
             TextButton.icon(
               onPressed: () => setState(() => _isManualEntry = false),
-              icon: const Icon(Icons.qr_code_scanner, color: Colors.white70),
+              icon: const FaIcon(FontAwesomeIcons.qrcode, color: Colors.white70),
               label: const Text('Scanner un QR Code', style: TextStyle(color: Colors.white70)),
             ),
           ],
@@ -253,12 +254,12 @@ class _TransferReceiverScreenState extends State<TransferReceiverScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.04),
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(18),
               border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
             ),
             child: const Row(
               children: [
-                Icon(Icons.nfc, color: Color(0xFFE50914), size: 22),
+                FaIcon(FontAwesomeIcons.nfcSymbol, color: Color(0xFFE50914), size: 22),
                 SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -312,7 +313,7 @@ class _TransferReceiverScreenState extends State<TransferReceiverScreen> {
                 color: const Color(0xFF22C55E).withValues(alpha: 0.2),
                 border: Border.all(color: const Color(0xFF22C55E), width: 3),
               ),
-              child: const Icon(Icons.check_rounded, color: Color(0xFF22C55E), size: 64),
+              child: const FaIcon(FontAwesomeIcons.check, color: Color(0xFF22C55E), size: 64),
             ),
             const SizedBox(height: 24),
             const Text(
@@ -336,9 +337,9 @@ class _TransferReceiverScreenState extends State<TransferReceiverScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFE50914),
                 minimumSize: const Size.fromHeight(50),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
               ),
-              icon: const Icon(Icons.play_arrow_rounded, color: Colors.white),
+              icon: const FaIcon(FontAwesomeIcons.play, color: Colors.white),
               label: const Text(
                 'Regarder Maintenant',
                 style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),

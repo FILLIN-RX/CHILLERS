@@ -56,6 +56,25 @@ class _ScannerWidgetState extends State<ScannerWidget> {
           MobileScanner(
             controller: _controller,
             onDetect: _handleBarcode,
+            errorBuilder: (context, error, child) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.videocam_off_rounded, color: Colors.white54, size: 40),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Caméra indisponible (${error.errorCode.name})',
+                        style: const TextStyle(color: Colors.white70, fontSize: 13),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
 
           // Dark overlay with cutout

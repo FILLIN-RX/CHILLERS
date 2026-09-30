@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../config/theme.dart';
 import '../models/user_model.dart';
 import '../screens/search/search_screen.dart';
@@ -57,7 +58,7 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white12),
                   ),
-                  child: const Icon(Icons.menu_rounded, color: Colors.white, size: 22),
+                  child: const FaIcon(FontAwesomeIcons.bars, color: Colors.white, size: 22),
                 ),
               ),
               const SizedBox(width: 12),
@@ -78,7 +79,7 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
                             color: AppTheme.primary,
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 20),
+                          child: const FaIcon(FontAwesomeIcons.play, color: Colors.white, size: 20),
                         ),
                       ),
                     ),
@@ -132,8 +133,8 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white12),
                   ),
-                  child: const Icon(
-                    Icons.search_rounded,
+                  child: const FaIcon(
+                    FontAwesomeIcons.magnifyingGlass,
                     color: Colors.white,
                     size: 20,
                   ),
@@ -158,8 +159,8 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
                       ),
                     ],
                   ),
-                  child: const Icon(
-                    Icons.workspace_premium_rounded,
+                  child: const FaIcon(
+                    FontAwesomeIcons.award,
                     color: Colors.black,
                     size: 20,
                   ),

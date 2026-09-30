@@ -555,9 +555,33 @@ async function getUqloadDirectLink(fileCode: string, preferHls = false): Promise
   return null;
 }
 
+function unwrapScraperUrl(url: string | undefined | null): string {
+  if (!url || typeof url !== 'string') return '';
+  let current = url.trim();
+  while (
+    current.includes('/api/doodstream/stream?url=') ||
+    current.includes('/api/download/file?url=') ||
+    current.includes('/api/download/stream?m3u8=') ||
+    current.includes('/api/omnisave/proxy?url=')
+  ) {
+    const match = current.match(/[?&](?:url|m3u8)=([^&]+)/);
+    if (match) {
+      try {
+        current = decodeURIComponent(match[1]);
+      } catch {
+        break;
+      }
+    } else {
+      break;
+    }
+  }
+  return current;
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
-export async function scrapeDirectStream(embedUrl: string, preferHls = false): Promise<DirectStreamResult | null> {
+export async function scrapeDirectStream(rawEmbedUrl: string, preferHls = false): Promise<DirectStreamResult | null> {
+  const embedUrl = unwrapScraperUrl(rawEmbedUrl);
   console.log(`${TAG} scrapeDirectStream("${embedUrl.slice(0, 100)}")`);
 
   if (isVidzyUrl(embedUrl)) {

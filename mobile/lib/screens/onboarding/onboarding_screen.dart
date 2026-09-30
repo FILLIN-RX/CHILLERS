@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../config/theme.dart';
 import '../../services/native_bridge.dart';
@@ -66,13 +67,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> with SingleTickerPr
     ],
   ];
 
-  final List<OnboardingSlide> _slides = const [
+  final List<OnboardingSlide> _slides = [
     OnboardingSlide(
       title: 'Films, Séries &\nAnimés en Illimité',
       subtitle:
           'Plongez dans des milliers d\'heures de cinéma et de séries en qualité 4K Ultra HD, sans interruption publicitaire.',
       badge: 'STREAMING 4K ULTRA',
-      icon: Icons.movie_filter_rounded,
+      icon: FontAwesomeIcons.film.data,
       accentColor: AppTheme.primary,
     ),
     OnboardingSlide(
@@ -80,7 +81,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with SingleTickerPr
       subtitle:
           'Ne manquez aucune grande affiche : suivez le direct et recevez un rappel 15 minutes avant le coup d\'envoi.',
       badge: 'DIRECT SPORT HD',
-      icon: Icons.sports_soccer_rounded,
+      icon: FontAwesomeIcons.futbol.data,
       accentColor: Color(0xFF10B981),
     ),
     OnboardingSlide(
@@ -88,7 +89,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with SingleTickerPr
       subtitle:
           'Emportez vos films et épisodes dans le train, l\'avion ou à l\'étranger avec notre moteur de téléchargement physique.',
       badge: '100% HORS-LIGNE',
-      icon: Icons.download_for_offline_rounded,
+      icon: FontAwesomeIcons.download.data,
       accentColor: Color(0xFFF59E0B),
     ),
     OnboardingSlide(
@@ -96,7 +97,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with SingleTickerPr
       subtitle:
           'Picture-in-Picture flottant, contrôles tactiles au doigt (luminosité, volume, saut ±10s) et mode cadenas anti-fausses touches.',
       badge: 'FONCTIONNALITÉS EXCLUSIVES',
-      icon: Icons.phone_android_rounded,
+      icon: FontAwesomeIcons.mobileScreenButton.data,
       accentColor: Color(0xFF8B5CF6),
     ),
   ];
@@ -216,7 +217,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with SingleTickerPr
                               gradient: const LinearGradient(
                                 colors: [AppTheme.primary, Color(0xFF9333EA)],
                               ),
-                              borderRadius: BorderRadius.circular(10),
+                              borderRadius: BorderRadius.circular(16),
                               boxShadow: [
                                 BoxShadow(
                                   color: AppTheme.primary.withValues(alpha: 0.4),
@@ -224,7 +225,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with SingleTickerPr
                                 ),
                               ],
                             ),
-                            child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 20),
+                            child: const FaIcon(FontAwesomeIcons.play, color: Colors.white, size: 20),
                           ),
                           const SizedBox(width: 10),
                           const Text(
@@ -422,7 +423,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with SingleTickerPr
                               ),
                               const SizedBox(width: 8),
                               Icon(
-                                isLast ? Icons.rocket_launch_rounded : Icons.arrow_forward_rounded,
+                                isLast ? FontAwesomeIcons.rocket.data : FontAwesomeIcons.arrowRight.data,
                                 size: 18,
                               ),
                             ],
@@ -481,7 +482,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with SingleTickerPr
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 5, vertical: 6),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.6),
@@ -491,7 +492,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with SingleTickerPr
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         child: AspectRatio(
           aspectRatio: 2 / 3,
           child: Image.asset(
@@ -499,7 +500,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with SingleTickerPr
             fit: BoxFit.cover,
             errorBuilder: (context, error, stackTrace) => Container(
               color: Colors.grey.shade900,
-              child: const Icon(Icons.movie, color: Colors.white24),
+              child: const FaIcon(FontAwesomeIcons.film, color: Colors.white24),
             ),
           ),
         ),

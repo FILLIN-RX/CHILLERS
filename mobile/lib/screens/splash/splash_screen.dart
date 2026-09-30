@@ -287,16 +287,17 @@ class _HazePainter extends CustomPainter {
     final c = Offset(size.width / 2, size.height / 2);
     final paint = Paint()..blendMode = BlendMode.plus;
     for (var i = 0; i < 10; i++) {
-      final phase = _rnd(i, 21) * 6.283;
-      final speed = 0.25 + _rnd(i, 23) * 0.5;
-      final r = size.shortestSide * (0.3 + _rnd(i, 29) * 0.55);
+      final seed = i.toDouble();
+      final phase = _rnd(seed, 21) * 6.283;
+      final speed = 0.25 + _rnd(seed, 23) * 0.5;
+      final r = size.shortestSide * (0.3 + _rnd(seed, 29) * 0.55);
       final pos = Offset(
-        c.dx + math.cos(phase + t * speed) * size.width * (0.25 + _rnd(i, 31) * 0.5),
-        c.dy + math.sin(phase * 1.7 + t * speed * 0.8) * size.height * (0.1 + _rnd(i, 37) * 0.35),
+        c.dx + math.cos(phase + t * speed) * size.width * (0.25 + _rnd(seed, 31) * 0.5),
+        c.dy + math.sin(phase * 1.7 + t * speed * 0.8) * size.height * (0.1 + _rnd(seed, 37) * 0.35),
       );
       final color = i % 3 == 0 ? _kMag : (i % 3 == 1 ? _kCyan : _kViolet);
       paint.shader = RadialGradient(
-        colors: [color.withValues(alpha: 0.05 * a * (0.4 + _rnd(i, 41) * 0.6)), Colors.transparent],
+        colors: [color.withValues(alpha: 0.05 * a * (0.4 + _rnd(seed, 41) * 0.6)), Colors.transparent],
       ).createShader(Rect.fromCircle(center: pos, radius: r));
       canvas.drawCircle(pos, r, paint);
     }
@@ -338,7 +339,8 @@ class _BeamPainter extends CustomPainter {
       final energy = col[3] / 1000;
       // les colonnes de profil varient peu : on ré-étale la couverture 0.8..1.0
       final dens = ((energy - 0.8) / 0.2).clamp(0.0, 1.0).toDouble();
-      final p = _inv(t - _kBreak - (1 - dens) * 0.18, 0, 1.5 + 0.62 * _rnd(i, 7));
+      final seed = i.toDouble();
+      final p = _inv(t - _kBreak - (1 - dens) * 0.18, 0, 1.5 + 0.62 * _rnd(seed, 7));
       if (p <= 0) continue;
 
       final f = 1 / (1 - 0.9 * math.min(p, 0.985));
@@ -351,7 +353,7 @@ class _BeamPainter extends CustomPainter {
               .toDouble();
       if (alpha < 0.012) continue;
 
-      final x = c.dx + col[0] / 1000 * half * f + (0.5 - _rnd(i, 11)) * 44 * p * p;
+      final x = c.dx + col[0] / 1000 * half * f + (0.5 - _rnd(seed, 11)) * 44 * p * p;
       final top = c.dy + col[1] / 1000 * half * f;
       final bot = c.dy + col[2] / 1000 * half * f;
       final h = math.max(3.0, bot - top);

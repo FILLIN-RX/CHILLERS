@@ -4,6 +4,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
     ffmpeg \
+    python3 \
+    python3-pip \
+    python3-venv \
+    chromium \
+    xvfb \
+    supervisor \
     libnss3 \
     libnspr4 \
     libatk1.0-0 \
@@ -19,6 +25,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libasound2t64 && \
     rm -rf /var/lib/apt/lists/*
 
+# FlareSolverr (sidecar) : contourne les challenges Cloudflare de liveball.
+# Python 3.13 a retiré le module `cgi` (requis par bottle) -> legacy-cgi.
+RUN python3 -m venv /opt/flaresolverr && \
+    /opt/flaresolverr/bin/pip install --no-cache-dir "flaresolverr>=3.3.21" legacy-cgi && \
+    rm -rf /root/.cache/pip
+
 WORKDIR /app
 COPY backend/package*.json ./backend/
 RUN cd backend && npm install
@@ -27,5 +39,7 @@ COPY . .
 WORKDIR /app/backend
 RUN npm run build
 
+COPY docker/supervisord.conf /etc/supervisor/conf.d/chillers.conf
+
 EXPOSE 4000
-CMD ["npm", "run", "start"]
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/chillers.conf"]

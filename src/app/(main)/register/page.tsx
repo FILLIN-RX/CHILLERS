@@ -10,6 +10,7 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import { authService } from "@/services/auth";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { getStableDeviceFingerprint } from "@/lib/deviceFingerprint";
+import { AuthPosterWall } from "@/components/AuthPosterWall";
 
 const GOOGLE_AUTH_ENABLED = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED === "true";
 
@@ -55,19 +56,22 @@ function RegisterForm() {
   };
 
   return (
-    <div className="min-h-[100dvh] bg-[#09090B] text-white flex flex-col justify-center px-4 sm:px-6 lg:px-8 py-12">
+    <div className="relative min-h-[100dvh] w-full bg-[#060608] text-white flex flex-col justify-center px-4 sm:px-6 lg:px-8 py-12 overflow-hidden select-none">
+      {/* ── Background: Animated TMDB Poster Wall (Same as 404 page) ── */}
+      <AuthPosterWall />
+
       {/* Top back navigation on mobile */}
       <div className="absolute top-4 left-4 sm:top-6 sm:left-6 z-20">
         <Link
           href="/"
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-zinc-900 border border-white/10 text-xs font-semibold text-zinc-300 hover:text-white transition-all"
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-900/80 hover:bg-zinc-800/90 border border-white/10 backdrop-blur-md text-xs font-semibold text-zinc-300 hover:text-white transition-all shadow-lg cursor-pointer"
         >
           <CaretLeft className="w-4 h-4" />
           <span>{lang === "fr" ? "Accueil" : "Home"}</span>
         </Link>
       </div>
 
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+      <div className="relative z-10 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="text-center space-y-3">
           <Link href="/" className="inline-flex flex-col items-center gap-2 group transition-transform hover:scale-105">
             <Image
@@ -78,14 +82,14 @@ function RegisterForm() {
               className="w-12 h-12 sm:w-14 sm:h-14 object-contain drop-shadow-[0_0_20px_rgba(215,4,102,0.4)]"
               priority
             />
-            <span className="text-2xl sm:text-3xl font-black tracking-wider uppercase text-[#D70466]">
+            <span className="text-2xl sm:text-3xl font-black tracking-wider uppercase text-[#D70466] drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
               CHILLERS
             </span>
           </Link>
-          <h1 className="text-xl sm:text-2xl font-bold text-white">
+          <h1 className="text-xl sm:text-2xl font-bold text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)]">
             {lang === "fr" ? "Créer un compte" : "Create an account"}
           </h1>
-          <p className="text-xs sm:text-sm text-zinc-400">
+          <p className="text-xs sm:text-sm text-zinc-300 drop-shadow-[0_1px_6px_rgba(0,0,0,0.8)]">
             {lang === "fr"
               ? "Rejoignez Chillers pour une expérience de streaming optimale."
               : "Join Chillers for the ultimate streaming experience."}
@@ -93,12 +97,12 @@ function RegisterForm() {
         </div>
 
         {error && (
-          <div className="mt-6 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs sm:text-sm font-medium">
+          <div className="mt-6 p-3.5 bg-red-500/20 border border-red-500/30 backdrop-blur-md rounded-2xl text-red-400 text-xs sm:text-sm font-medium shadow-lg">
             {error}
           </div>
         )}
 
-        <div className="mt-6 bg-zinc-900 border border-white/10 rounded-2xl p-6 sm:p-8 shadow-2xl">
+        <div className="mt-6 bg-zinc-900/85 backdrop-blur-xl border border-white/10 rounded-2xl p-6 sm:p-8 shadow-2xl shadow-black/80">
           {GOOGLE_AUTH_ENABLED && (
             <>
               <button

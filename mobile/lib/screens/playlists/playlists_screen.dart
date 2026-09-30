@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../config/theme.dart';
 import '../../models/media_item.dart';
@@ -63,7 +64,7 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
             filled: true,
             fillColor: Colors.black26,
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
           ),
         ),
         actions: [
@@ -133,7 +134,7 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.playlist_add_rounded, color: AppTheme.primary, size: 26),
+            icon: const FaIcon(FontAwesomeIcons.listUl, color: AppTheme.primary, size: 26),
             tooltip: 'Créer une playlist',
             onPressed: _showCreatePlaylistDialog,
           ),
@@ -173,8 +174,8 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
                               ),
                               child: Row(
                                 children: [
-                                  Icon(
-                                    Icons.queue_music_rounded,
+                                  FaIcon(
+                                    FontAwesomeIcons.music,
                                     size: 14,
                                     color: isSelected ? Colors.white : Colors.white70,
                                   ),
@@ -192,7 +193,7 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                                     decoration: BoxDecoration(
                                       color: Colors.black26,
-                                      borderRadius: BorderRadius.circular(10),
+                                      borderRadius: BorderRadius.circular(16),
                                     ),
                                     child: Text(
                                       '$count',
@@ -227,7 +228,7 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
                           ),
                           if (activePlaylist['id'] != null)
                             IconButton(
-                              icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
+                              icon: const FaIcon(FontAwesomeIcons.trashCan, color: Colors.redAccent, size: 20),
                               tooltip: 'Supprimer la playlist',
                               onPressed: () => _deletePlaylist(
                                 activePlaylist['id'].toString(),
@@ -282,7 +283,7 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
                                         children: [
                                           Expanded(
                                             child: ClipRRect(
-                                              borderRadius: BorderRadius.circular(10),
+                                              borderRadius: BorderRadius.circular(16),
                                               child: media.poster != null && media.poster!.isNotEmpty
                                                   ? CachedNetworkImage(
                                                       imageUrl: media.poster!,
@@ -291,12 +292,12 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
                                                       placeholder: (context, url) => Container(color: AppTheme.card),
                                                       errorWidget: (context, url, error) => Container(
                                                         color: AppTheme.card,
-                                                        child: const Icon(Icons.movie, color: Colors.white24),
+                                                        child: const FaIcon(FontAwesomeIcons.film, color: Colors.white24),
                                                       ),
                                                     )
                                                   : Container(
                                                       color: AppTheme.card,
-                                                      child: const Icon(Icons.movie, color: Colors.white24),
+                                                      child: const FaIcon(FontAwesomeIcons.film, color: Colors.white24),
                                                     ),
                                             ),
                                           ),
@@ -326,7 +327,7 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
                                               color: Colors.black.withValues(alpha: 0.7),
                                               shape: BoxShape.circle,
                                             ),
-                                            child: const Icon(Icons.close_rounded, color: Colors.white70, size: 14),
+                                            child: const FaIcon(FontAwesomeIcons.xmark, color: Colors.white70, size: 14),
                                           ),
                                         ),
                                       ),
@@ -348,7 +349,7 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.playlist_play_rounded, size: 64, color: AppTheme.textSecondary),
+            const FaIcon(FontAwesomeIcons.listUl, size: 64, color: AppTheme.textSecondary),
             const SizedBox(height: 16),
             const Text(
               'Aucune playlist créée',
@@ -366,10 +367,10 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
                 backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               ),
               onPressed: _showCreatePlaylistDialog,
-              icon: const Icon(Icons.add_rounded),
+              icon: const FaIcon(FontAwesomeIcons.plus),
               label: const Text('Créer ma première playlist', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../config/theme.dart';
 
 class UpgradeModal extends StatefulWidget {
@@ -46,12 +47,12 @@ class _UpgradeModalState extends State<UpgradeModal> {
     },
   ];
 
-  final List<Map<String, dynamic>> _paymentMethods = const [
-    {'id': 'wave', 'name': 'Wave Mobile Money', 'icon': Icons.account_balance_wallet_rounded, 'color': Color(0xFF1DC7EA)},
-    {'id': 'orange', 'name': 'Orange Money', 'icon': Icons.phone_android_rounded, 'color': Color(0xFFFF7900)},
-    {'id': 'mtn', 'name': 'MTN MoMo', 'icon': Icons.flash_on_rounded, 'color': Color(0xFFFFCC00)},
-    {'id': 'card', 'name': 'Carte Visa / Mastercard', 'icon': Icons.credit_card_rounded, 'color': Color(0xFF6C5CE7)},
-    {'id': 'crypto', 'name': 'Crypto (USDT / BTC)', 'icon': Icons.currency_bitcoin_rounded, 'color': Color(0xFFF7931A)},
+  final List<Map<String, dynamic>> _paymentMethods = [
+    {'id': 'wave', 'name': 'Wave Mobile Money', 'icon': FontAwesomeIcons.wallet.data, 'color': Color(0xFF1DC7EA)},
+    {'id': 'orange', 'name': 'Orange Money', 'icon': FontAwesomeIcons.mobileScreenButton.data, 'color': Color(0xFFFF7900)},
+    {'id': 'mtn', 'name': 'MTN MoMo', 'icon': FontAwesomeIcons.bolt.data, 'color': Color(0xFFFFCC00)},
+    {'id': 'card', 'name': 'Carte Visa / Mastercard', 'icon': FontAwesomeIcons.creditCard.data, 'color': Color(0xFF6C5CE7)},
+    {'id': 'crypto', 'name': 'Crypto (USDT / BTC)', 'icon': FontAwesomeIcons.bitcoinSign.data, 'color': Color(0xFFF7931A)},
   ];
 
   void _handleSubscribe() async {
@@ -67,7 +68,7 @@ class _UpgradeModalState extends State<UpgradeModal> {
         backgroundColor: Colors.green,
         content: Row(
           children: [
-            const Icon(Icons.check_circle_rounded, color: Colors.white),
+            const FaIcon(FontAwesomeIcons.circleCheck, color: Colors.white),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
@@ -126,7 +127,7 @@ class _UpgradeModalState extends State<UpgradeModal> {
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.workspace_premium_rounded, color: Colors.black, size: 16),
+                      FaIcon(FontAwesomeIcons.award, color: Colors.black, size: 16),
                       SizedBox(width: 4),
                       Text(
                         'CHILLERS VIP',
@@ -138,7 +139,7 @@ class _UpgradeModalState extends State<UpgradeModal> {
                 const Spacer(),
                 IconButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.close_rounded, color: Colors.white70),
+                  icon: const FaIcon(FontAwesomeIcons.xmark, color: Colors.white70),
                 ),
               ],
             ),
@@ -156,10 +157,10 @@ class _UpgradeModalState extends State<UpgradeModal> {
             const SizedBox(height: 20),
 
             // VIP Perks List
-            _buildPerkItem(Icons.speed_rounded, 'Serveurs Dédiés Ultra-Haut Débit 4K & 1080p'),
-            _buildPerkItem(Icons.block_rounded, 'Zéro Publicité & Visionnage Ininterrompu'),
-            _buildPerkItem(Icons.download_done_rounded, 'Téléchargements Illimités pour visionnage hors-ligne'),
-            _buildPerkItem(Icons.sports_soccer_rounded, 'Accès prioritaire à tous les matchs de foot en direct'),
+            _buildPerkItem(FontAwesomeIcons.gaugeHigh.data, 'Serveurs Dédiés Ultra-Haut Débit 4K & 1080p'),
+            _buildPerkItem(FontAwesomeIcons.ban.data, 'Zéro Publicité & Visionnage Ininterrompu'),
+            _buildPerkItem(FontAwesomeIcons.checkToSlot.data, 'Téléchargements Illimités pour visionnage hors-ligne'),
+            _buildPerkItem(FontAwesomeIcons.futbol.data, 'Accès prioritaire à tous les matchs de foot en direct'),
             const SizedBox(height: 20),
 
             // Choisir un forfait
@@ -180,7 +181,7 @@ class _UpgradeModalState extends State<UpgradeModal> {
                       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
                       decoration: BoxDecoration(
                         color: isSelected ? AppTheme.primary.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.04),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(16),
                         border: Border.all(
                           color: isSelected ? AppTheme.primary : Colors.white12,
                           width: isSelected ? 2 : 1,
@@ -251,7 +252,7 @@ class _UpgradeModalState extends State<UpgradeModal> {
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     decoration: BoxDecoration(
                       color: isSelected ? Colors.white.withValues(alpha: 0.08) : Colors.white.withValues(alpha: 0.03),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color: isSelected ? AppTheme.primary : Colors.white10,
                       ),
@@ -270,9 +271,9 @@ class _UpgradeModalState extends State<UpgradeModal> {
                         ),
                         const Spacer(),
                         if (isSelected)
-                          const Icon(Icons.check_circle_rounded, color: AppTheme.primary, size: 20)
+                          const FaIcon(FontAwesomeIcons.circleCheck, color: AppTheme.primary, size: 20)
                         else
-                          const Icon(Icons.radio_button_unchecked_rounded, color: Colors.white24, size: 20),
+                          const FaIcon(FontAwesomeIcons.circle, color: Colors.white24, size: 20),
                       ],
                     ),
                   ),
@@ -289,7 +290,7 @@ class _UpgradeModalState extends State<UpgradeModal> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primary,
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                   elevation: 4,
                 ),
                 onPressed: _isProcessing ? null : _handleSubscribe,
@@ -302,7 +303,7 @@ class _UpgradeModalState extends State<UpgradeModal> {
                     : Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.lock_outline_rounded, size: 18),
+                          const FaIcon(FontAwesomeIcons.lock, size: 18),
                           const SizedBox(width: 8),
                           Text(
                             'Activer VIP (${_plans[_selectedPlan]['price']})',

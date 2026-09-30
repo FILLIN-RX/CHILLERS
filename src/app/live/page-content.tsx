@@ -752,14 +752,6 @@ export default function LivePageContent() {
 
       {/* ── 2. Football Matches Row (Live Scores) ─────────────────────────── */}
       <div className="mb-10">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2.5">
-            <Trophy weight="fill" className="w-5 h-5 text-amber-500" />
-            <h2 className="text-lg sm:text-xl font-black uppercase tracking-wider text-white">
-              Matchs de Football en Direct
-            </h2>
-          </div>
-        </div>
         <LiveMatchesRow noScrollMargin />
       </div>
 

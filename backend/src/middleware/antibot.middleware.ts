@@ -14,8 +14,8 @@ export const antiBotMiddleware = (req: Request, res: Response, next: NextFunctio
     return next();
   }
 
-  // Optionnel : bypass si désactivé en dev
-  if (process.env.DISABLE_ANTIBOT === 'true') {
+  // Optionnel : bypass si désactivé ou en développement local
+  if (process.env.NODE_ENV !== 'production' || process.env.DISABLE_ANTIBOT === 'true') {
     return next();
   }
 
@@ -42,6 +42,7 @@ export const antiBotMiddleware = (req: Request, res: Response, next: NextFunctio
     path.includes('/torrents') ||
     path.includes('/live') ||
     path.includes('/liveball') ||
+    path.includes('/sports') ||
     path.includes('/uploads') ||
     path.includes('/affiches') ||
     path.includes('/clear-cache') ||

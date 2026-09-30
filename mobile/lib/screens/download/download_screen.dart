@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../config/theme.dart';
 import '../../models/media_item.dart';
@@ -96,7 +97,7 @@ class _DownloadScreenState extends State<DownloadScreen> with SingleTickerProvid
                 Row(
                   children: [
                     Icon(
-                      isPremium ? Icons.workspace_premium_rounded : Icons.info_outline_rounded,
+                      isPremium ? FontAwesomeIcons.award.data : FontAwesomeIcons.circleInfo.data,
                       color: isPremium ? Colors.amber : AppTheme.primary,
                       size: 28,
                     ),
@@ -111,7 +112,7 @@ class _DownloadScreenState extends State<DownloadScreen> with SingleTickerProvid
                 ),
                 const SizedBox(height: 20),
                 _buildInfoCard(
-                  icon: Icons.smartphone_rounded,
+                  icon: FontAwesomeIcons.mobile.data,
                   title: 'Téléchargement In-App',
                   description: 'Fichiers sauvegardés dans CHILLERS uniquement. Lecture hors-ligne fluide et optimisée.',
                   features: ['Lecture dans l\'app', 'Optimisé pour le streaming', 'Sécurisé'],
@@ -120,7 +121,7 @@ class _DownloadScreenState extends State<DownloadScreen> with SingleTickerProvid
                 ),
                 const SizedBox(height: 12),
                 _buildInfoCard(
-                  icon: Icons.folder_rounded,
+                  icon: FontAwesomeIcons.folder.data,
                   title: 'Téléchargement Externe',
                   description: 'Fichiers MP4 dans votre dossier Téléchargements. Accessible avec n\'importe quel lecteur.',
                   features: ['Dossier Téléchargements', 'Lecture avec VLC/MX Player', 'Transférable par USB'],
@@ -133,12 +134,12 @@ class _DownloadScreenState extends State<DownloadScreen> with SingleTickerProvid
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
                       color: Colors.amber.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.upgrade_rounded, color: Colors.amber, size: 20),
+                        const FaIcon(FontAwesomeIcons.arrowUpFromBracket, color: Colors.amber, size: 20),
                         const SizedBox(width: 10),
                         const Expanded(
                           child: Text(
@@ -187,7 +188,7 @@ class _DownloadScreenState extends State<DownloadScreen> with SingleTickerProvid
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppTheme.card,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
@@ -234,7 +235,7 @@ class _DownloadScreenState extends State<DownloadScreen> with SingleTickerProvid
                 padding: const EdgeInsets.only(bottom: 4),
                 child: Row(
                   children: [
-                    Icon(Icons.check_circle_rounded, color: color, size: 14),
+                    FaIcon(FontAwesomeIcons.circleCheck, color: color, size: 14),
                     const SizedBox(width: 6),
                     Text(
                       f,
@@ -347,7 +348,7 @@ class _DownloadScreenState extends State<DownloadScreen> with SingleTickerProvid
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.wifi_tethering_rounded, color: Colors.white, size: 22),
+            icon: const FaIcon(FontAwesomeIcons.wifi, color: Colors.white, size: 22),
             tooltip: 'Recevoir en P2P',
             onPressed: () {
               Navigator.push(
@@ -357,13 +358,13 @@ class _DownloadScreenState extends State<DownloadScreen> with SingleTickerProvid
             },
           ),
           IconButton(
-            icon: const Icon(Icons.info_outline_rounded, color: Colors.white70, size: 22),
+            icon: const FaIcon(FontAwesomeIcons.circleInfo, color: Colors.white70, size: 22),
             tooltip: 'Informations',
             onPressed: _showInfoModal,
           ),
           if (tasks.isNotEmpty)
             IconButton(
-              icon: const Icon(Icons.delete_sweep_rounded, color: Colors.white70),
+              icon: const FaIcon(FontAwesomeIcons.trashCanArrowUp, color: Colors.white70),
               tooltip: 'Tout effacer',
               onPressed: _confirmClearAll,
             ),
@@ -379,7 +380,7 @@ class _DownloadScreenState extends State<DownloadScreen> with SingleTickerProvid
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.smartphone_rounded, size: 16),
+                  const FaIcon(FontAwesomeIcons.mobile, size: 16),
                   const SizedBox(width: 6),
                   Text('In-App (${inAppTasks.length})'),
                 ],
@@ -389,7 +390,7 @@ class _DownloadScreenState extends State<DownloadScreen> with SingleTickerProvid
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.folder_rounded, size: 16),
+                  const FaIcon(FontAwesomeIcons.folder, size: 16),
                   const SizedBox(width: 6),
                   Text('Externe (${externalTasks.length})'),
                 ],
@@ -408,13 +409,13 @@ class _DownloadScreenState extends State<DownloadScreen> with SingleTickerProvid
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: AppTheme.card,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
                   ),
                   child: Row(
                     children: [
                       Icon(
-                        isPremium ? Icons.workspace_premium_rounded : Icons.sd_storage_rounded,
+                        isPremium ? FontAwesomeIcons.award.data : FontAwesomeIcons.sdCard.data,
                         color: isPremium ? Colors.amber : AppTheme.primary,
                         size: 24,
                       ),
@@ -431,7 +432,7 @@ class _DownloadScreenState extends State<DownloadScreen> with SingleTickerProvid
                                 ),
                                 if (isPremium) ...[
                                   const SizedBox(width: 6),
-                                  const Icon(Icons.verified_rounded, color: Colors.amber, size: 14),
+                                  const FaIcon(FontAwesomeIcons.checkDouble, color: Colors.amber, size: 14),
                                 ],
                               ],
                             ),
@@ -476,8 +477,8 @@ class _DownloadScreenState extends State<DownloadScreen> with SingleTickerProvid
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
               ),
-              child: const Icon(
-                Icons.download_for_offline_rounded,
+              child: const FaIcon(
+                FontAwesomeIcons.download,
                 size: 64,
                 color: AppTheme.primary,
               ),
@@ -515,7 +516,7 @@ class _DownloadScreenState extends State<DownloadScreen> with SingleTickerProvid
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   ),
-                  icon: const Icon(Icons.info_outline_rounded, size: 18),
+                  icon: const FaIcon(FontAwesomeIcons.circleInfo, size: 18),
                   label: const Text('En savoir plus'),
                   onPressed: _showInfoModal,
                 ),
@@ -525,7 +526,7 @@ class _DownloadScreenState extends State<DownloadScreen> with SingleTickerProvid
                     side: const BorderSide(color: Colors.white24),
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   ),
-                  icon: const Icon(Icons.wifi_tethering_rounded, size: 18),
+                  icon: const FaIcon(FontAwesomeIcons.wifi, size: 18),
                   label: const Text('Recevoir en P2P'),
                   onPressed: () {
                     Navigator.push(
@@ -551,7 +552,7 @@ class _DownloadScreenState extends State<DownloadScreen> with SingleTickerProvid
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
-                isInApp ? Icons.smartphone_rounded : Icons.folder_open_rounded,
+                isInApp ? FontAwesomeIcons.mobile.data : FontAwesomeIcons.folderOpen.data,
                 size: 48,
                 color: Colors.white24,
               ),
@@ -597,10 +598,13 @@ class _DownloadScreenState extends State<DownloadScreen> with SingleTickerProvid
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppTheme.card,
-        borderRadius: BorderRadius.circular(14),
+        color: const Color(0xFF18181B),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isDone ? Colors.white.withValues(alpha: 0.08) : AppTheme.primary.withValues(alpha: 0.3),
+          color: isDownloading
+              ? AppTheme.primary.withValues(alpha: 0.4)
+              : Colors.white.withValues(alpha: 0.06),
+          width: 1.2,
         ),
       ),
       child: Column(
@@ -609,25 +613,25 @@ class _DownloadScreenState extends State<DownloadScreen> with SingleTickerProvid
             children: [
               // Poster
               ClipRRect(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(10),
                 child: task.poster != null && task.poster!.isNotEmpty
                     ? CachedNetworkImage(
                         imageUrl: task.poster!,
-                        width: 60,
-                        height: 85,
+                        width: 58,
+                        height: 82,
                         fit: BoxFit.cover,
                         errorWidget: (context, url, error) => Container(
-                          width: 60,
-                          height: 85,
+                          width: 58,
+                          height: 82,
                           color: Colors.white12,
-                          child: const Icon(Icons.movie, color: Colors.white38),
+                          child: const FaIcon(FontAwesomeIcons.film, color: Colors.white38),
                         ),
                       )
                     : Container(
-                        width: 60,
-                        height: 85,
+                        width: 58,
+                        height: 82,
                         color: Colors.white12,
-                        child: const Icon(Icons.movie, color: Colors.white38),
+                        child: const FaIcon(FontAwesomeIcons.film, color: Colors.white38),
                       ),
               ),
 
@@ -657,35 +661,43 @@ class _DownloadScreenState extends State<DownloadScreen> with SingleTickerProvid
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
                     Wrap(
                       spacing: 6,
+                      runSpacing: 4,
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(4),
+                            color: AppTheme.primary.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
                             task.quality ?? 'HD',
-                            style: const TextStyle(color: Colors.white70, fontSize: 9, fontWeight: FontWeight.bold),
+                            style: const TextStyle(color: AppTheme.primary, fontSize: 10, fontWeight: FontWeight.w900),
                           ),
                         ),
-                        Text(
-                          _formatBytes(task.totalBytes),
-                          style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            _formatBytes(task.totalBytes),
+                            style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.w600),
+                          ),
                         ),
                         if (task.isExternal)
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
                               color: Colors.amber.withValues(alpha: 0.18),
-                              borderRadius: BorderRadius.circular(4),
+                              borderRadius: BorderRadius.circular(6),
                             ),
                             child: const Text(
-                              'EXTERNE',
-                              style: TextStyle(color: Colors.amber, fontSize: 9, fontWeight: FontWeight.bold),
+                              'VIP',
+                              style: TextStyle(color: Colors.amber, fontSize: 10, fontWeight: FontWeight.bold),
                             ),
                           ),
                       ],
@@ -698,7 +710,7 @@ class _DownloadScreenState extends State<DownloadScreen> with SingleTickerProvid
               if (isDone) ...[
                 if (task.localFilePath != null)
                   IconButton(
-                    icon: const Icon(Icons.share_rounded, color: Colors.white70, size: 22),
+                    icon: const FaIcon(FontAwesomeIcons.shareNodes, color: Colors.white70, size: 20),
                     tooltip: 'Partager hors ligne (P2P)',
                     onPressed: () {
                       final media = MediaItem(
@@ -717,26 +729,26 @@ class _DownloadScreenState extends State<DownloadScreen> with SingleTickerProvid
                   ),
                 IconButton(
                   icon: Icon(
-                    task.publicUri != null ? Icons.open_in_new_rounded : Icons.play_circle_filled_rounded,
+                    task.publicUri != null ? FontAwesomeIcons.arrowUpRightFromSquare.data : FontAwesomeIcons.circlePlay.data,
                     color: AppTheme.primary,
-                    size: 34,
+                    size: 32,
                   ),
                   onPressed: () => _playOffline(task),
                 ),
               ]
               else if (isDownloading)
                 IconButton(
-                  icon: const Icon(Icons.pause_circle_filled_rounded, color: Colors.amber, size: 32),
+                  icon: const FaIcon(FontAwesomeIcons.circlePause, color: Colors.amber, size: 30),
                   onPressed: () => _downloadService.pauseDownload(task.id),
                 )
               else
                 IconButton(
-                  icon: const Icon(Icons.play_circle_outline_rounded, color: Colors.white70, size: 32),
+                  icon: const FaIcon(FontAwesomeIcons.circlePlay, color: AppTheme.primary, size: 30),
                   onPressed: () => _downloadService.resumeDownload(task.id),
                 ),
 
               IconButton(
-                icon: const Icon(Icons.close_rounded, color: Colors.white38, size: 20),
+                icon: const FaIcon(FontAwesomeIcons.xmark, color: Colors.white38, size: 18),
                 onPressed: () => _downloadService.removeDownload(task.id),
               ),
             ],
@@ -746,7 +758,7 @@ class _DownloadScreenState extends State<DownloadScreen> with SingleTickerProvid
             const SizedBox(height: 10),
             Row(
               children: [
-                const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 14),
+                const FaIcon(FontAwesomeIcons.triangleExclamation, color: Colors.redAccent, size: 14),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
@@ -757,33 +769,33 @@ class _DownloadScreenState extends State<DownloadScreen> with SingleTickerProvid
               ],
             ),
           ] else if (!isDone) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             ClipRRect(
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(6),
               child: LinearProgressIndicator(
-                value: task.progress,
+                value: task.progress > 0 ? task.progress : null,
                 backgroundColor: Colors.white12,
                 color: isDownloading ? AppTheme.primary : Colors.amber,
-                minHeight: 4,
+                minHeight: 5,
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   isDownloading
-                      ? 'Téléchargement (${(task.progress * 100).toInt()}%)'
-                      : 'En pause',
+                      ? 'Téléchargement ${(task.progress * 100).toInt()}%'
+                      : 'En pause (${(task.progress * 100).toInt()}%)',
                   style: TextStyle(
                     color: isDownloading ? AppTheme.primary : Colors.amber,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 Text(
                   '${_formatBytes(task.downloadedBytes)} / ${_formatBytes(task.totalBytes)}',
-                  style: const TextStyle(color: AppTheme.textSecondary, fontSize: 10),
+                  style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11, fontWeight: FontWeight.w600),
                 ),
               ],
             ),

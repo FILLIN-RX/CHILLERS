@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
@@ -176,6 +177,11 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> with TickerProviderStat
 
     _disposeAllControllers();
 
+    if (_isPlatformWebViewSupported && _isEmbedUrl) {
+      _initMobileWebView();
+      return;
+    }
+
     if (hasMediaKitSupport) {
       // 1. MEDIAKIT ENGINE NATIF (GPU / libmpv - Linux, Windows, macOS, Android, iOS)
       try {
@@ -225,10 +231,7 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> with TickerProviderStat
         await player.open(
           Media(
             widget.videoUrl,
-            httpHeaders: {
-              'User-Agent':
-                  'Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
-            },
+            httpHeaders: _getHeadersForUrl(widget.videoUrl),
           ),
           play: widget.autoPlay,
         );
@@ -257,6 +260,19 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> with TickerProviderStat
     }
   }
 
+  bool get _isEmbedUrl {
+    final lower = widget.videoUrl.toLowerCase();
+    return lower.contains('vidlink.pro') ||
+        lower.contains('vidsrc') ||
+        lower.contains('2embed') ||
+        lower.contains('superembed') ||
+        lower.contains('/embed') ||
+        lower.contains('doodstream.com/e/') ||
+        lower.contains('streamtape.com/e/') ||
+        lower.contains('uqload.is/embed') ||
+        (lower.contains('vidzy.cc') && (lower.contains('embed-') || lower.contains('/d/')));
+  }
+
   void _handlePlaybackFailure(String error) {
     if (_isPlatformWebViewSupported &&
         (error.contains('Failed to recognize file format') ||
@@ -276,9 +292,19 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> with TickerProviderStat
       return;
     }
     if (mounted) {
+      String cleanMessage = 'Impossible de charger le flux vidéo.';
+      final errStr = error.toString();
+      if (errStr.contains('Failed to open') || errStr.contains('404') || errStr.contains('403')) {
+        cleanMessage = 'Le serveur vidéo ne répond pas ou le lien a expiré.';
+      } else if (errStr.contains('Failed to recognize file format')) {
+        cleanMessage = 'Flux vidéo indisponible ou page HTML renvoyée.';
+      } else if (errStr.contains('SocketException') || errStr.contains('Network') || errStr.contains('connection')) {
+        cleanMessage = 'Problème de connexion réseau.';
+      }
+
       setState(() {
         _isLoading = false;
-        _errorMessage = 'Impossible de charger le flux vidéo : $error';
+        _errorMessage = cleanMessage;
       });
     }
   }
@@ -331,6 +357,26 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> with TickerProviderStat
     _initializePlayer();
   }
 
+  Map<String, String> _getHeadersForUrl(String url) {
+    final headers = <String, String>{
+      'User-Agent':
+          'Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+    };
+    final lower = url.toLowerCase();
+    if (lower.contains('vidzy')) {
+      headers['Referer'] = 'https://vidzy.cc/';
+      headers['Origin'] = 'https://vidzy.cc';
+    } else if (lower.contains('uqload')) {
+      headers['Referer'] = 'https://uqload.is/';
+      headers['Origin'] = 'https://uqload.is';
+    } else if (lower.contains('dood') || lower.contains('ds2play') || lower.contains('playmogo')) {
+      headers['Referer'] = 'https://doodstream.com/';
+    } else if (lower.contains('luluvid') || lower.contains('luluvdo')) {
+      headers['Referer'] = 'https://luluvid.com/';
+    }
+    return headers;
+  }
+
   Future<void> _initFallbackVideoPlayer() async {
     _useMediaKit = false;
     try {
@@ -341,10 +387,7 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> with TickerProviderStat
         final uri = Uri.parse(widget.videoUrl);
         _videoPlayerController = VideoPlayerController.networkUrl(
           uri,
-          httpHeaders: {
-            'User-Agent':
-                'Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
-          },
+          httpHeaders: _getHeadersForUrl(widget.videoUrl),
         );
       }
       await _videoPlayerController!.initialize();
@@ -706,36 +749,57 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> with TickerProviderStat
     if (_errorMessage != null) {
       return Container(
         color: Colors.black,
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         alignment: Alignment.center,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.wifi_tethering_off_rounded, color: Colors.redAccent, size: 48),
-            const SizedBox(height: 12),
-            Text(
-              _isLiveStream ? 'Flux Direct Indisponible' : 'Erreur de lecture',
-              style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              _errorMessage!,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white70, fontSize: 12),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: Colors.redAccent.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.redAccent.withValues(alpha: 0.4), width: 1.5),
+                ),
+                child: const Center(
+                  child: FaIcon(FontAwesomeIcons.powerOff, color: Colors.redAccent, size: 20),
+                ),
               ),
-              onPressed: _retryPlayLive,
-              icon: const Icon(Icons.refresh_rounded, size: 18),
-              label: const Text('Recharger'),
-            ),
-          ],
+              const SizedBox(height: 8),
+              Text(
+                _isLiveStream ? 'Flux Direct Indisponible' : 'Erreur de lecture',
+                style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 4),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 300),
+                child: Text(
+                  _errorMessage!,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white60, fontSize: 11),
+                ),
+              ),
+              const SizedBox(height: 10),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary,
+                  foregroundColor: Colors.white,
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+                onPressed: _retryPlayLive,
+                icon: const FaIcon(FontAwesomeIcons.arrowsRotate, size: 13),
+                label: const Text('Recharger', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -781,7 +845,7 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> with TickerProviderStat
                     child: const Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.replay_10_rounded, color: Colors.white, size: 40),
+                        FaIcon(FontAwesomeIcons.backwardFast, color: Colors.white, size: 40),
                         SizedBox(height: 4),
                         Text('-10s', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
                       ],
@@ -806,7 +870,7 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> with TickerProviderStat
                     child: const Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.forward_10_rounded, color: Colors.white, size: 40),
+                        FaIcon(FontAwesomeIcons.forwardFast, color: Colors.white, size: 40),
                         SizedBox(height: 4),
                         Text('+10s', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
                       ],
@@ -822,7 +886,7 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> with TickerProviderStat
                 top: screenHeight * 0.25,
                 bottom: screenHeight * 0.25,
                 child: _buildVerticalGestureHud(
-                  icon: _brightness > 0.5 ? Icons.brightness_7_rounded : Icons.brightness_4_rounded,
+                  icon: _brightness > 0.5 ? FontAwesomeIcons.sun.data : FontAwesomeIcons.moon.data,
                   value: _brightness,
                   label: '${(_brightness * 100).round()}%',
                 ),
@@ -836,10 +900,10 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> with TickerProviderStat
                 bottom: screenHeight * 0.25,
                 child: _buildVerticalGestureHud(
                   icon: _volume <= 0
-                      ? Icons.volume_off_rounded
+                      ? FontAwesomeIcons.volumeXmark.data
                       : _volume < 0.5
-                          ? Icons.volume_down_rounded
-                          : Icons.volume_up_rounded,
+                          ? FontAwesomeIcons.volumeLow.data
+                          : FontAwesomeIcons.volumeHigh.data,
                   value: _volume,
                   label: '${(_volume * 100).round()}%',
                 ),
@@ -862,7 +926,7 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> with TickerProviderStat
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.aspect_ratio_rounded, color: AppTheme.primary, size: 16),
+                        const FaIcon(FontAwesomeIcons.expand, color: AppTheme.primary, size: 16),
                         const SizedBox(width: 8),
                         Text(
                           _aspectRatioHudText!,
@@ -874,33 +938,13 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> with TickerProviderStat
                 ),
               ),
 
-            // 8. Indicateur Buffering
+            // 8. Indicateur Buffering subtil au centre
             if (_isBuffering && !_isLoading)
-              Positioned(
-                top: 14,
-                right: 14,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.black87,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.white24),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(
-                        width: 10,
-                        height: 10,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primary),
-                      ),
-                      SizedBox(width: 6),
-                      Text(
-                        'Buffering HD...',
-                        style: TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.w600),
-                      ),
-                    ],
-                  ),
+              const Center(
+                child: SizedBox(
+                  width: 42,
+                  height: 42,
+                  child: CircularProgressIndicator(strokeWidth: 3, color: AppTheme.primary),
                 ),
               ),
 
@@ -927,7 +971,7 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> with TickerProviderStat
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.lock_rounded, color: Colors.white, size: 20),
+                        FaIcon(FontAwesomeIcons.lock, color: Colors.white, size: 20),
                         SizedBox(width: 8),
                         Text(
                           'Appuyez pour Déverrouiller',
@@ -1041,7 +1085,7 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> with TickerProviderStat
                 children: [
                   // Cadenas (Screen Lock)
                   IconButton(
-                    icon: const Icon(Icons.lock_open_rounded, color: Colors.white70),
+                    icon: const FaIcon(FontAwesomeIcons.lockOpen, color: Colors.white70),
                     tooltip: 'Verrouiller l\'écran',
                     onPressed: _toggleScreenLock,
                   ),
@@ -1081,14 +1125,14 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> with TickerProviderStat
                   ),
                   // Format d'affichage (Aspect Ratio / Zoom)
                   IconButton(
-                    icon: const Icon(Icons.aspect_ratio_rounded, color: Colors.white70),
+                    icon: const FaIcon(FontAwesomeIcons.expand, color: Colors.white70),
                     tooltip: 'Changer le format d\'affichage (Zoom / Étirer)',
                     onPressed: _cycleAspectRatio,
                   ),
                   // Diffusion Smart TV (Cast / DLNA)
                   IconButton(
                     icon: Icon(
-                      CastService().isConnected ? Icons.cast_connected_rounded : Icons.cast_rounded,
+                      CastService().isConnected ? FontAwesomeIcons.chromecast.data : FontAwesomeIcons.chromecast.data,
                       color: CastService().isConnected ? Colors.greenAccent : Colors.white70,
                     ),
                     tooltip: 'Diffuser sur Smart TV',
@@ -1103,7 +1147,7 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> with TickerProviderStat
                   ),
                   // Mode Picture-in-Picture
                   IconButton(
-                    icon: const Icon(Icons.picture_in_picture_alt_rounded, color: Colors.white70),
+                    icon: const FaIcon(FontAwesomeIcons.windowRestore, color: Colors.white70),
                     tooltip: 'Mode Flottant (Picture-in-Picture)',
                     onPressed: _enterPip,
                   ),
@@ -1118,7 +1162,7 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> with TickerProviderStat
             children: [
               if (widget.hasPrevEpisode) ...[
                 IconButton(
-                  icon: const Icon(Icons.skip_previous_rounded, color: Colors.white70, size: 32),
+                  icon: const FaIcon(FontAwesomeIcons.backwardStep, color: Colors.white70, size: 32),
                   tooltip: 'Épisode précédent',
                   onPressed: () {
                     NativeBridge.instance.selectionHaptic();
@@ -1128,7 +1172,7 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> with TickerProviderStat
                 const SizedBox(width: 16),
               ],
               IconButton(
-                icon: const Icon(Icons.replay_10_rounded, color: Colors.white, size: 36),
+                icon: const FaIcon(FontAwesomeIcons.backwardFast, color: Colors.white, size: 36),
                 tooltip: 'Reculer de 10s',
                 onPressed: () => _seekRelative(-10),
               ),
@@ -1148,7 +1192,7 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> with TickerProviderStat
                     ],
                   ),
                   child: Icon(
-                    _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                    _isPlaying ? FontAwesomeIcons.pause.data : FontAwesomeIcons.play.data,
                     color: Colors.white,
                     size: 38,
                   ),
@@ -1156,14 +1200,14 @@ class _AppVideoPlayerState extends State<AppVideoPlayer> with TickerProviderStat
               ),
               const SizedBox(width: 20),
               IconButton(
-                icon: const Icon(Icons.forward_10_rounded, color: Colors.white, size: 36),
+                icon: const FaIcon(FontAwesomeIcons.forwardFast, color: Colors.white, size: 36),
                 tooltip: 'Avancer de 10s',
                 onPressed: () => _seekRelative(10),
               ),
               if (widget.hasNextEpisode) ...[
                 const SizedBox(width: 16),
                 IconButton(
-                  icon: const Icon(Icons.skip_next_rounded, color: Colors.white70, size: 32),
+                  icon: const FaIcon(FontAwesomeIcons.forwardStep, color: Colors.white70, size: 32),
                   tooltip: 'Épisode suivant',
                   onPressed: () {
                     NativeBridge.instance.selectionHaptic();

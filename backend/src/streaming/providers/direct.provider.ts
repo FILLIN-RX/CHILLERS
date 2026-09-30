@@ -32,6 +32,29 @@ export class DirectProvider implements StreamingProvider {
     return this.resolve(query);
   }
 
+  private unwrapUrl(url: string | undefined | null): string {
+    if (!url || typeof url !== 'string') return '';
+    let current = url.trim();
+    while (
+      current.includes('/api/doodstream/stream?url=') ||
+      current.includes('/api/download/file?url=') ||
+      current.includes('/api/download/stream?m3u8=') ||
+      current.includes('/api/omnisave/proxy?url=')
+    ) {
+      const match = current.match(/[?&](?:url|m3u8)=([^&]+)/);
+      if (match) {
+        try {
+          current = decodeURIComponent(match[1]);
+        } catch {
+          break;
+        }
+      } else {
+        break;
+      }
+    }
+    return current;
+  }
+
   private async resolve(query: StreamQuery): Promise<StreamResult | null> {
     const label = query.season !== undefined
       ? `S${query.season}E${query.episode} "${query.title}" (tmdb=${query.tmdbId})`
@@ -66,11 +89,12 @@ export class DirectProvider implements StreamingProvider {
     }
 
     // 2. Fallback : embed ou flux direct stocké en MongoDB
-    const streamCandidate = await this.findEmbedUrl(query);
-    if (!streamCandidate) {
+    const rawCandidate = await this.findEmbedUrl(query);
+    if (!rawCandidate) {
       console.log(`${TAG} ${label} → pas d'embed URL trouvée, skip`);
       return null;
     }
+    const streamCandidate = this.unwrapUrl(rawCandidate);
     console.log(`${TAG} ${label} → URL trouvée: ${streamCandidate.slice(0, 100)}`);
 
     // Cas A : L'URL est DÉJÀ un flux vidéo direct (.mp4, .m3u8, CDN Vidzy direct)
@@ -122,8 +146,10 @@ export class DirectProvider implements StreamingProvider {
     };
   }
 
-  private isDirectVideo(url: string): boolean {
-    if (!url || url === '#') return false;
+  private isDirectVideo(rawUrl: string): boolean {
+    const url = this.unwrapUrl(rawUrl);
+    if (!url || url === '#' || !url.startsWith('http')) return false;
+    if (isSignedLinkExpired(url)) return false;
     return /\.(mp4|webm|mkv|m3u8)(\?|$)/i.test(url) || /u\d+\.vidzy\.cc/i.test(url);
   }
 
@@ -152,22 +178,22 @@ export class DirectProvider implements StreamingProvider {
     return null;
   }
 
-  private toEmbedUrl(lien: string): string {
+  private toEmbedUrl(rawLien: string): string {
+    const lien = this.unwrapUrl(rawLien);
     const m = lien.match(/(?:doodstream\.com|playmogo\.com|d000d\.com|d0000d\.com|dood\.(?:to|sh|so|cx|la|wf|pm))\/(?:d|e)\/([a-zA-Z0-9]+)/i);
     if (m) return `https://doodstream.com/e/${m[1]}`;
     const uqload = lien.match(/uqload\.(?:is|com)\/(?:embed-?([a-zA-Z0-9]+)|([a-zA-Z0-9]+))/i);
     if (uqload) return `https://uqload.is/embed-${uqload[1] || uqload[2]}.html`;
-    if (!lien.includes('/v/')) {
-      const vidzy = lien.match(/vidzy\.(?:cc|org|xyz|co|tv|top)\/(?:embed-|d\/)([a-zA-Z0-9_-]{4,})/i);
-      if (vidzy) return `https://vidzy.cc/embed-${vidzy[1]}.html`;
-    }
+    const vidzy = lien.match(/vidzy\.(?:cc|org|xyz|co|tv|top)\/(?:embed-|d\/|v\/[^\/]+\/[^\/]+\/)([a-zA-Z0-9_-]{4,})(?:_n)?/i) || lien.match(/vidzy\.(?:cc|org|xyz|co|tv|top)\/.*\/([a-zA-Z0-9]{12,})(?:_n)?/i);
+    if (vidzy) return `https://vidzy.cc/embed-${vidzy[1]}.html`;
     const st = lien.match(/streamtape\.com\/(?:e|v|f)\/([a-zA-Z0-9]+)/i);
     if (st) return `https://streamtape.com/e/${st[1]}`;
     return lien;
   }
 
-  private isDirectScrapable(url: string | undefined | null): boolean {
-    if (!url || url === '#') return false;
+  private isDirectScrapable(rawUrl: string | undefined | null): boolean {
+    const url = this.unwrapUrl(rawUrl);
+    if (!url || url === '#' || !url.startsWith('http')) return false;
     return /doodstream\.com|dood\.(to|sh|so|cx|la|wf|pm)|playmogo\.com|d000d\.com|d0000d\.com|uqload\.(is|com)|vidzy\.(cc|org|xyz|co|tv|top)|luluvid\./i.test(url);
   }
 
@@ -223,8 +249,9 @@ export class DirectProvider implements StreamingProvider {
           }
         }
 
-        for (const candidate of candidates) {
-          if (isSignedLinkExpired(candidate)) continue;
+        for (const rawCandidate of candidates) {
+          const candidate = this.unwrapUrl(rawCandidate);
+          if (!candidate || candidate === '#' || isSignedLinkExpired(candidate)) continue;
           if (this.isDirectVideo(candidate)) {
             console.log(`${TAG} MongoDB: lien direct MP4/HLS trouvé pour S${query.season}E${query.episode}: ${candidate.slice(0, 80)}`);
             return candidate;
@@ -257,8 +284,9 @@ export class DirectProvider implements StreamingProvider {
           }
         }
 
-        for (const candidate of candidates) {
-          if (isSignedLinkExpired(candidate)) continue;
+        for (const rawCandidate of candidates) {
+          const candidate = this.unwrapUrl(rawCandidate);
+          if (!candidate || candidate === '#' || isSignedLinkExpired(candidate)) continue;
           if (this.isDirectVideo(candidate)) {
             console.log(`${TAG} MongoDB: lien direct MP4/HLS trouvé pour "${movie.titre}": ${candidate.slice(0, 80)}`);
             return candidate;

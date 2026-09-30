@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../../config/theme.dart';
 import '../../../models/media_item.dart';
 import 'media_card.dart';
@@ -38,7 +39,7 @@ class MediaGridView extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.movie_filter_outlined, size: 60, color: AppTheme.textSecondary),
+              const FaIcon(FontAwesomeIcons.film, size: 60, color: AppTheme.textSecondary),
               const SizedBox(height: 16),
               Text(
                 emptyMessage,
@@ -59,7 +60,7 @@ class MediaGridView extends StatelessWidget {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                 ),
                 onPressed: onRefresh,
-                icon: const Icon(Icons.refresh_rounded, size: 16),
+                icon: const FaIcon(FontAwesomeIcons.arrowsRotate, size: 16),
                 label: const Text('Actualiser'),
               ),
             ],
@@ -150,7 +151,7 @@ class MediaGridView extends StatelessWidget {
               child: Container(
                 decoration: BoxDecoration(
                   color: AppTheme.card,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(16),
                 ),
               ),
             ),

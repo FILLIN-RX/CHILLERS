@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../config/theme.dart';
 import '../models/media_item.dart';
@@ -182,7 +183,7 @@ class _InfiniteMediaSectionState extends State<InfiniteMediaSection> {
           children: [
             // Poster Image
             ClipRRect(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(16),
               child: item.poster != null && item.poster!.isNotEmpty
                   ? CachedNetworkImage(
                       imageUrl: item.poster!,
@@ -200,8 +201,8 @@ class _InfiniteMediaSectionState extends State<InfiniteMediaSection> {
                       ),
                       errorWidget: (context, url, error) => Container(
                         color: AppTheme.card,
-                        child: const Icon(
-                          Icons.movie,
+                        child: const FaIcon(
+                          FontAwesomeIcons.film,
                           color: Colors.white30,
                           size: 40,
                         ),
@@ -211,8 +212,8 @@ class _InfiniteMediaSectionState extends State<InfiniteMediaSection> {
                       height: widget.itemHeight - 50,
                       width: widget.itemWidth,
                       color: AppTheme.card,
-                      child: const Icon(
-                        Icons.movie,
+                      child: const FaIcon(
+                        FontAwesomeIcons.film,
                         color: Colors.white30,
                         size: 40,
                       ),
@@ -240,7 +241,7 @@ class _InfiniteMediaSectionState extends State<InfiniteMediaSection> {
                 padding: const EdgeInsets.only(top: 2),
                 child: Row(
                   children: [
-                    const Icon(Icons.star, color: Colors.amber, size: 12),
+                    const FaIcon(FontAwesomeIcons.star, color: Colors.amber, size: 12),
                     const SizedBox(width: 2),
                     Text(
                       item.rating!,

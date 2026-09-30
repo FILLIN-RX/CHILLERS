@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../config/theme.dart';
 import '../../models/media_item.dart';
@@ -93,7 +94,7 @@ class _WatchScreenState extends State<WatchScreen> {
               backgroundColor: AppTheme.card,
               content: Row(
                 children: [
-                  const Icon(Icons.history_rounded, color: AppTheme.primary, size: 18),
+                  const FaIcon(FontAwesomeIcons.clockRotateLeft, color: AppTheme.primary, size: 18),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -305,7 +306,7 @@ class _WatchScreenState extends State<WatchScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.videocam_off_rounded, color: Colors.white38, size: 36),
+                          const FaIcon(FontAwesomeIcons.videoSlash, color: Colors.white38, size: 36),
                           const SizedBox(height: 8),
                           const Text(
                             'Flux indisponible pour le moment',
@@ -321,7 +322,7 @@ class _WatchScreenState extends State<WatchScreen> {
                             onPressed: _isSeries
                                 ? () => _loadSeasonEpisodes(_selectedSeason)
                                 : _resolveMovieStream,
-                            icon: const Icon(Icons.refresh_rounded, size: 16),
+                            icon: const FaIcon(FontAwesomeIcons.arrowsRotate, size: 16),
                             label: const Text('Réessayer', style: TextStyle(fontSize: 12)),
                           ),
                         ],
@@ -378,16 +379,15 @@ class _WatchScreenState extends State<WatchScreen> {
           children: [
             if (_currentMedia.rating != null && _currentMedia.rating!.isNotEmpty)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                 decoration: BoxDecoration(
                   color: Colors.amber.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.star_rounded, color: Colors.amber, size: 15),
+                    const FaIcon(FontAwesomeIcons.solidStar, color: Colors.amber, size: 12),
                     const SizedBox(width: 4),
                     Text(
                       _currentMedia.rating!,
@@ -398,22 +398,21 @@ class _WatchScreenState extends State<WatchScreen> {
               ),
             if (_currentMedia.year != null && _currentMedia.year!.isNotEmpty)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppTheme.card,
-                  borderRadius: BorderRadius.circular(6),
+                  color: Colors.white.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   _currentMedia.year!,
-                  style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w600),
+                  style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600),
                 ),
               ),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
               decoration: BoxDecoration(
                 color: AppTheme.primary.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: AppTheme.primary.withValues(alpha: 0.4)),
+                borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
                 _currentMedia.quality ?? 'HD',
@@ -422,26 +421,26 @@ class _WatchScreenState extends State<WatchScreen> {
             ),
             if (!_isSeries && _currentMedia.runtime != null)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppTheme.card,
-                  borderRadius: BorderRadius.circular(6),
+                  color: Colors.white.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   _formatRuntime(_currentMedia.runtime),
-                  style: const TextStyle(color: Colors.white70, fontSize: 11),
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
               )
             else if (_isSeries)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppTheme.card,
-                  borderRadius: BorderRadius.circular(6),
+                  color: Colors.white.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   '${validSeasons.isNotEmpty ? validSeasons.length : (_currentMedia.numberOfSeasons ?? 1)} Saison${(validSeasons.length > 1 || (_currentMedia.numberOfSeasons ?? 1) > 1) ? 's' : ''}',
-                  style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold),
+                  style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
                 ),
               ),
           ],
@@ -455,20 +454,20 @@ class _WatchScreenState extends State<WatchScreen> {
           child: Row(
             children: [
               _buildActionButton(
-                icon: Icons.download_rounded,
+                icon: FontAwesomeIcons.download.data,
                 label: 'Télécharger',
                 activeColor: AppTheme.primary,
                 onTap: () => _onDownload(),
               ),
               const SizedBox(width: 8),
               _buildActionButton(
-                icon: Icons.playlist_add_rounded,
+                icon: FontAwesomeIcons.listUl.data,
                 label: 'Playlist',
                 onTap: () => AddToPlaylistModal.show(context, _currentMedia),
               ),
               const SizedBox(width: 8),
               _buildActionButton(
-                icon: Icons.share_rounded,
+                icon: FontAwesomeIcons.shareNodes.data,
                 label: 'Partager',
                 onTap: () {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -500,7 +499,7 @@ class _WatchScreenState extends State<WatchScreen> {
                     value: _selectedSeason,
                     dropdownColor: AppTheme.card,
                     style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                    icon: const Icon(Icons.arrow_drop_down, color: AppTheme.primary),
+                    icon: const FaIcon(FontAwesomeIcons.chevronDown, color: AppTheme.primary),
                     items: (validSeasons.isNotEmpty
                             ? validSeasons.map((s) => s.seasonNumber).toList()
                             : List.generate(_currentMedia.numberOfSeasons ?? 1, (i) => i + 1))
@@ -586,7 +585,7 @@ class _WatchScreenState extends State<WatchScreen> {
                 child: Material(
                   color: isCurrent ? AppTheme.primary.withValues(alpha: 0.15) : AppTheme.card,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                     side: BorderSide(
                       color: isCurrent ? AppTheme.primary : Colors.white.withValues(alpha: 0.05),
                       width: isCurrent ? 1.5 : 1,
@@ -610,14 +609,14 @@ class _WatchScreenState extends State<WatchScreen> {
                                     width: 75,
                                     height: 48,
                                     color: Colors.white10,
-                                    child: const Icon(Icons.movie, color: Colors.white24, size: 20),
+                                    child: const FaIcon(FontAwesomeIcons.film, color: Colors.white24, size: 20),
                                   ),
                                 )
                               : Container(
                                   width: 75,
                                   height: 48,
                                   color: Colors.white10,
-                                  child: const Icon(Icons.movie, color: Colors.white24, size: 20),
+                                  child: const FaIcon(FontAwesomeIcons.film, color: Colors.white24, size: 20),
                                 ),
                         ),
                         if (isCurrent)
@@ -628,7 +627,7 @@ class _WatchScreenState extends State<WatchScreen> {
                               color: AppTheme.primary,
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 18),
+                            child: const FaIcon(FontAwesomeIcons.play, color: Colors.white, size: 18),
                           ),
                       ],
                     ),
@@ -654,7 +653,7 @@ class _WatchScreenState extends State<WatchScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         IconButton(
-                          icon: const Icon(Icons.download_rounded, color: Colors.white60, size: 20),
+                          icon: const FaIcon(FontAwesomeIcons.download, color: Colors.white60, size: 20),
                           tooltip: 'Télécharger cet épisode',
                           onPressed: () => _onDownload(episode: ep),
                         ),
@@ -686,24 +685,23 @@ class _WatchScreenState extends State<WatchScreen> {
         // Genres
         if (_currentMedia.genres != null && _currentMedia.genres!.isNotEmpty) ...[
           Wrap(
-            spacing: 6,
-            runSpacing: 6,
+            spacing: 8,
+            runSpacing: 8,
             children: _currentMedia.genres!.map((g) {
               return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.06),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white10),
+                  color: Colors.white.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
                   g,
-                  style: const TextStyle(color: Colors.white70, fontSize: 11),
+                  style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w500),
                 ),
               );
             }).toList(),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
         ],
 
         // Synopsis
@@ -762,7 +760,7 @@ class _WatchScreenState extends State<WatchScreen> {
                                   height: 140,
                                   width: 110,
                                   color: AppTheme.card,
-                                  child: const Icon(Icons.movie, color: Colors.white24),
+                                  child: const FaIcon(FontAwesomeIcons.film, color: Colors.white24),
                                 ),
                         ),
                         const SizedBox(height: 4),
@@ -808,7 +806,7 @@ class _WatchScreenState extends State<WatchScreen> {
                   child: Row(
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
+                        icon: const FaIcon(FontAwesomeIcons.chevronLeft, color: Colors.white, size: 18),
                         onPressed: () => Navigator.pop(context),
                       ),
                       const SizedBox(width: 6),
@@ -884,33 +882,19 @@ class _WatchScreenState extends State<WatchScreen> {
     required IconData icon,
     required String label,
     required VoidCallback onTap,
-    bool isActive = false,
     Color? activeColor,
   }) {
-    final themeColor = activeColor ?? AppTheme.primary;
+    final isPrimary = activeColor != null;
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(24),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: isActive ? themeColor.withValues(alpha: 0.25) : AppTheme.card,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isActive ? themeColor : Colors.white10,
-            width: isActive ? 1.5 : 1,
-          ),
-          boxShadow: isActive
-              ? [
-                  BoxShadow(
-                    color: themeColor.withValues(alpha: 0.35),
-                    blurRadius: 10,
-                    spreadRadius: 1,
-                  ),
-                ]
-              : null,
+          color: isPrimary ? AppTheme.primary : Colors.white.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(24),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -918,16 +902,16 @@ class _WatchScreenState extends State<WatchScreen> {
           children: [
             Icon(
               icon,
-              color: isActive ? themeColor : Colors.white70,
-              size: 18,
+              color: Colors.white,
+              size: 16,
             ),
             const SizedBox(width: 8),
             Text(
               label,
-              style: TextStyle(
-                color: isActive ? Colors.white : Colors.white70,
-                fontSize: 12,
-                fontWeight: isActive ? FontWeight.w900 : FontWeight.bold,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ],

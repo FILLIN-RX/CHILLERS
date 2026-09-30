@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter/services.dart';
 import '../../config/theme.dart';
 import '../../models/media_item.dart';
@@ -159,7 +160,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+                    icon: const FaIcon(FontAwesomeIcons.chevronLeft, color: Colors.white),
                     onPressed: () => Navigator.pop(context),
                   ),
                   const SizedBox(width: 8),
@@ -199,13 +200,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   if (widget.episodes != null && widget.episodes!.isNotEmpty) ...[
                     if (_hasPrevEpisode)
                       IconButton(
-                        icon: const Icon(Icons.skip_previous_rounded, color: Colors.white),
+                        icon: const FaIcon(FontAwesomeIcons.backwardStep, color: Colors.white),
                         tooltip: 'Épisode précédent',
                         onPressed: _playPrevEpisode,
                       ),
                     if (_hasNextEpisode)
                       IconButton(
-                        icon: const Icon(Icons.skip_next_rounded, color: Colors.white),
+                        icon: const FaIcon(FontAwesomeIcons.forwardStep, color: Colors.white),
                         tooltip: 'Épisode suivant',
                         onPressed: _playNextEpisode,
                       ),

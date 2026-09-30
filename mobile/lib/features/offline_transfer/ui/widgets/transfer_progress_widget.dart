@@ -1,6 +1,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../models/media_metadata.dart';
 import '../../models/transfer_enums.dart';
 import '../../models/transfer_progress.dart';
@@ -109,7 +110,7 @@ class TransferProgressWidget extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: statusColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: statusColor.withValues(alpha: 0.4)),
                 ),
                 child: Text(
@@ -183,20 +184,20 @@ class TransferProgressWidget extends StatelessWidget {
                 if (progress.state == TransferState.transferring && onPause != null)
                   TextButton.icon(
                     onPressed: onPause,
-                    icon: const Icon(Icons.pause, size: 18, color: Colors.white70),
+                    icon: const FaIcon(FontAwesomeIcons.pause, size: 18, color: Colors.white70),
                     label: const Text('Pause', style: TextStyle(color: Colors.white70)),
                   ),
                 if (progress.state == TransferState.interrupted && onResume != null)
                   TextButton.icon(
                     onPressed: onResume,
-                    icon: const Icon(Icons.play_arrow, size: 18, color: Colors.greenAccent),
+                    icon: const FaIcon(FontAwesomeIcons.play, size: 18, color: Colors.greenAccent),
                     label: const Text('Reprendre', style: TextStyle(color: Colors.greenAccent)),
                   ),
                 const SizedBox(width: 8),
                 if (onCancel != null)
                   TextButton.icon(
                     onPressed: onCancel,
-                    icon: const Icon(Icons.close, size: 18, color: Colors.redAccent),
+                    icon: const FaIcon(FontAwesomeIcons.xmark, size: 18, color: Colors.redAccent),
                     label: const Text('Annuler', style: TextStyle(color: Colors.redAccent)),
                   ),
               ],

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../config/theme.dart';
 import '../../models/media_item.dart';
 import '../../models/genre.dart';
@@ -133,7 +134,7 @@ class _MoviesScreenState extends State<MoviesScreen> {
         elevation: 0,
         title: const Row(
           children: [
-            Icon(Icons.movie_creation_rounded, color: AppTheme.primary, size: 22),
+            FaIcon(FontAwesomeIcons.clapperboard, color: AppTheme.primary, size: 22),
             SizedBox(width: 8),
             Text(
               'Films',
@@ -148,14 +149,14 @@ class _MoviesScreenState extends State<MoviesScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 10),
             decoration: BoxDecoration(
               color: AppTheme.card,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(color: Colors.white10),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
                 value: _selectedSort,
                 dropdownColor: AppTheme.card,
-                icon: const Icon(Icons.sort_rounded, color: AppTheme.primary, size: 18),
+                icon: const FaIcon(FontAwesomeIcons.sort, color: AppTheme.primary, size: 18),
                 style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
                 items: _sortOptions
                     .map((s) => DropdownMenuItem(

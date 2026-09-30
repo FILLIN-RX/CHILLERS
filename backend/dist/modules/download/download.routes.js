@@ -43,6 +43,29 @@ const provider_manager_1 = require("../../streaming/provider-manager");
 const direct_scraper_1 = require("../../streaming/providers/direct-scraper");
 const router = (0, express_1.Router)();
 const providerManager = new provider_manager_1.ProviderManager();
+function unwrapUrl(url) {
+    if (!url || typeof url !== 'string')
+        return '';
+    let current = url.trim();
+    while (current.includes('/api/doodstream/stream?url=') ||
+        current.includes('/api/download/file?url=') ||
+        current.includes('/api/download/stream?m3u8=') ||
+        current.includes('/api/omnisave/proxy?url=')) {
+        const match = current.match(/[?&](?:url|m3u8)=([^&]+)/);
+        if (match) {
+            try {
+                current = decodeURIComponent(match[1]);
+            }
+            catch {
+                break;
+            }
+        }
+        else {
+            break;
+        }
+    }
+    return current;
+}
 /**
  * GET /api/download/resolve
  *
@@ -78,13 +101,13 @@ router.get('/resolve', async (req, res) => {
                 data: null
             });
         }
-        let downloadUrl = streamResult.directUrl || streamResult.embedUrl;
+        const rawCandidate = streamResult.directUrl || streamResult.embedUrl;
+        let downloadUrl = unwrapUrl(rawCandidate) || rawCandidate;
         let directType = streamResult.directType || (/\.m3u8(\?|$)/i.test(downloadUrl) ? 'hls' : /\.mp4(\?|$)/i.test(downloadUrl) ? 'mp4' : 'embed');
         // Pour le téléchargement : si on a reçu du HLS ou une URL embed, tenter d'extraire le MP4 direct (avec vraie taille et débit max)
-        if (directType !== 'mp4' && (streamResult.embedUrl || downloadUrl)) {
-            const targetUrl = streamResult.embedUrl || downloadUrl;
+        if (directType !== 'mp4' && downloadUrl) {
             try {
-                const direct = await direct_scraper_1.DirectScraper.resolve(targetUrl, false);
+                const direct = await direct_scraper_1.DirectScraper.resolve(downloadUrl, false);
                 if (direct?.directUrl && direct.type === 'mp4') {
                     downloadUrl = direct.directUrl;
                     directType = 'mp4';
@@ -105,7 +128,7 @@ router.get('/resolve', async (req, res) => {
             finalDownloadUrl = `/api/download/file?url=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(cleanFilename)}`;
             console.log(`[Download Resolve] MP4 direct → file proxy: ${downloadUrl.slice(0, 80)}...`);
         }
-        else if (isHls) {
+        else if (isHls && downloadUrl.startsWith('http')) {
             // HLS de secours → FFmpeg convertit le flux en MP4 à la volée
             finalDownloadUrl = `/api/download/stream?m3u8=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(cleanFilename)}`;
             console.log(`[Download Resolve] HLS fallback → FFmpeg proxy: ${downloadUrl.slice(0, 80)}...`);
@@ -139,9 +162,20 @@ router.get('/resolve', async (req, res) => {
  */
 router.get('/file', async (req, res) => {
     try {
-        const { url, filename = 'video.mp4' } = req.query;
+        let { url, filename = 'video.mp4' } = req.query;
         if (!url) {
             return res.status(400).json({ success: false, error: 'Paramètre ?url= requis' });
+        }
+        url = unwrapUrl(url);
+        let parsedUrl;
+        try {
+            parsedUrl = new URL(url);
+            if (!parsedUrl.protocol.startsWith('http')) {
+                return res.status(400).json({ success: false, error: 'Protocole URL invalide' });
+            }
+        }
+        catch {
+            return res.status(400).json({ success: false, error: 'URL invalide' });
         }
         const headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -163,6 +197,9 @@ router.get('/file', async (req, res) => {
         }
         else if (url.includes('streamtape')) {
             headers['Referer'] = 'https://streamtape.com/';
+        }
+        else {
+            headers['Referer'] = `${parsedUrl.protocol}//${parsedUrl.host}/`;
         }
         if (req.headers.range) {
             headers['Range'] = req.headers.range;
@@ -207,11 +244,12 @@ router.get('/file', async (req, res) => {
  * Proxy de téléchargement HLS vers MP4 via FFmpeg
  */
 router.get('/stream', (req, res) => {
-    const m3u8Url = req.query.m3u8;
+    let m3u8Url = req.query.m3u8;
     if (!m3u8Url) {
         res.status(400).json({ success: false, error: 'm3u8 query param required' });
         return;
     }
+    m3u8Url = unwrapUrl(m3u8Url);
     const filename = req.query.filename || 'video.mp4';
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Content-Type', 'video/mp4');

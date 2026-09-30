@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../config/theme.dart';
 import '../models/user_model.dart';
 import '../services/storage_service.dart';
@@ -82,7 +83,7 @@ class _AppDrawerState extends State<AppDrawer> {
                               color: AppTheme.primary,
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 20),
+                            child: const FaIcon(FontAwesomeIcons.play, color: Colors.white, size: 20),
                           ),
                         ),
                       ),
@@ -114,7 +115,7 @@ class _AppDrawerState extends State<AppDrawer> {
                     ],
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close_rounded, color: Colors.white70),
+                    icon: const FaIcon(FontAwesomeIcons.xmark, color: Colors.white70),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
@@ -129,7 +130,7 @@ class _AppDrawerState extends State<AppDrawer> {
                   padding: EdgeInsets.zero,
                   children: [
                     _buildNavItem(
-                      icon: Icons.home_rounded,
+                      icon: FontAwesomeIcons.house.data,
                       title: 'Accueil',
                       isSelected: widget.activeCategory == 'Tous',
                       onTap: () {
@@ -138,7 +139,7 @@ class _AppDrawerState extends State<AppDrawer> {
                       },
                     ),
                     _buildNavItem(
-                      icon: Icons.movie_rounded,
+                      icon: FontAwesomeIcons.film.data,
                       title: 'Films',
                       isSelected: widget.activeCategory == 'Films',
                       onTap: () {
@@ -147,7 +148,7 @@ class _AppDrawerState extends State<AppDrawer> {
                       },
                     ),
                     _buildNavItem(
-                      icon: Icons.tv_rounded,
+                      icon: FontAwesomeIcons.tv.data,
                       title: 'Séries',
                       isSelected: widget.activeCategory == 'Séries',
                       onTap: () {
@@ -156,7 +157,7 @@ class _AppDrawerState extends State<AppDrawer> {
                       },
                     ),
                     _buildNavItem(
-                      icon: Icons.auto_awesome_rounded,
+                      icon: FontAwesomeIcons.wandMagicSparkles.data,
                       title: 'Animes',
                       isSelected: widget.activeCategory == 'Animes',
                       onTap: () {
@@ -165,7 +166,7 @@ class _AppDrawerState extends State<AppDrawer> {
                       },
                     ),
                     _buildNavItem(
-                      icon: Icons.public_rounded,
+                      icon: FontAwesomeIcons.globe.data,
                       title: 'Africains',
                       isSelected: widget.activeCategory == 'Africains',
                       onTap: () {
@@ -174,7 +175,7 @@ class _AppDrawerState extends State<AppDrawer> {
                       },
                     ),
                     _buildNavItem(
-                      icon: Icons.live_tv_rounded,
+                      icon: FontAwesomeIcons.tv.data,
                       title: 'En Direct',
                       isSelected: widget.activeCategory == 'En Direct',
                       onTap: () {
@@ -189,7 +190,7 @@ class _AppDrawerState extends State<AppDrawer> {
 
                     // SECTION MA BIBLIOTHÈQUE
                     _buildNavItem(
-                      icon: Icons.history_rounded,
+                      icon: FontAwesomeIcons.clockRotateLeft.data,
                       title: 'Lectures Récentes',
                       isSelected: false,
                       onTap: () {
@@ -198,7 +199,7 @@ class _AppDrawerState extends State<AppDrawer> {
                       },
                     ),
                     _buildNavItem(
-                      icon: Icons.favorite_rounded,
+                      icon: FontAwesomeIcons.solidHeart.data,
                       title: 'Favoris & Ma Liste',
                       isSelected: false,
                       onTap: () {
@@ -207,7 +208,7 @@ class _AppDrawerState extends State<AppDrawer> {
                       },
                     ),
                     _buildNavItem(
-                      icon: Icons.queue_music_rounded,
+                      icon: FontAwesomeIcons.music.data,
                       title: 'Mes Playlists',
                       isSelected: false,
                       onTap: () {
@@ -239,7 +240,7 @@ class _AppDrawerState extends State<AppDrawer> {
                                   color: Colors.amber.withValues(alpha: 0.2),
                                   shape: BoxShape.circle,
                                 ),
-                                child: const Icon(Icons.workspace_premium_rounded, color: Colors.amber, size: 18),
+                                child: const FaIcon(FontAwesomeIcons.award, color: Colors.amber, size: 18),
                               ),
                               const SizedBox(width: 8),
                               const Text(
@@ -267,7 +268,7 @@ class _AppDrawerState extends State<AppDrawer> {
                                 foregroundColor: Colors.black,
                                 elevation: 0,
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
+                                  borderRadius: BorderRadius.circular(16),
                                 ),
                                 padding: const EdgeInsets.symmetric(vertical: 8),
                               ),
@@ -327,7 +328,7 @@ class _AppDrawerState extends State<AppDrawer> {
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.logout_rounded, color: Colors.redAccent, size: 20),
+                      icon: const FaIcon(FontAwesomeIcons.rightFromBracket, color: Colors.redAccent, size: 20),
                       tooltip: 'Déconnexion',
                       onPressed: () async {
                         final navigator = Navigator.of(context);
@@ -347,7 +348,7 @@ class _AppDrawerState extends State<AppDrawer> {
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.white,
                       side: const BorderSide(color: Colors.white24),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       padding: const EdgeInsets.symmetric(vertical: 10),
                     ),
                     onPressed: () async {
@@ -360,7 +361,7 @@ class _AppDrawerState extends State<AppDrawer> {
                         _loadUser();
                       }
                     },
-                    icon: const Icon(Icons.login_rounded, size: 18),
+                    icon: const FaIcon(FontAwesomeIcons.rightToBracket, size: 18),
                     label: const Text('Connexion / Inscription', style: TextStyle(fontSize: 12)),
                   ),
                 ),
@@ -382,7 +383,7 @@ class _AppDrawerState extends State<AppDrawer> {
       child: Material(
         color: isSelected ? AppTheme.primary.withValues(alpha: 0.15) : Colors.transparent,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           side: isSelected
               ? BorderSide(color: AppTheme.primary.withValues(alpha: 0.35), width: 1)
               : BorderSide.none,

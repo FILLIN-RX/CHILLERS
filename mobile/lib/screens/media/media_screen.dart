@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../config/theme.dart';
 import '../../models/media_item.dart';
 import '../../models/genre.dart';
@@ -34,12 +35,12 @@ class _MediaScreenState extends State<MediaScreen> {
   bool _hasMore = true;
   int _currentPage = 1;
 
-  final List<Map<String, dynamic>> _types = const [
-    {'id': 'all', 'label': 'Tout Explorer', 'icon': Icons.explore_rounded},
-    {'id': 'movie', 'label': 'Films', 'icon': Icons.movie_creation_rounded},
-    {'id': 'tv', 'label': 'Séries', 'icon': Icons.tv_rounded},
-    {'id': 'anime', 'label': 'Animes', 'icon': Icons.auto_awesome_rounded},
-    {'id': 'african', 'label': 'Nollywood & Afrique', 'icon': Icons.public_rounded},
+  final List<Map<String, dynamic>> _types = [
+    {'id': 'all', 'label': 'Tout Explorer', 'icon': FontAwesomeIcons.compass.data},
+    {'id': 'movie', 'label': 'Films', 'icon': FontAwesomeIcons.clapperboard.data},
+    {'id': 'tv', 'label': 'Séries', 'icon': FontAwesomeIcons.tv.data},
+    {'id': 'anime', 'label': 'Animes', 'icon': FontAwesomeIcons.wandMagicSparkles.data},
+    {'id': 'african', 'label': 'Nollywood & Afrique', 'icon': FontAwesomeIcons.globe.data},
   ];
 
   final List<Map<String, String>> _sortOptions = const [
@@ -178,14 +179,14 @@ class _MediaScreenState extends State<MediaScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 10),
             decoration: BoxDecoration(
               color: AppTheme.card,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(color: Colors.white10),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
                 value: _selectedSort,
                 dropdownColor: AppTheme.card,
-                icon: const Icon(Icons.sort_rounded, color: AppTheme.primary, size: 18),
+                icon: const FaIcon(FontAwesomeIcons.sort, color: AppTheme.primary, size: 18),
                 style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
                 items: _sortOptions
                     .map((s) => DropdownMenuItem(

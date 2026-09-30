@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../config/theme.dart';
 import '../../models/media_item.dart';
@@ -188,14 +189,14 @@ class _SearchScreenState extends State<SearchScreen> {
         backgroundColor: const Color(0xFF0C0C0E),
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+          icon: const FaIcon(FontAwesomeIcons.chevronLeft, color: Colors.white, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: Container(
           height: 44,
           decoration: BoxDecoration(
             color: AppTheme.card,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
           ),
           child: TextField(
@@ -205,10 +206,10 @@ class _SearchScreenState extends State<SearchScreen> {
             decoration: InputDecoration(
               hintText: 'Rechercher films, séries TV, animes...',
               hintStyle: const TextStyle(color: AppTheme.textSecondary, fontSize: 13),
-              prefixIcon: const Icon(Icons.search_rounded, color: AppTheme.primary, size: 20),
+              prefixIcon: const FaIcon(FontAwesomeIcons.magnifyingGlass, color: AppTheme.primary, size: 20),
               suffixIcon: _searchController.text.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(Icons.clear_rounded, color: Colors.white54, size: 18),
+                      icon: const FaIcon(FontAwesomeIcons.xmark, color: Colors.white54, size: 18),
                       onPressed: () {
                         _searchController.clear();
                         _executeSearch('');
@@ -216,6 +217,13 @@ class _SearchScreenState extends State<SearchScreen> {
                     )
                   : null,
               border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              errorBorder: InputBorder.none,
+              disabledBorder: InputBorder.none,
+              focusedErrorBorder: InputBorder.none,
+              filled: false,
+              fillColor: Colors.transparent,
               contentPadding: const EdgeInsets.symmetric(vertical: 12),
             ),
             onChanged: _onQueryChanged,
@@ -281,7 +289,7 @@ class _SearchScreenState extends State<SearchScreen> {
         children: [
           const Row(
             children: [
-              Icon(Icons.local_fire_department_rounded, color: AppTheme.primary, size: 20),
+              FaIcon(FontAwesomeIcons.fire, color: AppTheme.primary, size: 20),
               SizedBox(width: 8),
               Text(
                 'Recherches populaires',
@@ -299,7 +307,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                 label: Text(tag, style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                avatar: const Icon(Icons.trending_up_rounded, color: AppTheme.primary, size: 14),
+                avatar: const FaIcon(FontAwesomeIcons.arrowTrendUp, color: AppTheme.primary, size: 14),
                 onPressed: () {
                   _searchController.text = tag;
                   _executeSearch(tag);
@@ -310,7 +318,7 @@ class _SearchScreenState extends State<SearchScreen> {
           const SizedBox(height: 24),
           const Row(
             children: [
-              Icon(Icons.category_rounded, color: AppTheme.primary, size: 20),
+              FaIcon(FontAwesomeIcons.shapes, color: AppTheme.primary, size: 20),
               SizedBox(width: 8),
               Text(
                 'Explorer par catégorie',
@@ -328,7 +336,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                 label: Text(cat, style: const TextStyle(color: Colors.white, fontSize: 12)),
-                avatar: const Icon(Icons.explore_rounded, color: Colors.amber, size: 14),
+                avatar: const FaIcon(FontAwesomeIcons.compass, color: Colors.amber, size: 14),
                 onPressed: () => _onSelectFilter(cat),
               );
             }).toList(),
@@ -345,7 +353,7 @@ class _SearchScreenState extends State<SearchScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.search_off_rounded, size: 64, color: AppTheme.textSecondary),
+            const FaIcon(FontAwesomeIcons.magnifyingGlass, size: 64, color: AppTheme.textSecondary),
             const SizedBox(height: 16),
             Text(
               'Aucun résultat pour "${_searchController.text.trim()}"',
@@ -385,7 +393,7 @@ class _SearchScreenState extends State<SearchScreen> {
             children: [
               Expanded(
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(16),
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
@@ -396,12 +404,12 @@ class _SearchScreenState extends State<SearchScreen> {
                               placeholder: (context, url) => Container(color: AppTheme.card),
                               errorWidget: (context, url, error) => Container(
                                 color: AppTheme.card,
-                                child: const Icon(Icons.movie_rounded, color: Colors.white38),
+                                child: const FaIcon(FontAwesomeIcons.film, color: Colors.white38),
                               ),
                             )
                           : Container(
                               color: AppTheme.card,
-                              child: const Icon(Icons.movie_rounded, color: Colors.white38),
+                              child: const FaIcon(FontAwesomeIcons.film, color: Colors.white38),
                             ),
                       // Type Badge
                       Positioned(
@@ -458,7 +466,7 @@ class _SearchScreenState extends State<SearchScreen> {
               if (item.rating != null && item.rating!.isNotEmpty)
                 Row(
                   children: [
-                    const Icon(Icons.star_rounded, color: Colors.amber, size: 13),
+                    const FaIcon(FontAwesomeIcons.solidStar, color: Colors.amber, size: 13),
                     const SizedBox(width: 2),
                     Text(
                       item.rating!,

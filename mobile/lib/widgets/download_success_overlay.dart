@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../services/download_service.dart';
 import '../../config/theme.dart';
@@ -165,8 +166,8 @@ class _DownloadSuccessOverlayState extends State<DownloadSuccessOverlay>
                                     child: const Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Icon(
-                                          Icons.check_circle_rounded,
+                                        FaIcon(
+                                          FontAwesomeIcons.circleCheck,
                                           color: Color(0xFF10B981),
                                           size: 11,
                                         ),
@@ -220,8 +221,8 @@ class _DownloadSuccessOverlayState extends State<DownloadSuccessOverlay>
                             color: AppTheme.primary.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(2),
                           ),
-                          child: const Icon(
-                            Icons.arrow_forward_rounded,
+                          child: const FaIcon(
+                            FontAwesomeIcons.arrowRight,
                             color: AppTheme.primary,
                             size: 16,
                           ),
@@ -233,8 +234,8 @@ class _DownloadSuccessOverlayState extends State<DownloadSuccessOverlay>
                           onTap: _dismiss,
                           child: Container(
                             padding: const EdgeInsets.all(6),
-                            child: const Icon(
-                              Icons.close_rounded,
+                            child: const FaIcon(
+                              FontAwesomeIcons.xmark,
                               color: Colors.white38,
                               size: 16,
                             ),
@@ -277,7 +278,7 @@ class _PosterPlaceholder extends StatelessWidget {
         color: Colors.white.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(2),
       ),
-      child: const Icon(Icons.movie_rounded, color: Colors.white24, size: 20),
+      child: const FaIcon(FontAwesomeIcons.film, color: Colors.white24, size: 20),
     );
   }
 }

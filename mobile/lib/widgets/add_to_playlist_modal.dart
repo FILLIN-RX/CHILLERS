@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../config/theme.dart';
 import '../models/media_item.dart';
 import '../services/storage_service.dart';
@@ -57,6 +59,7 @@ class _AddToPlaylistModalState extends State<AddToPlaylistModal> {
   }
 
   Future<void> _togglePlaylist(Map<String, dynamic> playlist) async {
+    HapticFeedback.mediumImpact();
     final playlistId = playlist['id'].toString();
     final isIn = _isItemInPlaylist(playlist);
 
@@ -79,7 +82,7 @@ class _AddToPlaylistModalState extends State<AddToPlaylistModal> {
             backgroundColor: AppTheme.primary,
             content: Row(
               children: [
-                const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                const FaIcon(FontAwesomeIcons.circleCheck, color: Colors.white, size: 18),
                 const SizedBox(width: 8),
                 Text('Ajouté à "${playlist['name']}"', style: const TextStyle(fontWeight: FontWeight.bold)),
               ],
@@ -153,7 +156,7 @@ class _AddToPlaylistModalState extends State<AddToPlaylistModal> {
             children: [
               const Row(
                 children: [
-                  Icon(Icons.playlist_add_rounded, color: AppTheme.primary, size: 24),
+                  FaIcon(FontAwesomeIcons.listUl, color: AppTheme.primary, size: 24),
                   SizedBox(width: 10),
                   Text(
                     'Ajouter à une playlist',
@@ -163,7 +166,7 @@ class _AddToPlaylistModalState extends State<AddToPlaylistModal> {
               ),
               IconButton(
                 onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.close_rounded, color: Colors.white70),
+                icon: const FaIcon(FontAwesomeIcons.xmark, color: Colors.white70),
               ),
             ],
           ),
@@ -183,7 +186,7 @@ class _AddToPlaylistModalState extends State<AddToPlaylistModal> {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: AppTheme.primary.withValues(alpha: 0.4)),
               ),
               child: Column(
@@ -235,12 +238,12 @@ class _AddToPlaylistModalState extends State<AddToPlaylistModal> {
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
                   color: AppTheme.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: AppTheme.primary.withValues(alpha: 0.3)),
                 ),
                 child: const Row(
                   children: [
-                    Icon(Icons.add_rounded, color: AppTheme.primary),
+                    FaIcon(FontAwesomeIcons.plus, color: AppTheme.primary),
                     SizedBox(width: 10),
                     Text(
                       'Créer une nouvelle playlist',
@@ -279,7 +282,7 @@ class _AddToPlaylistModalState extends State<AddToPlaylistModal> {
                     child: Material(
                       color: isIn ? AppTheme.primary.withValues(alpha: 0.22) : Colors.white.withValues(alpha: 0.04),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(18),
                         side: BorderSide(
                           color: isIn ? AppTheme.primary : Colors.white10,
                           width: isIn ? 1.5 : 1,
@@ -294,7 +297,7 @@ class _AddToPlaylistModalState extends State<AddToPlaylistModal> {
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
-                            isIn ? Icons.playlist_add_check_rounded : Icons.queue_music_rounded,
+                            isIn ? FontAwesomeIcons.listCheck.data : FontAwesomeIcons.music.data,
                             color: isIn ? Colors.white : Colors.white60,
                             size: 20,
                           ),
@@ -326,7 +329,7 @@ class _AddToPlaylistModalState extends State<AddToPlaylistModal> {
                             ),
                           ),
                           child: Icon(
-                            isIn ? Icons.check_rounded : Icons.add_rounded,
+                            isIn ? FontAwesomeIcons.check.data : FontAwesomeIcons.plus.data,
                             size: 16,
                             color: isIn ? Colors.white : Colors.white30,
                           ),

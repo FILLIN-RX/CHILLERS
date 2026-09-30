@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../config/theme.dart';
 import '../../models/media_item.dart';
@@ -113,16 +114,20 @@ class _OptimizedSearchScreenState extends State<OptimizedSearchScreen> {
           // Custom App Bar with Search
           Container(
             padding: EdgeInsets.fromLTRB(
-              16,
+              14,
               MediaQuery.of(context).padding.top + 8,
-              16,
-              16,
+              14,
+              14,
             ),
             decoration: BoxDecoration(
-              color: AppTheme.card,
-              border: Border(
-                bottom: BorderSide(color: Colors.white10),
-              ),
+              color: AppTheme.background,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.35),
+                  blurRadius: 14,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: Column(
               children: [
@@ -131,57 +136,79 @@ class _OptimizedSearchScreenState extends State<OptimizedSearchScreen> {
                   children: [
                     GestureDetector(
                       onTap: () => Navigator.pop(context),
-                      child: const Icon(
-                        Icons.arrow_back_rounded,
-                        color: Colors.white,
-                        size: 24,
+                      behavior: HitTestBehavior.opaque,
+                      child: const FaIcon(
+                        FontAwesomeIcons.chevronLeft,
+                        color: Colors.white70,
+                        size: 20,
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Container(
+                        height: 44,
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(10),
+                          color: const Color(0xFF1C1C22),
+                          borderRadius: BorderRadius.circular(24),
                           border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.1),
+                            color: Colors.white.withValues(alpha: 0.07),
                           ),
                         ),
-                        child: TextField(
-                          controller: _searchController,
-                          style: const TextStyle(color: Colors.white),
-                          decoration: InputDecoration(
-                            hintText: 'Rechercher...',
-                            hintStyle: TextStyle(color: Colors.white54),
-                            border: InputBorder.none,
-                            prefixIcon: const Icon(
-                              Icons.search_rounded,
-                              color: AppTheme.primary,
-                              size: 20,
+                        child: Row(
+                          children: [
+                            const FaIcon(
+                              FontAwesomeIcons.magnifyingGlass,
+                              color: Colors.white38,
+                              size: 18,
                             ),
-                            suffixIcon: _searchController.text.isNotEmpty
-                                ? GestureDetector(
-                                    onTap: () {
-                                      _searchController.clear();
-                                      _performSearch('');
-                                    },
-                                    child: const Icon(
-                                      Icons.clear_rounded,
-                                      color: Colors.white54,
-                                      size: 18,
-                                    ),
-                                  )
-                                : null,
-                            contentPadding: const EdgeInsets.symmetric(
-                              vertical: 12,
-                              horizontal: 4,
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: TextField(
+                                controller: _searchController,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                ),
+                                textInputAction: TextInputAction.search,
+                                decoration: const InputDecoration(
+                                  hintText: 'Rechercher un film, série, anime...',
+                                  hintStyle: TextStyle(
+                                    color: Colors.white38,
+                                    fontSize: 14,
+                                  ),
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                  errorBorder: InputBorder.none,
+                                  disabledBorder: InputBorder.none,
+                                  focusedErrorBorder: InputBorder.none,
+                                  filled: false,
+                                  fillColor: Colors.transparent,
+                                  isCollapsed: true,
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                                onChanged: (value) {
+                                  setState(() {});
+                                  _performSearch(value);
+                                },
+                              ),
                             ),
-                          ),
-                          onChanged: (value) {
-                            setState(() {});
-                            _performSearch(value);
-                          },
-                          textInputAction: TextInputAction.search,
+                            if (_searchController.text.isNotEmpty)
+                              GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: () {
+                                  _searchController.clear();
+                                  setState(() {});
+                                  _performSearch('');
+                                },
+                                child: const FaIcon(
+                                  FontAwesomeIcons.xmark,
+                                  color: Colors.white54,
+                                  size: 18,
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                     ),
@@ -262,8 +289,8 @@ class _OptimizedSearchScreenState extends State<OptimizedSearchScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.error_outline_rounded,
+            const FaIcon(
+              FontAwesomeIcons.triangleExclamation,
               color: Colors.white54,
               size: 48,
             ),
@@ -283,8 +310,8 @@ class _OptimizedSearchScreenState extends State<OptimizedSearchScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.search_rounded,
+            FaIcon(
+              FontAwesomeIcons.magnifyingGlass,
               color: Colors.white30,
               size: 64,
             ),
@@ -303,8 +330,8 @@ class _OptimizedSearchScreenState extends State<OptimizedSearchScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.not_interested_rounded,
+            const FaIcon(
+              FontAwesomeIcons.ban,
               color: Colors.white30,
               size: 64,
             ),
@@ -324,8 +351,8 @@ class _OptimizedSearchScreenState extends State<OptimizedSearchScreen> {
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
         childAspectRatio: 0.6,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 14,
       ),
       itemCount: _filteredResults.length,
       itemBuilder: (context, index) {
@@ -340,14 +367,14 @@ class _OptimizedSearchScreenState extends State<OptimizedSearchScreen> {
       onTap: () => _onItemTap(item),
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(color: Colors.white10),
         ),
         child: Stack(
           children: [
             // Poster
             ClipRRect(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(16),
               child: item.poster != null && item.poster!.isNotEmpty
                   ? CachedNetworkImage(
                       imageUrl: item.poster!,
@@ -363,19 +390,19 @@ class _OptimizedSearchScreenState extends State<OptimizedSearchScreen> {
                       ),
                       errorWidget: (context, url, error) => Container(
                         color: AppTheme.card,
-                        child: const Icon(Icons.movie, color: Colors.white30),
+                        child: const FaIcon(FontAwesomeIcons.film, color: Colors.white30),
                       ),
                     )
                   : Container(
                       color: AppTheme.card,
-                      child: const Icon(Icons.movie, color: Colors.white30),
+                      child: const FaIcon(FontAwesomeIcons.film, color: Colors.white30),
                     ),
             ),
 
             // Overlay with info
             Container(
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(16),
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
@@ -412,7 +439,7 @@ class _OptimizedSearchScreenState extends State<OptimizedSearchScreen> {
                         padding: const EdgeInsets.only(top: 4),
                         child: Row(
                           children: [
-                            const Icon(Icons.star, color: Colors.amber, size: 10),
+                            const FaIcon(FontAwesomeIcons.star, color: Colors.amber, size: 10),
                             const SizedBox(width: 2),
                             Text(
                               item.rating!,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../config/theme.dart';
 import '../../../models/media_item.dart';
@@ -38,7 +39,7 @@ class MediaCard extends StatelessWidget {
             child: Stack(
               children: [
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(16),
                   child: item.poster != null && item.poster!.isNotEmpty
                       ? CachedNetworkImage(
                           imageUrl: item.poster!,
@@ -60,12 +61,12 @@ class MediaCard extends StatelessWidget {
                           ),
                           errorWidget: (context, url, error) => Container(
                             color: AppTheme.card,
-                            child: const Icon(Icons.movie_rounded, color: Colors.white24, size: 36),
+                            child: const FaIcon(FontAwesomeIcons.film, color: Colors.white24, size: 36),
                           ),
                         )
                       : Container(
                           color: AppTheme.card,
-                          child: const Icon(Icons.movie_rounded, color: Colors.white24, size: 36),
+                          child: const FaIcon(FontAwesomeIcons.film, color: Colors.white24, size: 36),
                         ),
                 ),
 
@@ -84,7 +85,7 @@ class MediaCard extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.star_rounded, color: Colors.amber, size: 12),
+                          const FaIcon(FontAwesomeIcons.solidStar, color: Colors.amber, size: 12),
                           const SizedBox(width: 2),
                           Text(
                             ratingStr,
@@ -123,7 +124,7 @@ class MediaCard extends StatelessWidget {
                           ),
                         ],
                       ),
-                      child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 16),
+                      child: const FaIcon(FontAwesomeIcons.play, color: Colors.white, size: 16),
                     ),
                   ),
                 ),
