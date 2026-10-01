@@ -21,7 +21,9 @@ class DownloadScreen extends StatefulWidget {
   State<DownloadScreen> createState() => _DownloadScreenState();
 }
 
-class _DownloadScreenState extends State<DownloadScreen> {
+class _DownloadScreenState extends State<DownloadScreen> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
   final DownloadService _downloadService = DownloadService();
   final StorageService _storage = StorageService();
 
@@ -215,6 +217,7 @@ class _DownloadScreenState extends State<DownloadScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final tasks = _downloadService.tasks;
     final totalBytes = tasks.fold<int>(0, (sum, t) => sum + t.downloadedBytes);
 

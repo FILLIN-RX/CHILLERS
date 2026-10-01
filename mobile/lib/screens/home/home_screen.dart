@@ -25,7 +25,9 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final ApiService _apiService = ApiService();
   final StorageService _storage = StorageService();
@@ -114,6 +116,8 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // Tracks whether wave3 (sections profondes) a déjà été chargée
+
   Future<void> _loadAllHomeData() async {
     setState(() {
       _isLoading = true;
@@ -122,94 +126,53 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     try {
-      // 1. Load Continue Watching and Matches
-      final continueWatchingFuture = _storage.getContinueWatching();
-      final allMatchesFuture = _safeCall(() => _apiService.getLiveMatches());
-      final uefaMatchesFuture = _safeCall(() => _apiService.getChampionsLeagueMatches());
-
-      // 2. Load Core Sections matching Web
-      final trendingMoviesFuture = _safeCall(() => _apiService.getTrendingMovies());
-      final trendingTvFuture = _safeCall(() => _apiService.getTrendingSeries());
-      final popularMoviesFuture = _safeCall(() => _apiService.getPopularMovies(page: 1));
-      final popularSeriesFuture = _safeCall(() => _apiService.getPopularSeries(page: 1));
-      final animeFuture = _safeCall(() => _apiService.getAnimeSeries(page: 1));
-      final upcomingFuture = _safeCall(() => _apiService.getUpcomingMovies(page: 1));
-
-      // 3. Load Additional Web Categories in Parallel
-      final tvForYouFuture = _safeCall(() => _apiService.getTVForYou(page: 2));
-      final allTimeFavoritesFuture = _safeCall(() => _apiService.getAllTimeFavorites(page: 1));
-      final boxOfficeFuture = _safeCall(() => _apiService.getBoxOfficeMovies(page: 1));
-      final newAnimeFuture = _safeCall(() => _apiService.getNewAnime(page: 1));
-      final martialArtsFuture = _safeCall(() => _apiService.getMartialArtsMovies(page: 1));
-      final realityShowsFuture = _safeCall(() => _apiService.getRealityShows(page: 1));
-      final barbieMoviesFuture = _safeCall(() => _apiService.getBarbieMovies(page: 1));
-      final actionMoviesFuture = _safeCall(() => _apiService.getActionMovies(page: 1));
-      final comedyMoviesFuture = _safeCall(() => _apiService.getComedyMovies(page: 1));
-      final actionSeriesFuture = _safeCall(() => _apiService.getActionSeries(page: 1));
-      final africanMoviesFuture = _safeCall(() => _apiService.getAfricanMovies(page: 1));
-      final africanSeriesFuture = _safeCall(() => _apiService.getAfricanSeries(page: 1));
-      final saDramaFuture = _safeCall(() => _apiService.getSADrama(page: 1));
-      final madeInChinaFuture = _safeCall(() => _apiService.getMadeInChina(page: 1));
-      final animationSeriesFuture = _safeCall(() => _apiService.getAnimationSeries(page: 1));
-
-      final results = await Future.wait([
-        continueWatchingFuture,
-        allMatchesFuture,
-        uefaMatchesFuture,
-        trendingMoviesFuture,
-        trendingTvFuture,
-        popularMoviesFuture,
-        popularSeriesFuture,
-        animeFuture,
-        upcomingFuture,
-        tvForYouFuture,
-        allTimeFavoritesFuture,
-        boxOfficeFuture,
-        newAnimeFuture,
-        martialArtsFuture,
-        realityShowsFuture,
-        barbieMoviesFuture,
-        actionMoviesFuture,
-        comedyMoviesFuture,
-        actionSeriesFuture,
-        africanMoviesFuture,
-        africanSeriesFuture,
-        saDramaFuture,
-        madeInChinaFuture,
-        animationSeriesFuture,
+      // ── WAVE 1 : sections critiques visibles immédiatement (3 appels) ──
+      final w1 = await Future.wait([
+        _storage.getContinueWatching(),
+        _safeCall(() => _apiService.getPopularMovies(page: 1)),
+        _safeCall(() => _apiService.getPopularSeries(page: 1)),
       ]);
 
-      final cw = results[0] as List<Map<String, dynamic>>? ?? [];
-      final matches1 = (results[1] as List<LiveMatch>?) ?? [];
-      final matches2 = (results[2] as List<LiveMatch>?) ?? [];
-      final trendM = (results[3] as List<MediaItem>?) ?? [];
-      final trendTV = (results[4] as List<MediaItem>?) ?? [];
-      final popM = (results[5] as List<MediaItem>?) ?? [];
-      final popTV = (results[6] as List<MediaItem>?) ?? [];
-      final animes = (results[7] as List<MediaItem>?) ?? [];
-      final upcoming = (results[8] as List<MediaItem>?) ?? [];
-      final tvForYou = (results[9] as List<MediaItem>?) ?? [];
-      final allTimeFav = (results[10] as List<MediaItem>?) ?? [];
-      final boxOffice = (results[11] as List<MediaItem>?) ?? [];
-      final newAnime = (results[12] as List<MediaItem>?) ?? [];
-      final martialArts = (results[13] as List<MediaItem>?) ?? [];
-      final realityShows = (results[14] as List<MediaItem>?) ?? [];
-      final barbie = (results[15] as List<MediaItem>?) ?? [];
-      final actionM = (results[16] as List<MediaItem>?) ?? [];
-      final comedyM = (results[17] as List<MediaItem>?) ?? [];
-      final actionS = (results[18] as List<MediaItem>?) ?? [];
-      final africanM = (results[19] as List<MediaItem>?) ?? [];
-      final africanS = (results[20] as List<MediaItem>?) ?? [];
-      final saDrama = (results[21] as List<MediaItem>?) ?? [];
-      final madeInChina = (results[22] as List<MediaItem>?) ?? [];
-      final animSeries = (results[23] as List<MediaItem>?) ?? [];
+      final cw = w1[0] as List<Map<String, dynamic>>? ?? [];
+      final popM = (w1[1] as List<MediaItem>?) ?? [];
+      final popTV = (w1[2] as List<MediaItem>?) ?? [];
 
-      // Merge and deduplicate matches
+      // Afficher le hero et le contenu visible dès que Wave 1 est prête
+      if (!mounted) return;
+      final heroFast = <MediaItem>[...popM.take(5), ...popTV.take(4)].take(10).toList();
+      setState(() {
+        _continueWatching = cw;
+        _heroSlides = heroFast;
+        _newReleases = popM;
+        _popularSeries = popTV;
+        _trendingAll = popM;
+        _infiniteFeedItems = popM;
+        _hasMoreFeed = popM.isNotEmpty;
+        _isLoading = false; // On retire le spinner dès Wave 1
+      });
+
+      // ── WAVE 2 : sections secondaires (6 appels) ── sans bloquer le UI
+      final w2 = await Future.wait([
+        _safeCall(() => _apiService.getLiveMatches()),
+        _safeCall(() => _apiService.getTrendingMovies()),
+        _safeCall(() => _apiService.getTrendingSeries()),
+        _safeCall(() => _apiService.getAnimeSeries(page: 1)),
+        _safeCall(() => _apiService.getUpcomingMovies(page: 1)),
+        _safeCall(() => _apiService.getChampionsLeagueMatches()),
+      ]);
+
+      final matches1 = (w2[0] as List<LiveMatch>?) ?? [];
+      final trendM = (w2[1] as List<MediaItem>?) ?? [];
+      final trendTV = (w2[2] as List<MediaItem>?) ?? [];
+      final animes = (w2[3] as List<MediaItem>?) ?? [];
+      final upcoming = (w2[4] as List<MediaItem>?) ?? [];
+      final matches2 = (w2[5] as List<LiveMatch>?) ?? [];
+
+      // Merge matches
       final matchMap = <String, LiveMatch>{};
       for (final m in [...matches1, ...matches2]) {
         matchMap[m.id] = m;
       }
-      final mergedMatches = matchMap.values.toList();
 
       // Combined Trending
       final trendingAll = <MediaItem>[];
@@ -219,73 +182,111 @@ class _HomeScreenState extends State<HomeScreen> {
         if (i < trendTV.length) trendingAll.add(trendTV[i]);
       }
 
-      // Hero Carousel balanced mix (matching web HeroBase logic)
-      final heroList = <MediaItem>[];
+      // Hero enrichi avec trending
       final mSlice = popM.take(5).toList();
       final sSlice = popTV.take(4).toList();
       final aSlice = animes.take(3).toList();
       final maxHero = [mSlice.length, sSlice.length, aSlice.length].reduce((a, b) => a > b ? a : b);
+      final heroList = <MediaItem>[];
       for (int i = 0; i < maxHero; i++) {
         if (i < mSlice.length) heroList.add(mSlice[i]);
         if (i < sSlice.length) heroList.add(sSlice[i]);
         if (i < aSlice.length) heroList.add(aSlice[i]);
       }
       final heroSlides = heroList.isNotEmpty ? heroList.take(10).toList() : trendingAll.take(7).toList();
-
-      // Top 10 items
       final top10Items = trendingAll.isNotEmpty ? trendingAll.take(10).toList() : popM.take(10).toList();
-
-      // Upcoming movies
       final upcomingMovies = upcoming.isNotEmpty ? upcoming : popM.take(8).toList();
 
       if (!mounted) return;
-
       setState(() {
-        _continueWatching = cw;
-        _liveMatches = mergedMatches;
+        _liveMatches = matchMap.values.toList();
         _heroSlides = heroSlides;
         _top10Items = top10Items;
         _trendingAll = trendingAll.isNotEmpty ? trendingAll : popM;
-        _newReleases = popM;
         _upcomingMovies = upcomingMovies;
-        _tvForYou = tvForYou.isNotEmpty ? tvForYou : popTV;
-        _allTimeFavorites = allTimeFav.isNotEmpty ? allTimeFav : trendM;
-        _boxOffice = boxOffice.isNotEmpty ? boxOffice : popM;
-        _newAnime = newAnime.isNotEmpty ? newAnime : animes;
-        _martialArts = martialArts.isNotEmpty ? martialArts : actionM;
-        _realityShows = realityShows.isNotEmpty ? realityShows : popTV;
-        _barbieMovies = barbie.isNotEmpty ? barbie : comedyM;
-        _actionMovies = actionM;
-        _comedyMovies = comedyM;
-        _actionSeries = actionS;
-        _africanMovies = africanM;
-        _africanSeries = africanS;
-        _saDrama = saDrama;
-        _madeInChina = madeInChina;
-        _popularSeries = popTV;
+        _newAnime = animes;
         _animeCollection = animes;
-        _animationSeries = animSeries;
-        _infiniteFeedItems = popM;
-        _hasMoreFeed = popM.isNotEmpty;
-        _isLoading = false;
       });
 
-      // Background enrichment for hero slides with trailers
+      // Enrichissement hero en arrière-plan
       if (heroSlides.isNotEmpty) {
         _apiService.enrichHeroSlidesWithTrailers(heroSlides).then((enriched) {
-          if (mounted && enriched.isNotEmpty) {
-            setState(() {
-              _heroSlides = enriched;
-            });
-          }
+          if (mounted && enriched.isNotEmpty) setState(() => _heroSlides = enriched);
         });
       }
+
+      // Wave 3 chargée en arrière-plan (15 appels secondaires)
+      _loadWave3(popM: popM, popTV: popTV, trendM: trendM, actionFallback: popM, comFallback: popTV);
+
     } catch (e) {
       debugPrint('Error loading home data: $e');
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  /// Wave 3 : sections profondes chargées en arrière-plan sans bloquer le UI.
+  Future<void> _loadWave3({
+    required List<MediaItem> popM,
+    required List<MediaItem> popTV,
+    required List<MediaItem> trendM,
+    required List<MediaItem> actionFallback,
+    required List<MediaItem> comFallback,
+  }) async {
+    if (!mounted) return;
+
+    // Variables typées pour éviter les casts manuels
+    List<MediaItem> tvForYou = [];
+    List<MediaItem> allTimeFav = [];
+    List<MediaItem> boxOffice = [];
+    List<MediaItem> martialArts = [];
+    List<MediaItem> realityShows = [];
+    List<MediaItem> barbie = [];
+    List<MediaItem> actionM = [];
+    List<MediaItem> comedyM = [];
+    List<MediaItem> actionS = [];
+    List<MediaItem> africanM = [];
+    List<MediaItem> africanS = [];
+    List<MediaItem> saDrama = [];
+    List<MediaItem> madeInChina = [];
+    List<MediaItem> newAnime = [];
+    List<MediaItem> animSeries = [];
+
+    await Future.wait([
+      _safeCall(() => _apiService.getTVForYou(page: 2)).then((v) { if (v != null) tvForYou = v; }),
+      _safeCall(() => _apiService.getAllTimeFavorites(page: 1)).then((v) { if (v != null) allTimeFav = v; }),
+      _safeCall(() => _apiService.getBoxOfficeMovies(page: 1)).then((v) { if (v != null) boxOffice = v; }),
+      _safeCall(() => _apiService.getMartialArtsMovies(page: 1)).then((v) { if (v != null) martialArts = v; }),
+      _safeCall(() => _apiService.getRealityShows(page: 1)).then((v) { if (v != null) realityShows = v; }),
+      _safeCall(() => _apiService.getBarbieMovies(page: 1)).then((v) { if (v != null) barbie = v; }),
+      _safeCall(() => _apiService.getActionMovies(page: 1)).then((v) { if (v != null) actionM = v; }),
+      _safeCall(() => _apiService.getComedyMovies(page: 1)).then((v) { if (v != null) comedyM = v; }),
+      _safeCall(() => _apiService.getActionSeries(page: 1)).then((v) { if (v != null) actionS = v; }),
+      _safeCall(() => _apiService.getAfricanMovies(page: 1)).then((v) { if (v != null) africanM = v; }),
+      _safeCall(() => _apiService.getAfricanSeries(page: 1)).then((v) { if (v != null) africanS = v; }),
+      _safeCall(() => _apiService.getSADrama(page: 1)).then((v) { if (v != null) saDrama = v; }),
+      _safeCall(() => _apiService.getMadeInChina(page: 1)).then((v) { if (v != null) madeInChina = v; }),
+      _safeCall(() => _apiService.getNewAnime(page: 1)).then((v) { if (v != null) newAnime = v; }),
+      _safeCall(() => _apiService.getAnimationSeries(page: 1)).then((v) { if (v != null) animSeries = v; }),
+    ]);
+
+    if (!mounted) return;
+    setState(() {
+      _tvForYou = tvForYou.isNotEmpty ? tvForYou : popTV;
+      _allTimeFavorites = allTimeFav.isNotEmpty ? allTimeFav : trendM;
+      _boxOffice = boxOffice.isNotEmpty ? boxOffice : popM;
+      _martialArts = martialArts.isNotEmpty ? martialArts : actionFallback;
+      _realityShows = realityShows.isNotEmpty ? realityShows : popTV;
+      _barbieMovies = barbie.isNotEmpty ? barbie : comFallback;
+      _actionMovies = actionM;
+      _comedyMovies = comedyM;
+      _actionSeries = actionS;
+      _africanMovies = africanM;
+      _africanSeries = africanS;
+      _saDrama = saDrama;
+      _madeInChina = madeInChina;
+      if (newAnime.isNotEmpty) _newAnime = newAnime;
+      _animationSeries = animSeries;
+    });
   }
 
   Future<void> _loadMoreFeed() async {
@@ -355,6 +356,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // requis par AutomaticKeepAliveClientMixin
     final screenWidth = MediaQuery.of(context).size.width;
     final isDesktop = screenWidth >= 850;
 

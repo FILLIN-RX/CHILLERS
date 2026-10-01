@@ -19,7 +19,9 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
   final StorageService _storage = StorageService();
   final ApiService _apiService = ApiService();
 
@@ -160,6 +162,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final isGuest = _currentUser == null;
     final isVip = _currentUser?.subscription?.status == 'active';
 

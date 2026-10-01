@@ -710,7 +710,6 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", onLang
               hasStarted ? "opacity-100" : "opacity-0 pointer-events-none"
             }`}
             allow="autoplay; fullscreen; encrypted-media; picture-in-picture; gyroscope; accelerometer; clipboard-write"
-            allowFullScreen
             referrerPolicy="origin"
             title={item.title}
             scrolling="no"

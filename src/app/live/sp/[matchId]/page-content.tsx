@@ -7,8 +7,38 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowsClockwise, Television, X, ShareNetwork, Check } from "@phosphor-icons/react";
 import LivePlayer from "@/components/LivePlayer";
 import { getSportsMatches, getSportsStream } from "@/services/sports";
+import { getLiveBallMatches, getLiveBallStream, getLiveBallChampionsLeague } from "@/services/liveball";
 import type { LiveChannel } from "@/types/live";
-import type { SportsMatch } from "@/types/sports";
+import type { SportsMatch, SportsServer, SportsStream } from "@/types/sports";
+import type { LiveBallMatch } from "@/types/liveball";
+
+function normalizeTeamName(name?: string): string {
+  if (!name) return "";
+  let s = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  s = s.replace(/\bparis\s+saint[- ]germain\b/g, "psg");
+  s = s.replace(/\bmanchester\s+city\b/g, "mancity");
+  s = s.replace(/\bmanchester\s+united\b/g, "manunited");
+  s = s.replace(/\batletico\s+madrid\b/g, "atleticomadrid");
+  s = s.replace(/\breal\s+madrid\b/g, "realmadrid");
+  s = s.replace(/\bbayern\s+munich\b/g, "bayernmunich");
+  s = s.replace(/\bbayern\s+münchen\b/g, "bayernmunich");
+  s = s.replace(/\bborussia\s+dortmund\b/g, "dortmund");
+  s = s.replace(/\b(fc|cf|sc|ac|as|rc|us|afc|ssc|cd|club|de|united|city|hotspur|sporting)\b/g, "");
+  s = s.replace(/[^a-z0-9]/g, "");
+  return s.trim();
+}
+
+function areTeamsMatching(h1?: string, a1?: string, h2?: string, a2?: string): boolean {
+  const normH1 = normalizeTeamName(h1);
+  const normA1 = normalizeTeamName(a1);
+  const normH2 = normalizeTeamName(h2);
+  const normA2 = normalizeTeamName(a2);
+  if (!normH1 || !normH2) return false;
+  return (
+    (normH1.includes(normH2) || normH2.includes(normH1)) &&
+    (!normA1 || !normA2 || normA1.includes(normA2) || normA2.includes(normA1))
+  );
+}
 
 function formatMatchTime(ts?: number): string {
   if (!ts) return "";
@@ -72,18 +102,133 @@ export default function SportsMatchContent() {
     };
   }, []);
 
-  const { data: matches = [] } = useQuery({
+  const isLb = decodedId.startsWith("liveball:") || decodedId.startsWith("lb-");
+  const liveballId = isLb ? decodedId.replace(/^liveball:|^lb-/, "") : "";
+
+  const { data: sportsMatches = [] } = useQuery({
     queryKey: ["live", "sports"],
     queryFn: () => getSportsMatches(),
     staleTime: 60_000,
   });
 
-  const match: SportsMatch | undefined = matches.find((m) => m.id === decodedId);
+  const { data: liveballMatches = [] } = useQuery({
+    queryKey: ["live", "liveball"],
+    queryFn: () => getLiveBallMatches(),
+    staleTime: 60_000,
+  });
+
+  const { data: clMatches = [] } = useQuery({
+    queryKey: ["live", "liveball", "champions-league"],
+    queryFn: () => getLiveBallChampionsLeague(),
+    staleTime: 60_000,
+  });
+
+  const allLbMatches = [...liveballMatches, ...clMatches];
+
+  // Identifie le match LiveBall ou Sports
+  const matchedLb = isLb
+    ? allLbMatches.find((m) => m.id === liveballId)
+    : allLbMatches.find((lb) => {
+        const sm = sportsMatches.find((s) => s.id === decodedId);
+        return sm ? areTeamsMatching(sm.home, sm.away, lb.home, lb.away) : false;
+      });
+
+  const matchedSports = !isLb
+    ? sportsMatches.find((m) => m.id === decodedId)
+    : sportsMatches.find((sm) => {
+        return matchedLb ? areTeamsMatching(matchedLb.home, matchedLb.away, sm.home, sm.away) : false;
+      });
+
+  const match: SportsMatch | undefined = matchedLb
+    ? {
+        id: `liveball:${matchedLb.id}`,
+        sourceId: matchedLb.id,
+        source: "liveball",
+        status: matchedLb.status,
+        home: matchedLb.home,
+        away: matchedLb.away,
+        homeLogo: matchedLb.homeLogo || matchedSports?.homeLogo,
+        awayLogo: matchedLb.awayLogo || matchedSports?.awayLogo,
+        score: matchedLb.score || matchedSports?.score,
+        minute: matchedLb.minute || matchedSports?.minute,
+        startTs: matchedLb.startTs || matchedSports?.startTs,
+        league: matchedLb.league || matchedSports?.league,
+      }
+    : matchedSports;
+
   const isUpcoming = match?.status === "upcoming";
 
+  // Résolution multi-fournisseurs (LiveBall, Kora, Kooorah, YallaPro, Streamiz)
   const { data: stream, isLoading, refetch } = useQuery({
-    queryKey: ["live", "sports", "stream", decodedId, reloadKey],
-    queryFn: () => getSportsStream(decodedId),
+    queryKey: ["live", "unified", "stream", decodedId, reloadKey, matchedLb?.id, matchedSports?.id],
+    queryFn: async (): Promise<SportsStream | null> => {
+      const servers: SportsServer[] = [];
+      let primaryUrl = "";
+      let primaryType: "hls" | "iframe" = "hls";
+      let primaryRelayUrl = "";
+
+      const targetLbId = matchedLb?.id || (isLb ? liveballId : null);
+      const targetSportsId = matchedSports?.id || (!isLb ? decodedId : null);
+
+      // 1. Récupération parallèle des flux disponibles
+      const [lbRes, spRes] = await Promise.allSettled([
+        targetLbId ? getLiveBallStream(targetLbId) : Promise.resolve(null),
+        targetSportsId ? getSportsStream(targetSportsId) : Promise.resolve(null),
+      ]);
+
+      const lbStream = lbRes.status === "fulfilled" ? lbRes.value : null;
+      const spStream = spRes.status === "fulfilled" ? spRes.value : null;
+
+      // 2. Intégration du flux LiveBall si disponible
+      if (lbStream?.url && targetLbId) {
+        const isHls = lbStream.type === "hls";
+        const relay = isHls ? `/api/liveball/match/${targetLbId}/hls/playlist.m3u8` : undefined;
+        servers.push({
+          name: "LiveBall · HLS Direct",
+          url: lbStream.url,
+          type: lbStream.type,
+          relayUrl: relay,
+        });
+      }
+
+      // 3. Intégration des flux Sports (Kora, Kooorah, YallaPro, Streamiz)
+      if (spStream?.url) {
+        const sourceName = (matchedSports?.source || decodedId.split(":")[0] || "Miroir").toUpperCase();
+        if (spStream.servers && spStream.servers.length > 0) {
+          spStream.servers.forEach((s, idx) => {
+            const label = s.name ? `${sourceName} · ${s.name}` : `${sourceName} · Serveur ${idx + 1}`;
+            servers.push({
+              name: label,
+              url: s.url,
+              type: s.type || "iframe",
+              relayUrl: s.relayUrl,
+            });
+          });
+        } else {
+          servers.push({
+            name: `${sourceName} · Serveur 1`,
+            url: spStream.url,
+            type: spStream.type || "iframe",
+            relayUrl: spStream.relayUrl,
+          });
+        }
+      }
+
+      if (servers.length === 0) return null;
+
+      // Priorité par défaut : le fournisseur cliqué, sinon le premier serveur fonctionnel
+      const defaultServer = isLb
+        ? servers.find((s) => s.name.startsWith("LiveBall")) || servers[0]
+        : servers.find((s) => !s.name.startsWith("LiveBall")) || servers[0];
+
+      return {
+        url: defaultServer.url,
+        type: defaultServer.type || "iframe",
+        relayUrl: defaultServer.relayUrl || "",
+        servers,
+        match,
+      };
+    },
     staleTime: 0,
     retry: false,
     refetchInterval: (query) => (query.state.data ? false : 30_000),
@@ -93,10 +238,13 @@ export default function SportsMatchContent() {
   const servers = stream?.servers ?? [];
   const activeServer = serverChoice.matchId === decodedId ? serverChoice.index : 0;
   const selectedServer = servers[activeServer];
-  // Le type peut varier d'un miroir à l'autre (ex. yallapro : HLS sur un
-  // serveur, player à embarquer sur un autre).
   const selectedType = selectedServer?.type ?? stream?.type;
-  const embedUrl = selectedType === "iframe" ? (selectedServer?.url ?? stream?.url) : null;
+  const rawEmbedUrl = selectedType === "iframe" ? (selectedServer?.url ?? stream?.url) : null;
+  const embedUrl = rawEmbedUrl
+    ? (/youtube\.com|youtu\.be/i.test(rawEmbedUrl)
+        ? rawEmbedUrl
+        : `/api/live/embed-proxy?url=${encodeURIComponent(rawEmbedUrl)}`)
+    : null;
 
   const channel: LiveChannel | null = selectedType === "hls" && stream
     ? {
@@ -276,7 +424,7 @@ export default function SportsMatchContent() {
             title={resolvedMatch ? `${teamsLabel} · En direct` : "Match en direct"}
             className="h-full w-full border-0"
             allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-            allowFullScreen
+            referrerPolicy="no-referrer-when-downgrade"
           />
         </div>
       )}
@@ -290,11 +438,11 @@ export default function SportsMatchContent() {
 
       {/* ── Barre de contrôle : retour, sources, partage ───────────── */}
       {stream && (
-        <div className="absolute top-0 inset-x-0 z-30 p-3 sm:p-4 bg-gradient-to-b from-black/90 via-black/40 to-transparent">
+        <div className="absolute top-0 inset-x-0 z-30 p-3 sm:p-4 bg-gradient-to-b from-black/90 via-black/50 to-transparent">
           <div className="flex items-center justify-between gap-3">
             <Link
               href="/live"
-              className="flex items-center justify-center w-9 h-9 rounded-full bg-black/50 hover:bg-white/20 text-white transition-colors"
+              className="flex items-center justify-center w-9 h-9 rounded-full bg-black/60 hover:bg-white/20 text-white backdrop-blur-md transition-colors"
               aria-label="Retour"
             >
               <X className="h-5 w-5" />
@@ -311,29 +459,36 @@ export default function SportsMatchContent() {
 
             <div className="flex items-center gap-2 shrink-0">
               {servers.length > 1 && (
-                <select
-                  value={activeServer}
-                  onChange={(e) => setServerChoice({ matchId: decodedId, index: Number(e.target.value) })}
-                  aria-label="Serveur de lecture"
-                  className="bg-black/60 border border-white/15 rounded-lg px-2 py-1.5 text-[11px] font-bold text-white outline-none"
-                >
-                  {servers.map((s, i) => (
-                    <option key={`${s.url}-${i}`} value={i} className="bg-zinc-900">
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex items-center gap-1.5 bg-black/60 backdrop-blur-md border border-white/15 p-1 rounded-xl">
+                  {servers.map((s, i) => {
+                    const isSelected = i === activeServer;
+                    return (
+                      <button
+                        key={`${s.url}-${i}`}
+                        onClick={() => setServerChoice({ matchId: decodedId, index: i })}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold transition-all cursor-pointer ${
+                          isSelected
+                            ? "bg-red-600 text-white shadow-md shadow-red-600/30"
+                            : "text-zinc-400 hover:text-white hover:bg-white/10"
+                        }`}
+                        title={s.name}
+                      >
+                        {s.name}
+                      </button>
+                    );
+                  })}
+                </div>
               )}
               <button
                 onClick={retry}
-                className="p-2 rounded-full bg-black/50 hover:bg-white/20 text-white transition-colors"
+                className="p-2 rounded-full bg-black/60 hover:bg-white/20 text-white backdrop-blur-md transition-colors"
                 aria-label="Recharger le flux"
               >
                 <ArrowsClockwise className="h-4 w-4" />
               </button>
               <button
                 onClick={handleShare}
-                className="p-2 rounded-full bg-black/50 hover:bg-white/20 text-white transition-colors"
+                className="p-2 rounded-full bg-black/60 hover:bg-white/20 text-white backdrop-blur-md transition-colors"
                 aria-label="Partager"
               >
                 {shareCopied ? <Check className="h-4 w-4 text-[brand-primary]" /> : <ShareNetwork className="h-4 w-4" />}

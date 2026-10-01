@@ -5,12 +5,39 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight } from "@phosphor-icons/react";
 import { getSportsMatches } from "@/services/sports";
+import { getLiveBallMatches } from "@/services/liveball";
 import type { SportsMatch } from "@/types/sports";
+import type { LiveBallMatch } from "@/types/liveball";
 
 const STATUS_TABS: { id: "all" | "live"; label: string }[] = [
   { id: "all", label: "Tous les Matchs" },
   { id: "live", label: "En Direct" },
 ];
+
+function normalizeTeam(name?: string): string {
+  if (!name) return "";
+  let s = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  s = s.replace(/\bparis\s+saint[- ]germain\b/g, "psg");
+  s = s.replace(/\bmanchester\s+city\b/g, "mancity");
+  s = s.replace(/\bmanchester\s+united\b/g, "manunited");
+  s = s.replace(/\batletico\s+madrid\b/g, "atleticomadrid");
+  s = s.replace(/\breal\s+madrid\b/g, "realmadrid");
+  s = s.replace(/\bbayern\s+munich\b/g, "bayernmunich");
+  s = s.replace(/\bbayern\s+münchen\b/g, "bayernmunich");
+  s = s.replace(/\bborussia\s+dortmund\b/g, "dortmund");
+  s = s.replace(/\b(fc|cf|sc|ac|as|rc|us|afc|ssc|cd|club|de|united|city|hotspur|sporting)\b/g, "");
+  s = s.replace(/[^a-z0-9]/g, "");
+  return s.trim();
+}
+
+function getMatchFingerprint(m: SportsMatch): string {
+  const h = normalizeTeam(m.home);
+  const a = normalizeTeam(m.away);
+  if (!h) return m.id;
+  const teams = [h, a].filter(Boolean).sort().join("_");
+  const timeWindow = m.startTs ? Math.floor(m.startTs / 7200) : "today";
+  return `${teams}_${timeWindow}`;
+}
 
 function formatMatchTime(ts?: number): string {
   if (!ts) return "Bientôt";
@@ -54,23 +81,75 @@ export default function SportsMatchesRow({
 }) {
   const [activeTab, setActiveTab] = useState<"all" | "live">("all");
 
-  const { data: matches = [], isLoading } = useQuery({
+  const { data: sportsMatches = [], isLoading: isLoadingSports } = useQuery({
     queryKey: ["live", "sports"],
     queryFn: () => getSportsMatches(),
     staleTime: 60_000,
     refetchInterval: 120_000,
   });
 
-  // Déduplique par ID (le backend agrège déjà toutes les sources)
+  const { data: liveballMatches = [], isLoading: isLoadingLiveBall } = useQuery({
+    queryKey: ["live", "liveball"],
+    queryFn: () => getLiveBallMatches(),
+    staleTime: 60_000,
+    refetchInterval: 120_000,
+  });
+
+  const isLoading = isLoadingSports && isLoadingLiveBall;
+
+  // Déduplique intelligemment par équipes : LiveBall en priorité, fusion des logos et scores
   const deduped = useMemo<SportsMatch[]>(() => {
-    const seen = new Set<string>();
-    return matches.filter((m) => {
-      if (!m?.id || !m.home) return false;
-      if (seen.has(m.id)) return false;
-      seen.add(m.id);
-      return true;
+    // 1. Convertit les matchs LiveBall au format SportsMatch
+    const lbConverted: SportsMatch[] = (liveballMatches || []).map((lb: LiveBallMatch) => ({
+      id: `liveball:${lb.id}`,
+      sourceId: lb.id,
+      source: "liveball" as const,
+      status: lb.status,
+      home: lb.home,
+      away: lb.away,
+      homeLogo: lb.homeLogo,
+      awayLogo: lb.awayLogo,
+      score: lb.score,
+      minute: lb.minute,
+      startTs: lb.startTs,
+      league: lb.league,
+    }));
+
+    const all = [...lbConverted, ...(sportsMatches || [])];
+    const grouped = new Map<string, SportsMatch>();
+
+    for (const m of all) {
+      if (!m?.id || !m.home) continue;
+      const key = getMatchFingerprint(m);
+      const existing = grouped.get(key);
+
+      if (!existing) {
+        grouped.set(key, { ...m });
+      } else {
+        // Si la nouvelle source est LiveBall, elle prend le dessus sur l'ID et l'URL
+        if (m.source === "liveball" && existing.source !== "liveball") {
+          grouped.set(key, {
+            ...m,
+            homeLogo: existing.homeLogo || m.homeLogo,
+            awayLogo: existing.awayLogo || m.awayLogo,
+            score: existing.score || m.score,
+            league: existing.league || m.league,
+          });
+        } else {
+          // Complète les logos/score manquants
+          if (!existing.homeLogo && m.homeLogo) existing.homeLogo = m.homeLogo;
+          if (!existing.awayLogo && m.awayLogo) existing.awayLogo = m.awayLogo;
+          if (!existing.score && m.score) existing.score = m.score;
+          if (!existing.league && m.league) existing.league = m.league;
+        }
+      }
+    }
+
+    return Array.from(grouped.values()).sort((a, b) => {
+      if (a.status !== b.status) return a.status === "live" ? -1 : 1;
+      return (a.startTs ?? Number.MAX_SAFE_INTEGER) - (b.startTs ?? Number.MAX_SAFE_INTEGER);
     });
-  }, [matches]);
+  }, [sportsMatches, liveballMatches]);
 
   const filtered = useMemo(() => {
     if (activeTab === "live") return deduped.filter((m) => m.status === "live");

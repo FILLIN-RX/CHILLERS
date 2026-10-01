@@ -6,6 +6,11 @@
  * dispatche la résolution vers la bonne source. Une source en panne ne casse
  * jamais la réponse : elle est simplement contribution vide.
  */
+import {
+  getLiveBallMatches,
+  resolveLiveBallStream,
+  type LiveBallMatch,
+} from '../liveball/liveball.service';
 import { getKoraMatches, resolveKoraStream } from './kora.service';
 import { getKooorahMatches, getYallaproMatches, resolveKooorahStream, resolveYallaproStream } from './yasirtv.service';
 import { getStreamizMatches, resolveStreamizStream } from './livetv.service';
@@ -13,10 +18,52 @@ import { SPORTS_SOURCES, type ResolvedSportsStream, type SportsMatch, type Sport
 
 export * from './sports.types';
 
+async function listLiveBallMatches(): Promise<SportsMatch[]> {
+  try {
+    const raw = await getLiveBallMatches();
+    return (raw || []).map((m: LiveBallMatch) => ({
+      id: `liveball:${m.id}`,
+      sourceId: m.id,
+      source: 'liveball' as const,
+      status: m.status,
+      home: m.home,
+      away: m.away,
+      homeLogo: m.homeLogo,
+      awayLogo: m.awayLogo,
+      league: m.league,
+      score: m.score,
+      startTs: m.startTs,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+async function resolveLiveBallStreamWrapper(id: string, force = false): Promise<ResolvedSportsStream | null> {
+  try {
+    const stream = await resolveLiveBallStream(id, force);
+    if (!stream?.url) return null;
+    return {
+      url: stream.url,
+      type: stream.type || 'hls',
+      servers: [
+        {
+          name: 'Serveur 1 HD',
+          url: stream.url,
+          type: stream.type || 'hls',
+        },
+      ],
+    };
+  } catch {
+    return null;
+  }
+}
+
 const PROVIDERS: Record<
   SportsSourceId,
   { list: () => Promise<SportsMatch[]>; resolve: (sourceId: string, force?: boolean) => Promise<ResolvedSportsStream | null> }
 > = {
+  liveball: { list: listLiveBallMatches, resolve: (id) => resolveLiveBallStreamWrapper(id) },
   kora: { list: getKoraMatches, resolve: (id, force) => resolveKoraStream(id, force) },
   kooorah: { list: getKooorahMatches, resolve: (id, force) => resolveKooorahStream(id, force) },
   yallapro: { list: getYallaproMatches, resolve: (id, force) => resolveYallaproStream(id, force) },

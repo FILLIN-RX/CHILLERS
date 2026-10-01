@@ -6,7 +6,7 @@
  * résolution de flux renvoyant soit un HLS, soit un player à embarquer.
  */
 
-export type SportsSourceId = 'kora' | 'kooorah' | 'yallapro' | 'streamiz';
+export type SportsSourceId = 'liveball' | 'kora' | 'kooorah' | 'yallapro' | 'streamiz';
 
 export interface SportsMatch {
   /** Identifiant stable, unique au sein de la source (`${source}:${id}`). */
@@ -48,4 +48,4 @@ export interface ResolvedSportsStream {
   servers: SportsServer[];
 }
 
-export const SPORTS_SOURCES: SportsSourceId[] = ['kora', 'kooorah', 'yallapro', 'streamiz'];
+export const SPORTS_SOURCES: SportsSourceId[] = ['liveball', 'kora', 'kooorah', 'yallapro', 'streamiz'];

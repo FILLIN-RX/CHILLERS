@@ -635,7 +635,6 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
               src={`${item.trailerUrl}?autoplay=1`}
               className="w-full h-full border-none"
               allow="autoplay; encrypted-media; fullscreen"
-              allowFullScreen
               title="Bande-annonce"
             />
           </div>

@@ -306,7 +306,6 @@ export default function LiveBallMatchContent() {
             title={match ? `${match.home} - ${match.away} · En direct` : "Match en direct"}
             className="h-full w-full border-0"
             allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-            allowFullScreen
           />
         </div>
       )}

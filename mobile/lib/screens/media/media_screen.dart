@@ -20,7 +20,9 @@ class MediaScreen extends StatefulWidget {
   State<MediaScreen> createState() => _MediaScreenState();
 }
 
-class _MediaScreenState extends State<MediaScreen> {
+class _MediaScreenState extends State<MediaScreen> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
   final ApiService _apiService = ApiService();
   final ScrollController _scrollController = ScrollController();
 
@@ -163,6 +165,7 @@ class _MediaScreenState extends State<MediaScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(

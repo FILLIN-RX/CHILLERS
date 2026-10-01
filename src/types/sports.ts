@@ -1,4 +1,4 @@
-export type SportsSourceId = "kora" | "kooorah" | "yallapro" | "streamiz";
+export type SportsSourceId = "liveball" | "kora" | "kooorah" | "yallapro" | "streamiz";
 
 export interface SportsMatch {
   /** Identifiant composite `source:sourceId`, utilisé dans les URL. */
