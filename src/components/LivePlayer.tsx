@@ -203,13 +203,17 @@ export default function LivePlayer({
       backBufferLength: lowLatency ? 0 : 2,
       maxLoadingDelay: 2,
       maxBufferHole: 0.5,
-      fragLoadingMaxRetry: 4,
-      manifestLoadingMaxRetry: 2,
-      levelLoadingMaxRetry: 4,
+      highBufferWatchdogPeriod: 2,
+      nudgeOffset: 0.1,
+      nudgeMaxRetry: 5,
+      fragLoadingMaxRetry: 6,
+      manifestLoadingMaxRetry: 4,
+      levelLoadingMaxRetry: 6,
       startLevel: -1,
-      abrEwmaDefaultEstimate: 1_000_000,
-      liveSyncDurationCount: lowLatency ? 1 : 3,
-      liveMaxLatencyDurationCount: lowLatency ? 2 : 6,
+      abrEwmaDefaultEstimate: 1_200_000,
+      liveSyncDurationCount: lowLatency ? 2 : 3,
+      liveMaxLatencyDurationCount: lowLatency ? 5 : 8,
+      maxLiveSyncPlaybackRate: 1.08,
     };
     const isCorsRestricted = Boolean(
       (channel as any).proxy ||

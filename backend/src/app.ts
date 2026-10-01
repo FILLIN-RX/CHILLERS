@@ -41,6 +41,9 @@ dotenv.config({ path: path.join(__dirname, '../.env') });
 
 const app = express();
 
+// Trust reverse proxy (Railway, Render, Vercel, Cloudflare) for proper HTTPS & client IP resolution
+app.set('trust proxy', true);
+
 const allowedOrigins = [
   'https://chillers-pi.vercel.app',
   'https://chillers.site',
