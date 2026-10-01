@@ -82,7 +82,7 @@ function RegisterForm() {
               className="w-12 h-12 sm:w-14 sm:h-14 object-contain drop-shadow-[0_0_20px_rgba(215,4,102,0.4)]"
               priority
             />
-            <span className="text-2xl sm:text-3xl font-black tracking-wider uppercase text-[#D70466] drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
+            <span className="text-2xl sm:text-3xl font-black tracking-wider uppercase text-[brand-primary] drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
               CHILLERS
             </span>
           </Link>
@@ -153,7 +153,7 @@ function RegisterForm() {
                   placeholder="Ex: Alex22"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-black/60 border border-white/10 rounded-xl text-white text-sm placeholder:text-zinc-600 focus:outline-none focus:border-[#D70466] transition-colors"
+                  className="w-full pl-10 pr-4 py-3 bg-black/60 border border-white/10 rounded-xl text-white text-sm placeholder:text-zinc-600 focus:outline-none focus:border-[brand-primary] transition-colors"
                 />
               </div>
             </div>
@@ -171,7 +171,7 @@ function RegisterForm() {
                   placeholder="nom@exemple.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-black/60 border border-white/10 rounded-xl text-white text-sm placeholder:text-zinc-600 focus:outline-none focus:border-[#D70466] transition-colors"
+                  className="w-full pl-10 pr-4 py-3 bg-black/60 border border-white/10 rounded-xl text-white text-sm placeholder:text-zinc-600 focus:outline-none focus:border-[brand-primary] transition-colors"
                 />
               </div>
             </div>
@@ -189,7 +189,7 @@ function RegisterForm() {
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-black/60 border border-white/10 rounded-xl text-white text-sm placeholder:text-zinc-600 focus:outline-none focus:border-[#D70466] transition-colors"
+                  className="w-full pl-10 pr-4 py-3 bg-black/60 border border-white/10 rounded-xl text-white text-sm placeholder:text-zinc-600 focus:outline-none focus:border-[brand-primary] transition-colors"
                 />
               </div>
             </div>
@@ -197,7 +197,7 @@ function RegisterForm() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 px-4 rounded-xl bg-[#D70466] hover:bg-[#b5034f] text-white text-sm font-bold shadow-lg transition-all active:scale-[0.98] disabled:opacity-60 flex items-center justify-center gap-2 mt-2"
+              className="w-full py-3.5 px-4 rounded-xl bg-[brand-primary] hover:bg-[#b5034f] text-white text-sm font-bold shadow-lg transition-all active:scale-[0.98] disabled:opacity-60 flex items-center justify-center gap-2 mt-2"
             >
               {loading && <Spinner className="w-4 h-4 animate-spin" />}
               <span>{lang === "fr" ? "S'inscrire gratuitement" : "Create Account"}</span>
@@ -209,7 +209,7 @@ function RegisterForm() {
               {lang === "fr" ? "Vous avez déjà un compte ?" : "Already have an account?"}{" "}
               <Link
                 href={`/login?redirect=${encodeURIComponent(redirectUrl)}`}
-                className="font-bold text-[#D70466] hover:underline ml-1"
+                className="font-bold text-[brand-primary] hover:underline ml-1"
               >
                 {lang === "fr" ? "Se connecter" : "Sign In"}
               </Link>

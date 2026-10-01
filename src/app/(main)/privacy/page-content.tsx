@@ -20,8 +20,8 @@ export default function PrivacyPage() {
       <div className="mx-auto px-6 sm:px-8 md:px-12 lg:px-[4%] py-24 space-y-12">
 
         <section className="text-center space-y-4">
-          <div className="w-16 h-16 mx-auto rounded-full bg-[#D70466]/20 flex items-center justify-center">
-            <ShieldCheckered className="h-8 w-8 text-[#D70466]" />
+          <div className="w-16 h-16 mx-auto rounded-full bg-[brand-primary]/20 flex items-center justify-center">
+            <ShieldCheckered className="h-8 w-8 text-[brand-primary]" />
           </div>
           <h1 className="text-3xl sm:text-4xl font-black">Politique de Confidentialité</h1>
           <p className="text-zinc-400 text-sm">Dernière mise à jour : Juillet 2025</p>
@@ -39,7 +39,7 @@ export default function PrivacyPage() {
         {/* Données collectées */}
         <section className="space-y-4">
           <h2 className="text-xl font-black flex items-center gap-3">
-            <span className="h-5 w-1 rounded-full bg-[#D70466]" />
+            <span className="h-5 w-1 rounded-full bg-[brand-primary]" />
             Données collectées
           </h2>
           <p className="text-zinc-400 text-sm leading-relaxed">
@@ -47,19 +47,19 @@ export default function PrivacyPage() {
           </p>
           <ul className="space-y-2 text-zinc-400 text-sm ml-4">
             <li className="flex gap-2">
-              <span className="text-[#D70466] mt-0.5">&#8226;</span>
+              <span className="text-[brand-primary] mt-0.5">&#8226;</span>
               <span>Nous ne créons pas de compte utilisateur et ne demandons aucune inscription.</span>
             </li>
             <li className="flex gap-2">
-              <span className="text-[#D70466] mt-0.5">&#8226;</span>
+              <span className="text-[brand-primary] mt-0.5">&#8226;</span>
               <span>Nous ne collectons ni nom, ni adresse email, ni numéro de téléphone.</span>
             </li>
             <li className="flex gap-2">
-              <span className="text-[#D70466] mt-0.5">&#8226;</span>
+              <span className="text-[brand-primary] mt-0.5">&#8226;</span>
               <span>Nous ne stockons aucune donnée de paiement.</span>
             </li>
             <li className="flex gap-2">
-              <span className="text-[#D70466] mt-0.5">&#8226;</span>
+              <span className="text-[brand-primary] mt-0.5">&#8226;</span>
               <span>Nous ne suivons pas votre activité à des fins publicitaires.</span>
             </li>
           </ul>
@@ -103,16 +103,16 @@ export default function PrivacyPage() {
             Données locales (localStorage)
           </h2>
           <p className="text-zinc-400 text-sm leading-relaxed">
-            Nous utilisons le <code className="text-[#D70466] text-xs bg-zinc-800 px-1.5 py-0.5 rounded">localStorage</code> de 
+            Nous utilisons le <code className="text-[brand-primary] text-xs bg-zinc-800 px-1.5 py-0.5 rounded">localStorage</code> de 
             votre navigateur pour stocker :
           </p>
           <ul className="space-y-2 text-zinc-400 text-sm ml-4">
             <li className="flex gap-2">
-              <span className="text-[#D70466] mt-0.5">&#8226;</span>
+              <span className="text-[brand-primary] mt-0.5">&#8226;</span>
               <span>Votre progression de lecture (épisode en cours, durée vue).</span>
             </li>
             <li className="flex gap-2">
-              <span className="text-[#D70466] mt-0.5">&#8226;</span>
+              <span className="text-[brand-primary] mt-0.5">&#8226;</span>
               <span>Vos préférences d&apos;affichage (langue, qualité).</span>
             </li>
           </ul>
@@ -124,7 +124,7 @@ export default function PrivacyPage() {
         {/* Sécurité */}
         <section className="space-y-4">
           <h2 className="text-xl font-black flex items-center gap-3">
-            <span className="h-5 w-1 rounded-full bg-[#D70466]" />
+            <span className="h-5 w-1 rounded-full bg-[brand-primary]" />
             Sécurité
           </h2>
           <p className="text-zinc-400 text-sm leading-relaxed">
@@ -154,7 +154,7 @@ export default function PrivacyPage() {
           </h2>
           <p className="text-zinc-400 text-sm leading-relaxed">
             Pour toute question relative à cette politique de confidentialité, contactez-nous à :{" "}
-            <a href="mailto:contact@chillers.app" className="text-[#D70466] hover:underline">
+            <a href="mailto:contact@chillers.app" className="text-[brand-primary] hover:underline">
               contact@chillers.app
             </a>
           </p>

@@ -7,6 +7,8 @@ import '../../models/user_model.dart';
 import '../../services/download_service.dart';
 import '../../services/storage_service.dart';
 import '../../services/native_bridge.dart';
+import '../../services/feedback_service.dart';
+import '../../config/theme.dart';
 import '../watch/watch_screen.dart';
 import '../main_navigation.dart';
 import '../../features/offline_transfer/ui/screens/transfer_receiver_screen.dart';
@@ -64,6 +66,7 @@ class _DownloadScreenState extends State<DownloadScreen> {
   }
 
   void _confirmDeleteTask(DownloadTask task) {
+    FeedbackService.hapticMedium();
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xFF18181C),
@@ -115,8 +118,8 @@ class _DownloadScreenState extends State<DownloadScreen> {
                   },
                 ),
               ListTile(
-                leading: const Icon(Icons.delete_outline, color: Color(0xFFE50914)),
-                title: const Text('Supprimer le téléchargement', style: TextStyle(color: Color(0xFFE50914), fontWeight: FontWeight.bold)),
+                leading: const Icon(Icons.delete_outline, color: AppTheme.primary),
+                title: const Text('Supprimer le téléchargement', style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold)),
                 onTap: () {
                   Navigator.pop(ctx);
                   _downloadService.removeDownload(task.id);
@@ -147,7 +150,7 @@ class _DownloadScreenState extends State<DownloadScreen> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFE50914),
+              backgroundColor: AppTheme.primary,
               foregroundColor: Colors.white,
             ),
             onPressed: () {
@@ -162,6 +165,7 @@ class _DownloadScreenState extends State<DownloadScreen> {
   }
 
   Future<void> _playOffline(DownloadTask task) async {
+    FeedbackService.hapticMedium();
     final publicUri = task.publicUri;
     if (publicUri != null) {
       final opened = await NativeBridge.instance.openUri(publicUri);
@@ -364,7 +368,7 @@ class _DownloadScreenState extends State<DownloadScreen> {
             ),
             Switch(
               value: _smartDownloads,
-              activeColor: const Color(0xFFE50914),
+              activeColor: AppTheme.primary,
               onChanged: (val) => setState(() => _smartDownloads = val),
             ),
           ],
@@ -378,7 +382,7 @@ class _DownloadScreenState extends State<DownloadScreen> {
           child: LinearProgressIndicator(
             value: progress,
             backgroundColor: Colors.white12,
-            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFE50914)),
+            valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primary),
             minHeight: 4,
           ),
         ),
@@ -415,6 +419,7 @@ class _DownloadScreenState extends State<DownloadScreen> {
 
     return InkWell(
       onTap: () {
+        FeedbackService.hapticMedium();
         if (isDone) {
           _playOffline(task);
         } else if (isDownloading) {
@@ -470,7 +475,7 @@ class _DownloadScreenState extends State<DownloadScreen> {
                       child: LinearProgressIndicator(
                         value: progressVal,
                         backgroundColor: Colors.black45,
-                        valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFE50914)),
+                        valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primary),
                         minHeight: 3,
                       ),
                     ),
@@ -512,7 +517,7 @@ class _DownloadScreenState extends State<DownloadScreen> {
                             ? _formatBytes(task.totalBytes > 0 ? task.totalBytes : task.downloadedBytes)
                             : (isDownloading ? '${(progressVal * 100).toInt()}% téléchargé' : 'En pause'),
                         style: TextStyle(
-                          color: isDownloading ? const Color(0xFFE50914) : Colors.white38,
+                          color: isDownloading ? AppTheme.primary : Colors.white38,
                           fontSize: 11,
                           fontWeight: isDownloading ? FontWeight.bold : FontWeight.normal,
                         ),

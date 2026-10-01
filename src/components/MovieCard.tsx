@@ -527,7 +527,7 @@ function MovieCard({
           {audioBadge && (
             <span className={`rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider border-0 shadow-none ${
               audioBadge.isFrench 
-                ? 'bg-[#D70466]/90 text-white' 
+                ? 'bg-[brand-primary]/90 text-white' 
                 : 'bg-amber-600/90 text-white'
             }`}>
               {audioBadge.label}

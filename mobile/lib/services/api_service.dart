@@ -1015,12 +1015,12 @@ class ApiService {
 
   // ==================== STREAM PLAYBACK ====================
 
-  Future<String?> getMovieStreamUrl(String id, String title) async {
+  Future<String?> getMovieStreamUrl(String id, String title, {String language = 'fr'}) async {
     // 1. Source Principale Backend
     try {
       final response = await http
           .get(
-            Uri.parse('$_base/api/stream/movie/$id?type=movie&title=${Uri.encodeComponent(title)}'),
+            Uri.parse('$_base/api/stream/movie/$id?type=movie&title=${Uri.encodeComponent(title)}&lang=$language'),
             headers: await _getHeaders(),
           )
           .timeout(const Duration(seconds: 20));
@@ -1039,7 +1039,7 @@ class ApiService {
     try {
       final res2 = await http
           .get(
-            Uri.parse('$_base/api/nexstream/movie/$id?type=movie&title=${Uri.encodeComponent(title)}'),
+            Uri.parse('$_base/api/nexstream/movie/$id?type=movie&title=${Uri.encodeComponent(title)}&lang=$language'),
             headers: await _getHeaders(),
           )
           .timeout(const Duration(seconds: 10));
@@ -1062,13 +1062,13 @@ class ApiService {
     return null;
   }
 
-  Future<String?> getEpisodeStreamUrl(String id, int season, int episode, String title) async {
+  Future<String?> getEpisodeStreamUrl(String id, int season, int episode, String title, {String language = 'fr'}) async {
     // 1. Source Principale Backend
     try {
       final response = await http
           .get(
             Uri.parse(
-                '$_base/api/stream/tv/$id/$season/$episode?type=series&title=${Uri.encodeComponent(title)}'),
+                '$_base/api/stream/tv/$id/$season/$episode?type=series&title=${Uri.encodeComponent(title)}&lang=$language'),
             headers: await _getHeaders(),
           )
           .timeout(const Duration(seconds: 20));
@@ -1088,7 +1088,7 @@ class ApiService {
       final res2 = await http
           .get(
             Uri.parse(
-                '$_base/api/nexstream/tv/$id/$season/$episode?type=series&title=${Uri.encodeComponent(title)}'),
+                '$_base/api/nexstream/tv/$id/$season/$episode?type=series&title=${Uri.encodeComponent(title)}&lang=$language'),
             headers: await _getHeaders(),
           )
           .timeout(const Duration(seconds: 10));
@@ -1117,12 +1117,14 @@ class ApiService {
     String type = 'movie',
     int? season,
     int? episode,
+    String language = 'fr',
   }) async {
     try {
       final params = <String, String>{
         'tmdb_id': tmdbId,
         'title': title,
         'type': type,
+        'lang': language,
       };
       if (season != null) params['season'] = season.toString();
       if (episode != null) params['episode'] = episode.toString();
@@ -1146,9 +1148,9 @@ class ApiService {
 
     // Fallback direct stream resolution
     if (type == 'movie') {
-      return getMovieStreamUrl(tmdbId, title);
+      return getMovieStreamUrl(tmdbId, title, language: language);
     } else {
-      return getEpisodeStreamUrl(tmdbId, season ?? 1, episode ?? 1, title);
+      return getEpisodeStreamUrl(tmdbId, season ?? 1, episode ?? 1, title, language: language);
     }
   }
 }

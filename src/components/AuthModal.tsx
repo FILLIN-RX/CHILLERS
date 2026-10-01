@@ -147,7 +147,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
                   type="button"
                   onClick={() => handleSubmit(undefined, true)}
                   disabled={loading}
-                  className="w-full py-2 px-3 rounded-lg bg-[#D70466] hover:opacity-95 text-white font-bold text-xs shadow transition-all active:scale-95 cursor-pointer"
+                  className="w-full py-2 px-3 rounded-lg bg-[brand-primary] hover:opacity-95 text-white font-bold text-xs shadow transition-all active:scale-95 cursor-pointer"
                 >
                   {lang === "fr"
                     ? "Déconnecter tous les autres appareils et continuer"
@@ -203,7 +203,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
                   placeholder={lang === 'fr' ? "Pseudo" : "Username"}
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-black/50 border border-white/10 rounded-xl text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#D70466] focus:border-transparent transition-all"
+                  className="w-full pl-10 pr-4 py-3 bg-black/50 border border-white/10 rounded-xl text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[brand-primary] focus:border-transparent transition-all"
                 />
               </div>
             )}
@@ -216,7 +216,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
                 placeholder={lang === 'fr' ? "Adresse email" : "Email address"}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-black/50 border border-white/10 rounded-xl text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#D70466] focus:border-transparent transition-all"
+                className="w-full pl-10 pr-4 py-3 bg-black/50 border border-white/10 rounded-xl text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[brand-primary] focus:border-transparent transition-all"
               />
             </div>
 
@@ -228,14 +228,14 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
                 placeholder={lang === 'fr' ? "Mot de passe" : "Password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-black/50 border border-white/10 rounded-xl text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#D70466] focus:border-transparent transition-all"
+                className="w-full pl-10 pr-4 py-3 bg-black/50 border border-white/10 rounded-xl text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[brand-primary] focus:border-transparent transition-all"
               />
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="relative w-full flex items-center justify-center py-3 rounded-xl bg-[#D70466] text-white font-bold tracking-wide hover:shadow-[0_0_20px_rgba(215,4,102,0.4)] transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
+              className="relative w-full flex items-center justify-center py-3 rounded-xl bg-[brand-primary] text-white font-bold tracking-wide hover:shadow-[0_0_20px_rgba(215,4,102,0.4)] transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
             >
               {loading ? (
                 <Spinner className="w-5 h-5 animate-spin" />
@@ -254,7 +254,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
             <button
               type="button"
               onClick={() => setMode(mode === "login" ? "register" : "login")}
-              className="ml-2 text-white hover:text-[#D70466] font-semibold transition-colors focus:outline-none cursor-pointer"
+              className="ml-2 text-white hover:text-[brand-primary] font-semibold transition-colors focus:outline-none cursor-pointer"
             >
               {mode === "login" 
                 ? (lang === 'fr' ? "S'inscrire" : "Sign up") 

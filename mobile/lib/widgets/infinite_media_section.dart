@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../config/theme.dart';
 import '../models/media_item.dart';
 import '../services/pagination_service.dart';
+import '../services/feedback_service.dart';
 
 typedef MediaItemCallback = void Function(MediaItem);
 
@@ -174,7 +175,10 @@ class _InfiniteMediaSectionState extends State<InfiniteMediaSection> {
 
   Widget _buildMediaCard(MediaItem item) {
     return GestureDetector(
-      onTap: () => widget.onDetailsTab(item),
+      onTap: () {
+        FeedbackService.hapticMedium();
+        widget.onDetailsTab(item);
+      },
       child: Container(
         width: widget.itemWidth,
         margin: const EdgeInsets.symmetric(horizontal: 4),

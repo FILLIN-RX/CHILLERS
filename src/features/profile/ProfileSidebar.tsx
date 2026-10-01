@@ -79,7 +79,7 @@ export default function ProfileSidebar({
                 onClick={() => router.push(`/profile?tab=${t.id}`)}
                 className={`flex items-center justify-between px-4 py-3 rounded-2xl text-xs sm:text-sm font-bold transition-all outline-none group cursor-pointer ${
                   active
-                    ? "bg-[#D70466] text-white shadow-lg shadow-[#D70466]/20 font-black"
+                    ? "bg-[brand-primary] text-white shadow-lg shadow-[brand-primary]/20 font-black"
                     : "text-zinc-400 hover:text-white hover:bg-white/5 border border-transparent"
                 }`}
               >
@@ -111,7 +111,7 @@ export default function ProfileSidebar({
         <div className="pt-2">
           <button
             onClick={onLogout}
-            className="w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl text-xs sm:text-sm font-bold text-white bg-[#D70466] hover:bg-[#b5034f] border border-[#D70466] active:scale-[0.99] shadow-lg shadow-[#D70466]/20 transition-all cursor-pointer"
+            className="w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl text-xs sm:text-sm font-bold text-white bg-[brand-primary] hover:bg-[#b5034f] border border-[brand-primary] active:scale-[0.99] shadow-lg shadow-[brand-primary]/20 transition-all cursor-pointer"
           >
             <SignOut className="w-4 h-4 sm:w-5 sm:h-5" />
             <span>{lang === "fr" ? "Se déconnecter" : "Log Out"}</span>

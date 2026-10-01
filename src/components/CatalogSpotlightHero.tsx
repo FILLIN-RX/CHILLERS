@@ -61,7 +61,7 @@ export default function CatalogSpotlightHero({
     type === "movies"
       ? { label: "À la une · Films", color: "bg-rose-500/15 border-rose-500/30 text-rose-300", icon: "🎬" }
       : type === "series"
-      ? { label: "À la une · Séries", color: "bg-[#D70466]/15 border-[#D70466]/30 text-[#D70466]", icon: "📺" }
+      ? { label: "À la une · Séries", color: "bg-[brand-primary]/15 border-[brand-primary]/30 text-[brand-primary]", icon: "📺" }
       : { label: "À la une · Anime", color: "bg-amber-500/15 border-amber-500/30 text-amber-300", icon: "✨" };
 
   return (

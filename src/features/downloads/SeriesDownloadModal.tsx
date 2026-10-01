@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { X, DownloadSimple, FilmSlate, Check, User } from "@phosphor-icons/react";
 import type { Episode } from "@/types/media";
@@ -15,6 +15,7 @@ interface Props {
   seriesTitle: string;
   tmdbId: string;
   episodes: Episode[];
+  initialLanguage?: "fr" | "vostfr";
 }
 
 const epKey = (ep: Episode) => `S${ep.season ?? 1}E${ep.number}`;
@@ -25,15 +26,23 @@ export default function SeriesDownloadModal({
   seriesTitle,
   tmdbId,
   episodes,
+  initialLanguage = "fr",
 }: Props) {
   const user = useAuthStore((s) => s.user);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [selectedLang, setSelectedLang] = useState<"fr" | "vostfr">(initialLanguage);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [multiOpen, setMultiOpen] = useState(false);
   const [multiEpisodes, setMultiEpisodes] = useState<Episode[]>([]);
   // Changes on every open of the link modal so MultiDownloadModal remounts
   // with a fresh "Télécharger" gate (avoids resetting state in an effect).
   const [multiKey, setMultiKey] = useState(0);
+
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedLang(initialLanguage);
+    }
+  }, [isOpen, initialLanguage]);
 
   const handleClose = () => {
     setMultiOpen(false);
@@ -196,7 +205,7 @@ export default function SeriesDownloadModal({
           </div>
 
           {/* Controls row */}
-          <div className="flex items-center gap-2 mt-3">
+          <div className="flex flex-wrap items-center gap-2 mt-3">
             <button
               onClick={toggleAll}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border border-white/15 text-zinc-300 hover:bg-white/8 transition-colors"
@@ -221,11 +230,36 @@ export default function SeriesDownloadModal({
                 {selected.size} sélectionné{selected.size > 1 ? "s" : ""}
               </span>
             )}
-            <div className="flex-1" />
+
+            <div className="flex items-center gap-1 bg-black/50 p-0.5 rounded-lg border border-white/10 ml-auto">
+              <button
+                type="button"
+                onClick={() => setSelectedLang("fr")}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                  selectedLang === "fr"
+                    ? "bg-brand-primary text-white shadow-sm"
+                    : "text-zinc-400 hover:text-white"
+                }`}
+              >
+                🇫🇷 VF
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedLang("vostfr")}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                  selectedLang === "vostfr"
+                    ? "bg-brand-primary text-white shadow-sm"
+                    : "text-zinc-400 hover:text-white"
+                }`}
+              >
+                🌐 VOSTFR
+              </button>
+            </div>
+
             <button
               onClick={downloadSelected}
               disabled={selected.size === 0}
-              className="flex items-center gap-1.5 px-4 py-1.5 rounded text-xs font-bold bg-white text-black hover:bg-zinc-200 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-bold bg-white text-black hover:bg-zinc-200 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <DownloadSimple className="h-3 w-3" />
               Télécharger ({selected.size})
@@ -331,12 +365,13 @@ export default function SeriesDownloadModal({
       </div>
 
       <MultiDownloadModal
-        key={multiKey}
+        key={`${multiKey}-${selectedLang}`}
         isOpen={multiOpen}
         onClose={() => setMultiOpen(false)}
         seriesTitle={seriesTitle}
         tmdbId={tmdbId}
         episodes={multiEpisodes}
+        language={selectedLang}
       />
     </div>
   );

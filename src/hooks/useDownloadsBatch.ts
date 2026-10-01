@@ -19,6 +19,7 @@ export interface UseDownloadsBatchArgs {
   seriesTitle: string;
   type: "series" | "anime";
   episodes: Episode[];
+  language?: "fr" | "vostfr";
   /** When true, links are resolved to "ready" but nothing is streamed yet.
    *  Flip it to false (e.g. user clicks "Télécharger") to launch the pool. */
   gated?: boolean;
@@ -44,7 +45,7 @@ export interface UseDownloadsBatchReturn {
 }
 
 export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatchReturn {
-  const { tmdbId, seriesTitle, type, episodes, gated = false } = args;
+  const { tmdbId, seriesTitle, type, episodes, language = "fr", gated = false } = args;
 
   const tasks = useDownloadsStore((s) => s.tasks);
   const addMany = useDownloadsStore((s) => s.addMany);
@@ -82,6 +83,7 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
         tmdbId,
         season: ep.season ?? 1,
         episodeNumber: ep.number,
+        language,
       })
     );
 
@@ -121,12 +123,12 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
     if (toReset.length > 0) {
       resetTasks(toReset);
     }
-  }, [episodes, addMany, resetTasks, seriesTitle, tmdbId, type, gated]);
+  }, [episodes, addMany, resetTasks, seriesTitle, tmdbId, type, gated, language]);
 
   // Main task execution
   const runOne = useCallback(async (task: DownloadTask) => {
     if (unmountedRef.current) return;
-    const { type, seriesTitle, tmdbId } = argsRef.current;
+    const { type, seriesTitle, tmdbId, language: currentLang = "fr" } = argsRef.current;
 
     const ctrl = new AbortController();
     setController(task.id, ctrl);
@@ -150,6 +152,7 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
           seriesTitle,
           task.season,
           task.episodeNumber,
+          currentLang,
         );
       }
 

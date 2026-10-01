@@ -11,6 +11,7 @@ import '../config/theme.dart';
 import '../main.dart';
 import '../services/cast_service.dart';
 import '../services/native_bridge.dart';
+import '../services/streaming_headers_service.dart';
 import 'cast_modal.dart';
 
 enum PlayerAspectRatioMode {
@@ -286,16 +287,11 @@ class AppVideoPlayerState extends State<AppVideoPlayer> with TickerProviderState
   void _handlePlaybackFailure(String error) {
     if (_isPlatformWebViewSupported &&
         (error.contains('Failed to recognize file format') ||
+            _isEmbedUrl ||
             widget.videoUrl.contains('vidlink.pro') ||
             widget.videoUrl.contains('vidsrc') ||
             widget.videoUrl.contains('/embed'))) {
       _initMobileWebView();
-      return;
-    }
-
-    if (_useMediaKit && _videoPlayerController == null) {
-      debugPrint('[AppVideoPlayer] Erreur MediaKit, basculement vers video_player...');
-      _initFallbackVideoPlayer();
       return;
     }
 
@@ -313,7 +309,7 @@ class AppVideoPlayerState extends State<AppVideoPlayer> with TickerProviderState
       if (errStr.contains('Failed to open') || errStr.contains('404') || errStr.contains('403')) {
         cleanMessage = 'Le serveur vidéo ne répond pas ou le lien a expiré.';
       } else if (errStr.contains('Failed to recognize file format')) {
-        cleanMessage = 'Flux vidéo indisponible ou page HTML renvoyée.';
+        cleanMessage = 'Flux vidéo indisponible ou format non supporté.';
       } else if (errStr.contains('SocketException') || errStr.contains('Network') || errStr.contains('connection')) {
         cleanMessage = 'Problème de connexion réseau.';
       }
@@ -373,35 +369,9 @@ class AppVideoPlayerState extends State<AppVideoPlayer> with TickerProviderState
     _initializePlayer();
   }
 
+  /// Get HTTP headers for streaming URL using centralized service
   Map<String, String> _getHeadersForUrl(String url) {
-    final headers = <String, String>{
-      'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-    };
-    final lower = url.toLowerCase();
-    if (lower.contains('hakunaymatata') || lower.contains('bcdn') || lower.contains('videodownloader')) {
-      headers['Referer'] = 'https://videodownloader.site/';
-      headers['Origin'] = 'https://videodownloader.site';
-    } else if (lower.contains('vidzy')) {
-      headers['Referer'] = 'https://vidzy.cc/';
-      headers['Origin'] = 'https://vidzy.cc';
-    } else if (lower.contains('uqload')) {
-      headers['Referer'] = 'https://uqload.is/';
-      headers['Origin'] = 'https://uqload.is';
-    } else if (lower.contains('dood') || lower.contains('ds2play') || lower.contains('playmogo') || lower.contains('d000')) {
-      headers['Referer'] = 'https://doodstream.com/';
-    } else if (lower.contains('luluvid') || lower.contains('luluvdo') || lower.contains('lulutv')) {
-      headers['Referer'] = 'https://luluvid.com/';
-    } else if (lower.contains('voe') || lower.contains('rebeccapracticeloss')) {
-      headers['Referer'] = 'https://voe.sx/';
-    } else if (lower.contains('streamtape')) {
-      headers['Referer'] = 'https://streamtape.com/';
-    } else if (lower.contains('flemmix')) {
-      headers['Referer'] = 'https://flemmix.party/';
-    } else if (lower.contains('french-stream') || lower.contains('frenchstream')) {
-      headers['Referer'] = 'https://french-stream.net/';
-    }
-    return headers;
+    return streamingHeadersService.getHeadersForUrl(url);
   }
 
   Future<void> _initFallbackVideoPlayer() async {

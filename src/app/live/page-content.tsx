@@ -427,7 +427,7 @@ function HeroBannerCarousel() {
                       className="h-4 sm:h-5 w-auto object-contain drop-shadow-[0_0_8px_rgba(215,4,102,0.6)]"
                     />
                     <span className="font-black tracking-tight text-white flex items-center -ml-1 text-xs sm:text-sm">
-                      HILL<span className="text-[#D70466]">ERS</span>
+                      HILL<span className="text-[brand-primary]">ERS</span>
                     </span>
                   </div>
                   <span className="bg-[#00D66C] text-black px-1.5 py-0.5 text-[9px] sm:text-[10px] font-black rounded-sm">

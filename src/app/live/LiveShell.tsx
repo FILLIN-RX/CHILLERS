@@ -24,7 +24,7 @@ export default function LiveShell({ children }: { children: React.ReactNode }) {
               <span className="hidden sm:inline">{isChannelPage ? _("nav.live") : _("watch.backToHome")}</span>
             </Link>
             <div className="flex items-center gap-2 min-w-0">
-              <span className="font-black tracking-widest uppercase text-[#D70466] truncate">
+              <span className="font-black tracking-widest uppercase text-[brand-primary] truncate">
                 CHILLERS
               </span>
               <span className="text-[10px] font-bold uppercase tracking-widest bg-red-600 text-white px-2 py-0.5 rounded-full shrink-0">

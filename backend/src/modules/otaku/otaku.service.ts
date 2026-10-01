@@ -6,6 +6,27 @@ const BASE_URL = 'https://www.open-otaku.me';
 
 let scrapeInProgress = false;
 
+function cleanTitle(s: string): string {
+  return (s || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\b(saison|season)\s*\d+/gi, '')
+    .replace(/\b(19\d\d|20\d\d)\b/g, '')
+    .replace(/[^a-z0-9]/g, '')
+    .trim();
+}
+
+function areTitlesMatching(searchTitle: string, candidateTitle: string): boolean {
+  const s = cleanTitle(searchTitle);
+  const c = cleanTitle(candidateTitle);
+  if (!s || !c) return false;
+  if (s === c) return true;
+  if (c.startsWith(s) && (c.length - s.length <= 15)) return true;
+  if (s.startsWith(c) && (s.length - c.length <= 10)) return true;
+  return false;
+}
+
 function normalize(str: string): string {
   return str.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20);
 }
@@ -97,29 +118,20 @@ export async function searchOtaku(
     }
 
     // 2. Trouver la meilleure correspondance de titre
-    let bestItem = results[0];
+    let bestItem: { id: string; title: string; poster?: string } | null = null;
     let bestScore = 0;
-    const searchNorm = normalize(queryTitle);
-    const rawSearchNorm = normalize(title);
 
     for (const item of results) {
-      const itemNorm = normalize(item.title || '');
-      if (itemNorm === searchNorm || itemNorm === rawSearchNorm) {
+      if (areTitlesMatching(queryTitle, item.title || '') || areTitlesMatching(title, item.title || '')) {
         bestItem = item;
         bestScore = 1;
         break;
       }
-      if (itemNorm.includes(searchNorm) || searchNorm.includes(itemNorm) || itemNorm.includes(rawSearchNorm)) {
-        bestItem = item;
-        bestScore = 0.8;
-      } else if (itemNorm.slice(0, 10) === searchNorm.slice(0, 10) && bestScore < 0.5) {
-        bestItem = item;
-        bestScore = 0.5;
-      }
     }
 
-    if (bestScore === 0) {
-      console.log(`[Otaku] Pas de correspondance exacte pour "${title}", premier résultat utilisé : ${bestItem.title}`);
+    if (!bestItem) {
+      console.log(`[Otaku] Correspondance trop éloignée pour "${title}" (trouvé: "${results[0]?.title}"), skip.`);
+      return null;
     }
 
     // 3. Récupérer les détails de visionnage (players / épisodes)

@@ -67,7 +67,7 @@ export default function ProfileClient() {
     return (
       <div className="min-h-[80vh] flex flex-col items-center justify-center px-4 py-20 text-center">
         <div className="max-w-md w-full bg-zinc-900 border border-white/10 rounded-3xl p-8 shadow-2xl space-y-6">
-          <div className="w-16 h-16 rounded-2xl bg-[#D70466]/10 border border-[#D70466]/20 flex items-center justify-center mx-auto text-[#D70466]">
+          <div className="w-16 h-16 rounded-2xl bg-[brand-primary]/10 border border-[brand-primary]/20 flex items-center justify-center mx-auto text-[brand-primary]">
             <User className="w-8 h-8" />
           </div>
           <div className="space-y-2">
@@ -83,7 +83,7 @@ export default function ProfileClient() {
           <div className="flex flex-col sm:flex-row gap-3 pt-2">
             <Link
               href="/login?redirect=/profile"
-              className="flex-1 py-3 px-4 rounded-xl bg-[#D70466] hover:bg-[#b5034f] text-white text-sm font-bold shadow-lg transition-all"
+              className="flex-1 py-3 px-4 rounded-xl bg-[brand-primary] hover:bg-[#b5034f] text-white text-sm font-bold shadow-lg transition-all"
             >
               {lang === "fr" ? "Connexion" : "Log In"}
             </Link>
@@ -297,16 +297,16 @@ export default function ProfileClient() {
                       className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-all text-left group active:bg-white/10"
                     >
                       <div className="flex items-center gap-3.5 min-w-0">
-                        <div className="w-10 h-10 rounded-2xl bg-white/5 flex items-center justify-center text-zinc-300 group-hover:text-[#D70466] group-hover:bg-[#D70466]/10 transition-colors flex-shrink-0">
+                        <div className="w-10 h-10 rounded-2xl bg-white/5 flex items-center justify-center text-zinc-300 group-hover:text-[brand-primary] group-hover:bg-[brand-primary]/10 transition-colors flex-shrink-0">
                           <Icon className="w-5 h-5" />
                         </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-bold text-white group-hover:text-[#D70466] transition-colors">
+                            <span className="text-sm font-bold text-white group-hover:text-[brand-primary] transition-colors">
                               {t.label}
                             </span>
                             {t.badge !== undefined && (
-                              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-[#D70466]/20 text-[#D70466]">
+                              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-[brand-primary]/20 text-[brand-primary]">
                                 {t.badge}
                               </span>
                             )}
@@ -329,7 +329,7 @@ export default function ProfileClient() {
             <div className="pt-2">
               <button
                 onClick={handleLogout}
-                className="w-full flex items-center justify-center gap-2.5 p-3.5 sm:p-4 rounded-xl bg-[#D70466] hover:bg-[#b5034f] border border-[#D70466] active:scale-[0.99] text-white font-bold text-sm transition-all cursor-pointer shadow-lg shadow-[#D70466]/20"
+                className="w-full flex items-center justify-center gap-2.5 p-3.5 sm:p-4 rounded-xl bg-[brand-primary] hover:bg-[#b5034f] border border-[brand-primary] active:scale-[0.99] text-white font-bold text-sm transition-all cursor-pointer shadow-lg shadow-[brand-primary]/20"
               >
                 <SignOut className="w-5 h-5" />
                 <span>{lang === 'fr' ? 'Se déconnecter' : 'Log Out'}</span>
@@ -384,7 +384,7 @@ export default function ProfileClient() {
               <section className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[#D70466]">
+                    <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[brand-primary]">
                       <ClockCounterClockwise className="w-4 h-4" />
                     </div>
                     <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
@@ -445,7 +445,7 @@ export default function ProfileClient() {
                             </div>
                           </div>
                           <div className="p-3">
-                            <h3 className="text-sm font-bold text-white line-clamp-1 group-hover:text-[#D70466] transition-colors">
+                            <h3 className="text-sm font-bold text-white line-clamp-1 group-hover:text-[brand-primary] transition-colors">
                               {h.title}
                             </h3>
                             <p className="text-[11px] text-zinc-500 mt-0.5">
@@ -497,7 +497,7 @@ export default function ProfileClient() {
                     </p>
                     <button
                       onClick={() => setShowCreatePlaylistModal(true)}
-                      className="px-4 py-2 rounded-xl bg-[#D70466] hover:bg-[#b5034f] text-white text-xs font-bold transition-all inline-flex items-center gap-2"
+                      className="px-4 py-2 rounded-xl bg-[brand-primary] hover:bg-[#b5034f] text-white text-xs font-bold transition-all inline-flex items-center gap-2"
                     >
                       <Plus className="w-4 h-4" />
                       <span>{lang === 'fr' ? 'Créer ma première playlist' : 'Create my first playlist'}</span>
@@ -539,7 +539,7 @@ export default function ProfileClient() {
                             </div>
                           </div>
                           <div className="p-3">
-                            <h3 className="text-sm font-bold text-white line-clamp-1 group-hover:text-[#D70466] transition-colors">
+                            <h3 className="text-sm font-bold text-white line-clamp-1 group-hover:text-[brand-primary] transition-colors">
                               {pl.title}
                             </h3>
                             <p className="text-[11px] text-zinc-500 mt-0.5">
@@ -617,7 +617,7 @@ export default function ProfileClient() {
                             </div>
                           </div>
                           <div className="p-3">
-                            <h3 className="text-sm font-bold text-white line-clamp-1 group-hover:text-[#D70466] transition-colors">
+                            <h3 className="text-sm font-bold text-white line-clamp-1 group-hover:text-[brand-primary] transition-colors">
                               {wl.title}
                             </h3>
                             <p className="text-[11px] text-zinc-500 mt-0.5">
@@ -695,7 +695,7 @@ export default function ProfileClient() {
                             </div>
                           </div>
                           <div className="p-3">
-                            <h3 className="text-sm font-bold text-white line-clamp-1 group-hover:text-[#D70466] transition-colors">
+                            <h3 className="text-sm font-bold text-white line-clamp-1 group-hover:text-[brand-primary] transition-colors">
                               {fav.title}
                             </h3>
                             <p className="text-[11px] text-zinc-500 mt-0.5 capitalize">
@@ -728,7 +728,7 @@ export default function ProfileClient() {
                 </div>
                 <button
                   onClick={() => setShowCreatePlaylistModal(true)}
-                  className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[#D70466] hover:bg-[#b5034f] text-white font-bold text-sm shadow-lg transition-all"
+                  className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[brand-primary] hover:bg-[#b5034f] text-white font-bold text-sm shadow-lg transition-all"
                 >
                   <Plus className="w-4 h-4" />
                   <span>{lang === 'fr' ? 'Nouvelle Playlist' : 'New Playlist'}</span>
@@ -752,7 +752,7 @@ export default function ProfileClient() {
                   </div>
                   <button
                     onClick={() => setShowCreatePlaylistModal(true)}
-                    className="px-6 py-2.5 rounded-xl bg-[#D70466] text-white text-sm font-bold shadow-lg"
+                    className="px-6 py-2.5 rounded-xl bg-[brand-primary] text-white text-sm font-bold shadow-lg"
                   >
                     {lang === 'fr' ? 'Créer une playlist' : 'Create Playlist'}
                   </button>
@@ -790,7 +790,7 @@ export default function ProfileClient() {
                             </div>
                           </div>
                           <div className="p-4">
-                            <h3 className="text-base font-bold text-white group-hover:text-[#D70466] transition-colors">
+                            <h3 className="text-base font-bold text-white group-hover:text-[brand-primary] transition-colors">
                               {pl.title}
                             </h3>
                             {pl.description && (
@@ -901,7 +901,7 @@ export default function ProfileClient() {
                           <div className="min-w-0 flex-1">
                             <Link
                               href={`/media/${wl.tmdbId}?type=${wl.mediaType}`}
-                              className="text-sm font-bold text-white line-clamp-1 group-hover:text-[#D70466] transition-colors"
+                              className="text-sm font-bold text-white line-clamp-1 group-hover:text-[brand-primary] transition-colors"
                             >
                               {wl.title}
                             </Link>
@@ -960,7 +960,7 @@ export default function ProfileClient() {
                       )}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
                         <div className="translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
-                          <div className="w-10 h-10 rounded-full bg-[#D70466] flex items-center justify-center mb-3 shadow-lg shadow-[#D70466]/40 text-white">
+                          <div className="w-10 h-10 rounded-full bg-[brand-primary] flex items-center justify-center mb-3 shadow-lg shadow-[brand-primary]/40 text-white">
                             <Play className="w-5 h-5 ml-1" fill="currentColor" />
                           </div>
                           <p className="font-bold text-white text-sm line-clamp-2">{fav.title}</p>
@@ -1000,7 +1000,7 @@ export default function ProfileClient() {
                         <div className="w-14 h-20 sm:w-16 sm:h-24 bg-zinc-800 rounded-xl shadow-md" />
                       )}
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-white text-sm sm:text-base truncate group-hover:text-[#D70466] transition-colors">{h.title}</h3>
+                        <h3 className="font-bold text-white text-sm sm:text-base truncate group-hover:text-[brand-primary] transition-colors">{h.title}</h3>
                         {h.mediaType === 'series' && h.season && h.episode && (
                           <div className="inline-flex items-center mt-1 sm:mt-1.5 px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-xs font-semibold bg-white/10 text-zinc-300">
                             Saison {h.season} • Épisode {h.episode}
@@ -1035,7 +1035,7 @@ export default function ProfileClient() {
                 
                 <div className="bg-zinc-900/50 backdrop-blur-md border border-white/5 rounded-3xl p-6 sm:p-8 shadow-xl">
                   <div className="flex items-center gap-4 mb-6">
-                    <div className="w-10 h-10 rounded-full bg-[#D70466]/20 text-[#D70466] flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-full bg-[brand-primary]/20 text-[brand-primary] flex items-center justify-center">
                       <GearSix className="w-5 h-5" />
                     </div>
                     <div>
@@ -1052,7 +1052,7 @@ export default function ProfileClient() {
                       <select
                         value={quality}
                         onChange={(e) => setQuality(e.target.value)}
-                        className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3.5 text-white font-medium focus:outline-none focus:ring-2 focus:ring-[#D70466] transition-all appearance-none cursor-pointer"
+                        className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3.5 text-white font-medium focus:outline-none focus:ring-2 focus:ring-[brand-primary] transition-all appearance-none cursor-pointer"
                       >
                         <option value="Auto">Auto (Recommandé)</option>
                         <option value="4K">4K Ultra HD (Bande passante élevée)</option>
@@ -1065,7 +1065,7 @@ export default function ProfileClient() {
 
                 <button
                   onClick={handleSaveSettings}
-                  className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-[#D70466] hover:bg-[#b5034f] text-white font-bold tracking-wide transition-all active:scale-[0.98]"
+                  className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-[brand-primary] hover:bg-[#b5034f] text-white font-bold tracking-wide transition-all active:scale-[0.98]"
                 >
                   {lang === 'fr' ? 'Enregistrer les modifications' : 'Save Changes'}
                 </button>
@@ -1283,7 +1283,7 @@ export default function ProfileClient() {
                   placeholder={lang === 'fr' ? 'Ex: Mes Meilleurs Films 2026' : 'Ex: Best Movies 2026'}
                   value={newPlaylistTitle}
                   onChange={(e) => setNewPlaylistTitle(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl bg-black/40 border border-white/10 text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-[#D70466] text-sm"
+                  className="w-full px-4 py-3 rounded-xl bg-black/40 border border-white/10 text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-[brand-primary] text-sm"
                 />
               </div>
 
@@ -1296,7 +1296,7 @@ export default function ProfileClient() {
                   placeholder={lang === 'fr' ? 'Ajoutez une description...' : 'Add a description...'}
                   value={newPlaylistDescription}
                   onChange={(e) => setNewPlaylistDescription(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl bg-black/40 border border-white/10 text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-[#D70466] text-sm resize-none"
+                  className="w-full px-4 py-3 rounded-xl bg-black/40 border border-white/10 text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-[brand-primary] text-sm resize-none"
                 />
               </div>
 
@@ -1311,7 +1311,7 @@ export default function ProfileClient() {
                 <button
                   type="submit"
                   disabled={isCreatingPlaylist || !newPlaylistTitle.trim()}
-                  className="px-5 py-2.5 rounded-xl bg-[#D70466] hover:bg-[#b5034f] disabled:opacity-50 text-white text-sm font-bold shadow-lg transition-all"
+                  className="px-5 py-2.5 rounded-xl bg-[brand-primary] hover:bg-[#b5034f] disabled:opacity-50 text-white text-sm font-bold shadow-lg transition-all"
                 >
                   {isCreatingPlaylist 
                     ? (lang === 'fr' ? 'Création...' : 'Creating...') 

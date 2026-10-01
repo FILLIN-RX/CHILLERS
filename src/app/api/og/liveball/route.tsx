@@ -4,7 +4,7 @@ import { serverApiFetch } from "@/lib/server-api";
 
 export const runtime = "edge";
 
-const BRAND = "#D70466";
+const BRAND = "brand-primary";
 
 function initials(name: string): string {
   const parts = name.replace(/\s*\(.*\)$/, "").split(/[\s-]+/).filter(Boolean);

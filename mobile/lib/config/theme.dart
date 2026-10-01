@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  static const Color primary = Color(0xFFD70466);
+  static const Color primary = Color(0xFFE50914);
   static const Color primaryDark = Color(0xFFB5034F);
   static const Color background = Color(0xFF121214);
   static const Color surface = Color(0xFF18181B);
@@ -47,7 +47,7 @@ class AppTheme {
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(18)),
+          borderRadius: BorderRadius.all(Radius.circular(4)),
           side: BorderSide(color: Color(0x14FFFFFF)),
         ),
       ),
@@ -56,7 +56,7 @@ class AppTheme {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(26)),
+          borderRadius: BorderRadius.all(Radius.circular(4)),
         ),
       ),
       bottomSheetTheme: const BottomSheetThemeData(
@@ -64,7 +64,7 @@ class AppTheme {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(4)),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -73,15 +73,15 @@ class AppTheme {
         hintStyle: const TextStyle(color: Color(0x61FFFFFF)),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(3),
           borderSide: const BorderSide(color: Color(0x12FFFFFF)),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(3),
           borderSide: const BorderSide(color: Color(0x12FFFFFF)),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(3),
           borderSide: const BorderSide(color: primary),
         ),
       ),

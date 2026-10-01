@@ -60,14 +60,53 @@ BACKEND:
 4. Enable encryption at rest
 5. Configure automated backups (daily, keep 30 days)
 
-#### Initialize Collections
+#### Initialize Collections & System Settings
 ```bash
-# Run locally or on Render SSH
+# Run on first deployment or after database reset
+# This initializes the SystemSettings collection for global subscription control
+
+# Option 1: Via npm script
 cd backend
+npm run migrate:system-settings
+
+# Option 2: Via TypeScript directly
+npx tsx backend/src/scripts/migrate-system-settings.ts
+
+# Option 3: On Render (SSH into the service)
+render ssh -s chillers-backend
+cd app
 npm run migrate:system-settings
 ```
 
-This creates the SystemSettings collection with default global subscription state.
+**What the migration does:**
+- Creates SystemSettings MongoDB collection
+- Initializes 'global_subscription_enabled' setting with default value (true)
+- Creates required indexes:
+  - Unique index on `settingKey`
+  - Index on `lastUpdatedAt` for audit queries
+- Logs all operations for verification
+- Safe to run multiple times (idempotent)
+
+**Verification after migration:**
+```bash
+# Connect to MongoDB Atlas
+mongosh "mongodb+srv://username:password@cluster.mongodb.net/chillers"
+
+# Verify SystemSettings collection
+db.systemsettings.findOne()
+# Should return:
+# {
+#   _id: ObjectId(...),
+#   settingKey: 'global_subscription_enabled',
+#   value: true,
+#   lastUpdatedBy: 'migration-script',
+#   lastUpdatedAt: Date(...),
+#   createdAt: Date(...)
+# }
+
+# Check if indexes exist
+db.systemsettings.getIndexes()
+```
 
 ### 4. Deployment Process
 
@@ -151,6 +190,52 @@ mongosh "mongodb+srv://username:password@cluster.mongodb.net/chillers"
 db.systemsettings.findOne()
 db.auditlogs.findOne()
 db.users.countDocuments()
+```
+
+#### Global Subscription Control
+```bash
+# Test subscription state endpoint (requires admin JWT token)
+export JWT_TOKEN="your_admin_jwt_token"
+
+# Get current global subscription state
+curl -X GET https://your-api.com/api/admin/subscriptions/global-state \
+  -H "Authorization: Bearer $JWT_TOKEN"
+
+# Expected response:
+# {
+#   "success": true,
+#   "globalSubscriptionEnabled": true,
+#   "cachedAt": "2024-01-15T10:30:00.000Z"
+# }
+
+# Test toggling subscriptions off
+curl -X POST https://your-api.com/api/admin/subscriptions/global-state \
+  -H "Authorization: Bearer $JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"enabled": false}'
+
+# Expected response:
+# {
+#   "success": true,
+#   "globalSubscriptionEnabled": false,
+#   "previousState": true,
+#   "message": "Subscriptions disabled",
+#   "updatedAt": "2024-01-15T10:30:00.000Z"
+# }
+
+# View audit history
+curl -X GET "https://your-api.com/api/admin/subscriptions/audit-history?limit=10" \
+  -H "Authorization: Bearer $JWT_TOKEN"
+
+# Verify premium features are blocked when subscriptions are disabled
+curl -X GET https://your-api.com/api/streaming/stream/movie-id/1080p \
+  -H "Authorization: Bearer $USER_JWT_TOKEN"
+
+# Should return 403 when globalSubscriptionEnabled is false:
+# {
+#   "success": false,
+#   "message": "Premium features are currently disabled"
+# }
 ```
 
 ### 6. Monitoring & Alerts

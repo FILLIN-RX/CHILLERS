@@ -689,7 +689,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
 
 #### Epic 13: Performance Optimizations
 
-- [~] 13.1 Optimize chunk download with parallel workers
+- [ ] 13.1 Optimize chunk download with parallel workers
   - Implement worker pool with 4 concurrent downloads
   - Distribute chunks evenly across workers
   - Monitor memory usage during parallel downloads
@@ -697,7 +697,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Medium_
   - _Sprint: 12_
 
-- [~] 13.2 Optimize memory management
+- [ ] 13.2 Optimize memory management
   - Release chunk buffers immediately after disk write
   - Use streaming for file reads/writes
   - Limit in-memory chunk size to 1 MB
@@ -706,7 +706,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Medium_
   - _Sprint: 12_
 
-- [~] 13.3 Implement battery optimization
+- [ ] 13.3 Implement battery optimization
   - Detect low battery state (< 15%)
   - Show warning dialog but allow continuation
   - Reduce chunk parallelism on low battery
@@ -714,7 +714,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Low_
   - _Sprint: 12_
 
-- [~] 13.4 Optimize Wi-Fi band selection
+- [ ] 13.4 Optimize Wi-Fi band selection
   - Prefer 5 GHz band if supported
   - Fall back to 2.4 GHz if 5 GHz unavailable
   - Detect band support via platform channels
@@ -722,7 +722,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Low_
   - _Sprint: 12_
 
-- [~] 13.5 Implement compression detection
+- [ ] 13.5 Implement compression detection
   - Check file extension to detect pre-compressed formats (.mp4, .mkv)
   - Skip gzip compression for already compressed files
   - Apply compression only for uncompressed formats
@@ -738,7 +738,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Medium_
   - _Sprint: 12_
 
-- [~] 13.7 Checkpoint - Mobile P2P feature complete
+- [ ] 13.7 Checkpoint - Mobile P2P feature complete
   - End-to-end test with real devices (Android ↔ Android)
   - End-to-end test with real devices (iOS ↔ iOS if possible)
   - End-to-end test with cross-platform (Android ↔ iOS)
@@ -752,7 +752,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
 
 #### Epic 14: Platform Detection and Abstraction
 
-- [~] 14.1 Add desktop dependencies to pubspec.yaml
+- [ ] 14.1 Add desktop dependencies to pubspec.yaml
   - Add `webcam` (^0.2.0) for webcam access
   - Add `image_picker` (^1.0.4) for QR image upload
   - Add `universal_io` (^2.2.2) for platform detection
@@ -763,7 +763,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Low_
   - _Sprint: 13_
 
-- [~] 14.2 Create PlatformDetector service
+- [ ] 14.2 Create PlatformDetector service
   - Implement `isDesktop()`, `isMobile()`, `getCurrentPlatform()`
   - Return enum: Android, iOS, Windows, Linux, macOS
   - Use `universal_io` for detection
@@ -771,7 +771,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Low_
   - _Sprint: 13_
 
-- [~] 14.3 Refactor ConnectionManager for multi-platform
+- [ ] 14.3 Refactor ConnectionManager for multi-platform
   - Create abstract `ConnectionManager` interface
   - Implement `WiFiDirectConnectionManager` for mobile
   - Implement `LocalNetworkConnectionManager` for desktop
@@ -783,7 +783,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
 #### Epic 15: Local Network Connection (Desktop)
 
 - [ ] 15.1 Implement LocalNetworkConnectionManager
-  - [~] 15.1.1 Create LocalNetworkConnectionManager class
+  - [ ] 15.1.1 Create LocalNetworkConnectionManager class
     - Implement `createAccessPoint()` for desktop sender
     - Get local IP address from network interface
     - Start HTTP server on local network
@@ -792,7 +792,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Medium_
     - _Sprint: 13_
 
-  - [~] 15.1.2 Implement connect() for desktop receiver
+  - [ ] 15.1.2 Implement connect() for desktop receiver
     - Accept ConnectionCredentials with sender's local IP
     - Verify receiver is on same network (subnet check)
     - Test connectivity with HTTP ping to sender
@@ -801,7 +801,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Medium_
     - _Sprint: 13_
 
-  - [~] 15.1.3 Add network validation
+  - [ ] 15.1.3 Add network validation
     - Implement subnet comparison (sender vs receiver IPs)
     - Check if both devices are on same local network
     - Display error if not on same network
@@ -817,7 +817,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Low_
     - _Sprint: 13_
 
-- [~] 15.2 Implement mDNS service discovery (optional enhancement)
+- [ ] 15.2 Implement mDNS service discovery (optional enhancement)
   - Use `multicast_dns` for automatic peer discovery
   - Broadcast service on local network
   - Discover peers automatically
@@ -828,7 +828,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
 
 #### Epic 16: Desktop QR Code Support
 
-- [~] 16.1 Extend QRGenerator for desktop display
+- [ ] 16.1 Extend QRGenerator for desktop display
   - Create desktop-specific QR display widget
   - Show QR code in large window (full screen or modal)
   - Display 6-digit manual code prominently
@@ -838,7 +838,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Sprint: 14_
 
 - [ ] 16.2 Implement QRScanner with webcam support
-  - [~] 16.2.1 Create DesktopQRScanner class
+  - [ ] 16.2.1 Create DesktopQRScanner class
     - Use `webcam` package for camera access
     - Implement webcam preview widget
     - Integrate QR detection library for desktop
@@ -847,7 +847,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: High_
     - _Sprint: 14_
 
-  - [~] 16.2.2 Add webcam selection dropdown
+  - [ ] 16.2.2 Add webcam selection dropdown
     - List available webcams using `webcam` package
     - Allow user to select specific camera
     - Save camera preference locally
@@ -855,7 +855,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Low_
     - _Sprint: 14_
 
-  - [~] 16.2.3 Implement QR image upload fallback
+  - [ ] 16.2.3 Implement QR image upload fallback
     - Add "Upload QR Image" button
     - Use `image_picker` to select image file
     - Process image with QR detection
@@ -865,7 +865,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Sprint: 14_
 
 - [ ] 16.3 Implement manual code entry
-  - [~] 16.3.1 Create manual code input UI
+  - [ ] 16.3.1 Create manual code input UI
     - Display 6 input fields for 6-digit code
     - Auto-focus next field on digit entry
     - Validate code format (numeric only)
@@ -873,7 +873,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Low_
     - _Sprint: 14_
 
-  - [~] 16.3.2 Add code validation and lookup
+  - [ ] 16.3.2 Add code validation and lookup
     - Send code to sender for validation
     - Retrieve full ConnectionCredentials from sender
     - Handle invalid code errors
@@ -891,7 +891,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
 
 #### Epic 17: Desktop UI Adaptation
 
-- [~] 17.1 Create desktop-specific layouts
+- [ ] 17.1 Create desktop-specific layouts
   - Design desktop window sizes (800x600 minimum)
   - Adapt mobile screens to desktop layouts
   - Use responsive design patterns
@@ -899,7 +899,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Medium_
   - _Sprint: 14_
 
-- [~] 17.2 Implement desktop PairingModeScreen
+- [ ] 17.2 Implement desktop PairingModeScreen
   - Show QR code prominently in center
   - Display 6-digit code below QR with large font
   - Add "Copy Code" button
@@ -909,7 +909,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Low_
   - _Sprint: 14_
 
-- [~] 17.3 Implement desktop ReceiveModeScreen
+- [ ] 17.3 Implement desktop ReceiveModeScreen
   - Show webcam scanner as primary option
   - Add webcam selection dropdown
   - Add "Upload QR Image" button
@@ -919,7 +919,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Medium_
   - _Sprint: 14_
 
-- [~] 17.4 Adapt TransferProgressScreen for desktop
+- [ ] 17.4 Adapt TransferProgressScreen for desktop
   - Use larger UI elements for desktop
   - Display more detailed metrics
   - Show network info (IP addresses)
@@ -928,7 +928,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Low_
   - _Sprint: 14_
 
-- [~] 17.5 Implement desktop window management
+- [ ] 17.5 Implement desktop window management
   - Set minimum window size constraints
   - Make transfer window stay on top (optional)
   - Handle window close events gracefully
@@ -940,7 +940,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
 #### Epic 18: Cross-Platform Testing
 
 - [ ] 18.1 Test Mobile → Desktop transfers
-  - [~] 18.1.1 Test Android → Windows transfer
+  - [ ] 18.1.1 Test Android → Windows transfer
     - QR scan with webcam
     - Manual code entry
     - Complete file transfer
@@ -948,14 +948,14 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Manual Testing_
     - _Sprint: 15_
 
-  - [~] 18.1.2 Test iOS → macOS transfer
+  - [ ] 18.1.2 Test iOS → macOS transfer
     - QR scan with webcam
     - Complete file transfer
     - _Requirements: 12.4_
     - _Complexity: Manual Testing_
     - _Sprint: 15_
 
-  - [~] 18.1.3 Test Android → Linux transfer
+  - [ ] 18.1.3 Test Android → Linux transfer
     - QR scan or manual code
     - Complete file transfer
     - _Requirements: 12.3_
@@ -963,14 +963,14 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Sprint: 15_
 
 - [ ] 18.2 Test Desktop → Mobile transfers
-  - [~] 18.2.1 Test Windows → Android transfer
+  - [ ] 18.2.1 Test Windows → Android transfer
     - Mobile scans desktop QR code
     - Complete file transfer
     - _Requirements: 12.4_
     - _Complexity: Manual Testing_
     - _Sprint: 15_
 
-  - [~] 18.2.2 Test macOS → iOS transfer
+  - [ ] 18.2.2 Test macOS → iOS transfer
     - Mobile scans desktop QR code
     - Complete file transfer
     - _Requirements: 12.4_
@@ -978,7 +978,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Sprint: 15_
 
 - [ ] 18.3 Test Desktop → Desktop transfers
-  - [~] 18.3.1 Test Windows → Windows transfer
+  - [ ] 18.3.1 Test Windows → Windows transfer
     - Webcam QR scan
     - Local network connection
     - Complete file transfer
@@ -986,14 +986,14 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Manual Testing_
     - _Sprint: 15_
 
-  - [~] 18.3.2 Test macOS → Linux transfer
+  - [ ] 18.3.2 Test macOS → Linux transfer
     - Cross-OS desktop transfer
     - Verify local network compatibility
     - _Requirements: 12.2_
     - _Complexity: Manual Testing_
     - _Sprint: 15_
 
-- [~] 18.4 Checkpoint - Desktop support complete
+- [ ] 18.4 Checkpoint - Desktop support complete
   - Verify all platform combinations work
   - Measure transfer speeds on desktop
   - Ensure network validation works correctly
@@ -1006,7 +1006,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
 #### Epic 19: Subscription Integration and Quotas
 
 - [ ] 19.1 Implement SubscriptionManager service
-  - [~] 19.1.1 Create SubscriptionManager class
+  - [ ] 19.1.1 Create SubscriptionManager class
     - Fetch user subscription tier from backend
     - Cache subscription info locally
     - Expose `isProUser()` and `isFreeUser()` methods
@@ -1014,7 +1014,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Low_
     - _Sprint: 16_
 
-  - [~] 19.1.2 Implement quota tracking for FREE users
+  - [ ] 19.1.2 Implement quota tracking for FREE users
     - Track monthly P2P shares count
     - Store quota usage in local database
     - Sync with backend on app start
@@ -1023,7 +1023,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Medium_
     - _Sprint: 16_
 
-  - [~] 19.1.3 Add quota validation before transfer
+  - [ ] 19.1.3 Add quota validation before transfer
     - Check quota before initiating share (Sender)
     - Display quota remaining in UI
     - Block transfer if quota exceeded
@@ -1031,7 +1031,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Low_
     - _Sprint: 16_
 
-  - [~] 19.1.4 Implement quota decrement on success
+  - [ ] 19.1.4 Implement quota decrement on success
     - Decrement quota only after successful transfer
     - Do not decrement if transfer fails or is cancelled
     - Sync quota update with backend
@@ -1047,7 +1047,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
     - _Complexity: Low_
     - _Sprint: 16_
 
-- [~] 19.2 Create quota exhausted UI flow
+- [ ] 19.2 Create quota exhausted UI flow
   - Display "Quota atteint" dialog when limit reached
   - Show "Passez à PRO" upgrade call-to-action
   - Link to subscription upgrade screen
@@ -1056,7 +1056,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Low_
   - _Sprint: 16_
 
-- [~] 19.3 Add quota indicator in transfer UI
+- [ ] 19.3 Add quota indicator in transfer UI
   - Show "X partages restants ce mois" for FREE users
   - Hide quota indicator for PRO users
   - Update count after each transfer
@@ -1064,7 +1064,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Low_
   - _Sprint: 16_
 
-- [~] 19.4 Implement backend API endpoints for quotas
+- [ ] 19.4 Implement backend API endpoints for quotas
   - Create GET /api/transfer/quota endpoint
   - Create POST /api/transfer/quota/decrement endpoint
   - Add authentication middleware
@@ -1083,7 +1083,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
 
 #### Epic 20: Resume Transfer Functionality
 
-- [~] 20.1 Implement transfer state persistence
+- [ ] 20.1 Implement transfer state persistence
   - Save TransferSession state to local database
   - Store chunk completion status
   - Save credentials and metadata
@@ -1092,7 +1092,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Medium_
   - _Sprint: 17_
 
-- [~] 20.2 Implement auto-resume on reconnection
+- [ ] 20.2 Implement auto-resume on reconnection
   - Detect connection restoration within 60 seconds
   - Load saved transfer state
   - Resume download from last completed chunk
@@ -1101,7 +1101,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Medium_
   - _Sprint: 17_
 
-- [~] 20.3 Implement manual resume UI
+- [ ] 20.3 Implement manual resume UI
   - Show "Reprendre" button for interrupted transfers
   - Display interrupted transfers in a "Reprises Disponibles" section
   - Allow user to manually restart interrupted transfer
@@ -1110,7 +1110,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Medium_
   - _Sprint: 17_
 
-- [~] 20.4 Add cleanup for expired transfer states
+- [ ] 20.4 Add cleanup for expired transfer states
   - Remove transfer states older than 24 hours
   - Delete temporary chunk files for expired transfers
   - Run cleanup on app start
@@ -1128,7 +1128,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
 
 #### Epic 21: Advanced Error Handling and Edge Cases
 
-- [~] 21.1 Handle insufficient storage error
+- [ ] 21.1 Handle insufficient storage error
   - Check available storage before starting download
   - Display "Espace insuffisant" error if not enough space
   - Show storage requirement vs available space
@@ -1136,7 +1136,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Low_
   - _Sprint: 17_
 
-- [~] 21.2 Handle app backgrounding during transfer
+- [ ] 21.2 Handle app backgrounding during transfer
   - Continue transfer when app goes to background (Android)
   - Show persistent notification with progress (Android)
   - Pause transfer on iOS background (iOS limitations)
@@ -1145,7 +1145,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: High_
   - _Sprint: 17_
 
-- [~] 21.3 Handle network type changes
+- [ ] 21.3 Handle network type changes
   - Detect if user manually switches networks during transfer
   - Pause transfer if network changes
   - Prompt user to reconnect to correct network
@@ -1153,7 +1153,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Medium_
   - _Sprint: 17_
 
-- [~] 21.4 Handle credentials expiration
+- [ ] 21.4 Handle credentials expiration
   - Check credential validity before connection
   - Display "Credentials expirés" error if expired
   - Prompt user to restart sharing process
@@ -1161,7 +1161,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Low_
   - _Sprint: 17_
 
-- [~] 21.5 Handle file size limits
+- [ ] 21.5 Handle file size limits
   - Validate file size < 5 GB before transfer
   - Display error if file exceeds limit
   - Show file size and limit in error message
@@ -1169,7 +1169,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Low_
   - _Sprint: 17_
 
-- [~] 21.6 Handle transfer timeout
+- [ ] 21.6 Handle transfer timeout
   - Implement 30-minute maximum transfer time
   - Cancel transfer if timeout exceeded
   - Display "Transfert trop long" error
@@ -1180,7 +1180,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
 
 #### Epic 22: UI Polish and Animations
 
-- [~] 22.1 Polish all screen transitions
+- [ ] 22.1 Polish all screen transitions
   - Implement smooth fade/slide transitions between screens
   - Ensure 60 FPS performance for all animations
   - Add shared element transitions for media cards
@@ -1188,7 +1188,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Medium_
   - _Sprint: 18_
 
-- [~] 22.2 Add device avatars and naming
+- [ ] 22.2 Add device avatars and naming
   - Generate device avatars based on device model
   - Display device names (user-configurable)
   - Show sender/receiver devices with avatars in UI
@@ -1196,7 +1196,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Low_
   - _Sprint: 18_
 
-- [~] 22.3 Implement success animation with confetti
+- [ ] 22.3 Implement success animation with confetti
   - Use Lottie or custom animation for success screen
   - Trigger confetti/particle effect on completion
   - Add checkmark animation
@@ -1204,7 +1204,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Low_
   - _Sprint: 18_
 
-- [~] 22.4 Improve connection animations
+- [ ] 22.4 Improve connection animations
   - Add pulsing animation during "searching for device"
   - Add connecting animation (devices approaching)
   - Add "locked in" animation when connected
@@ -1212,7 +1212,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Medium_
   - _Sprint: 18_
 
-- [~] 22.5 Improve progress bar visualization
+- [ ] 22.5 Improve progress bar visualization
   - Use gradient progress bar with animation
   - Add particle effects moving along progress bar
   - Smooth interpolation of progress updates
@@ -1220,7 +1220,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Low_
   - _Sprint: 18_
 
-- [~] 22.6 Add haptic feedback
+- [ ] 22.6 Add haptic feedback
   - Vibrate on successful NFC tap
   - Vibrate on QR code detection
   - Vibrate on transfer completion
@@ -1231,7 +1231,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
 
 #### Epic 23: Final Integration and Testing
 
-- [~] 23.1 End-to-end testing with real devices
+- [ ] 23.1 End-to-end testing with real devices
   - Test all platform combinations (Mobile ↔ Mobile, Mobile ↔ Desktop, Desktop ↔ Desktop)
   - Test with various file sizes (10 MB, 100 MB, 1 GB, 5 GB)
   - Test with different network conditions (strong, weak signal)
@@ -1248,7 +1248,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Medium_
   - _Sprint: 18_
 
-- [~] 23.3 Performance profiling and optimization
+- [ ] 23.3 Performance profiling and optimization
   - Profile memory usage during transfers
   - Profile CPU usage during hash calculation
   - Optimize any bottlenecks found
@@ -1257,7 +1257,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Medium_
   - _Sprint: 18_
 
-- [~] 23.4 Security audit
+- [ ] 23.4 Security audit
   - Review credential generation for randomness
   - Review SHA-256 implementation
   - Verify no sensitive data leaks in logs
@@ -1266,7 +1266,7 @@ Ce plan d'implémentation couvre le développement complet de la fonctionnalité
   - _Complexity: Manual Review_
   - _Sprint: 18_
 
-- [~] 23.5 Final checkpoint - Feature complete and ready for production
+- [ ] 23.5 Final checkpoint - Feature complete and ready for production
   - All automated tests passing
   - Manual testing completed for all platforms
   - Performance metrics meet targets (> 20 MB/s, > 95% success rate)

@@ -641,7 +641,7 @@ export default function DownloadsView({
               </button>
               <button
                 onClick={handleClearAll}
-                className="py-2.5 rounded-[3px] bg-[#D70466] hover:bg-[#b5034f] text-xs font-semibold text-white transition-colors cursor-pointer"
+                className="py-2.5 rounded-[3px] bg-[brand-primary] hover:bg-[#b5034f] text-xs font-semibold text-white transition-colors cursor-pointer"
               >
                 Tout effacer
               </button>

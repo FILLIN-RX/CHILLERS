@@ -10,6 +10,7 @@ import '../../models/transfer_enums.dart';
 import '../../models/transfer_progress.dart';
 import '../../models/transfer_session.dart';
 import '../../services/transfer_manager.dart';
+import '../../../../config/theme.dart';
 import '../widgets/scanner_widget.dart';
 import '../widgets/transfer_progress_widget.dart';
 
@@ -184,7 +185,7 @@ class _TransferReceiverScreenState extends State<TransferReceiverScreen> {
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
                 color: const Color(0xFF191922),
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(4),
                 border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
               ),
               child: Column(
@@ -221,9 +222,9 @@ class _TransferReceiverScreenState extends State<TransferReceiverScreen> {
                   const SizedBox(height: 20),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFE50914),
+                      backgroundColor: AppTheme.primary,
                       minimumSize: const Size.fromHeight(48),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                     ),
                     onPressed: () {
                       if (_pinController.text.trim().length == 6) {
@@ -254,12 +255,12 @@ class _TransferReceiverScreenState extends State<TransferReceiverScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.04),
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(4),
               border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
             ),
             child: const Row(
               children: [
-                FaIcon(FontAwesomeIcons.nfcSymbol, color: Color(0xFFE50914), size: 22),
+                FaIcon(FontAwesomeIcons.nfcSymbol, color: AppTheme.primary, size: 22),
                 SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -335,9 +336,9 @@ class _TransferReceiverScreenState extends State<TransferReceiverScreen> {
             const SizedBox(height: 32),
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFE50914),
+                backgroundColor: AppTheme.primary,
                 minimumSize: const Size.fromHeight(50),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
               ),
               icon: const FaIcon(FontAwesomeIcons.play, color: Colors.white),
               label: const Text(

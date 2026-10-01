@@ -21,11 +21,11 @@ export default function AboutPage() {
 
         {/* Hero */}
         <section className="text-center space-y-6">
-          <div className="w-20 h-20 mx-auto rounded-full bg-[#D70466]/20 flex items-center justify-center">
-            <Play className="h-10 w-10 text-[#D70466]" />
+          <div className="w-20 h-20 mx-auto rounded-full bg-[brand-primary]/20 flex items-center justify-center">
+            <Play className="h-10 w-10 text-[brand-primary]" />
           </div>
           <h1 className="text-3xl sm:text-5xl font-black leading-tight">
-            Bienvenue sur <span className="text-[#D70466]">Chillers</span>
+            Bienvenue sur <span className="text-[brand-primary]">Chillers</span>
           </h1>
           <p className="text-zinc-400 text-lg">
             L&apos;innovation au service du divertissement
@@ -35,7 +35,7 @@ export default function AboutPage() {
         {/* Notre Vision */}
         <section className="space-y-4">
           <h2 className="text-2xl font-black flex items-center gap-3">
-            <span className="h-5 w-1 rounded-full bg-[#D70466]" />
+            <span className="h-5 w-1 rounded-full bg-[brand-primary]" />
             Notre Vision
           </h2>
           <p className="text-zinc-300 leading-relaxed">
@@ -81,7 +81,7 @@ export default function AboutPage() {
           </h2>
           <div className="grid sm:grid-cols-3 gap-4">
             <div className="p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-3">
-              <MagnifyingGlass className="h-8 w-8 text-[#D70466]" />
+              <MagnifyingGlass className="h-8 w-8 text-[brand-primary]" />
               <h3 className="font-bold text-sm">Explorez</h3>
               <p className="text-zinc-500 text-xs leading-relaxed">
                 Parcourez notre catalogue de films, séries et anime. Utilisez les filtres par genre pour trouver exactement ce que vous cherchez.
@@ -122,7 +122,7 @@ export default function AboutPage() {
               Nous respectons scrupuleusement les droits de propriété intellectuelle. Si vous êtes titulaire 
               d&apos;un droit d&apos;auteur et estimez qu&apos;un contenu référencé sur notre site porte atteinte à vos droits, 
               veuillez nous contacter immédiatement via notre{" "}
-              <Link href="/contact" className="text-[#D70466] hover:underline">page de contact</Link>{" "}
+              <Link href="/contact" className="text-[brand-primary] hover:underline">page de contact</Link>{" "}
               afin que nous puissions traiter votre demande de retrait dans les plus brefs délais.
             </p>
             <p>

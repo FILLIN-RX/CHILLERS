@@ -543,7 +543,7 @@ export default function LivePlayer({
               title={shareCopied ? "Lien copié !" : "Partager"}
             >
               {shareCopied ? (
-                <Check className="h-5 w-5 text-[#D70466]" />
+                <Check className="h-5 w-5 text-[brand-primary]" />
               ) : (
                 <ShareNetwork className="h-5 w-5" />
               )}
@@ -787,7 +787,7 @@ export default function LivePlayer({
               <p className="text-sm font-bold text-white flex items-center gap-1.5">
                 Basse latence
                 {liveLatency != null && latencyMode === "low" && (
-                  <span className="text-[10px] font-black uppercase tracking-wider text-[#D70466] bg-[#D70466]/10 px-1.5 py-0.5 rounded-md">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-[brand-primary] bg-[brand-primary]/10 px-1.5 py-0.5 rounded-md">
                     ~{Math.min(6, Math.round(liveLatency))}s
                   </span>
                 )}
@@ -805,7 +805,7 @@ export default function LivePlayer({
             </div>
             <span
               className={`relative shrink-0 w-11 h-6 rounded-full transition-colors ${
-                latencyMode === "low" ? "bg-[#D70466]" : "bg-zinc-700"
+                latencyMode === "low" ? "bg-[brand-primary]" : "bg-zinc-700"
               }`}
             >
               <span

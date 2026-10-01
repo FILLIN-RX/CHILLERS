@@ -18,6 +18,7 @@ interface Props {
   seriesTitle: string;
   tmdbId: string;
   episodes: Episode[];
+  language?: "fr" | "vostfr";
 }
 
 const epKey = (ep: Episode) => `S${ep.season ?? 1}E${ep.number}`;
@@ -28,6 +29,7 @@ export default function MultiDownloadModal({
   seriesTitle,
   tmdbId,
   episodes,
+  language = "fr",
 }: Props) {
   const { translate: _ } = useLanguage();
   const user = useAuthStore((s) => s.user);
@@ -39,6 +41,7 @@ export default function MultiDownloadModal({
     seriesTitle,
     type: "series",
     episodes: user ? episodes : [],
+    language,
     gated: false,
   });
 

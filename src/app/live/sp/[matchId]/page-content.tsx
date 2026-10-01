@@ -145,7 +145,7 @@ export default function SportsMatchContent() {
     <div className="fixed inset-0 z-40 h-dvh w-screen bg-black overflow-hidden">
       {isLoading && !channel && !embedUrl && (
         <div className="w-full h-full flex flex-col items-center justify-center gap-3 bg-black">
-          <div className="h-12 w-12 border-4 border-[#D70466] border-t-transparent rounded-full animate-spin" />
+          <div className="h-12 w-12 border-4 border-[brand-primary] border-t-transparent rounded-full animate-spin" />
           <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">Résolution du flux...</p>
         </div>
       )}
@@ -158,7 +158,7 @@ export default function SportsMatchContent() {
               <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full bg-white/10 text-zinc-300 border border-white/10">
                 {match.league || "Football"}
               </span>
-              <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full bg-[#D70466] text-white">
+              <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full bg-[brand-primary] text-white">
                 À venir
               </span>
             </div>
@@ -166,7 +166,7 @@ export default function SportsMatchContent() {
             {match.away && (
               <div className="flex items-center justify-center gap-4 sm:gap-10 w-full">
                 <TeamDisplay team={match.home} logo={match.homeLogo} />
-                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[#D70466]/15 border-2 border-[#D70466]/60 flex items-center justify-center text-lg sm:text-xl font-black text-[#D70466] shrink-0">
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[brand-primary]/15 border-2 border-[brand-primary]/60 flex items-center justify-center text-lg sm:text-xl font-black text-[brand-primary] shrink-0">
                   VS
                 </div>
                 <TeamDisplay team={match.away} logo={match.awayLogo} />
@@ -195,7 +195,7 @@ export default function SportsMatchContent() {
                 onClick={handleShare}
                 className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-wider transition-all"
               >
-                {shareCopied ? <Check className="h-4 w-4 text-[#D70466]" /> : <ShareNetwork className="h-4 w-4" />}
+                {shareCopied ? <Check className="h-4 w-4 text-[brand-primary]" /> : <ShareNetwork className="h-4 w-4" />}
                 {shareCopied ? "Lien copié" : "Partager"}
               </button>
               <Link
@@ -248,7 +248,7 @@ export default function SportsMatchContent() {
               onClick={handleShare}
               className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-wider transition-all"
             >
-              {shareCopied ? <Check className="h-4 w-4 text-[#D70466]" /> : <ShareNetwork className="h-4 w-4" />}
+              {shareCopied ? <Check className="h-4 w-4 text-[brand-primary]" /> : <ShareNetwork className="h-4 w-4" />}
               {shareCopied ? "Lien copié" : "Partager"}
             </button>
             <Link
@@ -336,7 +336,7 @@ export default function SportsMatchContent() {
                 className="p-2 rounded-full bg-black/50 hover:bg-white/20 text-white transition-colors"
                 aria-label="Partager"
               >
-                {shareCopied ? <Check className="h-4 w-4 text-[#D70466]" /> : <ShareNetwork className="h-4 w-4" />}
+                {shareCopied ? <Check className="h-4 w-4 text-[brand-primary]" /> : <ShareNetwork className="h-4 w-4" />}
               </button>
             </div>
           </div>

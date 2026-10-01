@@ -3,6 +3,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../config/theme.dart';
 import '../models/media_item.dart';
+import '../services/feedback_service.dart';
 
 class MediaScrollRow extends StatelessWidget {
   final String title;
@@ -88,7 +89,10 @@ class MediaScrollRow extends StatelessWidget {
 
   Widget _buildMediaCard(MediaItem item) {
     return GestureDetector(
-      onTap: () => onDetailsTap != null ? onDetailsTap!(item) : onItemTap(item),
+      onTap: () {
+        FeedbackService.hapticMedium();
+        onDetailsTap != null ? onDetailsTap!(item) : onItemTap(item);
+      },
       child: Container(
         width: itemWidth,
         margin: const EdgeInsets.symmetric(horizontal: 4),

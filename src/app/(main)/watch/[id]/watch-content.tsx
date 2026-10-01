@@ -727,7 +727,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
                   }
                 />
                 {isFullscreen && (
-                  <span className="pointer-events-none absolute top-4 left-4 z-50 text-xs sm:text-sm font-black tracking-widest uppercase text-[#D70466] drop-shadow-lg">
+                  <span className="pointer-events-none absolute top-4 left-4 z-50 text-xs sm:text-sm font-black tracking-widest uppercase text-[brand-primary] drop-shadow-lg">
                     CHILLERS
                   </span>
                 )}
@@ -769,51 +769,6 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
               </button>
             </div>
           )}
-
-          {/* ── Compact Modern Audio Language Switcher ── */}
-          <div className="flex flex-wrap items-center justify-between gap-3 p-2.5 sm:px-4 sm:py-2.5 rounded-xl bg-zinc-900/80 border border-white/10 backdrop-blur-md">
-            <div className="flex items-center gap-2">
-              <Translate className="h-4 w-4 text-brand-primary shrink-0" />
-              <span className="text-xs font-bold text-zinc-300">
-                Version audio :
-              </span>
-            </div>
-
-            <div className="flex items-center gap-1.5 bg-black/50 p-1 rounded-lg border border-white/5">
-              <button
-                type="button"
-                onClick={() => handleLanguageChange("fr")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
-                  audioVersion === "fr"
-                    ? "bg-brand-primary text-white shadow-sm ring-1 ring-brand-primary/50"
-                    : "text-zinc-400 hover:text-white hover:bg-white/5"
-                }`}
-              >
-                <span>🇫🇷</span>
-                <span>Français (VF)</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleLanguageChange("vostfr")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
-                  audioVersion === "vostfr"
-                    ? "bg-brand-primary text-white shadow-sm ring-1 ring-brand-primary/50"
-                    : "text-zinc-400 hover:text-white hover:bg-white/5"
-                }`}
-              >
-                <span>🌐</span>
-                <span>VOSTFR</span>
-              </button>
-            </div>
-
-            {streamLoading && (
-              <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-brand-primary animate-pulse ml-auto sm:ml-0">
-                <span className="w-1.5 h-1.5 rounded-full bg-brand-primary animate-ping" />
-                Chargement...
-              </span>
-            )}
-          </div>
 
           {/* Title Header */}
           {item ? (

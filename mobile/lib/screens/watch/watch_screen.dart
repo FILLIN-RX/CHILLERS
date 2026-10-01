@@ -1,15 +1,16 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/media_item.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
 import '../../services/storage_service.dart';
+import '../../services/feedback_service.dart';
 import '../../widgets/download_modal.dart';
 import '../../widgets/app_video_player.dart';
 import '../../widgets/add_to_playlist_modal.dart';
+import '../../config/theme.dart';
 
 class WatchScreen extends StatefulWidget {
   final MediaItem item;
@@ -37,6 +38,7 @@ class _WatchScreenState extends State<WatchScreen> {
   late MediaItem _currentMedia;
   UserModel? _user;
   String _currentVideoUrl = '';
+  String _selectedLanguage = 'fr'; // 'fr' (VF) ou 'vostfr' (VOSTFR)
   bool _isLoadingStream = true;
   bool _streamUnavailable = false;
   bool _isPlaying = true;
@@ -104,7 +106,7 @@ class _WatchScreenState extends State<WatchScreen> {
   }
 
   void _toggleFavorite() async {
-    HapticFeedback.mediumImpact();
+    await FeedbackService.feedbackLike();
     setState(() => _isFavorite = !_isFavorite);
     await _storage.toggleFavorite(_currentMedia.toJson());
     _apiService.toggleFavorite(_currentMedia.id, type: _currentMedia.type);
@@ -119,7 +121,7 @@ class _WatchScreenState extends State<WatchScreen> {
   }
 
   void _toggleWatchlist() async {
-    HapticFeedback.mediumImpact();
+    await FeedbackService.feedbackPlaylist();
     setState(() => _isWatchlist = !_isWatchlist);
     await _storage.toggleWatchlist(_currentMedia.toJson());
     _apiService.toggleWatchLater(_currentMedia.id);
@@ -216,7 +218,11 @@ class _WatchScreenState extends State<WatchScreen> {
       _streamUnavailable = false;
     });
 
-    final url = await _apiService.getMovieStreamUrl(_currentMedia.id, _currentMedia.title);
+    final url = await _apiService.getMovieStreamUrl(
+      _currentMedia.id,
+      _currentMedia.title,
+      language: _selectedLanguage,
+    );
     if (!mounted) return;
 
     final validUrl = url ?? (_currentMedia.streamUrl != null && _currentMedia.streamUrl!.isNotEmpty ? _currentMedia.streamUrl : null);
@@ -231,6 +237,24 @@ class _WatchScreenState extends State<WatchScreen> {
       }
       _isLoadingStream = false;
     });
+  }
+
+  void _onLanguageChanged(String lang) {
+    if (_selectedLanguage == lang) return;
+    setState(() {
+      _selectedLanguage = lang;
+    });
+    if (_isSeries) {
+      if (_episodes.isNotEmpty) {
+        final ep = _episodes.firstWhere(
+          (e) => e.episodeNumber == _currentEpisodeNumber,
+          orElse: () => _episodes.first,
+        );
+        _playEpisode(ep);
+      }
+    } else {
+      _resolveMovieStream();
+    }
   }
 
   Future<void> _loadSeasonEpisodes(int seasonNumber) async {
@@ -266,6 +290,7 @@ class _WatchScreenState extends State<WatchScreen> {
       episode.season,
       episode.episodeNumber,
       _currentMedia.title,
+      language: _selectedLanguage,
     );
 
     if (!mounted) return;
@@ -320,6 +345,29 @@ class _WatchScreenState extends State<WatchScreen> {
     return '$m min';
   }
 
+  Widget _buildLanguagePill(String lang, String label) {
+    final isSelected = _selectedLanguage == lang;
+    return GestureDetector(
+      onTap: () => _onLanguageChanged(lang),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: isSelected ? AppTheme.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.white60,
+            fontSize: 11.5,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+
   void _onDownload({EpisodeItem? episode}) {
     DownloadModal.show(
       context: context,
@@ -372,7 +420,7 @@ class _WatchScreenState extends State<WatchScreen> {
                       return ListTile(
                         leading: FaIcon(
                           FontAwesomeIcons.film,
-                          color: isSelected ? const Color(0xFFE50914) : Colors.white38,
+                          color: isSelected ? AppTheme.primary : Colors.white38,
                           size: 16,
                         ),
                         title: Text(
@@ -418,7 +466,7 @@ class _WatchScreenState extends State<WatchScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      CircularProgressIndicator(color: Color(0xFFE50914), strokeWidth: 2.5),
+                      CircularProgressIndicator(color: AppTheme.primary, strokeWidth: 2.5),
                       SizedBox(height: 10),
                       Text(
                         'Chargement du flux...',
@@ -443,7 +491,7 @@ class _WatchScreenState extends State<WatchScreen> {
                           const SizedBox(height: 10),
                           ElevatedButton.icon(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFE50914),
+                              backgroundColor: AppTheme.primary,
                               foregroundColor: Colors.white,
                               visualDensity: VisualDensity.compact,
                             ),
@@ -489,60 +537,12 @@ class _WatchScreenState extends State<WatchScreen> {
         [];
 
     final seasonCount = _currentMedia.numberOfSeasons ?? validSeasons.length;
-
-    // Remaining duration calculation
-    String? remainingText;
-    double progressPercent = 0.0;
-    if (_currentDuration != null && _currentPosition != null && _currentDuration! > Duration.zero) {
-      final remaining = _currentDuration! - _currentPosition!;
-      if (remaining > Duration.zero) {
-        final remMin = remaining.inMinutes;
-        remainingText = remMin > 0 ? '$remMin min restantes' : '${remaining.inSeconds} s restantes';
-      }
-      progressPercent = (_currentPosition!.inMilliseconds / _currentDuration!.inMilliseconds).clamp(0.0, 1.0);
-    } else if (_savedResumePosition != null && _currentDuration != null && _currentDuration! > Duration.zero) {
-      final remaining = _currentDuration! - _savedResumePosition!;
-      if (remaining > Duration.zero) {
-        remainingText = '${remaining.inMinutes} min restantes';
-      }
-      progressPercent = (_savedResumePosition!.inMilliseconds / _currentDuration!.inMilliseconds).clamp(0.0, 1.0);
-    }
-
     final castNames = _currentMedia.cast?.take(4).map((c) => c.name).join(', ') ?? '';
 
     return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
       children: [
-        // ── 1. PROGRESS BAR REMONTÉE DIRECTEMENT SOUS LA VIDÉO ──
-        if (progressPercent > 0.0) ...[
-          Padding(
-            padding: const EdgeInsets.only(top: 2.0, bottom: 10.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(2),
-                    child: LinearProgressIndicator(
-                      value: progressPercent,
-                      backgroundColor: Colors.white24,
-                      valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFE50914)),
-                      minHeight: 3.5,
-                    ),
-                  ),
-                ),
-                if (remainingText != null) ...[
-                  const SizedBox(width: 10),
-                  Text(
-                    remainingText,
-                    style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w600),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-
-        // ── 2. TITRE DU MÉDIA (SANS LE MOT CHILLERS) ──
+        // ── 1. TITRE DU MÉDIA (SANS LE MOT CHILLERS) ──
         Text(
           _currentMedia.title,
           style: const TextStyle(
@@ -609,15 +609,60 @@ class _WatchScreenState extends State<WatchScreen> {
                 border: Border.all(color: Colors.white30, width: 0.8),
                 borderRadius: BorderRadius.circular(3),
               ),
-              child: const Text(
-                'VF/VO',
-                style: TextStyle(color: Colors.white70, fontSize: 9.5, fontWeight: FontWeight.bold),
+              child: Text(
+                _selectedLanguage == 'fr' ? 'VF' : 'VOSTFR',
+                style: const TextStyle(color: Colors.white70, fontSize: 9.5, fontWeight: FontWeight.bold),
               ),
             ),
           ],
         ),
 
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
+
+        // ── SÉLECTEUR DE VERSION AUDIO (VF / VOSTFR) ──
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xFF18181C),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.white12),
+          ),
+          child: Row(
+            children: [
+              const FaIcon(
+                FontAwesomeIcons.language,
+                size: 13,
+                color: AppTheme.primary,
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Version audio :',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                padding: const EdgeInsets.all(2),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildLanguagePill('fr', '🇫🇷 VF'),
+                    _buildLanguagePill('vostfr', '🌐 VOSTFR'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 12),
 
         // ── BOUTONS PRINCIPAUX EN GRILLE DE 2 (CÔTE À CÔTE) ──
         Row(
@@ -836,7 +881,7 @@ class _WatchScreenState extends State<WatchScreen> {
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 40.0),
               child: Center(
-                child: CircularProgressIndicator(color: Color(0xFFE50914), strokeWidth: 2),
+                child: CircularProgressIndicator(color: AppTheme.primary, strokeWidth: 2),
               ),
             )
           else if (_episodes.isEmpty)
@@ -904,11 +949,11 @@ class _WatchScreenState extends State<WatchScreen> {
                                       height: 26,
                                       decoration: BoxDecoration(
                                         color: isCurrent
-                                            ? const Color(0xFFE50914)
+                                            ? AppTheme.primary
                                             : Colors.black.withValues(alpha: 0.55),
                                         shape: BoxShape.circle,
                                         border: Border.all(
-                                          color: isCurrent ? const Color(0xFFE50914) : Colors.white70,
+                                          color: isCurrent ? AppTheme.primary : Colors.white70,
                                           width: 1,
                                         ),
                                       ),
@@ -935,7 +980,7 @@ class _WatchScreenState extends State<WatchScreen> {
                                 Text(
                                   '${ep.episodeNumber}. $epTitle',
                                   style: TextStyle(
-                                    color: isCurrent ? const Color(0xFFE50914) : Colors.white,
+                                    color: isCurrent ? AppTheme.primary : Colors.white,
                                     fontSize: 13.5,
                                     fontWeight: isCurrent ? FontWeight.bold : FontWeight.w600,
                                   ),
@@ -1055,14 +1100,14 @@ class _WatchScreenState extends State<WatchScreen> {
         children: [
           Icon(
             icon,
-            color: isActive ? const Color(0xFFE50914) : Colors.white,
+            color: isActive ? AppTheme.primary : Colors.white,
             size: 20,
           ),
           const SizedBox(height: 6),
           Text(
             label,
             style: TextStyle(
-              color: isActive ? const Color(0xFFE50914) : Colors.white70,
+              color: isActive ? AppTheme.primary : Colors.white70,
               fontSize: 10.5,
               fontWeight: FontWeight.w500,
             ),
@@ -1094,7 +1139,7 @@ class _WatchScreenState extends State<WatchScreen> {
             height: 3,
             width: isSelected ? 30 : 0,
             decoration: BoxDecoration(
-              color: const Color(0xFFE50914),
+              color: AppTheme.primary,
               borderRadius: BorderRadius.circular(2),
             ),
           ),

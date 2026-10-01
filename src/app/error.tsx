@@ -205,7 +205,7 @@ export default function ErrorPage({
             priority
           />
           <span className="text-2xl sm:text-3xl font-black tracking-tight text-white font-sans drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
-            CHILL<span className="text-[#D70466]">ERS</span>
+            CHILL<span className="text-[brand-primary]">ERS</span>
           </span>
         </Link>
 
@@ -224,7 +224,7 @@ export default function ErrorPage({
           <button
             onClick={handleRetry}
             disabled={isRetrying}
-            className="w-full sm:w-auto flex-1 inline-flex items-center justify-center gap-2.5 px-7 py-3.5 rounded-xl bg-gradient-to-r from-[#D70466] to-[#E91E63] hover:from-[#E91E63] hover:to-[#D70466] text-white font-bold text-sm sm:text-base active:scale-[0.98] transition-all cursor-pointer disabled:opacity-75"
+            className="w-full sm:w-auto flex-1 inline-flex items-center justify-center gap-2.5 px-7 py-3.5 rounded-xl bg-gradient-to-r from-[brand-primary] to-[#E91E63] hover:from-[#E91E63] hover:to-[brand-primary] text-white font-bold text-sm sm:text-base active:scale-[0.98] transition-all cursor-pointer disabled:opacity-75"
           >
             <ArrowsClockwise
               className={`w-5 h-5 ${isRetrying ? "animate-spin" : "group-hover:rotate-180 transition-transform duration-500"}`}

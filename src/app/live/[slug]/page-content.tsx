@@ -42,7 +42,7 @@ export default function LiveChannelContent() {
     <div className="fixed inset-0 z-40 h-dvh w-screen bg-black overflow-hidden">
       {isLoading && (
         <div className="w-full h-full flex flex-col items-center justify-center gap-3 bg-black">
-          <div className="h-12 w-12 border-4 border-[#D70466] border-t-transparent rounded-full animate-spin" />
+          <div className="h-12 w-12 border-4 border-[brand-primary] border-t-transparent rounded-full animate-spin" />
           <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
             Chargement de la chaîne...
           </p>
@@ -59,7 +59,7 @@ export default function LiveChannelContent() {
           <div className="flex flex-wrap items-center justify-center gap-3">
             <button
               onClick={() => refetch()}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-[#D70466] hover:bg-[#b5034f] text-white text-xs font-black uppercase tracking-wider transition-all"
+              className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-[brand-primary] hover:bg-[#b5034f] text-white text-xs font-black uppercase tracking-wider transition-all"
             >
               Réessayer
             </button>

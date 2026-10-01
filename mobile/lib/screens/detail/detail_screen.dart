@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/media_item.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
 import '../../services/storage_service.dart';
+import '../../services/feedback_service.dart';
 import '../../widgets/download_modal.dart';
 import '../../widgets/add_to_playlist_modal.dart';
+import '../../config/theme.dart';
 import '../watch/watch_screen.dart';
 
 class DetailScreen extends StatefulWidget {
@@ -142,7 +143,7 @@ class _DetailScreenState extends State<DetailScreen> {
   }
 
   void _toggleFavorite() async {
-    HapticFeedback.mediumImpact();
+    await FeedbackService.feedbackLike();
     setState(() => _isFavorite = !_isFavorite);
     await _storage.toggleFavorite(_currentMedia.toJson());
     _apiService.toggleFavorite(_currentMedia.id, type: _currentMedia.type);
@@ -157,7 +158,7 @@ class _DetailScreenState extends State<DetailScreen> {
   }
 
   void _toggleWatchlist() async {
-    HapticFeedback.mediumImpact();
+    await FeedbackService.feedbackPlaylist();
     setState(() => _isWatchlist = !_isWatchlist);
     await _storage.toggleWatchlist(_currentMedia.toJson());
     _apiService.toggleWatchLater(_currentMedia.id);
@@ -172,6 +173,7 @@ class _DetailScreenState extends State<DetailScreen> {
   }
 
   void _onDownload({EpisodeItem? episode}) {
+    FeedbackService.hapticMedium();
     DownloadModal.show(
       context: context,
       item: _currentMedia,
@@ -186,7 +188,7 @@ class _DetailScreenState extends State<DetailScreen> {
       context: context,
       backgroundColor: const Color(0xFF141416),
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(4)),
       ),
       builder: (context) {
         return SafeArea(
@@ -222,7 +224,7 @@ class _DetailScreenState extends State<DetailScreen> {
                       return ListTile(
                         leading: FaIcon(
                           FontAwesomeIcons.film,
-                          color: isSelected ? const Color(0xFFE50914) : Colors.white38,
+                          color: isSelected ? AppTheme.primary : Colors.white38,
                           size: 16,
                         ),
                         title: Text(
@@ -342,7 +344,7 @@ class _DetailScreenState extends State<DetailScreen> {
                   child: const FaIcon(FontAwesomeIcons.ellipsisVertical, color: Colors.white, size: 16),
                 ),
                 color: const Color(0xFF1C1C1E),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                 onSelected: (value) {
                   if (value == 'playlist') {
                     AddToPlaylistModal.show(context, _currentMedia);
@@ -551,11 +553,11 @@ class _DetailScreenState extends State<DetailScreen> {
                             width: 44,
                             height: 44,
                             decoration: BoxDecoration(
-                              color: const Color(0xFFE50914), // Rouge signature Money Heist
+                              color: AppTheme.primary,
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFFE50914).withValues(alpha: 0.5),
+                                  color: AppTheme.primary.withValues(alpha: 0.5),
                                   blurRadius: 12,
                                   spreadRadius: 1,
                                 ),
@@ -627,7 +629,7 @@ class _DetailScreenState extends State<DetailScreen> {
                               const SizedBox(width: 4),
                               const Icon(
                                 Icons.arrow_drop_down,
-                                color: Color(0xFFE50914),
+                                color: AppTheme.primary,
                                 size: 22,
                               ),
                             ],
@@ -654,7 +656,7 @@ class _DetailScreenState extends State<DetailScreen> {
                         padding: EdgeInsets.symmetric(vertical: 40.0),
                         child: Center(
                           child: CircularProgressIndicator(
-                            color: Color(0xFFE50914),
+                            color: AppTheme.primary,
                             strokeWidth: 2,
                           ),
                         ),
@@ -802,10 +804,10 @@ class _DetailScreenState extends State<DetailScreen> {
                         Expanded(
                           child: ElevatedButton.icon(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFE50914),
+                              backgroundColor: AppTheme.primary,
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                             ),
                             icon: const FaIcon(FontAwesomeIcons.play, size: 14),
                             label: const Text('Lire le film', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -817,7 +819,7 @@ class _DetailScreenState extends State<DetailScreen> {
                           style: IconButton.styleFrom(
                             backgroundColor: const Color(0xFF1C1C1E),
                             padding: const EdgeInsets.all(14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                           ),
                           icon: const FaIcon(FontAwesomeIcons.download, color: Colors.white, size: 16),
                           tooltip: 'Télécharger le film',

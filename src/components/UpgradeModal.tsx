@@ -49,7 +49,7 @@ export default function UpgradeModal({
               onClose();
               router.push('/subscribe');
             }}
-            className="w-full bg-[#D70466] hover:bg-[#b5034f] text-white font-bold py-2.5 px-4 rounded-[3px] text-xs sm:text-sm transition-all shadow-md cursor-pointer active:scale-95"
+            className="w-full bg-[brand-primary] hover:bg-[#b5034f] text-white font-bold py-2.5 px-4 rounded-[3px] text-xs sm:text-sm transition-all shadow-md cursor-pointer active:scale-95"
           >
             Découvrir les offres
           </button>

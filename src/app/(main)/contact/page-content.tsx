@@ -23,8 +23,8 @@ export default function ContactPage() {
 
         {/* Header */}
         <section className="text-center space-y-4">
-          <div className="w-16 h-16 mx-auto rounded-full bg-[#D70466]/20 flex items-center justify-center">
-            <Envelope className="h-8 w-8 text-[#D70466]" />
+          <div className="w-16 h-16 mx-auto rounded-full bg-[brand-primary]/20 flex items-center justify-center">
+            <Envelope className="h-8 w-8 text-[brand-primary]" />
           </div>
           <h1 className="text-3xl sm:text-4xl font-black">Contactez-nous</h1>
           <p className="text-zinc-400 text-sm leading-relaxed">
@@ -36,7 +36,7 @@ export default function ContactPage() {
         {/* Raisons de contact */}
         <section className="space-y-4">
           <h2 className="text-lg font-black flex items-center gap-3">
-            <span className="h-5 w-1 rounded-full bg-[#D70466]" />
+            <span className="h-5 w-1 rounded-full bg-[brand-primary]" />
             Pourquoi nous contacter ?
           </h2>
           <div className="grid sm:grid-cols-2 gap-3">
@@ -62,7 +62,7 @@ export default function ContactPage() {
               </p>
             </div>
             <div className="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800">
-              <Envelope className="h-5 w-5 text-[#D70466] mb-2" />
+              <Envelope className="h-5 w-5 text-[brand-primary] mb-2" />
               <h3 className="text-sm font-bold">Demande DMCA</h3>
               <p className="text-zinc-500 text-xs mt-1">
                 Pour toute demande relative à la propriété intellectuelle, envoyez-nous un email détaillé.
@@ -93,7 +93,7 @@ export default function ContactPage() {
                 <input
                   type="text"
                   required
-                  className="w-full px-4 py-3 rounded-xl bg-zinc-900 border border-zinc-800 text-white text-sm focus:outline-none focus:border-[#D70466] transition-colors"
+                  className="w-full px-4 py-3 rounded-xl bg-zinc-900 border border-zinc-800 text-white text-sm focus:outline-none focus:border-[brand-primary] transition-colors"
                   placeholder="Votre nom"
                 />
               </div>
@@ -102,13 +102,13 @@ export default function ContactPage() {
                 <input
                   type="email"
                   required
-                  className="w-full px-4 py-3 rounded-xl bg-zinc-900 border border-zinc-800 text-white text-sm focus:outline-none focus:border-[#D70466] transition-colors"
+                  className="w-full px-4 py-3 rounded-xl bg-zinc-900 border border-zinc-800 text-white text-sm focus:outline-none focus:border-[brand-primary] transition-colors"
                   placeholder="votre@email.com"
                 />
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Sujet</label>
-                <select className="w-full px-4 py-3 rounded-xl bg-zinc-900 border border-zinc-800 text-white text-sm focus:outline-none focus:border-[#D70466] transition-colors">
+                <select className="w-full px-4 py-3 rounded-xl bg-zinc-900 border border-zinc-800 text-white text-sm focus:outline-none focus:border-[brand-primary] transition-colors">
                   <option value="dmca">Demande DMCA / Retrait de contenu</option>
                   <option value="bug">Signaler un bug</option>
                   <option value="suggestion">Suggestion</option>
@@ -120,13 +120,13 @@ export default function ContactPage() {
                 <textarea
                   required
                   rows={5}
-                  className="w-full px-4 py-3 rounded-xl bg-zinc-900 border border-zinc-800 text-white text-sm focus:outline-none focus:border-[#D70466] transition-colors resize-none"
+                  className="w-full px-4 py-3 rounded-xl bg-zinc-900 border border-zinc-800 text-white text-sm focus:outline-none focus:border-[brand-primary] transition-colors resize-none"
                   placeholder="Décrivez votre demande..."
                 />
               </div>
               <button
                 type="submit"
-                className="w-full py-3 rounded-xl bg-[#D70466] hover:bg-[#b5034f] text-white font-bold text-sm transition-all shadow-lg shadow-[#D70466]/30"
+                className="w-full py-3 rounded-xl bg-[brand-primary] hover:bg-[#b5034f] text-white font-bold text-sm transition-all shadow-lg shadow-[brand-primary]/30"
               >
                 Envoyer
               </button>
@@ -137,7 +137,7 @@ export default function ContactPage() {
         {/* Email direct */}
         <section className="text-center space-y-2 pt-4">
           <p className="text-zinc-500 text-xs">Ou écrivez-nous directement à :</p>
-          <a href="mailto:contact@chillers.app" className="text-[#D70466] text-sm font-bold hover:underline">
+          <a href="mailto:contact@chillers.app" className="text-[brand-primary] text-sm font-bold hover:underline">
             contact@chillers.app
           </a>
         </section>

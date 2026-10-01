@@ -20,56 +20,85 @@ import {
 } from "@phosphor-icons/react";
 import { searchMedia } from "@/services/media";
 import type { MovieOrShow } from "@/types/media";
+import AppleMovieCard from "@/components/AppleMovieCard";
 
 interface MediaItem {
-  id: number;
+  id: string | number;
   title: string;
   originalTitle: string;
   year: number;
   type: "movie" | "tv";
   poster: string;
+  backdrop?: string;
+  rating?: number;
+  genres?: string[];
 }
 
-const PRESET_MEDIA: MediaItem[] = [
+const PRESET_MEDIA: (MediaItem & Partial<MovieOrShow>)[] = [
   {
-    id: 558449,
+    id: "558449",
     title: "Gladiator II",
     originalTitle: "Gladiator II",
     year: 2024,
     type: "movie",
     poster: "https://image.tmdb.org/t/p/w500/2cxhvwyEwRlysAmRH4iodkvo0z5.jpg",
+    posterUrl: "https://image.tmdb.org/t/p/w500/2cxhvwyEwRlysAmRH4iodkvo0z5.jpg",
+    backdropUrl: "https://image.tmdb.org/t/p/original/b33nnKl1vAOMMo2yeqFDQ84AFEi.jpg",
+    rating: 7.2,
+    genres: ["Action", "Aventure"],
+    langueAudio: "VF",
   },
   {
-    id: 27205,
+    id: "27205",
     title: "Inception",
     originalTitle: "Inception",
     year: 2010,
     type: "movie",
     poster: "https://image.tmdb.org/t/p/w500/oYuLEt3zVCKq57qu2F8dT7NIa6f.jpg",
+    posterUrl: "https://image.tmdb.org/t/p/w500/oYuLEt3zVCKq57qu2F8dT7NIa6f.jpg",
+    backdropUrl: "https://image.tmdb.org/t/p/original/8ZTVqvKDQ8emSGUEMjsS4yHAwrp.jpg",
+    rating: 8.4,
+    genres: ["Action", "Science-Fiction"],
+    langueAudio: "VF",
   },
   {
-    id: 533535,
+    id: "533535",
     title: "Deadpool & Wolverine",
     originalTitle: "Deadpool & Wolverine",
     year: 2024,
     type: "movie",
     poster: "https://image.tmdb.org/t/p/w500/8cdWjvZQUExUUTzyp4t6EDMubfO.jpg",
+    posterUrl: "https://image.tmdb.org/t/p/w500/8cdWjvZQUExUUTzyp4t6EDMubfO.jpg",
+    backdropUrl: "https://image.tmdb.org/t/p/original/yDHYTfA3R0jFYba16jBB1jv8uaC.jpg",
+    rating: 7.7,
+    genres: ["Action", "Comédie"],
+    langueAudio: "VF",
   },
   {
-    id: 157336,
+    id: "157336",
     title: "Interstellar",
     originalTitle: "Interstellar",
     year: 2014,
     type: "movie",
     poster: "https://image.tmdb.org/t/p/w500/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg",
+    posterUrl: "https://image.tmdb.org/t/p/w500/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg",
+    backdropUrl: "https://image.tmdb.org/t/p/original/xJHokMbljvjADYdit5fK5VQsXEG.jpg",
+    rating: 8.7,
+    genres: ["Aventure", "Drame", "SF"],
+    langueAudio: "VF",
   },
   {
-    id: 85937,
+    id: "85937",
     title: "Demon Slayer: Kimetsu no Yaiba",
     originalTitle: "鬼滅の刃",
     year: 2019,
-    type: "tv",
+    type: "series",
     poster: "https://image.tmdb.org/t/p/w500/xUfRZu2mi8jH6SzQEJGP6tjBuYj.jpg",
+    posterUrl: "https://image.tmdb.org/t/p/w500/xUfRZu2mi8jH6SzQEJGP6tjBuYj.jpg",
+    backdropUrl: "https://image.tmdb.org/t/p/original/nTvM4mhqZlHIvUkI1gVnWUMACUp.jpg",
+    rating: 8.6,
+    genres: ["Animation", "Action", "Fantasy"],
+    langueAudio: "VOSTFR",
   },
 ];
 
@@ -541,6 +570,91 @@ export default function TestLangContent() {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Apple Design Interactive Movie Cards Showcase ── */}
+        <div className="space-y-5 pt-6 border-t border-white/10">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="p-2 rounded-xl bg-red-600/15 text-red-500 border border-red-500/20">
+                  <Sparkle className="w-4 h-4" />
+                </span>
+                <h2 className="text-base sm:text-lg font-black text-white tracking-tight">
+                  Composants Apple Design (Motion Spring Physics & 3D Tilt)
+                </h2>
+              </div>
+              <p className="text-xs text-zinc-400 mt-1">
+                Survolez pour ressentir la physique de ressort Apple (damping/response), le reflet spéculaire et l&apos;inclinaison 3D. Cliquez pour charger immédiatement le flux.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 text-[11px] font-bold text-zinc-400">
+              <span className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-emerald-400">
+                 Spring: Mass 0.8 / Stiff 360 / Damp 24
+              </span>
+            </div>
+          </div>
+
+          {/* Vertical Poster Cards Carousel / Grid */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-black uppercase tracking-wider text-zinc-400">
+              Format Poster Vertical (2:3) — Hover & Tap Physics
+            </h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              {PRESET_MEDIA.map((m) => (
+                <AppleMovieCard
+                  key={m.id}
+                  item={m}
+                  variant="poster"
+                  selected={Number(selectedMedia.id) === Number(m.id)}
+                  onPlay={(item) => {
+                    setSelectedMedia({
+                      id: Number(item.id),
+                      title: item.title,
+                      originalTitle: (item as any).originalTitle || item.title,
+                      year: item.year || 2024,
+                      type: item.type === "series" ? "tv" : "movie",
+                      poster: item.posterUrl || "",
+                      backdrop: item.backdropUrl,
+                      rating: item.rating,
+                      genres: item.genres,
+                    });
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Landscape 16:9 Cards */}
+          <div className="space-y-3 pt-4">
+            <h3 className="text-xs font-black uppercase tracking-wider text-zinc-400">
+              Format Paysage 16:9 — Apple TV Card Parallax
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {PRESET_MEDIA.slice(0, 3).map((m) => (
+                <AppleMovieCard
+                  key={`landscape-${m.id}`}
+                  item={m}
+                  variant="landscape"
+                  selected={Number(selectedMedia.id) === Number(m.id)}
+                  onPlay={(item) => {
+                    setSelectedMedia({
+                      id: Number(item.id),
+                      title: item.title,
+                      originalTitle: (item as any).originalTitle || item.title,
+                      year: item.year || 2024,
+                      type: item.type === "series" ? "tv" : "movie",
+                      poster: item.posterUrl || "",
+                      backdrop: item.backdropUrl,
+                      rating: item.rating,
+                      genres: item.genres,
+                    });
+                  }}
+                />
+              ))}
             </div>
           </div>
         </div>

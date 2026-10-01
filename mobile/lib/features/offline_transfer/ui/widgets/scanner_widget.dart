@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../models/connection_credentials.dart';
 import '../../services/qr_scanner.dart';
+import '../../../../config/theme.dart';
 
 /// Scanner camera view widget with targeting reticle and auto-detection
 class ScannerWidget extends StatefulWidget {
@@ -49,7 +50,7 @@ class _ScannerWidgetState extends State<ScannerWidget> {
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(4),
       child: Stack(
         alignment: Alignment.center,
         children: [
@@ -81,7 +82,7 @@ class _ScannerWidgetState extends State<ScannerWidget> {
           Container(
             decoration: BoxDecoration(
               border: Border.all(color: Colors.white24, width: 2),
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(4),
             ),
           ),
 
@@ -90,11 +91,11 @@ class _ScannerWidgetState extends State<ScannerWidget> {
             width: 220,
             height: 220,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE50914), width: 3),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: AppTheme.primary, width: 3),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFFE50914).withValues(alpha: 0.3),
+                  color: AppTheme.primary.withValues(alpha: 0.3),
                   blurRadius: 20,
                   spreadRadius: 2,
                 ),
@@ -109,7 +110,7 @@ class _ScannerWidgetState extends State<ScannerWidget> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
                 color: Colors.black.withValues(alpha: 0.7),
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(4),
               ),
               child: const Text(
                 'Pointez la caméra vers le QR Code',

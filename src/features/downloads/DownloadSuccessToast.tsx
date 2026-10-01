@@ -164,7 +164,7 @@ function ToastCard({ toast, onDismiss, onNavigate }: ToastCardProps) {
           <div className="flex items-center gap-1 flex-shrink-0">
             <button
               onClick={onNavigate}
-              className="flex items-center gap-1 px-2 py-1.5 text-xs font-bold text-[#D70466] hover:text-white hover:bg-[#D70466] transition-all"
+              className="flex items-center gap-1 px-2 py-1.5 text-xs font-bold text-[brand-primary] hover:text-white hover:bg-[brand-primary] transition-all"
               style={{ borderRadius: "2px" }}
               aria-label="Voir les téléchargements"
             >

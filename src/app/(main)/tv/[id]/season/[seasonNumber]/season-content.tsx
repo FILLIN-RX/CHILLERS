@@ -13,7 +13,7 @@ import AuthModal from "@/components/AuthModal";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { userService } from "@/services/user";
-import { ArrowLeft, Play, CaretCircleLeft, CaretCircleRight, FilmSlate, DownloadSimple, ShareNetwork, BookmarkSimple, Check, Sparkle, LinkSimple } from "@phosphor-icons/react";
+import { ArrowLeft, Play, CaretCircleLeft, CaretCircleRight, FilmSlate, DownloadSimple, ShareNetwork, BookmarkSimple, Check, Sparkle, LinkSimple, Translate } from "@phosphor-icons/react";
 import Button from "@/components/ui/Button";
 
 export default function SeasonContent() {
@@ -23,6 +23,7 @@ export default function SeasonContent() {
   const { user, token, updateUser } = useAuthStore();
   const { id, seasonNumber } = params;
   const targetEpNumber = searchParams?.get("ep") ? Number(searchParams.get("ep")) : null;
+  const initialLang = searchParams?.get("lang") === "vostfr" ? "vostfr" : "fr";
   const { translate: _ } = useLanguage();
 
   const [detailItem, setDetailItem] = useState<MovieOrShow | null>(null);
@@ -30,6 +31,7 @@ export default function SeasonContent() {
   const [showTitle, setShowTitle] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [audioVersion, setAudioVersion] = useState<"fr" | "vostfr">(initialLang);
   const [streamUrl, setStreamUrl] = useState("");
   const [streamLoading, setStreamLoading] = useState(false);
   const [similar, setSimilar] = useState<MovieOrShow[]>([]);
@@ -95,7 +97,12 @@ export default function SeasonContent() {
                 "series",
                 Number(seasonNumber),
                 mapped[initialIndex].number,
-                detail?.title || (id as string)
+                detail?.title || (id as string),
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                initialLang
               );
               setStreamUrl(stream?.embedUrl || "");
             } catch (err) {
@@ -119,18 +126,29 @@ export default function SeasonContent() {
       }
     }
     fetchSeason();
-  }, [id, seasonNumber, targetEpNumber, router]);
+  }, [id, seasonNumber, targetEpNumber, initialLang, router]);
 
   const currentEpisode = episodes[currentIndex];
 
   // Chargement du flux vidéo
   const loadStream = useCallback(
-    async (ep: Episode) => {
+    async (ep: Episode, lang: "fr" | "vostfr" = audioVersion) => {
       if (!ep) return;
       const title = showTitle || (id as string);
       setStreamLoading(true);
       try {
-        const stream = await getStreamUrl(id as string, "series", Number(seasonNumber), ep.number, title);
+        const stream = await getStreamUrl(
+          id as string,
+          "series",
+          Number(seasonNumber),
+          ep.number,
+          title,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          lang
+        );
         setStreamUrl(stream?.embedUrl || "");
       } catch (err) {
         console.error("Stream error", err);
@@ -138,8 +156,21 @@ export default function SeasonContent() {
         setStreamLoading(false);
       }
     },
-    [id, seasonNumber, showTitle]
+    [id, seasonNumber, showTitle, audioVersion]
   );
+
+  const handleLanguageChange = (lang: "fr" | "vostfr") => {
+    if (lang === audioVersion) return;
+    setAudioVersion(lang);
+    if (currentEpisode) {
+      loadStream(currentEpisode, lang);
+    }
+    if (typeof window !== "undefined") {
+      const currentUrl = new URL(window.location.href);
+      currentUrl.searchParams.set("lang", lang);
+      window.history.replaceState(null, "", currentUrl.toString());
+    }
+  };
 
   // Navigation Épisodes
   const playEpisode = (index: number) => {
@@ -254,7 +285,7 @@ export default function SeasonContent() {
           <div className="w-full max-h-[60vh] sm:max-h-[75vh] aspect-video bg-black relative mx-auto overflow-hidden">
             {streamLoading || !mockItem ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-zinc-500 bg-zinc-950">
-                <div className="animate-spin h-10 w-10 border-4 border-[#D70466] border-t-transparent rounded-full" />
+                <div className="animate-spin h-10 w-10 border-4 border-[brand-primary] border-t-transparent rounded-full" />
                 <p className="text-xs uppercase tracking-widest font-bold text-zinc-400">
                   Chargement de l&apos;épisode {currentEpisode?.number}…
                 </p>
@@ -264,6 +295,8 @@ export default function SeasonContent() {
                 key={`${currentEpisode?.id ?? "ep"}-${streamUrl}`}
                 item={mockItem}
                 episode={currentEpisode}
+                audioVersion={audioVersion}
+                onLanguageChange={handleLanguageChange}
                 onBack={() => router.push(`/tv/${id}`)}
                 onOpenDetails={() => router.push(`/tv/${id}`)}
               />
@@ -272,7 +305,7 @@ export default function SeasonContent() {
         </div>
 
         {/* 3. CONTENU DÉTAILS DE L'ÉPISODE + TIROIR DE NAVIGATION DES ÉPISODES */}
-        <div className="w-full px-4 sm:px-8 md:px-12 lg:px-16 pt-6 sm:pt-8 space-y-10">
+        <div className="w-full px-4 sm:px-8 md:px-12 lg:px-16 pt-6 sm:pt-8 space-y-6 sm:space-y-8">
           
           {/* Barre Rapide Précédent / Épisode Actuel / Suivant */}
           {episodes.length > 0 && (
@@ -287,7 +320,7 @@ export default function SeasonContent() {
               </button>
 
               <div className="text-center truncate px-2 flex-1 min-w-0">
-                <span className="text-[11px] font-black text-[#D70466] uppercase tracking-widest">
+                <span className="text-[11px] font-black text-[brand-primary] uppercase tracking-widest">
                   Saison {seasonNumber} · Épisode {currentEpisode?.number || 1}
                 </span>
                 <p className="text-xs sm:text-sm font-bold text-white truncate max-w-md mx-auto">
@@ -314,7 +347,7 @@ export default function SeasonContent() {
               
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <span className="text-[#D70466] font-black tracking-widest text-xs uppercase flex items-center gap-1 bg-[#D70466]/10 border border-[#D70466]/20 px-2.5 py-0.5 rounded-full">
+                  <span className="text-[brand-primary] font-black tracking-widest text-xs uppercase flex items-center gap-1 bg-[brand-primary]/10 border border-[brand-primary]/20 px-2.5 py-0.5 rounded-full">
                     <Sparkle className="w-3 h-3" />
                     CHILLERS SÉRIE
                   </span>
@@ -433,7 +466,7 @@ export default function SeasonContent() {
                   <select
                     value={seasonNumber}
                     onChange={(e) => router.push(`/tv/${id}/season/${e.target.value}`)}
-                    className="bg-zinc-900 border border-zinc-700 text-xs text-white rounded-lg px-2.5 py-1 font-semibold focus:outline-none focus:border-[#D70466]"
+                    className="bg-zinc-900 border border-zinc-700 text-xs text-white rounded-lg px-2.5 py-1 font-semibold focus:outline-none focus:border-[brand-primary]"
                   >
                     {validSeasons.map((s) => (
                       <option key={s.id} value={s.seasonNumber}>
@@ -454,7 +487,7 @@ export default function SeasonContent() {
                       onClick={() => playEpisode(idx)}
                       className={`flex items-start gap-3.5 p-3 rounded-2xl cursor-pointer transition-all ${
                         isActive
-                          ? "bg-white/10 border border-[#D70466] shadow-lg"
+                          ? "bg-white/10 border border-[brand-primary] shadow-lg"
                           : "bg-zinc-900/50 hover:bg-zinc-800/60 border border-zinc-800/60"
                       }`}
                     >
@@ -487,7 +520,7 @@ export default function SeasonContent() {
                         {/* Indicateur de lecture en cours */}
                         {isActive && (
                           <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                            <div className="w-7 h-7 rounded-full bg-[#D70466] flex items-center justify-center">
+                            <div className="w-7 h-7 rounded-full bg-[brand-primary] flex items-center justify-center">
                               <Play className="w-4 h-4 fill-white translate-x-0.5" />
                             </div>
                           </div>
@@ -497,7 +530,7 @@ export default function SeasonContent() {
                       {/* Détails de l'épisode */}
                       <div className="flex-1 min-w-0 space-y-1">
                         <div className="flex items-center justify-between gap-1">
-                          <h4 className={`text-xs sm:text-sm font-bold truncate ${isActive ? "text-[#D70466]" : "text-white"}`}>
+                          <h4 className={`text-xs sm:text-sm font-bold truncate ${isActive ? "text-[brand-primary]" : "text-white"}`}>
                             {ep.number}. {ep.title}
                           </h4>
                           <span className="text-[10px] text-zinc-400 font-mono shrink-0">
@@ -529,6 +562,7 @@ export default function SeasonContent() {
           seriesTitle={showTitle || `Saison ${seasonNumber}`}
           tmdbId={id as string}
           episodes={episodes}
+          initialLanguage={audioVersion}
         />
       )}
 
@@ -544,6 +578,7 @@ export default function SeasonContent() {
           episode={currentEpisode.number}
           posterUrl={currentEpisode.thumbnail || detailItem?.posterUrl}
           backdropUrl={currentEpisode.thumbnail || detailItem?.backdropUrl}
+          initialLanguage={audioVersion}
         />
       )}
 

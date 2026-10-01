@@ -54,9 +54,9 @@ const sizeStyles: Record<ButtonSize, string> = {
 
 const variantStyles: Record<ButtonVariant, string> = {
   primary:
-    "bg-[#D70466] text-white hover:bg-[#b5034f] active:bg-[#990242] shadow-md shadow-[#D70466]/20 border border-transparent",
+    "bg-[brand-primary] text-white hover:bg-[#b5034f] active:bg-[#990242] shadow-md shadow-[brand-primary]/20 border border-transparent",
   brand:
-    "bg-gradient-to-r from-[#D70466] via-[#E11D48] to-[#7C3AED] text-white hover:opacity-95 active:opacity-90 shadow-lg shadow-[#D70466]/25 border border-transparent",
+    "bg-gradient-to-r from-[brand-primary] via-[#E11D48] to-[#7C3AED] text-white hover:opacity-95 active:opacity-90 shadow-lg shadow-[brand-primary]/25 border border-transparent",
   secondary:
     "bg-[#7C3AED] text-white hover:bg-[#6D28D9] active:bg-[#5B21B6] shadow-md shadow-[#7C3AED]/20 border border-transparent",
   danger:
@@ -153,7 +153,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
               ? "opacity-50 cursor-not-allowed pointer-events-none"
               : "cursor-pointer hover:scale-[1.01] active:scale-[0.98]"
           }
-          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D70466] focus-visible:ring-offset-2 focus-visible:ring-offset-[#09090B]
+          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[brand-primary] focus-visible:ring-offset-2 focus-visible:ring-offset-[#09090B]
           ${className}
         `}
         {...restProps}

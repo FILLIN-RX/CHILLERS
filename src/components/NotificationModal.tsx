@@ -59,7 +59,7 @@ export default function NotificationModal({
           <X className="h-5 w-5" />
         </button>
 
-        <div className="w-16 h-16 mx-auto mb-5 rounded-full bg-[#D70466]/20 flex items-center justify-center">
+        <div className="w-16 h-16 mx-auto mb-5 rounded-full bg-[brand-primary]/20 flex items-center justify-center">
           <span className="text-3xl">!</span>
         </div>
 
@@ -68,7 +68,7 @@ export default function NotificationModal({
 
         <button
           onClick={onClose}
-          className="px-8 py-3 rounded-full bg-[#D70466] text-white font-bold text-sm hover:bg-[#b5034f] transition-all"
+          className="px-8 py-3 rounded-full bg-[brand-primary] text-white font-bold text-sm hover:bg-[#b5034f] transition-all"
         >
           OK
         </button>

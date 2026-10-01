@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/media_item.dart';
 import '../models/user_model.dart';
 import '../services/download_service.dart';
+import '../services/feedback_service.dart';
 
 class DownloadModal {
   static void show({
@@ -59,6 +61,8 @@ class _DownloadModalSheetState extends State<_DownloadModalSheet> {
   void _executeDownload() async {
     if (_isStarting) return;
     setState(() => _isStarting = true);
+
+    FeedbackService.hapticMedium();
 
     final messenger = ScaffoldMessenger.of(context);
     final downloadService = DownloadService();

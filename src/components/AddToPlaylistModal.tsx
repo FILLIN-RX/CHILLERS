@@ -215,8 +215,8 @@ export default function AddToPlaylistModal({
 
         {/* Feedback Alert */}
         {actionSuccess && (
-          <div className="py-2 px-3 rounded-xl bg-[#D70466]/20 border border-[#D70466]/30 text-white text-xs font-bold flex items-center gap-2 animate-in fade-in duration-150">
-            <Check className="w-4 h-4 text-[#D70466]" />
+          <div className="py-2 px-3 rounded-xl bg-[brand-primary]/20 border border-[brand-primary]/30 text-white text-xs font-bold flex items-center gap-2 animate-in fade-in duration-150">
+            <Check className="w-4 h-4 text-[brand-primary]" />
             <span>{actionSuccess}</span>
           </div>
         )}
@@ -260,7 +260,7 @@ export default function AddToPlaylistModal({
             className="w-full flex items-center justify-between p-3 rounded-2xl hover:bg-white/5 transition-all text-left group"
           >
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-[#D70466]/10 text-[#D70466] flex items-center justify-center">
+              <div className="w-8 h-8 rounded-xl bg-[brand-primary]/10 text-[brand-primary] flex items-center justify-center">
                 {isFavorite ? (
                   <BookmarkSimple className="w-4 h-4" />
                 ) : (
@@ -268,7 +268,7 @@ export default function AddToPlaylistModal({
                 )}
               </div>
               <div>
-                <span className="text-sm font-bold text-white group-hover:text-[#D70466] transition-colors">
+                <span className="text-sm font-bold text-white group-hover:text-[brand-primary] transition-colors">
                   {lang === "fr" ? "Vidéos \"J'aime\"" : "Liked Videos"}
                 </span>
                 <p className="text-[11px] text-zinc-500">
@@ -279,7 +279,7 @@ export default function AddToPlaylistModal({
             <div
               className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
                 isFavorite
-                  ? "bg-[#D70466] border-[#D70466] text-white"
+                  ? "bg-[brand-primary] border-[brand-primary] text-white"
                   : "border-zinc-700 group-hover:border-zinc-500"
               }`}
             >
@@ -357,7 +357,7 @@ export default function AddToPlaylistModal({
                 }
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-[#D70466]"
+                className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-[brand-primary]"
               />
               <div className="flex items-center justify-end gap-2">
                 <button
@@ -373,7 +373,7 @@ export default function AddToPlaylistModal({
                 <button
                   type="submit"
                   disabled={loading || !newTitle.trim()}
-                  className="px-3 py-1.5 rounded-lg bg-[#D70466] hover:bg-[#b5034f] disabled:opacity-50 text-xs font-bold text-white shadow"
+                  className="px-3 py-1.5 rounded-lg bg-[brand-primary] hover:bg-[#b5034f] disabled:opacity-50 text-xs font-bold text-white shadow"
                 >
                   {lang === "fr" ? "Créer et ajouter" : "Create & Add"}
                 </button>

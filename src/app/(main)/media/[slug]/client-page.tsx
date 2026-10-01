@@ -433,7 +433,7 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
           <p className="text-zinc-400 text-lg">{_("media.notFound")}</p>
           <button
             onClick={() => { window.scrollTo(0, 0); router.back(); }}
-            className="px-6 py-2 rounded-full bg-[#D70466] text-white text-sm font-bold hover:bg-[#b5034f] transition-colors"
+            className="px-6 py-2 rounded-full bg-[brand-primary] text-white text-sm font-bold hover:bg-[#b5034f] transition-colors"
           >
             {_("media.back")}
           </button>
@@ -512,7 +512,7 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
                 ) : disponible && (
                   <span
                     className={`px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider border-0 ${disponible.disponible
-                        ? "text-[#D70466] bg-[#D70466]/10"
+                        ? "text-brand-primary bg-brand-primary/10"
                         : "text-blue-300 bg-blue-500/15"
                       }`}
                   >
@@ -523,7 +523,7 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
                 {/* Badge Audio */}
                 {(disponible?.langueAudio || item.langueAudio) && (disponible?.langueAudio !== 'UNKNOWN') && (
                   <span className={`px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider border-0 shadow-none ${disponible?.isFrenchAudio || item.isFrenchAudio
-                      ? 'bg-[#D70466]/90 text-white'
+                      ? 'bg-[brand-primary]/90 text-white'
                       : 'bg-amber-600/90 text-white'
                     }`}>
                     {disponible?.langueAudio === 'VFF' ? 'VF (TrueFrench)' : disponible?.langueAudio === 'VFQ' ? 'VF (Québec)' : (disponible?.langueAudio || item.langueAudio)}
@@ -656,7 +656,7 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
                     size="icon"
                     title={lang === "fr" ? "Enregistrer dans une playlist ou À regarder plus tard" : "Save to playlist or watch later"}
                     ariaLabel={lang === "fr" ? "Enregistrer dans une playlist" : "Save to playlist"}
-                    icon={<ListNumbers className="h-4 w-4 text-cyan-400" />}
+                    icon={<ListNumbers className="h-4 w-4 text-cyan-400 opacity-75" />}
                   />
                 )}
 
@@ -694,7 +694,7 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
           <div className="lg:col-span-2 space-y-6">
             <section className=" p-6 space-y-3">
               <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
-                {/* <span className="h-4 w-1 rounded-full bg-[#D70466]" /> */}
+                {/* <span className="h-4 w-1 rounded-full bg-[brand-primary]" /> */}
                 <span>Info</span>
               </h2>
               <p className="text-zinc-300 text-sm sm:text-base leading-relaxed">
@@ -707,7 +707,7 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
               <section className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
-                    <span className="h-4 w-1 rounded-full bg-[#D70466]" />
+                    <span className="h-4 w-1 rounded-full bg-[brand-primary]" />
                     <span>Casting & Personnages</span>
                   </h2>
                   <span className="text-xs text-zinc-500 font-medium">
@@ -725,7 +725,7 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
                         key={actor.id}
                         className="flex-none w-24 sm:w-28 flex flex-col items-center text-center group"
                       >
-                        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden bg-zinc-800 border border-white/10 group-hover:border-[#D70466]/50 transition-all shadow-lg mb-2 relative">
+                        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden bg-zinc-800 border border-white/10 group-hover:border-[brand-primary]/50 transition-all shadow-lg mb-2 relative">
                           {actor.profileUrl ? (
                             <CardImage
                               src={actor.profileUrl}
@@ -741,7 +741,7 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
                             </div>
                           )}
                         </div>
-                        <p className="text-xs font-bold text-white line-clamp-1 group-hover:text-[#D70466] transition-colors">
+                        <p className="text-xs font-bold text-white line-clamp-1 group-hover:text-[brand-primary] transition-colors">
                           {actor.name}
                         </p>
                         {actor.character && (
@@ -794,12 +794,12 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
 
                 <div className="flex justify-between items-center py-1 border-b border-zinc-800/40">
                   <span className="text-zinc-400">Qualité</span>
-                  <span className="font-bold text-[#D70466] bg-[#D70466]/10 px-2 py-0.5 rounded">1080p Full HD</span>
+                  <span className="font-bold text-[brand-primary] bg-[brand-primary]/10 px-2 py-0.5 rounded">1080p Full HD</span>
                 </div>
 
                 <div className="flex justify-between items-center py-1 border-b border-zinc-800/40">
                   <span className="text-zinc-400">Version Audio</span>
-                  <span className="font-bold text-[#D70466]">
+                  <span className="font-bold text-[brand-primary]">
                     {disponible?.langueAudio === 'VFF' ? 'VF (TrueFrench)' : (disponible?.langueAudio || 'VF / French')}
                   </span>
                 </div>
@@ -1408,7 +1408,7 @@ function MediaListingPage() {
                 >
                   {isLoadingCatalogMore && (
                     <div className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-zinc-900/80 border border-white/10 text-xs font-semibold text-zinc-400">
-                      <div className="w-4 h-4 rounded-full border-2 border-[#D70466] border-t-transparent animate-spin" />
+                      <div className="w-4 h-4 rounded-full border-2 border-[brand-primary] border-t-transparent animate-spin" />
                       <span>Chargement des vidéos suivantes…</span>
                     </div>
                   )}

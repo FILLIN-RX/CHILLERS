@@ -3,6 +3,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../../../models/media_item.dart';
+import '../../../../config/theme.dart';
 import '../screens/transfer_sender_screen.dart';
 
 /// Reusable action button to initiate offline P2P sharing for a downloaded media item
@@ -28,11 +29,11 @@ class ShareOfflineButton extends StatelessWidget {
 
     return ElevatedButton.icon(
       style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFFE50914),
+        backgroundColor: AppTheme.primary,
         foregroundColor: Colors.white,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(4),
         ),
         elevation: 4,
       ),

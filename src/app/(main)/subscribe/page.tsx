@@ -222,7 +222,7 @@ export default function SubscribePage() {
                 }`}
               >
                 {isPremium && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-[2px] bg-[#D70466] text-white text-[10px] font-black tracking-wider uppercase shadow-md">
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-[2px] bg-[brand-primary] text-white text-[10px] font-black tracking-wider uppercase shadow-md">
                     RECOMMANDÉ
                   </div>
                 )}
@@ -282,7 +282,7 @@ export default function SubscribePage() {
                     isCurrent
                       ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
                       : isPremium
-                      ? 'bg-[#D70466] hover:bg-[#b5034f] text-white'
+                      ? 'bg-[brand-primary] hover:bg-[#b5034f] text-white'
                       : 'bg-white text-black hover:bg-zinc-200'
                   }`}
                 >
@@ -361,7 +361,7 @@ export default function SubscribePage() {
                           <span
                             className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${
                               currentStep === s.step
-                                ? 'bg-[#D70466] text-white'
+                                ? 'bg-[brand-primary] text-white'
                                 : currentStep > s.step
                                 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                                 : 'bg-zinc-800 text-zinc-400'
@@ -420,7 +420,7 @@ export default function SubscribePage() {
                       <button
                         type="button"
                         onClick={() => setCurrentStep(2)}
-                        className="w-full py-2.5 rounded-[3px] bg-[#D70466] hover:bg-[#b5034f] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md cursor-pointer transition-all active:scale-95"
+                        className="w-full py-2.5 rounded-[3px] bg-[brand-primary] hover:bg-[#b5034f] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md cursor-pointer transition-all active:scale-95"
                       >
                         <span>Continuer vers le Dépôt</span>
                         <ArrowRight className="w-4 h-4" />
@@ -445,7 +445,7 @@ export default function SubscribePage() {
                         <button
                           type="button"
                           onClick={() => handleDialUssd(paymentMethod, selectedPlan.price)}
-                          className="w-full py-2.5 px-3 rounded-[3px] bg-[#D70466] hover:bg-[#b5034f] text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all cursor-pointer"
+                          className="w-full py-2.5 px-3 rounded-[3px] bg-[brand-primary] hover:bg-[#b5034f] text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all cursor-pointer"
                         >
                           <PhoneCall className="w-4 h-4" />
                           <span>Lancer le code USSD automatique</span>
@@ -488,7 +488,7 @@ export default function SubscribePage() {
                         <button
                           type="button"
                           onClick={() => setCurrentStep(3)}
-                          className="flex-1 py-2.5 rounded-[3px] bg-[#D70466] hover:bg-[#b5034f] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-md cursor-pointer transition-all active:scale-95"
+                          className="flex-1 py-2.5 rounded-[3px] bg-[brand-primary] hover:bg-[#b5034f] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-md cursor-pointer transition-all active:scale-95"
                         >
                           <span>J&apos;ai fait le dépôt</span>
                           <ArrowRight className="w-3.5 h-3.5" />
@@ -576,7 +576,7 @@ export default function SubscribePage() {
                         <button
                           type="submit"
                           disabled={submitting}
-                          className="flex-1 py-2.5 rounded-[3px] bg-[#D70466] hover:bg-[#b5034f] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-md cursor-pointer transition-all active:scale-95 disabled:opacity-50"
+                          className="flex-1 py-2.5 rounded-[3px] bg-[brand-primary] hover:bg-[#b5034f] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-md cursor-pointer transition-all active:scale-95 disabled:opacity-50"
                         >
                           {submitting ? (
                             <>
