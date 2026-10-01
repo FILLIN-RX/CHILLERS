@@ -32,8 +32,8 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
 
   const [initialized, setInitialized] = useState(false);
   const search = useSearchSuggestions("");
-  const trendingQuery = useTrendingMovies();
-  const genresQuery = useMovieGenres();
+  const trendingQuery = useTrendingMovies({ enabled: isOpen });
+  const genresQuery = useMovieGenres({ enabled: isOpen });
 
   // Restore query from sessionStorage on first open
   useEffect(() => {

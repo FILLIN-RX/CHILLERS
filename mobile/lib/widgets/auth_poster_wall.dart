@@ -87,61 +87,69 @@ class _AuthPosterWallState extends State<AuthPosterWall>
                 final double itemHeight = colWidth * 1.5;
                 final double singleItemStride = itemHeight + spacing;
 
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: List.generate(colCount, (colIndex) {
-                    final isDown = colIndex % 2 == 1;
-                    final isFast = colIndex % 2 != 0;
-                    final controller = isFast ? _controllerFast : _controllerSlow;
-                    final posters = _columns[colIndex % _columns.length];
-                    final fullList = [...posters, ...posters, ...posters];
-                    final double loopHeight = posters.length * singleItemStride;
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: List.generate(colCount, (colIndex) {
+                      final isDown = colIndex % 2 == 1;
+                      final isFast = colIndex % 2 != 0;
+                      final controller = isFast ? _controllerFast : _controllerSlow;
+                      final posters = _columns[colIndex % _columns.length];
+                      final fullList = [...posters, ...posters, ...posters];
+                      final double loopHeight = posters.length * singleItemStride;
 
-                    return Container(
-                      width: colWidth,
-                      margin: EdgeInsets.only(
-                        right: colIndex < colCount - 1 ? spacing : 0,
-                      ),
-                      child: AnimatedBuilder(
-                        animation: controller,
-                        builder: (context, child) {
-                          final progress = controller.value;
-                          final double offsetY = isDown
-                              ? -(1.0 - progress) * loopHeight
-                              : -progress * loopHeight;
+                      return Container(
+                        width: colWidth,
+                        height: constraints.maxHeight,
+                        margin: EdgeInsets.only(
+                          right: colIndex < colCount - 1 ? spacing : 0,
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.zero,
+                        ),
+                        child: AnimatedBuilder(
+                          animation: controller,
+                          builder: (context, child) {
+                            final progress = controller.value;
+                            final double offsetY = isDown
+                                ? -(1.0 - progress) * loopHeight
+                                : -progress * loopHeight;
 
-                          return Transform.translate(
-                            offset: Offset(0, offsetY),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: fullList.map((url) {
-                                return Container(
-                                  width: colWidth,
-                                  height: itemHeight,
-                                  margin: const EdgeInsets.only(bottom: spacing),
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(8),
-                                    color: const Color(0xFF18181B),
-                                  ),
-                                  clipBehavior: Clip.antiAlias,
-                                  child: CachedNetworkImage(
-                                    imageUrl: url,
-                                    fit: BoxFit.cover,
-                                    placeholder: (context, url) => Container(
+                            return Transform.translate(
+                              offset: Offset(0, offsetY),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: fullList.map((url) {
+                                  return Container(
+                                    width: colWidth,
+                                    height: itemHeight,
+                                    margin: const EdgeInsets.only(bottom: spacing),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(8),
                                       color: const Color(0xFF18181B),
                                     ),
-                                    errorWidget: (context, url, error) => Container(
-                                      color: const Color(0xFF18181B),
+                                    clipBehavior: Clip.antiAlias,
+                                    child: CachedNetworkImage(
+                                      imageUrl: url,
+                                      fit: BoxFit.cover,
+                                      placeholder: (context, url) => Container(
+                                        color: const Color(0xFF18181B),
+                                      ),
+                                      errorWidget: (context, url, error) => Container(
+                                        color: const Color(0xFF18181B),
+                                      ),
                                     ),
-                                  ),
-                                );
-                              }).toList(),
-                            ),
-                          );
-                        },
-                      ),
-                    );
-                  }),
+                                  );
+                                }).toList(),
+                              ),
+                            );
+                          },
+                        ),
+                      );
+                    }),
+                  ),
                 );
               },
             ),

@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { Suspense } from "react";
+import { Suspense, cache } from "react";
 import { API_BASE, getServerApiHeaders } from "@/lib/server-api";
 import { buildMediaMetadata, buildMediaJsonLd, SITE_LOCALE, DEFAULT_OG_IMAGE } from "@/lib/seo";
 import { getMediaDetails, getPopularTV, mapTMDBToMovieOrShow } from "@/services/media";
@@ -11,7 +11,7 @@ type Props = {
   params: Promise<{ id: string }>;
 };
 
-async function fetchTvData(id: string) {
+const fetchTvData = cache(async function fetchTvData(id: string) {
   try {
     const details = await getMediaDetails(id, true);
     if (details) return details;
@@ -54,7 +54,7 @@ async function fetchTvData(id: string) {
   }
   
   return null;
-}
+});
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;

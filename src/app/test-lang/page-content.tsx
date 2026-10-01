@@ -27,18 +27,22 @@ interface MediaItem {
   title: string;
   originalTitle: string;
   year: number;
-  type: "movie" | "tv";
+  type: "movie" | "tv" | "series" | "anime" | "documentary";
   poster: string;
   backdrop?: string;
   rating?: number;
   genres?: string[];
 }
 
-const PRESET_MEDIA: (MediaItem & Partial<MovieOrShow>)[] = [
+const PRESET_MEDIA: (MovieOrShow & { poster: string; backdrop?: string; originalTitle: string })[] = [
   {
     id: "558449",
     title: "Gladiator II",
     originalTitle: "Gladiator II",
+    description: "Suite épique de Gladiator.",
+    synopsis: "Suite épique de Gladiator.",
+    duration: "2h 28m",
+    cast: ["Paul Mescal", "Pedro Pascal", "Denzel Washington"],
     year: 2024,
     type: "movie",
     poster: "https://image.tmdb.org/t/p/w500/2cxhvwyEwRlysAmRH4iodkvo0z5.jpg",
@@ -52,6 +56,10 @@ const PRESET_MEDIA: (MediaItem & Partial<MovieOrShow>)[] = [
     id: "27205",
     title: "Inception",
     originalTitle: "Inception",
+    description: "Dom Cobb vole des secrets à travers le subconscient.",
+    synopsis: "Dom Cobb vole des secrets à travers le subconscient.",
+    duration: "2h 28m",
+    cast: ["Leonardo DiCaprio", "Joseph Gordon-Levitt", "Elliot Page"],
     year: 2010,
     type: "movie",
     poster: "https://image.tmdb.org/t/p/w500/oYuLEt3zVCKq57qu2F8dT7NIa6f.jpg",
@@ -65,6 +73,10 @@ const PRESET_MEDIA: (MediaItem & Partial<MovieOrShow>)[] = [
     id: "533535",
     title: "Deadpool & Wolverine",
     originalTitle: "Deadpool & Wolverine",
+    description: "Deadpool fait équipe avec Wolverine.",
+    synopsis: "Deadpool fait équipe avec Wolverine.",
+    duration: "2h 08m",
+    cast: ["Ryan Reynolds", "Hugh Jackman", "Emma Corrin"],
     year: 2024,
     type: "movie",
     poster: "https://image.tmdb.org/t/p/w500/8cdWjvZQUExUUTzyp4t6EDMubfO.jpg",
@@ -78,6 +90,10 @@ const PRESET_MEDIA: (MediaItem & Partial<MovieOrShow>)[] = [
     id: "157336",
     title: "Interstellar",
     originalTitle: "Interstellar",
+    description: "Un groupe d'explorateurs franchit une faille spatio-temporelle.",
+    synopsis: "Un groupe d'explorateurs franchit une faille spatio-temporelle.",
+    duration: "2h 49m",
+    cast: ["Matthew McConaughey", "Anne Hathaway", "Jessica Chastain"],
     year: 2014,
     type: "movie",
     poster: "https://image.tmdb.org/t/p/w500/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg",
@@ -90,7 +106,11 @@ const PRESET_MEDIA: (MediaItem & Partial<MovieOrShow>)[] = [
   {
     id: "85937",
     title: "Demon Slayer: Kimetsu no Yaiba",
-    originalTitle: "鬼滅の刃",
+    originalTitle: "鬼滅 de刃",
+    description: "Tanjiro part venger sa famille.",
+    synopsis: "Tanjiro part venger sa famille.",
+    duration: "26 Épisodes",
+    cast: ["Natsuki Hanae", "Akari Kito", "Hiro Shimono"],
     year: 2019,
     type: "series",
     poster: "https://image.tmdb.org/t/p/w500/xUfRZu2mi8jH6SzQEJGP6tjBuYj.jpg",

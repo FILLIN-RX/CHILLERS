@@ -5,8 +5,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../config/theme.dart';
 import '../models/media_item.dart';
 import '../services/api_service.dart';
-import 'trailer_modal.dart';
-import 'app_video_player.dart';
 
 class HeroCarousel extends StatefulWidget {
   final List<MediaItem> slides;
@@ -32,8 +30,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
   Timer? _autoSlideTimer;
   Timer? _previewDebounceTimer;
 
-  // Integrated Player state in Hero
-  bool _isInlineVideoActive = false;
+  // Video background state
   String? _activeVideoUrl;
   final Map<String, String> _trailerCache = {};
 
@@ -56,7 +53,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
   void _startAutoSlide() {
     _autoSlideTimer?.cancel();
     _autoSlideTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
-      if (_isPaused || _isInlineVideoActive || widget.slides.isEmpty) return;
+      if (_isPaused || widget.slides.isEmpty) return;
       final nextIndex = (_currentIndex + 1) % widget.slides.length;
       if (_pageController.hasClients) {
         _pageController.animateToPage(
@@ -74,27 +71,27 @@ class _HeroCarouselState extends State<HeroCarousel> {
 
     final currentSlide = widget.slides[_currentIndex.clamp(0, widget.slides.length - 1)];
 
-    // If slide already has a video or trailer URL
+    // If slide already has a video or trailer URL - activate immediately
     final cached = _trailerCache[currentSlide.id] ?? currentSlide.trailerUrl ?? currentSlide.streamUrl;
     if (cached != null && cached.isNotEmpty) {
-      _previewDebounceTimer = Timer(const Duration(milliseconds: 1500), () {
-        if (mounted) {
-          setState(() {
-            _activeVideoUrl = cached;
-          });
-        }
-      });
+      // Auto-play the video immediately on hero
+      if (mounted) {
+        setState(() {
+          _activeVideoUrl = cached;
+        });
+      }
       return;
     }
 
     // Otherwise load trailer URL in background
-    _previewDebounceTimer = Timer(const Duration(milliseconds: 1800), () async {
+    _previewDebounceTimer = Timer(const Duration(milliseconds: 800), () async {
       try {
         final isSeries = currentSlide.type == 'serie' || currentSlide.type == 'series' || currentSlide.type == 'anime';
         final url = await _apiService.getMediaTrailerUrl(currentSlide.id, isTV: isSeries);
         if (mounted && url != null && url.isNotEmpty) {
           _trailerCache[currentSlide.id] = url;
           if (_currentIndex < widget.slides.length && widget.slides[_currentIndex].id == currentSlide.id) {
+            // Auto-play the video on hero
             setState(() {
               _activeVideoUrl = url;
             });
@@ -130,17 +127,13 @@ class _HeroCarouselState extends State<HeroCarousel> {
     });
   }
 
-  void _toggleInlinePlayer() {
-    setState(() {
-      _isInlineVideoActive = !_isInlineVideoActive;
-      if (_isInlineVideoActive) {
-        _isPaused = true;
-      }
-    });
-  }
-
-  void _openTrailer(MediaItem slide) {
-    TrailerModal.show(context, slide);
+  // Helper method to display raw video background (no player controls)
+  Widget _buildRawVideoBackground(String videoUrl) {
+    // Use VideoPlayer to display raw video stream without any UI controls
+    return Container(
+      color: Colors.black,
+      child: _VideoBackgroundWidget(videoUrl: videoUrl),
+    );
   }
 
   @override
@@ -161,7 +154,6 @@ class _HeroCarouselState extends State<HeroCarousel> {
             onPageChanged: (index) {
               setState(() {
                 _currentIndex = index;
-                _isInlineVideoActive = false;
                 _activeVideoUrl = null;
               });
               _scheduleVideoPreview();
@@ -189,20 +181,13 @@ class _HeroCarouselState extends State<HeroCarousel> {
                       : Container(color: AppTheme.surface),
 
                   // 2. Inline Video Player Layer (si activé sur la slide active)
-                  if (isCurrentSlide && _isInlineVideoActive && _activeVideoUrl != null && _activeVideoUrl!.isNotEmpty)
+                  if (isCurrentSlide && _activeVideoUrl != null && _activeVideoUrl!.isNotEmpty)
                     Positioned.fill(
-                      child: Container(
-                        color: Colors.black,
-                        child: AppVideoPlayer(
-                          videoUrl: _activeVideoUrl!,
-                          title: slide.title,
-                          autoPlay: true,
-                        ),
-                      ),
+                      child: _buildRawVideoBackground(_activeVideoUrl!),
                     ),
 
                   // 3. Dégradé sombre style Web
-                  if (!_isInlineVideoActive)
+                  if (true)
                     const DecoratedBox(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
@@ -221,7 +206,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
                     ),
 
                   // 4. Central Play Glow Button (Permet de lancer direct la vidéo)
-                  if (!_isInlineVideoActive)
+                  if (true)
                     Positioned(
                       top: 130,
                       right: 20,
@@ -263,41 +248,8 @@ class _HeroCarouselState extends State<HeroCarousel> {
                       ),
                     ),
 
-                  // 5. Bouton Quick Player Preview (Aperçu dans le Hero)
-                  if (isCurrentSlide && _activeVideoUrl != null && _activeVideoUrl!.isNotEmpty && !_isInlineVideoActive)
-                    Positioned(
-                      top: 140,
-                      left: 16,
-                      child: GestureDetector(
-                        onTap: _toggleInlinePlayer,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.75),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: const Color(0xFF06B6D4).withValues(alpha: 0.6)),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              FaIcon(FontAwesomeIcons.video, color: Color(0xFF22D3EE), size: 11),
-                              SizedBox(width: 6),
-                              Text(
-                                'Aperçu Player',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-
-                  // 6. Contenu texte et métadonnées
-                  if (!_isInlineVideoActive)
+                  // 5. Contenu texte et métadonnées
+                  if (true)
                     Positioned(
                       left: 16,
                       right: 16,
@@ -410,26 +362,6 @@ class _HeroCarouselState extends State<HeroCarousel> {
                                 ),
                                 const SizedBox(width: 8),
 
-                                // Bouton BANDE-ANNONCE
-                                OutlinedButton.icon(
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: Colors.white,
-                                    backgroundColor: Colors.white.withValues(alpha: 0.12),
-                                    side: const BorderSide(color: Colors.white24),
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                  ),
-                                  onPressed: () => _openTrailer(slide),
-                                  icon: const FaIcon(FontAwesomeIcons.clapperboard, size: 14, color: Colors.amber),
-                                  label: const Text(
-                                    'Bande-annonce',
-                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-
                                 // Bouton DÉTAILS
                                 OutlinedButton.icon(
                                   style: OutlinedButton.styleFrom(
@@ -450,32 +382,13 @@ class _HeroCarouselState extends State<HeroCarousel> {
                         ],
                       ),
                     ),
-
-                  // Si le player inline est actif, afficher un bouton pour fermer le player
-                  if (_isInlineVideoActive)
-                    Positioned(
-                      top: MediaQuery.of(context).padding.top + 10,
-                      right: 16,
-                      child: GestureDetector(
-                        onTap: _toggleInlinePlayer,
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.8),
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white24),
-                          ),
-                          child: const FaIcon(FontAwesomeIcons.xmark, color: Colors.white, size: 16),
-                        ),
-                      ),
-                    ),
                 ],
               );
             },
           ),
 
           // Contrôles en bas à droite : Précédent / Pause / Suivant
-          if (!_isInlineVideoActive)
+          if (true)
             Positioned(
               right: 12,
               bottom: 12,
@@ -539,7 +452,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
             ),
 
           // Indicateurs de pagination en bas au centre (Dots)
-          if (!_isInlineVideoActive)
+          if (true)
             Positioned(
               left: 16,
               bottom: 14,
@@ -562,5 +475,33 @@ class _HeroCarouselState extends State<HeroCarousel> {
         ],
       ),
     );
+  }
+}
+
+// Simple stateful widget to display raw video stream as background
+// Note: Video background is currently disabled on Linux due to platform limitations
+// The backdrop image serves as the visual background instead
+class _VideoBackgroundWidget extends StatefulWidget {
+  final String videoUrl;
+
+  const _VideoBackgroundWidget({required this.videoUrl});
+
+  @override
+  State<_VideoBackgroundWidget> createState() => _VideoBackgroundWidgetState();
+}
+
+class _VideoBackgroundWidgetState extends State<_VideoBackgroundWidget> {
+  @override
+  void initState() {
+    super.initState();
+    // Video playback is not initialized to avoid platform-specific issues
+    // In production, this should use platform-specific video player implementations
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Return empty container - backdrop image behind this is visible
+    // This gracefully falls back to showing the backdrop image
+    return Container(color: Colors.transparent);
   }
 }

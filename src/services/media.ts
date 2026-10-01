@@ -6,6 +6,7 @@
 // - Throws on network/parse errors that aren't DOMException("AbortError").
 //   Most callers should use react-query so they don't have to handle throws explicitly.
 
+import { cache } from "react";
 import { httpJson, HttpError, API_BASE_PATH } from "./http";
 import { getAntiBotHeaders } from "@/lib/antibot";
 import type { MovieOrShow, Genre, MediaType, CastMember, Network } from "@/types/media";
@@ -55,23 +56,23 @@ export function getTmdbImageUrl(
   const weak = isSlowConnection();
 
   if (type === "poster") {
-    if (original && !weak && !ultraLow) return `https://image.tmdb.org/t/p/w780${path}`;
-    if (ultraLow) return `https://image.tmdb.org/t/p/w185${path}`;
-    return `https://image.tmdb.org/t/p/${weak ? "w185" : "w342"}${path}`;
+    if (original && !weak && !ultraLow) return `https://image.tmdb.org/t/p/original${path}`;
+    if (ultraLow) return `https://image.tmdb.org/t/p/w342${path}`;
+    return `https://image.tmdb.org/t/p/${weak ? "w342" : "w500"}${path}`;
   }
 
   if (type === "backdrop") {
-    if (original && !weak && !ultraLow) return `https://image.tmdb.org/t/p/w1280${path}`;
-    if (ultraLow) return `https://image.tmdb.org/t/p/w300${path}`;
-    return `https://image.tmdb.org/t/p/${weak ? "w300" : "w780"}${path}`;
+    if (original && !weak && !ultraLow) return `https://image.tmdb.org/t/p/original${path}`;
+    if (ultraLow) return `https://image.tmdb.org/t/p/w780${path}`;
+    return `https://image.tmdb.org/t/p/${weak ? "w780" : "w1280"}${path}`;
   }
 
   if (type === "still") {
-    if (ultraLow) return `https://image.tmdb.org/t/p/w185${path}`;
-    return `https://image.tmdb.org/t/p/${weak ? "w185" : "w300"}${path}`;
+    if (ultraLow) return `https://image.tmdb.org/t/p/w300${path}`;
+    return `https://image.tmdb.org/t/p/${weak ? "w300" : "w500"}${path}`;
   }
 
-  return `https://image.tmdb.org/t/p/${weak ? "w185" : "w342"}${path}`;
+  return `https://image.tmdb.org/t/p/${weak ? "w342" : "w500"}${path}`;
 }
 
 function clientLang(): string {
@@ -906,7 +907,7 @@ export async function enrichHeroSlidesWithTrailers(
 
 /* Media details (single movie or series). */
 
-export async function getMediaDetails(
+export const getMediaDetails = cache(async function getMediaDetails(
   id: string,
   isTV = false,
   signal?: AbortSignal,
@@ -949,7 +950,7 @@ export async function getMediaDetails(
   }
 
   return null;
-}
+});
 
 export interface SeasonDetails {
   id: number;
@@ -967,7 +968,7 @@ export interface SeasonDetails {
   }>;
 }
 
-export async function getSeasonDetails(
+export const getSeasonDetails = cache(async function getSeasonDetails(
   id: string,
   seasonNumber: string,
   signal?: AbortSignal,
@@ -1003,7 +1004,7 @@ export async function getSeasonDetails(
   }
 
   return null;
-}
+});
 
 /* Recommendations / personalization. */
 

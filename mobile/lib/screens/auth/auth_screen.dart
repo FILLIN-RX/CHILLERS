@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:uuid/uuid.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../config/theme.dart';
 import '../../services/api_service.dart';
 import '../../widgets/auth_poster_wall.dart';
@@ -27,6 +30,12 @@ class _AuthScreenState extends State<AuthScreen> {
 
   final _formKey = GlobalKey<FormState>();
 
+  // Google Sign In configuration
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    clientId: '215274091436-goperpshmrj7hhr5ou8hio17npi12l8d.apps.googleusercontent.com',
+    scopes: ['email', 'profile'],
+  );
+
   @override
   void initState() {
     super.initState();
@@ -39,6 +48,59 @@ class _AuthScreenState extends State<AuthScreen> {
     _passwordController.dispose();
     _usernameController.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleGoogleLogin() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // Generate unique device ID
+      const uuid = Uuid();
+      final deviceId = uuid.v4();
+
+      final result = await _apiService.googleLogin(
+        email: googleUser.email,
+        username: googleUser.displayName,
+        avatarUrl: googleUser.photoUrl,
+        deviceId: deviceId,
+        deviceName: 'Mobile App',
+      );
+
+      if (!mounted) return;
+
+      if (result['success'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Connexion réussie!'),
+            backgroundColor: AppTheme.primary,
+          ),
+        );
+        Navigator.pop(context, true);
+      } else {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = result['message'] ?? 'Erreur lors de la connexion Google';
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Erreur lors de la connexion Google: $e';
+        });
+      }
+    }
   }
 
   Future<void> _handleSubmit() async {
@@ -141,42 +203,46 @@ class _AuthScreenState extends State<AuthScreen> {
           // ── Background: 4 Columns Animated Poster Wall ──
           const AuthPosterWall(),
 
-          // ── Foreground: Seamless Full-Page Auth Form (No Card Box) ──
+          // ── Foreground: Seamless Full-Page Auth Form ──
           SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 400),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: MediaQuery.of(context).size.height - MediaQuery.of(context).padding.top - MediaQuery.of(context).padding.bottom,
+                ),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 380),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
                         // Logo CHILLERS
                         Center(
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: BorderRadius.circular(6),
                                 child: Image.asset(
                                   'assets/logo.png',
-                                  width: 36,
-                                  height: 36,
+                                  width: 32,
+                                  height: 32,
                                   errorBuilder: (context, error, stackTrace) => Container(
-                                    width: 36,
-                                    height: 36,
+                                    width: 32,
+                                    height: 32,
                                     decoration: BoxDecoration(
                                       color: AppTheme.primary,
-                                      borderRadius: BorderRadius.circular(8),
+                                      borderRadius: BorderRadius.circular(6),
                                     ),
-                                    child: const FaIcon(FontAwesomeIcons.play, color: Colors.white, size: 20),
+                                    child: const FaIcon(FontAwesomeIcons.play, color: Colors.white, size: 16),
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 10),
+                              const SizedBox(width: 8),
                               RichText(
                                 text: const TextSpan(
                                   children: [
@@ -184,18 +250,18 @@ class _AuthScreenState extends State<AuthScreen> {
                                       text: 'CHILL',
                                       style: TextStyle(
                                         color: Colors.white,
-                                        fontSize: 26,
+                                        fontSize: 22,
                                         fontWeight: FontWeight.w900,
-                                        letterSpacing: 1.0,
+                                        letterSpacing: 0.8,
                                       ),
                                     ),
                                     TextSpan(
                                       text: 'ERS',
                                       style: TextStyle(
                                         color: AppTheme.primary,
-                                        fontSize: 26,
+                                        fontSize: 22,
                                         fontWeight: FontWeight.w900,
-                                        letterSpacing: 1.0,
+                                        letterSpacing: 0.8,
                                       ),
                                     ),
                                   ],
@@ -205,32 +271,32 @@ class _AuthScreenState extends State<AuthScreen> {
                           ),
                         ),
 
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 14),
 
                         // Titre et sous-titre
                         Text(
                           _isRegister ? 'Créer un compte' : 'Connexion',
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 20,
+                            fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
                           textAlign: TextAlign.center,
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 4),
                         Text(
                           _isRegister
-                              ? 'Rejoignez CHILLERS pour synchroniser vos favoris et profiter du streaming HD.'
-                              : 'Connectez-vous pour retrouver votre liste, vos téléchargements et votre abonnement.',
+                              ? 'Rejoignez CHILLERS pour synchroniser vos favoris'
+                              : 'Connectez-vous pour retrouver votre liste',
                           style: const TextStyle(
                             color: AppTheme.textSecondary,
-                            fontSize: 12.5,
-                            height: 1.35,
+                            fontSize: 12,
+                            height: 1.3,
                           ),
                           textAlign: TextAlign.center,
                         ),
 
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 16),
 
                         // Bannière d'erreur
                         if (_errorMessage != null) ...[
@@ -265,7 +331,11 @@ class _AuthScreenState extends State<AuthScreen> {
                             decoration: InputDecoration(
                               labelText: 'Nom d\'utilisateur (optionnel)',
                               labelStyle: const TextStyle(color: Colors.white54, fontSize: 13),
-                              prefixIcon: const FaIcon(FontAwesomeIcons.user, color: Colors.white54, size: 18),
+                              prefixIcon: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                child: FaIcon(FontAwesomeIcons.user, color: Colors.white54, size: 16),
+                              ),
+                              prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
                               filled: true,
                               fillColor: Colors.black.withValues(alpha: 0.4),
                               border: OutlineInputBorder(
@@ -280,6 +350,7 @@ class _AuthScreenState extends State<AuthScreen> {
                                 borderRadius: BorderRadius.circular(14),
                                 borderSide: const BorderSide(color: AppTheme.primary, width: 1.5),
                               ),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                             ),
                           ),
                           const SizedBox(height: 12),
@@ -298,7 +369,11 @@ class _AuthScreenState extends State<AuthScreen> {
                           decoration: InputDecoration(
                             labelText: 'Adresse Email',
                             labelStyle: const TextStyle(color: Colors.white54, fontSize: 13),
-                            prefixIcon: const FaIcon(FontAwesomeIcons.envelope, color: Colors.white54, size: 18),
+                            prefixIcon: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              child: FaIcon(FontAwesomeIcons.envelope, color: Colors.white54, size: 16),
+                            ),
+                            prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
                             filled: true,
                             fillColor: Colors.black.withValues(alpha: 0.4),
                             border: OutlineInputBorder(
@@ -313,6 +388,7 @@ class _AuthScreenState extends State<AuthScreen> {
                               borderRadius: BorderRadius.circular(14),
                               borderSide: const BorderSide(color: AppTheme.primary, width: 1.5),
                             ),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                           ),
                         ),
 
@@ -331,15 +407,23 @@ class _AuthScreenState extends State<AuthScreen> {
                           decoration: InputDecoration(
                             labelText: 'Mot de passe',
                             labelStyle: const TextStyle(color: Colors.white54, fontSize: 13),
-                            prefixIcon: const FaIcon(FontAwesomeIcons.lock, color: Colors.white54, size: 18),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _obscurePassword ? FontAwesomeIcons.eyeSlash.data : FontAwesomeIcons.eye.data,
-                                color: Colors.white54,
-                                size: 18,
-                              ),
-                              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                            prefixIcon: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              child: FaIcon(FontAwesomeIcons.lock, color: Colors.white54, size: 16),
                             ),
+                            prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+                            suffixIcon: Padding(
+                              padding: const EdgeInsets.only(right: 12),
+                              child: GestureDetector(
+                                onTap: () => setState(() => _obscurePassword = !_obscurePassword),
+                                child: Icon(
+                                  _obscurePassword ? FontAwesomeIcons.eyeSlash.data : FontAwesomeIcons.eye.data,
+                                  color: Colors.white54,
+                                  size: 16,
+                                ),
+                              ),
+                            ),
+                            suffixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
                             filled: true,
                             fillColor: Colors.black.withValues(alpha: 0.4),
                             border: OutlineInputBorder(
@@ -354,6 +438,7 @@ class _AuthScreenState extends State<AuthScreen> {
                               borderRadius: BorderRadius.circular(14),
                               borderSide: const BorderSide(color: AppTheme.primary, width: 1.5),
                             ),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                           ),
                         ),
 
@@ -383,6 +468,56 @@ class _AuthScreenState extends State<AuthScreen> {
                                     _isRegister ? 'CRÉER MON COMPTE' : 'SE CONNECTER',
                                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 0.5),
                                   ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        // Divider avec "OU"
+                        Row(
+                          children: [
+                            Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.2))),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              child: Text(
+                                'OU',
+                                style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                            Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.2))),
+                          ],
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        // Bouton Google Sign In
+                        SizedBox(
+                          height: 48,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: Colors.black87,
+                              elevation: 2,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                            onPressed: _isLoading ? null : _handleGoogleLogin,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SvgPicture.asset(
+                                  'assets/google_logo.svg',
+                                  width: 20,
+                                  height: 20,
+                                ),
+                                const SizedBox(width: 10),
+                                const Text(
+                                  'Continuer avec Google',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
 

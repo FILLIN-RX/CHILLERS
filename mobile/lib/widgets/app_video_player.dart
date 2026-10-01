@@ -27,6 +27,7 @@ class AppVideoPlayer extends StatefulWidget {
   final bool autoPlay;
   final bool isLive;
   final bool isFullScreen;
+  final bool hideControls; // Nouveau: masquer les contrôles
   final Duration? initialPosition;
   final void Function(Duration position, Duration duration)? onProgress;
   final ValueChanged<bool>? onPlayingChanged;
@@ -43,6 +44,7 @@ class AppVideoPlayer extends StatefulWidget {
     this.autoPlay = true,
     this.isLive = false,
     this.isFullScreen = false,
+    this.hideControls = false,
     this.initialPosition,
     this.onProgress,
     this.onPlayingChanged,
@@ -830,18 +832,19 @@ class AppVideoPlayerState extends State<AppVideoPlayer> with TickerProviderState
               ),
             ),
 
-            // 2. Détecteur de Gestes Tactiles (Double-Tap & Swipe Luminosité/Volume)
-            Positioned.fill(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTapDown: (details) => _handleTapDown(details, screenWidth),
-                onVerticalDragUpdate: (details) =>
-                    _handleVerticalDragUpdate(details, screenWidth, screenHeight),
+            // 2. Détecteur de Gestes Tactiles (Double-Tap & Swipe Luminosité/Volume) - Désactivé si hideControls=true
+            if (!widget.hideControls)
+              Positioned.fill(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTapDown: (details) => _handleTapDown(details, screenWidth),
+                  onVerticalDragUpdate: (details) =>
+                      _handleVerticalDragUpdate(details, screenWidth, screenHeight),
+                ),
               ),
-            ),
 
-            // 3. Animation Double-Tap Ripple Gauche (-10s)
-            if (_showLeftSeekRipple)
+            // 3. Animation Double-Tap Ripple Gauche (-10s) - Désactivé si hideControls=true
+            if (!widget.hideControls && _showLeftSeekRipple)
               Positioned(
                 left: 30,
                 top: 0,
@@ -865,8 +868,8 @@ class AppVideoPlayerState extends State<AppVideoPlayer> with TickerProviderState
                 ),
               ),
 
-            // 4. Animation Double-Tap Ripple Droite (+10s)
-            if (_showRightSeekRipple)
+            // 4. Animation Double-Tap Ripple Droite (+10s) - Désactivé si hideControls=true
+            if (!widget.hideControls && _showRightSeekRipple)
               Positioned(
                 right: 30,
                 top: 0,
@@ -890,8 +893,8 @@ class AppVideoPlayerState extends State<AppVideoPlayer> with TickerProviderState
                 ),
               ),
 
-            // 5. HUD Jauge Luminosité (Gauche)
-            if (_showBrightnessHud)
+            // 5. HUD Jauge Luminosité (Gauche) - Désactivé si hideControls=true
+            if (!widget.hideControls && _showBrightnessHud)
               Positioned(
                 left: 24,
                 top: screenHeight * 0.25,
@@ -903,8 +906,8 @@ class AppVideoPlayerState extends State<AppVideoPlayer> with TickerProviderState
                 ),
               ),
 
-            // 6. HUD Jauge Volume (Droite)
-            if (_showVolumeHud)
+            // 6. HUD Jauge Volume (Droite) - Désactivé si hideControls=true
+            if (!widget.hideControls && _showVolumeHud)
               Positioned(
                 right: 24,
                 top: screenHeight * 0.25,

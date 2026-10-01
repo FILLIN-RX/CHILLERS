@@ -85,26 +85,14 @@ export default async function HomePage() {
 
   const trendingAll = [...trendingMovies, ...trendingTV];
 
-  console.log("FETCH RESULTS:", {
-    martialArts: martialArts.length,
-    newAnime: newAnime.length,
-    tvForYou: tvForYouPage.results?.length,
-    saDrama: saDrama.length,
-    madeInChina: madeInChina.length,
-    boxOffice: boxOffice.length,
-    barbieMovies: barbieMovies.length,
-    realityShows: realityShows.length,
-    allTimeFavorites: allTimeFavorites.length,
-  });
-
-  const popularSeries = popularTVPage.results;
-  const animeCollection = animeSeriesPage.results;
-  const africanMovies = africanM;
-  const africanSeries = africanS;
+  const popularSeries = popularTVPage.results || [];
+  const animeCollection = animeSeriesPage.results || [];
+  const africanMovies = africanM || [];
+  const africanSeries = africanS || [];
 
   // Hero Carousel dynamique : mélange équilibré de films populaires, grandes séries et animes phares
   const heroBase = [];
-  const mSlice = popularMoviesPage.results.slice(0, 5);
+  const mSlice = (popularMoviesPage.results || []).slice(0, 5);
   const sSlice = popularSeries.slice(0, 4);
   const aSlice = animeCollection.slice(0, 3);
   const maxLen = Math.max(mSlice.length, sSlice.length, aSlice.length);

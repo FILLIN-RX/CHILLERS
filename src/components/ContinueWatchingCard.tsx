@@ -2,11 +2,15 @@
 
 import React, { useRef, useCallback, useState } from "react";
 import Image from "next/image";
+import dynamic from "next/dynamic";
 import gsap from "gsap";
 import type { MovieOrShow } from "@/types/media";
 import { Play, ListNumbers } from '@phosphor-icons/react';
 import { useAuthStore } from "@/stores/useAuthStore";
-import AddToPlaylistModal from "@/components/AddToPlaylistModal";
+
+const AddToPlaylistModal = dynamic(() => import("@/components/AddToPlaylistModal"), {
+  ssr: false,
+});
 
 interface ContinueWatchingCardProps {
   item: MovieOrShow;
@@ -19,7 +23,7 @@ interface ContinueWatchingCardProps {
 
 const PLACEHOLDER_POSTER = "https://images.unsplash.com/photo-1578894381163-e72c17f2d45f?q=80&w=400";
 
-export default function ContinueWatchingCard({
+function ContinueWatchingCard({
   item,
   progress,
   episodeName,
@@ -199,3 +203,5 @@ export default function ContinueWatchingCard({
     </div>
   );
 }
+
+export default React.memo(ContinueWatchingCard);

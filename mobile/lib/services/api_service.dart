@@ -151,6 +151,48 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> googleLogin({
+    required String email,
+    String? username,
+    String? avatarUrl,
+    String? deviceId,
+    String? deviceName,
+  }) async {
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$_base/api/auth/google'),
+            headers: await _getHeaders(),
+            body: json.encode({
+              'email': email,
+              'username': username,
+              'avatarUrl': avatarUrl,
+              'deviceId': deviceId,
+              'deviceName': deviceName,
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      final data = json.decode(response.body);
+      if (response.statusCode == 200 && data['success'] == true) {
+        if (data['token'] != null) {
+          await _storage.saveToken(data['token']);
+        }
+        if (data['user'] != null) {
+          final user = UserModel.fromJson(data['user']);
+          await _storage.saveUser(user);
+        }
+        return {'success': true, 'data': data};
+      }
+      return {
+        'success': false,
+        'message': data['message'] ?? 'Erreur lors de la connexion Google',
+      };
+    } catch (e) {
+      return {'success': false, 'message': 'Impossible de contacter le serveur: $e'};
+    }
+  }
+
   Future<UserModel?> getProfile() async {
     try {
       final response = await http

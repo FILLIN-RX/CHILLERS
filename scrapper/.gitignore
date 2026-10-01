@@ -1,6 +1,0 @@
-node_modules/
-dist/
-.env
-*.bak-*
-tmdb-link-errors.log
-tmdb-movie-link-errors.log

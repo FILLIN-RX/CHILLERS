@@ -35,6 +35,7 @@ export default function HeroCarousel({
   const [isPaused, setIsPaused] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
   const [trailerMap, setTrailerMap] = useState<Record<string, string>>({});
+  const trailerMapRef = useRef<Record<string, string>>({});
   const [isVideoReady, setIsVideoReady] = useState(false);
   const [videoExpired, setVideoExpired] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -58,7 +59,7 @@ export default function HeroCarousel({
     if (!currentSlide) return;
 
     // Si on a déjà l'URL du trailer dans la slide ou en cache interne
-    const existingUrl = currentSlide.videoUrl || trailerMap[currentSlide.id];
+    const existingUrl = currentSlide.videoUrl || trailerMapRef.current[currentSlide.id];
     if (existingUrl) {
       const timer = setTimeout(() => setIsVideoReady(true), 300);
       return () => clearTimeout(timer);
@@ -70,6 +71,7 @@ export default function HeroCarousel({
         const isTV = currentSlide.type === "series" || currentSlide.type === "anime";
         const url = await getMediaTrailerUrl(currentSlide.id, isTV);
         if (url) {
+          trailerMapRef.current[currentSlide.id] = url;
           setTrailerMap((prev) => ({ ...prev, [currentSlide.id]: url }));
           setIsVideoReady(true);
         }
@@ -77,7 +79,7 @@ export default function HeroCarousel({
     }, 800);
 
     return () => clearTimeout(loadTimer);
-  }, [currentIndex, slides, isPaused, trailerMap]);
+  }, [currentIndex, slides, isPaused, isMobile]);
 
   // Durée d'affichage de la vidéo (pause automatique après 25s pour économiser CPU)
   useEffect(() => {
