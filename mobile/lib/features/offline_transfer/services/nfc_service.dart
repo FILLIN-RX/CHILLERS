@@ -2,8 +2,12 @@ library;
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
+import 'package:nfc_manager/ndef_record.dart';
 import 'package:nfc_manager/nfc_manager.dart';
+import 'package:nfc_manager/nfc_manager_android.dart';
+import 'package:nfc_manager/nfc_manager_ios.dart';
 import '../models/connection_credentials.dart';
 
 /// Service handling Near Field Communication for fast device pairing
@@ -18,11 +22,23 @@ class NFCService {
   /// Checks if NFC hardware is available and enabled on device
   Future<bool> isNFCAvailable() async {
     try {
-      return await NfcManager.instance.isAvailable();
+      final availability = await NfcManager.instance.checkAvailability();
+      return availability == NfcAvailability.enabled;
     } catch (e) {
       debugPrint('[NFCService] Error checking availability: $e');
       return false;
     }
+  }
+
+  Uint8List _createTextPayload(String text, {String languageCode = 'en'}) {
+    final langBytes = ascii.encode(languageCode);
+    final textBytes = utf8.encode(text);
+    final statusByte = langBytes.length & 0x3F;
+    final builder = BytesBuilder();
+    builder.addByte(statusByte);
+    builder.add(langBytes);
+    builder.add(textBytes);
+    return builder.toBytes();
   }
 
   /// Starts NFC emission mode on sender device to broadcast [credentials]
@@ -46,23 +62,39 @@ class NFCService {
           NfcPollingOption.iso15693,
         },
         onDiscovered: (NfcTag tag) async {
-          final ndef = Ndef.from(tag);
-          if (ndef == null) {
-            onStatusChange?.call('Tag NFC incompatible');
-            return;
-          }
-
-          if (!ndef.isWritable) {
-            onStatusChange?.call('Tag NFC en lecture seule');
-            return;
-          }
-
           final jsonPayload = jsonEncode(credentials.toJson());
-          final record = NdefRecord.createText(jsonPayload);
-          final message = NdefMessage([record]);
+          final record = NdefRecord(
+            typeNameFormat: TypeNameFormat.wellKnown,
+            type: Uint8List.fromList(utf8.encode('T')),
+            identifier: Uint8List(0),
+            payload: _createTextPayload(jsonPayload),
+          );
+          final message = NdefMessage(records: [record]);
 
           try {
-            await ndef.write(message);
+            if (defaultTargetPlatform == TargetPlatform.android) {
+              final ndef = NdefAndroid.from(tag);
+              if (ndef == null) {
+                onStatusChange?.call('Tag NFC incompatible');
+                return;
+              }
+              if (!ndef.isWritable) {
+                onStatusChange?.call('Tag NFC en lecture seule');
+                return;
+              }
+              await ndef.writeNdefMessage(message);
+            } else if (defaultTargetPlatform == TargetPlatform.iOS) {
+              final ndef = NdefIos.from(tag);
+              if (ndef == null) {
+                onStatusChange?.call('Tag NFC incompatible');
+                return;
+              }
+              await ndef.writeNdef(message);
+            } else {
+              onStatusChange?.call('Plateforme non supportée');
+              return;
+            }
+
             onStatusChange?.call('Identifiants transmis avec succès via NFC !');
             await NfcManager.instance.stopSession();
             _isSessionActive = false;
@@ -102,23 +134,47 @@ class NFCService {
           NfcPollingOption.iso15693,
         },
         onDiscovered: (NfcTag tag) async {
-          final ndef = Ndef.from(tag);
-          if (ndef == null || ndef.cachedMessage == null) {
+          NdefMessage? message;
+          if (defaultTargetPlatform == TargetPlatform.android) {
+            final ndef = NdefAndroid.from(tag);
+            message = ndef?.cachedNdefMessage;
+            if (message == null && ndef != null) {
+              try {
+                message = await ndef.getNdefMessage();
+              } catch (_) {}
+            }
+          } else if (defaultTargetPlatform == TargetPlatform.iOS) {
+            final ndef = NdefIos.from(tag);
+            message = ndef?.cachedNdefMessage;
+            if (message == null && ndef != null) {
+              try {
+                message = await ndef.readNdef();
+              } catch (_) {}
+            }
+          }
+
+          if (message == null || message.records.isEmpty) {
             onStatusChange?.call('Aucun message NDEF détecté');
             return;
           }
 
-          for (final record in ndef.cachedMessage!.records) {
+          for (final record in message.records) {
             try {
               // Parse text record or generic payload
               String payloadString;
-              if (record.typeNameFormat == NdefTypeNameFormat.nfcWellknown) {
+              if (record.typeNameFormat == TypeNameFormat.wellKnown &&
+                  record.type.length == 1 &&
+                  record.type[0] == 0x54) {
                 // Text record payload begins with status byte and language code
                 final payload = record.payload;
                 if (payload.isNotEmpty) {
                   final languageCodeLength = payload[0] & 0x3F;
-                  final textBytes = payload.sublist(1 + languageCodeLength);
-                  payloadString = utf8.decode(textBytes);
+                  if (payload.length >= 1 + languageCodeLength) {
+                    final textBytes = payload.sublist(1 + languageCodeLength);
+                    payloadString = utf8.decode(textBytes);
+                  } else {
+                    payloadString = utf8.decode(payload);
+                  }
                 } else {
                   payloadString = utf8.decode(record.payload);
                 }

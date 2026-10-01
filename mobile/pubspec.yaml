@@ -53,12 +53,16 @@ dependencies:
   google_sign_in: ^6.2.1
   flutter_svg: ^2.0.9
   
+  # In-App Updates & App Info
+  package_info_plus: ^10.2.1
+  open_filex: ^4.5.0
+
   # Offline P2P Transfer dependencies
   network_info_plus: ^8.2.1
   wifi_iot: ^0.3.19
-  nfc_manager: ^3.5.0
+  nfc_manager: ^4.2.1
   qr_flutter: ^4.1.0
-  mobile_scanner: ^5.2.3
+  mobile_scanner: ^7.4.2
   shelf: ^1.4.2
   uuid: ^4.5.1
   device_preview: ^3.0.0

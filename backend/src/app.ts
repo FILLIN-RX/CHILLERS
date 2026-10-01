@@ -162,8 +162,23 @@ app.use('/api/admin', verifyCsrfToken);
 app.use('/api/user', verifyCsrfToken);
 app.use('/api/auth/logout', verifyCsrfToken);
 
-// Protection anti-bot & anti-scraping sur les routes publiques et médias
-app.use('/api', antiBotMiddleware);
+// In-App update check for mobile client
+app.get('/api/app-version', (_req, res) => {
+  res.json({
+    success: true,
+    data: {
+      version: '1.0.0',
+      buildNumber: 1,
+      minVersion: '1.0.0',
+      apkUrl: 'https://github.com/FILLIN-RX/CHILLERS/releases/latest/download/app-release.apk',
+      universalApkUrl: 'https://github.com/FILLIN-RX/CHILLERS/releases/latest/download/app-release.apk',
+      arm64ApkUrl: 'https://github.com/FILLIN-RX/CHILLERS/releases/latest/download/app-arm64-v8a-release.apk',
+      changelog: 'Nouvelle version de Chillers Mobile avec streaming haute vitesse, téléchargements et transfert P2P/NFC.',
+      releaseDate: new Date().toISOString().split('T')[0],
+      forceUpdate: false,
+    },
+  });
+});
 
 app.use('/api/movies', moviesRoutes);
 app.use('/api/tv', tvRoutes);

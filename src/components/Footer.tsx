@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Heart, Camera, Info, Envelope, ShieldCheckered, Play } from '@phosphor-icons/react';
+import DownloadApkButton from "./DownloadApkButton";
 
 export default function Footer() {
   const [isStandalone, setIsStandalone] = useState(false);
@@ -24,7 +25,7 @@ export default function Footer() {
       <div className="mx-auto px-4 sm:px-8 md:px-12 lg:px-[4%] py-12 space-y-12">
         
         {/* Top Info Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8">
 
           {/* Brand Info */}
           <div className="space-y-4">
@@ -72,10 +73,9 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Categories Links — point to the /categories page with a query for
-              the specific genre so the destination isn't a dead-end. */}
+          {/* Categories Links */}
           <div className="space-y-3">
-            <h3 className="text-xs font-extrabold uppercase tracking-widest text-foreground">Categories</h3>
+            <h3 className="text-xs font-extrabold uppercase tracking-widest text-foreground">Catégories</h3>
             <ul className="space-y-2 text-xs text-brand-text-muted font-medium">
               <li>
                 <Link
@@ -110,10 +110,21 @@ export default function Footer() {
                   className="flex items-center gap-2 hover:text-brand-primary transition-colors"
                 >
                   <Play className="h-3.5 w-3.5" />
-                  Cultural Documentaries
+                  Documentaires
                 </Link>
               </li>
             </ul>
+          </div>
+
+          {/* Application Android */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-extrabold uppercase tracking-widest text-foreground">App Mobile</h3>
+            <p className="text-xs text-brand-text-muted font-light">
+              Emportez Chillers partout. Téléchargements, lecteur optimisé et P2P.
+            </p>
+            <div className="pt-1">
+              <DownloadApkButton variant="compact" />
+            </div>
           </div>
 
           {/* Support / Donate */}

@@ -5,47 +5,12 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight } from "@phosphor-icons/react";
 import { getSportsMatches } from "@/services/sports";
-import type { SportsMatch, SportsSourceId } from "@/types/sports";
+import type { SportsMatch } from "@/types/sports";
 
-const SOURCE_TABS: { id: "kora" | "live" | "all" | SportsSourceId; label: string }[] = [
-  { id: "kora", label: "Kora (Direct)" },
-  { id: "live", label: "Tous en Direct" },
-  { id: "yallapro", label: "Yallapro" },
-  { id: "kooorah", label: "Kooorah" },
-  { id: "streamiz", label: "Streamiz" },
+const STATUS_TABS: { id: "all" | "live"; label: string }[] = [
   { id: "all", label: "Tous les Matchs" },
+  { id: "live", label: "En Direct" },
 ];
-
-const SOURCE_LABELS: Record<SportsSourceId, string> = {
-  kora: "Kora",
-  kooorah: "Kooorah",
-  yallapro: "Yallapro",
-  streamiz: "Streamiz",
-};
-
-/** Regroupe les mêmes rencontres publiées par plusieurs sources. */
-interface Fixture {
-  key: string;
-  primary: SportsMatch;
-  sources: SportsMatch[];
-}
-
-function normalizeTeam(name: string): string {
-  return name
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/\s*\b(u17|u20|u19|u21|u23|f\.?c\.?|w\.?c\.?)\b/g, "")
-    .replace(/[^a-z]/g, "");
-}
-
-function fixtureKey(m: SportsMatch): string {
-  const home = normalizeTeam(m.home);
-  const away = normalizeTeam(m.away);
-  // Le nom des équipes est déjà ordonné de façon cohérente entre les sources ;
-  // on garde l'ordre pour ne pas fusionner les demi-manuels inversés.
-  return `${home}|${away}`;
-}
 
 function formatMatchTime(ts?: number): string {
   if (!ts) return "Bientôt";
@@ -87,7 +52,7 @@ export default function SportsMatchesRow({
   title?: string;
   className?: string;
 }) {
-  const [activeSource, setActiveSource] = useState<string>("kora");
+  const [activeTab, setActiveTab] = useState<"all" | "live">("all");
 
   const { data: matches = [], isLoading } = useQuery({
     queryKey: ["live", "sports"],
@@ -96,50 +61,28 @@ export default function SportsMatchesRow({
     refetchInterval: 120_000,
   });
 
-  const fixtures = useMemo<Fixture[]>(() => {
-    const map = new Map<string, Fixture>();
-    for (const m of matches) {
-      if (!m?.id || !m.home) continue;
-      const key = fixtureKey(m);
-      const existing = map.get(key);
-      if (existing) {
-        existing.sources.push(m);
-        // On privilégie la rencontre qui a un score / un horaire : les sources
-        // sans score servent juste de miroir de secours.
-        if (!existing.primary.score && m.score) existing.primary = m;
-      } else {
-        map.set(key, { key, primary: m, sources: [m] });
-      }
-    }
-    return Array.from(map.values());
+  // Déduplique par ID (le backend agrège déjà toutes les sources)
+  const deduped = useMemo<SportsMatch[]>(() => {
+    const seen = new Set<string>();
+    return matches.filter((m) => {
+      if (!m?.id || !m.home) return false;
+      if (seen.has(m.id)) return false;
+      seen.add(m.id);
+      return true;
+    });
   }, [matches]);
 
   const filtered = useMemo(() => {
-    const byTab = (f: Fixture) => {
-      if (activeSource === "all") return f.sources;
-      if (activeSource === "live") return f.sources.filter((m) => m.status === "live");
-      return f.sources.filter((m) => m.source === activeSource);
-    };
+    if (activeTab === "live") return deduped.filter((m) => m.status === "live");
+    return deduped;
+  }, [deduped, activeTab]);
 
-    return fixtures
-      .map((f) => {
-        const candidates = byTab(f);
-        if (candidates.length === 0) return null;
-        const primary = candidates.find((m) => m.status === "live") ?? candidates[0];
-        return { ...f, primary, sources: candidates };
-      })
-      .filter((f): f is Fixture => f !== null);
-  }, [fixtures, activeSource]);
+  const liveCount = useMemo(
+    () => deduped.filter((m) => m.status === "live").length,
+    [deduped]
+  );
 
-  const liveCount = useMemo(() => {
-    const keys = new Set<string>();
-    for (const m of matches) {
-      if (m?.status === "live") keys.add(fixtureKey(m));
-    }
-    return keys.size;
-  }, [matches]);
-
-  if (!isLoading && fixtures.length === 0) return null;
+  if (!isLoading && deduped.length === 0) return null;
 
   return (
     <div className={`relative ${className}`}>
@@ -166,13 +109,14 @@ export default function SportsMatchesRow({
         </Link>
       </div>
 
+      {/* Filtres simplifiés : Tous / En Direct uniquement */}
       <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2 pt-0.5 px-1">
-        {SOURCE_TABS.map((tab) => {
-          const isSelected = activeSource === tab.id;
+        {STATUS_TABS.map((tab) => {
+          const isSelected = activeTab === tab.id;
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveSource(tab.id)}
+              onClick={() => setActiveTab(tab.id)}
               className={`shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 focus:outline-none cursor-pointer ${
                 isSelected
                   ? "bg-red-600 text-white shadow-md shadow-red-600/30 scale-[1.02]"
@@ -192,18 +136,18 @@ export default function SportsMatchesRow({
         </div>
       ) : filtered.length === 0 ? (
         <div className="py-8 px-4 rounded-2xl bg-zinc-900/40 text-center">
-          <p className="text-xs text-zinc-500 font-medium">Aucune rencontre disponible sur cette source.</p>
+          <p className="text-xs text-zinc-500 font-medium">
+            {activeTab === "live" ? "Aucune rencontre en direct pour le moment." : "Aucune rencontre disponible."}
+          </p>
         </div>
       ) : (
         <div className="flex gap-4 sm:gap-5 overflow-x-auto no-scrollbar py-2 px-1">
-          {filtered.map((f) => {
-            const m = f.primary;
+          {filtered.map((m) => {
             const isLive = m.status === "live";
-            const extraSources = f.sources.length - 1;
 
             return (
               <Link
-                key={f.key}
+                key={m.id}
                 href={`/live/sp/${encodeURIComponent(m.id)}`}
                 className="group shrink-0 flex flex-col justify-between rounded-2xl p-3.5 w-[260px] sm:w-[280px] bg-transparent hover:bg-white/[0.04] transition-all duration-300 hover:scale-[1.02] cursor-pointer"
               >
@@ -244,7 +188,7 @@ export default function SportsMatchesRow({
                   <div className="flex-1 flex flex-col items-center text-center min-w-0">
                     <TeamCrest src={m.awayLogo} alt={m.away || "?"} />
                     <p className="mt-1.5 text-[11px] font-bold text-white truncate w-full group-hover:text-red-400 transition-colors">
-                      {m.away || SOURCE_LABELS[m.source]}
+                      {m.away || ""}
                     </p>
                   </div>
                 </div>
@@ -255,13 +199,8 @@ export default function SportsMatchesRow({
                       isLive ? "text-red-500 group-hover:text-red-400" : "text-zinc-400"
                     } transition-colors`}
                   >
-                    {isLive ? "Regarder le direct" : SOURCE_LABELS[m.source]}
+                    {isLive ? "Regarder le direct" : "Voir le match"}
                   </span>
-                  {extraSources > 0 && (
-                    <span className="text-[10px] font-black text-zinc-500 bg-white/5 border border-white/10 rounded-full px-1.5 py-0.5">
-                      +{extraSources}
-                    </span>
-                  )}
                   {isLive && (
                     <ArrowRight className="w-3.5 h-3.5 text-red-500 transition-transform group-hover:translate-x-0.5" />
                   )}

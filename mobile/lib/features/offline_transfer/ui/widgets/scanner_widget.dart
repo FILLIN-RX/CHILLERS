@@ -57,7 +57,7 @@ class _ScannerWidgetState extends State<ScannerWidget> {
           MobileScanner(
             controller: _controller,
             onDetect: _handleBarcode,
-            errorBuilder: (context, error, child) {
+            errorBuilder: (context, error) {
               return Center(
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),

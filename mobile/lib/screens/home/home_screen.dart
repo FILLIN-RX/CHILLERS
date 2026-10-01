@@ -6,6 +6,7 @@ import '../../models/media_item.dart';
 import '../../models/live_match.dart';
 import '../../services/api_service.dart';
 import '../../services/storage_service.dart';
+import '../../services/app_update_service.dart';
 import '../../widgets/hero_carousel.dart';
 import '../../widgets/top_10_section.dart';
 import '../../widgets/upcoming_section.dart';
@@ -13,7 +14,6 @@ import '../../widgets/spotlight_grid.dart';
 import '../../widgets/media_scroll_row.dart';
 import '../detail/detail_screen.dart';
 import '../watch/watch_screen.dart';
-import '../live/live_screen.dart';
 import '../live/live_matches_screen.dart';
 import '../search/optimized_search_screen.dart';
 import '../main_navigation.dart';
@@ -83,6 +83,10 @@ class _HomeScreenState extends State<HomeScreen> {
     _mainScrollController = ScrollController();
     _mainScrollController.addListener(_onMainScroll);
     _loadAllHomeData();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AppUpdateService().showUpdateDialogIfAvailable(context, checkSilently: true);
+    });
   }
 
   @override

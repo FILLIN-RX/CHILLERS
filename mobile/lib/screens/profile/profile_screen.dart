@@ -4,13 +4,13 @@ import '../../models/user_model.dart';
 import '../../models/subscription_plan.dart';
 import '../../services/storage_service.dart';
 import '../../services/api_service.dart';
+import '../../services/app_update_service.dart';
 import '../auth/auth_screen.dart';
 import '../history/history_screen.dart';
 import '../favorites/favorites_screen.dart';
 import '../playlists/playlists_screen.dart';
 import '../../widgets/upgrade_modal.dart';
 import '../../services/biometric_service.dart';
-import '../../services/notification_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -395,6 +395,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   // ── 5. ASSISTANCE & LÉGAL ──
                   _buildSectionTitle('Assistance & Informations'),
                   _buildNetflixTile(
+                    icon: Icons.system_update_rounded,
+                    title: 'Mises à jour de l\'application',
+                    subtitle: 'Vérifier si une nouvelle version est disponible',
+                    onTap: () {
+                      AppUpdateService().showUpdateDialogIfAvailable(context, checkSilently: false);
+                    },
+                  ),
+                  _buildNetflixTile(
                     icon: Icons.help_outline_rounded,
                     title: 'Centre d\'aide & FAQ',
                     onTap: () {
@@ -435,7 +443,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 12),
                   const Center(
                     child: Text(
-                      'CHILLERS v2.4.0 (Build 2026)',
+                      'CHILLERS Mobile (Build 2026)',
                       style: TextStyle(color: Colors.white24, fontSize: 11),
                     ),
                   ),
@@ -508,7 +516,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       subtitle: Text(subtitle, style: const TextStyle(color: Colors.white38, fontSize: 11.5)),
       value: value,
-      activeColor: const Color(0xFFE50914),
+      activeThumbColor: const Color(0xFFE50914),
       onChanged: onChanged,
     );
   }
