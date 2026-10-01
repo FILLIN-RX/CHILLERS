@@ -23,6 +23,7 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { userService } from "@/services/user";
 import { PopupFirewall } from "@/lib/PopupFirewall";
+import NetflixDownloadButton from "@/components/NetflixDownloadButton";
 import Button from "@/components/Button";
 import CardImage from "@/components/CardImage";
 import { ArrowLeft, Play, Star, Clock, CalendarBlank, FilmSlate, DownloadSimple, ShareNetwork, CaretDown, CaretCircleRight, CaretCircleLeft, Translate } from "@phosphor-icons/react";
@@ -833,15 +834,14 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
           {/* Action Download Buttons */}
           {item ? (
             <div className="flex items-center gap-2 sm:gap-2.5 py-1 flex-wrap sm:flex-nowrap">
-              <Button
+              <NetflixDownloadButton
+                tmdbId={item.id}
+                type={item.type === "anime" ? "anime" : item.type === "series" ? "series" : "movie"}
+                season={currentEpisode?.season}
+                episodeNumber={currentEpisode?.number}
+                title={isTV ? "Télécharger l'épisode" : "Télécharger le film"}
                 onClick={() => handleDownloadSingle(currentEpisode)}
-                disabled={streamUnavailable}
-                variant="dark"
-                size="md"
-                text={_("download.single")}
-                leftIcon={<DownloadSimple className="h-4 w-4 text-zinc-300" />}
-                ariaLabel={_("download.single")}
-                className="flex-1 min-w-[140px]"
+                className="flex-1 min-w-[140px] justify-center"
               />
 
               {isTV ? (

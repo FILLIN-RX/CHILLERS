@@ -1,6 +1,6 @@
 """Generate the mobile splash assets.
 
-- assets/brand/mark.webp : centred crystal-C mark used by the Flutter splash
+- assets/brand/mark.webp : centred prism-C mark used by the Flutter splash
 - lib/screens/splash/splash_beams.dart : per-column silhouette profile sampled
   from that mark, so the laser beams trace the real logo outline at runtime
   without decoding pixels on the phone.
@@ -8,7 +8,7 @@
 from PIL import Image, ImageFilter
 import os
 
-SRC = "brand/intro/assets/chillers-logo-2k.png"
+SRC = "brand/icon/master/chillers-mark-1024.png"
 OUT_WEBP = "mobile/assets/brand/mark.webp"
 OUT_DART = "mobile/lib/screens/splash/splash_beams.dart"
 COLS = 56

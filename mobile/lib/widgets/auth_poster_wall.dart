@@ -16,35 +16,35 @@ class _AuthPosterWallState extends State<AuthPosterWall>
   static const List<List<String>> _columns = [
     // Column 1
     [
-      "https://image.tmdb.org/t/p/w500/pEEI5mMoyZrbapzWC6vB6UmesDW.jpg",
-      "https://image.tmdb.org/t/p/w500/dFwseuSlDUNiwMuElDb3OAOQ8En.jpg",
-      "https://image.tmdb.org/t/p/w500/kP8jJIkmX0vWEYiqQ9c5zU0dvcn.jpg",
-      "https://image.tmdb.org/t/p/w500/rfRLWbxLZPq2eboKPsBvh1NgNwM.jpg",
-      "https://image.tmdb.org/t/p/w500/1CuYfdSqpIjsWIaCftQKBCjNlG.jpg",
+      "https://image.tmdb.org/t/p/original/pEEI5mMoyZrbapzWC6vB6UmesDW.jpg",
+      "https://image.tmdb.org/t/p/original/dFwseuSlDUNiwMuElDb3OAOQ8En.jpg",
+      "https://image.tmdb.org/t/p/original/kP8jJIkmX0vWEYiqQ9c5zU0dvcn.jpg",
+      "https://image.tmdb.org/t/p/original/rfRLWbxLZPq2eboKPsBvh1NgNwM.jpg",
+      "https://image.tmdb.org/t/p/original/1CuYfdSqpIjsWIaCftQKBCjNlG.jpg",
     ],
     // Column 2
     [
-      "https://image.tmdb.org/t/p/w500/m2FaGlQUKMMFE6nUMwFTcIWbnEi.jpg",
-      "https://image.tmdb.org/t/p/w500/fN4YJFr6d1Zx2fNBlzGLyShO6sc.jpg",
-      "https://image.tmdb.org/t/p/w500/eHELFF4BBxmEk5JyhV017Xcgvwy.jpg",
-      "https://image.tmdb.org/t/p/w500/19SvZsTB6UINUZowkBsPSGZUNxD.jpg",
-      "https://image.tmdb.org/t/p/w500/gF6Ijrq5bixh4qemCuroRwXtbBc.jpg",
+      "https://image.tmdb.org/t/p/original/m2FaGlQUKMMFE6nUMwFTcIWbnEi.jpg",
+      "https://image.tmdb.org/t/p/original/fN4YJFr6d1Zx2fNBlzGLyShO6sc.jpg",
+      "https://image.tmdb.org/t/p/original/eHELFF4BBxmEk5JyhV017Xcgvwy.jpg",
+      "https://image.tmdb.org/t/p/original/19SvZsTB6UINUZowkBsPSGZUNxD.jpg",
+      "https://image.tmdb.org/t/p/original/gF6Ijrq5bixh4qemCuroRwXtbBc.jpg",
     ],
     // Column 3
     [
-      "https://image.tmdb.org/t/p/w500/mDCR1frpUvGfIKksuM440VLb7X9.jpg",
-      "https://image.tmdb.org/t/p/w500/myJdCnJEsFsMmjKhKopQ32lkcP3.jpg",
-      "https://image.tmdb.org/t/p/w500/b2bt3UomRX41rHHZmIsSNmXzidU.jpg",
-      "https://image.tmdb.org/t/p/w500/8hsSCYpO5XFSAVnn70YehKslgFt.jpg",
-      "https://image.tmdb.org/t/p/w500/iwCeOpuBtuTP1kLosqgniey5OvX.jpg",
+      "https://image.tmdb.org/t/p/original/mDCR1frpUvGfIKksuM440VLb7X9.jpg",
+      "https://image.tmdb.org/t/p/original/myJdCnJEsFsMmjKhKopQ32lkcP3.jpg",
+      "https://image.tmdb.org/t/p/original/b2bt3UomRX41rHHZmIsSNmXzidU.jpg",
+      "https://image.tmdb.org/t/p/original/8hsSCYpO5XFSAVnn70YehKslgFt.jpg",
+      "https://image.tmdb.org/t/p/original/iwCeOpuBtuTP1kLosqgniey5OvX.jpg",
     ],
     // Column 4
     [
-      "https://image.tmdb.org/t/p/w500/eSS5mvSG84UUuvtbHel5Yu3Wik4.jpg",
-      "https://image.tmdb.org/t/p/w500/7bOuu1SRALGwsG2fLCTvRkCmQBj.jpg",
-      "https://image.tmdb.org/t/p/w500/oLld47ZT1I3iecM3OWhIphohQUJ.jpg",
-      "https://image.tmdb.org/t/p/w500/vuxZITXEqsBHBUhc1TKEU8mxvc.jpg",
-      "https://image.tmdb.org/t/p/w500/sJDjdYGDFdx9uftetPPjH7Jwing.jpg",
+      "https://image.tmdb.org/t/p/original/eSS5mvSG84UUuvtbHel5Yu3Wik4.jpg",
+      "https://image.tmdb.org/t/p/original/7bOuu1SRALGwsG2fLCTvRkCmQBj.jpg",
+      "https://image.tmdb.org/t/p/original/oLld47ZT1I3iecM3OWhIphohQUJ.jpg",
+      "https://image.tmdb.org/t/p/original/vuxZITXEqsBHBUhc1TKEU8mxvc.jpg",
+      "https://image.tmdb.org/t/p/original/sJDjdYGDFdx9uftetPPjH7Jwing.jpg",
     ],
   ];
 
@@ -89,6 +89,7 @@ class _AuthPosterWallState extends State<AuthPosterWall>
 
                 return SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
+                  physics: const NeverScrollableScrollPhysics(),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: List.generate(colCount, (colIndex) {
@@ -106,7 +107,7 @@ class _AuthPosterWallState extends State<AuthPosterWall>
                           right: colIndex < colCount - 1 ? spacing : 0,
                         ),
                         clipBehavior: Clip.antiAlias,
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           borderRadius: BorderRadius.zero,
                         ),
                         child: AnimatedBuilder(
@@ -119,30 +120,37 @@ class _AuthPosterWallState extends State<AuthPosterWall>
 
                             return Transform.translate(
                               offset: Offset(0, offsetY),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: fullList.map((url) {
-                                  return Container(
-                                    width: colWidth,
-                                    height: itemHeight,
-                                    margin: const EdgeInsets.only(bottom: spacing),
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(8),
-                                      color: const Color(0xFF18181B),
-                                    ),
-                                    clipBehavior: Clip.antiAlias,
-                                    child: CachedNetworkImage(
-                                      imageUrl: url,
-                                      fit: BoxFit.cover,
-                                      placeholder: (context, url) => Container(
+                              child: OverflowBox(
+                                alignment: Alignment.topCenter,
+                                minHeight: 0,
+                                maxHeight: double.infinity,
+                                minWidth: 0,
+                                maxWidth: colWidth,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: fullList.map((url) {
+                                    return Container(
+                                      width: colWidth,
+                                      height: itemHeight,
+                                      margin: const EdgeInsets.only(bottom: spacing),
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(8),
                                         color: const Color(0xFF18181B),
                                       ),
-                                      errorWidget: (context, url, error) => Container(
-                                        color: const Color(0xFF18181B),
+                                      clipBehavior: Clip.antiAlias,
+                                      child: CachedNetworkImage(
+                                        imageUrl: url,
+                                        fit: BoxFit.cover,
+                                        placeholder: (context, url) => Container(
+                                          color: const Color(0xFF18181B),
+                                        ),
+                                        errorWidget: (context, url, error) => Container(
+                                          color: const Color(0xFF18181B),
+                                        ),
                                       ),
-                                    ),
-                                  );
-                                }).toList(),
+                                    );
+                                  }).toList(),
+                                ),
                               ),
                             );
                           },
@@ -164,9 +172,9 @@ class _AuthPosterWallState extends State<AuthPosterWall>
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Color(0x66060608), // Top subtle darkening for status bar
-                  Color(0x22060608), // Center very transparent so posters pop
-                  Color(0x77060608), // Bottom soft gradient
+                  Color(0x88060608), // Top subtle darkening for status bar
+                  Color(0x44060608), // Center semi-transparent
+                  Color(0xAA060608), // Bottom soft gradient
                 ],
                 stops: [0.0, 0.45, 1.0],
               ),

@@ -45,13 +45,16 @@ export default function AppShell({ children, showBottomNav }: AppShellProps) {
   // (1500 ms = temps raisonnable pour que la page soit rendue)
   useSplashReady(1500);
 
+  // Fullscreen player routes: no page chrome, just the player with its controls (for raw live embed & direct live matches).
+  const isPlayerRoute =
+    pathname?.startsWith("/live/lb/") ||
+    pathname?.startsWith("/live/sp/") ||
+    (pathname?.startsWith("/live/") && pathname !== "/live");
+
   const shouldShowBottomNav =
     typeof showBottomNav === "boolean"
       ? showBottomNav
-      : !pathname?.startsWith("/watch/");
-
-  // Fullscreen player routes: no page chrome, just the player with its controls (for raw live embed).
-  const isPlayerRoute = pathname?.startsWith("/live/lb/");
+      : !pathname?.startsWith("/watch/") && !isPlayerRoute;
 
   // Never let the donation overlay pop on live pages: it blocks the tab/multi
   // switching and video controls while watching.

@@ -19,8 +19,8 @@ class MediaScrollRow extends StatelessWidget {
     required this.items,
     required this.onItemTap,
     this.onDetailsTap,
-    this.itemHeight = 220,
-    this.itemWidth = 125,
+    this.itemHeight = 250,
+    this.itemWidth = 142,
   });
 
   @override

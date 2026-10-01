@@ -24,8 +24,8 @@ class InfiniteMediaSection extends StatefulWidget {
     required this.onItemTap,
     required this.onDetailsTab,
     this.itemsPerPage = 20,
-    this.itemHeight = 220,
-    this.itemWidth = 130,
+    this.itemHeight = 250,
+    this.itemWidth = 142,
   });
 
   @override

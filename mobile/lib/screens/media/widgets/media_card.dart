@@ -46,6 +46,8 @@ class MediaCard extends StatelessWidget {
                           fit: BoxFit.cover,
                           width: double.infinity,
                           height: double.infinity,
+                          memCacheWidth: 600,
+                          memCacheHeight: 900,
                           placeholder: (context, url) => Container(
                             color: AppTheme.card,
                             child: const Center(

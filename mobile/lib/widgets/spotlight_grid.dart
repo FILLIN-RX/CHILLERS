@@ -86,8 +86,8 @@ class SpotlightGrid extends StatelessWidget {
           GestureDetector(
             onTap: () => onOpenDetails(item),
             child: SizedBox(
-              width: 95,
-              height: 140,
+              width: 110,
+              height: 155,
               child: Stack(
                 fit: StackFit.expand,
                 children: [

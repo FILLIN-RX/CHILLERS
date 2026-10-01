@@ -15,6 +15,7 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import { userService } from "@/services/user";
 import { ArrowLeft, Play, CaretCircleLeft, CaretCircleRight, FilmSlate, DownloadSimple, ShareNetwork, BookmarkSimple, Check, Sparkle, LinkSimple, Translate } from "@phosphor-icons/react";
 import Button from "@/components/ui/Button";
+import NetflixDownloadButton from "@/components/NetflixDownloadButton";
 
 export default function SeasonContent() {
   const params = useParams();
@@ -282,7 +283,7 @@ export default function SeasonContent() {
         
         {/* Lecteur Vidéo Plein Écran */}
         <div ref={playerRef} className="w-full bg-black relative scroll-mt-20">
-          <div className="w-full max-h-[60vh] sm:max-h-[75vh] aspect-video bg-black relative mx-auto overflow-hidden">
+          <div className="w-full h-[36vh] xs:h-[40vh] sm:h-auto sm:aspect-video min-h-[260px] xs:min-h-[300px] sm:min-h-[420px] md:min-h-[500px] max-h-[85vh] bg-black relative mx-auto overflow-hidden">
             {streamLoading || !mockItem ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-zinc-500 bg-zinc-950">
                 <div className="animate-spin h-10 w-10 border-4 border-[brand-primary] border-t-transparent rounded-full" />
@@ -304,169 +305,133 @@ export default function SeasonContent() {
           </div>
         </div>
 
-        {/* 3. CONTENU DÉTAILS DE L'ÉPISODE + TIROIR DE NAVIGATION DES ÉPISODES */}
-        <div className="w-full px-4 sm:px-8 md:px-12 lg:px-16 pt-6 sm:pt-8 space-y-6 sm:space-y-8">
+        {/* 3. CONTENU DÉTAILS DE L'ÉPISODE */}
+        <div className="w-full px-4 sm:px-8 md:px-12 lg:px-16 pt-6 sm:pt-8 space-y-8">
           
-          {/* Barre Rapide Précédent / Épisode Actuel / Suivant */}
-          {episodes.length > 0 && (
-            <div className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-zinc-900/70 border border-white/5 backdrop-blur-xl">
-              <button
-                onClick={goPrev}
-                disabled={currentIndex === 0}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/5 text-xs font-semibold text-zinc-300 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer"
-              >
-                <CaretCircleLeft className="h-4 w-4" />
-                <span className="hidden sm:inline">Épisode Précédent</span>
-              </button>
-
-              <div className="text-center truncate px-2 flex-1 min-w-0">
-                <span className="text-[11px] font-black text-[brand-primary] uppercase tracking-widest">
-                  Saison {seasonNumber} · Épisode {currentEpisode?.number || 1}
-                </span>
-                <p className="text-xs sm:text-sm font-bold text-white truncate max-w-md mx-auto">
-                  {currentEpisode?.title || `Épisode ${currentEpisode?.number}`}
-                </p>
-              </div>
-
-              <button
-                onClick={goNext}
-                disabled={currentIndex >= episodes.length - 1}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/5 text-xs font-semibold text-zinc-300 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer"
-              >
-                <span className="hidden sm:inline">Épisode Suivant</span>
-                <CaretCircleRight className="h-4 w-4" />
-              </button>
-            </div>
-          )}
-
-          {/* Grille Principale 2 Colonnes : Détails Épisode à gauche & Liste des Épisodes à droite */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start w-full">
-            
-            {/* Colonne Gauche : Titre, Synopsis & Actions */}
-            <div className="lg:col-span-7 xl:col-span-8 space-y-6">
-              
-              <div className="space-y-2">
+          {/* Section Titre, Actions & Résumé de l'épisode actif */}
+          <div className="max-w-4xl space-y-5">
+            <div className="space-y-2">
+              {currentEpisode?.duration && (
                 <div className="flex items-center gap-2">
-                  <span className="text-[brand-primary] font-black tracking-widest text-xs uppercase flex items-center gap-1 bg-[brand-primary]/10 border border-[brand-primary]/20 px-2.5 py-0.5 rounded-full">
-                    <Sparkle className="w-3 h-3" />
-                    CHILLERS SÉRIE
-                  </span>
-                  <span className="text-xs text-zinc-400 font-mono">
-                    {currentEpisode?.duration}
+                  <span className="text-xs text-zinc-300 font-mono bg-zinc-800/80 border border-zinc-700 px-2.5 py-0.5 rounded-full">
+                    {currentEpisode.duration}
                   </span>
                 </div>
+              )}
 
-                <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
-                  {showTitle}
-                </h1>
-                
-                <h2 className="text-lg sm:text-xl font-bold text-zinc-300">
-                  Saison {seasonNumber} · Épisode {currentEpisode?.number} : {currentEpisode?.title}
-                </h2>
-              </div>
-
-              {/* Boutons d'Action */}
-              <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 pt-1">
-                <Button
-                  onClick={() => {
-                    if (!user) {
-                      setIsAuthModalOpen(true);
-                      return;
-                    }
-                    setShowSingleDownload(true);
-                  }}
-                  disabled={!currentEpisode}
-                  variant="primary"
-                  size="md"
-                  text="Télécharger l'épisode"
-                  leftIcon={<DownloadSimple className="h-4 w-4" />}
-                  ariaLabel="Télécharger cet épisode"
-                />
-
-                <Button
-                  onClick={() => {
-                    if (!user) {
-                      setIsAuthModalOpen(true);
-                      return;
-                    }
-                    setShowBatchDownload(true);
-                  }}
-                  variant="dark"
-                  size="md"
-                  text="Télécharger la saison"
-                  leftIcon={<LinkSimple className="h-4 w-4" />}
-                  ariaLabel="Télécharger la saison complète"
-                />
-
-                {user && (
-                  <Button
-                    onClick={toggleFavorite}
-                    disabled={favoriteLoading}
-                    variant={isFavorite ? "primary" : "outline"}
-                    size="icon"
-                    ariaLabel={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
-                    icon={<BookmarkSimple className="w-4 h-4" />}
-                  />
-                )}
-
-                <div className="relative">
-                  <Button
-                    onClick={handleShare}
-                    variant="outline"
-                    size="icon"
-                    ariaLabel="Partager la série"
-                    icon={<ShareNetwork className="w-4 h-4" />}
-                  />
-
-                  {shareOpen && (
-                    <div className="absolute left-0 bottom-full mb-2 w-48 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl p-1 z-50 overflow-hidden">
-                      <a
-                        href={`https://wa.me/?text=${encodeURIComponent((showTitle || "Chillers") + " " + window.location.href)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2.5 px-3 py-2 text-xs text-white hover:bg-zinc-800 rounded-lg transition-colors"
-                      >
-                        <span>WhatsApp</span>
-                      </a>
-                      <button
-                        onClick={copyToClipboard}
-                        className="w-full text-left flex items-center justify-between px-3 py-2 text-xs text-white hover:bg-zinc-800 rounded-lg transition-colors"
-                      >
-                        <span>{copiedLink ? "Lien copié !" : "Copier le lien"}</span>
-                        {copiedLink && <Check className="w-3.5 h-3.5 text-emerald-400" />}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Synopsis de l'Épisode */}
-              <div className="space-y-2 pt-2 border-t border-zinc-800/80">
-                <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-400">
-                  Résumé de l&apos;épisode
-                </h3>
-                <p className="text-zinc-300 text-sm sm:text-base leading-relaxed font-normal">
-                  {currentEpisode?.synopsis || "Aucun résumé disponible pour cet épisode."}
-                </p>
-              </div>
-
+              <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight">
+                {showTitle}
+              </h1>
+              
+              <h2 className="text-lg sm:text-2xl font-bold text-zinc-300">
+                Saison {seasonNumber} · Épisode {currentEpisode?.number} : {currentEpisode?.title}
+              </h2>
             </div>
 
-            {/* Colonne Droite : Tiroir / Liste Complète des Épisodes de la Saison */}
-            <div className="lg:col-span-5 xl:col-span-4 space-y-4">
-              
-              <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3">
-                <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  <span>Épisodes de la Saison {seasonNumber}</span>
-                  <span className="text-xs text-zinc-500 font-normal">({episodes.length})</span>
-                </h3>
+            {/* Boutons d'Action (avec Couleur Principale) */}
+            <div className="flex flex-wrap items-center gap-3 pt-2">
+              <NetflixDownloadButton
+                tmdbId={id as string}
+                type="series"
+                season={Number(seasonNumber)}
+                episodeNumber={currentEpisode?.number}
+                title="Télécharger l'épisode"
+                className="bg-brand-primary text-white shadow-lg shadow-brand-primary/25 border-none font-bold"
+                onClick={() => {
+                  if (!user) {
+                    setIsAuthModalOpen(true);
+                    return;
+                  }
+                  setShowSingleDownload(true);
+                }}
+              />
 
-                {/* Sélecteur de Saisons Dropdown */}
-                {validSeasons.length > 1 && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (!user) {
+                    setIsAuthModalOpen(true);
+                    return;
+                  }
+                  setShowBatchDownload(true);
+                }}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20 font-bold text-xs transition-all shadow-md active:scale-95 cursor-pointer"
+              >
+                <LinkSimple className="h-4 w-4 text-[brand-primary]" />
+                <span>Télécharger la saison</span>
+              </button>
+
+              {user && (
+                <Button
+                  onClick={toggleFavorite}
+                  disabled={favoriteLoading}
+                  variant={isFavorite ? "primary" : "outline"}
+                  size="icon"
+                  ariaLabel={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
+                  icon={<BookmarkSimple className="w-4 h-4" />}
+                />
+              )}
+
+              <div className="relative">
+                <Button
+                  onClick={handleShare}
+                  variant="outline"
+                  size="icon"
+                  ariaLabel="Partager la série"
+                  icon={<ShareNetwork className="w-4 h-4" />}
+                />
+
+                {shareOpen && (
+                  <div className="absolute left-0 bottom-full mb-2 w-48 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl p-1 z-50 overflow-hidden">
+                    <a
+                      href={`https://wa.me/?text=${encodeURIComponent((showTitle || "Chillers") + " " + window.location.href)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2.5 px-3 py-2 text-xs text-white hover:bg-zinc-800 rounded-lg transition-colors"
+                    >
+                      <span>WhatsApp</span>
+                    </a>
+                    <button
+                      onClick={copyToClipboard}
+                      className="w-full text-left flex items-center justify-between px-3 py-2 text-xs text-white hover:bg-zinc-800 rounded-lg transition-colors"
+                    >
+                      <span>{copiedLink ? "Lien copié !" : "Copier le lien"}</span>
+                      {copiedLink && <Check className="w-3.5 h-3.5 text-emerald-400" />}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Synopsis de l'Épisode */}
+            <div className="space-y-2 pt-3 border-t border-zinc-800/80">
+              <h3 className="text-xs font-black uppercase tracking-wider text-zinc-400">
+                Résumé de l&apos;épisode
+              </h3>
+              <p className="text-zinc-300 text-sm sm:text-base leading-relaxed font-normal">
+                {currentEpisode?.synopsis || "Aucun résumé disponible pour cet épisode."}
+              </p>
+            </div>
+          </div>
+
+          {/* 4. SECTION DES CARTES DES ÉPISODES (TOUT EN BAS SOUS LE RÉSUMÉ) */}
+          <div className="space-y-5 pt-8 border-t border-zinc-800">
+            <div className="flex items-center justify-between flex-wrap gap-4 pb-2">
+              <h3 className="text-xl sm:text-2xl font-black text-white flex items-center gap-3">
+                <span>Épisodes de la Saison {seasonNumber}</span>
+                <span className="text-xs sm:text-sm font-normal text-zinc-400 bg-zinc-800 px-2.5 py-1 rounded-full">
+                  {episodes.length} épisodes
+                </span>
+              </h3>
+
+              {/* Sélecteur de Saisons Dropdown */}
+              {validSeasons.length > 1 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-zinc-400 font-semibold">Saison :</span>
                   <select
                     value={seasonNumber}
                     onChange={(e) => router.push(`/tv/${id}/season/${e.target.value}`)}
-                    className="bg-zinc-900 border border-zinc-700 text-xs text-white rounded-lg px-2.5 py-1 font-semibold focus:outline-none focus:border-[brand-primary]"
+                    className="bg-zinc-900 border border-zinc-700 text-xs sm:text-sm text-white font-bold rounded-xl px-3 py-1.5 focus:outline-none focus:border-[brand-primary] cursor-pointer"
                   >
                     {validSeasons.map((s) => (
                       <option key={s.id} value={s.seasonNumber}>
@@ -474,81 +439,109 @@ export default function SeasonContent() {
                       </option>
                     ))}
                   </select>
-                )}
-              </div>
+                </div>
+              )}
+            </div>
 
-              {/* Liste Déroulante des Épisodes avec Cartes 16:9 et Indicateur de Lecture */}
-              <div className="space-y-2.5 max-h-[650px] overflow-y-auto no-scrollbar pr-1">
-                {episodes.map((ep, idx) => {
-                  const isActive = idx === currentIndex;
-                  return (
-                    <div
-                      key={ep.id}
-                      onClick={() => playEpisode(idx)}
-                      className={`flex items-start gap-3.5 p-3 rounded-2xl cursor-pointer transition-all ${
-                        isActive
-                          ? "bg-white/10 border border-[brand-primary] shadow-lg"
-                          : "bg-zinc-900/50 hover:bg-zinc-800/60 border border-zinc-800/60"
-                      }`}
-                    >
-                      {/* Thumbnail 16:9 */}
-                      <div className="relative flex-none w-28 aspect-video rounded-xl overflow-hidden bg-zinc-950">
-                        {ep.thumbnail ? (
-                          <Image
-                            src={ep.thumbnail}
-                            alt={ep.title}
-                            fill
-                            className="object-cover object-top"
-                            sizes="112px"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-zinc-600">
-                            <FilmSlate className="w-6 h-6" />
-                          </div>
-                        )}
-
-                        {/* Overlay sombre */}
-                        <div className="absolute inset-0 bg-black/30" />
-
-                        {/* Badge Numéro d'épisode */}
-                        <div className="absolute top-1.5 left-1.5">
-                          <span className="px-1.5 py-0.5 rounded bg-black/80 text-[10px] font-bold text-white">
-                            EP {ep.number}
-                          </span>
+            {/* Grille des Cartes d'Épisodes */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-5">
+              {episodes.map((ep, idx) => {
+                const isActive = idx === currentIndex;
+                return (
+                  <div
+                    key={ep.id}
+                    onClick={() => playEpisode(idx)}
+                    className={`group flex flex-col rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 ${
+                      isActive
+                        ? "bg-zinc-900 border-2 border-[brand-primary] shadow-xl shadow-[brand-primary]/15 ring-2 ring-[brand-primary]/20 -translate-y-1"
+                        : "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 hover:border-white/20 hover:-translate-y-1 hover:shadow-xl"
+                    }`}
+                  >
+                    {/* Thumbnail 16:9 avec overlay & badge */}
+                    <div className="relative w-full aspect-video overflow-hidden bg-zinc-950">
+                      {ep.thumbnail ? (
+                        <Image
+                          src={ep.thumbnail}
+                          alt={ep.title}
+                          fill
+                          className="object-cover object-top group-hover:scale-105 transition-transform duration-500"
+                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-zinc-600">
+                          <FilmSlate className="w-8 h-8" />
                         </div>
+                      )}
 
-                        {/* Indicateur de lecture en cours */}
-                        {isActive && (
-                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                            <div className="w-7 h-7 rounded-full bg-[brand-primary] flex items-center justify-center">
-                              <Play className="w-4 h-4 fill-white translate-x-0.5" />
-                            </div>
-                          </div>
-                        )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+
+                      {/* Badge Épisode */}
+                      <div className="absolute top-2 left-2">
+                        <span className="px-2 py-0.5 rounded-md bg-black/80 backdrop-blur-md text-[11px] font-black text-white border border-white/10">
+                          EP {ep.number}
+                        </span>
                       </div>
 
-                      {/* Détails de l'épisode */}
-                      <div className="flex-1 min-w-0 space-y-1">
-                        <div className="flex items-center justify-between gap-1">
-                          <h4 className={`text-xs sm:text-sm font-bold truncate ${isActive ? "text-[brand-primary]" : "text-white"}`}>
+                      {/* Bouton Téléchargement d'épisode rapide */}
+                      <div
+                        className="absolute top-2 right-2 z-10"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <NetflixDownloadButton
+                          tmdbId={id as string}
+                          type="series"
+                          season={Number(seasonNumber)}
+                          episodeNumber={ep.number}
+                          variant="icon"
+                          onClick={() => {
+                            if (!user) {
+                              setIsAuthModalOpen(true);
+                              return;
+                            }
+                            setCurrentIndex(idx);
+                            setShowSingleDownload(true);
+                          }}
+                        />
+                      </div>
+
+                      {/* Indicateur de lecture active */}
+                      {isActive && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                          <div className="w-10 h-10 rounded-full bg-[brand-primary] flex items-center justify-center shadow-lg animate-pulse">
+                            <Play className="w-5 h-5 fill-white translate-x-0.5" />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Informations de la Carte */}
+                    <div className="p-3.5 flex flex-col flex-1 justify-between space-y-2">
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <h4 className={`text-sm font-bold truncate ${isActive ? "text-[brand-primary]" : "text-white group-hover:text-white"}`}>
                             {ep.number}. {ep.title}
                           </h4>
-                          <span className="text-[10px] text-zinc-400 font-mono shrink-0">
+                          <span className="text-[11px] text-zinc-400 font-mono shrink-0">
                             {ep.duration}
                           </span>
                         </div>
 
-                        <p className="text-xs text-zinc-400 line-clamp-2 leading-relaxed font-normal">
-                          {ep.synopsis || "Aucun résumé pour cet épisode."}
+                        <p className="text-xs text-zinc-400 line-clamp-2 leading-relaxed">
+                          {ep.synopsis || "Aucun résumé disponible pour cet épisode."}
                         </p>
                       </div>
+
+                      <div className="pt-1 flex items-center justify-between text-[11px] font-semibold">
+                        <span className={`flex items-center gap-1 ${isActive ? "text-[brand-primary]" : "text-zinc-500 group-hover:text-zinc-300"}`}>
+                          <Play className="w-3 h-3 fill-current" />
+                          {isActive ? "En cours de lecture" : "Regarder l'épisode"}
+                        </span>
+                      </div>
                     </div>
-                  );
-                })}
-              </div>
-
+                  </div>
+                );
+              })}
             </div>
-
           </div>
 
         </div>

@@ -565,16 +565,16 @@ class _OptimizedSearchScreenState extends State<OptimizedSearchScreen> {
           ),
         ),
 
-        // Grid 3 Colonnes
+        // Grid 2 Colonnes Haute Capacité
         Expanded(
           child: GridView.builder(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             itemCount: _filteredResults.length,
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 14,
-              childAspectRatio: 0.58,
+              crossAxisCount: 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 16,
+              childAspectRatio: 0.68,
             ),
             itemBuilder: (context, index) {
               final item = _filteredResults[index];

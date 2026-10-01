@@ -13,9 +13,9 @@ import { FlemmixProvider } from './providers/flemmix.provider';
 import { persistDiscoveredStream } from './services/stream-persistence.service';
 import { CachedStream, streamCache, getCacheKey } from '../utils/stream-cache';
 
-const VALIDATION_TIMEOUT = 5000;
-const PROVIDER_TIMEOUT = 10000;
-const OTAKU_TIMEOUT = 25000;
+const VALIDATION_TIMEOUT = 3500;
+const PROVIDER_TIMEOUT = 6000;
+const OTAKU_TIMEOUT = 12000;
 const CIRCUIT_BREAKER_THRESHOLD = 3;
 const CIRCUIT_BREAKER_COOLDOWN = 60_000;
 
@@ -46,13 +46,13 @@ export class ProviderManager {
   private buildProviders(): StreamingProvider[] {
     return [
       new DirectProvider(),
-      new FrenchStreamProvider(),
-      new FlemmixProvider(),
-      new OmniSaveProvider(),
       new MongoDBProvider(),
+      new FlemmixProvider(),
+      new FrenchStreamProvider(),
+      new VidLinkProvider(),
+      new OmniSaveProvider(),
       new DoodStreamProvider(),
       new OtakuProvider(),
-      new VidLinkProvider(),
     ];
   }
 

@@ -21,10 +21,10 @@ export interface CachedStream {
   releaseDate?: string;
 }
 
-const STREAM_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+const STREAM_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 heures (rechargement instantané)
 
 export const streamCache = new LRUCache<string, CachedStream>({
-  max: 500,
+  max: 2000,
   ttl: STREAM_CACHE_TTL,
 });
 

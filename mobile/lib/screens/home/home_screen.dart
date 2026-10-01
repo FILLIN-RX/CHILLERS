@@ -14,6 +14,7 @@ import '../../widgets/media_scroll_row.dart';
 import '../detail/detail_screen.dart';
 import '../watch/watch_screen.dart';
 import '../live/live_screen.dart';
+import '../live/live_matches_screen.dart';
 import '../search/optimized_search_screen.dart';
 import '../main_navigation.dart';
 
@@ -960,8 +961,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     return GestureDetector(
                       onTap: () {
-                        LiveScreen.playMatch(match);
-                        MainNavigation.switchTab(context, 2, subTab: 1);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => LiveMatchesScreen(initialMatch: match),
+                          ),
+                        );
                       },
                       child: Container(
                         width: 245,

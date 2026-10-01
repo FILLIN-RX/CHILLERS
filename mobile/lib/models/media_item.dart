@@ -55,14 +55,22 @@ class MediaItem {
     if (str.isEmpty) return null;
 
     if (str.startsWith('http://') || str.startsWith('https://')) {
+      if (str.contains('image.tmdb.org/t/p/')) {
+        return str
+            .replaceAll('/t/p/w200/', '/t/p/original/')
+            .replaceAll('/t/p/w300/', '/t/p/original/')
+            .replaceAll('/t/p/w342/', '/t/p/original/')
+            .replaceAll('/t/p/w500/', '/t/p/original/')
+            .replaceAll('/t/p/w780/', '/t/p/original/')
+            .replaceAll('/t/p/w1280/', '/t/p/original/');
+      }
       return str;
     }
     if (str.startsWith('/uploads/') || str.startsWith('/affiches/') || str.startsWith('/api/')) {
       return '${AppConstants.baseUrl}$str';
     }
     if (str.startsWith('/')) {
-      final size = isBackdrop ? 'original' : 'w500';
-      return 'https://image.tmdb.org/t/p/$size$str';
+      return 'https://image.tmdb.org/t/p/original$str';
     }
     return str;
   }
@@ -220,7 +228,7 @@ class SeasonItem {
       episodeCount: json['episode_count'] is int
           ? json['episode_count']
           : (json['episodeCount'] is int ? json['episodeCount'] : 0),
-      posterPath: json['poster_path'] != null ? 'https://image.tmdb.org/t/p/w500${json['poster_path']}' : null,
+      posterPath: json['poster_path'] != null ? 'https://image.tmdb.org/t/p/original${json['poster_path']}' : null,
       overview: json['overview'],
     );
   }
@@ -246,7 +254,7 @@ class CastItem {
       name: json['name'] ?? '',
       character: json['character'] ?? '',
       profileUrl: profile != null && profile.toString().isNotEmpty
-          ? 'https://image.tmdb.org/t/p/w200$profile'
+          ? 'https://image.tmdb.org/t/p/original$profile'
           : null,
     );
   }
@@ -278,7 +286,7 @@ class EpisodeItem {
   factory EpisodeItem.fromJson(Map<String, dynamic> json) {
     String? still = json['still_path'] ?? json['stillPath'];
     if (still != null && still.startsWith('/')) {
-      still = 'https://image.tmdb.org/t/p/w500$still';
+      still = 'https://image.tmdb.org/t/p/original$still';
     }
 
     final rawVote = json['vote_average'];

@@ -4,9 +4,9 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../config/theme.dart';
 import '../../models/live_channel.dart';
 import '../../models/live_match.dart';
-import '../../models/media_item.dart';
 import '../../services/api_service.dart';
-import '../watch/watch_screen.dart';
+import 'live_channel_player_screen.dart';
+import 'live_matches_screen.dart';
 import '../search/optimized_search_screen.dart';
 
 class LiveScreen extends StatefulWidget {
@@ -205,70 +205,26 @@ class LiveScreenState extends State<LiveScreen> {
     });
   }
 
-  // ── Open Player for a Channel (no auto-play on load, user selects first!) ──
+  // ── Open Player for a Channel (Direct Live TV Player with Zapping) ──
   void openChannelPlayer(LiveChannel channel) {
-    final media = MediaItem(
-      id: channel.id,
-      title: channel.name,
-      poster: channel.logo,
-      type: 'channel',
-      streamUrl: channel.streamUrl,
-      genres: channel.categories,
-    );
-
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => WatchScreen(
-          item: media,
-          initialVideoUrl: channel.streamUrl,
+        builder: (_) => LiveChannelPlayerScreen(
+          initialChannel: channel,
+          allChannels: _channels,
         ),
       ),
     );
   }
 
-  // ── Open Player for a Live Match ──
-  Future<void> openMatchPlayer(LiveMatch match) async {
-    // Show quick loading snackbar if needed
-    final scaffold = ScaffoldMessenger.of(context);
-    scaffold.showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-            ),
-            const SizedBox(width: 12),
-            Expanded(child: Text('Chargement du match ${match.home} vs ${match.away}...')),
-          ],
-        ),
-        duration: const Duration(seconds: 2),
-        backgroundColor: const Color(0xFF18181B),
-      ),
-    );
-
-    final streamUrl = await _apiService.getMatchStreamUrl(match.id);
-    scaffold.hideCurrentSnackBar();
-
-    if (!mounted) return;
-
-    final media = MediaItem(
-      id: 'match_${match.id}',
-      title: '${match.home} vs ${match.away}',
-      poster: match.homeLogo ?? match.awayLogo,
-      type: 'match',
-      streamUrl: streamUrl ?? '',
-      genres: [match.league ?? 'Football', match.status == 'live' ? 'En Direct' : 'Match'],
-    );
-
+  // ── Open Player for a Live Match (Direct Live Football Match Player) ──
+  void openMatchPlayer(LiveMatch match) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => WatchScreen(
-          item: media,
-          initialVideoUrl: streamUrl,
+        builder: (_) => LiveMatchesScreen(
+          initialMatch: match,
         ),
       ),
     );

@@ -8,6 +8,7 @@ import '../../services/storage_service.dart';
 import '../../services/feedback_service.dart';
 import '../../widgets/download_modal.dart';
 import '../../widgets/add_to_playlist_modal.dart';
+import '../../widgets/netflix_download_button.dart';
 import '../../config/theme.dart';
 import '../watch/watch_screen.dart';
 
@@ -782,14 +783,12 @@ class _DetailScreenState extends State<DetailScreen> {
 
                                 const SizedBox(width: 8),
 
-                                // Bouton Téléchargement à droite (Mockup)
-                                IconButton(
-                                  icon: const FaIcon(
-                                    FontAwesomeIcons.download,
-                                    color: Colors.white70,
-                                    size: 17,
-                                  ),
-                                  tooltip: 'Télécharger cet épisode',
+                                // Bouton Téléchargement avec progression dynamique façon Netflix
+                                NetflixDownloadButton(
+                                  mediaId: _currentMedia.id,
+                                  seasonNumber: _selectedSeason?.seasonNumber.toString(),
+                                  episodeNumber: ep.episodeNumber.toString(),
+                                  variant: NetflixDownloadButtonVariant.icon,
                                   onPressed: () => _onDownload(episode: ep),
                                 ),
                               ],
@@ -815,14 +814,9 @@ class _DetailScreenState extends State<DetailScreen> {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        IconButton(
-                          style: IconButton.styleFrom(
-                            backgroundColor: const Color(0xFF1C1C1E),
-                            padding: const EdgeInsets.all(14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                          ),
-                          icon: const FaIcon(FontAwesomeIcons.download, color: Colors.white, size: 16),
-                          tooltip: 'Télécharger le film',
+                        NetflixDownloadButton(
+                          mediaId: _currentMedia.id,
+                          variant: NetflixDownloadButtonVariant.button,
                           onPressed: () => _onDownload(),
                         ),
                       ],

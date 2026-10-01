@@ -80,10 +80,10 @@ class MediaGridView extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             sliver: SliverGrid(
               gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 160,
-                childAspectRatio: 0.58,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 14,
+                maxCrossAxisExtent: 200,
+                childAspectRatio: 0.65,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 16,
               ),
               delegate: SliverChildBuilderDelegate(
                 (context, index) {
@@ -137,10 +137,10 @@ class MediaGridView extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 160,
-        childAspectRatio: 0.58,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 14,
+        maxCrossAxisExtent: 200,
+        childAspectRatio: 0.65,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 16,
       ),
       itemCount: 12,
       itemBuilder: (context, index) {

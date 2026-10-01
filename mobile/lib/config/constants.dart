@@ -8,7 +8,7 @@ class AppConstants {
   /// `flutter run --dart-define=API_BASE_URL=http://10.0.2.2:5000`
   static const String _baseUrlOverride = String.fromEnvironment('API_BASE_URL');
   static const String baseUrl = _baseUrlOverride == ''
-      ? 'http://localhost:4000'
+      ? 'https://chillers-production-8e02.up.railway.app'
       : _baseUrlOverride;
 
   static const String tokenKey = 'chillers_jwt_token';

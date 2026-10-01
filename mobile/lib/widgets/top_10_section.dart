@@ -59,7 +59,7 @@ class Top10Section extends StatelessWidget {
 
         // ── SCROLL HORIZONTAL AVEC GRANDS CHIFFRES OUTLINED (1 À 10) ──
         SizedBox(
-          height: 180,
+          height: 200,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
@@ -79,8 +79,8 @@ class Top10Section extends StatelessWidget {
                     children: [
                       // Grand Chiffre Stylisé Outlined (Effet Web Top 10)
                       SizedBox(
-                        width: isDoubleDigit ? 62 : 44,
-                        height: 165,
+                        width: isDoubleDigit ? 66 : 48,
+                        height: 185,
                         child: Align(
                           alignment: Alignment.bottomCenter,
                           child: Stack(
@@ -90,7 +90,7 @@ class Top10Section extends StatelessWidget {
                               Text(
                                 '$rank',
                                 style: TextStyle(
-                                  fontSize: isDoubleDigit ? 88 : 105,
+                                  fontSize: isDoubleDigit ? 96 : 115,
                                   fontWeight: FontWeight.w900,
                                   height: 0.82,
                                   letterSpacing: -6.0,
@@ -111,7 +111,7 @@ class Top10Section extends StatelessWidget {
                               Text(
                                 '$rank',
                                 style: TextStyle(
-                                  fontSize: isDoubleDigit ? 88 : 105,
+                                  fontSize: isDoubleDigit ? 96 : 115,
                                   fontWeight: FontWeight.w900,
                                   height: 0.82,
                                   letterSpacing: -6.0,
@@ -127,8 +127,8 @@ class Top10Section extends StatelessWidget {
                       Transform.translate(
                         offset: const Offset(-12, 0),
                         child: Container(
-                          width: 110,
-                          height: 165,
+                          width: 124,
+                          height: 185,
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(

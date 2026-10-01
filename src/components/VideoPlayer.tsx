@@ -691,7 +691,7 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", onLang
       className={`${
         isFullscreen
           ? "fixed inset-0 z-[99999] w-screen h-[100dvh] max-h-none rounded-none aspect-auto bg-black"
-          : `relative w-full min-h-[200px] xs:min-h-[260px] sm:min-h-[340px] aspect-video ${isTheater ? "max-h-[88dvh]" : "max-h-[75dvh]"} bg-black rounded-none sm:rounded-lg`
+          : `relative w-full aspect-video min-h-[280px] xs:min-h-[320px] sm:min-h-[420px] md:min-h-[520px] lg:min-h-[600px] xl:min-h-[660px] ${isTheater ? "max-h-[92dvh]" : "max-h-[85dvh]"} bg-black rounded-none sm:rounded-xl`
       } overflow-hidden select-none transition-all duration-300 ${
         isPro ? "shadow-[0_0_50px_rgba(245,158,11,0.18)] ring-1 ring-amber-500/30" : "shadow-[0_20px_70px_rgba(0,0,0,0.95)]"
       } group/container ${
@@ -737,6 +737,7 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", onLang
           <video
             ref={videoRef}
             src={!isHls && videoUrl ? videoUrl : undefined}
+            className="w-full h-full object-contain bg-black"
             autoPlay
             playsInline
             preload="auto"
@@ -851,40 +852,6 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", onLang
               </div>
 
               <div className="flex items-center gap-2">
-                {/* Bouton Toggle Langue Rapide (VF / VOSTFR) */}
-                {onLanguageChange && (
-                  <div className="flex items-center p-0.5 rounded-full bg-black/70 border border-white/20 backdrop-blur-md shadow-lg">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onLanguageChange("fr");
-                      }}
-                      className={`px-2.5 py-1 rounded-full text-[11px] font-black transition-all cursor-pointer ${
-                        audioVersion === "fr"
-                          ? "bg-brand-primary text-white shadow"
-                          : "text-zinc-400 hover:text-white"
-                      }`}
-                    >
-                      🇫🇷 VF
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onLanguageChange("vostfr");
-                      }}
-                      className={`px-2.5 py-1 rounded-full text-[11px] font-black transition-all cursor-pointer ${
-                        audioVersion === "vostfr"
-                          ? "bg-brand-primary text-white shadow"
-                          : "text-zinc-400 hover:text-white"
-                      }`}
-                    >
-                      🌐 VOSTFR
-                    </button>
-                  </div>
-                )}
-
                 {/* Bouton Lecteur Réduit / Navigation flottante comme YouTube (PiP) */}
                 <button
                   type="button"
@@ -1080,26 +1047,6 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", onLang
                       )}
                       <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-black/80 text-white text-[11px] font-medium rounded whitespace-nowrap opacity-0 group-hover/btn:opacity-100 transition-opacity z-30">
                         Sous-titres (c)
-                      </span>
-                    </button>
-                  )}
-
-                  {/* Language Quick Toggle */}
-                  {onLanguageChange && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onLanguageChange(audioVersion === "fr" ? "vostfr" : "fr");
-                      }}
-                      className="group/btn relative px-2 py-1 rounded-md bg-white/10 hover:bg-white/20 border border-white/10 text-xs font-bold text-white transition-all flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <span className="text-xs">{audioVersion === "fr" ? "🇫🇷" : "🌐"}</span>
-                      <span className="text-[11px] font-black uppercase tracking-wider">
-                        {audioVersion === "fr" ? "VF" : "VOSTFR"}
-                      </span>
-                      <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-black/85 text-white text-[11px] font-medium rounded whitespace-nowrap opacity-0 group-hover/btn:opacity-100 transition-opacity z-30 shadow">
-                        Basculer en {audioVersion === "fr" ? "VOSTFR" : "VF"}
                       </span>
                     </button>
                   )}
