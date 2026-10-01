@@ -30,6 +30,7 @@ export interface IMovie extends Document {
     url: string;
     quality?: string;
     isPremium?: boolean;
+    langueAudio?: string;
     addedAt?: Date;
   }>;
 }
@@ -66,6 +67,7 @@ const MovieSchema: Schema = new Schema({
         url: { type: String, required: true },
         quality: { type: String },
         isPremium: { type: Boolean, default: false },
+        langueAudio: { type: String },
         addedAt: { type: Date, default: Date.now },
       },
     ],

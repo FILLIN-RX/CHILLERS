@@ -2,6 +2,7 @@ import { StreamingProvider, StreamResult, StreamQuery } from './provider.interfa
 import Movie from '../../models/Movie';
 import Serie from '../../models/Serie';
 import { isSignedLinkExpired } from '../../utils/link-ttl';
+import { isLanguageCompatible } from '../../utils/audio-language';
 import axios from 'axios';
 
 function toEmbedUrl(lien: string): string {
@@ -115,8 +116,17 @@ export class MongoDBProvider implements StreamingProvider {
 
       // 0. Si le film a des sources multiples enregistrées
       if (movie.sources && movie.sources.length > 0) {
+        // Filtrer par langue demandée
+        const validSources = movie.sources.filter(s =>
+          isLanguageCompatible(query.language, {
+            titre: movie.titre,
+            url: s.url,
+            langueAudio: (s as any).langueAudio || movie.langueAudio,
+          })
+        );
+
         // Pour les utilisateurs Premium, prioriser les sources 1080p ou marquées isPremium
-        const sortedSources = [...movie.sources].sort((a, b) => {
+        const sortedSources = [...validSources].sort((a, b) => {
           if (query.isPremium) {
             const scoreA = (a.quality === '1080p' ? 2 : 0) + (a.isPremium ? 1 : 0);
             const scoreB = (b.quality === '1080p' ? 2 : 0) + (b.isPremium ? 1 : 0);
@@ -137,14 +147,16 @@ export class MongoDBProvider implements StreamingProvider {
         }
       }
 
-      // 1. Priorité au lien direct (Vidzy/MP4 OpenOtaku) s'il est actif
-      const directUrl = resolveUrl(movie.lien);
-      if (directUrl && await isUrlAlive(directUrl)) {
-        return { provider: movie.source || this.name, embedUrl: toEmbedUrl(directUrl), type: 'movie' };
+      // 1. Priorité au lien direct (Vidzy/MP4 OpenOtaku) s'il est actif et compatible
+      if (isLanguageCompatible(query.language, { titre: movie.titre, lien: movie.lien, langueAudio: movie.langueAudio })) {
+        const directUrl = resolveUrl(movie.lien);
+        if (directUrl && await isUrlAlive(directUrl)) {
+          return { provider: movie.source || this.name, embedUrl: toEmbedUrl(directUrl), type: 'movie' };
+        }
       }
 
       // 2. Fallback Uqload (vérification active de la disponibilité du fichier)
-      if (movie.uqloadCode) {
+      if (movie.uqloadCode && isLanguageCompatible(query.language, { titre: movie.titre, lien: movie.uqloadLink, langueAudio: movie.langueAudio })) {
         const alive = await isUqloadAlive(movie.uqloadCode);
         if (alive) {
           return { provider: 'uqload', embedUrl: uqloadEmbedUrl(movie.uqloadCode), type: 'movie' };
@@ -155,17 +167,17 @@ export class MongoDBProvider implements StreamingProvider {
       }
 
       // 3. Fallback Streamtape
-      if ((movie as any).streamtapeCode) {
+      if ((movie as any).streamtapeCode && isLanguageCompatible(query.language, { titre: movie.titre, langueAudio: movie.langueAudio })) {
         return { provider: 'streamtape', embedUrl: `https://streamtape.com/e/${(movie as any).streamtapeCode}`, type: 'movie' };
       }
 
       // 4. Fallback lien secondaire
       const fallbackUrl = resolveUrl((movie as any).lienFallback);
-      if (fallbackUrl && await isUrlAlive(fallbackUrl)) {
+      if (fallbackUrl && isLanguageCompatible(query.language, { titre: movie.titre, lien: fallbackUrl, langueAudio: movie.langueAudio }) && await isUrlAlive(fallbackUrl)) {
         return { provider: this.name, embedUrl: toEmbedUrl(fallbackUrl), type: 'movie' };
       }
 
-      console.log(`[MongoDB] Aucun lien valide pour "${movie.titre}" → fallback providers`);
+      console.log(`[MongoDB] Aucun lien valide pour "${movie.titre}" (lang=${query.language || 'fr'}) → fallback providers`);
       return null;
     } catch (err) {
       console.error('[MongoDB] getMovieStream error:', err);
@@ -207,7 +219,15 @@ export class MongoDBProvider implements StreamingProvider {
 
       // 0. Si l'épisode a des sources multiples enregistrées
       if (ep.sources && ep.sources.length > 0) {
-        const sortedSources = [...ep.sources].sort((a, b) => {
+        const validSources = ep.sources.filter((s: any) =>
+          isLanguageCompatible(query.language, {
+            titre: serie.titre,
+            url: s.url,
+            langueAudio: (s as any).langueAudio || ep.langueAudio || serie.langueAudio,
+          })
+        );
+
+        const sortedSources = [...validSources].sort((a, b) => {
           if (query.isPremium) {
             const scoreA = (a.quality === '1080p' ? 2 : 0) + (a.isPremium ? 1 : 0);
             const scoreB = (b.quality === '1080p' ? 2 : 0) + (b.isPremium ? 1 : 0);
@@ -228,14 +248,16 @@ export class MongoDBProvider implements StreamingProvider {
         }
       }
 
-      // 1. Priorité au lien direct (Vidzy/MP4) s'il est actif
-      const directUrl = resolveUrl(ep.lien);
-      if (directUrl && await isUrlAlive(directUrl)) {
-        return { provider: ep.source || this.name, embedUrl: toEmbedUrl(directUrl), type: 'episode' };
+      // 1. Priorité au lien direct (Vidzy/MP4) s'il est actif et compatible
+      if (isLanguageCompatible(query.language, { titre: serie.titre, lien: ep.lien, langueAudio: ep.langueAudio || serie.langueAudio })) {
+        const directUrl = resolveUrl(ep.lien);
+        if (directUrl && await isUrlAlive(directUrl)) {
+          return { provider: ep.source || this.name, embedUrl: toEmbedUrl(directUrl), type: 'episode' };
+        }
       }
 
       // 2. Fallback Uqload (vérification active)
-      if (ep.uqloadCode) {
+      if (ep.uqloadCode && isLanguageCompatible(query.language, { titre: serie.titre, lien: ep.uqloadLink, langueAudio: ep.langueAudio || serie.langueAudio })) {
         const alive = await isUqloadAlive(ep.uqloadCode);
         if (alive) {
           return { provider: 'uqload', embedUrl: uqloadEmbedUrl(ep.uqloadCode), type: 'episode' };
@@ -245,16 +267,16 @@ export class MongoDBProvider implements StreamingProvider {
       }
 
       // 3. Fallback Streamtape
-      if ((ep as any).streamtapeCode) {
+      if ((ep as any).streamtapeCode && isLanguageCompatible(query.language, { titre: serie.titre, langueAudio: ep.langueAudio || serie.langueAudio })) {
         return { provider: 'streamtape', embedUrl: `https://streamtape.com/e/${(ep as any).streamtapeCode}`, type: 'episode' };
       }
 
       // 4. Fallback uqloadLink
-      if (ep.uqloadLink && await isUrlAlive(ep.uqloadLink)) {
+      if (ep.uqloadLink && isLanguageCompatible(query.language, { titre: serie.titre, lien: ep.uqloadLink, langueAudio: ep.langueAudio || serie.langueAudio }) && await isUrlAlive(ep.uqloadLink)) {
         return { provider: 'uqload', embedUrl: toEmbedUrl(ep.uqloadLink), type: 'episode' };
       }
 
-      console.log(`[MongoDB] Aucun lien valide pour S${query.season}E${query.episode} de "${serie.titre}" → fallback providers`);
+      console.log(`[MongoDB] Aucun lien valide pour S${query.season}E${query.episode} de "${serie.titre}" (lang=${query.language || 'fr'}) → fallback providers`);
       return null;
     } catch (err) {
       console.error('[MongoDB] getEpisodeStream error:', err);

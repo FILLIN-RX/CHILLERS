@@ -44,11 +44,13 @@ export function downloadTaskId(opts: {
   tmdbId: string | number;
   season?: number | null;
   episodeNumber?: number | null;
+  language?: string | null;
 }): string {
-  const { tmdbId, season, episodeNumber } = opts;
+  const { tmdbId, season, episodeNumber, language } = opts;
+  const langSuffix = language && language !== "fr" ? `-${language}` : "";
   if (episodeNumber != null) {
     const s = season != null ? season : 1;
-    return `${tmdbId}-s${s}e${episodeNumber}`;
+    return `${tmdbId}-s${s}e${episodeNumber}${langSuffix}`;
   }
-  return `${tmdbId}`;
+  return `${tmdbId}${langSuffix}`;
 }

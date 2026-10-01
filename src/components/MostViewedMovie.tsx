@@ -157,16 +157,6 @@ export default function MostViewedMovie({
                 <Info className="w-4 h-4 text-white" />
                 <span>Voir la fiche</span>
               </button>
-
-              {current.trailerUrl && (
-                <button
-                  onClick={() => onOpenDetails(current)}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-950/70 hover:bg-blue-900/90 text-cyan-300 border-0 font-bold text-xs sm:text-sm active:scale-95 transition-all cursor-pointer backdrop-blur-md shadow-none"
-                >
-                  <FilmSlate className="w-4 h-4 text-cyan-400" />
-                  <span>Bande-annonce</span>
-                </button>
-              )}
             </div>
 
             {/* Toggle manuel : Boutons fléchés & Indicateurs Cyan */}

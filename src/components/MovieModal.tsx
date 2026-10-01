@@ -17,7 +17,7 @@ interface MovieModalProps {
   item: MovieOrShow | null;
   isOpen: boolean;
   onClose: () => void;
-  onWatch: (item: MovieOrShow, episode?: Episode) => void;
+  onWatch: (item: MovieOrShow, episode?: Episode, lang?: "fr" | "vostfr") => void;
   onOpenDetails: (item: MovieOrShow) => void;
 }
 
@@ -39,8 +39,27 @@ export default function MovieModal({
   const [seasonLoading, setSeasonLoading] = useState(false);
   const [enhanced, setEnhanced] = useState<MovieOrShow | null>(null);
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
+  const [selectedLang, setSelectedLang] = useState<"fr" | "vostfr">("fr");
   const { user } = useAuthStore();
   const { translate: _ } = useLanguage();
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("chillers_preferred_lang") as "fr" | "vostfr" | null;
+      if (saved && (saved === "fr" || saved === "vostfr")) {
+        setSelectedLang(saved);
+      }
+    }
+  }, [isOpen]);
+
+  const handleLangSelect = (lang: "fr" | "vostfr") => {
+    setSelectedLang(lang);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("chillers_preferred_lang", lang);
+      } catch {}
+    }
+  };
 
   // Lock body scroll while open
   useEffect(() => {
@@ -300,13 +319,43 @@ export default function MovieModal({
                 </div>
               ) : (
                 <Button
-                  onClick={() => onWatch(item)}
+                  onClick={() => onWatch(item, undefined, selectedLang)}
                   variant="primary"
                   size="md"
                   text={_("media.watch")}
                   leftIcon={<Play className="h-4 w-4 fill-white" />}
                   ariaLabel={`Regarder ${effective.title}`}
                 />
+              )}
+
+              {/* Language Switcher Pill */}
+              {!isUpcoming && (
+                <div className="flex items-center p-1 rounded-xl bg-white/5 border border-white/10 backdrop-blur-md">
+                  <button
+                    type="button"
+                    onClick={() => handleLangSelect("fr")}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                      selectedLang === "fr"
+                        ? "bg-brand-primary text-white shadow-md shadow-brand-primary/30"
+                        : "text-zinc-400 hover:text-white"
+                    }`}
+                  >
+                    <span>🇫🇷</span>
+                    <span>VF</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleLangSelect("vostfr")}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                      selectedLang === "vostfr"
+                        ? "bg-brand-primary text-white shadow-md shadow-brand-primary/30"
+                        : "text-zinc-400 hover:text-white"
+                    }`}
+                  >
+                    <span>🌐</span>
+                    <span>VOSTFR</span>
+                  </button>
+                </div>
               )}
 
               <Button
@@ -407,7 +456,7 @@ export default function MovieModal({
                   episodes.map((ep) => (
                     <div
                       key={ep.id}
-                      onClick={() => onWatch(item, ep)}
+                      onClick={() => onWatch(item, ep, selectedLang)}
                       className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 cursor-pointer transition-colors"
                     >
                       <span className="text-brand-text-muted font-bold text-sm w-6 text-center">{ep.number}</span>

@@ -187,9 +187,9 @@ export async function extractFlemmixStreams(pageUrl: string): Promise<{ title: s
 /**
  * Recherche et résout le meilleur stream disponible pour un film
  */
-export async function getFlemmixMovie(title: string): Promise<FlemmixResult | null> {
+export async function getFlemmixMovie(title: string, language: string = 'fr'): Promise<FlemmixResult | null> {
   try {
-    console.log(`[Flemmix] Recherche film: "${title}"`);
+    console.log(`[Flemmix] Recherche film: "${title}" (lang=${language})`);
 
     const results = await searchFlemmix(title);
     if (results.length === 0) {
@@ -241,10 +241,12 @@ export async function getFlemmixMovie(title: string): Promise<FlemmixResult | nu
       return null;
     }
 
-    // Trier: VF en priorité, puis par rank hébergeur
+    const isVostfr = language.toLowerCase() === 'vostfr';
+    // Trier: Langue demandée en priorité, puis par rank hébergeur
     const sorted = [...streams].sort((a, b) => {
-      const langRankA = a.lang === 'VF' ? 0 : a.lang === 'UNKNOWN' ? 1 : 2;
-      const langRankB = b.lang === 'VF' ? 0 : b.lang === 'UNKNOWN' ? 1 : 2;
+      const targetLang = isVostfr ? 'VOSTFR' : 'VF';
+      const langRankA = a.lang === targetLang ? 0 : a.lang === 'UNKNOWN' ? 1 : 2;
+      const langRankB = b.lang === targetLang ? 0 : b.lang === 'UNKNOWN' ? 1 : 2;
       if (langRankA !== langRankB) return langRankA - langRankB;
       return hostRank(a.url) - hostRank(b.url);
     });
@@ -267,12 +269,13 @@ export async function getFlemmixMovie(title: string): Promise<FlemmixResult | nu
 export async function getFlemmixEpisode(
   title: string,
   season: number = 1,
-  episode: number = 1
+  episode: number = 1,
+  language: string = 'fr'
 ): Promise<FlemmixResult | null> {
   try {
     const targetSeason = season > 0 ? season : 1;
     const targetEp = episode > 0 ? episode : 1;
-    console.log(`[Flemmix] Recherche série: "${title}" S${targetSeason}E${targetEp}`);
+    console.log(`[Flemmix] Recherche série: "${title}" S${targetSeason}E${targetEp} (lang=${language})`);
 
     // Recherche avec saison
     const seasonQuery = `${title} saison ${targetSeason}`;
@@ -311,9 +314,11 @@ export async function getFlemmixEpisode(
       return null;
     }
 
+    const isVostfr = language.toLowerCase() === 'vostfr';
     const sorted = [...streams].sort((a, b) => {
-      const langRankA = a.lang === 'VF' ? 0 : a.lang === 'UNKNOWN' ? 1 : 2;
-      const langRankB = b.lang === 'VF' ? 0 : b.lang === 'UNKNOWN' ? 1 : 2;
+      const targetLang = isVostfr ? 'VOSTFR' : 'VF';
+      const langRankA = a.lang === targetLang ? 0 : a.lang === 'UNKNOWN' ? 1 : 2;
+      const langRankB = b.lang === targetLang ? 0 : b.lang === 'UNKNOWN' ? 1 : 2;
       if (langRankA !== langRankB) return langRankA - langRankB;
       return hostRank(a.url) - hostRank(b.url);
     });

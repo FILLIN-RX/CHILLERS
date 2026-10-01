@@ -93,11 +93,13 @@ async function persistMovieStream(
     ],
   });
 
+  const sourceLang = query.language || 'fr';
   const sourceEntry = {
     source: result.provider,
     url: cleanUrl,
     quality,
     isPremium,
+    langueAudio: sourceLang,
     addedAt: new Date(),
   };
 
@@ -109,17 +111,21 @@ async function persistMovieStream(
       existingMovie.sources.push(sourceEntry);
     }
 
-    // Mettre à jour le lien principal si c'est un flux de meilleure qualité ou si l'ancien était pollué
-    if (quality === '1080p' || !existingMovie.lien || existingMovie.lien.startsWith('/api/')) {
+    // Mettre à jour le lien principal uniquement si compatible avec la langue ou si lien vide/proxy
+    const currentLang = existingMovie.langueAudio || 'fr';
+    const isLangMatch = sourceLang.toLowerCase() === currentLang.toLowerCase();
+
+    if ((quality === '1080p' && isLangMatch) || !existingMovie.lien || existingMovie.lien.startsWith('/api/')) {
       existingMovie.lien = cleanUrl;
       existingMovie.source = result.provider;
       existingMovie.quality = quality;
+      existingMovie.langueAudio = sourceLang;
     }
 
     existingMovie.disponible = true;
     existingMovie.disponibleCheckedAt = new Date();
     await existingMovie.save();
-    console.log(`[AutoPersist] Film mis à jour en MongoDB: "${existingMovie.titre}" [${result.provider} ${quality}]`);
+    console.log(`[AutoPersist] Film mis à jour en MongoDB: "${existingMovie.titre}" [${result.provider} ${quality} ${sourceLang}]`);
 
     // Upload en arrière-plan vers Uqload si aucun uqloadCode n'est présent
     const directVideoUrl = result.directUrl || (cleanUrl.startsWith('http') ? cleanUrl : null);
@@ -141,11 +147,11 @@ async function persistMovieStream(
       sources: [sourceEntry],
       disponible: true,
       disponibleCheckedAt: new Date(),
-      langueAudio: query.language || 'fr',
+      langueAudio: sourceLang,
     });
 
     await newMovie.save();
-    console.log(`[AutoPersist] Nouveau film créé en MongoDB: "${title}" [${result.provider} ${quality}]`);
+    console.log(`[AutoPersist] Nouveau film créé en MongoDB: "${title}" [${result.provider} ${quality} ${sourceLang}]`);
 
     // Upload en arrière-plan vers Uqload
     const directVideoUrl = result.directUrl || (cleanUrl.startsWith('http') ? cleanUrl : null);
@@ -193,11 +199,13 @@ async function persistEpisodeStream(
   const filter: any = query.tmdbId ? { tmdbId: query.tmdbId } : { titre: new RegExp(`^${escapeRegex(title)}$`, 'i') };
   let serie = await Serie.findOne(filter);
 
+  const sourceLang = query.language || 'fr';
   const sourceEntry = {
     source: result.provider,
     url: cleanUrl,
     quality,
     isPremium,
+    langueAudio: sourceLang,
     addedAt: new Date(),
   };
 
@@ -211,7 +219,7 @@ async function persistEpisodeStream(
       posterSource: posterUrl ? 'tmdb' : undefined,
       disponible: true,
       disponibleCheckedAt: new Date(),
-      langueAudio: query.language || 'fr',
+      langueAudio: sourceLang,
       episodes: [],
     });
   }
@@ -228,11 +236,15 @@ async function persistEpisodeStream(
     if (!alreadyExists) {
       ep.sources.push(sourceEntry);
     }
-    if (quality === '1080p' || !ep.lien || ep.lien.startsWith('/api/')) {
+    const currentLang = ep.langueAudio || serie.langueAudio || 'fr';
+    const isLangMatch = sourceLang.toLowerCase() === currentLang.toLowerCase();
+
+    if ((quality === '1080p' && isLangMatch) || !ep.lien || ep.lien.startsWith('/api/')) {
       ep.lien = cleanUrl;
       ep.source = result.provider;
       ep.quality = quality;
       ep.isPremium = isPremium;
+      ep.langueAudio = sourceLang;
     }
   } else {
     const newEpisode: IEpisode = {
@@ -244,7 +256,7 @@ async function persistEpisodeStream(
       quality,
       isPremium,
       sources: [sourceEntry],
-      langueAudio: query.language || 'fr',
+      langueAudio: sourceLang,
     };
     serie.episodes.push(newEpisode);
   }
@@ -252,7 +264,7 @@ async function persistEpisodeStream(
   serie.disponible = true;
   serie.disponibleCheckedAt = new Date();
   await serie.save();
-  console.log(`[AutoPersist] Épisode mis à jour en MongoDB: "${title}" ${episodeLabel} [${result.provider} ${quality}]`);
+  console.log(`[AutoPersist] Épisode mis à jour en MongoDB: "${title}" ${episodeLabel} [${result.provider} ${quality} ${sourceLang}]`);
 }
 
 /**

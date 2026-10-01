@@ -49,10 +49,21 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
     typeParam === "anime";
   const initialSeasonParam = searchParams?.get("season") || "1";
   const initialEpisodeParam = searchParams?.get("episode") || "1";
+  const initialLangParam = (searchParams?.get("lang") === "vostfr" ? "vostfr" : "fr") as "fr" | "vostfr";
 
   const [item, setItem] = useState<MovieOrShow | null>(initialItem || null);
   const [currentSeason, setCurrentSeason] = useState<number>(parseInt(initialSeasonParam) || 1);
-  const [audioVersion, setAudioVersion] = useState<"fr" | "vostfr">("fr");
+  const [audioVersion, setAudioVersion] = useState<"fr" | "vostfr">(initialLangParam);
+
+  // Read preferred language from localStorage on client mount if not in URL
+  useEffect(() => {
+    if (!searchParams?.get("lang")) {
+      const saved = localStorage.getItem("chillers_preferred_lang") as "fr" | "vostfr" | null;
+      if (saved && (saved === "fr" || saved === "vostfr")) {
+        setAudioVersion(saved);
+      }
+    }
+  }, [searchParams]);
   const [streamUrl, setStreamUrl] = useState(initialStreamUrl || "");
   const [streamLoading, setStreamLoading] = useState(!initialStreamUrl && !initialStreamUnavailable);
   const [streamUnavailable, setStreamUnavailable] = useState(initialStreamUnavailable || false);
@@ -211,28 +222,43 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
           }
           setSeasonLoading(false);
         } else {
-          const stream = await getStreamUrl(
+          const detailPromise = getMediaDetails(id, isTV, signal);
+          const firstStreamPromise = getStreamUrl(
             id,
             "movie",
             undefined,
             undefined,
-            detail?.title || id,
+            undefined,
             signal,
-            originalTitle,
-            detail?.releaseDate,
-            detail?.year,
+            undefined,
+            undefined,
+            undefined,
             audioVersion,
           );
-          if (!cancelled) {
-            if (stream?.unreleased) {
-              setIsUnreleased(true);
-              setUnreleasedDate(stream.releaseDate || detail?.releaseDate || null);
-              setStreamUnavailable(true);
-            } else if (stream) {
-              setStreamUrl(stream.embedUrl);
-            } else {
-              setStreamUnavailable(true);
-            }
+
+          const [detailRes, stream] = await Promise.all([
+            detailPromise,
+            firstStreamPromise,
+          ]);
+          if (cancelled) return;
+          if (detailRes) setItem(detailRes);
+
+          if (detailRes?.releaseDate && new Date(detailRes.releaseDate).getTime() > Date.now()) {
+            setIsUnreleased(true);
+            setUnreleasedDate(detailRes.releaseDate);
+            setStreamUnavailable(true);
+            setStreamLoading(false);
+            return;
+          }
+
+          if (stream?.unreleased) {
+            setIsUnreleased(true);
+            setUnreleasedDate(stream.releaseDate || detailRes?.releaseDate || null);
+            setStreamUnavailable(true);
+          } else if (stream) {
+            setStreamUrl(stream.embedUrl);
+          } else {
+            setStreamUnavailable(true);
           }
         }
       } catch (err) {
@@ -439,6 +465,11 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
     async (newLang: "fr" | "vostfr") => {
       if (newLang === audioVersion || !item) return;
       setAudioVersion(newLang);
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("chillers_preferred_lang", newLang);
+        } catch {}
+      }
       setStreamLoading(true);
       setStreamUnavailable(false);
       setStreamUrl("");
@@ -464,6 +495,12 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
           } else {
             setStreamUnavailable(true);
           }
+          // Update URL silently with new language
+          window.history.replaceState(
+            null,
+            "",
+            `/watch/${id}?type=tv&season=${ep?.season || currentSeason}&episode=${ep?.number || 1}&lang=${newLang}`
+          );
         } else {
           const stream = await getStreamUrl(
             id,
@@ -482,6 +519,12 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
           } else {
             setStreamUnavailable(true);
           }
+          // Update URL silently with new language
+          window.history.replaceState(
+            null,
+            "",
+            `/watch/${id}?type=movie&lang=${newLang}`
+          );
         }
       } catch (err) {
         console.error("Language switch stream error:", err);
@@ -669,9 +712,11 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
             ) : (
               <>
                 <VideoPlayer
-                  key={`${currentEpisode?.id ?? item?.id ?? id}-${streamUrl}`}
+                  key={`${currentEpisode?.id ?? item?.id ?? id}-${streamUrl}-${audioVersion}`}
                   item={playerItem!}
                   episode={currentEpisode}
+                  audioVersion={audioVersion}
+                  onLanguageChange={handleLanguageChange}
                   onBack={() => router.back()}
                   onOpenDetails={(it) =>
                     router.push(
@@ -699,7 +744,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
               <button
                 onClick={playPrevEpisode}
                 disabled={currentEpisodeIndex === 0}
-                className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-white/5 text-xs font-semibold text-zinc-300 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all flex-shrink-0"
+                className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-white/5 text-xs font-semibold text-zinc-300 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all flex-shrink-0 cursor-pointer"
               >
                 <CaretCircleLeft className="h-4 w-4" />
                 <span className="hidden sm:inline">{_("common.previous")}</span>
@@ -717,7 +762,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
               <button
                 onClick={playNextEpisode}
                 disabled={currentEpisodeIndex >= episodes.length - 1}
-                className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-white/5 text-xs font-semibold text-zinc-300 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all flex-shrink-0"
+                className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-white/5 text-xs font-semibold text-zinc-300 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all flex-shrink-0 cursor-pointer"
               >
                 <span className="hidden sm:inline">{_("common.next")}</span>
                 <CaretCircleRight className="h-4 w-4" />
@@ -725,22 +770,23 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
             </div>
           )}
 
-          {/* Language Version Selector (Français VF vs Version Originale VO) */}
-          <div className="flex items-center justify-between gap-2 p-2 rounded-2xl bg-zinc-900/80 border border-white/5 backdrop-blur-md">
-            <div className="flex items-center gap-2 px-2">
-              <Translate className="h-4 w-4 text-brand-primary" />
-              <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-zinc-300 hidden xs:inline">
-                Version Audio :
+          {/* ── Compact Modern Audio Language Switcher ── */}
+          <div className="flex flex-wrap items-center justify-between gap-3 p-2.5 sm:px-4 sm:py-2.5 rounded-xl bg-zinc-900/80 border border-white/10 backdrop-blur-md">
+            <div className="flex items-center gap-2">
+              <Translate className="h-4 w-4 text-brand-primary shrink-0" />
+              <span className="text-xs font-bold text-zinc-300">
+                Version audio :
               </span>
             </div>
 
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 bg-black/50 p-1 rounded-lg border border-white/5">
               <button
+                type="button"
                 onClick={() => handleLanguageChange("fr")}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
                   audioVersion === "fr"
-                    ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/30 ring-1 ring-white/20"
-                    : "bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10"
+                    ? "bg-brand-primary text-white shadow-sm ring-1 ring-brand-primary/50"
+                    : "text-zinc-400 hover:text-white hover:bg-white/5"
                 }`}
               >
                 <span>🇫🇷</span>
@@ -748,17 +794,25 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
               </button>
 
               <button
+                type="button"
                 onClick={() => handleLanguageChange("vostfr")}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
                   audioVersion === "vostfr"
-                    ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/30 ring-1 ring-white/20"
-                    : "bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10"
+                    ? "bg-brand-primary text-white shadow-sm ring-1 ring-brand-primary/50"
+                    : "text-zinc-400 hover:text-white hover:bg-white/5"
                 }`}
               >
                 <span>🌐</span>
-                <span>Version Originale (VO)</span>
+                <span>VOSTFR</span>
               </button>
             </div>
+
+            {streamLoading && (
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-brand-primary animate-pulse ml-auto sm:ml-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-brand-primary animate-ping" />
+                Chargement...
+              </span>
+            )}
           </div>
 
           {/* Title Header */}
@@ -1059,6 +1113,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
           type={isTV ? "series" : "movie"}
           season={isTV ? (selectedDownloadEpisode?.season || currentSeason) : undefined}
           episode={isTV ? (selectedDownloadEpisode?.number || currentEpisode?.number || 1) : undefined}
+          initialLanguage={audioVersion}
         />
       )}
 

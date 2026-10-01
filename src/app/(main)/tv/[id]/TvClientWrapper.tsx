@@ -390,17 +390,6 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
                 </Link>
               )}
 
-              {item.trailerUrl && (
-                <Button
-                  onClick={() => setTrailerOpen(true)}
-                  variant="outline"
-                  size="md"
-                  text="Bande-annonce"
-                  leftIcon={<FilmSlate className="h-4 w-4" />}
-                  ariaLabel={`Voir la bande-annonce de ${item.title}`}
-                />
-              )}
-
               {user && (
                 <Button
                   onClick={() => setShowPlaylistModal(true)}

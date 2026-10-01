@@ -23,6 +23,8 @@ import Hls from "hls.js";
 interface VideoPlayerProps {
   item: MovieOrShow;
   episode?: Episode;
+  audioVersion?: "fr" | "vostfr" | "en";
+  onLanguageChange?: (lang: "fr" | "vostfr") => void;
   onBack?: () => void;
   onOpenDetails?: (item: MovieOrShow) => void;
 }
@@ -32,7 +34,7 @@ const RESUME_MIN_SECONDS = 5;
 const SEEK_STEP_SECONDS = 10;
 const VOLUME_STEP = 0.1;
 
-export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps) {
+export default function VideoPlayer({ item, episode, audioVersion = "fr", onLanguageChange, onBack }: VideoPlayerProps) {
   const { lang, translate: _ } = useLanguage();
   const { token, user, updateUser } = useAuthStore();
   const globalSubscriptionEnabled = useSubscriptionStore((s) => s.globalSubscriptionEnabled);
@@ -65,13 +67,13 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
   const [notification, setNotification] = useState<{ title: string; message: string } | null>(null);
   const [showSingleDownload, setShowSingleDownload] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [hasStarted, setHasStarted] = useState(false);
+  const [hasStarted, setHasStarted] = useState(true);
   const [hoverTime, setHoverTime] = useState<number | null>(null);
   const [hoverPos, setHoverPos] = useState<number>(0);
   const [centerFeedback, setCenterFeedback] = useState<{ icon: "play" | "pause" | "forward" | "backward"; key: number } | null>(null);
   const [isTheater, setIsTheater] = useState(false);
   const [autoplay, setAutoplay] = useState(true);
-  const [settingsTab, setSettingsTab] = useState<"main" | "speed" | "quality" | "subtitles">("main");
+  const [settingsTab, setSettingsTab] = useState<"main" | "speed" | "quality" | "subtitles" | "audio">("main");
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const currentEpisode = episode;
@@ -203,13 +205,20 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
   const streamType: "movie" | "series" | "anime" =
     item.type === "series" ? "series" : item.type === "anime" ? "anime" : "movie";
 
+  // Priorité absolue au flux passé explicitement (ex: par la page watch après sélection VF)
+  const hasExternalVideoUrl = !!item.videoUrl;
+
   const streamQuery = useStreamUrl({
     id: String(item.id),
     type: streamType,
     season: currentEpisode?.season,
     episode: currentEpisode?.number,
     title: item.title,
-    enabled: !!item.id,
+    originalTitle: (item as any)?.originalTitle || (item as any)?.original_title,
+    releaseDate: item.releaseDate,
+    year: item.year,
+    language: audioVersion || "fr",
+    enabled: !hasExternalVideoUrl && !!item.id,
   });
 
   useEffect(() => {
@@ -218,13 +227,13 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
     }
   }, [streamQuery.error]);
 
-  const resolvedStreamUrl = streamQuery.data?.embedUrl ?? null;
+  const resolvedStreamUrl = item.videoUrl || streamQuery.data?.embedUrl || null;
   // URL de téléchargement direct (fallback torrent) — type chillers-test :
   // le backend proxy le flux TorrServer avec Content-Disposition: attachment.
   const torrentDownloadUrl = streamQuery.data?.downloadUrl ?? null;
   const serverVideoUrl = useMemo(
-    () => toEmbedUrl(resolvedStreamUrl ?? item.videoUrl ?? undefined),
-    [resolvedStreamUrl, item.videoUrl],
+    () => toEmbedUrl(resolvedStreamUrl ?? undefined),
+    [resolvedStreamUrl],
   );
   const isIframe = isIframeProviderUrl(serverVideoUrl);
 
@@ -727,7 +736,8 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
           {/* ─── VIDEO NATIVE ─── */}
           <video
             ref={videoRef}
-            className="absolute inset-0 w-full h-full object-contain bg-black"
+            src={!isHls && videoUrl ? videoUrl : undefined}
+            autoPlay
             playsInline
             preload="auto"
             onTimeUpdate={updateProgressAndBuffer}
@@ -1098,6 +1108,19 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
                               </button>
                             )}
 
+                            {/* Audio Version */}
+                            {onLanguageChange && (
+                              <button
+                                onClick={() => setSettingsTab("audio")}
+                                className="px-4 py-2.5 flex items-center justify-between hover:bg-white/10 transition-colors text-left border-t border-white/5"
+                              >
+                                <span className="text-zinc-300">Langue audio</span>
+                                <span className="text-zinc-400 font-medium truncate max-w-[100px] text-right">
+                                  {audioVersion === "fr" ? "🇫🇷 VF" : "🌐 VOSTFR"} ›
+                                </span>
+                              </button>
+                            )}
+
                             {/* Subtitles */}
                             {subtitles.length > 0 && (
                               <button
@@ -1118,6 +1141,53 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
                             >
                               <span className="text-zinc-300">Lecteur réduit (PiP)</span>
                               <span className="text-zinc-400 font-medium">Activer</span>
+                            </button>
+                          </div>
+                        )}
+
+                        {settingsTab === "audio" && onLanguageChange && (
+                          <div className="flex flex-col">
+                            <button
+                              onClick={() => setSettingsTab("main")}
+                              className="px-4 py-2 flex items-center gap-2 text-zinc-400 hover:text-white border-b border-white/10 font-bold"
+                            >
+                              ‹ Langue audio
+                            </button>
+                            <button
+                              onClick={() => {
+                                onLanguageChange("fr");
+                                setShowSpeedMenu(false);
+                              }}
+                              className={`px-4 py-2.5 text-left flex items-center justify-between hover:bg-white/10 transition-colors ${
+                                audioVersion === "fr" ? "text-[#D70466] font-bold" : "text-white"
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <span>🇫🇷</span>
+                                <div>
+                                  <p className="text-xs font-bold">Français (VF)</p>
+                                  <p className="text-[10px] text-zinc-400">Doublage français 1080p</p>
+                                </div>
+                              </div>
+                              {audioVersion === "fr" && <span>✓</span>}
+                            </button>
+                            <button
+                              onClick={() => {
+                                onLanguageChange("vostfr");
+                                setShowSpeedMenu(false);
+                              }}
+                              className={`px-4 py-2.5 text-left flex items-center justify-between hover:bg-white/10 transition-colors ${
+                                audioVersion === "vostfr" ? "text-[#D70466] font-bold" : "text-white"
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <span>🌐</span>
+                                <div>
+                                  <p className="text-xs font-bold">Version Originale (VO / VOSTFR)</p>
+                                  <p className="text-[10px] text-zinc-400">Audio original & sous-titres FR</p>
+                                </div>
+                              </div>
+                              {audioVersion === "vostfr" && <span>✓</span>}
                             </button>
                           </div>
                         )}
@@ -1399,6 +1469,7 @@ export default function VideoPlayer({ item, episode, onBack }: VideoPlayerProps)
           type={streamType}
           season={currentEpisode?.season}
           episode={currentEpisode?.number}
+          initialLanguage={audioVersion === "vostfr" ? "vostfr" : "fr"}
         />
       )}
       <NotificationModal

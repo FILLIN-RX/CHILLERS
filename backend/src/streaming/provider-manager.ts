@@ -310,10 +310,10 @@ export class ProviderManager {
     // 1. Si l'utilisateur demande explicitement la version originale anglaise (VO)
     if (lang === 'en' || lang === 'vo') {
       return [
-        ...vidlink,
-        ...doodstream,
         ...direct,
         ...mongoDb,
+        ...vidlink,
+        ...doodstream,
         ...omniSave,
         ...frenchStream,
         ...flemmix,
@@ -324,39 +324,28 @@ export class ProviderManager {
     // 2. Si l'utilisateur demande explicitement VOSTFR (Sous-titres FR)
     if (lang === 'vostfr') {
       return [
+        ...direct,
+        ...mongoDb,
         ...frenchStream,
         ...otaku,
         ...flemmix,
         ...vidlink,
-        ...direct,
-        ...mongoDb,
         ...doodstream,
         ...omniSave,
       ];
     }
 
-    // 3. Par défaut (VF / Français) : UNIQUEMENT les sources francophones en priorité
-    if (isPremium) {
-      // Pour les utilisateurs Premium : FrenchStream (1080p Full HD) en priorité #1, Flemmix en #2
-      return [
-        ...frenchStream,
-        ...flemmix,
-        ...direct,
-        ...mongoDb,
-        ...doodstream,
-        ...otaku,
-      ];
-    } else {
-      // Pour les utilisateurs Standards : FrenchStream, Flemmix, Direct, MongoDB, Doodstream, Otaku
-      return [
-        ...frenchStream,
-        ...flemmix,
-        ...direct,
-        ...mongoDb,
-        ...doodstream,
-        ...otaku,
-      ];
-    }
+    // 3. Par défaut (VF / Français) : MongoDB/Direct en #1, puis scraping externe en fallback
+    return [
+      ...direct,
+      ...mongoDb,
+      ...frenchStream,
+      ...flemmix,
+      ...otaku,
+      ...doodstream,
+      ...omniSave,
+      ...vidlink,
+    ];
   }
 
   private async filterProviders(query: StreamQuery): Promise<StreamingProvider[]> {
@@ -406,6 +395,7 @@ export class ProviderManager {
       url.includes('playmogo.com') ||
       url.includes('d000d.com') ||
       url.includes('d0000d.com') ||
+      url.includes('vidzy.') ||
       url.includes('/api/doodstream/stream') ||
       /dood\.(to|sh|so|cx|la|wf|pm)/i.test(url) ||
       url.includes('/e/') ||
@@ -475,14 +465,19 @@ export class ProviderManager {
       return true;
     }
 
+    const headers: Record<string, string> = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+    };
+    if (url.includes('vidzy.')) {
+      headers['Referer'] = 'https://vidzy.cc/';
+    }
+
     try {
       // 1. Try a HEAD request first to verify video URLs quickly without downloading body
       try {
         const headResponse = await axios.head(url, {
           timeout: VALIDATION_TIMEOUT,
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          },
+          headers,
           maxRedirects: 5,
         });
 
@@ -505,9 +500,7 @@ export class ProviderManager {
       const response = await axios.get(url, {
         timeout: VALIDATION_TIMEOUT,
         responseType: 'stream',
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        },
+        headers,
         maxRedirects: 5,
       });
 

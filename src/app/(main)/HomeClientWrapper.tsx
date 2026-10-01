@@ -305,10 +305,11 @@ export default function HomeClientWrapper({
     setIsModalOpen(true);
   }, [router]);
 
-  const handleWatchNow = useCallback((item: MovieOrShow, season?: number, episode?: number) => {
+  const handleWatchNow = useCallback((item: MovieOrShow, season?: number, episode?: number, lang?: "fr" | "vostfr") => {
     setIsModalOpen(false);
     const typeParam = item.type === "series" || item.type === "anime" ? "tv" : "movie";
-    let url = `/watch/${item.id}?type=${typeParam}`;
+    const preferredLang = lang || (typeof window !== "undefined" ? (localStorage.getItem("chillers_preferred_lang") as "fr" | "vostfr") : null) || "fr";
+    let url = `/watch/${item.id}?type=${typeParam}&lang=${preferredLang}`;
     if (season) url += `&season=${season}`;
     if (episode) url += `&episode=${episode}`;
     startTransition(() => {
@@ -324,8 +325,8 @@ export default function HomeClientWrapper({
     handleWatchNow(item, season, episode);
   };
 
-  const handleModalWatch = (item: MovieOrShow, episode?: Episode) => {
-    handleWatchNow(item, episode?.season, episode?.number);
+  const handleModalWatch = (item: MovieOrShow, episode?: Episode, lang?: "fr" | "vostfr") => {
+    handleWatchNow(item, episode?.season, episode?.number, lang);
   };
 
   return (

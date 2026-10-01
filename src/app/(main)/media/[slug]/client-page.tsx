@@ -87,9 +87,28 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
   const [sharePos, setSharePos] = useState<{ top: number; right: number } | null>(null);
   const [disponible, setDisponible] = useState<{ disponible: boolean; streaming: boolean; download: boolean; langueAudio?: string; isFrenchAudio?: boolean } | null>(null);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
+  const [selectedLang, setSelectedLang] = useState<"fr" | "vostfr">("fr");
   const castScrollRef = useRef<HTMLDivElement>(null);
   const [castCanScrollLeft, setCastCanScrollLeft] = useState(false);
   const [castCanScrollRight, setCastCanScrollRight] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("chillers_preferred_lang") as "fr" | "vostfr" | null;
+      if (saved && (saved === "fr" || saved === "vostfr")) {
+        setSelectedLang(saved);
+      }
+    }
+  }, []);
+
+  const handleLangSelect = (l: "fr" | "vostfr") => {
+    setSelectedLang(l);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("chillers_preferred_lang", l);
+      } catch {}
+    }
+  };
 
   /** true si le film n'est pas encore sorti (date de sortie dans le futur) */
   const isUpcoming = Boolean(item?.releaseDate && new Date(item.releaseDate).getTime() > Date.now());
@@ -209,7 +228,7 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
     if (!item) return;
     // Tout le streaming passe par /watch — on ne lance plus rien en inline
     // sur la page /media (le player a été retiré de cette vue).
-    router.push(`/watch/${item.id}?type=${isTV ? "tv" : "movie"}`, { scroll: false });
+    router.push(`/watch/${item.id}?type=${isTV ? "tv" : "movie"}&lang=${selectedLang}`, { scroll: false });
   };
 
   const [showSingleDownload, setShowSingleDownload] = useState(false);
@@ -577,28 +596,45 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
                     className="flex-1 sm:flex-initial opacity-90 cursor-not-allowed border-0 text-blue-200 font-bold bg-blue-600/20 shadow-none"
                   />
                 ) : (
-                  <Button
-                    onClick={handleWatch}
-                    disabled={!item || loading}
-                    variant="primary"
-                    size="md"
-                    text={_("media.watch")}
-                    leftIcon={<Play className="h-4 w-4 fill-white" />}
-                    ariaLabel={`Regarder le film ${item?.title || ""}`}
-                    className="flex-1 sm:flex-initial"
-                  />
-                )}
+                  <>
+                    <Button
+                      onClick={handleWatch}
+                      disabled={!item || loading}
+                      variant="primary"
+                      size="md"
+                      text={_("media.watch")}
+                      leftIcon={<Play className="h-4 w-4 fill-white" />}
+                      ariaLabel={`Regarder le film ${item?.title || ""}`}
+                      className="flex-1 sm:flex-initial"
+                    />
 
-                {item.trailerUrl && (
-                  <Button
-                    onClick={() => setTrailerOpen(true)}
-                    variant="outline"
-                    size="md"
-                    text="Bande-annonce"
-                    leftIcon={<FilmSlate className="h-4 w-4" />}
-                    ariaLabel={`Voir la bande-annonce de ${item.title}`}
-                    className="flex-1 sm:flex-initial"
-                  />
+                    <div className="flex items-center p-1 rounded-xl bg-white/5 border border-white/10 backdrop-blur-md">
+                      <button
+                        type="button"
+                        onClick={() => handleLangSelect("fr")}
+                        className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                          selectedLang === "fr"
+                            ? "bg-brand-primary text-white shadow-md shadow-brand-primary/30"
+                            : "text-zinc-400 hover:text-white"
+                        }`}
+                      >
+                        <span>🇫🇷</span>
+                        <span>VF</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleLangSelect("vostfr")}
+                        className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                          selectedLang === "vostfr"
+                            ? "bg-brand-primary text-white shadow-md shadow-brand-primary/30"
+                            : "text-zinc-400 hover:text-white"
+                        }`}
+                      >
+                        <span>🌐</span>
+                        <span>VOSTFR</span>
+                      </button>
+                    </div>
+                  </>
                 )}
 
                 {!isUpcoming && (

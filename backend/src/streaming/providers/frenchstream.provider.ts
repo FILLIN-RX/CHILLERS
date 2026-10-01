@@ -90,8 +90,8 @@ export class FrenchStreamProvider implements StreamingProvider {
     const season = query.season || 1;
     const episode = query.episode || 1;
 
-    console.log(`[FrenchStream Provider] Recherche série 1080p pour: "${seriesTitle}" S${season}E${episode} (isPremium=${!!query.isPremium})`);
-    const result = await getFrenchStreamEpisode(seriesTitle, season, episode);
+    console.log(`[FrenchStream Provider] Recherche série 1080p pour: "${seriesTitle}" S${season}E${episode} (lang=${query.language || 'fr'}, isPremium=${!!query.isPremium})`);
+    const result = await getFrenchStreamEpisode(seriesTitle, season, episode, (query.language as any) || 'fr');
 
     if (result?.streamUrl) {
       console.log(`[FrenchStream Provider] Flux série 1080p trouvé: ${result.streamUrl.slice(0, 80)}... (${result.fileSize})`);

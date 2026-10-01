@@ -92,22 +92,22 @@ function isUqloadUrl(url: string): boolean {
 }
 
 function extractVidzyCode(url: string): string | null {
-  // If it's an embed URL or /d/ download page: vidzy.cc/embed-xxx.html or /d/xxx_n.html
-  const embedMatch = url.match(/vidzy\.(?:cc|org|xyz|co|tv|top)\/(?:embed-|d\/)([a-zA-Z0-9]+)/i);
+  // If it's an embed URL or /d/ download page: vidzy.live/embed-xxx.html or /d/xxx_n.html
+  const embedMatch = url.match(/vidzy\.[a-z0-9-]+\/(?:embed-|d\/)([a-zA-Z0-9]+)/i);
   if (embedMatch) return embedMatch[1];
 
   // If it's a direct CDN URL: vidzy.cc/v/01/00047/zkd8rc6kkh2m_o/q9fu7dg3hcq9_n.mp4
-  const cdnMatch = url.match(/vidzy\.(?:cc|org|xyz|co|tv|top)\/v\/\d+\/\d+\/([a-zA-Z0-9]+)_[a-z]\/([a-zA-Z0-9]+)/i);
+  const cdnMatch = url.match(/vidzy\.[a-z0-9-]+\/v\/\d+\/\d+\/([a-zA-Z0-9]+)_[a-z]\/([a-zA-Z0-9]+)/i);
   if (cdnMatch) return cdnMatch[1] || cdnMatch[2];
 
-  const generalMatch = url.match(/vidzy\.(?:cc|org|xyz|co|tv|top)\/([a-zA-Z0-9]{6,})/i);
+  const generalMatch = url.match(/vidzy\.[a-z0-9-]+\/([a-zA-Z0-9]{6,})/i);
   if (generalMatch && !url.includes('/v/')) return generalMatch[1];
 
   return null;
 }
 
 function isVidzyUrl(url: string): boolean {
-  return /vidzy\.(cc|org|xyz|co|tv|top)/i.test(url);
+  return /vidzy\./i.test(url);
 }
 
 function isLuluvidUrl(url: string): boolean {
@@ -122,6 +122,23 @@ async function scrapeVidzyEmbed(embedUrl: string): Promise<DirectStreamResult | 
     console.log(`${TAG} Vidzy: impossible d'extraire le code de "${embedUrl}"`);
     return null;
   }
+
+  // Strategy 1: Résolution rapide via l'API OpenOtaku dl
+  try {
+    const dlRes = await axios.get(`https://www.open-otaku.me/api/dl`, {
+      params: { url: `https://vidzy.cc/d/${code}_n.html` },
+      timeout: 6000,
+      headers: { 'User-Agent': UA },
+    });
+    if (dlRes.data?.success && dlRes.data?.downloadUrl) {
+      console.log(`${TAG} Vidzy: ✅ direct MP4 trouvé via OpenOtaku API → ${dlRes.data.downloadUrl.slice(0, 100)}`);
+      return {
+        directUrl: dlRes.data.downloadUrl,
+        type: 'mp4',
+        referer: 'https://vidzy.cc/',
+      };
+    }
+  } catch (_) {}
 
   const dlPageUrl = `https://vidzy.cc/d/${code}_n.html`;
   console.log(`${TAG} Vidzy: code=${code}, fetch de ${dlPageUrl}`);

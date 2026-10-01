@@ -1,6 +1,7 @@
 import { StreamingProvider, StreamResult, StreamQuery } from './provider.interface';
 import { scrapeDirectStream, isScrapableUrl } from './direct-scraper';
 import { isSignedLinkExpired } from '../../utils/link-ttl';
+import { isLanguageCompatible } from '../../utils/audio-language';
 import Movie from '../../models/Movie';
 import Serie from '../../models/Serie';
 
@@ -205,12 +206,24 @@ export class DirectProvider implements StreamingProvider {
         const ep = serie.episodes.find(
           (e: any) => Number(e.season) === Number(query.season) && Number(e.episodeNumber) === Number(query.episode)
         );
-        if (ep?.uqloadCode) return ep.uqloadCode;
+        if (ep?.uqloadCode) {
+          if (!isLanguageCompatible(query.language, { titre: serie.titre, lien: ep.uqloadLink || ep.lien, langueAudio: ep.langueAudio || serie.langueAudio })) {
+            console.log(`${TAG} Uqload code ignoré pour S${query.season}E${query.episode} (incompatible avec lang=${query.language || 'fr'})`);
+            return null;
+          }
+          return ep.uqloadCode;
+        }
         return null;
       } else {
         const movie = await this.findMovie(query);
         if (!movie) return null;
-        if (movie.uqloadCode) return movie.uqloadCode;
+        if (movie.uqloadCode) {
+          if (!isLanguageCompatible(query.language, { titre: movie.titre, lien: movie.uqloadLink || movie.lien, langueAudio: movie.langueAudio })) {
+            console.log(`${TAG} Uqload code ignoré pour "${movie.titre}" (incompatible avec lang=${query.language || 'fr'})`);
+            return null;
+          }
+          return movie.uqloadCode;
+        }
         return null;
       }
     } catch (err) {
@@ -239,19 +252,23 @@ export class DirectProvider implements StreamingProvider {
           return null;
         }
 
-        const candidates: string[] = [];
-        if (ep.lien && ep.lien !== '#') candidates.push(ep.lien);
+        const candidates: Array<{ url: string; langueAudio?: string }> = [];
+        if (ep.lien && ep.lien !== '#') candidates.push({ url: ep.lien, langueAudio: ep.langueAudio || serie.langueAudio });
         if (ep.sources && Array.isArray(ep.sources)) {
           for (const s of ep.sources) {
-            if (s?.url && s.url !== '#' && !candidates.includes(s.url)) {
-              candidates.push(s.url);
+            if (s?.url && s.url !== '#' && !candidates.some(c => c.url === s.url)) {
+              candidates.push({ url: s.url, langueAudio: (s as any).langueAudio || ep.langueAudio || serie.langueAudio });
             }
           }
         }
 
-        for (const rawCandidate of candidates) {
-          const candidate = this.unwrapUrl(rawCandidate);
+        for (const candidateItem of candidates) {
+          const candidate = this.unwrapUrl(candidateItem.url);
           if (!candidate || candidate === '#' || isSignedLinkExpired(candidate)) continue;
+          if (!isLanguageCompatible(query.language, { titre: serie.titre, lien: candidate, langueAudio: candidateItem.langueAudio })) {
+            console.log(`${TAG} MongoDB: candidat S${query.season}E${query.episode} ignoré (incompatible avec lang=${query.language || 'fr'}): ${candidate.slice(0, 60)}`);
+            continue;
+          }
           if (this.isDirectVideo(candidate)) {
             console.log(`${TAG} MongoDB: lien direct MP4/HLS trouvé pour S${query.season}E${query.episode}: ${candidate.slice(0, 80)}`);
             return candidate;
@@ -262,7 +279,7 @@ export class DirectProvider implements StreamingProvider {
           }
         }
 
-        console.log(`${TAG} MongoDB: aucun lien Dood/Uqload/Vidzy scrapable pour S${query.season}E${query.episode}`);
+        console.log(`${TAG} MongoDB: aucun lien Dood/Uqload/Vidzy scrapable pour S${query.season}E${query.episode} (lang=${query.language || 'fr'})`);
         return null;
       } else {
         const movie = await this.findMovie(query);
@@ -274,19 +291,23 @@ export class DirectProvider implements StreamingProvider {
 
         console.log(`${TAG} MongoDB: film trouvé "${movie.titre}" (tmdbId=${movie.tmdbId})`);
 
-        const candidates: string[] = [];
-        if (movie.lien && movie.lien !== '#') candidates.push(movie.lien);
+        const candidates: Array<{ url: string; langueAudio?: string }> = [];
+        if (movie.lien && movie.lien !== '#') candidates.push({ url: movie.lien, langueAudio: movie.langueAudio });
         if (movie.sources && Array.isArray(movie.sources)) {
           for (const s of movie.sources) {
-            if (s?.url && s.url !== '#' && !candidates.includes(s.url)) {
-              candidates.push(s.url);
+            if (s?.url && s.url !== '#' && !candidates.some(c => c.url === s.url)) {
+              candidates.push({ url: s.url, langueAudio: (s as any).langueAudio || movie.langueAudio });
             }
           }
         }
 
-        for (const rawCandidate of candidates) {
-          const candidate = this.unwrapUrl(rawCandidate);
+        for (const candidateItem of candidates) {
+          const candidate = this.unwrapUrl(candidateItem.url);
           if (!candidate || candidate === '#' || isSignedLinkExpired(candidate)) continue;
+          if (!isLanguageCompatible(query.language, { titre: movie.titre, lien: candidate, langueAudio: candidateItem.langueAudio })) {
+            console.log(`${TAG} MongoDB: candidat ignoré (incompatible avec lang=${query.language || 'fr'}): ${candidate.slice(0, 60)}`);
+            continue;
+          }
           if (this.isDirectVideo(candidate)) {
             console.log(`${TAG} MongoDB: lien direct MP4/HLS trouvé pour "${movie.titre}": ${candidate.slice(0, 80)}`);
             return candidate;
@@ -297,7 +318,7 @@ export class DirectProvider implements StreamingProvider {
           }
         }
 
-        console.log(`${TAG} MongoDB: aucun lien Dood/Uqload/Vidzy scrapable pour "${movie.titre}"`);
+        console.log(`${TAG} MongoDB: aucun lien Dood/Uqload/Vidzy scrapable pour "${movie.titre}" (lang=${query.language || 'fr'})`);
         return null;
       }
     } catch (err) {

@@ -21,8 +21,8 @@ export class FlemmixProvider implements StreamingProvider {
 
     if (!movieTitle) return null;
 
-    console.log(`[Flemmix Provider] Recherche film: "${movieTitle}"`);
-    const result = await getFlemmixMovie(movieTitle);
+    console.log(`[Flemmix Provider] Recherche film: "${movieTitle}" (lang=${query.language || 'fr'})`);
+    const result = await getFlemmixMovie(movieTitle, query.language || 'fr');
 
     if (result?.bestStream?.url) {
       console.log(
@@ -53,8 +53,8 @@ export class FlemmixProvider implements StreamingProvider {
     const season = query.season || 1;
     const episode = query.episode || 1;
 
-    console.log(`[Flemmix Provider] Recherche série: "${seriesTitle}" S${season}E${episode}`);
-    const result = await getFlemmixEpisode(seriesTitle, season, episode);
+    console.log(`[Flemmix Provider] Recherche série: "${seriesTitle}" S${season}E${episode} (lang=${query.language || 'fr'})`);
+    const result = await getFlemmixEpisode(seriesTitle, season, episode, query.language || 'fr');
 
     if (result?.bestStream?.url) {
       console.log(

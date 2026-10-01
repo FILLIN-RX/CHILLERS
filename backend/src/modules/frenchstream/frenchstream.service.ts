@@ -2,6 +2,7 @@ import axios from 'axios';
 import querystring from 'querystring';
 import Movie from '../../models/Movie';
 import { DirectScraper } from '../../streaming/providers/direct-scraper';
+import { isLanguageCompatible } from '../../utils/audio-language';
 
 const BASE_URL = 'https://french-stream.net';
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
@@ -169,13 +170,21 @@ export async function extractEmbedVersions(pageUrl: string): Promise<{ title: st
  */
 export async function resolveVidzyDirectStream(embedUrl: string): Promise<{ streamUrl: string; fileSize: string } | null> {
   try {
+    const directScraped = await DirectScraper.resolve(embedUrl);
+    if (directScraped?.directUrl) {
+      return {
+        streamUrl: directScraped.directUrl,
+        fileSize: '1080p Full HD',
+      };
+    }
+
     const dlPageUrl = embedUrl.replace('/embed-', '/d/').replace('.html', '_n.html');
     const { data: html } = await axios.get(dlPageUrl, {
       headers: {
         'User-Agent': USER_AGENT,
         'Referer': `${BASE_URL}/`
       },
-      timeout: 15000
+      timeout: 8000
     });
 
     const titleMatch = html.match(/<h3[^>]*>([\s\S]*?)<\/h3>/i);
@@ -264,6 +273,19 @@ export async function getFrenchStreamMovie(
     const { title: resolvedTitle, versions } = await extractEmbedVersions(best.url);
     if (versions.length === 0) return null;
 
+    const filteredVersions = versions.filter(v =>
+      isLanguageCompatible(preferredLang, {
+        titre: best.title,
+        lien: v.embedUrl,
+        langueAudio: v.label.includes('VOSTFR') ? 'VOSTFR' : (v.label.includes('VF') || v.label.includes('FRENCH') || v.label.includes('TRUEFRENCH')) ? 'VF' : undefined,
+      })
+    );
+
+    if (filteredVersions.length === 0) {
+      console.log(`[FrenchStream HQ] Aucune version compatible avec la langue "${preferredLang}" pour "${title}" (${versions.length} versions rejetées)`);
+      return null;
+    }
+
     const isVO = preferredLang === 'vostfr' || preferredLang === 'en' || preferredLang === 'vo';
 
     // Priorité audio selon la langue demandée :
@@ -286,13 +308,17 @@ export async function getFrenchStreamMovie(
       return 6;
     };
 
-    const vidzyVersions = versions
+    const vidzyVersions = filteredVersions
       .filter(v => v.embedUrl.includes('vidzy'))
       .sort((a, b) => langRank(a.label) - langRank(b.label));
 
     for (const v of vidzyVersions) {
       const direct = await resolveVidzyDirectStream(v.embedUrl);
       if (direct?.streamUrl) {
+        if (!isLanguageCompatible(preferredLang, { titre: best.title, lien: direct.streamUrl })) {
+          console.log(`[FrenchStream HQ] Flux direct ignoré (incompatible avec lang=${preferredLang}): ${direct.streamUrl.slice(0, 70)}...`);
+          continue;
+        }
         console.log(`[FrenchStream HQ] Flux direct 1080p résolu (${v.label}) [isVO=${isVO}]: ${direct.streamUrl.slice(0, 70)}...`);
         return {
           title: resolvedTitle || best.title,
@@ -305,7 +331,7 @@ export async function getFrenchStreamMovie(
       }
     }
 
-    const sortedVersions = [...versions].sort((a, b) => langRank(a.label) - langRank(b.label));
+    const sortedVersions = [...filteredVersions].sort((a, b) => langRank(a.label) - langRank(b.label));
 
     const chosenVersion = sortedVersions[0];
     if (chosenVersion?.embedUrl) {
@@ -475,12 +501,13 @@ export async function extractEpisodeEmbedVersions(
 export async function getFrenchStreamEpisode(
   title: string,
   season: number = 1,
-  episode: number = 1
+  episode: number = 1,
+  preferredLang: 'fr' | 'vostfr' | 'en' | 'vo' = 'fr'
 ): Promise<FrenchStreamDirectResult | null> {
   try {
     const targetSeason = season > 0 ? season : 1;
     const targetEp = episode > 0 ? episode : 1;
-    console.log(`[FrenchStream HQ] Recherche série 1080p: "${title}" S${targetSeason}E${targetEp}`);
+    console.log(`[FrenchStream HQ] Recherche série 1080p: "${title}" S${targetSeason}E${targetEp} (lang=${preferredLang})`);
 
     // Recherche avec titre + saison
     const seasonQuery = `${title} Saison ${targetSeason}`;
@@ -518,8 +545,29 @@ export async function getFrenchStreamEpisode(
       return null;
     }
 
+    const filteredVersions = versions.filter(v =>
+      isLanguageCompatible(preferredLang, {
+        titre: best.title,
+        lien: v.embedUrl,
+        langueAudio: v.label.includes('VOSTFR') ? 'VOSTFR' : (v.label.includes('VF') || v.label.includes('FRENCH') || v.label.includes('TRUEFRENCH')) ? 'VF' : undefined,
+      })
+    );
+
+    if (filteredVersions.length === 0) {
+      console.log(`[FrenchStream HQ] Aucune version série compatible avec la langue "${preferredLang}" pour "${title}" S${targetSeason}E${targetEp}`);
+      return null;
+    }
+
+    const isVO = preferredLang === 'vostfr' || preferredLang === 'en' || preferredLang === 'vo';
     const langRank = (lbl: string) => {
       const u = lbl.toUpperCase();
+      if (isVO) {
+        if (u.includes('VOSTFR') || u.includes('VO')) return 1;
+        if (u.includes('MULTI')) return 2;
+        if (u.includes('TRUEFRENCH')) return 3;
+        if (u.includes('FRENCH') || u.includes('VF')) return 4;
+        return 5;
+      }
       if (u.includes('TRUEFRENCH')) return 1;
       if (u.includes('FRENCH')) return 2;
       if (u.includes('VF')) return 3;
@@ -529,11 +577,14 @@ export async function getFrenchStreamEpisode(
     };
 
     // 1. Tenter la résolution directe haute performance (Uqload HLS ou Vidzy MP4)
-    for (const v of versions) {
+    for (const v of filteredVersions) {
       if (v.embedUrl.includes('uqload') || v.embedUrl.includes('vidzy')) {
         try {
           const direct = await DirectScraper.resolve(v.embedUrl);
           if (direct?.directUrl) {
+            if (!isLanguageCompatible(preferredLang, { titre: best.title, lien: direct.directUrl })) {
+              continue;
+            }
             console.log(`[FrenchStream HQ] Flux série direct résolu (${v.label}): ${direct.directUrl.slice(0, 70)}...`);
             return {
               title: resolvedTitle || `${best.title} S${targetSeason}E${targetEp}`,
@@ -549,7 +600,7 @@ export async function getFrenchStreamEpisode(
     }
 
     // 2. Fallback embed si aucune extraction directe n'a abouti
-    const sortedVersions = [...versions].sort((a, b) => langRank(a.label) - langRank(b.label));
+    const sortedVersions = [...filteredVersions].sort((a, b) => langRank(a.label) - langRank(b.label));
     const chosen = sortedVersions[0];
     if (chosen?.embedUrl) {
       console.log(`[FrenchStream HQ] Lecteur embed série sélectionné (${chosen.label}): ${chosen.embedUrl}`);

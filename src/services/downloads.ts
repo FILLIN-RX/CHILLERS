@@ -25,6 +25,7 @@ export async function resolveDownloadUrl(
   title?: string,
   season?: number,
   episode?: number,
+  language = "fr",
 ): Promise<DownloadResolutionResult | null> {
   const query: Record<string, string> = {};
   const tmdbStr = String(tmdbId);
@@ -34,6 +35,7 @@ export async function resolveDownloadUrl(
   if (type) query.type = type;
   if (season !== undefined) query.season = String(season);
   if (episode !== undefined) query.episode = String(episode);
+  if (language) query.language = language;
 
   if (!query.tmdb_id && !query.title) return null;
 

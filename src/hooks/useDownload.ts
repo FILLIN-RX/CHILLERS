@@ -31,6 +31,7 @@ export interface UseDownloadArgs {
   episodeNumber?: number;
   posterUrl?: string;
   backdropUrl?: string;
+  language?: "fr" | "vostfr";
 }
 
 export interface UseDownloadReturn {
@@ -49,8 +50,8 @@ export interface UseDownloadReturn {
 }
 
 export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
-  const { tmdbId, type, title, season, episodeNumber, posterUrl, backdropUrl } = args;
-  const id = downloadTaskId({ tmdbId, season, episodeNumber });
+  const { tmdbId, type, title, season, episodeNumber, posterUrl, backdropUrl, language = "fr" } = args;
+  const id = downloadTaskId({ tmdbId, season, episodeNumber, language });
 
   const queryClient = useQueryClient();
   const addMany = useDownloadsStore((s) => s.addMany);
@@ -81,6 +82,7 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
       type,
       season ?? "_",
       episodeNumber ?? "_",
+      language,
     ]);
     const r1 = check(byStr);
     if (r1) return r1;
@@ -93,12 +95,13 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
         type,
         season ?? "_",
         episodeNumber ?? "_",
+        language,
       ]);
       const r2 = check(byNum);
       if (r2) return r2;
     }
     return null;
-  }, [queryClient, tmdbId, type, season, episodeNumber]);
+  }, [queryClient, tmdbId, type, season, episodeNumber, language]);
 
   /** Construit l'URL proxy correcte selon le type de lien (HLS → FFmpeg, MP4 → file proxy). */
   const buildFinalDownloadUrl = useCallback((rawUrl: string, directType?: string | null, filename?: string): string => {
@@ -215,6 +218,7 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
         title,
         season,
         episodeNumber,
+        language,
       );
 
       if (ctrl.signal.aborted) {

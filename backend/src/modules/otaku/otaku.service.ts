@@ -66,13 +66,14 @@ export async function searchOtaku(
   title: string,
   type: 'movie' | 'series' = 'movie',
   season?: number,
-  episode?: number
+  episode?: number,
+  language: string = 'fr'
 ): Promise<OtakuResult | null> {
   try {
     const targetSeason = season && season > 0 ? season : 1;
     const targetEpisode = episode && episode > 0 ? episode : 1;
     const labelSeasonEp = type === 'series' ? ` S${targetSeason}E${targetEpisode}` : '';
-    console.log(`[Otaku Direct API] Searching "${title}"${labelSeasonEp} (type: ${type})`);
+    console.log(`[Otaku Direct API] Searching "${title}"${labelSeasonEp} (type: ${type}, lang: ${language})`);
     
     // 1. Recherche directe via l'API interne d'OpenOtaku
     // Si série avec saison > 1 et titre ne contenant pas "saison", tenter d'abord avec le libellé saison
@@ -130,7 +131,12 @@ export async function searchOtaku(
       const rawEps = watch?.episodes || {};
       const vfMap = rawEps.vf || {};
       const vostfrMap = rawEps.vostfr || {};
-      const version = Object.keys(vfMap).length > 0 ? vfMap : vostfrMap;
+      let version = vfMap;
+      if (language === 'vostfr') {
+        version = Object.keys(vostfrMap).length > 0 ? vostfrMap : vfMap;
+      } else {
+        version = Object.keys(vfMap).length > 0 ? vfMap : vostfrMap;
+      }
       
       // Chercher la clé de l'épisode correspondant (ex: "5", ou "05", ou premier disponible)
       const epKey = String(targetEpisode);
@@ -156,14 +162,32 @@ export async function searchOtaku(
       }
     } else {
       const players = watch?.players || {};
-      const embedUrl =
-        players.vidzy?.default ||
-        players.vidzy?.vff ||
-        players.vidzy?.vf ||
-        players.vidzy?.vostfr ||
-        players.premium?.default ||
-        (Object.values(players)[0] as any)?.default ||
-        '';
+      let embedUrl = '';
+      if (language === 'vostfr') {
+        embedUrl =
+          players.vidzy?.vostfr ||
+          players.vidzy?.default ||
+          players.premium?.default ||
+          '';
+      } else {
+        embedUrl =
+          players.vidzy?.vff ||
+          players.vidzy?.vf ||
+          players.vidzy?.default ||
+          players.premium?.default ||
+          '';
+      }
+
+      if (!embedUrl) {
+        embedUrl =
+          players.vidzy?.default ||
+          players.vidzy?.vff ||
+          players.vidzy?.vf ||
+          players.vidzy?.vostfr ||
+          players.premium?.default ||
+          (Object.values(players)[0] as any)?.default ||
+          '';
+      }
 
       if (embedUrl) {
         const link = await getDirectLink(embedUrl);

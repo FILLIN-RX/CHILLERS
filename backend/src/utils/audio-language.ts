@@ -95,3 +95,55 @@ export function detectAudioLanguage(data: {
     isFrenchAudio: false,
   };
 }
+
+/**
+ * Détermine si un média / lien / document est compatible avec la langue demandée ('fr' | 'vostfr' | 'vo' | 'en')
+ */
+export function isLanguageCompatible(
+  requestedLang: string | undefined,
+  data: {
+    titre?: string;
+    lien?: string;
+    url?: string;
+    langueAudio?: string;
+  }
+): boolean {
+  const lang = (requestedLang || 'fr').toLowerCase();
+  
+  let detectedType: AudioLanguageType = (data.langueAudio as AudioLanguageType) || 'UNKNOWN';
+  if (detectedType === 'UNKNOWN' || !data.langueAudio) {
+    const detection = detectAudioLanguage({
+      titre: data.titre,
+      lien: data.lien || data.url,
+    });
+    detectedType = detection.langueAudio;
+  }
+
+  // 1. Si l'utilisateur demande VOSTFR
+  if (lang === 'vostfr') {
+    // Si la vidéo est explicitement doublée en français VF / VFF / VFQ, ce n'est PAS du VOSTFR
+    if (detectedType === 'VF' || detectedType === 'VFF' || detectedType === 'VFQ') {
+      return false;
+    }
+    return true; // VOSTFR, VO, UNKNOWN
+  }
+
+  // 2. Si l'utilisateur demande VF (Français)
+  if (lang === 'fr' || lang === 'vf') {
+    // Si la vidéo est en VOSTFR ou VO pur, ce n'est PAS du VF audio
+    if (detectedType === 'VOSTFR' || detectedType === 'VO') {
+      return false;
+    }
+    return true; // VF, VFF, VFQ, UNKNOWN
+  }
+
+  // 3. Si l'utilisateur demande la Version Originale (VO / EN)
+  if (lang === 'vo' || lang === 'en') {
+    if (detectedType === 'VF' || detectedType === 'VFF' || detectedType === 'VFQ') {
+      return false;
+    }
+    return true;
+  }
+
+  return true;
+}

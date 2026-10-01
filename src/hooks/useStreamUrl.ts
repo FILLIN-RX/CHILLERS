@@ -15,6 +15,7 @@ export interface UseStreamUrlArgs {
   originalTitle?: string;
   releaseDate?: string;
   year?: number;
+  language?: string;
   /** Disable the request entirely (e.g. when the page isn't ready). */
   enabled?: boolean;
   /** Stale time (ms) before the cached URL is considered stale and refetched. */
@@ -33,7 +34,7 @@ export interface StreamResolution {
   releaseDate?: string | null;
 }
 
-const PRIMARY_TIMEOUT_MS = 18_000;
+const PRIMARY_TIMEOUT_MS = 25_000;
 const SECONDARY_TIMEOUT_MS = 6_000;
 
 function buildKey(args: UseStreamUrlArgs) {
@@ -43,6 +44,7 @@ function buildKey(args: UseStreamUrlArgs) {
     args.type,
     args.season ?? "_",
     args.episode ?? "_",
+    args.language ?? "fr",
   ] as const;
 }
 
@@ -99,6 +101,7 @@ async function raceProviders(
       args.originalTitle,
       args.releaseDate,
       args.year,
+      args.language,
     )
       .then<StreamResolution | null>((res) =>
         res
@@ -122,18 +125,23 @@ async function raceProviders(
     return r;
   });
 
-  const secondaryPromise = withTimeout(
-    getNexStreamUrl(args.id, args.type, args.season, args.episode, args.title)
-      .then<StreamResolution | null>((url) => (url ? { embedUrl: url, provider: "secondary" as const } : null))
-      .catch((err) => {
-        if (err?.name === "HttpError" && err.status === 403) throw err;
-        return null;
-      }),
-    SECONDARY_TIMEOUT_MS,
-  ).then((r) => {
-    backgroundCache(r);
-    return r;
-  });
+  // Ne pas faire de course agressive avec NexStream (English) si l'utilisateur demande spécifiquement la VF
+  const isFrenchStrict = (args.language || "fr").toLowerCase() === "fr";
+
+  const secondaryPromise = !isFrenchStrict
+    ? withTimeout(
+        getNexStreamUrl(args.id, args.type, args.season, args.episode, args.title)
+          .then<StreamResolution | null>((url) => (url ? { embedUrl: url, provider: "secondary" as const } : null))
+          .catch((err) => {
+            if (err?.name === "HttpError" && err.status === 403) throw err;
+            return null;
+          }),
+        SECONDARY_TIMEOUT_MS,
+      ).then((r) => {
+        backgroundCache(r);
+        return r;
+      })
+    : Promise.resolve(null);
 
   // First non-null wins. We poll both promises so the moment one resolves
   // we return immediately; the other is left running in the background to
