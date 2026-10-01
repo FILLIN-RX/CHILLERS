@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import Hls from "hls.js";
 import { useLanguage } from "@/i18n/LanguageContext";
 import type { LiveChannel } from "@/types/live";
+import { PopupFirewall } from "@/lib/PopupFirewall";
 import { ArrowLeft, X, Play, Pause, ArrowsClockwise, SpeakerSimpleHigh, SpeakerSimpleSlash, ArrowsOutSimple, ArrowsInSimple, Television, Clock, DotsThreeVertical, PictureInPicture, CaretRight, ShareNetwork, Check } from "@phosphor-icons/react";
 
 interface LivePlayerProps {
@@ -178,6 +179,14 @@ export default function LivePlayer({
       }
     }, 4000);
   };
+
+  // Active le pare-feu anti-pub PopupFirewall tant que le player est actif
+  useEffect(() => {
+    PopupFirewall.activate();
+    return () => {
+      PopupFirewall.deactivate();
+    };
+  }, []);
 
   /* ───────── HLS lifecycle ───────── */
   useEffect(() => {

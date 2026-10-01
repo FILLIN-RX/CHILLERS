@@ -65,9 +65,39 @@ export async function GET(request: NextRequest) {
     // Strip meta headers that enforce framing restrictions
     html = html.replace(/<meta[^>]*http-equiv=["']?(x-frame-options|content-security-policy)["']?[^>]*>/gi, "");
 
-    // Inject base tag & document.referrer spoofing script to bypass domain protections
-    const spoofScript = `<script>try{Object.defineProperty(document,'referrer',{get:function(){return '${refererParam}';},configurable:true});}catch(e){}</script>`;
-    const baseTag = `<base href="${baseHref}">${spoofScript}`;
+    // Inject base tag, document.referrer spoofing, and ad/popup blocker into the embedded page
+    const adBlockerScript = `
+<script>
+  (function() {
+    try {
+      Object.defineProperty(document, 'referrer', { get: function() { return '${refererParam}'; }, configurable: true });
+    } catch(e) {}
+    
+    // Kill popups and click hijacking
+    window.open = function() { console.log('[PopupFirewall] Popup intercepted in iframe'); return null; };
+    window.alert = function() {};
+    window.confirm = function() { return true; };
+    window.prompt = function() { return null; };
+    
+    // Prevent top navigation hijacking
+    try {
+      window.onbeforeunload = null;
+      Object.defineProperty(window, 'top', { get: function() { return window; }, configurable: true });
+      Object.defineProperty(window, 'parent', { get: function() { return window; }, configurable: true });
+    } catch(e) {}
+
+    // Block ad redirects on anchor clicks
+    document.addEventListener('click', function(e) {
+      var a = e.target.closest('a');
+      if (a && a.target === '_blank' && !a.href.includes('.m3u8') && !a.href.includes('.mp4')) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('[PopupFirewall] Ad link click blocked:', a.href);
+      }
+    }, true);
+  })();
+</script>`;
+    const baseTag = `<base href="${baseHref}">${adBlockerScript}`;
     if (html.includes("<head>")) {
       html = html.replace("<head>", `<head>${baseTag}`);
     } else if (html.includes("<head ")) {

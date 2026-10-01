@@ -124,6 +124,8 @@ export async function getStreamizMatches(): Promise<SportsMatch[]> {
   }
 }
 
+import { extractDirectStream } from './extractors/stream-extractor';
+
 /** Remonte streamiz → livetv902 → relais → iframe du lecteur. */
 export async function resolveStreamizStream(sourceId: string, force = false): Promise<ResolvedSportsStream | null> {
   if (!force) {
@@ -135,6 +137,24 @@ export async function resolveStreamizStream(sourceId: string, force = false): Pr
     const page = await fetchText(sourceId, STREAMIZ_PAGE);
     const iframe = extractIframe(page);
     if (!iframe) return null;
+
+    // Tentative d'extraction directe HLS
+    try {
+      const extracted = await extractDirectStream(iframe, STREAMIZ_PAGE);
+      if (extracted?.m3u8Url) {
+        console.log(`[Streamiz] ✓ Flux HLS direct extrait: ${extracted.m3u8Url.slice(0, 60)}...`);
+        const resolved: ResolvedSportsStream = {
+          url: extracted.m3u8Url,
+          type: 'hls',
+          servers: [
+            { name: 'Serveur 1 (HLS Direct)', url: extracted.m3u8Url, type: 'hls' },
+            { name: 'Serveur 2 (Miroir)', url: iframe, type: 'iframe' },
+          ],
+        };
+        STREAM_CACHE.set(sourceId, resolved);
+        return resolved;
+      }
+    } catch {}
 
     const resolved: ResolvedSportsStream = { url: iframe, type: 'iframe', servers: [{ name: 'Serveur 1', url: iframe }] };
     STREAM_CACHE.set(sourceId, resolved);

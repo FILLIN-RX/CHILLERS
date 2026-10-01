@@ -10,7 +10,7 @@ import { getSportsMatches, getSportsStream } from "@/services/sports";
 import { getLiveBallMatches, getLiveBallStream, getLiveBallChampionsLeague } from "@/services/liveball";
 import type { LiveChannel } from "@/types/live";
 import type { SportsMatch, SportsServer, SportsStream } from "@/types/sports";
-import type { LiveBallMatch } from "@/types/liveball";
+import { PopupFirewall } from "@/lib/PopupFirewall";
 
 function normalizeTeamName(name?: string): string {
   if (!name) return "";
@@ -90,8 +90,9 @@ export default function SportsMatchContent() {
   // Serveur sélectionné, réinitialisé implicitement quand le match change.
   const [serverChoice, setServerChoice] = useState({ matchId: "", index: 0 });
 
-  // Verrouille le scroll tant que le player est ouvert.
+  // Verrouille le scroll tant que le player est ouvert et active le pare-feu anti-pub
   useEffect(() => {
+    PopupFirewall.activate();
     const prevOverflow = document.body.style.overflow;
     const prevPosition = document.documentElement.style.overflow;
     document.body.style.overflow = "hidden";
@@ -99,6 +100,7 @@ export default function SportsMatchContent() {
     return () => {
       document.body.style.overflow = prevOverflow;
       document.documentElement.style.overflow = prevPosition;
+      PopupFirewall.deactivate();
     };
   }, []);
 

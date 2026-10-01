@@ -17,8 +17,12 @@ const WHITELIST: RegExp[] = [
   /facebook\.com\/(dialog|v2\.\d+\/dialog)/i,
   /twitter\.com\/i\/oauth/i,
   // Fenêtres de la même origine (notre app)
-  /^https?:\/\/localhost:3000/i,
-  /^https?:\/\/localhost:4000/i,
+  /^https?:\/\/localhost(:[0-9]+)?/i,
+  /^https?:\/\/127\.0\.0\.1(:[0-9]+)?/i,
+  /^https?:\/\/([a-z0-9-]+\.)?chillers\.site/i,
+  /^https?:\/\/([a-z0-9-]+\.)?vercel\.app/i,
+  /^https?:\/\/([a-z0-9-]+\.)?up\.railway\.app/i,
+  /^https?:\/\/([a-z0-9-]+\.)?onrender\.com/i,
 ];
 
 export class PopupFirewall {

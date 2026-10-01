@@ -12,6 +12,7 @@
 import crypto from 'crypto';
 import axios from 'axios';
 import { LRUCache } from 'lru-cache';
+import { extractDirectStream } from './extractors/stream-extractor';
 import type { ResolvedSportsStream, SportsMatch, SportsServer } from './sports.types';
 
 const USER_AGENT =
@@ -138,6 +139,24 @@ export async function resolveKooorahStream(sourceId: string, force = false): Pro
     const page = await fetchText(sourceId, 'https://www.livekora.vip/');
     const iframe = extractIframe(page, sourceId);
     if (!iframe) return null;
+
+    // Tentative de décodage HLS direct
+    try {
+      const extracted = await extractDirectStream(iframe, 'https://www.livekora.vip/');
+      if (extracted?.m3u8Url) {
+        console.log(`[Kooorah] ✓ Flux HLS direct extrait: ${extracted.m3u8Url.slice(0, 60)}...`);
+        const resolved: ResolvedSportsStream = {
+          url: extracted.m3u8Url,
+          type: 'hls',
+          servers: [
+            { name: 'Serveur 1 (HLS Direct)', url: extracted.m3u8Url, type: 'hls' },
+            { name: 'Serveur 2 (Miroir)', url: iframe, type: 'iframe' },
+          ],
+        };
+        STREAM_CACHE.set(key, resolved);
+        return resolved;
+      }
+    } catch {}
 
     const resolved: ResolvedSportsStream = { url: iframe, type: 'iframe', servers: [{ name: 'Serveur 1', url: iframe }] };
     STREAM_CACHE.set(key, resolved);
