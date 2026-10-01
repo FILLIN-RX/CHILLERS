@@ -28,7 +28,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # FlareSolverr (sidecar) : contourne les challenges Cloudflare de liveball.
 # Python 3.13 a retiré le module `cgi` (requis par bottle) -> legacy-cgi.
 RUN python3 -m venv /opt/flaresolverr && \
-    /opt/flaresolverr/bin/pip install --no-cache-dir "flaresolverr>=3.3.21" legacy-cgi && \
+    /opt/flaresolverr/bin/pip install --no-cache-dir --pre "flaresolverr>=3.3.21rc0" legacy-cgi && \
     rm -rf /root/.cache/pip
 
 WORKDIR /app
