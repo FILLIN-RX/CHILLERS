@@ -27,8 +27,8 @@ export class OtakuProvider implements StreamingProvider {
   async getMovieStream(query: StreamQuery): Promise<StreamResult | null> {
     if (!query.title) return null;
 
-    console.log(`[Otaku] Searching movie: "${query.title}" (lang=${query.language || 'fr'})`);
-    const result = await searchOtaku(query.title, 'movie', undefined, undefined, query.language || 'fr');
+    console.log(`[Otaku] Searching movie: "${query.title}" (year=${query.year || 'non spécifiée'}, lang=${query.language || 'fr'})`);
+    const result = await searchOtaku(query.title, 'movie', undefined, undefined, query.language || 'fr', query.year);
 
     if (result?.lien) {
       console.log(`[Otaku] Found movie link: ${result.lien.slice(0, 80)}...`);

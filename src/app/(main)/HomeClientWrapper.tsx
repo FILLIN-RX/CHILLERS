@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo, useCallback, startTransition } from "react";
+import React, { useState, useEffect, useMemo, useCallback, startTransition } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import HeroCarousel from "@/components/HeroCarousel";
@@ -15,44 +15,9 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import type { MovieOrShow, Episode } from "@/types/media";
 import UpgradeModal from "@/components/UpgradeModal";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { HomeActionProvider } from "./HomeActionContext";
 
 const MovieModal = dynamic(() => import("@/components/MovieModal"), { ssr: false });
-
-function LazyRow({ children, title }: { children: React.ReactNode; title: string }) {
-  const [isVisible, setIsVisible] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (isVisible) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) {
-          setIsVisible(true);
-        }
-      },
-      { rootMargin: "400px" }
-    );
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, [isVisible]);
-
-  return (
-    <div ref={ref} className="min-h-[250px]">
-      {isVisible ? (
-        children
-      ) : (
-        <div className="space-y-3 py-3">
-          <div className="h-4 w-36 rounded bg-white/10 animate-pulse" />
-          <div className="flex gap-4 overflow-hidden">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-[250px] w-[165px] shrink-0 rounded-2xl bg-zinc-900/60 animate-pulse" />
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
 export interface HomeClientWrapperProps {
   heroSlides: MovieOrShow[];
@@ -61,23 +26,7 @@ export interface HomeClientWrapperProps {
   upcomingMovies?: MovieOrShow[];
   popularSeries: MovieOrShow[];
   animeCollection: MovieOrShow[];
-  africanMovies: MovieOrShow[];
-  africanSeries: MovieOrShow[];
-  topRatedMovies: MovieOrShow[];
-  topRatedTV: MovieOrShow[];
-  actionMovies: MovieOrShow[];
-  comedyMovies: MovieOrShow[];
-  actionSeries: MovieOrShow[];
-  animationSeries: MovieOrShow[];
-  boxOffice: MovieOrShow[];
-  newAnime: MovieOrShow[];
-  martialArts: MovieOrShow[];
-  tvForYou: MovieOrShow[];
-  saDrama: MovieOrShow[];
-  madeInChina: MovieOrShow[];
-  barbieMovies: MovieOrShow[];
-  realityShows: MovieOrShow[];
-  allTimeFavorites?: MovieOrShow[];
+  children?: React.ReactNode;
 }
 
 export default function HomeClientWrapper({
@@ -87,23 +36,7 @@ export default function HomeClientWrapper({
   upcomingMovies,
   popularSeries,
   animeCollection,
-  africanMovies,
-  africanSeries,
-  topRatedMovies,
-  topRatedTV,
-  actionMovies,
-  comedyMovies,
-  actionSeries,
-  animationSeries,
-  boxOffice,
-  newAnime,
-  martialArts,
-  tvForYou,
-  saDrama,
-  madeInChina,
-  barbieMovies,
-  realityShows,
-  allTimeFavorites = [],
+  children,
 }: HomeClientWrapperProps) {
   const router = useRouter();
   const { translate: _ } = useLanguage();
@@ -116,7 +49,6 @@ export default function HomeClientWrapper({
     { item: MovieOrShow; progress: number; remaining: string; episodeName?: string; season?: number; episode?: number }[]
   >([]);
 
-
   // Filter strictly unreleased upcoming movies with poster for the full-width spotlight banner
   const upcomingList = useMemo(() => {
     const list = upcomingMovies && upcomingMovies.length > 0 ? upcomingMovies : newReleases;
@@ -125,30 +57,24 @@ export default function HomeClientWrapper({
     return unreleased.length > 0 ? unreleased : list.filter((m) => Boolean(m.posterUrl));
   }, [upcomingMovies, newReleases]);
 
-  // Global Deduplication Logic
-  const homeRows = useMemo(() => {
+  // Primary rows (Critical above-the-fold)
+  const primaryRows = useMemo(() => {
     const rows: Array<{
       title: string;
       items: MovieOrShow[];
       accent: "primary" | "secondary";
       variant?: "poster";
-      autoScroll?: boolean;
-      autoScrollSpeed?: number;
     }> = [];
     const seen = new Set<string>();
-    const seenRowSignatures = new Set<string>();
 
     const push = (
       title: string,
       items: MovieOrShow[] = [],
       accent: "primary" | "secondary",
-      variant?: "poster",
-      autoScroll?: boolean,
-      autoScrollSpeed?: number,
+      variant?: "poster"
     ) => {
       if (!Array.isArray(items) || items.length === 0) return;
 
-      // 1. Déduplication interne absolue : pas de cartes dupliquées au sein de la même ligne
       const internalMap = new Map<string, MovieOrShow>();
       for (const it of items) {
         if (it && it.id && it.posterUrl && !internalMap.has(String(it.id))) {
@@ -156,78 +82,23 @@ export default function HomeClientWrapper({
         }
       }
       const uniqueItems = Array.from(internalMap.values());
-
-      // 2. Si la ligne a moins de 3 éléments distincts valides, on ne l'affiche pas (évite les rangées vides ou cassées)
       if (uniqueItems.length < 3) return;
 
-      const isCustomCategory = [
-        "Box office",
-        "New Anime",
-        "Martial art",
-        "TV for you",
-        "SA Drama",
-        "Made in China",
-        "Séries d'Animation",
-        "Séries Action & Aventure",
-        "Comédies à voir",
-        "Films d'Action",
-        "Barbie World",
-        "Barbie Princess World",
-        "Reality Show",
-        "All time favorite",
-      ].includes(title);
-
-      const filtered = isCustomCategory ? uniqueItems : uniqueItems.filter((it) => !seen.has(String(it.id)));
+      const filtered = uniqueItems.filter((it) => !seen.has(String(it.id)));
       const fresh = filtered.slice(0, 10);
-
-      // Si le filtrage global laisse moins de 3 items, on ignore pour garder un affichage propre
       if (fresh.length < 3) return;
 
-      // 3. Signature de ligne : évite d'afficher 2 lignes qui ont les mêmes films
-      const signature = fresh.map((it) => it.id).slice(0, 5).sort().join(":");
-      if (seenRowSignatures.has(signature)) return;
-      seenRowSignatures.add(signature);
-
       fresh.forEach((it) => seen.add(String(it.id)));
-      rows.push({ title, items: fresh, accent, variant, autoScroll, autoScrollSpeed });
+      rows.push({ title, items: fresh, accent, variant });
     };
 
     push(_("home.trending"), trendingAll, "primary", "poster");
     push("Nouveautés", newReleases, "primary", "poster");
-    push("TV for you", tvForYou, "primary", "poster");
-    
-    // All time favorite: classiques intemporels
-    const favoritesList = allTimeFavorites && allTimeFavorites.length > 0 
-      ? allTimeFavorites 
-      : [...topRatedTV, ...topRatedMovies];
-    push("All time favorite", favoritesList, "secondary", "poster");
-
-    push("Box office", boxOffice, "primary", "poster");
-    push("New Anime", newAnime, "secondary", "poster");
-    push("Martial art", martialArts, "primary", "poster");
-    push("Reality Show", realityShows, "primary", "poster");
-    push("Barbie World", barbieMovies, "secondary", "poster");
-
-    push("Films d'Action", actionMovies, "primary", "poster");
-    push("Comédies à voir", comedyMovies, "secondary", "poster");
-    push("Séries Action & Aventure", actionSeries, "secondary", "poster");
-    push("Films Africains", africanMovies, "secondary", "poster");
-    push("Séries Africaines", africanSeries, "secondary", "poster");
-    push("SA Drama", saDrama, "secondary", "poster");
-    push("Made in China", madeInChina, "primary", "poster");
-
     push(_("home.popularSeries"), popularSeries, "primary", "poster");
     push(_("home.animeCollection"), animeCollection, "secondary", "poster");
-    push("Séries d'Animation", animationSeries, "primary", "poster");
 
     return rows;
-  }, [
-    trendingAll, newReleases, popularSeries, 
-    animeCollection, africanMovies, africanSeries, topRatedMovies, topRatedTV, 
-    actionMovies, comedyMovies, actionSeries, animationSeries,
-    boxOffice, newAnime, martialArts, tvForYou, saDrama, madeInChina,
-    barbieMovies, realityShows, allTimeFavorites, _
-  ]);
+  }, [trendingAll, newReleases, popularSeries, animeCollection, _]);
 
   // Load Continue Watching
   useEffect(() => {
@@ -317,95 +188,94 @@ export default function HomeClientWrapper({
     });
   }, [router]);
 
-  const handleResume = (item: MovieOrShow, season?: number, episode?: number) => {
+  const handleResume = useCallback((item: MovieOrShow, season?: number, episode?: number) => {
     if (!user || (user?.subscription?.features && !user.subscription.features.hasContinueWatching)) {
       setShowUpgradeModal(true);
       return;
     }
     handleWatchNow(item, season, episode);
-  };
+  }, [user, handleWatchNow]);
 
   const handleModalWatch = (item: MovieOrShow, episode?: Episode, lang?: "fr" | "vostfr") => {
     handleWatchNow(item, episode?.season, episode?.number, lang);
   };
 
+  const actionContextValue = useMemo(() => ({
+    onWatchNow: handleWatchNow,
+    onOpenDetails: handleOpenDetails,
+    onResume: handleResume,
+  }), [handleWatchNow, handleOpenDetails, handleResume]);
+
   return (
-    <div className="flex-1 flex flex-col bg-brand-dark transition-colors duration-300">
-      <main className="flex-grow transition-all duration-300">
-        <div className="space-y-10 pb-24">
-          
-          <HeroCarousel
-            slides={heroSlides}
-            onWatchNow={handleWatchNow}
-            onOpenDetails={handleOpenDetails}
-            slideTimings={[20000, 20000, 20000, 20000, 20000, 20000, 20000, 20000, 20000, 20000]}
-          />
+    <HomeActionProvider value={actionContextValue}>
+      <div className="flex-1 flex flex-col bg-brand-dark transition-colors duration-300">
+        <main className="flex-grow transition-all duration-300">
+          <div className="space-y-10 pb-24">
+            
+            <HeroCarousel
+              slides={heroSlides}
+              onWatchNow={handleWatchNow}
+              onOpenDetails={handleOpenDetails}
+              slideTimings={[20000, 20000, 20000, 20000, 20000, 20000, 20000, 20000, 20000, 20000]}
+            />
 
-          {continueWatching.length > 0 && (
-            <div className="max-w-full mx-auto px-2 lg:px-3">
-              <ScrollRow title={_("home.continueWatching")} accentColor="secondary">
-                {continueWatching.map(({ item, progress, remaining, episodeName, season, episode }) => (
-                  <ContinueWatchingCard
-                    key={item.id}
-                    item={item}
-                    progress={progress}
-                    remainingTime={remaining}
-                    episodeName={episodeName}
-                    onResume={() => handleResume(item, season, episode)}
-                    onOpenDetails={handleOpenDetails}
-                  />
-                ))}
-              </ScrollRow>
-            </div>
-          )}
+            {continueWatching.length > 0 && (
+              <div className="max-w-full mx-auto px-2 lg:px-3">
+                <ScrollRow title={_("home.continueWatching")} accentColor="secondary">
+                  {continueWatching.map(({ item, progress, remaining, episodeName, season, episode }) => (
+                    <ContinueWatchingCard
+                      key={item.id}
+                      item={item}
+                      progress={progress}
+                      remainingTime={remaining}
+                      episodeName={episodeName}
+                      onResume={() => handleResume(item, season, episode)}
+                      onOpenDetails={handleOpenDetails}
+                    />
+                  ))}
+                </ScrollRow>
+              </div>
+            )}
 
-          <div className="max-w-full mx-auto px-2 lg:px-3 space-y-8">
-            <SportsMatchesRow />
+            <div className="max-w-full mx-auto px-2 lg:px-3 space-y-8">
+              <SportsMatchesRow />
 
-            {homeRows.slice(0, 2).map((row) => (
-              <ScrollRow
-                key={row.title}
-                title={row.title}
-                accentColor={row.accent}
-                autoScroll={row.autoScroll}
-                autoScrollSpeed={row.autoScrollSpeed}
-              >
-                {row.items.map((item) => (
-                  <MovieCard
-                    key={item.id}
-                    item={item}
-                    variant={row.variant}
-                    onPlay={handleWatchNow}
-                    onOpenDetails={handleOpenDetails}
-                  />
-                ))}
-              </ScrollRow>
-            ))}
+              {primaryRows.slice(0, 2).map((row) => (
+                <ScrollRow
+                  key={row.title}
+                  title={row.title}
+                  accentColor={row.accent}
+                >
+                  {row.items.map((item) => (
+                    <MovieCard
+                      key={item.id}
+                      item={item}
+                      variant={row.variant}
+                      onPlay={handleWatchNow}
+                      onOpenDetails={handleOpenDetails}
+                    />
+                  ))}
+                </ScrollRow>
+              ))}
 
-            {(upcomingList.length > 0 || trendingAll.length > 0) && (
-              <LazyRow title="Most Viewed Movie">
+              {(upcomingList.length > 0 || trendingAll.length > 0) && (
                 <MostViewedMovie
                   items={upcomingList.length > 0 ? upcomingList : trendingAll}
                   onWatchNow={handleWatchNow}
                   onOpenDetails={handleOpenDetails}
                 />
-              </LazyRow>
-            )}
+              )}
 
-            <LazyRow title="Top 10">
               <Top10Row
                 title="Top 10 : Ce que tout le monde regarde"
                 items={trendingAll}
               />
-            </LazyRow>
 
-            {homeRows.slice(2, 5).map((row) => (
-              <LazyRow key={row.title} title={row.title}>
+              {primaryRows.slice(2).map((row) => (
                 <ScrollRow
+                  key={row.title}
                   title={row.title}
                   accentColor={row.accent}
-                  autoScroll={row.autoScroll}
-                  autoScrollSpeed={row.autoScrollSpeed}
                 >
                   {row.items.map((item) => (
                     <MovieCard
@@ -417,61 +287,41 @@ export default function HomeClientWrapper({
                     />
                   ))}
                 </ScrollRow>
-              </LazyRow>
-            ))}
+              ))}
 
-            {trendingAll.length >= 6 && (
-              <LazyRow title="Spotlight Grid">
+              {trendingAll.length >= 6 && (
                 <SpotlightGrid
                   items={trendingAll.slice(1, 6)}
                   onWatchNow={handleWatchNow}
                   onOpenDetails={handleOpenDetails}
                 />
-              </LazyRow>
-            )}
+              )}
 
-            {homeRows.slice(5).map((row) => (
-              <LazyRow key={row.title} title={row.title}>
-                <ScrollRow
-                  title={row.title}
-                  accentColor={row.accent}
-                  autoScroll={row.autoScroll}
-                  autoScrollSpeed={row.autoScrollSpeed}
-                >
-                  {row.items.map((item) => (
-                    <MovieCard
-                      key={item.id}
-                      item={item}
-                      variant={row.variant}
-                      onPlay={handleWatchNow}
-                      onOpenDetails={handleOpenDetails}
-                    />
-                  ))}
-                </ScrollRow>
-              </LazyRow>
-            ))}
+              {/* Streamed Below-the-fold content */}
+              {children}
+            </div>
           </div>
-        </div>
-      </main>
+        </main>
 
-      <UpgradeModal 
-        isOpen={showUpgradeModal} 
-        onClose={() => setShowUpgradeModal(false)} 
-        featureName="La reprise de lecture"
-      />
+        <UpgradeModal 
+          isOpen={showUpgradeModal} 
+          onClose={() => setShowUpgradeModal(false)} 
+          featureName="La reprise de lecture"
+        />
 
-      <MovieModal
-        item={selectedMovie}
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setSelectedMovie(null);
-        }}
-        onWatch={handleModalWatch}
-        onOpenDetails={(movie) => {
-          setSelectedMovie(movie);
-        }}
-      />
-    </div>
+        <MovieModal
+          item={selectedMovie}
+          isOpen={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false);
+            setSelectedMovie(null);
+          }}
+          onWatch={handleModalWatch}
+          onOpenDetails={(movie) => {
+            setSelectedMovie(movie);
+          }}
+        />
+      </div>
+    </HomeActionProvider>
   );
 }

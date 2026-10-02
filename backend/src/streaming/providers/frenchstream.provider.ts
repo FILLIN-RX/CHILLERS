@@ -28,18 +28,23 @@ export class FrenchStreamProvider implements StreamingProvider {
   async getMovieStream(query: StreamQuery): Promise<StreamResult | null> {
     let movieTitle = query.title;
 
-    // Si le titre n'a pas été envoyé, le récupérer via l'API TMDB
-    if (!movieTitle && query.tmdbId) {
+    // Si le titre ou l'année n'a pas été envoyé, le récupérer via l'API TMDB
+    let year = query.year;
+    if ((!movieTitle || !year) && query.tmdbId) {
       try {
         const { data } = await tmdbClient.get(`/movie/${query.tmdbId}?language=${query.language || 'fr'}`);
-        movieTitle = data?.title || data?.original_title;
+        if (!movieTitle) movieTitle = data?.title || data?.original_title;
+        if (!year && data?.release_date) {
+          const y = new Date(data.release_date).getFullYear();
+          if (!isNaN(y)) year = y;
+        }
       } catch (_) {}
     }
 
     if (!movieTitle) return null;
 
-    console.log(`[FrenchStream Provider] Recherche film 1080p pour: "${movieTitle}" (lang=${query.language || 'fr'}, isPremium=${!!query.isPremium})`);
-    const result = await getFrenchStreamMovie(movieTitle, (query.language as any) || 'fr');
+    console.log(`[FrenchStream Provider] Recherche film 1080p pour: "${movieTitle}" (year=${year || 'non spécifiée'}, lang=${query.language || 'fr'}, isPremium=${!!query.isPremium})`);
+    const result = await getFrenchStreamMovie(movieTitle, (query.language as any) || 'fr', year);
 
     if (result?.streamUrl) {
       console.log(`[FrenchStream Provider] Flux 1080p trouvé: ${result.streamUrl.slice(0, 80)}... (${result.fileSize})`);

@@ -91,9 +91,8 @@ export interface StreamResult {
   provider: string;
 }
 
-export interface MediaDetails extends MovieOrShow {
-  /** Full enriched details (TMDB complete payload). */
-}
+/** Full enriched details (TMDB complete payload). */
+export type MediaDetails = MovieOrShow;
 
 export interface SearchResults {
   movies: MovieOrShow[];

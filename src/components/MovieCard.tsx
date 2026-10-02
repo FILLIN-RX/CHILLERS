@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
@@ -84,8 +84,15 @@ function MovieCard({
   const [imgError, setImgError] = useState(false);
   const [backdropFailed, setBackdropFailed] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [canHover, setCanHover] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setCanHover(window.matchMedia("(hover: hover) and (pointer: fine)").matches);
+    }
+  }, []);
 
   // ── Pre-calculated URLs for Instant Prefetching (Vercel bundle-preload rule) ──
   const typeParam = item.type === "series" || item.type === "anime" ? "tv" : "movie";
@@ -110,24 +117,28 @@ function MovieCard({
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
-      if (shouldReduceMotion || !cardRef.current) return;
+      if (shouldReduceMotion || !cardRef.current || e.pointerType === "touch" || !canHover) return;
       const rect = cardRef.current.getBoundingClientRect();
       const x = (e.clientX - rect.left) / rect.width;
       const y = (e.clientY - rect.top) / rect.height;
       mouseX.set(Math.max(0, Math.min(1, x)));
       mouseY.set(Math.max(0, Math.min(1, y)));
     },
-    [mouseX, mouseY, shouldReduceMotion]
+    [canHover, mouseX, mouseY, shouldReduceMotion]
   );
 
-  const handlePointerEnter = useCallback(() => {
-    setIsHovered(true);
-    // Instant Next.js route prefetching on hover for 0ms navigation latency
-    try {
-      router.prefetch(watchUrl);
-      router.prefetch(detailsUrl);
-    } catch {}
-  }, [router, watchUrl, detailsUrl]);
+  const handlePointerEnter = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (e.pointerType === "touch" || !canHover) return;
+      setIsHovered(true);
+      // Instant Next.js route prefetching on hover for 0ms navigation latency
+      try {
+        router.prefetch(watchUrl);
+        router.prefetch(detailsUrl);
+      } catch {}
+    },
+    [canHover, router, watchUrl, detailsUrl]
+  );
 
   const handlePointerLeave = useCallback(() => {
     setIsHovered(false);
@@ -226,8 +237,8 @@ function MovieCard({
         onPointerLeave={handlePointerLeave}
         onClick={() => onOpenDetails(item)}
         whileHover={
-          shouldReduceMotion
-            ? { opacity: 0.98 }
+          !canHover || shouldReduceMotion
+            ? undefined
             : {
                 scale: 1.045,
                 y: -5,
@@ -238,16 +249,17 @@ function MovieCard({
           shouldReduceMotion
             ? { opacity: 0.9 }
             : {
-                scale: 0.97,
+                scale: 0.96,
                 y: 0,
                 transition: TAP_SPRING,
               }
         }
         style={{
-          rotateX,
-          rotateY,
+          rotateX: canHover ? rotateX : 0,
+          rotateY: canHover ? rotateY : 0,
           transformPerspective: 900,
           transformStyle: "preserve-3d",
+          touchAction: "manipulation",
         }}
         className={posterContainerClass}
       >
@@ -480,8 +492,8 @@ function MovieCard({
       onPointerLeave={handlePointerLeave}
       onClick={() => onOpenDetails(item)}
       whileHover={
-        shouldReduceMotion
-          ? { opacity: 0.98 }
+        !canHover || shouldReduceMotion
+          ? undefined
           : {
               scale: 1.035,
               y: -4,
@@ -492,16 +504,17 @@ function MovieCard({
         shouldReduceMotion
           ? { opacity: 0.9 }
           : {
-              scale: 0.97,
+              scale: 0.96,
               y: 0,
               transition: TAP_SPRING,
             }
       }
       style={{
-        rotateX,
-        rotateY,
+        rotateX: canHover ? rotateX : 0,
+        rotateY: canHover ? rotateY : 0,
         transformPerspective: 900,
         transformStyle: "preserve-3d",
+        touchAction: "manipulation",
       }}
       className={`group relative ${landscapeSizeClass} select-none cursor-pointer rounded-2xl overflow-hidden bg-zinc-950 shadow-[0_8px_24px_rgba(0,0,0,0.6)] hover:shadow-[0_20px_48px_rgba(0,0,0,0.92)] transition-shadow duration-300 ${
         selected ? "ring-2 ring-brand-primary" : ""

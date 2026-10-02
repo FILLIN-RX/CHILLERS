@@ -246,30 +246,83 @@ export async function resolveVidzyDirectStream(embedUrl: string): Promise<{ stre
   }
 }
 
+function extractYear(str: string): number | null {
+  const m = str.match(/\b(19\d{2}|20\d{2})\b/);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+function rankCandidates(
+  results: FrenchStreamSearchResult[],
+  searchTitle: string,
+  targetYear?: number
+): FrenchStreamSearchResult[] {
+  const searchNorm = normalize(searchTitle);
+
+  return [...results].sort((a, b) => {
+    const normA = normalize(a.title);
+    const normB = normalize(b.title);
+
+    let scoreA = 0;
+    let scoreB = 0;
+
+    // Correspondance textuelle
+    if (normA === searchNorm) scoreA += 100;
+    else if (normA.startsWith(searchNorm) || searchNorm.startsWith(normA)) scoreA += 50;
+    else scoreA += 10;
+
+    if (normB === searchNorm) scoreB += 100;
+    else if (normB.startsWith(searchNorm) || searchNorm.startsWith(normB)) scoreB += 50;
+    else scoreB += 10;
+
+    // Correspondance d'année si spécifiée
+    if (targetYear) {
+      const yearA = extractYear(a.title);
+      const yearB = extractYear(b.title);
+
+      if (yearA) {
+        const diffA = Math.abs(yearA - targetYear);
+        if (diffA === 0) scoreA += 250; // Match exact
+        else if (diffA === 1) scoreA += 100; // Tolérance 1 an
+        else scoreA -= 150; // Mauvaise année (autre remake ou opus)
+      }
+
+      if (yearB) {
+        const diffB = Math.abs(yearB - targetYear);
+        if (diffB === 0) scoreB += 250;
+        else if (diffB === 1) scoreB += 100;
+        else scoreB -= 150;
+      }
+    }
+
+    return scoreB - scoreA;
+  });
+}
+
 /**
  * Recherche et résout directement un film en Haute Résolution (1080p)
  */
 export async function getFrenchStreamMovie(
   title: string,
-  preferredLang: 'fr' | 'vostfr' | 'en' | 'vo' = 'fr'
+  preferredLang: 'fr' | 'vostfr' | 'en' | 'vo' = 'fr',
+  targetYear?: number
 ): Promise<FrenchStreamDirectResult | null> {
   try {
-    console.log(`[FrenchStream HQ] Recherche film 1080p: "${title}" (lang=${preferredLang})`);
+    console.log(`[FrenchStream HQ] Recherche film 1080p: "${title}" (lang=${preferredLang}, targetYear=${targetYear || 'non spécifiée'})`);
     const searchResults = await searchFrenchStream(title);
     if (searchResults.length === 0) return null;
 
-    // Trouver la meilleure correspondance de titre (exacte en priorité)
-    const searchNorm = normalize(title);
-    const exactMatch = searchResults.find(item => normalize(item.title) === searchNorm);
-    const best = exactMatch || searchResults[0];
+    // Classer et prioriser les résultats avec scoring par titre et année
+    const rankedResults = rankCandidates(searchResults, title, targetYear);
+    const best = rankedResults[0];
 
+    const searchNorm = normalize(title);
     // Si aucun titre n'est proche du film demandé, rejeter pour éviter les faux films
-    if (normalize(best.title) !== searchNorm && !normalize(best.title).startsWith(searchNorm)) {
+    if (normalize(best.title) !== searchNorm && !normalize(best.title).startsWith(searchNorm) && !searchNorm.startsWith(normalize(best.title))) {
       console.log(`[FrenchStream HQ] Correspondance trop éloignée pour "${title}" (trouvé: "${best.title}"), skip.`);
       return null;
     }
 
-    console.log(`[FrenchStream HQ] Page trouvée: ${best.url} (${best.title})`);
+    console.log(`[FrenchStream HQ] Meilleure page trouvée: ${best.url} (${best.title})`);
     const { title: resolvedTitle, versions } = await extractEmbedVersions(best.url);
     if (versions.length === 0) return null;
 

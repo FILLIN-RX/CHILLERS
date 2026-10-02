@@ -8,7 +8,6 @@ const helmet_1 = __importDefault(require("helmet"));
 const cors_1 = __importDefault(require("cors"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const error_middleware_1 = require("./middleware/error.middleware");
-const antibot_middleware_1 = require("./middleware/antibot.middleware");
 const csrf_middleware_1 = require("./middleware/csrf.middleware");
 const rate_limit_middleware_1 = require("./middleware/rate-limit.middleware");
 const tmdb_1 = require("./config/tmdb");
@@ -42,6 +41,8 @@ const compression_1 = __importDefault(require("compression"));
 const path_1 = __importDefault(require("path"));
 dotenv_1.default.config({ path: path_1.default.join(__dirname, '../.env') });
 const app = (0, express_1.default)();
+// Trust reverse proxy (Railway, Render, Vercel, Cloudflare) for proper HTTPS & client IP resolution
+app.set('trust proxy', true);
 const allowedOrigins = [
     'https://chillers-pi.vercel.app',
     'https://chillers.site',
@@ -152,8 +153,23 @@ app.get('/api/csrf-token', csrf_middleware_1.generateCsrfToken);
 app.use('/api/admin', csrf_middleware_1.verifyCsrfToken);
 app.use('/api/user', csrf_middleware_1.verifyCsrfToken);
 app.use('/api/auth/logout', csrf_middleware_1.verifyCsrfToken);
-// Protection anti-bot & anti-scraping sur les routes publiques et médias
-app.use('/api', antibot_middleware_1.antiBotMiddleware);
+// In-App update check for mobile client
+app.get('/api/app-version', (_req, res) => {
+    res.json({
+        success: true,
+        data: {
+            version: '1.0.0',
+            buildNumber: 1,
+            minVersion: '1.0.0',
+            apkUrl: 'https://github.com/FILLIN-RX/CHILLERS/releases/latest/download/app-release.apk',
+            universalApkUrl: 'https://github.com/FILLIN-RX/CHILLERS/releases/latest/download/app-release.apk',
+            arm64ApkUrl: 'https://github.com/FILLIN-RX/CHILLERS/releases/latest/download/app-arm64-v8a-release.apk',
+            changelog: 'Nouvelle version de Chillers Mobile avec streaming haute vitesse, téléchargements et transfert P2P/NFC.',
+            releaseDate: new Date().toISOString().split('T')[0],
+            forceUpdate: false,
+        },
+    });
+});
 app.use('/api/movies', movies_routes_1.default);
 app.use('/api/tv', tv_routes_1.default);
 app.use('/api/search', search_routes_1.default);

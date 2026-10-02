@@ -6,23 +6,12 @@ import {
   getPopularMoviesPage,
   getPopularTVPage,
   getAnimeSeriesPage,
-  getAfricanMovies,
-  getAfricanTV,
   getUpcomingMovies,
-  getMoviesByGenre,
-  getTVByGenrePage,
-  getBoxOfficeMovies,
-  getNewAnime,
-  getMartialArtsMovies,
-  getMadeInChina,
-  getTopRatedMovies,
-  getTopRatedTV,
-  getBarbieMovies,
-  getRealityShows,
-  getAllTimeFavorites,
 } from "@/app/api";
 import HomeClientWrapper from "./HomeClientWrapper";
 import HomeSkeleton from "@/components/HomeSkeleton";
+import HomeSecondaryStream from "./HomeSecondaryStream";
+import HomeSecondarySkeleton from "@/components/HomeSecondarySkeleton";
 
 export const revalidate = 3600;
 
@@ -32,63 +21,26 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  // 1. Lancer toutes les requêtes en parallèle depuis le serveur
+  // 1. Tier 1 (Above-the-fold) : Seules les 6 requêtes critiques sont exécutées immédiatement
   const [
     trendingMovies,
     trendingTV,
     popularMoviesPage,
     popularTVPage,
     animeSeriesPage,
-    africanM,
-    africanS,
     newReleases,
-    topRatedMovies,
-    topRatedTV,
-    actionMovies,
-    comedyMovies,
-    actionSeries,
-    animationSeries,
-    boxOffice,
-    newAnime,
-    martialArts,
-    tvForYouPage,
-    saDrama,
-    madeInChina,
-    barbieMovies,
-    realityShows,
-    allTimeFavorites,
   ] = await Promise.all([
     getTrendingMovies().catch(() => []),
     getTrendingTV().catch(() => []),
     getPopularMoviesPage(1).catch(() => ({ results: [], totalPages: 1 })),
     getPopularTVPage(1).catch(() => ({ results: [], totalPages: 1 })),
     getAnimeSeriesPage(1).catch(() => ({ results: [], totalPages: 1 })),
-    getAfricanMovies(1).catch(() => []),
-    getAfricanTV(1).catch(() => []),
     getUpcomingMovies(1).catch(() => []),
-    getTopRatedMovies().catch(() => []),
-    getTopRatedTV().catch(() => []),
-    getMoviesByGenre("28", 1).catch(() => []),
-    getMoviesByGenre("35", 1).catch(() => []),
-    getTVByGenrePage("10759", 1).catch(() => ({ results: [], totalPages: 1 })),
-    getTVByGenrePage("16", 1).catch(() => ({ results: [], totalPages: 1 })),
-    getBoxOfficeMovies(1).catch(() => []),
-    getNewAnime(1).catch(() => []),
-    getMartialArtsMovies(1).catch(() => []),
-    getPopularTVPage(2).catch(() => ({ results: [], totalPages: 1 })),
-    getAfricanTV(1, "ZA").catch(() => []), // SA Drama
-    getMadeInChina(1).catch(() => []),
-    getBarbieMovies(1).catch(() => []),
-    getRealityShows(1).catch(() => []),
-    getAllTimeFavorites(1).catch(() => []),
   ]);
 
   const trendingAll = [...trendingMovies, ...trendingTV];
-
   const popularSeries = popularTVPage.results || [];
   const animeCollection = animeSeriesPage.results || [];
-  const africanMovies = africanM || [];
-  const africanSeries = africanS || [];
 
   // Hero Carousel dynamique : mélange équilibré de films populaires, grandes séries et animes phares
   const heroBase = [];
@@ -113,25 +65,12 @@ export default async function HomePage() {
         upcomingMovies={newReleases}
         popularSeries={popularSeries}
         animeCollection={animeCollection}
-        africanMovies={africanMovies}
-        africanSeries={africanSeries}
-        topRatedMovies={topRatedMovies}
-        topRatedTV={topRatedTV}
-        actionMovies={actionMovies}
-        comedyMovies={comedyMovies}
-        actionSeries={actionSeries.results || []}
-        animationSeries={animationSeries.results || []}
-        boxOffice={boxOffice}
-        newAnime={newAnime}
-        martialArts={martialArts}
-        tvForYou={tvForYouPage.results || []}
-        saDrama={saDrama}
-        madeInChina={madeInChina}
-        barbieMovies={barbieMovies}
-        realityShows={realityShows}
-        allTimeFavorites={allTimeFavorites}
-      />
+      >
+        {/* Tier 2 (Below-the-fold) : Streamé progressivement en arrière-plan sans bloquer le TTFB */}
+        <Suspense fallback={<HomeSecondarySkeleton />}>
+          <HomeSecondaryStream />
+        </Suspense>
+      </HomeClientWrapper>
     </Suspense>
   );
 }
-

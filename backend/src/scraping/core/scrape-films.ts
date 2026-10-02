@@ -169,6 +169,19 @@ async function processFilm(item: FsItem): Promise<void> {
             return;
         }
 
+        let year: number | undefined;
+        if (watch.meta?.year) {
+            const parsed = parseInt(watch.meta.year, 10);
+            if (!isNaN(parsed) && parsed >= 1920 && parsed <= 2030) year = parsed;
+        }
+        if (!year) {
+            const m = titre.match(/\b(19\d{2}|20\d{2})\b/);
+            if (m) {
+                const parsed = parseInt(m[1], 10);
+                if (parsed >= 1920 && parsed <= 2030) year = parsed;
+            }
+        }
+
         const movieDoc = await Movie.findOneAndUpdate(
             { titre },
             {
@@ -180,6 +193,7 @@ async function processFilm(item: FsItem): Promise<void> {
                     description: item.description || watch.meta?.description || '',
                     qualite: item.quality || 'HD',
                     version: item.version || 'VF',
+                    year: year || undefined,
                     updatedAt: new Date()
                 }
             },

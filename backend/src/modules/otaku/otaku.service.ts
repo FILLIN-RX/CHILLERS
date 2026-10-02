@@ -88,13 +88,14 @@ export async function searchOtaku(
   type: 'movie' | 'series' = 'movie',
   season?: number,
   episode?: number,
-  language: string = 'fr'
+  language: string = 'fr',
+  year?: number
 ): Promise<OtakuResult | null> {
   try {
     const targetSeason = season && season > 0 ? season : 1;
     const targetEpisode = episode && episode > 0 ? episode : 1;
     const labelSeasonEp = type === 'series' ? ` S${targetSeason}E${targetEpisode}` : '';
-    console.log(`[Otaku Direct API] Searching "${title}"${labelSeasonEp} (type: ${type}, lang: ${language})`);
+    console.log(`[Otaku Direct API] Searching "${title}"${labelSeasonEp} (type: ${type}, year: ${year || 'non spécifiée'}, lang: ${language})`);
     
     // 1. Recherche directe via l'API interne d'OpenOtaku
     // Si série avec saison > 1 et titre ne contenant pas "saison", tenter d'abord avec le libellé saison
@@ -118,24 +119,42 @@ export async function searchOtaku(
     }
 
     // 2. Trouver la meilleure correspondance de titre
-    let bestItem: { id: string; title: string; poster?: string } | null = null;
-    let bestScore = 0;
+    const matchingItems: Array<{ id: string; title: string; poster?: string }> = [];
 
     for (const item of results) {
       if (areTitlesMatching(queryTitle, item.title || '') || areTitlesMatching(title, item.title || '')) {
-        bestItem = item;
-        bestScore = 1;
-        break;
+        matchingItems.push(item);
       }
     }
 
-    if (!bestItem) {
+    if (matchingItems.length === 0) {
       console.log(`[Otaku] Correspondance trop éloignée pour "${title}" (trouvé: "${results[0]?.title}"), skip.`);
       return null;
     }
 
-    // 3. Récupérer les détails de visionnage (players / épisodes)
-    const watch = await fetchWithRetry(`${BASE_URL}/api/fs-watch`, { id: bestItem.id });
+    let bestItem: { id: string; title: string; poster?: string } = matchingItems[0];
+    let watch: any = null;
+
+    // Si plusieurs candidats pour un film et qu'une année est spécifiée, inspecter les détails pour trouver l'année exacte
+    if (type === 'movie' && year && matchingItems.length > 1) {
+      for (const cand of matchingItems.slice(0, 4)) {
+        const w = await fetchWithRetry(`${BASE_URL}/api/fs-watch`, { id: cand.id });
+        if (w?.meta?.year) {
+          const candYear = parseInt(w.meta.year, 10);
+          if (!isNaN(candYear) && Math.abs(candYear - year) <= 1) {
+            bestItem = cand;
+            watch = w;
+            console.log(`[Otaku] Match exact année trouvé: "${cand.title}" (ID: ${cand.id}, Année: ${candYear}) pour cible ${year}`);
+            break;
+          }
+        }
+      }
+    }
+
+    // 3. Récupérer les détails de visionnage si pas déjà récupérés
+    if (!watch) {
+      watch = await fetchWithRetry(`${BASE_URL}/api/fs-watch`, { id: bestItem.id });
+    }
 
     const detailTitle = watch?.meta?.title || bestItem.title || title;
 

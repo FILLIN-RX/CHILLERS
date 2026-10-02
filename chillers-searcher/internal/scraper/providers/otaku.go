@@ -82,11 +82,48 @@ func (s *OtakuScraper) Search(ctx context.Context, query domain.SearchQuery) ([]
 		return nil, nil
 	}
 
-	firstMatch := searchData.Results[0]
+	bestMatch := searchData.Results[0]
+
+	// Si l'année est spécifiée pour un film et qu'il y a plusieurs résultats, chercher l'année correspondante
+	if query.Type == domain.MediaTypeMovie && query.Year > 0 && len(searchData.Results) > 1 {
+		type otakuWatchMeta struct {
+			Meta struct {
+				Year string `json:"year"`
+			} `json:"meta"`
+		}
+
+		for _, cand := range searchData.Results {
+			watchURL := fmt.Sprintf("%s/api/fs-watch?id=%s", otakuBaseURL, url.QueryEscape(cand.ID))
+			wReq, wErr := http.NewRequestWithContext(ctx, http.MethodGet, watchURL, nil)
+			if wErr == nil {
+				wReq.Header.Set("User-Agent", otakuUA)
+				wResp, wDoErr := s.client.Do(wReq)
+				if wDoErr == nil {
+					var wData otakuWatchMeta
+					if json.NewDecoder(wResp.Body).Decode(&wData) == nil && wData.Meta.Year != "" {
+						var y int
+						fmt.Sscanf(wData.Meta.Year, "%d", &y)
+						diff := y - query.Year
+						if diff < 0 {
+							diff = -diff
+						}
+						if diff <= 1 {
+							bestMatch = cand
+							wResp.Body.Close()
+							slog.Info("Otaku: Exact year match found", "title", cand.Title, "year", y, "id", cand.ID)
+							break
+						}
+					}
+					wResp.Body.Close()
+				}
+			}
+		}
+	}
+
 	var sources []domain.StreamSource
 
 	// Fetch detail / download link if available
-	dlURL := fmt.Sprintf("%s/api/dl?url=%s", otakuBaseURL, url.QueryEscape(firstMatch.ID))
+	dlURL := fmt.Sprintf("%s/api/dl?url=%s", otakuBaseURL, url.QueryEscape(bestMatch.ID))
 	dlReq, err := http.NewRequestWithContext(ctx, http.MethodGet, dlURL, nil)
 	if err == nil {
 		dlReq.Header.Set("User-Agent", otakuUA)
@@ -99,7 +136,7 @@ func (s *OtakuScraper) Search(ctx context.Context, query domain.SearchQuery) ([]
 					Source:    "otaku",
 					StreamURL: dlData.DownloadURL,
 					Quality:   "1080p",
-					Language:  "VOSTFR",
+					Language:  "VF",
 					Server:    "direct",
 					Season:    query.Season,
 					Episode:   query.Episode,
@@ -109,12 +146,12 @@ func (s *OtakuScraper) Search(ctx context.Context, query domain.SearchQuery) ([]
 	}
 
 	// Also add the primary page / embed reference
-	if len(sources) == 0 && firstMatch.ID != "" {
+	if len(sources) == 0 && bestMatch.ID != "" {
 		sources = append(sources, domain.StreamSource{
 			Source:    "otaku",
-			StreamURL: firstMatch.ID,
+			StreamURL: bestMatch.ID,
 			Quality:   "HD",
-			Language:  "VOSTFR",
+			Language:  "VF",
 			Server:    "otaku-player",
 			Season:    query.Season,
 			Episode:   query.Episode,

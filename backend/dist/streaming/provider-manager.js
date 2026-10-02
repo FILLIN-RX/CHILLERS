@@ -17,9 +17,9 @@ const vidlink_provider_1 = require("./providers/vidlink.provider");
 const flemmix_provider_1 = require("./providers/flemmix.provider");
 const stream_persistence_service_1 = require("./services/stream-persistence.service");
 const stream_cache_1 = require("../utils/stream-cache");
-const VALIDATION_TIMEOUT = 5000;
-const PROVIDER_TIMEOUT = 10000;
-const OTAKU_TIMEOUT = 25000;
+const VALIDATION_TIMEOUT = 3500;
+const PROVIDER_TIMEOUT = 6000;
+const OTAKU_TIMEOUT = 12000;
 const CIRCUIT_BREAKER_THRESHOLD = 3;
 const CIRCUIT_BREAKER_COOLDOWN = 60000;
 class ProviderManager {
@@ -32,43 +32,55 @@ class ProviderManager {
     buildProviders() {
         return [
             new direct_provider_1.DirectProvider(),
-            new frenchstream_provider_1.FrenchStreamProvider(),
-            new flemmix_provider_1.FlemmixProvider(),
-            new omnisave_provider_1.OmniSaveProvider(),
             new mongodb_provider_1.MongoDBProvider(),
+            new flemmix_provider_1.FlemmixProvider(),
+            new frenchstream_provider_1.FrenchStreamProvider(),
+            new vidlink_provider_1.VidLinkProvider(),
+            new omnisave_provider_1.OmniSaveProvider(),
             new doodstream_provider_1.DoodStreamProvider(),
             new otaku_provider_1.OtakuProvider(),
-            new vidlink_provider_1.VidLinkProvider(),
         ];
     }
     async getMovieStream(query) {
+        const effectiveLang = query.language || 'fr';
+        let effectiveYear = query.year;
+        if (!effectiveYear && query.releaseDate) {
+            const y = new Date(query.releaseDate).getFullYear();
+            if (!isNaN(y))
+                effectiveYear = y;
+        }
+        const normalizedQuery = {
+            ...query,
+            language: effectiveLang,
+            year: effectiveYear,
+        };
         // ── Early exit pour contenu inédit / pas encore sorti en salle/streaming ─────
-        if (query.releaseDate) {
-            const relTime = new Date(query.releaseDate).getTime();
+        if (normalizedQuery.releaseDate) {
+            const relTime = new Date(normalizedQuery.releaseDate).getTime();
             if (!isNaN(relTime) && relTime > Date.now()) {
-                console.log(`[Stream] "${query.title || query.tmdbId}" n'est pas encore sorti (date de sortie: ${query.releaseDate}). Early exit.`);
+                console.log(`[Stream] "${normalizedQuery.title || normalizedQuery.tmdbId}" n'est pas encore sorti (date de sortie: ${normalizedQuery.releaseDate}). Early exit.`);
                 return {
                     provider: 'unreleased',
                     embedUrl: '',
                     isUnreleased: true,
-                    releaseDate: query.releaseDate,
+                    releaseDate: normalizedQuery.releaseDate,
                 };
             }
         }
         // ── Cache LRU ───────────────────────────────────────────────────────────
-        const cacheKey = (0, stream_cache_1.getCacheKey)('movie', query.tmdbId, undefined, undefined, query.isPremium, query.language);
+        const cacheKey = (0, stream_cache_1.getCacheKey)('movie', normalizedQuery.tmdbId, undefined, undefined, normalizedQuery.isPremium, normalizedQuery.language);
         const cached = stream_cache_1.streamCache.get(cacheKey);
         if (cached) {
-            console.log(`[Stream] Cache hit for movie ${query.tmdbId} (premium=${!!query.isPremium}, lang=${query.language || 'fr'})`);
+            console.log(`[Stream] Cache hit for movie ${normalizedQuery.tmdbId} (year=${normalizedQuery.year || 'N/A'}, premium=${!!normalizedQuery.isPremium}, lang=${normalizedQuery.language || 'fr'})`);
             return cached;
         }
         const attempts = [];
-        const activeProviders = await this.filterProviders(query);
+        const activeProviders = await this.filterProviders(normalizedQuery);
         for (const provider of activeProviders) {
-            const attempt = await this.tryProvider(provider, 'movie', query);
+            const attempt = await this.tryProvider(provider, 'movie', normalizedQuery);
             attempts.push(attempt);
             if (attempt.status === 'success') {
-                console.log(`[Stream] Movie stream found via "${provider.name}" after ${attempts.length} attempt(s) [lang=${query.language || 'fr'}]`);
+                console.log(`[Stream] Movie stream found via "${provider.name}" after ${attempts.length} attempt(s) [year=${normalizedQuery.year || 'N/A'}, lang=${normalizedQuery.language || 'fr'}]`);
                 const result = {
                     provider: attempt.provider,
                     embedUrl: attempt.reason,

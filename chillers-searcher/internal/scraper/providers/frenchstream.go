@@ -86,7 +86,13 @@ func (s *FrenchStreamScraper) Search(ctx context.Context, query domain.SearchQue
 	}
 
 	normQuery := normalizeTitle(query.Title)
-	var targetPageURL string
+	yearRegex := regexp.MustCompile(`\b(19\d{2}|20\d{2})\b`)
+
+	type scoredMatch struct {
+		url   string
+		score int
+	}
+	var scoredMatches []scoredMatch
 
 	for _, match := range matches {
 		matchURL := match[1]
@@ -95,17 +101,54 @@ func (s *FrenchStreamScraper) Search(ctx context.Context, query domain.SearchQue
 		matchTitle = strings.ReplaceAll(matchTitle, "&amp;", "&")
 
 		normMatch := normalizeTitle(matchTitle)
-		if strings.Contains(normMatch, normQuery) || strings.Contains(normQuery, normMatch) {
-			if strings.HasPrefix(matchURL, "http") {
-				targetPageURL = matchURL
-			} else {
-				targetPageURL = frenchStreamBaseURL + matchURL
+		score := 0
+
+		if normMatch == normQuery {
+			score += 100
+		} else if strings.Contains(normMatch, normQuery) || strings.Contains(normQuery, normMatch) {
+			score += 50
+		}
+
+		if query.Year > 0 {
+			ym := yearRegex.FindString(matchTitle)
+			if ym != "" {
+				var itemYear int
+				fmt.Sscanf(ym, "%d", &itemYear)
+				if itemYear > 0 {
+					diff := itemYear - query.Year
+					if diff < 0 {
+						diff = -diff
+					}
+					if diff == 0 {
+						score += 250 // Exact year match
+					} else if diff == 1 {
+						score += 100 // 1 year tolerance
+					} else {
+						score -= 150 // Different remake or release
+					}
+				}
 			}
-			break
+		}
+
+		if score > 0 {
+			fullURL := matchURL
+			if !strings.HasPrefix(fullURL, "http") {
+				fullURL = frenchStreamBaseURL + fullURL
+			}
+			scoredMatches = append(scoredMatches, scoredMatch{url: fullURL, score: score})
 		}
 	}
 
-	if targetPageURL == "" && len(matches) > 0 {
+	var targetPageURL string
+	if len(scoredMatches) > 0 {
+		bestMatch := scoredMatches[0]
+		for _, sm := range scoredMatches[1:] {
+			if sm.score > bestMatch.score {
+				bestMatch = sm
+			}
+		}
+		targetPageURL = bestMatch.url
+	} else if len(matches) > 0 {
 		firstURL := matches[0][1]
 		if strings.HasPrefix(firstURL, "http") {
 			targetPageURL = firstURL

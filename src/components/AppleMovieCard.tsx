@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState, useCallback } from "react";
+import React, { useRef, useState, useCallback, useEffect } from "react";
 import Image from "next/image";
 import { motion, useMotionValue, useSpring, useTransform, useReducedMotion } from "motion/react";
 import { Play, Star, Info, FilmSlate, BookmarkSimple, ListNumbers, HourglassSimple } from "@phosphor-icons/react";
@@ -60,7 +60,14 @@ export default function AppleMovieCard({
   const [imgLoaded, setImgLoaded] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [canHover, setCanHover] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setCanHover(window.matchMedia("(hover: hover) and (pointer: fine)").matches);
+    }
+  }, []);
 
   // ── Apple TV 3D Tilt & Specular Light Physics (via Motion Values) ──
   const mouseX = useMotionValue(0.5);
@@ -79,19 +86,20 @@ export default function AppleMovieCard({
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
-      if (shouldReduceMotion || !cardRef.current) return;
+      if (shouldReduceMotion || !cardRef.current || e.pointerType === "touch" || !canHover) return;
       const rect = cardRef.current.getBoundingClientRect();
       const x = (e.clientX - rect.left) / rect.width;
       const y = (e.clientY - rect.top) / rect.height;
       mouseX.set(Math.max(0, Math.min(1, x)));
       mouseY.set(Math.max(0, Math.min(1, y)));
     },
-    [mouseX, mouseY, shouldReduceMotion]
+    [canHover, mouseX, mouseY, shouldReduceMotion]
   );
 
-  const handlePointerEnter = useCallback(() => {
+  const handlePointerEnter = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === "touch" || !canHover) return;
     setIsHovered(true);
-  }, []);
+  }, [canHover]);
 
   const handlePointerLeave = useCallback(() => {
     setIsHovered(false);
@@ -154,8 +162,8 @@ export default function AppleMovieCard({
       onClick={() => onPlay(item)}
       // Apple Spring Physics: Real-world physical scale & translation
       whileHover={
-        shouldReduceMotion
-          ? { opacity: 0.95 }
+        !canHover || shouldReduceMotion
+          ? undefined
           : {
               scale: 1.045,
               y: -5,
@@ -172,10 +180,11 @@ export default function AppleMovieCard({
             }
       }
       style={{
-        rotateX,
-        rotateY,
+        rotateX: canHover ? rotateX : 0,
+        rotateY: canHover ? rotateY : 0,
         transformPerspective: 900,
         transformStyle: "preserve-3d",
+        touchAction: "manipulation",
       }}
       className={`group relative select-none cursor-pointer rounded-2xl bg-zinc-900/90 p-[1px] shadow-[0_10px_30px_-10px_rgba(0,0,0,0.7)] hover:shadow-[0_22px_45px_-12px_rgba(0,0,0,0.9)] transition-shadow duration-300 ${
         selected ? "ring-2 ring-red-500 shadow-red-500/20" : ""

@@ -83,7 +83,7 @@ export function buildMediaMetadata(input: MediaMetaInput): Metadata {
   const yearLabel = year ? ` (${year})` : "";
 
   // 1. Accroche textuelle conforme ("Ce film est disponible sur CHILLERS...")
-  let prefix = isTV
+  const prefix = isTV
     ? context === "season"
       ? `Cette saison de ${title} est disponible sur CHILLERS.`
       : `Cette série est disponible sur CHILLERS.`
