@@ -204,6 +204,7 @@ export default function HeroCarousel({
                   className="object-cover object-center transition-opacity duration-700"
                   style={{ filter: "brightness(0.8) saturate(1.1)" }}
                   sizes="100vw"
+                  quality={85}
                   priority={index === 0}
                   loading={index === 0 ? "eager" : "lazy"}
                   {...(index === 0 ? { fetchPriority: "high" } : {})}
