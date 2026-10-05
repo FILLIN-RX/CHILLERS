@@ -6,6 +6,7 @@ import { MongoDBProvider } from './providers/mongodb.provider';
 import { DoodStreamProvider } from './providers/doodstream.provider';
 import { DirectProvider } from './providers/direct.provider';
 import { FrenchStreamProvider } from './providers/frenchstream.provider';
+import { AfrolandProvider } from './providers/afroland.provider';
 import { OtakuProvider } from './providers/otaku.provider';
 import { StreamtapeProvider } from './providers/streamtape.provider';
 import { FawesomeProvider } from './providers/fawesome.provider';
@@ -76,6 +77,10 @@ export class ProviderManager {
       new MongoDBProvider(),
       new DirectProvider(),       // 2. Direct Scraper / HLS direct
       new FrenchStreamProvider(), // 3. VF / VOSTFR Scraper
+      // 4. AfrolandTV (Nollywood / Afrique) : recherche par titre sur l'API
+      //    Ottera puis HLS Kaltura direct. Placé après FrenchStream pour
+      //    préserver la priorité VF.
+      new AfrolandProvider(),
       new DoodStreamProvider(),
       new OtakuProvider(),
       // 5. Fawesome TV : API mp4/hls directe (Cachefly), match de titre strict.

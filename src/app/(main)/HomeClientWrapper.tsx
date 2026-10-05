@@ -21,9 +21,9 @@ const MovieModal = dynamic(() => import("@/components/MovieModal"), { ssr: false
 
 export interface HomeClientWrapperProps {
   heroSlides: MovieOrShow[];
-  trendingAll: MovieOrShow[];
-  newReleases: MovieOrShow[];
-  upcomingMovies?: MovieOrShow[];
+  trendingMoviesPromise: Promise<MovieOrShow[]>;
+  trendingTVPromise: Promise<MovieOrShow[]>;
+  upcomingMoviesPromise: Promise<MovieOrShow[]>;
   popularSeries: MovieOrShow[];
   animeCollection: MovieOrShow[];
   children?: React.ReactNode;
@@ -31,9 +31,9 @@ export interface HomeClientWrapperProps {
 
 export default function HomeClientWrapper({
   heroSlides,
-  trendingAll,
-  newReleases,
-  upcomingMovies,
+  trendingMoviesPromise,
+  trendingTVPromise,
+  upcomingMoviesPromise,
   popularSeries,
   animeCollection,
   children,
@@ -49,13 +49,33 @@ export default function HomeClientWrapper({
     { item: MovieOrShow; progress: number; remaining: string; episodeName?: string; season?: number; episode?: number }[]
   >([]);
 
+  const [trendingAll, setTrendingAll] = useState<MovieOrShow[]>([]);
+  const [newReleases, setNewReleases] = useState<MovieOrShow[]>([]);
+
+  // Resolve deferred promises on client side
+  useEffect(() => {
+    (async () => {
+      try {
+        const [trendingMovies, trendingTV, upcomingMovies] = await Promise.all([
+          trendingMoviesPromise,
+          trendingTVPromise,
+          upcomingMoviesPromise,
+        ]);
+        setTrendingAll([...trendingMovies, ...trendingTV]);
+        setNewReleases(upcomingMovies);
+      } catch (e) {
+        console.error("Failed to load deferred data:", e);
+      }
+    })();
+  }, [trendingMoviesPromise, trendingTVPromise, upcomingMoviesPromise]);
+
   // Filter strictly unreleased upcoming movies with poster for the full-width spotlight banner
   const upcomingList = useMemo(() => {
-    const list = upcomingMovies && upcomingMovies.length > 0 ? upcomingMovies : newReleases;
+    const list = newReleases && newReleases.length > 0 ? newReleases : newReleases;
     const today = new Date().toISOString().split("T")[0];
     const unreleased = list.filter((m) => Boolean(m.posterUrl) && Boolean(m.releaseDate && m.releaseDate >= today));
     return unreleased.length > 0 ? unreleased : list.filter((m) => Boolean(m.posterUrl));
-  }, [upcomingMovies, newReleases]);
+  }, [newReleases]);
 
   // Primary rows (Critical above-the-fold)
   const primaryRows = useMemo(() => {

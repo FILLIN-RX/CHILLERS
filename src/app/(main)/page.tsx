@@ -22,24 +22,18 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  // 1. Tier 1 (Above-the-fold) : Seules les 6 requêtes critiques sont exécutées immédiatement
+  // Tier 1 (Critical, above-the-fold): Only hero-critical calls
+  // These three build the heroSlides and must resolve before page renders
   const [
-    trendingMovies,
-    trendingTV,
     popularMoviesPage,
     popularTVPage,
     animeSeriesPage,
-    newReleases,
   ] = await Promise.all([
-    getTrendingMovies().catch(() => []),
-    getTrendingTV().catch(() => []),
     getPopularMoviesPage(1).catch(() => ({ results: [], totalPages: 1 })),
     getPopularTVPage(1).catch(() => ({ results: [], totalPages: 1 })),
     getAnimeSeriesPage(1).catch(() => ({ results: [], totalPages: 1 })),
-    getUpcomingMovies(1).catch(() => []),
   ]);
 
-  const trendingAll = [...trendingMovies, ...trendingTV];
   const popularSeries = popularTVPage.results || [];
   const animeCollection = animeSeriesPage.results || [];
 
@@ -57,13 +51,19 @@ export default async function HomePage() {
   
   const heroSlides = heroBase.slice(0, 10);
 
+  // Tier 2 (Deferred, non-critical): Start these promises but do NOT await them in critical path
+  // These will be streamed to HomeClientWrapper as promises
+  const trendingMoviesPromise = getTrendingMovies().catch(() => []);
+  const trendingTVPromise = getTrendingTV().catch(() => []);
+  const upcomingMoviesPromise = getUpcomingMovies(1).catch(() => []);
+
   return (
     <Suspense fallback={<HomeSkeleton />}>
       <HomeClientWrapper
         heroSlides={trimShowcaseItems(heroSlides)}
-        trendingAll={trimShowcaseItems(trendingAll)}
-        newReleases={trimShowcaseItems(newReleases)}
-        upcomingMovies={trimShowcaseItems(newReleases)}
+        trendingMoviesPromise={trendingMoviesPromise}
+        trendingTVPromise={trendingTVPromise}
+        upcomingMoviesPromise={upcomingMoviesPromise}
         popularSeries={trimRowItems(popularSeries)}
         animeCollection={trimRowItems(animeCollection)}
       >
