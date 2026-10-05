@@ -160,7 +160,15 @@ export default function HomeClientWrapper({
       }
     }
     history.sort((a, b) => b.updatedAt - a.updatedAt);
-    setContinueWatching(history);
+    // Déduplication stricte par ID + saison + épisode
+    const seen = new Set<string>();
+    const uniqueHistory = history.filter((entry) => {
+      const uniqueKey = `${entry.item.id}_${entry.season || 0}_${entry.episode || 0}`;
+      if (seen.has(uniqueKey)) return false;
+      seen.add(uniqueKey);
+      return true;
+    });
+    setContinueWatching(uniqueHistory);
   }, [user]);
 
   const handleOpenDetails = useCallback((item: MovieOrShow) => {
@@ -224,7 +232,7 @@ export default function HomeClientWrapper({
                 <ScrollRow title={_("home.continueWatching")} accentColor="secondary">
                   {continueWatching.map(({ item, progress, remaining, episodeName, season, episode }) => (
                     <ContinueWatchingCard
-                      key={item.id}
+                      key={`${item.id}-${season ?? 0}-${episode ?? 0}`}
                       item={item}
                       progress={progress}
                       remainingTime={remaining}

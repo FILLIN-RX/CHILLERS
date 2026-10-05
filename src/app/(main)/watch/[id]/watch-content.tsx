@@ -66,6 +66,21 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
     }
   }, [searchParams]);
   const [streamUrl, setStreamUrl] = useState(initialStreamUrl || "");
+  /** Referer CDN du flux direct (HLS Uqload/Vidzy) — transmis à VideoPlayer. */
+  const [streamReferer, setStreamReferer] = useState<string | null>(null);
+  /**
+   * Applique un stream résolu : priorité à l'URL directe (HLS/MP4) pour que
+   * VideoPlayer joue le flux natif au lieu de l'iframe embed (avec pubs).
+   */
+  const applyStream = (
+    stream: { embedUrl: string; directUrl?: string | null; referer?: string | null } | null,
+  ): boolean => {
+    const url = stream?.directUrl || stream?.embedUrl;
+    if (!url) return false;
+    setStreamUrl(url);
+    setStreamReferer(stream?.referer ?? null);
+    return true;
+  };
   const [streamLoading, setStreamLoading] = useState(!initialStreamUrl && !initialStreamUnavailable);
   const [streamUnavailable, setStreamUnavailable] = useState(initialStreamUnavailable || false);
   const [isUnreleased, setIsUnreleased] = useState(false);
@@ -121,146 +136,106 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
     }
   }, [initialSeasonData, isTV, initialEpisodeParam, currentSeason, _]);
 
-  // Initial Load (Media Details + First Stream) if not provided
+  // Initial Load (Media Details + Stream) in pure parallel
   useEffect(() => {
-    if (!id || initialItem) return;
+    if (!id) return;
     const controller = new AbortController();
     const signal = controller.signal;
     let cancelled = false;
-    setPageLoading(true);
+
     setStreamLoading(true);
-    setStreamUrl("");
+    setStreamUnavailable(false);
 
     (async () => {
       try {
-        const detail = await getMediaDetails(id, isTV, signal);
-        if (cancelled) return;
-        if (detail) setItem(detail);
+        const targetSeason = parseInt(initialSeasonParam) || 1;
+        const targetEp = parseInt(initialEpisodeParam) || 1;
+        if (isTV) setCurrentSeason(targetSeason);
 
-        // ── Early exit si le contenu n'est pas encore sorti ──
-        if (detail?.releaseDate && new Date(detail.releaseDate).getTime() > Date.now()) {
-          setIsUnreleased(true);
-          setUnreleasedDate(detail.releaseDate);
-          setStreamUnavailable(true);
-          setStreamLoading(false);
-          setSeasonLoading(false);
-          return;
-        }
+        // ── 1. Lancement parallèle immédiat de TMDB + Stream ──
+        const mediaDetailsPromise = item
+          ? Promise.resolve(item)
+          : getMediaDetails(id, isTV, signal);
 
-        const originalTitle = (detail as any)?.originalTitle || (detail as any)?.original_title;
+        const seasonDataPromise = isTV
+          ? (initialSeasonData?.episodes?.length
+              ? Promise.resolve(initialSeasonData)
+              : getSeasonDetails(id, String(targetSeason), signal))
+          : Promise.resolve(null);
 
-        if (isTV) {
-          setSeasonLoading(true);
-          const targetSeason = parseInt(initialSeasonParam) || 1;
-          const targetEp = parseInt(initialEpisodeParam) || 1;
-          setCurrentSeason(targetSeason);
+        // Si item est déjà dispo (SSR), on transmet ses données tout de suite
+        const streamPromise = getStreamUrl(
+          id,
+          isTV ? "series" : "movie",
+          isTV ? targetSeason : undefined,
+          isTV ? targetEp : undefined,
+          item?.title,
+          signal,
+          (item as any)?.originalTitle || (item as any)?.original_title,
+          item?.releaseDate,
+          item?.year,
+          audioVersion,
+        );
 
-          const seasonDataPromise = getSeasonDetails(id, String(targetSeason), signal);
-          const firstStreamPromise = getStreamUrl(
-            id,
-            "series",
-            targetSeason,
-            targetEp,
-            detail?.title || id,
-            signal,
-            originalTitle,
-            detail?.releaseDate,
-            detail?.year,
-            audioVersion,
-          );
-
-          const [seasonData, firstStream] = await Promise.all([
-            seasonDataPromise,
-            firstStreamPromise,
-          ]);
+        // On écoute la résolution du stream dès qu'il arrive (ultra-rapide)
+        streamPromise.then((stream) => {
           if (cancelled) return;
-
-          if (seasonData?.episodes?.length) {
-            let startIdx = 0;
-            const eps: Episode[] = seasonData.episodes.map((ep: any, idx: number) => {
-              if (targetEp && ep.episode_number === targetEp) startIdx = idx;
-              return {
-                id: String(ep.id),
-                title: ep.name || `${_("media.episode")} ${ep.episode_number}`,
-                duration: `${ep.runtime || 24}m`,
-                number: ep.episode_number,
-                season: targetSeason,
-                thumbnail: ep.still_path
-                  ? `https://image.tmdb.org/t/p/w185${ep.still_path}`
-                  : "",
-                synopsis: ep.overview || "",
-              };
-            });
-            setEpisodes(eps);
-            setCurrentEpisodeIndex(startIdx);
-          }
-
-          let stream = firstStream;
-          if (!stream && targetSeason !== 1) {
-            stream = await getStreamUrl(
-              id,
-              "series",
-              1,
-              1,
-              detail?.title || id,
-              signal,
-              originalTitle,
-              detail?.releaseDate,
-              detail?.year,
-              audioVersion,
-            );
-          }
-          if (!cancelled) {
-            if (stream?.unreleased) {
-              setIsUnreleased(true);
-              setUnreleasedDate(stream.releaseDate || detail?.releaseDate || null);
-              setStreamUnavailable(true);
-            } else if (stream) {
-              setStreamUrl(stream.embedUrl);
-            } else {
-              setStreamUnavailable(true);
-            }
-          }
-          setSeasonLoading(false);
-        } else {
-          const detailPromise = getMediaDetails(id, isTV, signal);
-          const firstStreamPromise = getStreamUrl(
-            id,
-            "movie",
-            undefined,
-            undefined,
-            undefined,
-            signal,
-            undefined,
-            undefined,
-            undefined,
-            audioVersion,
-          );
-
-          const [detailRes, stream] = await Promise.all([
-            detailPromise,
-            firstStreamPromise,
-          ]);
-          if (cancelled) return;
-          if (detailRes) setItem(detailRes);
-
-          if (detailRes?.releaseDate && new Date(detailRes.releaseDate).getTime() > Date.now()) {
-            setIsUnreleased(true);
-            setUnreleasedDate(detailRes.releaseDate);
-            setStreamUnavailable(true);
-            setStreamLoading(false);
-            return;
-          }
-
           if (stream?.unreleased) {
             setIsUnreleased(true);
-            setUnreleasedDate(stream.releaseDate || detailRes?.releaseDate || null);
+            setUnreleasedDate(stream.releaseDate || null);
             setStreamUnavailable(true);
-          } else if (stream) {
-            setStreamUrl(stream.embedUrl);
+          } else if (stream?.embedUrl) {
+            applyStream(stream);
+            setStreamUnavailable(false);
           } else {
             setStreamUnavailable(true);
           }
+          setStreamLoading(false);
+        }).catch((err) => {
+          if (!cancelled && !(err instanceof DOMException && err.name === "AbortError")) {
+            setStreamUnavailable(true);
+            setStreamLoading(false);
+          }
+        });
+
+        // Traitement des données médias & épisodes
+        const [detail, seasonData] = await Promise.all([
+          mediaDetailsPromise,
+          seasonDataPromise,
+        ]);
+
+        if (cancelled) return;
+
+        if (detail) {
+          setItem(detail);
+          if (detail.releaseDate && new Date(detail.releaseDate).getTime() > Date.now()) {
+            setIsUnreleased(true);
+            setUnreleasedDate(detail.releaseDate);
+            setStreamUnavailable(true);
+            setStreamLoading(false);
+            setSeasonLoading(false);
+            return;
+          }
+        }
+
+        if (isTV && seasonData?.episodes?.length) {
+          let startIdx = 0;
+          const eps: Episode[] = seasonData.episodes.map((ep: any, idx: number) => {
+            if (targetEp && ep.episode_number === targetEp) startIdx = idx;
+            return {
+              id: String(ep.id),
+              title: ep.name || `${_("media.episode")} ${ep.episode_number}`,
+              duration: `${ep.runtime || 24}m`,
+              number: ep.episode_number,
+              season: targetSeason,
+              thumbnail: ep.still_path
+                ? `https://image.tmdb.org/t/p/w185${ep.still_path}`
+                : "",
+              synopsis: ep.overview || "",
+            };
+          });
+          setEpisodes(eps);
+          setCurrentEpisodeIndex(startIdx);
         }
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") return;
@@ -268,7 +243,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
       } finally {
         if (!cancelled) {
           setPageLoading(false);
-          setStreamLoading(false);
+          setSeasonLoading(false);
         }
       }
     })();
@@ -277,7 +252,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
       cancelled = true;
       controller.abort();
     };
-  }, [id, isTV, initialSeasonParam, initialEpisodeParam, initialItem, _]);
+  }, [id, isTV, initialSeasonParam, initialEpisodeParam, audioVersion, _]);
 
   // Record into Watch History when media is ready
   useEffect(() => {
@@ -354,6 +329,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
       setSeasonLoading(true);
       setStreamLoading(true);
       setStreamUrl("");
+      setStreamReferer(null);
       setStreamUnavailable(false);
 
       try {
@@ -386,11 +362,9 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
             item?.year,
             audioVersion,
           );
-          if (stream) {
-            setStreamUrl(stream.embedUrl);
-          } else {
-            setStreamUnavailable(true);
-          }
+        if (!applyStream(stream)) {
+          setStreamUnavailable(true);
+        }
 
           // Update URL silently
           window.history.replaceState(
@@ -420,6 +394,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
       setCurrentEpisodeIndex(idx);
       setStreamLoading(true);
       setStreamUrl("");
+      setStreamReferer(null);
       setStreamUnavailable(false);
 
       try {
@@ -435,11 +410,9 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
           item?.year,
           audioVersion,
         );
-        if (stream) {
-          setStreamUrl(stream.embedUrl);
-        } else {
-          setStreamUnavailable(true);
-        }
+          if (!applyStream(stream)) {
+            setStreamUnavailable(true);
+          }
 
         // Update URL silently
         window.history.replaceState(
@@ -474,6 +447,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
       setStreamLoading(true);
       setStreamUnavailable(false);
       setStreamUrl("");
+      setStreamReferer(null);
 
       try {
         const originalTitle = (item as any)?.originalTitle || (item as any)?.original_title;
@@ -491,11 +465,9 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
             item?.year,
             newLang,
           );
-          if (stream) {
-            setStreamUrl(stream.embedUrl);
-          } else {
-            setStreamUnavailable(true);
-          }
+        if (!applyStream(stream)) {
+          setStreamUnavailable(true);
+        }
           // Update URL silently with new language
           window.history.replaceState(
             null,
@@ -515,11 +487,9 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
             item?.year,
             newLang,
           );
-          if (stream) {
-            setStreamUrl(stream.embedUrl);
-          } else {
-            setStreamUnavailable(true);
-          }
+        if (!applyStream(stream)) {
+          setStreamUnavailable(true);
+        }
           // Update URL silently with new language
           window.history.replaceState(
             null,
@@ -631,12 +601,13 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
   }
 
   const hasEpisodes = isTV && episodes.length > 0;
+  const hasSidebar = hasEpisodes || (!isTV && similar.length > 0);
 
   return (
     <div className="min-h-screen bg-[#09090B] text-white">
       <div
         className={`pt-[64px] sm:pt-[70px] pb-16 sm:pb-20 lg:pb-24 ${
-          hasEpisodes ? "lg:pr-[26rem] xl:pr-[28rem]" : ""
+          hasSidebar ? "lg:pr-[26rem] xl:pr-[28rem]" : ""
         }`}
       >
         {/* Main Video Player Section */}
@@ -717,6 +688,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
                   item={playerItem!}
                   episode={currentEpisode}
                   audioVersion={audioVersion}
+                  streamReferer={streamReferer}
                   onLanguageChange={handleLanguageChange}
                   onBack={() => router.back()}
                   onOpenDetails={(it) =>
@@ -932,9 +904,9 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
           </section>
         )}
 
-        {/* Similar / Recommendations Section */}
+        {/* Similar / Recommendations Section (Mobile & TV Bottom) */}
         {similar.length > 0 && (
-          <section className="mt-8 sm:mt-12 px-4 sm:px-6 md:px-10 lg:px-[3%] space-y-3 sm:space-y-4">
+          <section className={`${isTV ? "" : "lg:hidden"} mt-8 sm:mt-12 px-4 sm:px-6 md:px-10 lg:px-[3%] space-y-3 sm:space-y-4`}>
             <h2 className="text-base sm:text-xl font-black text-white flex items-center gap-2 sm:gap-3">
               <span className="h-4 sm:h-5 w-1 rounded-full bg-brand-primary" />
               {_("media.youMightAlsoLike")}
@@ -991,8 +963,9 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
         )}
       </div>
 
-      {/* Desktop Persistent Sidebar with Season Selector & Episode List */}
-      {hasEpisodes && (
+      {/* ─── Desktop Persistent Right Sidebar (PC Only) ─── */}
+      {/* Case 1: Series / Anime (Episodes Drawer) */}
+      {hasEpisodes ? (
         <aside className="hidden lg:block fixed top-[64px] sm:top-[70px] right-0 w-[26rem] xl:w-[28rem] h-[calc(100dvh-64px)] sm:h-[calc(100dvh-70px)] bg-[#0c0c0e]/98 backdrop-blur-2xl border-l border-white/5 overflow-y-auto p-4 z-30 space-y-3">
           {/* Season Selector Dropdown */}
           <div className="sticky top-0 bg-[#0c0c0e] backdrop-blur-md pb-3 pt-1 z-30 border-b border-white/5 space-y-2">
@@ -1034,7 +1007,67 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
             ))}
           </div>
         </aside>
-      )}
+      ) : !isTV && similar.length > 0 ? (
+        /* Case 2: Movies (Similar Recommendations Drawer on PC) */
+        <aside className="hidden lg:block fixed top-[64px] sm:top-[70px] right-0 w-[26rem] xl:w-[28rem] h-[calc(100dvh-64px)] sm:h-[calc(100dvh-70px)] bg-[#0c0c0e]/98 backdrop-blur-2xl border-l border-white/5 overflow-y-auto p-4 z-30 space-y-3">
+          <div className="sticky top-0 bg-[#0c0c0e] backdrop-blur-md pb-3 pt-1 z-30 border-b border-white/5 flex items-center justify-between">
+            <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+              <span className="h-3 w-1 rounded-full bg-brand-primary" />
+              {_("media.youMightAlsoLike")} ({similar.length})
+            </h3>
+          </div>
+
+          {/* Desktop Similar Movie Cards */}
+          <div className="space-y-2.5 pb-8">
+            {similar.map((sim) => (
+              <div
+                key={sim.id}
+                onClick={() => router.push(`/watch/${sim.id}?type=movie`)}
+                className="group flex items-start gap-3 p-2.5 rounded-xl cursor-pointer transition-all bg-white/[0.02] hover:bg-white/[0.06] border border-transparent hover:border-white/10"
+              >
+                <div className="flex-none w-28 aspect-video rounded-lg overflow-hidden bg-zinc-800 relative">
+                  <CardImage
+                    src={sim.backdropUrl || sim.posterUrl}
+                    alt={sim.title}
+                    fill
+                    className="object-cover transition-transform group-hover:scale-105"
+                    sizes="128px"
+                    fallbackText={sim.title}
+                  />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <div className="w-7 h-7 rounded-full bg-brand-primary flex items-center justify-center shadow-lg">
+                      <Play className="h-3.5 w-3.5 text-white fill-white ml-0.5" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex-1 min-w-0 flex flex-col justify-center">
+                  <h4 className="text-xs sm:text-sm font-bold text-white group-hover:text-brand-primary transition-colors line-clamp-1 leading-snug">
+                    {sim.title}
+                  </h4>
+                  <div className="flex items-center gap-2 text-[10px] text-zinc-400 mt-1">
+                    {sim.year > 0 && <span>{sim.year}</span>}
+                    {sim.rating > 0 && (
+                      <span className="text-brand-primary font-semibold flex items-center gap-0.5">
+                        <Star className="h-3 w-3 fill-brand-primary" />
+                        {Math.round(sim.rating * 10)}%
+                      </span>
+                    )}
+                    <span className="px-1 py-0.2 rounded bg-zinc-800 text-[9px] uppercase font-bold text-zinc-300">
+                      HD
+                    </span>
+                  </div>
+                  {(sim.synopsis || sim.description) && (
+                    <p className="text-[10px] text-zinc-500 line-clamp-2 leading-tight mt-1">
+                      {sim.synopsis || sim.description}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </aside>
+      ) : null}
 
       {/* Modals */}
       {notification && (

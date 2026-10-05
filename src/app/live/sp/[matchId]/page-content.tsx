@@ -426,7 +426,8 @@ export default function SportsMatchContent() {
             title={resolvedMatch ? `${teamsLabel} · En direct` : "Match en direct"}
             className="h-full w-full border-0"
             allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-            referrerPolicy="no-referrer-when-downgrade"
+            referrerPolicy="no-referrer"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
           />
         </div>
       )}

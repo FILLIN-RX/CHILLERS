@@ -1,5 +1,6 @@
 import tmdbClient from '../../config/tmdb';
 import { toTMDBLanguage } from '../../config/language';
+import Movie from '../../models/Movie';
 
 export const getPopular = async (page: number = 1, language?: string) => {
   const { data } = await tmdbClient.get('/movie/popular', { params: { page, language: toTMDBLanguage(language) } });
@@ -38,6 +39,18 @@ export const getDetails = async (id: string, language?: string) => {
         language: toTMDBLanguage(language) 
       },
     });
+
+    const tmdbIdNum = parseInt(id, 10);
+    if (!isNaN(tmdbIdNum)) {
+      try {
+        const dbMovie = await Movie.findOne({ tmdbId: tmdbIdNum }).lean().exec();
+        if (dbMovie) {
+          data.downloadUrl = dbMovie.uqloadLink || (dbMovie.uqloadCode ? `/api/download/uqload/${dbMovie.uqloadCode}` : null) || dbMovie.lien || null;
+          data.uqloadCode = dbMovie.uqloadCode;
+        }
+      } catch {}
+    }
+
     return data;
   } catch (err: any) {
     if (err?.response?.status === 404) {
@@ -56,8 +69,17 @@ export const getDetails = async (id: string, language?: string) => {
 };
 
 export const getRecommendations = async (id: string, language?: string) => {
-  const { data } = await tmdbClient.get(`/movie/${id}/recommendations`, { params: { language: toTMDBLanguage(language) } });
-  return data;
+  try {
+    const { data } = await tmdbClient.get(`/movie/${id}/recommendations`, { params: { language: toTMDBLanguage(language) } });
+    return data;
+  } catch (err: any) {
+    try {
+      const { data } = await tmdbClient.get(`/tv/${id}/recommendations`, { params: { language: toTMDBLanguage(language) } });
+      return data;
+    } catch (_) {
+      return { results: [], page: 1, total_pages: 0, total_results: 0 };
+    }
+  }
 };
 
 export const getTrailer = async (id: string, language?: string) => {

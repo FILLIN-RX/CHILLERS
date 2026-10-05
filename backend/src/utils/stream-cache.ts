@@ -16,6 +16,9 @@ export interface CachedStream {
   /** URL directe MP4 ou HLS (si disponible depuis le scrape initial). */
   directUrl?: string;
   directType?: 'mp4' | 'hls';
+  downloadUrl?: string | null;
+  /** Referer attendu par le CDN (HLS Uqload/vidzy) — transmis au lecteur. */
+  referer?: string;
   /** Indique que le contenu est inédit / pas encore sorti */
   isUnreleased?: boolean;
   releaseDate?: string;

@@ -162,7 +162,7 @@ function buildChannelUrl(channel: any, edgeHostsList: string[], visitorId: strin
   return `${host.replace(/\/frame\.php$/, '')}/frame.php?ch=${ch}&p=12&token=${visitorId}&kt=${kt}`;
 }
 
-import { extractDirectStream } from './extractors/stream-extractor';
+import { extractDirectStream } from './utils/stream-extractor';
 
 /** Résout le(s) player(s) de diffusion d'un match kora. */
 export async function resolveKoraStream(matchId: string, force = false): Promise<ResolvedSportsStream | null> {

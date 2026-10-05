@@ -1,7 +1,6 @@
 import axios from 'axios';
 import Movie from '../../models/Movie';
 import Serie from '../../models/Serie';
-import { getFileInfo } from '../doodstream/doodstream.service';
 import { detectAudioLanguage } from '../../utils/audio-language';
 
 export interface ScanProgress {
@@ -88,15 +87,6 @@ async function checkStreaming(doc: any): Promise<boolean> {
 }
 
 async function checkDownload(doc: any): Promise<boolean> {
-  const fileCode = doc.fileCode || doc.uqloadCode;
-  if (fileCode && process.env.DOODSTREAM_API_KEY) {
-    try {
-      const info = await getFileInfo(fileCode);
-      if (info && info.status === 200) return true;
-    } catch {
-      // fallback
-    }
-  }
   const candidates = downloadCandidates(doc);
   if (candidates.length === 0) return false;
   const results = await Promise.all(candidates.map(isUrlAlive));

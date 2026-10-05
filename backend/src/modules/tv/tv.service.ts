@@ -1,5 +1,6 @@
 import tmdbClient from '../../config/tmdb';
 import { toTMDBLanguage } from '../../config/language';
+import Serie from '../../models/Serie';
 
 export const getPopular = async (page: number = 1, language?: string) => {
   const { data } = await tmdbClient.get('/tv/popular', { params: { page, language: toTMDBLanguage(language) } });
@@ -105,6 +106,27 @@ export const getSeasonDetails = async (id: string, seasonNumber: string, languag
       language: toTMDBLanguage(language) 
     },
   });
+
+  try {
+    const tmdbIdNum = parseInt(id, 10);
+    const sNum = parseInt(seasonNumber, 10);
+    if (!isNaN(tmdbIdNum) && !isNaN(sNum) && data?.episodes?.length) {
+      const serie = await Serie.findOne({ tmdbId: tmdbIdNum }).lean().exec();
+      if (serie?.episodes?.length) {
+        data.episodes = data.episodes.map((ep: any) => {
+          const dbEp = serie.episodes.find(
+            (e: any) => Number(e.season) === sNum && Number(e.episodeNumber) === Number(ep.episode_number)
+          );
+          if (dbEp) {
+            ep.downloadUrl = dbEp.uqloadLink || (dbEp.uqloadCode ? `/api/download/uqload/${dbEp.uqloadCode}` : null) || dbEp.lien || null;
+            ep.uqloadCode = dbEp.uqloadCode;
+          }
+          return ep;
+        });
+      }
+    }
+  } catch {}
+
   return data;
 };
 

@@ -2,8 +2,8 @@ import { Request, Response } from 'express';
 import { isAxiosError } from 'axios';
 import { isOpenSubtitlesConfigured } from './opensubtitles.config';
 import { searchSubtitles, downloadSubtitle, refreshToken } from './opensubtitles.service';
-import { srtToVtt } from './srt-to-vtt';
-import { errMessage } from '../../streaming/torrents/torrents.utils';
+import { srtToVtt } from './utils/srt-to-vtt';
+import { errMessage } from '../streaming/torrents/utils/torrents.utils';
 
 export async function findSubs(req: Request, res: Response): Promise<void> {
     if (!isOpenSubtitlesConfigured()) {

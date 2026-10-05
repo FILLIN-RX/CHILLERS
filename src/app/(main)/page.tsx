@@ -12,6 +12,7 @@ import HomeClientWrapper from "./HomeClientWrapper";
 import HomeSkeleton from "@/components/HomeSkeleton";
 import HomeSecondaryStream from "./HomeSecondaryStream";
 import HomeSecondarySkeleton from "@/components/HomeSecondarySkeleton";
+import { trimRowItems, trimShowcaseItems } from "./homeMedia";
 
 export const revalidate = 3600;
 
@@ -59,12 +60,12 @@ export default async function HomePage() {
   return (
     <Suspense fallback={<HomeSkeleton />}>
       <HomeClientWrapper
-        heroSlides={heroSlides}
-        trendingAll={trendingAll}
-        newReleases={newReleases}
-        upcomingMovies={newReleases}
-        popularSeries={popularSeries}
-        animeCollection={animeCollection}
+        heroSlides={trimShowcaseItems(heroSlides)}
+        trendingAll={trimShowcaseItems(trendingAll)}
+        newReleases={trimShowcaseItems(newReleases)}
+        upcomingMovies={trimShowcaseItems(newReleases)}
+        popularSeries={trimRowItems(popularSeries)}
+        animeCollection={trimRowItems(animeCollection)}
       >
         {/* Tier 2 (Below-the-fold) : Streamé progressivement en arrière-plan sans bloquer le TTFB */}
         <Suspense fallback={<HomeSecondarySkeleton />}>

@@ -1,8 +1,8 @@
 // @ts-nocheck
 import axios_1 from "axios";
 import * as live_db_1 from "./live.db";
-import * as live_seed_1 from "./live.seed";
-import * as live_iptv_1 from "./live.iptv";
+import * as live_seed_1 from "./utils/live.seed";
+import * as live_iptv_1 from "./utils/live.iptv";
 function slugify(value) {
     return value
         .toLowerCase()

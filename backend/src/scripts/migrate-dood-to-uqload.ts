@@ -22,7 +22,7 @@ import { UqloadClient } from '../modules/uqload/uqload.client';
 import Movie from '../models/Movie';
 import Serie from '../models/Serie';
 import { connectDB } from '../config/db';
-import { getFileDownloadUrl, getDirectDownloadUrl } from '../modules/doodstream/doodstream.service';
+import { DirectScraper } from '../modules/streaming/providers/direct-scraper';
 
 const DOODSTREAM_RE =
   /doodstream\.com|dood\.(?:to|sh|so|cx|la|wf|pm)|playmogo\.com|d000d\.com|d0000d\.com/i;
@@ -65,16 +65,19 @@ async function resolveSourceUrl(fileCode?: string | null, lien?: string | null):
   if (lien && !DOOD_PAGE_RE.test(lien)) {
     return lien;
   }
-  if (fileCode && fileCode.trim()) {
+  if (lien && DOOD_PAGE_RE.test(lien)) {
     try {
-      const protectedUrl = await getFileDownloadUrl(fileCode);
-      if (protectedUrl) return protectedUrl;
+      const res = await DirectScraper.resolve(lien);
+      if (res?.directUrl) return res.directUrl;
     } catch {
       // ignore
     }
+  }
+  if (fileCode && fileCode.trim()) {
     try {
-      const directUrl = await getDirectDownloadUrl(fileCode);
-      if (directUrl) return directUrl;
+      const embedUrl = `https://doodstream.com/e/${fileCode.trim()}`;
+      const res = await DirectScraper.resolve(embedUrl);
+      if (res?.directUrl) return res.directUrl;
     } catch {
       // ignore
     }

@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { UqloadClient } from '../uqload/uqload.client';
-import { uploadToStreamtape, isUqloadFull } from '../streamtape/streamtape.uploader';
+import { uploadToStreamtape, isUqloadFull } from '../streamtape/utils/streamtape.uploader';
 import Serie, { type IEpisode } from '../../models/Serie';
 import Movie from '../../models/Movie';
 

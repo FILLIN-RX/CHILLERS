@@ -124,7 +124,7 @@ export async function getStreamizMatches(): Promise<SportsMatch[]> {
   }
 }
 
-import { extractDirectStream } from './extractors/stream-extractor';
+import { extractDirectStream } from './utils/stream-extractor';
 
 /** Remonte streamiz → livetv902 → relais → iframe du lecteur. */
 export async function resolveStreamizStream(sourceId: string, force = false): Promise<ResolvedSportsStream | null> {

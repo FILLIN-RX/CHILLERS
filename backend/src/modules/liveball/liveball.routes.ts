@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { getMatches, getAvailableMatches, getLeagueMatches, getMatchStream } from './liveball.controller';
-import { getHlsMasterPlaylist, getHlsProxy } from './liveball.hls-relay';
+import { getHlsMasterPlaylist, getHlsProxy } from './utils/liveball.hls-relay';
 
 const router = Router();
 

@@ -1,5 +1,15 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
+export interface IProviderPage {
+    provider: string;
+    path: string;
+    language?: string;
+    season?: number;
+    episode?: number;
+    lastScrapedAt?: Date;
+    isWorking?: boolean;
+}
+
 export interface IEpisode {
     episode: string;        // ex. "S02E01" — label consommé par le provider
     season: number;
@@ -19,6 +29,7 @@ export interface IEpisode {
     source?: string;
     quality?: string;
     isPremium?: boolean;
+    providerPages?: IProviderPage[];
     sources?: Array<{
         source: string;
         url: string;
@@ -44,6 +55,7 @@ export interface ISerie extends Document {
     disponibleCheckedAt?: Date;
     langueAudio?: string;
     isPremium?: boolean;
+    providerPages?: IProviderPage[];
 }
 
 const EpisodeSchema: Schema = new Schema({
@@ -65,6 +77,20 @@ const EpisodeSchema: Schema = new Schema({
     source: { type: String },
     quality: { type: String },
     isPremium: { type: Boolean, default: false },
+    providerPages: {
+        type: [
+            {
+                provider: { type: String, required: true },
+                path: { type: String, required: true },
+                language: { type: String, default: 'fr' },
+                season: { type: Number },
+                episode: { type: Number },
+                lastScrapedAt: { type: Date, default: Date.now },
+                isWorking: { type: Boolean, default: true },
+            },
+        ],
+        default: [],
+    },
     sources: {
         type: [
             {
@@ -93,6 +119,19 @@ const SerieSchema: Schema = new Schema({
     disponibleCheckedAt: { type: Date },
     langueAudio: { type: String, index: true },
     isPremium: { type: Boolean, default: false },
+    providerPages: {
+        type: [
+            {
+                provider: { type: String, required: true },
+                path: { type: String, required: true },
+                language: { type: String, default: 'fr' },
+                season: { type: Number },
+                lastScrapedAt: { type: Date, default: Date.now },
+                isWorking: { type: Boolean, default: true },
+            },
+        ],
+        default: [],
+    },
 }, { timestamps: true });
 
 // Index composé pour accélérer le lookup du provider (titre + S/E)

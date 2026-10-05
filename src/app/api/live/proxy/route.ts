@@ -25,6 +25,25 @@ function extractTargetUrl(rawParam: string): string {
   return cur;
 }
 
+/**
+ * Garde-fou SSRF : le proxy est ouvert, on refuse donc les cibles réseau
+ * privées / loopback / localhost. Les IP publiques restent acceptées (certains
+ * edge CDN live sont servis en IP littérale).
+ */
+function isBlockedHost(hostname: string): boolean {
+  const h = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  if (h === "localhost" || h.endsWith(".local") || h.endsWith(".internal")) return true;
+  const v4 = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (!v4) return false;
+  const a = Number(v4[1]);
+  const b = Number(v4[2]);
+  if (a === 10 || a === 127 || a === 0 || a >= 224) return true;
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  if (a === 192 && b === 168) return true;
+  if (a === 169 && b === 254) return true;
+  return false;
+}
+
 export async function GET(request: NextRequest) {
   const urlParam = request.nextUrl.searchParams.get("url");
 
@@ -43,6 +62,14 @@ export async function GET(request: NextRequest) {
     return new NextResponse("Invalid URL parameter", { status: 400 });
   }
 
+  // Un relay relatif (/api/liveball/..., /api/sports/...) ou une URL absolue sur
+  // notre propre origine vise notre backend : ce n'est pas du SSRF, on l'autorise
+  // (sinon le lecteur de match sportif reçoit 400 sur chaque playlist).
+  const sameOrigin = targetUrl.origin === request.nextUrl.origin;
+  if (!sameOrigin && isBlockedHost(targetUrl.hostname)) {
+    return new NextResponse("Forbidden target host", { status: 400 });
+  }
+
   const refererParam = request.nextUrl.searchParams.get("referer");
 
   try {
@@ -52,10 +79,15 @@ export async function GET(request: NextRequest) {
       Referer: refererParam || `${targetUrl.protocol}//${targetUrl.host}/`,
     };
 
+    // Timeout d'établissement uniquement : on le libère dès que les en-têtes
+    // arrivent, sinon un segment volumineux sur connexion lente serait coupé
+    // en plein téléchargement (AbortSignal.timeout porte sur tout le body).
+    const controller = new AbortController();
+    const connectTimer = setTimeout(() => controller.abort(), 15000);
     const response = await fetch(targetUrl.toString(), {
       headers,
-      signal: AbortSignal.timeout(15000),
-    });
+      signal: controller.signal,
+    }).finally(() => clearTimeout(connectTimer));
 
     if (!response.ok) {
       return new NextResponse(`Upstream error: ${response.status}`, {
@@ -111,7 +143,7 @@ export async function GET(request: NextRequest) {
 
     // Sinon (segment binaire .ts, audio, etc.), on renvoie le stream avec headers CORS
     const body = response.body;
-    return new NextResponse(body as any, {
+    return new NextResponse(body, {
       status: 200,
       headers: {
         "Content-Type": contentType || "video/MP2T",
@@ -120,8 +152,9 @@ export async function GET(request: NextRequest) {
         "Cache-Control": "public, max-age=3600",
       },
     });
-  } catch (err: any) {
-    return new NextResponse(`Proxy error: ${err?.message || "Internal error"}`, {
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return new NextResponse(`Proxy error: ${message || "Internal error"}`, {
       status: 502,
       headers: {
         "Access-Control-Allow-Origin": "*",

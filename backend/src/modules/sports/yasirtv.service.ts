@@ -12,7 +12,7 @@
 import crypto from 'crypto';
 import axios from 'axios';
 import { LRUCache } from 'lru-cache';
-import { extractDirectStream } from './extractors/stream-extractor';
+import { extractDirectStream } from './utils/stream-extractor';
 import type { ResolvedSportsStream, SportsMatch, SportsServer } from './sports.types';
 
 const USER_AGENT =

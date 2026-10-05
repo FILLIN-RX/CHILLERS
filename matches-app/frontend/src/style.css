@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Styles globaux pour CHILLERS Sports */
+:root {
+  --color-bg: #111111;
+  --color-card: #181818;
+  --color-primary: #E50914;
+}
+
+* {
+  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+body {
+  background-color: #111111;
+  color: #f3f4f6;
+  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Forcer la police Poppins et graisse 400 max sur tous les composants */
+.v-application,
+.v-application *,
+.v-card,
+.v-btn,
+.v-tab,
+.v-chip,
+.v-list-item,
+.v-toolbar-title,
+button,
+input,
+optgroup,
+select,
+textarea,
+b,
+strong,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+  font-weight: 400 !important;
+}
+
+/* Neutralisation stricte des graisses supérieures à 400 */
+.font-weight-bold,
+.font-weight-black,
+.font-bold,
+.font-black,
+.font-extrabold,
+.font-semibold,
+.font-medium {
+  font-weight: 400 !important;
+}
+
+/* Polices numériques sportives monospace fines */
+.font-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Roboto Mono', monospace !important;
+  font-weight: 400 !important;
+}
+
+/* Plafond de graisse de police universel à 400 max pour toute l'application */
+*:not(.mdi):not([class*="mdi-"]):not(.v-icon) {
+  font-weight: 400 !important;
+}

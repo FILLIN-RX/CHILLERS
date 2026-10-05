@@ -15,6 +15,11 @@ node_modules/
 /.next/
 /out/
 
+# build artifacts (mesures LCP / matches-app)
+/.next-lh/
+matches-app/backend/dist/
+matches-app/frontend/dist/
+
 # production
 /build
 backend/dist/

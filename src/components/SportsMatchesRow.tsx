@@ -179,13 +179,22 @@ export default function SportsMatchesRow({
           )}
         </div>
 
-        <Link
-          href="/live"
-          className="text-xs sm:text-sm font-semibold text-zinc-400 hover:text-white flex items-center gap-1.5 group transition-colors shrink-0 self-end sm:self-auto"
-        >
-          <span>Voir tout le Live</span>
-          <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
-        </Link>
+        <div className="flex items-center gap-3 self-end sm:self-auto">
+          <Link
+            href="/matches"
+            className="text-xs sm:text-sm font-bold text-red-500 hover:text-red-400 flex items-center gap-1.5 group transition-colors shrink-0"
+          >
+            <span>Scores & Matchs</span>
+            <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+          </Link>
+          <Link
+            href="/live"
+            className="text-xs sm:text-sm font-semibold text-zinc-400 hover:text-white flex items-center gap-1.5 group transition-colors shrink-0"
+          >
+            <span>Direct TV</span>
+            <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+          </Link>
+        </div>
       </div>
 
       {/* Filtres simplifiés : Tous / En Direct uniquement */}

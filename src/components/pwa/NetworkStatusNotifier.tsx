@@ -19,6 +19,7 @@ export default function NetworkStatusNotifier() {
   const [mode, setMode] = useState<"offline" | "restored">("offline");
   const prevOnlineRef = useRef<boolean | null>(null);
   const autoCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const bannerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Premier rendu — initialiser sans animation
@@ -53,10 +54,34 @@ export default function NetworkStatusNotifier() {
     }
   }, [isOnline]);
 
-  // Cleanup timer on unmount
-  useEffect(() => () => {
-    if (autoCloseTimer.current) clearTimeout(autoCloseTimer.current);
+  // Cleanup timer & CSS variable on unmount
+  useEffect(() => {
+    return () => {
+      if (autoCloseTimer.current) clearTimeout(autoCloseTimer.current);
+      document.documentElement.style.setProperty("--network-banner-height", "0px");
+    };
   }, []);
+
+  // Déplacement dynamique du Header : met à jour la variable CSS --network-banner-height
+  useEffect(() => {
+    if (visible && bannerRef.current) {
+      const updateHeight = () => {
+        if (bannerRef.current) {
+          const h = bannerRef.current.offsetHeight;
+          document.documentElement.style.setProperty("--network-banner-height", `${h}px`);
+        }
+      };
+      updateHeight();
+      const resizeObs = new ResizeObserver(updateHeight);
+      resizeObs.observe(bannerRef.current);
+      return () => {
+        resizeObs.disconnect();
+        document.documentElement.style.setProperty("--network-banner-height", "0px");
+      };
+    } else {
+      document.documentElement.style.setProperty("--network-banner-height", "0px");
+    }
+  }, [visible, mode]);
 
   if (!visible) return null;
 
@@ -64,19 +89,19 @@ export default function NetworkStatusNotifier() {
 
   return (
     <div
+      ref={bannerRef}
       role="status"
       aria-live="polite"
       style={{ paddingTop: "env(safe-area-inset-top)" }}
       className={[
-        "fixed top-0 left-0 right-0 z-[200]",
-        "transform transition-transform duration-300 ease-out",
-        visible ? "translate-y-0" : "-translate-y-full",
+        "fixed top-0 left-0 right-0 z-50",
+        "transform transition-all duration-300 ease-out",
         isRestored
-          ? "bg-blue-600"
-          : "bg-amber-500",
+          ? "bg-blue-600 shadow-md"
+          : "bg-amber-500 shadow-md",
       ].join(" ")}
     >
-      <div className="flex items-center justify-center gap-2 px-4 py-2">
+      <div className="flex items-center justify-center gap-2 px-4 py-1.5 sm:py-2">
         {isRestored ? (
           <>
             <WifiHigh weight="bold" className="w-4 h-4 text-white shrink-0" />

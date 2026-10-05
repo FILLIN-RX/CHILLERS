@@ -1,5 +1,13 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
+export interface IProviderPage {
+  provider: string;
+  path: string;
+  language?: string;
+  lastScrapedAt?: Date;
+  isWorking?: boolean;
+}
+
 export interface IMovie extends Document {
   titre: string;
   pageUrl?: string;
@@ -25,6 +33,7 @@ export interface IMovie extends Document {
   source?: string;
   quality?: string;
   isPremium?: boolean;
+  providerPages?: IProviderPage[];
   sources?: Array<{
     source: string;
     url: string;
@@ -60,6 +69,18 @@ const MovieSchema: Schema = new Schema({
   source: { type: String, index: true },
   quality: { type: String },
   isPremium: { type: Boolean, default: false },
+  providerPages: {
+    type: [
+      {
+        provider: { type: String, required: true },
+        path: { type: String, required: true },
+        language: { type: String, default: 'fr' },
+        lastScrapedAt: { type: Date, default: Date.now },
+        isWorking: { type: Boolean, default: true },
+      },
+    ],
+    default: [],
+  },
   sources: {
     type: [
       {

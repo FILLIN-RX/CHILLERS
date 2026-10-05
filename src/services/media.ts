@@ -1111,6 +1111,7 @@ export interface StreamPayload {
   downloadUrl?: string | null;
   directUrl?: string | null;
   directType?: "mp4" | "hls" | null;
+  referer?: string | null;
   provider?: string;
   unreleased?: boolean;
   releaseDate?: string | null;
@@ -1183,7 +1184,7 @@ export async function getStreamUrl(
   releaseDate?: string,
   year?: number,
   language?: string,
-): Promise<{ embedUrl: string; provider: string; downloadUrl?: string | null; directType?: "mp4" | "hls" | null; unreleased?: boolean; releaseDate?: string | null } | null> {
+): Promise<{ embedUrl: string; provider: string; downloadUrl?: string | null; directType?: "mp4" | "hls" | null; directUrl?: string | null; referer?: string | null; unreleased?: boolean; releaseDate?: string | null } | null> {
   const isTv = type === "series" || type === "anime";
   const endpoint = isTv
     ? `/stream/tv/${id}/${season ?? 1}/${episode ?? 1}`
@@ -1195,6 +1196,8 @@ export async function getStreamUrl(
       provider: payload.unreleased ? "unreleased" : "primary",
       downloadUrl: payload.downloadUrl ?? null,
       directType: payload.directType ?? null,
+      directUrl: payload.directUrl ?? null,
+      referer: payload.referer ?? null,
       unreleased: payload.unreleased,
       releaseDate: payload.releaseDate,
     };
@@ -1210,12 +1213,26 @@ export async function getNexStreamUrl(
   episode?: number,
   title?: string,
 ): Promise<string | null> {
+  const payload = await getNexStreamResolution(id, type, season, episode, title);
+  return payload?.embedUrl ?? null;
+}
+
+/**
+ * Variante complète du secondaire : conserve directUrl / directType / referer
+ * pour que le lecteur joue le HLS/MP4 au lieu de retomber sur l'embed.
+ */
+export async function getNexStreamResolution(
+  id: string,
+  type: "movie" | "series" | "anime" = "movie",
+  season?: number,
+  episode?: number,
+  title?: string,
+): Promise<StreamPayload | null> {
   const isTv = type === "series" || type === "anime";
   const endpoint = isTv
     ? `/nexstream/tv/${id}/${season ?? 1}/${episode ?? 1}`
     : `/nexstream/movie/${id}`;
-  const payload = await getStreamOnce(endpoint, type, title, undefined, 12_000);
-  return payload?.embedUrl ?? null;
+  return await getStreamOnce(endpoint, type, title, undefined, 12_000);
 }
 
 /* Genres. */

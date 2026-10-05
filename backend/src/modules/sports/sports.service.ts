@@ -20,7 +20,9 @@ export * from './sports.types';
 
 async function listLiveBallMatches(): Promise<SportsMatch[]> {
   try {
-    const raw = await getLiveBallMatches();
+    const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000));
+    const raw = await Promise.race([getLiveBallMatches(), timeoutPromise]);
+    if (!raw) return [];
     return (raw || []).map((m: LiveBallMatch) => ({
       id: `liveball:${m.id}`,
       sourceId: m.id,
@@ -74,11 +76,19 @@ export function isSportsSource(value: string): value is SportsSourceId {
   return (SPORTS_SOURCES as string[]).includes(value);
 }
 
+const MATCHES_CACHE = new Map<string, { ts: number; data: SportsMatch[] }>();
+
 /**
  * Matchs de toutes les sources (ou d'une seule), dédupliqués et triés :
  * directs d'abord, puis par heure de coupure.
  */
 export async function getSportsMatches(source?: string): Promise<SportsMatch[]> {
+  const cacheKey = source || 'all';
+  const cached = MATCHES_CACHE.get(cacheKey);
+  if (cached && Date.now() - cached.ts < 30_000) {
+    return cached.data;
+  }
+
   const wanted: SportsSourceId[] = source && isSportsSource(source) ? [source] : SPORTS_SOURCES;
 
   const results = await Promise.allSettled(wanted.map((s) => PROVIDERS[s].list()));
@@ -93,12 +103,15 @@ export async function getSportsMatches(source?: string): Promise<SportsMatch[]> 
   });
 
   const seen = new Set<string>();
-  return matches
+  const sorted = matches
     .filter((m) => (seen.has(m.id) ? false : (seen.add(m.id), true)))
     .sort((a, b) => {
       if (a.status !== b.status) return a.status === 'live' ? -1 : 1;
       return (a.startTs ?? Number.MAX_SAFE_INTEGER) - (b.startTs ?? Number.MAX_SAFE_INTEGER);
     });
+
+  MATCHES_CACHE.set(cacheKey, { ts: Date.now(), data: sorted });
+  return sorted;
 }
 
 /** Résout le flux d'un match pour la source demandée. */

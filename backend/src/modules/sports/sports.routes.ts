@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { getMatches, getMatchStream, getMatchStreamById, getSources } from './sports.controller';
-import { getHlsMasterPlaylist, getHlsProxy } from './sports.hls-relay';
+import { getHlsMasterPlaylist, getHlsProxy } from './utils/sports.hls-relay';
 
 const router = Router();
 

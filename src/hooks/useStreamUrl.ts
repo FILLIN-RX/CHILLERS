@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
-import { getStreamUrl, getNexStreamUrl } from "@/services/media";
+import { getStreamUrl, getNexStreamResolution } from "@/services/media";
 
 export type StreamMediaType = "movie" | "series" | "anime";
 
@@ -29,6 +29,10 @@ export interface StreamResolution {
   downloadUrl?: string | null;
   /** Type du lien direct : 'mp4' | 'hls' — utilisé par useDownload pour router vers le bon proxy. */
   directType?: "mp4" | "hls" | null;
+  /** URL directe du flux (HLS .m3u8 ou MP4) quand disponible — le player l'utilise en priorité pour éviter les iframes avec pubs. */
+  directUrl?: string | null;
+  /** Referer à injecter dans hls.js (xhrSetup) pour les CDN Uqload qui vérifient l'origine. */
+  referer?: string | null;
   /** Indique que le film n'est pas encore sorti */
   unreleased?: boolean;
   releaseDate?: string | null;
@@ -110,6 +114,8 @@ async function raceProviders(
               provider: (res.unreleased ? "unreleased" : "primary") as "primary" | "unreleased",
               downloadUrl: res.downloadUrl,
               directType: res.directType ?? null,
+              directUrl: res.directUrl ?? null,
+              referer: res.referer ?? null,
               unreleased: res.unreleased,
               releaseDate: res.releaseDate,
             }
@@ -130,8 +136,19 @@ async function raceProviders(
 
   const secondaryPromise = !isFrenchStrict
     ? withTimeout(
-        getNexStreamUrl(args.id, args.type, args.season, args.episode, args.title)
-          .then<StreamResolution | null>((url) => (url ? { embedUrl: url, provider: "secondary" as const } : null))
+        getNexStreamResolution(args.id, args.type, args.season, args.episode, args.title)
+          .then<StreamResolution | null>((res) =>
+            res
+              ? {
+                  embedUrl: res.embedUrl,
+                  provider: "secondary" as const,
+                  downloadUrl: res.downloadUrl,
+                  directType: res.directType ?? null,
+                  directUrl: res.directUrl ?? null,
+                  referer: res.referer ?? null,
+                }
+              : null,
+          )
           .catch((err) => {
             if (err?.name === "HttpError" && err.status === 403) throw err;
             return null;

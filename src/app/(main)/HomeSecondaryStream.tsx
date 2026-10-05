@@ -15,6 +15,7 @@ import {
   getAllTimeFavorites,
 } from "@/app/api";
 import HomeSecondaryClientRows from "./HomeSecondaryClientRows";
+import { trimRowItems } from "./homeMedia";
 
 export default async function HomeSecondaryStream() {
   const [
@@ -57,23 +58,23 @@ export default async function HomeSecondaryStream() {
 
   return (
     <HomeSecondaryClientRows
-      africanMovies={africanM || []}
-      africanSeries={africanS || []}
-      topRatedMovies={topRatedMovies}
-      topRatedTV={topRatedTV}
-      actionMovies={actionMovies}
-      comedyMovies={comedyMovies}
-      actionSeries={actionSeries.results || []}
-      animationSeries={animationSeries.results || []}
-      boxOffice={boxOffice}
-      newAnime={newAnime}
-      martialArts={martialArts}
-      tvForYou={tvForYouPage.results || []}
-      saDrama={saDrama}
-      madeInChina={madeInChina}
-      barbieMovies={barbieMovies}
-      realityShows={realityShows}
-      allTimeFavorites={allTimeFavorites}
+      africanMovies={trimRowItems(africanM || [])}
+      africanSeries={trimRowItems(africanS || [])}
+      topRatedMovies={trimRowItems(topRatedMovies)}
+      topRatedTV={trimRowItems(topRatedTV)}
+      actionMovies={trimRowItems(actionMovies)}
+      comedyMovies={trimRowItems(comedyMovies)}
+      actionSeries={trimRowItems(actionSeries.results || [])}
+      animationSeries={trimRowItems(animationSeries.results || [])}
+      boxOffice={trimRowItems(boxOffice)}
+      newAnime={trimRowItems(newAnime)}
+      martialArts={trimRowItems(martialArts)}
+      tvForYou={trimRowItems(tvForYouPage.results || [])}
+      saDrama={trimRowItems(saDrama)}
+      madeInChina={trimRowItems(madeInChina)}
+      barbieMovies={trimRowItems(barbieMovies)}
+      realityShows={trimRowItems(realityShows)}
+      allTimeFavorites={trimRowItems(allTimeFavorites)}
     />
   );
 }

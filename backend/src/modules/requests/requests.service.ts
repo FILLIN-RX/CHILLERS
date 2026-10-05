@@ -2,7 +2,7 @@ import axios from 'axios';
 import MediaRequest, { IMediaRequest } from '../../models/MediaRequest';
 import Movie from '../../models/Movie';
 import Serie from '../../models/Serie';
-import { autoLink } from '../../scraping/maintenance/auto-link';
+import { autoLink } from '../scraping/maintenance/auto-link';
 
 const GO_SEARCHER_URL = process.env.GO_SEARCHER_URL || 'http://localhost:8095';
 

@@ -250,7 +250,7 @@ export default function HeroCarousel({
                   aria-label={`${_("hero.watchNow")} ${slide.title}`}
                   className="flex h-14 w-14 sm:h-20 sm:w-20 md:h-24 md:w-24 items-center justify-center rounded-full bg-brand-primary/20 hover:bg-brand-primary/30 border border-brand-primary/50 text-white cursor-pointer transition-all duration-500 hover:scale-110 shadow-3xl hover:shadow-brand-primary/40 group backdrop-blur-sm"
                 >
-                  <div className="flex h-10 w-10 sm:h-14 sm:w-14 md:h-16 md:w-16 items-center justify-center rounded-full bg-brand-primary group-hover:bg-brand-primary/90 transition-all duration-300">
+                  <div className="flex h-10 w-10 sm:h-14 sm:w-14 md:h-16 md:w-16 items-center justify-center rounded-full bg-brand-primary group-hover:brightness-110 group-hover:scale-105 shadow-md group-hover:shadow-brand-primary/50 transition-all duration-300">
                     <Play className="h-5 w-5 sm:h-7 sm:w-7 md:h-8 md:w-8 text-white translate-x-0.5" />
                   </div>
                 </button>

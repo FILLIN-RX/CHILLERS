@@ -3,7 +3,7 @@ import { connectDB } from '../config/db';
 import Movie from '../models/Movie';
 import Serie from '../models/Serie';
 import { UqloadClient } from '../modules/uqload/uqload.client';
-import { saveAndUpload } from '../modules/uqload/uqload.uploader';
+import { saveAndUpload } from '../modules/uqload/utils/uqload.uploader';
 
 interface DetectPayload {
   url?: string;

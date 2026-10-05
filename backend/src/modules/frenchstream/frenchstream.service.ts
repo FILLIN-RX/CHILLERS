@@ -1,7 +1,7 @@
 import axios from 'axios';
 import querystring from 'querystring';
 import Movie from '../../models/Movie';
-import { DirectScraper } from '../../streaming/providers/direct-scraper';
+import { DirectScraper } from '../streaming/providers/direct-scraper';
 import { isLanguageCompatible } from '../../utils/audio-language';
 
 const BASE_URL = 'https://french-stream.net';
@@ -24,7 +24,18 @@ export interface FrenchStreamDirectResult {
   fileSize: string;
   streamUrl: string;
   embedUrl?: string;
+  pagePath?: string;
   source: 'frenchstream';
+}
+
+export function toRelativePath(urlOrPath: string): string {
+  try {
+    if (urlOrPath.startsWith('http')) {
+      const parsed = new URL(urlOrPath);
+      return parsed.pathname + parsed.search;
+    }
+  } catch {}
+  return urlOrPath.startsWith('/') ? urlOrPath : `/${urlOrPath}`;
 }
 
 function normalize(str: string): string {
@@ -95,16 +106,31 @@ export async function extractEmbedVersions(pageUrl: string): Promise<{ title: st
     const rawTitle = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, '').trim() : '';
 
     const versions: FrenchStreamVersion[] = [];
-    const optionRegex = /<div class="option" data-url="([^"]+)"><span>([\s\S]*?)<\/span><\/div>/gi;
+
+    // 1. Recherche par sélecteurs classiques (div.option, div.select-option, etc.)
+    const optionRegex = /<(?:div|li|a|span|button)[^>]+(?:data-url|data-src|data-link)="([^"]+)"[^>]*>([\s\S]*?)<\/(?:div|li|a|span|button)>/gi;
     let match;
 
     while ((match = optionRegex.exec(html)) !== null) {
       const embedUrl = match[1];
-      const label = match[2].replace(/Télécharger en /i, '').trim();
+      const rawText = match[2].replace(/<[^>]+>/g, '').replace(/Télécharger en /i, '').trim();
+      const label = rawText || 'Lecteur';
       versions.push({ label, embedUrl });
     }
 
-    // Si aucune version trouvée en HTML statique, interroger l'API interne film_api.php
+    // 2. Recherche d'iframes directes dans le HTML
+    const iframeRegex = /<iframe[^>]+src="([^"]+)"/gi;
+    let ifrMatch;
+    while ((ifrMatch = iframeRegex.exec(html)) !== null) {
+      const ifrSrc = ifrMatch[1];
+      if (/vidzy|uqload|dood|voe|streamtape|filmoon/i.test(ifrSrc)) {
+        if (!versions.some(v => v.embedUrl === ifrSrc)) {
+          versions.push({ label: 'Lecteur Principal', embedUrl: ifrSrc });
+        }
+      }
+    }
+
+    // 3. Si aucune version trouvée en HTML statique, interroger l'API interne film_api.php
     if (versions.length === 0) {
       const newsIdMatch = pageUrl.match(/\/(\d+)-/i) || html.match(/dle_news_id\s*=\s*['"](\d+)['"]/i);
       const isPageVostfr = /version-film[\/&amp;=]+VOSTFR/i.test(html) || /data-version="VOSTFR"/i.test(html);
@@ -154,6 +180,20 @@ export async function extractEmbedVersions(pageUrl: string): Promise<{ title: st
           }
         } catch (apiErr: any) {
           console.error(`[FrenchStream] Erreur appel film_api.php pour id=${newsIdMatch[1]}:`, apiErr.message);
+        }
+      }
+    }
+
+    // 4. Regex générique de secours pour tous les liens d'embeds connus dans le HTML
+    if (versions.length === 0) {
+      const genericHostRegex = /https?:\/\/(?:[a-zA-Z0-9-]+\.)?(?:uqload\.[a-z]+|vidzy\.[a-z]+|dood\.[a-z]+|doodstream\.[a-z]+|voe\.[a-z]+|streamtape\.[a-z]+)\/(?:embed-|e\/|d\/)[a-zA-Z0-9_-]+(?:\.html)?/gi;
+      let hostMatch;
+      const seen = new Set<string>();
+      while ((hostMatch = genericHostRegex.exec(html)) !== null) {
+        const foundUrl = hostMatch[0];
+        if (!seen.has(foundUrl)) {
+          seen.add(foundUrl);
+          versions.push({ label: 'Lecteur Détecté', embedUrl: foundUrl });
         }
       }
     }
@@ -304,39 +344,76 @@ function rankCandidates(
 export async function getFrenchStreamMovie(
   title: string,
   preferredLang: 'fr' | 'vostfr' | 'en' | 'vo' = 'fr',
-  targetYear?: number
+  targetYear?: number,
+  knownPagePath?: string
 ): Promise<FrenchStreamDirectResult | null> {
   try {
-    console.log(`[FrenchStream HQ] Recherche film 1080p: "${title}" (lang=${preferredLang}, targetYear=${targetYear || 'non spécifiée'})`);
-    const searchResults = await searchFrenchStream(title);
-    if (searchResults.length === 0) return null;
+    let bestUrl = '';
+    let bestTitle = title;
+    let versions: FrenchStreamVersion[] = [];
+    let resolvedTitle = '';
 
-    // Classer et prioriser les résultats avec scoring par titre et année
-    const rankedResults = rankCandidates(searchResults, title, targetYear);
-    const best = rankedResults[0];
-
-    const searchNorm = normalize(title);
-    // Si aucun titre n'est proche du film demandé, rejeter pour éviter les faux films
-    if (normalize(best.title) !== searchNorm && !normalize(best.title).startsWith(searchNorm) && !searchNorm.startsWith(normalize(best.title))) {
-      console.log(`[FrenchStream HQ] Correspondance trop éloignée pour "${title}" (trouvé: "${best.title}"), skip.`);
-      return null;
+    // 1. Tenter l'accès direct via pagePath connu en DB si disponible
+    if (knownPagePath) {
+      const fullKnownUrl = knownPagePath.startsWith('http')
+        ? knownPagePath
+        : `${BASE_URL}${knownPagePath.startsWith('/') ? '' : '/'}${knownPagePath}`;
+      console.log(`[FrenchStream HQ] [Direct Cache] Tentative directe sur page mémorisée: ${fullKnownUrl}`);
+      try {
+        const directExtracted = await extractEmbedVersions(fullKnownUrl);
+        if (directExtracted.versions.length > 0) {
+          bestUrl = fullKnownUrl;
+          bestTitle = directExtracted.title || title;
+          resolvedTitle = directExtracted.title;
+          versions = directExtracted.versions;
+          console.log(`[FrenchStream HQ] [Direct Cache] ${versions.length} versions trouvées directement sans recherche !`);
+        } else {
+          console.log(`[FrenchStream HQ] [Direct Cache] Aucune version sur la page mémorisée, bascule vers recherche globale.`);
+        }
+      } catch (err: any) {
+        console.warn(`[FrenchStream HQ] [Direct Cache] Échec page mémorisée (${err.message}), fallback recherche.`);
+      }
     }
 
-    console.log(`[FrenchStream HQ] Meilleure page trouvée: ${best.url} (${best.title})`);
-    const { title: resolvedTitle, versions } = await extractEmbedVersions(best.url);
+    // 2. Si pas de page connue ou si elle n'a rien renvoyé, effectuer la recherche par titre
+    if (versions.length === 0) {
+      console.log(`[FrenchStream HQ] Recherche film 1080p: "${title}" (lang=${preferredLang}, targetYear=${targetYear || 'non spécifiée'})`);
+      const searchResults = await searchFrenchStream(title);
+      if (searchResults.length === 0) return null;
+
+      // Classer et prioriser les résultats avec scoring par titre et année
+      const rankedResults = rankCandidates(searchResults, title, targetYear);
+      const best = rankedResults[0];
+
+      const searchNorm = normalize(title);
+      // Si aucun titre n'est proche du film demandé, rejeter pour éviter les faux films
+      if (normalize(best.title) !== searchNorm && !normalize(best.title).startsWith(searchNorm) && !searchNorm.startsWith(normalize(best.title))) {
+        console.log(`[FrenchStream HQ] Correspondance trop éloignée pour "${title}" (trouvé: "${best.title}"), skip.`);
+        return null;
+      }
+
+      console.log(`[FrenchStream HQ] Meilleure page trouvée: ${best.url} (${best.title})`);
+      bestUrl = best.url;
+      bestTitle = best.title;
+      const extracted = await extractEmbedVersions(best.url);
+      resolvedTitle = extracted.title;
+      versions = extracted.versions;
+    }
+
     if (versions.length === 0) return null;
 
-    const filteredVersions = versions.filter(v =>
+    let filteredVersions = versions.filter(v =>
       isLanguageCompatible(preferredLang, {
-        titre: best.title,
+        titre: bestTitle,
         lien: v.embedUrl,
         langueAudio: v.label.includes('VOSTFR') ? 'VOSTFR' : (v.label.includes('VF') || v.label.includes('FRENCH') || v.label.includes('TRUEFRENCH')) ? 'VF' : undefined,
       })
     );
 
-    if (filteredVersions.length === 0) {
-      console.log(`[FrenchStream HQ] Aucune version compatible avec la langue "${preferredLang}" pour "${title}" (${versions.length} versions rejetées)`);
-      return null;
+    const strictLang = filteredVersions.length > 0;
+    if (!strictLang) {
+      console.log(`[FrenchStream HQ] Aucune version compatible avec la langue "${preferredLang}" pour "${title}" (${versions.length} versions rejetées) — repli sur la meilleure version disponible`);
+      filteredVersions = versions;
     }
 
     const isVO = preferredLang === 'vostfr' || preferredLang === 'en' || preferredLang === 'vo';
@@ -361,6 +438,8 @@ export async function getFrenchStreamMovie(
       return 6;
     };
 
+    const savedPagePath = toRelativePath(bestUrl);
+
     const vidzyVersions = filteredVersions
       .filter(v => v.embedUrl.includes('vidzy'))
       .sort((a, b) => langRank(a.label) - langRank(b.label));
@@ -368,17 +447,18 @@ export async function getFrenchStreamMovie(
     for (const v of vidzyVersions) {
       const direct = await resolveVidzyDirectStream(v.embedUrl);
       if (direct?.streamUrl) {
-        if (!isLanguageCompatible(preferredLang, { titre: best.title, lien: direct.streamUrl })) {
+        if (strictLang && !isLanguageCompatible(preferredLang, { titre: bestTitle, lien: direct.streamUrl })) {
           console.log(`[FrenchStream HQ] Flux direct ignoré (incompatible avec lang=${preferredLang}): ${direct.streamUrl.slice(0, 70)}...`);
           continue;
         }
         console.log(`[FrenchStream HQ] Flux direct 1080p résolu (${v.label}) [isVO=${isVO}]: ${direct.streamUrl.slice(0, 70)}...`);
         return {
-          title: resolvedTitle || best.title,
+          title: resolvedTitle || bestTitle,
           quality: '1080p',
           fileSize: direct.fileSize,
           streamUrl: direct.streamUrl,
           embedUrl: v.embedUrl,
+          pagePath: savedPagePath,
           source: 'frenchstream'
         };
       }
@@ -390,11 +470,12 @@ export async function getFrenchStreamMovie(
     if (chosenVersion?.embedUrl) {
       console.log(`[FrenchStream HQ] Lecteur embed sélectionné (${chosenVersion.label}): ${chosenVersion.embedUrl}`);
       return {
-        title: resolvedTitle || best.title,
+        title: resolvedTitle || bestTitle,
         quality: '1080p',
         fileSize: '1080p Full HD',
         streamUrl: chosenVersion.embedUrl,
         embedUrl: chosenVersion.embedUrl,
+        pagePath: savedPagePath,
         source: 'frenchstream'
       };
     }
@@ -472,7 +553,11 @@ export async function extractEpisodeEmbedVersions(
             for (const h of hosts) {
               const u = epObj[h];
               if (u && typeof u === 'string') {
-                const langLabel = lang.toUpperCase() === 'VF' ? (isPageVostfr ? 'VOSTFR' : 'VF') : lang.toUpperCase();
+                // Le bucket de données est la source de vérité : la clé "vf"
+                // contient du VF. isPageVostfr porte sur la page entière (un
+                // simple lien VOSTFR suffit à le déclencher) et ne doit donc
+                // jamais re-étiqueter les versions VF en VOSTFR.
+                const langLabel = lang.toUpperCase();
                 versions.push({ label: `${h.toUpperCase()} (${langLabel})`, embedUrl: u });
               }
             }
@@ -529,15 +614,43 @@ export async function extractEpisodeEmbedVersions(
       }
     }
 
-    // 2. Si aucune version trouvée via l'API, chercher dans le HTML les liens de l'épisode
+    // 3. Si aucune version trouvée via l'API, chercher dans le HTML les sélecteurs d'options
     if (versions.length === 0) {
-      // Chercher des blocs d'options dédiés à l'épisode
-      const optionRegex = /<div class="option" data-url="([^"]+)"><span>([\s\S]*?)<\/span><\/div>/gi;
+      const optionRegex = /<(?:div|li|a|span|button)[^>]+(?:data-url|data-src|data-link)="([^"]+)"[^>]*>([\s\S]*?)<\/(?:div|li|a|span|button)>/gi;
       let match;
       while ((match = optionRegex.exec(html)) !== null) {
         const embedUrl = match[1];
-        const label = match[2].replace(/Télécharger en /i, '').trim();
+        const rawText = match[2].replace(/<[^>]+>/g, '').replace(/Télécharger en /i, '').trim();
+        const label = rawText || `Episode ${targetEpisode}`;
         versions.push({ label, embedUrl });
+      }
+    }
+
+    // 4. Recherche d'iframes directes dans la page épisode
+    if (versions.length === 0) {
+      const iframeRegex = /<iframe[^>]+src="([^"]+)"/gi;
+      let ifrMatch;
+      while ((ifrMatch = iframeRegex.exec(html)) !== null) {
+        const ifrSrc = ifrMatch[1];
+        if (/vidzy|uqload|dood|voe|streamtape|filmoon/i.test(ifrSrc)) {
+          if (!versions.some(v => v.embedUrl === ifrSrc)) {
+            versions.push({ label: `Episode ${targetEpisode} (Lecteur Direct)`, embedUrl: ifrSrc });
+          }
+        }
+      }
+    }
+
+    // 5. Recherche globale d'embeds connus dans le HTML
+    if (versions.length === 0) {
+      const genericHostRegex = /https?:\/\/(?:[a-zA-Z0-9-]+\.)?(?:uqload\.[a-z]+|vidzy\.[a-z]+|dood\.[a-z]+|doodstream\.[a-z]+|voe\.[a-z]+|streamtape\.[a-z]+)\/(?:embed-|e\/|d\/)[a-zA-Z0-9_-]+(?:\.html)?/gi;
+      let hostMatch;
+      const seen = new Set<string>();
+      while ((hostMatch = genericHostRegex.exec(html)) !== null) {
+        const foundUrl = hostMatch[0];
+        if (!seen.has(foundUrl)) {
+          seen.add(foundUrl);
+          versions.push({ label: `Episode ${targetEpisode} (Détecté)`, embedUrl: foundUrl });
+        }
       }
     }
 
@@ -555,60 +668,97 @@ export async function getFrenchStreamEpisode(
   title: string,
   season: number = 1,
   episode: number = 1,
-  preferredLang: 'fr' | 'vostfr' | 'en' | 'vo' = 'fr'
+  preferredLang: 'fr' | 'vostfr' | 'en' | 'vo' = 'fr',
+  knownPagePath?: string
 ): Promise<FrenchStreamDirectResult | null> {
   try {
     const targetSeason = season > 0 ? season : 1;
     const targetEp = episode > 0 ? episode : 1;
-    console.log(`[FrenchStream HQ] Recherche série 1080p: "${title}" S${targetSeason}E${targetEp} (lang=${preferredLang})`);
 
-    // Recherche avec titre + saison
-    const seasonQuery = `${title} Saison ${targetSeason}`;
-    let searchResults = await searchFrenchStream(seasonQuery);
+    let bestUrl = '';
+    let bestTitle = title;
+    let versions: FrenchStreamVersion[] = [];
+    let resolvedTitle = '';
 
-    if (searchResults.length === 0) {
-      // Fallback recherche avec titre simple
-      searchResults = await searchFrenchStream(title);
+    // 1. Tenter l'accès direct via pagePath connu en DB si disponible
+    if (knownPagePath) {
+      const fullKnownUrl = knownPagePath.startsWith('http')
+        ? knownPagePath
+        : `${BASE_URL}${knownPagePath.startsWith('/') ? '' : '/'}${knownPagePath}`;
+      console.log(`[FrenchStream HQ] [Direct Cache] Tentative directe série sur page mémorisée: ${fullKnownUrl} Ep ${targetEp}`);
+      try {
+        const directExtracted = await extractEpisodeEmbedVersions(fullKnownUrl, targetEp);
+        if (directExtracted.versions.length > 0) {
+          bestUrl = fullKnownUrl;
+          bestTitle = directExtracted.title || title;
+          resolvedTitle = directExtracted.title;
+          versions = directExtracted.versions;
+          console.log(`[FrenchStream HQ] [Direct Cache] ${versions.length} versions série trouvées directement sans recherche !`);
+        } else {
+          console.log(`[FrenchStream HQ] [Direct Cache] Aucune version série sur la page mémorisée, bascule vers recherche.`);
+        }
+      } catch (err: any) {
+        console.warn(`[FrenchStream HQ] [Direct Cache] Échec page mémorisée série (${err.message}), fallback recherche.`);
+      }
     }
 
-    if (searchResults.length === 0) return null;
+    // 2. Si pas de page connue ou si elle n'a rien renvoyé, effectuer la recherche par titre + saison
+    if (versions.length === 0) {
+      console.log(`[FrenchStream HQ] Recherche série 1080p: "${title}" S${targetSeason}E${targetEp} (lang=${preferredLang})`);
 
-    // Filtrer les résultats pour trouver la saison correspondante
-    const searchNorm = normalize(seasonQuery);
-    const titleNorm = normalize(title);
-    
-    // Préférer un résultat qui contient explicitement la saison
-    const exactSeasonMatch = searchResults.find(item => {
-      const itNorm = normalize(item.title);
-      return itNorm.includes(`saison${targetSeason}`) || itNorm.includes(`season${targetSeason}`) || itNorm === searchNorm;
-    });
+      // Recherche avec titre + saison
+      const seasonQuery = `${title} Saison ${targetSeason}`;
+      let searchResults = await searchFrenchStream(seasonQuery);
 
-    const best = exactSeasonMatch || searchResults[0];
+      if (searchResults.length === 0) {
+        // Fallback recherche avec titre simple
+        searchResults = await searchFrenchStream(title);
+      }
 
-    if (!normalize(best.title).includes(titleNorm) && !titleNorm.includes(normalize(best.title))) {
-      console.log(`[FrenchStream HQ] Série "${best.title}" trop éloignée de "${title}", skip.`);
-      return null;
+      if (searchResults.length === 0) return null;
+
+      // Filtrer les résultats pour trouver la saison correspondante
+      const searchNorm = normalize(seasonQuery);
+      const titleNorm = normalize(title);
+      
+      // Préférer un résultat qui contient explicitement la saison
+      const exactSeasonMatch = searchResults.find(item => {
+        const itNorm = normalize(item.title);
+        return itNorm.includes(`saison${targetSeason}`) || itNorm.includes(`season${targetSeason}`) || itNorm === searchNorm;
+      });
+
+      const best = exactSeasonMatch || searchResults[0];
+
+      if (!normalize(best.title).includes(titleNorm) && !titleNorm.includes(normalize(best.title))) {
+        console.log(`[FrenchStream HQ] Série "${best.title}" trop éloignée de "${title}", skip.`);
+        return null;
+      }
+
+      console.log(`[FrenchStream HQ] Page série trouvée: ${best.url} (${best.title})`);
+      bestUrl = best.url;
+      bestTitle = best.title;
+      const extracted = await extractEpisodeEmbedVersions(best.url, targetEp);
+      resolvedTitle = extracted.title;
+      versions = extracted.versions;
     }
-
-    console.log(`[FrenchStream HQ] Page série trouvée: ${best.url} (${best.title})`);
-    const { title: resolvedTitle, versions } = await extractEpisodeEmbedVersions(best.url, targetEp);
 
     if (versions.length === 0) {
       console.log(`[FrenchStream HQ] Aucune version pour "${title}" S${targetSeason}E${targetEp}`);
       return null;
     }
 
-    const filteredVersions = versions.filter(v =>
+    let filteredVersions = versions.filter(v =>
       isLanguageCompatible(preferredLang, {
-        titre: best.title,
+        titre: bestTitle,
         lien: v.embedUrl,
         langueAudio: v.label.includes('VOSTFR') ? 'VOSTFR' : (v.label.includes('VF') || v.label.includes('FRENCH') || v.label.includes('TRUEFRENCH')) ? 'VF' : undefined,
       })
     );
 
-    if (filteredVersions.length === 0) {
-      console.log(`[FrenchStream HQ] Aucune version série compatible avec la langue "${preferredLang}" pour "${title}" S${targetSeason}E${targetEp}`);
-      return null;
+    const strictLang = filteredVersions.length > 0;
+    if (!strictLang) {
+      console.log(`[FrenchStream HQ] Aucune version série compatible avec la langue "${preferredLang}" pour "${title}" S${targetSeason}E${targetEp} — repli sur la meilleure version disponible (${versions.length} trouvée(s))`);
+      filteredVersions = versions;
     }
 
     const isVO = preferredLang === 'vostfr' || preferredLang === 'en' || preferredLang === 'vo';
@@ -629,22 +779,25 @@ export async function getFrenchStreamEpisode(
       return 6;
     };
 
+    const savedPagePath = toRelativePath(bestUrl);
+
     // 1. Tenter la résolution directe haute performance (Uqload HLS ou Vidzy MP4)
     for (const v of filteredVersions) {
       if (v.embedUrl.includes('uqload') || v.embedUrl.includes('vidzy')) {
         try {
           const direct = await DirectScraper.resolve(v.embedUrl);
           if (direct?.directUrl) {
-            if (!isLanguageCompatible(preferredLang, { titre: best.title, lien: direct.directUrl })) {
+            if (strictLang && !isLanguageCompatible(preferredLang, { titre: bestTitle, lien: direct.directUrl })) {
               continue;
             }
             console.log(`[FrenchStream HQ] Flux série direct résolu (${v.label}): ${direct.directUrl.slice(0, 70)}...`);
             return {
-              title: resolvedTitle || `${best.title} S${targetSeason}E${targetEp}`,
+              title: resolvedTitle || `${bestTitle} S${targetSeason}E${targetEp}`,
               quality: '1080p',
               fileSize: '1080p Full HD',
               streamUrl: direct.directUrl,
               embedUrl: v.embedUrl,
+              pagePath: savedPagePath,
               source: 'frenchstream'
             };
           }
@@ -658,11 +811,12 @@ export async function getFrenchStreamEpisode(
     if (chosen?.embedUrl) {
       console.log(`[FrenchStream HQ] Lecteur embed série sélectionné (${chosen.label}): ${chosen.embedUrl}`);
       return {
-        title: resolvedTitle || `${best.title} S${targetSeason}E${targetEp}`,
+        title: resolvedTitle || `${bestTitle} S${targetSeason}E${targetEp}`,
         quality: '1080p',
         fileSize: '1080p Full HD',
         streamUrl: chosen.embedUrl,
         embedUrl: chosen.embedUrl,
+        pagePath: savedPagePath,
         source: 'frenchstream'
       };
     }

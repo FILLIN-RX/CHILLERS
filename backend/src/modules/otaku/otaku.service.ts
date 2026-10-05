@@ -80,6 +80,7 @@ async function getDirectLink(embedUrl: string): Promise<string | null> {
 export interface OtakuResult {
   titre: string;
   lien: string;
+  pagePath?: string;
   source: 'otaku';
 }
 
@@ -89,72 +90,117 @@ export async function searchOtaku(
   season?: number,
   episode?: number,
   language: string = 'fr',
-  year?: number
+  year?: number,
+  knownPageId?: string
 ): Promise<OtakuResult | null> {
   try {
     const targetSeason = season && season > 0 ? season : 1;
     const targetEpisode = episode && episode > 0 ? episode : 1;
     const labelSeasonEp = type === 'series' ? ` S${targetSeason}E${targetEpisode}` : '';
-    console.log(`[Otaku Direct API] Searching "${title}"${labelSeasonEp} (type: ${type}, year: ${year || 'non spécifiée'}, lang: ${language})`);
-    
-    // 1. Recherche directe via l'API interne d'OpenOtaku
-    // Si série avec saison > 1 et titre ne contenant pas "saison", tenter d'abord avec le libellé saison
-    let queryTitle = title;
-    if (type === 'series' && targetSeason > 1 && !/saison\s*\d+/i.test(title)) {
-      queryTitle = `${title} Saison ${targetSeason}`;
-    }
+    console.log(`[Otaku Direct API] Searching "${title}"${labelSeasonEp} (type: ${type}, year: ${year || 'non spécifiée'}, lang: ${language}, knownId: ${knownPageId || 'aucun'})`);
 
-    let data = await fetchWithRetry(`${BASE_URL}/api/fs-search`, { q: queryTitle });
-    let results: Array<{ id: string; title: string; poster?: string }> = data?.results || [];
+    let bestItem: { id: string; title: string; poster?: string } | null = null;
+    let watch: any = null;
 
-    // Fallback recherche avec titre brut si aucun résultat avec le suffixe saison
-    if (results.length === 0 && queryTitle !== title) {
-      data = await fetchWithRetry(`${BASE_URL}/api/fs-search`, { q: title });
-      results = data?.results || [];
-    }
-
-    if (results.length === 0) {
-      console.log(`[Otaku] Aucun résultat trouvé pour "${title}"`);
-      return null;
-    }
-
-    // 2. Trouver la meilleure correspondance de titre
-    const matchingItems: Array<{ id: string; title: string; poster?: string }> = [];
-
-    for (const item of results) {
-      if (areTitlesMatching(queryTitle, item.title || '') || areTitlesMatching(title, item.title || '')) {
-        matchingItems.push(item);
+    // 1. Tenter un chargement direct sans recherche si un identifiant/pageId est déjà connu en DB
+    if (knownPageId) {
+      console.log(`[Otaku] [Direct Cache] Tentative directe sur ID mémorisé: "${knownPageId}"`);
+      try {
+        const directWatch = await fetchWithRetry(`${BASE_URL}/api/fs-watch`, { id: knownPageId });
+        if (directWatch && (directWatch.episodes || directWatch.players)) {
+          watch = directWatch;
+          bestItem = { id: knownPageId, title: directWatch?.meta?.title || title };
+          console.log(`[Otaku] [Direct Cache] Succès direct sur ID "${knownPageId}" sans recherche !`);
+        } else {
+          console.log(`[Otaku] [Direct Cache] ID mémorisé sans données valides, bascule vers recherche.`);
+        }
+      } catch (err: any) {
+        console.warn(`[Otaku] [Direct Cache] Échec ID mémorisé (${err.message}), fallback recherche.`);
       }
     }
 
-    if (matchingItems.length === 0) {
-      console.log(`[Otaku] Correspondance trop éloignée pour "${title}" (trouvé: "${results[0]?.title}"), skip.`);
-      return null;
-    }
+    // 2. Si pas d'ID mémorisé ou échec, faire la recherche classique
+    if (!watch || !bestItem) {
+      // Recherche directe via l'API interne d'OpenOtaku
+      // Si série avec saison > 1 et titre ne contenant pas "saison", tenter d'abord avec le libellé saison
+      let queryTitle = title;
+      if (type === 'series' && targetSeason > 1 && !/saison\s*\d+/i.test(title)) {
+        queryTitle = `${title} Saison ${targetSeason}`;
+      }
 
-    let bestItem: { id: string; title: string; poster?: string } = matchingItems[0];
-    let watch: any = null;
+      let data = await fetchWithRetry(`${BASE_URL}/api/fs-search`, { q: queryTitle });
+      let results: Array<{ id: string; title: string; poster?: string }> = data?.results || [];
 
-    // Si plusieurs candidats pour un film et qu'une année est spécifiée, inspecter les détails pour trouver l'année exacte
-    if (type === 'movie' && year && matchingItems.length > 1) {
-      for (const cand of matchingItems.slice(0, 4)) {
-        const w = await fetchWithRetry(`${BASE_URL}/api/fs-watch`, { id: cand.id });
-        if (w?.meta?.year) {
-          const candYear = parseInt(w.meta.year, 10);
-          if (!isNaN(candYear) && Math.abs(candYear - year) <= 1) {
-            bestItem = cand;
-            watch = w;
-            console.log(`[Otaku] Match exact année trouvé: "${cand.title}" (ID: ${cand.id}, Année: ${candYear}) pour cible ${year}`);
-            break;
+      // Fallback recherche avec titre brut si aucun résultat avec le suffixe saison
+      if (results.length === 0 && queryTitle !== title) {
+        data = await fetchWithRetry(`${BASE_URL}/api/fs-search`, { q: title });
+        results = data?.results || [];
+      }
+
+      if (results.length === 0) {
+        console.log(`[Otaku] Aucun résultat trouvé pour "${title}"`);
+        return null;
+      }
+
+      // Trouver la meilleure correspondance de titre
+      const matchingItems: Array<{ id: string; title: string; poster?: string }> = [];
+
+      for (const item of results) {
+        if (areTitlesMatching(queryTitle, item.title || '') || areTitlesMatching(title, item.title || '')) {
+          matchingItems.push(item);
+        }
+      }
+
+      if (matchingItems.length === 0) {
+        console.log(`[Otaku] Correspondance trop éloignée pour "${title}" (trouvé: "${results[0]?.title}"), skip.`);
+        return null;
+      }
+
+      bestItem = matchingItems[0];
+
+      // Pour les séries, cibler la saison demandée
+      if (type === 'series' && matchingItems.length > 1) {
+        const seasonRegex = new RegExp(`saison\\s*0*${targetSeason}\\b|season\\s*0*${targetSeason}\\b|s0*${targetSeason}\\b`, 'i');
+        const exactSeason = matchingItems.find((it) => seasonRegex.test(it.title || ''));
+        if (exactSeason) {
+          bestItem = exactSeason;
+          console.log(`[Otaku] Match exact saison ${targetSeason} trouvé: "${bestItem.title}"`);
+        } else if (targetSeason === 1) {
+          const s1Item = matchingItems.find((it) => /saison\s*1\b|season\s*1\b/i.test(it.title || '') || !/saison\s*\d+/i.test(it.title || ''));
+          if (s1Item) {
+            bestItem = s1Item;
+            console.log(`[Otaku] Match saison 1 par défaut: "${bestItem.title}"`);
           }
         }
       }
+
+      // Si plusieurs candidats pour un film et qu'une année est spécifiée, inspecter les détails pour trouver l'année exacte
+      if (type === 'movie' && year && matchingItems.length > 1) {
+        for (const cand of matchingItems.slice(0, 4)) {
+          const w = await fetchWithRetry(`${BASE_URL}/api/fs-watch`, { id: cand.id });
+          if (w?.meta?.year) {
+            const candYear = parseInt(w.meta.year, 10);
+            if (!isNaN(candYear) && Math.abs(candYear - year) <= 1) {
+              bestItem = cand;
+              watch = w;
+              console.log(`[Otaku] Match exact année trouvé: "${cand.title}" (ID: ${cand.id}, Année: ${candYear}) pour cible ${year}`);
+              break;
+            }
+          }
+        }
+      }
+
+      // Récupérer les détails de visionnage si pas déjà récupérés
+      if (!watch && bestItem) {
+        watch = await fetchWithRetry(`${BASE_URL}/api/fs-watch`, { id: bestItem.id });
+      }
     }
 
-    // 3. Récupérer les détails de visionnage si pas déjà récupérés
-    if (!watch) {
-      watch = await fetchWithRetry(`${BASE_URL}/api/fs-watch`, { id: bestItem.id });
+    if (!bestItem || !watch) {
+      return null;
     }
+
+    const savedPageId = bestItem.id;
 
     const detailTitle = watch?.meta?.title || bestItem.title || title;
 
@@ -186,10 +232,10 @@ export async function searchOtaku(
         const link = await getDirectLink(embedUrl);
         if (link) {
           console.log(`[Otaku] Épisode S${targetSeason}E${targetEpisode} résolu (${matchedKey}): ${link.slice(0, 60)}...`);
-          return { titre: detailTitle, lien: link, source: 'otaku' };
+          return { titre: detailTitle, lien: link, pagePath: savedPageId, source: 'otaku' };
         }
         // Si le lien direct n'a pas pu être extrait, renvoyer l'embedUrl
-        return { titre: detailTitle, lien: embedUrl, source: 'otaku' };
+        return { titre: detailTitle, lien: embedUrl, pagePath: savedPageId, source: 'otaku' };
       }
     } else {
       const players = watch?.players || {};
@@ -223,9 +269,9 @@ export async function searchOtaku(
       if (embedUrl) {
         const link = await getDirectLink(embedUrl);
         if (link) {
-          return { titre: detailTitle, lien: link, source: 'otaku' };
+          return { titre: detailTitle, lien: link, pagePath: savedPageId, source: 'otaku' };
         }
-        return { titre: detailTitle, lien: embedUrl, source: 'otaku' };
+        return { titre: detailTitle, lien: embedUrl, pagePath: savedPageId, source: 'otaku' };
       }
     }
 

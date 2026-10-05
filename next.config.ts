@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Permet de builder/serveur sur un distDir dédié (mesures Lighthouse) sans
+  // écraser le `.next` du serveur de dev en cours.
+  ...(process.env.NEXT_DIST_DIR ? { distDir: process.env.NEXT_DIST_DIR } : {}),
   compress: true,
   experimental: {
     optimizePackageImports: [
@@ -21,6 +24,8 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "img.static-ottera.com" },
       { protocol: "https", hostname: "img2.static-ottera.com" },
       { protocol: "https", hostname: "cdnapisec.kaltura.com" },
+      { protocol: "https", hostname: "a.espncdn.com" },
+      { protocol: "https", hostname: "secure.espncdn.com" },
     ],
   },
   async rewrites() {

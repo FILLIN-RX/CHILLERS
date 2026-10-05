@@ -277,8 +277,8 @@ function MovieCard({
             src={primarySrc}
             alt={item.title || ""}
             fill
-            className={`object-cover object-top transition-all duration-500 will-change-transform ${
-              imgLoaded ? "opacity-100 scale-100" : "opacity-0 scale-105"
+            className={`object-cover object-top transition-all duration-500 will-change-transform z-10 ${
+              "opacity-100 scale-100"
             } ${isHovered ? "scale-105 brightness-105" : "scale-100"}`}
             sizes={
               isGridPoster
@@ -434,7 +434,7 @@ function MovieCard({
                       e.stopPropagation();
                       onPlay(item);
                     }}
-                    className="flex-1 py-1.5 px-3 rounded-xl bg-brand-primary hover:bg-brand-primary/90 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer"
+                    className="flex-1 py-1.5 px-3 rounded-xl bg-brand-primary hover:brightness-110 hover:shadow-lg hover:shadow-brand-primary/30 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer"
                     aria-label={_("media.watch")}
                   >
                     <Play className="h-3.5 w-3.5 fill-white translate-x-[0.5px]" />
@@ -536,8 +536,8 @@ function MovieCard({
             src={primarySrc}
             alt={item.title || ""}
             fill
-            className={`object-cover object-top transition-all duration-500 will-change-transform ${
-              imgLoaded ? "opacity-100 scale-100" : "opacity-0 scale-105"
+            className={`object-cover object-top transition-all duration-500 will-change-transform z-10 ${
+              "opacity-100 scale-100"
             } ${isHovered ? "scale-105 brightness-105" : "scale-100"}`}
             loading="lazy"
             onLoad={() => setImgLoaded(true)}

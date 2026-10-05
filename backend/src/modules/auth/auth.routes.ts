@@ -3,7 +3,7 @@ import * as authController from './auth.controller';
 import { requireAuth } from '../../middleware/auth.middleware';
 import { loginRateLimiter } from '../../middleware/rate-limit.middleware';
 import * as subController from '../admin/subscription.controller';
-import { proofUpload, publicProofUrl } from '../admin/media.upload';
+import { proofUpload, publicProofUrl } from '../admin/utils/media.upload';
 
 const router = Router();
 

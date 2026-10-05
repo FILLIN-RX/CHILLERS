@@ -116,7 +116,8 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
     <>
       <header
         ref={headerRef}
-        className={`fixed top-0 left-0 w-full z-40 select-none [app-region:drag] transition-colors duration-300 ${
+        style={{ top: "var(--network-banner-height, 0px)" }}
+        className={`fixed left-0 w-full z-40 select-none [app-region:drag] transition-all duration-300 ease-out ${
           isDetailPage && !isWatchPage && !isSeasonPage ? "max-sm:hidden" : ""
         } ${
           isScrolled || isWatchPage || isSeasonPage

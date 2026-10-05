@@ -135,7 +135,14 @@ export default function LiveBallMatchContent() {
   // Deux types de flux renvoyés par le backend :
   //  - "hls"    → l'URL m3u8 est jouée dans le lecteur natif (LivePlayer).
   //  - "iframe" → l'URL est un player propre à embarquer (pas la page du site).
-  const embedUrl = stream?.type === "iframe" && !isInvalidEmbed(stream.url) ? stream.url : null;
+  //    Passé par /api/live/embed-proxy comme sur les pages live/sp et matches :
+  //    le proxy réécrit le HTML (pubs / popups / redirections retirées).
+  const rawEmbedUrl = stream?.type === "iframe" && !isInvalidEmbed(stream.url) ? stream.url : null;
+  const embedUrl = rawEmbedUrl
+    ? /youtube\.com|youtu\.be/i.test(rawEmbedUrl)
+      ? rawEmbedUrl
+      : `/api/live/embed-proxy?url=${encodeURIComponent(rawEmbedUrl)}`
+    : null;
 
   // Construit un pseudo-canal HLS à partir du match pour alimenter LivePlayer
   // (uniquement pour les flux natifs m3u8). streamUrl passe par NOTRE relay HLS
@@ -302,10 +309,13 @@ export default function LiveBallMatchContent() {
       {embedUrl && (
         <div className="absolute inset-0 bg-black">
           <iframe
+            key={embedUrl}
             src={embedUrl}
             title={match ? `${match.home} - ${match.away} · En direct` : "Match en direct"}
             className="h-full w-full border-0"
             allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+            referrerPolicy="no-referrer"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
           />
         </div>
       )}

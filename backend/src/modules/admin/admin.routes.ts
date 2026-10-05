@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { adminMiddleware, adminSseMiddleware } from './admin.middleware';
 import * as adminController from './admin.controller';
 import * as subController from './subscription.controller';
-import { mediaUpload } from './media.upload';
+import { mediaUpload } from './utils/media.upload';
 
 const router = Router();
 

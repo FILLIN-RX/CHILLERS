@@ -19,6 +19,7 @@ export const toggleFavorite = async (req: Request, res: Response): Promise<void>
       return;
     }
 
+    user.favorites = user.favorites || [];
     const index = user.favorites.findIndex((f) => f.tmdbId === String(tmdbId) && f.mediaType === mediaType);
     if (index > -1) {
       user.favorites.splice(index, 1);
@@ -49,6 +50,9 @@ export const updateProgress = async (req: Request, res: Response): Promise<void>
       res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
       return;
     }
+
+    user.continueWatching = user.continueWatching || [];
+    user.watchHistory = user.watchHistory || [];
 
     const planCode = user.subscription?.plan || 'free';
     const planDoc = await SubscriptionPlan.findOne({ code: planCode });
@@ -117,7 +121,23 @@ export const updateProgress = async (req: Request, res: Response): Promise<void>
       user.continueWatching = user.continueWatching.slice(0, 20);
     }
 
-    await user.save();
+    try {
+      await user.save();
+    } catch (saveErr: any) {
+      if (saveErr.name === 'VersionError') {
+        const freshUser = await User.findById(userId);
+        if (freshUser) {
+          res.json({
+            success: true,
+            continueWatching: freshUser.continueWatching,
+            watchHistory: freshUser.watchHistory,
+          });
+          return;
+        }
+      }
+      throw saveErr;
+    }
+
     res.json({ 
       success: true, 
       continueWatching: user.continueWatching,
@@ -147,6 +167,7 @@ export const markAsWatched = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
+    user.watchHistory = user.watchHistory || [];
     const histIndex = user.watchHistory.findIndex(
       (h) => h.tmdbId === String(tmdbId) && h.mediaType === mediaType && h.season === season && h.episode === episode
     );
@@ -171,7 +192,19 @@ export const markAsWatched = async (req: Request, res: Response): Promise<void> 
       user.watchHistory.shift();
     }
 
-    await user.save();
+    try {
+      await user.save();
+    } catch (saveErr: any) {
+      if (saveErr.name === 'VersionError') {
+        const freshUser = await User.findById(userId);
+        if (freshUser) {
+          res.json({ success: true, watchHistory: freshUser.watchHistory });
+          return;
+        }
+      }
+      throw saveErr;
+    }
+
     res.json({ success: true, watchHistory: user.watchHistory });
   } catch (error) {
     console.error('[User] Erreur markAsWatched:', error);

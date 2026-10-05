@@ -68,7 +68,7 @@ export async function appealDeadLink(id: string) {
     const link = await DeadLink.findById(id);
     if (!link) return { found: false, alive: false };
 
-    const { isLinkDead } = await import('../../scraping/core/link-checker');
+    const { isLinkDead } = await import('../scraping/core/link-checker');
     const dead = await isLinkDead(link.lien);
     if (!dead) {
         await DeadLink.findByIdAndDelete(id);

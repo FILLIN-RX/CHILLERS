@@ -13,7 +13,6 @@ import { useDebouncedEffect } from "@/hooks/useDebouncedEffect";
 import { useStreamUrl } from "@/hooks/useStreamUrl";
 import { useTorrentPlayback } from "@/hooks/useTorrentPlayback";
 import { useAuthStore } from "@/stores/useAuthStore";
-import { useSubscriptionStore, isUserPro } from "@/stores/useSubscriptionStore";
 import { userService } from "@/services/user";
 import { isSlowConnection } from "@/services/media";
 import { getAntiBotHeaders } from "@/lib/antibot";
@@ -24,6 +23,8 @@ interface VideoPlayerProps {
   item: MovieOrShow;
   episode?: Episode;
   audioVersion?: "fr" | "vostfr" | "en";
+  /** Referer CDN remonté par la page qui a résolu le stream (HLS Uqload/Vidzy). */
+  streamReferer?: string | null;
   onLanguageChange?: (lang: "fr" | "vostfr") => void;
   onBack?: () => void;
   onOpenDetails?: (item: MovieOrShow) => void;
@@ -34,11 +35,9 @@ const RESUME_MIN_SECONDS = 5;
 const SEEK_STEP_SECONDS = 10;
 const VOLUME_STEP = 0.1;
 
-export default function VideoPlayer({ item, episode, audioVersion = "fr", onLanguageChange, onBack }: VideoPlayerProps) {
+export default function VideoPlayer({ item, episode, audioVersion = "fr", streamReferer, onLanguageChange, onBack }: VideoPlayerProps) {
   const { lang, translate: _ } = useLanguage();
   const { token, user, updateUser } = useAuthStore();
-  const globalSubscriptionEnabled = useSubscriptionStore((s) => s.globalSubscriptionEnabled);
-  const isPro = isUserPro(user, globalSubscriptionEnabled);
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -227,7 +226,9 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", onLang
     }
   }, [streamQuery.error]);
 
-  const resolvedStreamUrl = item.videoUrl || streamQuery.data?.embedUrl || null;
+  // Priorité : directUrl (HLS/MP4 scrapé par le backend, sans pubs) > embedUrl
+  // Si directUrl est dispo, on joue directement sans passer par l'iframe embed Uqload/Doodstream.
+  const resolvedStreamUrl = item.videoUrl || streamQuery.data?.directUrl || streamQuery.data?.embedUrl || null;
   // URL de téléchargement direct (fallback torrent) — type chillers-test :
   // le backend proxy le flux TorrServer avec Content-Disposition: attachment.
   const torrentDownloadUrl = streamQuery.data?.downloadUrl ?? null;
@@ -287,6 +288,24 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", onLang
   }, [p2p.status, resolvedStreamUrl, streamQuery]);
   const isHls = !isIframe && !!videoUrl && (videoUrl.includes(".m3u8") || videoUrl.includes("m3u8"));
 
+  // Referer CDN : fourni par le backend quand il scrape l'embed Uqload/Vidzy.
+  const hlsReferer = streamQuery.data?.referer || streamReferer || null;
+
+  /**
+   * hls.js charge playlists et segments en cross-origin : le Referer ne peut
+   * pas être posé depuis le navigateur (header interdit, silencieusement
+   * ignoré) et le CDN anti-leech refuse sans lui. On fait donc transiter le
+   * HLS par /api/live/proxy, qui réécrit les playlists et injecte le Referer
+   * côté serveur. Les URLs same-origin (torrents, transcodes) passent telles quelles.
+   */
+  const hlsSource = useMemo(() => {
+    if (!videoUrl || !isHls) return videoUrl;
+    if (videoUrl.startsWith("/") || videoUrl.includes("/api/live/proxy")) return videoUrl;
+    const qs = new URLSearchParams({ url: videoUrl });
+    if (hlsReferer) qs.set("referer", hlsReferer);
+    return `/api/live/proxy?${qs.toString()}`;
+  }, [videoUrl, isHls, hlsReferer]);
+
   /* ───────── HLS setup & Network Optimization ───────── */
   useEffect(() => {
     if (isIframe || !videoUrl || !hasStarted) return;
@@ -304,14 +323,15 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", onLang
     if (isHls) {
       if (Hls.isSupported()) {
         const hls = new Hls({
+          enableWorker: true,
           capLevelToPlayerSize: true, // Don't fetch 1080p if screen or window is small
-          abrEwmaDefaultEstimate: slowConn ? 350_000 : 750_000, // conservative bandwidth start
-          abrBandWidthFactor: 0.75, // safety margin before stepping up
+          abrEwmaDefaultEstimate: slowConn ? 500_000 : 1_500_000, // conservative bandwidth start
+          abrBandWidthFactor: 0.8, // safety margin before stepping up
           abrBandWidthUpFactor: 0.7, // slow ramp up prevents buffering jitter
-          maxBufferLength: 30, // 30s forward buffer
-          maxMaxBufferLength: 60, // 60s max
-          backBufferLength: 10, // keep 10s to conserve memory
-          maxBufferSize: 25 * 1024 * 1024,
+          maxBufferLength: 60, // 60s forward buffer
+          maxMaxBufferLength: 120, // 120s max
+          backBufferLength: 180, // Garde 3 minutes de vidéo passée en mémoire RAM (retour arrière instantané sans re-téléchargement)
+          maxBufferSize: 60 * 1024 * 1024, // 60 Mo de cache tampon
           lowLatencyMode: false, // deep buffer for stability on packet-lossy connections
           startLevel: slowConn ? 0 : -1, // start at lowest bitrate immediately on 2G/3G
 
@@ -327,7 +347,9 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", onLang
           levelLoadingMaxRetryTimeout: 64000,
         });
 
-        hls.loadSource(videoUrl);
+        // Toutes les requêtes HLS passent par /api/live/proxy (voir hlsSource) :
+        // c'est lui qui injecte le Referer CDN exigé par l'anti-leech.
+        hls.loadSource(hlsSource ?? videoUrl);
         hls.attachMedia(video);
 
         hls.on(Hls.Events.MANIFEST_PARSED, (_event, data) => {
@@ -365,7 +387,7 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", onLang
 
         hlsRef.current = hls;
       } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-        video.src = videoUrl;
+        video.src = hlsSource ?? videoUrl;
         video.play().catch(() => {});
       }
     } else {
@@ -379,7 +401,7 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", onLang
         hlsRef.current = null;
       }
     };
-  }, [videoUrl, isHls, isIframe, hasStarted]);
+  }, [videoUrl, hlsSource, isHls, isIframe, hasStarted]);
 
   /* ───────── Quality Selector Handler ───────── */
   const changeQuality = useCallback((qualityIndex: number) => {
@@ -692,9 +714,7 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", onLang
         isFullscreen
           ? "fixed inset-0 z-[99999] w-screen h-[100dvh] max-h-none rounded-none aspect-auto bg-black"
           : `relative w-full aspect-video min-h-[280px] xs:min-h-[320px] sm:min-h-[420px] md:min-h-[520px] lg:min-h-[600px] xl:min-h-[660px] ${isTheater ? "max-h-[92dvh]" : "max-h-[85dvh]"} bg-black rounded-none sm:rounded-xl`
-      } overflow-hidden select-none transition-all duration-300 ${
-        isPro ? "shadow-[0_0_50px_rgba(245,158,11,0.18)] ring-1 ring-amber-500/30" : "shadow-[0_20px_70px_rgba(0,0,0,0.95)]"
-      } group/container ${
+      } overflow-hidden select-none transition-all duration-300 shadow-[0_20px_70px_rgba(0,0,0,0.95)] group/container ${
         !controlsVisible && isPlaying ? "cursor-none" : "cursor-default"
       }`}
       onMouseMove={handleMouseMove}
@@ -710,7 +730,8 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", onLang
               hasStarted ? "opacity-100" : "opacity-0 pointer-events-none"
             }`}
             allow="autoplay; fullscreen; encrypted-media; picture-in-picture; gyroscope; accelerometer; clipboard-write"
-            referrerPolicy="origin"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
+            referrerPolicy="no-referrer"
             title={item.title}
             scrolling="no"
           />
@@ -720,7 +741,7 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", onLang
               controlsVisible ? "opacity-100" : "opacity-0 pointer-events-none"
             }`}
           >
-            <span className="text-sm font-black tracking-widest uppercase text-[brand-primary]">
+            <span className="text-sm font-black tracking-widest uppercase text-brand-primary">
               Chillers
             </span>
             <div className="flex items-center gap-1">

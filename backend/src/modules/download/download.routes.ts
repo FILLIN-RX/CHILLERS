@@ -1,9 +1,9 @@
 import { Router, Request, Response } from 'express';
 import { spawn } from 'child_process';
 import axios from 'axios';
-import { ProviderManager } from '../../streaming/provider-manager';
-import { StreamQuery } from '../../streaming/providers/provider.interface';
-import { DirectScraper } from '../../streaming/providers/direct-scraper';
+import { ProviderManager } from '../streaming/provider-manager';
+import { StreamQuery } from '../streaming/providers/provider.interface';
+import { DirectScraper } from '../streaming/providers/direct-scraper';
 
 const router = Router();
 const providerManager = new ProviderManager();

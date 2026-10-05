@@ -202,10 +202,15 @@ class _WatchScreenState extends State<WatchScreen> {
   }
 
   Future<void> _resolveMovieStream() async {
-    if (widget.initialVideoUrl != null && widget.initialVideoUrl!.isNotEmpty) {
+    final initialUrl = widget.initialVideoUrl;
+    final hasInitialUrl = initialUrl != null && initialUrl.isNotEmpty;
+    // Un fichier local (lecture hors-ligne) est joué tel quel : aucun resolver à appeler.
+    final isLocalFile = hasInitialUrl && !initialUrl!.startsWith('http');
+
+    if (isLocalFile) {
       if (mounted) {
         setState(() {
-          _currentVideoUrl = widget.initialVideoUrl!;
+          _currentVideoUrl = initialUrl!;
           _isLoadingStream = false;
           _streamUnavailable = false;
         });
@@ -218,6 +223,8 @@ class _WatchScreenState extends State<WatchScreen> {
       _streamUnavailable = false;
     });
 
+    // Un lien distant (embed stocké en base) ne doit PAS court-circuiter la
+    // résolution : on demande l'URL directe (HLS/MP4) au backend d'abord.
     final url = await _apiService.getMovieStreamUrl(
       _currentMedia.id,
       _currentMedia.title,
@@ -225,7 +232,9 @@ class _WatchScreenState extends State<WatchScreen> {
     );
     if (!mounted) return;
 
-    final validUrl = url ?? (_currentMedia.streamUrl != null && _currentMedia.streamUrl!.isNotEmpty ? _currentMedia.streamUrl : null);
+    final validUrl = url ??
+        (hasInitialUrl ? initialUrl : null) ??
+        (_currentMedia.streamUrl != null && _currentMedia.streamUrl!.isNotEmpty ? _currentMedia.streamUrl : null);
 
     setState(() {
       if (validUrl != null && validUrl.isNotEmpty) {

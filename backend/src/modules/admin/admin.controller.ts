@@ -6,7 +6,7 @@ import axios from 'axios';
 import { AuthRequest } from './admin.middleware';
 import * as adminService from './admin.service';
 import tmdbClient, { clearCache } from '../../config/tmdb';
-import { publicFileUrl } from './media.upload';
+import { publicFileUrl } from './utils/media.upload';
 import { chromium } from 'playwright';
 import { appendLog } from '../../config/log-buffer';
 import Admin from '../../models/Admin';
@@ -15,8 +15,8 @@ import Serie from '../../models/Serie';
 import DeadLink from '../../models/DeadLink';
 import { runner, stopTask, getRunningTasks, runTaskById, runTaskByLabel, listOsProcesses, stopByPid, getSystemCronStatus, ALL_TASKS } from '../../cron-manager';
 import { UqloadClient } from '../uqload/uqload.client';
-import { uploadMoviesBatch, uploadSeriesBatch, uploadSingleMovie, uploadSingleEpisode, stopUpload, isUploadRunning } from '../uqload/uqload.uploader';
-import { autoLink } from '../../scraping/maintenance/auto-link';
+import { uploadMoviesBatch, uploadSeriesBatch, uploadSingleMovie, uploadSingleEpisode, stopUpload, isUploadRunning } from '../uqload/utils/uqload.uploader';
+import { autoLink } from '../scraping/maintenance/auto-link';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'chiller-admin-secret-change-me';
 const SCRAPER_API_URL = process.env.SCRAPER_API_URL || 'http://localhost:4001';
@@ -417,13 +417,13 @@ export async function triggerScrape(req: AuthRequest, res: Response) {
     if (await scraperProxy(req, res, '/scrape/trigger')) return;
     const type = req.body.type as string || 'series';
     if (type === 'films' || type === 'all') {
-        runner('Scraping Films', 'scraping/core/scrape-films.js');
+        runner('Scraping Films', 'modules/scraping/core/scrape-films.js');
     }
     if (type === 'series' || type === 'all') {
-        runner('Scraping Séries', 'scraping/core/scrape-series.js');
+        runner('Scraping Séries', 'modules/scraping/core/scrape-series.ts');
     }
     if (type === 'animes' || type === 'all') {
-        runner('Scraping Animes', 'scraping/core/scrape-animes.js');
+        runner('Scraping Animes', 'modules/scraping/core/scrape-animes.ts');
     }
     res.json({ success: true, data: { status: 'launched', message: `Scraping ${type} lancé` }, message: null });
 }
@@ -517,13 +517,13 @@ export async function triggerTmdbLink(req: AuthRequest, res: Response) {
     const type = req.body.type as string || 'series';
     const scriptName = type === 'movies' ? 'link-movies-tmdb.ts' : 'link-series-tmdb.ts';
     const label = type === 'movies' ? 'Linking TMDB Films' : 'Linking TMDB Séries';
-    runner(label, `scraping/maintenance/${scriptName}`);
+    runner(label, `modules/scraping/maintenance/${scriptName}`);
     res.json({ success: true, data: { status: 'launched', message: `${label} lancé` }, message: null });
 }
 
 export async function fixSeriesSeasons(_req: AuthRequest, res: Response) {
     const label = 'Fix Seasons Séries';
-    runner(label, 'scraping/maintenance/fix-series-seasons.ts');
+    runner(label, 'modules/scraping/maintenance/fix-series-seasons.ts');
     res.json({ success: true, data: { status: 'launched', message: `${label} lancé` }, message: null });
 }
 
@@ -606,15 +606,15 @@ export async function runMaintenance(req: AuthRequest, res: Response) {
     const type = req.body.type as string || 'all';
 
     const scripts: Record<string, { label: string, path: string }> = {
-        'dead-links': { label: 'Maintenance Liens', path: 'scraping/maintenance/maintainer.js' },
-        'repair-movies': { label: 'Réparation Films', path: 'scraping/maintenance/maintainer-movies.js' },
-        'check-all-links': { label: 'Vérification Liens Morts', path: 'scraping/maintenance/check-all-links.js' },
-        'tmdb-movies': { label: 'Linking TMDB Films', path: 'scraping/maintenance/link-movies-tmdb.js' },
-        'tmdb-series': { label: 'Linking TMDB Séries', path: 'scraping/maintenance/link-series-tmdb.js' },
-        'organize': { label: 'Organize Séries Doodstream', path: 'scraping/maintenance/organize-series.js' },
-        'sync': { label: 'Sync Séries → MongoDB', path: 'scraping/maintenance/sync-series-to-mongo.js' },
-        'upload-movies': { label: 'Upload Films DoodStream', path: 'scraping/maintenance/upload-doodstream.js' },
-        'upload-series': { label: 'Upload Séries DoodStream', path: 'scraping/maintenance/upload-series-doodstream.js' },
+        'dead-links': { label: 'Maintenance Liens', path: 'modules/scraping/maintenance/maintainer.ts' },
+        'repair-movies': { label: 'Réparation Films', path: 'modules/scraping/maintenance/maintainer-movies.ts' },
+        'check-all-links': { label: 'Vérification Liens Morts', path: 'modules/scraping/maintenance/check-all-links.ts' },
+        'tmdb-movies': { label: 'Linking TMDB Films', path: 'modules/scraping/maintenance/link-movies-tmdb.ts' },
+        'tmdb-series': { label: 'Linking TMDB Séries', path: 'modules/scraping/maintenance/link-series-tmdb.ts' },
+        'organize': { label: 'Organize Séries Doodstream', path: 'modules/scraping/maintenance/organize-series.ts' },
+        'sync': { label: 'Sync Séries → MongoDB', path: 'modules/scraping/maintenance/sync-series-to-mongo.ts' },
+        'upload-movies': { label: 'Upload Films DoodStream', path: 'modules/scraping/maintenance/upload-doodstream.ts' },
+        'upload-series': { label: 'Upload Séries DoodStream', path: 'modules/scraping/maintenance/upload-series-doodstream.ts' },
     };
 
     if (type === 'all') {
@@ -1118,13 +1118,13 @@ export async function scrapperProxyPost(req: AuthRequest, res: Response) {
         if (endpoint === '/scrape/trigger' || endpoint === '/scrape/trigger/') {
             const type = (req.body?.type as string) || 'all';
             if (type === 'films' || type === 'all') {
-                runner('Scraping Films', 'scraping/core/scrape-films.js');
+                runner('Scraping Films', 'modules/scraping/core/scrape-films.js');
             }
             if (type === 'series' || type === 'all') {
-                runner('Scraping Séries', 'scraping/core/scrape-series.ts');
+                runner('Scraping Séries', 'modules/scraping/core/scrape-series.ts');
             }
             if (type === 'animes' || type === 'all') {
-                runner('Scraping Animes', 'scraping/core/scrape-animes.ts');
+                runner('Scraping Animes', 'modules/scraping/core/scrape-animes.ts');
             }
             return res.json({ success: true, data: { status: 'launched', message: `Scraping ${type} interne lancé` }, message: null });
         }

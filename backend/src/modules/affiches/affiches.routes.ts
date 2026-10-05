@@ -7,7 +7,7 @@ import {
   affichesProgress,
   PosterSource,
 } from './affiches.service';
-import { generateCardPNG } from './affiches.card';
+import { generateCardPNG } from './utils/affiches.card';
 import Movie from '../../models/Movie';
 import Serie from '../../models/Serie';
 

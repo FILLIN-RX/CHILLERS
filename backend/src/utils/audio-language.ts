@@ -50,7 +50,16 @@ export function detectAudioLanguage(data: {
   }
   const upper = decodedText.toUpperCase();
 
-  // 1. VOSTFR / VOST : Sous-titré en français mais audio original
+  // 0. Si le titre indique les deux (VF-VOSTFR, VF/VOSTFR, MULTI), c'est compatible VF & VOSTFR
+  const isMultiOrVfAndVostfr = /\b(VF\s*[-/&]\s*VOSTFR|VOSTFR\s*[-/&]\s*VF|MULTI)\b/i.test(decodedText);
+  if (isMultiOrVfAndVostfr) {
+    return {
+      langueAudio: 'VF',
+      isFrenchAudio: true,
+    };
+  }
+
+  // 1. VOSTFR / VOST pur : Sous-titré en français mais audio original
   if (/\b(VOSTFR|VOST)\b/.test(upper)) {
     return {
       langueAudio: 'VOSTFR',
@@ -121,8 +130,8 @@ export function isLanguageCompatible(
 
   // 1. Si l'utilisateur demande VOSTFR
   if (lang === 'vostfr') {
-    // Si la vidéo est explicitement doublée en français VF / VFF / VFQ, ce n'est PAS du VOSTFR
-    if (detectedType === 'VF' || detectedType === 'VFF' || detectedType === 'VFQ') {
+    // Si la vidéo est explicitement doublée en français VF / VFF / VFQ, et pas multi
+    if ((detectedType === 'VF' || detectedType === 'VFF' || detectedType === 'VFQ') && data.langueAudio !== 'VF') {
       return false;
     }
     return true; // VOSTFR, VO, UNKNOWN
@@ -130,8 +139,11 @@ export function isLanguageCompatible(
 
   // 2. Si l'utilisateur demande VF (Français)
   if (lang === 'fr' || lang === 'vf') {
-    // Si la vidéo est en VOSTFR ou VO pur, ce n'est PAS du VF audio
+    // Si la vidéo est explicitement en VOSTFR pur ou VO pur
     if (detectedType === 'VOSTFR' || detectedType === 'VO') {
+      if (data.langueAudio === 'VF' || data.langueAudio === 'VFF' || data.langueAudio === 'VFQ') {
+        return true;
+      }
       return false;
     }
     return true; // VF, VFF, VFQ, UNKNOWN
