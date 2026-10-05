@@ -71,6 +71,11 @@ const nextConfig: NextConfig = {
         // Apply to all routes
         source: '/(.*)',
         headers: [
+          // Canonical header for search engines
+          {
+            key: 'Link',
+            value: '<https://chillers.site>; rel="canonical"',
+          },
           // Allow iframes from streaming providers
           {
             key: 'Content-Security-Policy',

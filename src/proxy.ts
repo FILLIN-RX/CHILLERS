@@ -10,6 +10,16 @@ const ALLOWED = new Set(["fr", "en"]);
 // Next 16 calls this `proxy` (renamed from `middleware`). The function still
 // receives NextRequest and returns NextResponse, same as before.
 export function proxy(request: NextRequest) {
+  // Permanently redirect www → non-www (301) before any other logic
+  const host = request.headers.get('host') || '';
+  const isWww = host.startsWith('www.');
+
+  if (isWww) {
+    const url = request.nextUrl.clone();
+    url.host = host.replace(/^www\./, '');
+    return NextResponse.redirect(url, { status: 301 });
+  }
+
   const response = NextResponse.next();
 
   // Only set the cookie if it's missing or stale — don't churn the Set-Cookie
