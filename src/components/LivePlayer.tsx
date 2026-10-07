@@ -434,7 +434,6 @@ export default function LivePlayer({
           src={iframeSrc}
           className="absolute inset-0 w-full h-full border-none bg-black"
           allow="autoplay; fullscreen; encrypted-media; picture-in-picture; gyroscope; accelerometer; clipboard-write"
-          sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
           referrerPolicy="no-referrer"
           title={channel.name}
         />

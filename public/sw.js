@@ -1,6 +1,6 @@
 /* global self ReadableStream Response Headers fetch caches IDBKeyRange */
 
-const CACHE_NAME = 'chillers-cache-v7';
+const CACHE_NAME = 'chillers-cache-v8';
 
 // ── StreamSaver map pour le streaming de téléchargement ────────
 const map = new Map();
@@ -255,9 +255,18 @@ self.addEventListener('fetch', event => {
   }
 
   // 4. Cache des images TMDB (Stale-While-Revalidate)
-  if (url.includes('image.tmdb.org')) {
+  //    Cible stricte sur le hostname : les URLs `/_next/image?url=…image.tmdb.org…`
+  //    contiennent aussi cette chaîne mais partagent un pathname identique, ce qui
+  //    faisait resservir la même affiche pour toutes les cartes.
+  let reqHost = '';
+  try {
+    reqHost = new URL(url).hostname;
+  } catch {
+    reqHost = '';
+  }
+  if (reqHost === 'image.tmdb.org') {
     event.respondWith(
-      caches.match(event.request, { ignoreSearch: true }).then(cached => {
+      caches.match(event.request).then(cached => {
         const fetchPromise = fetch(event.request)
           .then(networkResponse => {
             if (networkResponse && networkResponse.status === 200) {

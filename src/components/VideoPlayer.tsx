@@ -720,7 +720,9 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
       onMouseMove={handleMouseMove}
       onDoubleClick={hasStarted ? toggleFullscreen : undefined}
     >
-      {/* ─── IFRAME mode (providers externes) ─── */}
+      {/* ─── IFRAME mode (providers externes) ───
+          Ne pas remettre d'attribut `sandbox` sur cet iframe : les providers tiers
+          le détectent et refusent de démarrer ("Please Disable Sandbox"). */}
       {isIframe ? (
         <>
           <iframe
@@ -730,7 +732,6 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
               hasStarted ? "opacity-100" : "opacity-0 pointer-events-none"
             }`}
             allow="autoplay; fullscreen; encrypted-media; picture-in-picture; gyroscope; accelerometer; clipboard-write"
-            sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
             referrerPolicy="no-referrer"
             title={item.title}
             scrolling="no"

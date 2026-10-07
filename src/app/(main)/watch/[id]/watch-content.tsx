@@ -653,10 +653,10 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
                 </div>
                 <div className="text-center max-w-md space-y-2">
                   <h3 className="text-base sm:text-xl font-bold text-white">
-                    {_("media.comingSoon")}
+                    {isUnreleased ? _("media.comingSoon") : _("media.streamUnavailable")}
                   </h3>
                   <p className="text-zinc-400 text-xs sm:text-sm leading-relaxed">
-                    {_("media.comingSoonDesc")}
+                    {isUnreleased ? _("media.comingSoonDesc") : _("media.streamUnavailableDesc")}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-brand-primary/10 border border-brand-primary/20">
@@ -668,7 +668,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
                     <circle cx="4" cy="4" r="4" />
                   </svg>
                   <span className="text-xs font-bold text-brand-primary uppercase tracking-wider">
-                    {_("media.comingSoon")}
+                    {isUnreleased ? _("media.comingSoon") : _("media.streamUnavailable")}
                   </span>
                 </div>
               </div>

@@ -2,7 +2,9 @@
 
 /** Format bytes as human-readable (e.g. 1.4 GB). */
 export function formatBytes(n: number | null | undefined): string {
-  if (n == null || !Number.isFinite(n)) return "—";
+  // Les sentinelles négatives (-1 « taille inconnue ») ne doivent jamais
+  // s'afficher comme une taille : c'est ce que voyaient les utilisateurs iOS.
+  if (n == null || !Number.isFinite(n) || n < 0) return "—";
   const units = ["B", "KB", "MB", "GB", "TB"];
   let value = n;
   let i = 0;

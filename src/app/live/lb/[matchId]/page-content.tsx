@@ -315,7 +315,6 @@ export default function LiveBallMatchContent() {
             className="h-full w-full border-0"
             allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
             referrerPolicy="no-referrer"
-            sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
           />
         </div>
       )}

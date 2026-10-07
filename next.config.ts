@@ -1,11 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Permet de builder/serveur sur un distDir dédié (mesures Lighthouse) sans
-  // écraser le `.next` du serveur de dev en cours.
-  ...(process.env.NEXT_DIST_DIR ? { distDir: process.env.NEXT_DIST_DIR } : {}),
-  compress: true,
+  // Désactiver Turbopack en dev, utiliser SWC à la place (plus stable avec gros projets)
   experimental: {
+    turbo: {
+      enabled: false,
+    },
     optimizePackageImports: [
       '@phosphor-icons/react',
       'antd',

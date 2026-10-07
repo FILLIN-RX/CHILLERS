@@ -10,6 +10,25 @@ function logTorrentFallback(provider: string, label: string) {
   console.log('╚══════════════════════════════════════════════════════════════╝');
 }
 
+/**
+ * Un lien de téléchargement doit désigner un fichier, jamais une page lecteur.
+ * MongoDBProvider renseigne `downloadUrl` avec l'embed Uqload (`…/embed-x.html`) :
+ * livré tel quel, le client construit `/api/download/stream?m3u8=<page HTML>`,
+ * FFmpeg n'extrait rien et la réponse 200 « chunked » sans Content-Length affiche
+ * une taille inconnue sur iOS (-1 ko) puis échoue.
+ */
+function pickDownloadUrl(result: {
+  downloadUrl?: string | null;
+  directUrl?: string | null;
+  embedUrl: string;
+}): string | null {
+  const isFileUrl = (u?: string | null) =>
+    Boolean(u) && !/\.html?(\?|$)|\/embed-|\/e\/|vidlink\.pro|youtube\.com/i.test(u!);
+  if (isFileUrl(result.downloadUrl)) return result.downloadUrl!;
+  if (result.directUrl) return result.directUrl;
+  return /\.(mp4|m3u8)(\?|$)/i.test(result.embedUrl) ? result.embedUrl : null;
+}
+
 export const getMovieStream = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const id = parseInt(req.params.id as string, 10);
@@ -32,7 +51,7 @@ export const getMovieStream = async (req: Request, res: Response, next: NextFunc
     }
 
     logTorrentFallback(result.provider, `movie ${id}`);
-    const downloadUrl = result.downloadUrl || result.directUrl || (result.embedUrl.includes('.mp4') ? result.embedUrl : null);
+    const downloadUrl = pickDownloadUrl(result);
     const directType = result.directType || (result.embedUrl.includes('.m3u8') ? 'hls' : result.embedUrl.includes('.mp4') ? 'mp4' : null);
 
     res.json({
@@ -82,7 +101,7 @@ export const getEpisodeStream = async (req: Request, res: Response, next: NextFu
     }
 
     logTorrentFallback(result.provider, `tv ${id} S${season}E${episode}`);
-    const downloadUrl = result.downloadUrl || result.directUrl || (result.embedUrl.includes('.mp4') ? result.embedUrl : null);
+    const downloadUrl = pickDownloadUrl(result);
     const directType = result.directType || (result.embedUrl.includes('.m3u8') ? 'hls' : result.embedUrl.includes('.mp4') ? 'mp4' : null);
 
     res.json({

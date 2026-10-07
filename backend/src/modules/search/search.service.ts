@@ -40,6 +40,11 @@ async function fetchDetails(media_type: 'movie' | 'tv', id: number, language?: s
   );
 }
 
+/** Échappe les métacaractères d'une saisie utilisateur avant de l'injecter dans un RegExp. */
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 /**
  * Normalise un titre pour la comparaison (enlève articles, ponctuation, etc.)
  */
@@ -100,7 +105,9 @@ function calculateRelevanceScore(
 }
 
 /**
- * Filtre les doublons et variantes en gardant le meilleur résultat par titre normalisé
+ * Filtre les doublons et variantes en gardant le meilleur résultat par type + titre normalisé.
+ * Le type fait partie de la clé : un film et une série homonymes (« Lucky Man ») sont deux
+ * œuvres distinctes et doivent toutes deux remonter.
  */
 function deduplicateResults(results: any[], query: string): any[] {
   const seen = new Map<string, any>();
@@ -112,11 +119,12 @@ function deduplicateResults(results: any[], query: string): any[] {
       : result.name || result.title;
     
     const normalized = normalizeTitle(title || '');
+    const key = `${mediaType}:${normalized}`;
     const score = calculateRelevanceScore(query, result, mediaType);
 
-    // Garde seulement le résultat avec le meilleur score pour chaque titre normalisé
-    if (!seen.has(normalized) || score > seen.get(normalized).score) {
-      seen.set(normalized, { ...result, score });
+    // Garde seulement le résultat avec le meilleur score pour chaque type + titre normalisé
+    if (!seen.has(key) || score > seen.get(key).score) {
+      seen.set(key, { ...result, score });
     }
   }
 
@@ -131,11 +139,11 @@ function deduplicateResults(results: any[], query: string): any[] {
  *  1. MongoDB local (films + séries, regex insensible à la casse)
  *  2. TMDB /search/movie + /search/tv en parallèle
  *  3. Hydratation des tops avec append_to_response=images,credits,videos
- *  4. Déduplication par titre normalisé avec scoring de pertinence
+ *  4. Déduplication par type + titre normalisé avec scoring de pertinence
  *  5. Retour des résultats triés par pertinence
  */
 export const searchMulti = async (query: string, page: number = 1, language?: string) => {
-  const regex = new RegExp(query, 'i');
+  const regex = new RegExp(escapeRegExp(query), 'i');
 
   const [localMovies, localSeries, moviesResp, tvResp] = await Promise.all([
     Movie.find({ titre: regex }).limit(5).lean().catch(() => []),

@@ -3,7 +3,7 @@ import { spawn } from 'child_process';
 import axios from 'axios';
 import { ProviderManager } from '../streaming/provider-manager';
 import { StreamQuery } from '../streaming/providers/provider.interface';
-import { DirectScraper } from '../streaming/providers/direct-scraper';
+import { DirectScraper, getUqloadDirectLink } from '../streaming/providers/direct-scraper';
 
 const router = Router();
 const providerManager = new ProviderManager();
@@ -146,86 +146,121 @@ router.get('/resolve', async (req: Request, res: Response) => {
 });
 
 /**
- * GET /api/download/file
+ * Proxy d'un fichier distant vers la réponse cliente, avec les en-têtes de
+ * taille conservés (Content-Length / Accept-Ranges) pour que le gestionnaire
+ * de téléchargement affiche une vraie progression.
  *
- * Proxy de téléchargement haute vitesse avec gestion des noms de fichiers, referers et en-têtes Range
+ * Renvoie false si l'amont n'a pas répondu : l'appelant (/stream) peut alors
+ * retomber sur FFmpeg au lieu de faire échouer le téléchargement.
  */
-router.get('/file', async (req: Request, res: Response) => {
+async function serveFileProxy(
+  req: Request,
+  res: Response,
+  url: string,
+  filename: string
+): Promise<boolean> {
+  let parsedUrl: URL;
   try {
-    let { url, filename = 'video.mp4' } = req.query as { url?: string; filename?: string };
-    if (!url) {
-      return res.status(400).json({ success: false, error: 'Paramètre ?url= requis' });
-    }
+    parsedUrl = new URL(url);
+    if (!parsedUrl.protocol.startsWith('http')) return false;
+  } catch {
+    return false;
+  }
 
-    url = unwrapUrl(url);
+  const headers: Record<string, string> = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  };
 
-    let parsedUrl: URL;
-    try {
-      parsedUrl = new URL(url);
-      if (!parsedUrl.protocol.startsWith('http')) {
-        return res.status(400).json({ success: false, error: 'Protocole URL invalide' });
-      }
-    } catch {
-      return res.status(400).json({ success: false, error: 'URL invalide' });
-    }
+  if (url.includes('videodownloader') || url.includes('hakunaymatata')) {
+    headers['Referer'] = 'https://videodownloader.site/';
+  } else if (url.includes('uqload')) {
+    headers['Referer'] = 'https://uqload.is/';
+  } else if (url.includes('vidzy')) {
+    headers['Referer'] = 'https://vidzy.cc/';
+  } else if (url.includes('dood') || url.includes('playmogo') || url.includes('d000')) {
+    headers['Referer'] = 'https://doodstream.com/';
+  } else if (url.includes('voe')) {
+    headers['Referer'] = 'https://voe.sx/';
+  } else if (url.includes('streamtape')) {
+    headers['Referer'] = 'https://streamtape.com/';
+  } else {
+    headers['Referer'] = `${parsedUrl.protocol}//${parsedUrl.host}/`;
+  }
 
-    const headers: Record<string, string> = {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    };
+  if (req.headers.range) {
+    headers['Range'] = req.headers.range;
+  }
+  if (req.headers['if-range']) {
+    headers['If-Range'] = req.headers['if-range'] as string;
+  }
 
-    if (url.includes('videodownloader') || url.includes('hakunaymatata')) {
-      headers['Referer'] = 'https://videodownloader.site/';
-    } else if (url.includes('uqload')) {
-      headers['Referer'] = 'https://uqload.is/';
-    } else if (url.includes('vidzy')) {
-      headers['Referer'] = 'https://vidzy.cc/';
-    } else if (url.includes('dood') || url.includes('playmogo') || url.includes('d000')) {
-      headers['Referer'] = 'https://doodstream.com/';
-    } else if (url.includes('voe')) {
-      headers['Referer'] = 'https://voe.sx/';
-    } else if (url.includes('streamtape')) {
-      headers['Referer'] = 'https://streamtape.com/';
-    } else {
-      headers['Referer'] = `${parsedUrl.protocol}//${parsedUrl.host}/`;
-    }
-
-    if (req.headers.range) {
-      headers['Range'] = req.headers.range;
-    }
-    if (req.headers['if-range']) {
-      headers['If-Range'] = req.headers['if-range'] as string;
-    }
-
-    const response = await axios({
+  let response: any;
+  try {
+    response = await axios({
       method: 'GET',
       url,
       headers,
       responseType: 'stream',
       validateStatus: status => status >= 200 && status < 400
     });
+  } catch (error: any) {
+    console.error('[Download File Proxy] Amont injoignable:', error.message);
+    return false;
+  }
 
-    const isIos = /iPhone|iPad|iPod/i.test(req.headers['user-agent'] || '');
-    res.status(response.status);
+  const isIos = /iPhone|iPad|iPod/i.test(req.headers['user-agent'] || '');
+  res.status(response.status);
 
-    if (isIos) {
-      // Force Safari iOS to trigger native download dialog to Files app
-      res.setHeader('Content-Type', 'application/octet-stream');
-    } else {
-      res.setHeader('Content-Type', (response.headers['content-type'] as string) || 'video/mp4');
-    }
+  if (isIos) {
+    // Force Safari iOS to trigger native download dialog to Files app
+    res.setHeader('Content-Type', 'application/octet-stream');
+  } else {
+    res.setHeader('Content-Type', (response.headers['content-type'] as string) || 'video/mp4');
+  }
 
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="${encodeURIComponent(filename)}"; filename*=UTF-8''${encodeURIComponent(filename)}`
-    );
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename="${encodeURIComponent(filename)}"; filename*=UTF-8''${encodeURIComponent(filename)}`
+  );
 
-    for (const [key, val] of Object.entries(response.headers)) {
-      if (['content-length', 'accept-ranges', 'content-range', 'etag', 'last-modified'].includes(key.toLowerCase())) {
-        res.setHeader(key, val as string);
+  for (const [key, val] of Object.entries(response.headers)) {
+    if (['content-length', 'accept-ranges', 'content-range', 'etag', 'last-modified'].includes(key.toLowerCase())) {
+      // Une longueur négative ou non numérique ferait afficher une taille
+      // aberrante (-1 ko) par le téléchargeur natif d'iOS : on la rejette.
+      if (key.toLowerCase() === 'content-length') {
+        const n = Number(val);
+        if (!Number.isFinite(n) || n <= 0) continue;
       }
+      res.setHeader(key, val as string);
+    }
+  }
+
+  response.data.pipe(res);
+  return true;
+}
+
+/**
+ * GET /api/download/file
+ *
+ * Proxy de téléchargement haute vitesse avec gestion des noms de fichiers, referers et en-têtes Range
+ */
+router.get('/file', async (req: Request, res: Response) => {
+  try {
+    const { url, filename = 'video.mp4' } = req.query as { url?: string; filename?: string };
+    if (!url) {
+      return res.status(400).json({ success: false, error: 'Paramètre ?url= requis' });
     }
 
-    response.data.pipe(res);
+    const target = unwrapUrl(url);
+    try {
+      if (!new URL(target).protocol.startsWith('http')) throw Error('protocole');
+    } catch {
+      return res.status(400).json({ success: false, error: 'URL invalide' });
+    }
+
+    if (!(await serveFileProxy(req, res, target, filename))) {
+      return res.status(502).json({ success: false, error: 'Source de téléchargement injoignable' });
+    }
   } catch (error: any) {
     console.error('[Download File Proxy] Erreur:', error.message);
     if (!res.headersSent) {
@@ -235,11 +270,53 @@ router.get('/file', async (req: Request, res: Response) => {
 });
 
 /**
+ * Tente d'obtenir le MP4 direct équivalent à une playlist HLS.
+ * Renvoie true uniquement si le fichier a pu être servi (en-têtes écrits).
+ */
+async function upgradeToDirectFile(
+  req: Request,
+  res: Response,
+  hlsUrl: string,
+  filename: string
+): Promise<boolean> {
+  let direct = null as any;
+  try {
+    direct = await DirectScraper.resolve(hlsUrl, false);
+  } catch (err: any) {
+    console.warn('[Download Stream] Échec extraction MP4 direct:', err?.message);
+  }
+  if (direct?.directUrl && direct.type === 'mp4' && direct.directUrl !== hlsUrl) {
+    if (await serveFileProxy(req, res, direct.directUrl, filename)) {
+      console.log(`[Download Stream] HLS remplacé par le MP4 direct : ${direct.directUrl.slice(0, 80)}`);
+      return true;
+    }
+  }
+
+  // Les HLS Uqload ne se relèvent pas depuis la playlist : le code du fichier
+  // est dans le chemin (/hls2/…/<code>_h/master.m3u8) et l'API Uqload donne le
+  // MP4 équivalent, celui qui porte une Content-Length.
+  const code = hlsUrl.match(/\/([a-z0-9]{10,})_h\/[^/]*\.m3u8/i)?.[1];
+  if (code) {
+    try {
+      const uq = await getUqloadDirectLink(code, false);
+      if (uq?.directUrl && uq.type === 'mp4' && (await serveFileProxy(req, res, uq.directUrl, filename))) {
+        console.log(`[Download Stream] HLS Uqload ${code} remplacé par le MP4 direct`);
+        return true;
+      }
+    } catch (err: any) {
+      console.warn('[Download Stream] Échec API Uqload:', err?.message);
+    }
+  }
+
+  return false;
+}
+
+/**
  * GET /api/download/stream
  *
  * Proxy de téléchargement HLS vers MP4 via FFmpeg
  */
-router.get('/stream', (req: Request, res: Response) => {
+router.get('/stream', async (req: Request, res: Response) => {
   let m3u8Url = req.query.m3u8 as string;
   if (!m3u8Url) {
     res.status(400).json({ success: false, error: 'm3u8 query param required' });
@@ -249,6 +326,17 @@ router.get('/stream', (req: Request, res: Response) => {
   m3u8Url = unwrapUrl(m3u8Url);
 
   const filename = (req.query.filename as string) || 'video.mp4';
+
+  // Une page lecteur n'est pas une playlist : FFmpeg produirait une réponse
+  // 200 vide « chunked » sans Content-Length (taille inconnue côté iOS).
+  if (/\.html?(\?|$)|\/embed-|\/e\/|vidlink\.pro|youtube\.com/i.test(m3u8Url)) {
+    res.status(400).json({ success: false, error: 'URL de playlist HLS attendue' });
+    return;
+  }
+
+  // MP4 direct de préférence : le CDN répond avec une vraie Content-Length,
+  // donc Safari/iOS affiche une taille et une progression fiables.
+  if (await upgradeToDirectFile(req, res, m3u8Url, filename)) return;
 
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
   res.setHeader('Content-Type', 'video/mp4');
