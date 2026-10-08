@@ -14,6 +14,8 @@ interface LivePlayerProps {
   onSelectChannel?: (ch: LiveChannel) => void;
   /** Remplit entièrement l'écran (page player plein écran) au lieu d'un ratio 16:9 */
   fill?: boolean;
+  // La page hôte affiche déjà sa propre barre du haut : ne pas empiler deux chromes
+  hideTopBar?: boolean;
 }
 
 const PROXY_BASE = "/api/live/proxy";
@@ -92,6 +94,7 @@ export default function LivePlayer({
   onBack,
   onSelectChannel,
   fill = false,
+  hideTopBar = false,
 }: LivePlayerProps) {
   const { translate: _ } = useLanguage();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -490,8 +493,8 @@ export default function LivePlayer({
 
       {/* ── TOP BAR OVERLAY (Canal+ Style) ──────────────────────── */}
       <div
-        className={`absolute top-0 inset-x-0 z-30 p-4 sm:p-6 bg-gradient-to-b from-black/90 via-black/50 to-transparent transition-opacity duration-300 ${
-          showControls ? "opacity-100" : "opacity-0 pointer-events-none"
+        className={`absolute top-0 inset-x-0 z-30 pt-[calc(1rem_+_env(safe-area-inset-top,0px))] pb-4 pl-[calc(1rem_+_env(safe-area-inset-left,0px))] pr-[calc(1rem_+_env(safe-area-inset-right,0px))] bg-gradient-to-b from-black/90 via-black/50 to-transparent transition-opacity duration-300 ${
+          hideTopBar ? "hidden" : showControls ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
       >
         <div className="flex items-center justify-between gap-4">
@@ -499,7 +502,7 @@ export default function LivePlayer({
           <div className="flex items-center gap-3 sm:gap-4 min-w-0">
             <button
               onClick={onBack}
-              className="flex items-center justify-center w-9 h-9 rounded-full bg-black/50 hover:bg-white/20 text-white transition-colors"
+              className="flex items-center justify-center w-11 h-11 rounded-full bg-black/50 hover:bg-white/20 text-white transition-colors"
               aria-label="Retour"
             >
               <ArrowLeft className="h-5 w-5" />
@@ -529,7 +532,7 @@ export default function LivePlayer({
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <button
               onClick={toggleMute}
-              className="p-2 rounded-full hover:bg-white/10 text-white transition-colors"
+              className="min-w-11 min-h-11 p-2 flex items-center justify-center rounded-full hover:bg-white/10 text-white transition-colors"
               aria-label="Volume"
             >
               {isMuted ? (
@@ -550,7 +553,7 @@ export default function LivePlayer({
 
             <button
               onClick={handleShare}
-              className="p-2 rounded-full hover:bg-white/10 text-white transition-colors"
+              className="min-w-11 min-h-11 p-2 flex items-center justify-center rounded-full hover:bg-white/10 text-white transition-colors"
               aria-label="Partager"
               title={shareCopied ? "Lien copié !" : "Partager"}
             >
@@ -563,7 +566,7 @@ export default function LivePlayer({
 
             <button
               onClick={onBack}
-              className="p-2 rounded-full hover:bg-white/10 text-white transition-colors"
+              className="min-w-11 min-h-11 p-2 flex items-center justify-center rounded-full hover:bg-white/10 text-white transition-colors"
               aria-label="Fermer"
             >
               <X className="h-5 w-5" />
@@ -574,7 +577,7 @@ export default function LivePlayer({
 
       {/* ── BOTTOM BAR OVERLAY (Canal+ Style) ───────────────────── */}
       <div
-        className={`absolute bottom-0 inset-x-0 z-30 pt-8 pb-3 sm:pb-4 px-4 sm:px-6 bg-gradient-to-t from-black/95 via-black/60 to-transparent transition-opacity duration-300 space-y-2.5 ${
+        className={`absolute bottom-0 inset-x-0 z-30 pt-8 pb-[calc(0.75rem_+_env(safe-area-inset-bottom,0px))] sm:pb-4 pl-[calc(1rem_+_env(safe-area-inset-left,0px))] pr-[calc(1rem_+_env(safe-area-inset-right,0px))] bg-gradient-to-t from-black/95 via-black/60 to-transparent transition-opacity duration-300 space-y-2.5 ${
           showControls ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
       >
@@ -602,12 +605,12 @@ export default function LivePlayer({
         </div>
 
         {/* Ligne des contrôles */}
-        <div className="flex items-center justify-between gap-2 sm:gap-4">
+        <div className="flex items-center justify-between gap-2 sm:gap-4 flex-wrap gap-y-2">
           {/* Contrôles de gauche : -10s, Play/Pause, +10s, Bouton LIVE dynamique */}
           <div className="flex items-center gap-2 sm:gap-4">
             <button
               onClick={() => seekRelative(-10)}
-              className="p-2 rounded-full hover:bg-white/10 text-white/80 hover:text-white transition-colors"
+              className="min-w-11 min-h-11 p-2 hidden sm:flex items-center justify-center rounded-full hover:bg-white/10 text-white/80 hover:text-white transition-colors"
               aria-label="Reculer de 10s"
               title="Reculer de 10s"
             >
@@ -616,7 +619,7 @@ export default function LivePlayer({
 
             <button
               onClick={togglePlay}
-              className="flex items-center justify-center w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all transform hover:scale-105 active:scale-95"
+              className="flex items-center justify-center w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all transform hover:scale-105 active:scale-95"
               aria-label={isPlaying ? "Pause" : "Lecture"}
             >
               {isPlaying ? (
@@ -628,7 +631,7 @@ export default function LivePlayer({
 
             <button
               onClick={() => seekRelative(10)}
-              className="p-2 rounded-full hover:bg-white/10 text-white/80 hover:text-white transition-colors"
+              className="min-w-11 min-h-11 p-2 hidden sm:flex items-center justify-center rounded-full hover:bg-white/10 text-white/80 hover:text-white transition-colors"
               aria-label="Avancer de 10s"
               title="Avancer de 10s"
             >
@@ -676,7 +679,7 @@ export default function LivePlayer({
 
             <button
               onClick={() => setShowSettingsModal(!showSettingsModal)}
-              className="p-2 rounded-full hover:bg-white/10 text-zinc-300 hover:text-white transition-colors"
+              className="min-w-11 min-h-11 p-2 flex items-center justify-center rounded-full hover:bg-white/10 text-zinc-300 hover:text-white transition-colors"
               aria-label="Options"
             >
               <DotsThreeVertical className="h-5 w-5" />
@@ -684,7 +687,7 @@ export default function LivePlayer({
 
             <button
               onClick={toggleFullscreen}
-              className="p-2 rounded-full hover:bg-white/10 text-white transition-colors"
+              className="min-w-11 min-h-11 p-2 flex items-center justify-center rounded-full hover:bg-white/10 text-white transition-colors"
               aria-label="Plein écran"
             >
               {isFullscreen ? (
@@ -699,7 +702,7 @@ export default function LivePlayer({
 
       {/* ── CHANNEL DRAWER OVERLAY (TOUTES LES CHAÎNES) ──────────── */}
       {showChannelDrawer && (
-        <div className="absolute inset-y-0 right-0 z-40 w-80 sm:w-96 bg-black/95 backdrop-blur-xl border-l border-white/10 flex flex-col p-4 animate-fade-in">
+        <div className="absolute inset-y-0 right-0 z-40 w-80 sm:w-96 bg-black/95 backdrop-blur-xl border-l border-white/10 flex flex-col p-4 pb-[calc(1rem_+_env(safe-area-inset-bottom,0px))] animate-fade-in">
           <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
             <h3 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
               <Television className="h-4 w-4 text-red-500" />
@@ -755,7 +758,7 @@ export default function LivePlayer({
 
       {/* ── SETTINGS OVERLAY (OPTIONS) ─────────────────────────────── */}
       {showSettingsModal && (
-        <div className="absolute inset-y-0 right-0 z-40 w-80 sm:w-96 bg-black/95 backdrop-blur-xl border-l border-white/10 flex flex-col p-4 animate-fade-in">
+        <div className="absolute inset-y-0 right-0 z-40 w-80 sm:w-96 bg-black/95 backdrop-blur-xl border-l border-white/10 flex flex-col p-4 pb-[calc(1rem_+_env(safe-area-inset-bottom,0px))] animate-fade-in">
           <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
             <h3 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
               <DotsThreeVertical className="h-4 w-4 text-red-500" />

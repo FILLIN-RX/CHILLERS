@@ -200,8 +200,6 @@ export default function MatchDetailContent() {
               matchId={match.id}
               homeName={match.homeTeam.name}
               awayName={match.awayTeam.name}
-              homeLogo={match.homeTeam.logo}
-              awayLogo={match.awayTeam.logo}
               isLive={isLive}
               minute={match.minute}
             />

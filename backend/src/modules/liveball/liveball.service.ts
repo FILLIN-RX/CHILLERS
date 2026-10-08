@@ -148,6 +148,7 @@ function isUsableLiveBallHtml(html: string | null | undefined): html is string {
     h.includes('top_match_section') ||
     h.includes('top_match') ||
     h.includes('class="match_a') ||
+    h.includes('lb-fixture') ||
     h.includes('_lbStreams') ||
     h.includes('_xrq(')
   ) {
@@ -526,12 +527,110 @@ function teamLogo(block: string, side: 'left' | 'right'): string | undefined {
   return undefined;
 }
 
+/**
+ * Format 2026 de la page d'accueil et des pages /league/... : une carte de
+ * match est `<a class="lb-fixture" href="/match/{id}" data-st="live|up|fin"
+ * data-ts="{epoch}">`, groupée par championnat dans un `<div class="home-group"
+ * id="home-match-list">`. Les affiches (écusons) sont des `<img>` en dur dans
+ * `lb-fixture__home` / `lb-fixture__away`.
+ */
+const FIXTURE_RE = /<a\b[^>]*class="[^"]*\blb-fixture\b[^"]*"[\s\S]*?<\/a>/g;
+const GROUP_HEAD_RE = /<div class="home-group__head"[\s\S]*?<\/div>/g;
+
+const CLOCK_OPEN = /<span class="lb-fixture__time[^"]*"[^>]*>/;
+const HOME_OPEN = /<span class="lb-fixture__home"[^>]*>/;
+const AWAY_OPEN = /<span class="lb-fixture__away"[^>]*>/;
+const SCORE_OPEN = /<span class="lb-fixture__score/;
+const ARROW_OPEN = /<span class="lb-fixture__arrow/;
+
+function hasMatchListing(html: string): boolean {
+  return html.includes('lb-fixture') || html.includes('live_block2') || html.includes('live_section');
+}
+
+function stripTags(html: string): string {
+  return decodeEntities(html.replace(/<[^>]*>/g, ' ')).replace(/\s+/g, ' ').trim();
+}
+
+/** Contenu d'un bloc de la carte, délimité par deux classes voisines. */
+function fixtureRegion(fragment: string, from: RegExp, to: RegExp): string {
+  const start = fragment.search(from);
+  if (start === -1) return '';
+  const rest = fragment.slice(start).replace(from, '');
+  const end = rest.search(to);
+  return end === -1 ? rest : rest.slice(0, end);
+}
+
+function fixtureSide(region: string): { name?: string; logo?: string } {
+  const name = region.match(/<span[^>]*>([\s\S]*?)<\/span>/)?.[1];
+  const logo = region.match(/<img[^>]+src="([^"]+)"/)?.[1];
+  return {
+    name: name ? stripTags(name) : undefined,
+    logo: logo ? (logo.startsWith('//') ? `https:${logo}` : logo) : undefined,
+  };
+}
+
+/** Titre connu du championnat, via son slug ; sinon la carte reste générique
+ *  (« Football ») plutôt que d'afficher un nom cyrillique non traduit. */
+function leagueFromSlug(slug?: string): string | undefined {
+  if (!slug) return undefined;
+  return Object.values(LEAGUE_CONFIGS).find((c) => c.slugs.includes(slug))?.title;
+}
+
+function parseFixture(fragment: string, league?: string): LiveBallMatch | null {
+  const id = fragment.match(/href="\/match\/(\d+)/)?.[1];
+  const state = (fragment.match(/data-st="([^"]*)"/)?.[1] ?? '').toLowerCase();
+  if (!id || (state !== 'live' && state !== 'up')) return null;
+
+  const startTs = Number(fragment.match(/data-ts="(\d+)"/)?.[1]) || undefined;
+  if (state === 'up' && startTs && startTs < Math.floor(Date.now() / 1000) - 15 * 60) return null;
+
+  const clock = stripTags(fixtureRegion(fragment, CLOCK_OPEN, HOME_OPEN));
+  const home = fixtureSide(fixtureRegion(fragment, HOME_OPEN, SCORE_OPEN));
+  const away = fixtureSide(fixtureRegion(fragment, AWAY_OPEN, ARROW_OPEN));
+  const score = stripTags(fragment.match(/class="lb-fixture__score[^"]*"[^>]*>([\s\S]*?)<\/span>/)?.[1] ?? '');
+  if (!home.name) return null;
+
+  const isLive = state === 'live';
+  return {
+    id,
+    status: isLive ? 'live' : 'upcoming',
+    home: normalizeTeamName(home.name),
+    away: away.name ? normalizeTeamName(away.name) : '',
+    homeLogo: home.logo,
+    awayLogo: away.logo,
+    score: isLive && /\d/.test(score) ? score : undefined,
+    // « 66′ » en direct, « 20:00 » pour un match à venir : seule l'heure de jeu
+    // a une valeur en direct.
+    minute: isLive && /\d/.test(clock) && !clock.includes(':') ? clock : undefined,
+    startTs: isLive ? undefined : startTs,
+    league,
+  };
+}
+
+function parseFixtures(html: string, league?: string): LiveBallMatch[] {
+  const heads: { at: number; league?: string }[] = [];
+  for (const m of html.matchAll(GROUP_HEAD_RE)) {
+    heads.push({ at: m.index ?? 0, league: leagueFromSlug(m[0].match(/href="\/league\/([^"?]+)/)?.[1]) });
+  }
+
+  const matches: LiveBallMatch[] = [];
+  const seen = new Set<string>();
+  for (const m of html.matchAll(FIXTURE_RE)) {
+    const group = heads.filter((h) => (h.at ?? 0) < (m.index ?? 0)).pop();
+    const parsed = parseFixture(m[0], league ?? group?.league);
+    if (!parsed || seen.has(parsed.id)) continue;
+    seen.add(parsed.id);
+    matches.push(parsed);
+  }
+  return matches;
+}
+
 export async function fetchLiveBallHomepage(): Promise<string> {
   const proxy = await getEffectiveProxy();
   for (const domain of LIVEBALL_BASE_DOMAINS) {
     try {
       const html = await fetchHtmlWithCurl(`https://${domain}/`);
-      if (isUsableLiveBallHtml(html) && (html.includes('live_block2') || html.includes('live_section'))) {
+      if (isUsableLiveBallHtml(html) && hasMatchListing(html)) {
         return html;
       }
     } catch {
@@ -557,7 +656,7 @@ export async function fetchLiveBallHomepage(): Promise<string> {
           } catch {}
         }
         const { data } = await axios.get<string>(`https://${domain}/`, axiosConfig);
-        if (isUsableLiveBallHtml(data) && (data.includes('live_block2') || data.includes('live_section'))) {
+        if (isUsableLiveBallHtml(data) && hasMatchListing(data)) {
           return data;
         }
       } catch {}
@@ -599,6 +698,8 @@ function parseSingleBlock(block: string, status: 'live' | 'upcoming', league?: s
 }
 
 export function parseBlocks(html: string, league?: string): LiveBallMatch[] {
+  if (html.includes('lb-fixture')) return parseFixtures(html, league);
+
   const matches: LiveBallMatch[] = [];
 
   const BLOCK_START = '<div class="live_block2">';

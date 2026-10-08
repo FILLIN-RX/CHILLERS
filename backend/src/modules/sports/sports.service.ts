@@ -96,7 +96,9 @@ export async function getSportsMatches(source?: string): Promise<SportsMatch[]> 
 
   results.forEach((result, i) => {
     if (result.status === 'fulfilled') {
-      matches.push(...result.value.filter((m) => m?.id && m?.sourceId));
+      // Une rencontre a deux adversaires : les sources comme yallapro publient
+      // des canaux (libellé seul, sans `away`) qui ne sont pas des matchs.
+      matches.push(...result.value.filter((m) => m?.id && m?.sourceId && m.away?.trim()));
     } else {
       console.warn(`[sports] source ${wanted[i]} indisponible:`, result.reason?.message);
     }

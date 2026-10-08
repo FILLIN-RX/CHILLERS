@@ -9,8 +9,15 @@ import LivePlayer from "@/components/LivePlayer";
 import { getSportsMatches, getSportsStream } from "@/services/sports";
 import { getLiveBallMatches, getLiveBallStream, getLiveBallChampionsLeague } from "@/services/liveball";
 import type { LiveChannel } from "@/types/live";
-import type { SportsMatch, SportsServer, SportsStream } from "@/types/sports";
+import type { SportsMatch } from "@/types/sports";
 import { PopupFirewall } from "@/lib/PopupFirewall";
+
+/** Le flux résolu pour ce match : on n'en sert qu'un, celui qui répond. */
+interface ResolvedSportsStream {
+  url: string;
+  type: "hls" | "iframe";
+  relayUrl?: string;
+}
 
 function normalizeTeamName(name?: string): string {
   if (!name) return "";
@@ -67,11 +74,11 @@ function TeamDisplay({ team, logo }: { team: string; logo?: string }) {
     .toUpperCase();
 
   return (
-    <div className="flex flex-col items-center gap-3 w-[130px] sm:w-[180px] min-w-0">
-      <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-white flex items-center justify-center overflow-hidden shadow-lg shadow-black/50 ring-2 ring-white/15">
+    <div className="flex flex-col items-center gap-2 sm:gap-3 min-w-0 flex-1 max-w-[150px] sm:max-w-[180px]">
+      <div className="w-20 h-20 sm:w-28 sm:h-28 rounded-full bg-white flex items-center justify-center overflow-hidden shadow-lg shadow-black/50 ring-2 ring-white/15">
         {logo && !broken ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={logo} alt={team} className="w-16 h-16 sm:w-20 sm:h-20 object-contain" onError={() => setBrokenLogo(logo)} />
+          <img src={logo} alt={team} className="w-14 h-14 sm:w-20 sm:h-20 object-contain" onError={() => setBrokenLogo(logo)} />
         ) : (
           <span className="text-3xl font-black text-zinc-900">{initials || "?"}</span>
         )}
@@ -87,8 +94,6 @@ export default function SportsMatchContent() {
 
   const [reloadKey, setReloadKey] = useState(0);
   const [shareCopied, setShareCopied] = useState(false);
-  // Serveur sélectionné, réinitialisé implicitement quand le match change.
-  const [serverChoice, setServerChoice] = useState({ matchId: "", index: 0 });
 
   // Verrouille le scroll tant que le player est ouvert et active le pare-feu anti-pub
   useEffect(() => {
@@ -163,12 +168,7 @@ export default function SportsMatchContent() {
   // Résolution multi-fournisseurs (LiveBall, Kora, Kooorah, YallaPro, Streamiz)
   const { data: stream, isLoading, refetch } = useQuery({
     queryKey: ["live", "unified", "stream", decodedId, reloadKey, matchedLb?.id, matchedSports?.id],
-    queryFn: async (): Promise<SportsStream | null> => {
-      const servers: SportsServer[] = [];
-      let primaryUrl = "";
-      let primaryType: "hls" | "iframe" = "hls";
-      let primaryRelayUrl = "";
-
+    queryFn: async (): Promise<(ResolvedSportsStream & { match?: SportsMatch }) | null> => {
       const targetLbId = matchedLb?.id || (isLb ? liveballId : null);
       const targetSportsId = matchedSports?.id || (!isLb ? decodedId : null);
 
@@ -181,55 +181,38 @@ export default function SportsMatchContent() {
       const lbStream = lbRes.status === "fulfilled" ? lbRes.value : null;
       const spStream = spRes.status === "fulfilled" ? spRes.value : null;
 
-      // 2. Intégration du flux LiveBall si disponible
+      // 2. Les flux candidats, par fournisseur
+      const candidates: (ResolvedSportsStream & { fromLiveBall: boolean })[] = [];
+
       if (lbStream?.url && targetLbId) {
-        const isHls = lbStream.type === "hls";
-        const relay = isHls ? `/api/liveball/match/${targetLbId}/hls/playlist.m3u8` : undefined;
-        servers.push({
-          name: "LiveBall · HLS Direct",
+        candidates.push({
           url: lbStream.url,
           type: lbStream.type,
-          relayUrl: relay,
+          relayUrl:
+            lbStream.type === "hls"
+              ? `/api/liveball/match/${targetLbId}/hls/playlist.m3u8`
+              : undefined,
+          fromLiveBall: true,
         });
       }
 
-      // 3. Intégration des flux Sports (Kora, Kooorah, YallaPro, Streamiz)
       if (spStream?.url) {
-        const sourceName = (matchedSports?.source || decodedId.split(":")[0] || "Miroir").toUpperCase();
-        if (spStream.servers && spStream.servers.length > 0) {
-          spStream.servers.forEach((s, idx) => {
-            const label = s.name ? `${sourceName} · ${s.name}` : `${sourceName} · Serveur ${idx + 1}`;
-            servers.push({
-              name: label,
-              url: s.url,
-              type: s.type || "iframe",
-              relayUrl: s.relayUrl,
-            });
-          });
-        } else {
-          servers.push({
-            name: `${sourceName} · Serveur 1`,
-            url: spStream.url,
-            type: spStream.type || "iframe",
-            relayUrl: spStream.relayUrl,
-          });
-        }
+        const mirror = spStream.servers?.[0];
+        candidates.push({
+          url: mirror?.url ?? spStream.url,
+          type: (mirror?.type ?? spStream.type) || "iframe",
+          relayUrl: mirror?.relayUrl ?? spStream.relayUrl,
+          fromLiveBall: false,
+        });
       }
 
-      if (servers.length === 0) return null;
+      if (candidates.length === 0) return null;
 
-      // Priorité par défaut : le fournisseur cliqué, sinon le premier serveur fonctionnel
-      const defaultServer = isLb
-        ? servers.find((s) => s.name.startsWith("LiveBall")) || servers[0]
-        : servers.find((s) => !s.name.startsWith("LiveBall")) || servers[0];
+      // Le flux du match demandé : LiveBall si l'on vient de LiveBall, sinon le
+      // miroir agrégé ; à défaut le premier candidat qui a répondu.
+      const chosen = candidates.find((c) => c.fromLiveBall === isLb) ?? candidates[0];
 
-      return {
-        url: defaultServer.url,
-        type: defaultServer.type || "iframe",
-        relayUrl: defaultServer.relayUrl || "",
-        servers,
-        match,
-      };
+      return { url: chosen.url, type: chosen.type, relayUrl: chosen.relayUrl, match };
     },
     staleTime: 0,
     retry: false,
@@ -237,11 +220,8 @@ export default function SportsMatchContent() {
   });
 
   const resolvedMatch = stream?.match ?? match;
-  const servers = stream?.servers ?? [];
-  const activeServer = serverChoice.matchId === decodedId ? serverChoice.index : 0;
-  const selectedServer = servers[activeServer];
-  const selectedType = selectedServer?.type ?? stream?.type;
-  const rawEmbedUrl = selectedType === "iframe" ? (selectedServer?.url ?? stream?.url) : null;
+  const selectedType = stream?.type;
+  const rawEmbedUrl = selectedType === "iframe" ? stream?.url : null;
   const embedUrl = rawEmbedUrl
     ? (/youtube\.com|youtu\.be/i.test(rawEmbedUrl)
         ? rawEmbedUrl
@@ -255,7 +235,7 @@ export default function SportsMatchContent() {
         slug: `sp-${decodedId}`,
         categories: ["sports"],
         type: "hls",
-        streamUrl: selectedServer?.relayUrl || stream.relayUrl || selectedServer?.url || stream.url,
+        streamUrl: stream.relayUrl || stream.url,
         enabled: true,
         order: 0,
         isOnline: true,
@@ -434,13 +414,13 @@ export default function SportsMatchContent() {
       {/* ── Flux HLS natif via notre relay ─────────────────────────── */}
       {channel && (
         <div className="absolute inset-0">
-          <LivePlayer channel={channel} fill onBack={() => (window.location.href = "/live")} />
+          <LivePlayer channel={channel} fill hideTopBar onBack={() => (window.location.href = "/live")} />
         </div>
       )}
 
-      {/* ── Barre de contrôle : retour, sources, partage ───────────── */}
+      {/* ── Barre de contrôle : retour, recharge, partage ──────────── */}
       {stream && (
-        <div className="absolute top-0 inset-x-0 z-30 p-3 sm:p-4 bg-gradient-to-b from-black/90 via-black/50 to-transparent">
+        <div className="absolute top-0 inset-x-0 z-30 pt-[calc(0.75rem_+_env(safe-area-inset-top,0px))] pb-3 pl-[calc(0.75rem_+_env(safe-area-inset-left,0px))] pr-[calc(0.75rem_+_env(safe-area-inset-right,0px))] bg-gradient-to-b from-black/90 via-black/50 to-transparent">
           <div className="flex items-center justify-between gap-3">
             <Link
               href="/live"
@@ -460,27 +440,6 @@ export default function SportsMatchContent() {
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
-              {servers.length > 1 && (
-                <div className="flex items-center gap-1.5 bg-black/60 backdrop-blur-md border border-white/15 p-1 rounded-xl">
-                  {servers.map((s, i) => {
-                    const isSelected = i === activeServer;
-                    return (
-                      <button
-                        key={`${s.url}-${i}`}
-                        onClick={() => setServerChoice({ matchId: decodedId, index: i })}
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold transition-all cursor-pointer ${
-                          isSelected
-                            ? "bg-red-600 text-white shadow-md shadow-red-600/30"
-                            : "text-zinc-400 hover:text-white hover:bg-white/10"
-                        }`}
-                        title={s.name}
-                      >
-                        {s.name}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
               <button
                 onClick={retry}
                 className="p-2 rounded-full bg-black/60 hover:bg-white/20 text-white backdrop-blur-md transition-colors"

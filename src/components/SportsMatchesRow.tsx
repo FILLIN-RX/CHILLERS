@@ -45,6 +45,11 @@ function formatMatchTime(ts?: number): string {
 }
 
 function TeamCrest({ src, alt }: { src?: string; alt: string }) {
+  // On mémorise l'URL qui a échoué : une affiche 404 retombe sur les initiales,
+  // et une URL remplacée par la query suivante se reteste normalement.
+  const [brokenSrc, setBrokenSrc] = useState<string | undefined>();
+  const broken = brokenSrc === src;
+
   const initials = (alt || "?")
     .split(/[\s-]+/)
     .filter(Boolean)
@@ -53,7 +58,7 @@ function TeamCrest({ src, alt }: { src?: string; alt: string }) {
     .join("")
     .toUpperCase();
 
-  if (!src) {
+  if (!src || broken) {
     return (
       <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center text-xs font-black text-zinc-500 bg-white/[0.04] shrink-0">
         {initials || "?"}
@@ -67,6 +72,7 @@ function TeamCrest({ src, alt }: { src?: string; alt: string }) {
       src={src}
       alt={alt}
       loading="lazy"
+      onError={() => setBrokenSrc(src)}
       className="w-12 h-12 sm:w-14 sm:h-14 object-contain shrink-0 drop-shadow-md"
     />
   );
@@ -119,7 +125,7 @@ export default function SportsMatchesRow({
     const grouped = new Map<string, SportsMatch>();
 
     for (const m of all) {
-      if (!m?.id || !m.home) continue;
+      if (!m?.id || !m.home || !m.away) continue;
       const key = getMatchFingerprint(m);
       const existing = grouped.get(key);
 

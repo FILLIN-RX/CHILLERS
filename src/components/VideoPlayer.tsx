@@ -713,11 +713,12 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
       className={`${
         isFullscreen
           ? "fixed inset-0 z-[99999] w-screen h-[100dvh] max-h-none rounded-none aspect-auto bg-black"
-          : `relative w-full aspect-video min-h-[280px] xs:min-h-[320px] sm:min-h-[420px] md:min-h-[520px] lg:min-h-[600px] xl:min-h-[660px] ${isTheater ? "max-h-[92dvh]" : "max-h-[85dvh]"} bg-black rounded-none sm:rounded-xl`
+          : `relative w-full aspect-video sm:min-h-[420px] md:min-h-[520px] lg:min-h-[600px] xl:min-h-[660px] ${isTheater ? "max-h-[92dvh]" : "max-h-[85dvh]"} bg-black rounded-none sm:rounded-xl`
       } overflow-hidden select-none transition-all duration-300 shadow-[0_20px_70px_rgba(0,0,0,0.95)] group/container ${
         !controlsVisible && isPlaying ? "cursor-none" : "cursor-default"
       }`}
       onMouseMove={handleMouseMove}
+      onTouchStart={scheduleHideControls}
       onDoubleClick={hasStarted ? toggleFullscreen : undefined}
     >
       {/* ─── IFRAME mode (providers externes) ───
@@ -738,7 +739,7 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
           />
           {/* iframe top bar on hover */}
           <div
-            className={`absolute inset-x-0 top-0 z-20 flex items-center justify-between px-4 py-3 bg-black/80 transition-opacity duration-300 ${
+            className={`absolute inset-x-0 top-0 z-20 flex items-center justify-between pt-[calc(0.75rem_+_env(safe-area-inset-top,0px))] pb-3 pl-[calc(1rem_+_env(safe-area-inset-left,0px))] pr-[calc(1rem_+_env(safe-area-inset-right,0px))] bg-black/80 transition-opacity duration-300 ${
               controlsVisible ? "opacity-100" : "opacity-0 pointer-events-none"
             }`}
           >
@@ -857,11 +858,11 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
             }`}
           >
             {/* ── Top bar: Title, PRO VIP Badge & P2P ── */}
-            <div className="pointer-events-auto flex items-center justify-between p-3 sm:p-4 bg-gradient-to-b from-black/80 via-black/30 to-transparent">
-              <div className="flex items-center gap-2">
+            <div className="pointer-events-auto flex items-center justify-between gap-2 bg-gradient-to-b from-black/80 via-black/30 to-transparent pt-[calc(0.75rem_+_env(safe-area-inset-top,0px))] pb-3 pl-[calc(0.75rem_+_env(safe-area-inset-left,0px))] pr-[calc(0.75rem_+_env(safe-area-inset-right,0px))]">
+              <div className="flex min-w-0 flex-1 items-center gap-2">
 
-                <div className="flex flex-col">
-                  <span className="text-sm sm:text-base font-bold text-white drop-shadow truncate max-w-xs sm:max-w-md">
+                <div className="flex min-w-0 flex-col">
+                  <span className="text-sm sm:text-base font-bold text-white drop-shadow truncate">
                     {item.title}
                   </span>
                   {currentEpisode && (
@@ -872,7 +873,7 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex shrink-0 items-center gap-2">
                 {/* Bouton Lecteur Réduit / Navigation flottante comme YouTube (PiP) */}
                 <button
                   type="button"
@@ -891,8 +892,9 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
                   </span>
                 )}
                 {canP2P && p2pActive && (
-                  <span className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-400 bg-black/60 border border-emerald-400/30 rounded-full px-2.5 py-1">
-                    P2P · {p2p.peers} pairs · {formatSpeed(p2p.downloadSpeed)}
+                  <span className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-400 bg-black/60 border border-emerald-400/30 rounded-full px-2.5 py-1 whitespace-nowrap">
+                    P2P · {p2p.peers} pairs
+                    <span className="hidden sm:inline">· {formatSpeed(p2p.downloadSpeed)}</span>
                   </span>
                 )}
               </div>
@@ -918,7 +920,7 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
             </div>
 
             {/* ── Bottom YouTube Control Bar ── */}
-            <div className="pointer-events-auto bg-gradient-to-t from-black/90 via-black/50 to-transparent pt-8 pb-2 px-3 sm:px-4 space-y-1">
+            <div className="pointer-events-auto bg-gradient-to-t from-black/90 via-black/50 to-transparent pt-8 pb-[calc(0.5rem_+_env(safe-area-inset-bottom,0px))] pl-[calc(0.75rem_+_env(safe-area-inset-left,0px))] pr-[calc(0.75rem_+_env(safe-area-inset-right,0px))] space-y-1">
               {/* ── 1. YouTube Timeline / Scrubber ── */}
               <div
                 className="group/timeline relative w-full h-3 sm:h-4 flex items-end cursor-pointer select-none mb-1"
@@ -964,14 +966,14 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
               </div>
 
               {/* ── 2. YouTube Controls Row ── */}
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-x-2 gap-y-1 flex-wrap">
                 {/* ── Left Controls: Play/Pause, Next, Volume, Time ── */}
                 <div className="flex items-center gap-1 sm:gap-2">
                   {/* Play/Pause Button */}
                   <button
                     type="button"
                     onClick={togglePlay}
-                    className="group/btn relative p-2 text-white hover:text-white transition-opacity flex items-center justify-center"
+                    className="group/btn relative p-2 min-w-11 min-h-11 text-white hover:text-white transition-opacity flex items-center justify-center"
                   >
                     {isPlaying ? (
                       <svg viewBox="0 0 24 24" className="w-7 h-7 fill-white"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>
@@ -983,12 +985,12 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
                     </span>
                   </button>
 
-                  {/* Volume with Smooth Hover Expand Slider - hidden on mobile */}
-                  <div className="hidden sm:flex items-center group/vol relative">
+                  {/* Volume : le slider est au tap sur mobile (pas de hover), en expansion au survol sur desktop */}
+                  <div className="flex items-center group/vol relative">
                     <button
                       type="button"
                       onClick={toggleMute}
-                      className="group/btn relative p-2 text-white hover:text-white transition-opacity flex items-center justify-center"
+                      className="group/btn relative p-2 min-w-11 min-h-11 text-white hover:text-white transition-opacity flex items-center justify-center"
                     >
                       {isMuted || volume === 0 ? (
                         <svg viewBox="0 0 24 24" className="w-6 h-6 fill-white">
@@ -1009,7 +1011,7 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
                     </button>
 
                     {/* Expandable Slider */}
-                    <div className="overflow-hidden transition-all duration-200 w-0 group-hover/vol:w-14 sm:group-hover/vol:w-16 flex items-center ml-0.5">
+                    <div className="overflow-hidden transition-all duration-200 w-10 sm:w-0 group-hover/vol:w-10 sm:group-hover/vol:w-16 flex items-center ml-0.5">
                       <input
                         type="range"
                         min={0}
@@ -1017,7 +1019,7 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
                         step={0.05}
                         value={isMuted ? 0 : volume}
                         onChange={(e) => changeVolume(Number(e.target.value))}
-                        className="w-14 sm:w-16 h-1 accent-[#ff0000] cursor-pointer appearance-none rounded-full bg-white/30"
+                        className="w-9 sm:w-16 h-1 accent-[#ff0000] cursor-pointer appearance-none rounded-full bg-white/30"
                       />
                     </div>
                   </div>
@@ -1050,7 +1052,7 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
                     </span>
                   </button>
 
-                  {/* Closed Captions [CC] - hidden on mobile (accessible via Settings) */}
+                  {/* Closed Captions [CC] : présent dès qu'une piste de sous-titres existe */}
                   {subtitles.length > 0 && (
                     <button
                       type="button"
@@ -1058,7 +1060,7 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
                         if (activeSubId !== null) setActiveSubId(null);
                         else setActiveSubId(subtitles[0].fileId);
                       }}
-                      className="hidden sm:flex group/btn relative p-2 text-white hover:text-white transition-opacity flex-col items-center justify-center"
+                      className="flex group/btn relative p-2 min-w-11 min-h-11 text-white hover:text-white transition-opacity flex-col items-center justify-center"
                     >
                       <svg viewBox="0 0 24 24" className="w-6 h-6 fill-white">
                         <path d="M19 4H5c-1.11 0-2 .9-2 2v12c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-8 7H9.5v-.5h-2v3h2V13H11v1c0 .55-.45 1-1 1H7c-.55 0-1-.45-1-1v-4c0-.55.45-1 1-1h3c.55 0 1 .45 1 1v1zm7 0h-1.5v-.5h-2v3h2V13H18v1c0 .55-.45 1-1 1h-3c-.55 0-1-.45-1-1v-4c0-.55.45-1 1-1h3c.55 0 1 .45 1 1v1z" />
@@ -1082,7 +1084,7 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
                         setShowQualityMenu(false);
                         setShowSubMenu(false);
                       }}
-                      className="group/btn relative p-2 text-white hover:text-white transition-opacity flex items-center justify-center"
+                      className="group/btn relative p-2 min-w-11 min-h-11 text-white hover:text-white transition-opacity flex items-center justify-center"
                     >
                       <svg viewBox="0 0 24 24" className={`w-6 h-6 fill-white transition-transform duration-300 ${showSpeedMenu ? "rotate-45" : ""}`}>
                         <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" />
@@ -1094,7 +1096,7 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
 
                     {/* YouTube Settings Popover */}
                     {showSpeedMenu && (
-                      <div className="absolute bottom-full right-0 mb-3 w-60 sm:w-56 max-w-[calc(100vw-24px)] py-1.5 bg-[#1f1f1f]/95 backdrop-blur-md rounded-xl shadow-2xl text-white text-xs z-50 animate-in fade-in zoom-in-95 duration-100 border border-white/10">
+                      <div className="absolute bottom-full right-0 mb-3 w-60 sm:w-56 max-w-[calc(100vw-24px)] max-h-[min(55dvh,320px)] sm:max-h-[min(70vh,420px)] overflow-y-auto overscroll-contain py-1.5 bg-[#1f1f1f]/95 backdrop-blur-md rounded-xl shadow-2xl text-white text-xs z-50 animate-in fade-in zoom-in-95 duration-100 border border-white/10 [&_button]:min-h-11">
                         {settingsTab === "main" && (
                           <div className="flex flex-col">
                             {/* Autoplay inside settings for mobile */}
@@ -1319,11 +1321,11 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
                     )}
                   </div>
 
-                  {/* Miniplayer (Picture-in-Picture) */}
+                  {/* Miniplayer (Picture-in-Picture) : sur mobile, il est déjà dans les Paramètres */}
                   <button
                     type="button"
                     onClick={togglePiP}
-                    className="flex group/btn relative p-2 text-white hover:text-white transition-opacity items-center justify-center cursor-pointer"
+                    className="hidden sm:flex group/btn relative p-2 min-w-11 min-h-11 text-white hover:text-white transition-opacity items-center justify-center cursor-pointer"
                     title="Lecteur réduit (PiP)"
                   >
                     <svg viewBox="0 0 24 24" className="w-6 h-6 fill-white">
@@ -1352,7 +1354,7 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
                   <button
                     type="button"
                     onClick={toggleFullscreen}
-                    className="group/btn relative p-2 text-white hover:text-white transition-opacity flex items-center justify-center"
+                    className="group/btn relative p-2 min-w-11 min-h-11 text-white hover:text-white transition-opacity flex items-center justify-center"
                     aria-label={isFullscreen ? "Quitter le plein écran" : "Plein écran"}
                   >
                     {isFullscreen ? (
@@ -1373,19 +1375,18 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
             </div>
           </div>
 
-          {/* ─── Portrait prompt (mobile) ─── */}
+          {/* ─── Invite au mode paysage (mobile) : bandeau, ne bloque pas la lecture ─── */}
           {isPortrait && !dismissPortraitPrompt && (
-            <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-5 bg-black/85 backdrop-blur-sm sm:hidden">
-              <button onClick={() => setDismissPortraitPrompt(true)} className="absolute top-4 right-4 p-2 text-white/60 hover:text-white rounded-lg hover:bg-white/10">
-                <X className="h-5 w-5" />
-              </button>
-              <svg className="h-20 w-20 text-white/70 animate-[spin_3s_ease-in-out_infinite]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <div className="absolute bottom-24 inset-x-3 z-30 flex items-center gap-3 rounded-xl bg-black/80 backdrop-blur-md px-3 py-2.5 shadow-lg sm:hidden">
+              <svg className="h-7 w-7 shrink-0 text-white/70 animate-[spin_3s_ease-in-out_infinite]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="4" y="2" width="16" height="20" rx="2" /><line x1="12" y1="18" x2="12" y2="18.01" />
               </svg>
-              <p className="text-white text-lg font-bold text-center px-8">Tourne ton téléphone</p>
-              <p className="text-white/60 text-sm text-center px-8 max-w-xs">Mode paysage recommandé</p>
-              <button onClick={() => setDismissPortraitPrompt(true)} className="mt-2 px-5 py-2 text-xs font-semibold text-white/80 hover:text-white border border-white/20 rounded-full hover:bg-white/10 transition-colors">
-                Continuer en portrait
+              <div className="min-w-0 flex-1">
+                <p className="text-white text-[13px] font-bold leading-tight">Tourne ton téléphone</p>
+                <p className="text-white/60 text-[11px] leading-tight">Mode paysage recommandé</p>
+              </div>
+              <button onClick={() => setDismissPortraitPrompt(true)} aria-label="Fermer" className="shrink-0 p-1.5 text-white/60 hover:text-white rounded-lg hover:bg-white/10">
+                <X className="h-4 w-4" />
               </button>
             </div>
           )}

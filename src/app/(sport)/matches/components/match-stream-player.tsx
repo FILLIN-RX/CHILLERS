@@ -8,17 +8,22 @@ import {
   ArrowsOutSimple,
   Broadcast,
   Television,
-  WarningCircle,
 } from "@phosphor-icons/react";
 import LivePlayer from "@/components/LivePlayer";
 import { getMatchStream } from "@/services/matches";
 import { getSportsMatches, getSportsStream } from "@/services/sports";
 import { getLiveBallMatches, getLiveBallStream, getLiveBallChampionsLeague } from "@/services/liveball";
 import type { LiveChannel } from "@/types/live";
-import type { SportsMatch, SportsServer, SportsStream } from "@/types/sports";
 import { PopupFirewall } from "@/lib/PopupFirewall";
 
 const PRIMARY = "#FF6A00";
+
+/** Le flux réellement servi pour ce match : un seul candidat, celui qui répond. */
+interface ResolvedMatchStream {
+  url: string;
+  type: "hls" | "iframe";
+  relayUrl?: string;
+}
 
 function normalizeTeamName(name?: string): string {
   if (!name) return "";
@@ -52,8 +57,6 @@ export interface MatchStreamPlayerProps {
   matchId: string;
   homeName: string;
   awayName: string;
-  homeLogo?: string | null;
-  awayLogo?: string | null;
   isLive?: boolean;
   minute?: string;
 }
@@ -62,13 +65,10 @@ export function MatchStreamPlayer({
   matchId,
   homeName,
   awayName,
-  homeLogo,
-  awayLogo,
   isLive,
   minute,
 }: MatchStreamPlayerProps) {
   const [reloadKey, setReloadKey] = useState(0);
-  const [serverIndex, setServerIndex] = useState(0);
 
   // Active le pare-feu anti-pub pour sécuriser les iframes de flux
   useEffect(() => {
@@ -110,25 +110,18 @@ export function MatchStreamPlayer({
     refetch,
   } = useQuery({
     queryKey: ["live", "match-stream", matchId, matchedLb?.id, matchedSports?.id, reloadKey],
-    queryFn: async (): Promise<SportsStream | null> => {
-      // 1. Appel de l'endpoint unifié Backend Option A
-      try {
-        const unified = await getMatchStream(matchId);
-        if (unified?.url && unified.servers && unified.servers.length > 0) {
-          return {
-            url: unified.url,
-            type: unified.type || "iframe",
-            relayUrl: unified.relayUrl,
-            servers: unified.servers,
-          };
-        }
-      } catch {
-        // Fallback local ci-dessous si le backend unifié est en cours de propagation
+    queryFn: async (): Promise<ResolvedMatchStream | null> => {
+      // 1. Appel de l'endpoint unifié Backend Option A : il a déjà résolu le flux
+      const unified = await getMatchStream(matchId).catch(() => null);
+      if (unified?.url) {
+        return {
+          url: unified.url,
+          type: unified.type || "iframe",
+          relayUrl: unified.relayUrl,
+        };
       }
 
       // 2. Recherche directe de secours côté client
-      const servers: SportsServer[] = [];
-
       const [lbRes, spRes] = await Promise.allSettled([
         matchedLb?.id ? getLiveBallStream(matchedLb.id) : Promise.resolve(null),
         matchedSports?.id ? getSportsStream(matchedSports.id) : Promise.resolve(null),
@@ -137,54 +130,36 @@ export function MatchStreamPlayer({
       const lbStream = lbRes.status === "fulfilled" ? lbRes.value : null;
       const spStream = spRes.status === "fulfilled" ? spRes.value : null;
 
+      const candidates: ResolvedMatchStream[] = [];
+
       if (lbStream?.url && matchedLb?.id) {
-        const isHls = lbStream.type === "hls";
-        servers.push({
-          name: "Direct 1 · HLS",
+        candidates.push({
           url: lbStream.url,
           type: lbStream.type,
-          relayUrl: isHls ? `/api/liveball/match/${matchedLb.id}/hls/playlist.m3u8` : undefined,
+          relayUrl:
+            lbStream.type === "hls"
+              ? `/api/liveball/match/${matchedLb.id}/hls/playlist.m3u8`
+              : undefined,
         });
       }
 
       if (spStream?.url) {
-        if (spStream.servers && spStream.servers.length > 0) {
-          spStream.servers.forEach((s, idx) => {
-            servers.push({
-              name: s.name ? `Serveur ${idx + 1}` : `Serveur ${idx + 1}`,
-              url: s.url,
-              type: s.type || "iframe",
-              relayUrl: s.relayUrl,
-            });
-          });
-        } else {
-          servers.push({
-            name: "Serveur 1",
-            url: spStream.url,
-            type: spStream.type || "iframe",
-            relayUrl: spStream.relayUrl,
-          });
-        }
+        const mirror = spStream.servers?.[0];
+        candidates.push({
+          url: mirror?.url ?? spStream.url,
+          type: (mirror?.type ?? spStream.type) || "iframe",
+          relayUrl: mirror?.relayUrl ?? spStream.relayUrl,
+        });
       }
 
-      if (servers.length === 0) return null;
-
-      const first = servers[0];
-      return {
-        url: first.url,
-        type: (first.type || "iframe") as "hls" | "iframe",
-        relayUrl: first.relayUrl,
-        servers,
-      };
+      return candidates[0] ?? null;
     },
     staleTime: 30_000,
   });
 
-  const servers = stream?.servers ?? [];
-  const activeServer = servers[serverIndex] ?? servers[0];
-  const selectedType = activeServer?.type ?? stream?.type;
+  const selectedType = stream?.type;
 
-  const rawEmbedUrl = selectedType === "iframe" ? activeServer?.url ?? stream?.url : null;
+  const rawEmbedUrl = selectedType === "iframe" ? stream?.url : null;
   const embedUrl = rawEmbedUrl
     ? /youtube\.com|youtu\.be/i.test(rawEmbedUrl)
       ? rawEmbedUrl
@@ -192,14 +167,14 @@ export function MatchStreamPlayer({
     : null;
 
   const channel: LiveChannel | null =
-    selectedType === "hls" && (activeServer || stream)
+    selectedType === "hls" && stream
       ? {
           _id: `match-${matchId}`,
           name: `${homeName} vs ${awayName}`,
           slug: `match-${matchId}`,
           categories: ["sports"],
           type: "hls",
-          streamUrl: activeServer?.relayUrl || stream?.relayUrl || activeServer?.url || stream?.url || "",
+          streamUrl: stream.relayUrl || stream.url,
           enabled: true,
           order: 0,
           isOnline: true,
@@ -223,7 +198,7 @@ export function MatchStreamPlayer({
   };
 
   return (
-    <div id="stream-player" className="w-full flex flex-col gap-3">
+    <div id="stream-player" className="w-full">
       {/* Conteneur principal du Lecteur vidéo 16:9 */}
       <div
         ref={containerRef}
@@ -248,22 +223,22 @@ export function MatchStreamPlayer({
         </div>
 
         {/* Boutons de contrôle (Actualiser + Plein écran) */}
-        <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5">
+        <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 pt-[env(safe-area-inset-top,0px)] pr-[env(safe-area-inset-right,0px)]">
           <button
             onClick={handleRetry}
             title="Actualiser le flux"
             aria-label="Actualiser le flux"
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-zinc-300 backdrop-blur-md border border-white/10 transition-colors hover:bg-black/90 hover:text-white"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-black/60 text-zinc-300 backdrop-blur-md border border-white/10 transition-colors hover:bg-black/90 hover:text-white"
           >
-            <ArrowsClockwise className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+            <ArrowsClockwise className={`h-5 w-5 ${isLoading ? "animate-spin" : ""}`} />
           </button>
           <button
             onClick={toggleFullscreen}
             title="Plein écran"
             aria-label="Plein écran"
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-zinc-300 backdrop-blur-md border border-white/10 transition-colors hover:bg-black/90 hover:text-white"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-black/60 text-zinc-300 backdrop-blur-md border border-white/10 transition-colors hover:bg-black/90 hover:text-white"
           >
-            <ArrowsOutSimple className="h-4 w-4" />
+            <ArrowsOutSimple className="h-5 w-5" />
           </button>
         </div>
 
@@ -275,14 +250,14 @@ export function MatchStreamPlayer({
               style={{ borderColor: `${PRIMARY} transparent transparent transparent` }}
             />
             <p className="text-[13px] font-semibold text-zinc-300">Recherche du flux vidéo en direct...</p>
-            <p className="text-[11px] text-zinc-500">Connexion aux serveurs de diffusion</p>
+            <p className="text-[11px] text-zinc-500">Connexion à la source de diffusion</p>
           </div>
         )}
 
         {/* 2. Flux HLS actif */}
         {!isLoading && channel && (
           <div className="h-full w-full">
-            <LivePlayer channel={channel} onBack={() => {}} fill />
+            <LivePlayer channel={channel} onBack={() => {}} fill hideTopBar />
           </div>
         )}
 
@@ -339,32 +314,6 @@ export function MatchStreamPlayer({
           </div>
         )}
       </div>
-
-      {/* Sélecteur de serveurs si plusieurs flux sont trouvés */}
-      {servers.length > 1 && (
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 pl-1 shrink-0">
-            Serveurs :
-          </span>
-          {servers.map((s, idx) => {
-            const isSelected = idx === serverIndex;
-            return (
-              <button
-                key={`${s.url}-${idx}`}
-                onClick={() => setServerIndex(idx)}
-                className={`shrink-0 rounded-lg px-3 py-1.5 text-[11px] font-bold transition-all ${
-                  isSelected
-                    ? "text-white shadow-md"
-                    : "bg-[#181818] text-zinc-400 hover:text-white hover:bg-[#222222] border border-white/5"
-                }`}
-                style={isSelected ? { background: PRIMARY } : undefined}
-              >
-                {s.name || `Serveur ${idx + 1}`}
-              </button>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 }
