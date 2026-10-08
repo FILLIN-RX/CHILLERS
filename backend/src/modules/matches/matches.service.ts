@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { LRUCache } from 'lru-cache';
-import { getSportsMatches, resolveSportsStream } from '../sports/sports.service';
+import { getSportsMatches, resolveSportsFlux } from '../sports/sports.service';
 import {
   SportMatch,
   MatchStatus,
@@ -720,42 +720,30 @@ export class MatchesService {
 
       if (!matched) return null;
 
-      const resolved = await resolveSportsStream(matched.source, matched.sourceId);
-      if (!resolved || !resolved.url) return null;
+      const flux = await resolveSportsFlux(matched);
+      if (!flux) return null;
 
       // Relay HLS same-origin : le player consomme notre backend (referer et IP
       // côté serveur), pas le CDN distant. Disponible pour toutes les sources.
-      const relayFor = (type?: string): string | undefined =>
-        type !== 'hls'
-          ? undefined
-          : matched.source === 'liveball'
-          ? `/api/liveball/match/${matched.sourceId}/hls/playlist.m3u8`
-          : `/api/sports/match/${matched.source}/${matched.sourceId}/hls/playlist.m3u8`;
-
-      const servers = (resolved.servers && resolved.servers.length > 0)
-        ? resolved.servers.map((s, idx) => ({
-            name: s.name || `Serveur ${idx + 1}`,
-            url: s.url,
-            type: (s.type || 'iframe') as 'hls' | 'iframe',
-            relayUrl: relayFor(s.type),
-          }))
-        : [{
-            name: `${matched.source.toUpperCase()} · Serveur 1`,
-            url: resolved.url,
-            type: (resolved.type || 'iframe') as 'hls' | 'iframe',
-            relayUrl: relayFor(resolved.type),
-          }];
-
-      const primaryType = (resolved.type || 'iframe') as 'hls' | 'iframe';
+      const relayUrl =
+        flux.stream.type === 'hls'
+          ? `/api/sports/match/${flux.source}/${encodeURIComponent(flux.sourceId)}/hls/playlist.m3u8`
+          : undefined;
 
       const result = {
         matchId: id,
-        source: matched.source,
-        sourceId: matched.sourceId,
-        url: resolved.url,
-        type: primaryType,
-        relayUrl: relayFor(primaryType),
-        servers,
+        source: flux.source,
+        sourceId: flux.sourceId,
+        url: relayUrl ?? flux.stream.url,
+        directUrl: flux.stream.url,
+        type: flux.stream.type,
+        relayUrl,
+        servers: flux.stream.servers.map((s) => ({
+          name: flux.source.toUpperCase(),
+          url: s.url,
+          type: (s.type || flux.stream.type) as 'hls' | 'iframe',
+          relayUrl,
+        })),
       };
 
       STREAM_CACHE.set(cacheKey, { ts: Date.now(), data: result });

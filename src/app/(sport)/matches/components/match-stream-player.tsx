@@ -11,46 +11,20 @@ import {
 } from "@phosphor-icons/react";
 import LivePlayer from "@/components/LivePlayer";
 import { getMatchStream } from "@/services/matches";
-import { getSportsMatches, getSportsStream } from "@/services/sports";
-import { getLiveBallMatches, getLiveBallStream, getLiveBallChampionsLeague } from "@/services/liveball";
+import { getSportsStream } from "@/services/sports";
 import type { LiveChannel } from "@/types/live";
 import { PopupFirewall } from "@/lib/PopupFirewall";
 
 const PRIMARY = "#FF6A00";
 
-/** Le flux réellement servi pour ce match : un seul candidat, celui qui répond. */
+/** Le flux retenu par la chaîne de providers backend : un seul candidat, celui qui diffuse. */
 interface ResolvedMatchStream {
   url: string;
   type: "hls" | "iframe";
   relayUrl?: string;
-}
-
-function normalizeTeamName(name?: string): string {
-  if (!name) return "";
-  let s = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  s = s.replace(/\bparis\s+saint[- ]germain\b/g, "psg");
-  s = s.replace(/\bmanchester\s+city\b/g, "mancity");
-  s = s.replace(/\bmanchester\s+united\b/g, "manunited");
-  s = s.replace(/\batletico\s+madrid\b/g, "atleticomadrid");
-  s = s.replace(/\breal\s+madrid\b/g, "realmadrid");
-  s = s.replace(/\bbayern\s+munich\b/g, "bayernmunich");
-  s = s.replace(/\bbayern\s+münchen\b/g, "bayernmunich");
-  s = s.replace(/\bborussia\s+dortmund\b/g, "dortmund");
-  s = s.replace(/\b(fc|cf|sc|ac|as|rc|us|afc|ssc|cd|club|de|united|city|hotspur|sporting)\b/g, "");
-  s = s.replace(/[^a-z0-9]/g, "");
-  return s.trim();
-}
-
-function areTeamsMatching(h1?: string, a1?: string, h2?: string, a2?: string): boolean {
-  const normH1 = normalizeTeamName(h1);
-  const normA1 = normalizeTeamName(a1);
-  const normH2 = normalizeTeamName(h2);
-  const normA2 = normalizeTeamName(a2);
-  if (!normH1 || !normH2) return false;
-  return (
-    (normH1.includes(normH2) || normH2.includes(normH1)) &&
-    (!normA1 || !normA2 || normA1.includes(normA2) || normA2.includes(normA1))
-  );
+  /** Referer à reconstituer côté proxy d'embarquement (hôtes « domain protected »). */
+  referer?: string;
+  provider?: string;
 }
 
 export interface MatchStreamPlayerProps {
@@ -78,81 +52,37 @@ export function MatchStreamPlayer({
     };
   }, []);
 
-  // 1. Récupération des listes de flux disponibles (Sports & LiveBall)
-  const { data: sportsMatches = [] } = useQuery({
-    queryKey: ["live", "sports"],
-    queryFn: () => getSportsMatches(),
-    staleTime: 60_000,
-  });
-
-  const { data: liveballMatches = [] } = useQuery({
-    queryKey: ["live", "liveball"],
-    queryFn: () => getLiveBallMatches(),
-    staleTime: 60_000,
-  });
-
-  const { data: clMatches = [] } = useQuery({
-    queryKey: ["live", "liveball", "champions-league"],
-    queryFn: () => getLiveBallChampionsLeague(),
-    staleTime: 60_000,
-  });
-
-  const allLbMatches = [...liveballMatches, ...clMatches];
-
-  // Association avec l'un des matchs streamés par nom d'équipe
-  const matchedLb = allLbMatches.find((lb) => areTeamsMatching(homeName, awayName, lb.home, lb.away));
-  const matchedSports = sportsMatches.find((sm) => areTeamsMatching(homeName, awayName, sm.home, sm.away));
-
-  // 2. Récupération du flux vidéo concret (priorité à la route unifiée /api/matches/:id/stream)
+  // Flux du match : le backend chaîne les sources (LiveBall, Kora, Kooorah,
+  // YallaPro, Streamiz) et ne renvoie que celle qui diffuse réellement.
   const {
     data: stream,
     isLoading,
     refetch,
   } = useQuery({
-    queryKey: ["live", "match-stream", matchId, matchedLb?.id, matchedSports?.id, reloadKey],
+    queryKey: ["live", "match-stream", matchId, reloadKey],
     queryFn: async (): Promise<ResolvedMatchStream | null> => {
-      // 1. Appel de l'endpoint unifié Backend Option A : il a déjà résolu le flux
       const unified = await getMatchStream(matchId).catch(() => null);
       if (unified?.url) {
         return {
           url: unified.url,
           type: unified.type || "iframe",
           relayUrl: unified.relayUrl,
+          referer: unified.referer ?? unified.servers?.[0]?.referer,
+          provider: unified.source,
         };
       }
 
-      // 2. Recherche directe de secours côté client
-      const [lbRes, spRes] = await Promise.allSettled([
-        matchedLb?.id ? getLiveBallStream(matchedLb.id) : Promise.resolve(null),
-        matchedSports?.id ? getSportsStream(matchedSports.id) : Promise.resolve(null),
-      ]);
+      const sports = await getSportsStream(matchId).catch(() => null);
+      if (!sports?.url) return null;
 
-      const lbStream = lbRes.status === "fulfilled" ? lbRes.value : null;
-      const spStream = spRes.status === "fulfilled" ? spRes.value : null;
-
-      const candidates: ResolvedMatchStream[] = [];
-
-      if (lbStream?.url && matchedLb?.id) {
-        candidates.push({
-          url: lbStream.url,
-          type: lbStream.type,
-          relayUrl:
-            lbStream.type === "hls"
-              ? `/api/liveball/match/${matchedLb.id}/hls/playlist.m3u8`
-              : undefined,
-        });
-      }
-
-      if (spStream?.url) {
-        const mirror = spStream.servers?.[0];
-        candidates.push({
-          url: mirror?.url ?? spStream.url,
-          type: (mirror?.type ?? spStream.type) || "iframe",
-          relayUrl: mirror?.relayUrl ?? spStream.relayUrl,
-        });
-      }
-
-      return candidates[0] ?? null;
+      const server = sports.servers?.[0];
+      return {
+        url: sports.url,
+        type: server?.type ?? sports.type ?? "iframe",
+        relayUrl: server?.relayUrl ?? sports.relayUrl,
+        referer: server?.referer ?? sports.referer,
+        provider: sports.provider,
+      };
     },
     staleTime: 30_000,
   });
@@ -160,10 +90,14 @@ export function MatchStreamPlayer({
   const selectedType = stream?.type;
 
   const rawEmbedUrl = selectedType === "iframe" ? stream?.url : null;
+  // Les hôtes « domain protected » refusent notre origine : le proxy rejoue le
+  // Referer de la page qui embarque normalement le lecteur.
   const embedUrl = rawEmbedUrl
     ? /youtube\.com|youtu\.be/i.test(rawEmbedUrl)
       ? rawEmbedUrl
-      : `/api/live/embed-proxy?url=${encodeURIComponent(rawEmbedUrl)}`
+      : `/api/live/embed-proxy?url=${encodeURIComponent(rawEmbedUrl)}${
+          stream?.referer ? `&referer=${encodeURIComponent(stream.referer)}` : ""
+        }`
     : null;
 
   const channel: LiveChannel | null =

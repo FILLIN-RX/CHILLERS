@@ -24,6 +24,8 @@ export interface SportsServer {
   type?: "hls" | "iframe";
   /** Renseigné par le backend pour les miroirs HLS (à jouer via notre relay). */
   relayUrl?: string;
+  /** Referer attendu par le lecteur (hôtes « domain protected »). */
+  referer?: string;
 }
 
 export interface SportsStream {
@@ -33,6 +35,10 @@ export interface SportsStream {
   /** URL de notre relay HLS, uniquement si `type === "hls"`. */
   relayUrl?: string;
   type: "hls" | "iframe";
+  /** Referer attendu par le lecteur (hôtes « domain protected »). */
+  referer?: string;
+  /** Source qui sert effectivement le flux : pas forcément celle du match affiché. */
+  provider?: SportsSourceId;
   servers: SportsServer[];
   match?: SportsMatch;
 }

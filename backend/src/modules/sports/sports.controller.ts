@@ -1,11 +1,12 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { ResolvedSportsStream } from './sports.types';
 import {
+  findSportsMatch,
   getSportsMatches,
   getSportsSourcesStatus,
   isSportsSource,
-  resolveSportsStream,
-  resolveSportsStreamById,
+  resolveSportsFlux,
+  resolveSportsFluxById,
 } from './sports.service';
 
 export const getMatches = async (req: Request, res: Response, next: NextFunction) => {
@@ -39,31 +40,32 @@ function relayBase(req: Request): string {
 }
 
 /**
- * Sérialise un flux résolu pour le client : chaque serveur HLS reçoit l'URL de
- * notre relay, les serveurs iframe restent jouables tels quels.
+ * Sérialise le flux retenu par la chaîne : un seul lecteur, celui qui a répondu.
+ * Les HLS passent par notre relay (referer/IP côté serveur), les players iframe
+ * restent embarqués tels quels.
  */
 function serializeStream(req: Request, source: string, sourceId: string, stream: ResolvedSportsStream) {
-  const servers = stream.servers.map((server, idx) => ({
-    name: `Serveur ${idx + 1} HD`,
-    url: server.url,
-    type: server.type,
-    relayUrl:
-      server.type === 'hls'
-        ? `${relayBase(req)}/${source}/${encodeURIComponent(sourceId)}/hls/playlist.m3u8?server=${idx}`
-        : undefined,
-  }));
-
-  const primary = servers[0] ?? { url: stream.url, type: stream.type };
+  const server = stream.servers[0] ?? { name: source, url: stream.url, type: stream.type };
+  const type = server.type ?? stream.type;
+  const relayUrl =
+    type === 'hls'
+      ? `${relayBase(req)}/${source}/${encodeURIComponent(sourceId)}/hls/playlist.m3u8`
+      : undefined;
 
   return {
-    url: primary.type === 'hls' ? primary.relayUrl : primary.url,
-    directUrl: stream.url,
-    relayUrl: primary.type === 'hls' ? primary.relayUrl : undefined,
-    type: primary.type ?? stream.type,
-    servers,
+    url: type === 'hls' && relayUrl ? relayUrl : server.url,
+    directUrl: server.url,
+    relayUrl,
+    type,
+    /** Referer attendu par le lecteur (beaucoup d'hôtes sont « domain protected »). */
+    referer: server.referer,
+    /** Source qui sert effectivement le flux — pas forcément celle du match affiché. */
+    provider: source,
+    servers: [{ name: source.toUpperCase(), url: server.url, type, relayUrl, referer: server.referer }],
   };
 }
 
+/** Chaîne de providers à partir du match demandé (les jumeaux des autres sources sont tentés). */
 export const getMatchStream = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const source = String(req.params.source);
@@ -75,13 +77,23 @@ export const getMatchStream = async (req: Request, res: Response, next: NextFunc
       return;
     }
 
-    const stream = await resolveSportsStream(source, sourceId, forceRefresh);
-    if (!stream) {
+    const match = await findSportsMatch(`${source}:${sourceId}`);
+    if (!match) {
+      res.status(404).json({ success: false, data: null, message: 'Match introuvable' });
+      return;
+    }
+
+    const flux = await resolveSportsFlux(match, forceRefresh);
+    if (!flux) {
       res.status(404).json({ success: false, data: null, message: 'Flux introuvable' });
       return;
     }
 
-    res.json({ success: true, data: serializeStream(req, source, sourceId, stream), message: null });
+    res.json({
+      success: true,
+      data: { ...serializeStream(req, flux.source, flux.sourceId, flux.stream), match },
+      message: null,
+    });
   } catch (error) {
     console.error('[Sports] Erreur de résolution du flux:', error);
     next(error);
@@ -94,16 +106,16 @@ export const getMatchStreamById = async (req: Request, res: Response, next: Next
     const matchId = String(req.params.matchId);
     const forceRefresh = req.query.refresh === 'true' || req.query.force === '1';
 
-    const resolved = await resolveSportsStreamById(matchId, forceRefresh);
+    const resolved = await resolveSportsFluxById(matchId, forceRefresh);
     if (!resolved) {
       res.status(404).json({ success: false, data: null, message: 'Flux introuvable' });
       return;
     }
 
-    const { match, stream } = resolved;
+    const { match, flux } = resolved;
     res.json({
       success: true,
-      data: { ...serializeStream(req, match.source, match.sourceId, stream), match },
+      data: { ...serializeStream(req, flux.source, flux.sourceId, flux.stream), match },
       message: null,
     });
   } catch (error) {

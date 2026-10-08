@@ -11,7 +11,7 @@ import axios from 'axios';
 import http from 'http';
 import https from 'https';
 import { LRUCache } from 'lru-cache';
-import { resolveSportsStream } from '../sports.service';
+import { resolveSportsFluxById, resolveSportsStream } from '../sports.service';
 
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
@@ -36,12 +36,52 @@ function originOf(url: string): string {
   }
 }
 
+/**
+ * Le Referer d'un flux est connu dès la playlist maître ; les segments qui
+ * suivent arrivent sur une autre URL et doivent voyager avec lui. On le retient
+ * le temps de la lecture pour ne pas re-résoudre à chaque requête.
+ */
+const refererMemory = new LRUCache<string, string>({ max: 200, ttl: 10 * 60_000 });
+const memoryKey = (source: string, sourceId: string) => `${source}:${sourceId}`;
+
+/**
+ * URL HLS + Referer du flux réellement servi pour ce couple source/identifiant :
+ * la chaîne de providers d'abord (elle a déjà tranché), résolution brute de la
+ * source ensuite (identifiant absent du listing agrégé, ex. après rotation).
+ */
+async function resolveHlsTarget(
+  source: string,
+  sourceId: string,
+  force: boolean
+): Promise<{ url: string; referer?: string } | null> {
+  const resolved = await resolveSportsFluxById(`${source}:${sourceId}`, force).catch(() => null);
+  const stream = resolved?.flux.stream;
+  if (stream?.type === 'hls') {
+    return { url: stream.url, referer: stream.servers[0]?.referer };
+  }
+
+  const legacy = await resolveSportsStream(source, sourceId, force);
+  if (!legacy) return null;
+  if (legacy.type === 'hls') {
+    const server = legacy.servers?.find((s) => s.type === 'hls');
+    return { url: server?.url ?? legacy.url, referer: server?.referer };
+  }
+  return null;
+}
+
+/**
+ * Les CDN de ces flux vérifient le domaine qui les appelle : on rejoue le
+ * Referer de la page qui embarque normalement le lecteur, sinon ils renvoient
+ * une page d'erreur à la place de la playlist.
+ */
 async function fetchRemote(
   url: string,
   source: string,
   sourceId: string,
+  referer?: string,
   retryCount = 0
 ): Promise<{ buf: Buffer; contentType: string }> {
+  const pageReferer = referer || originOf(url);
   try {
     const { data, headers } = await axios.get<ArrayBuffer>(url, {
       responseType: 'arraybuffer',
@@ -52,8 +92,8 @@ async function fetchRemote(
       validateStatus: (s) => s >= 200 && s < 400,
       headers: {
         'User-Agent': USER_AGENT,
-        Referer: originOf(url),
-        Origin: originOf(url),
+        Referer: pageReferer,
+        Origin: originOf(pageReferer),
         Accept: '*/*',
         'Accept-Language': 'en-US,en;q=0.9',
         Connection: 'keep-alive',
@@ -72,9 +112,10 @@ async function fetchRemote(
     const status = err?.response?.status;
     if ((status === 401 || status === 403 || status === 404) && retryCount === 0) {
       console.warn(`[Sports Relay] HTTP ${status} sur ${source}/${sourceId}, re-résolution du flux...`);
-      const fresh = await resolveSportsStream(source, sourceId, true);
-      if (fresh?.type === 'hls' && /\.m3u8([?#]|$)/i.test(url)) {
-        return fetchRemote(fresh.url, source, sourceId, retryCount + 1);
+      const fresh = await resolveHlsTarget(source, sourceId, true);
+      if (fresh?.url && /\.m3u8([?#]|$)/i.test(url)) {
+        refererMemory.set(memoryKey(source, sourceId), fresh.referer ?? originOf(fresh.url));
+        return fetchRemote(fresh.url, source, sourceId, fresh.referer, retryCount + 1);
       }
     }
     throw err;
@@ -130,27 +171,26 @@ function setSegmentHeaders(res: Response, contentType?: string): void {
 }
 
 // GET /api/sports/match/:source/:matchId/hls/playlist.m3u8
-// `?server=N` cible un miroir précis : une même chaîne peut proposer un HLS sur
-// un serveur et un player à embarquer sur un autre.
+// Le serveur retenu est celui choisi par la chaîne de providers : le relay ne
+// fait que rejouer sa playlist et ses segments depuis le backend.
 export const getHlsMasterPlaylist = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const source = String(req.params.source);
     const sourceId = String(req.params.matchId);
     const forceRefresh = req.query.refresh === 'true' || req.query.force === '1';
-    const serverIndex = Number.parseInt(String(req.query.server ?? '0'), 10);
 
-    const stream = await resolveSportsStream(source, sourceId, forceRefresh);
-    if (!stream || stream.type !== 'hls') {
+    const target = await resolveHlsTarget(source, sourceId, forceRefresh);
+    if (!target) {
       res.status(404).json({ success: false, data: null, message: 'Flux HLS introuvable' });
       return;
     }
 
-    const target = stream.servers[Number.isFinite(serverIndex) ? serverIndex : 0];
-    const targetUrl = target?.type === 'hls' ? target.url : stream.url;
+    const referer = target.referer || originOf(target.url);
+    refererMemory.set(memoryKey(source, sourceId), referer);
 
-    const { buf } = await fetchRemote(targetUrl, source, sourceId);
+    const { buf } = await fetchRemote(target.url, source, sourceId, referer);
     setPlaylistHeaders(res);
-    res.send(rewritePlaylist(buf.toString('utf8'), targetUrl, source, sourceId));
+    res.send(rewritePlaylist(buf.toString('utf8'), target.url, source, sourceId));
   } catch (error) {
     next(error);
   }
@@ -181,9 +221,10 @@ export const getHlsProxy = async (req: Request, res: Response, next: NextFunctio
     }
 
     const remoteUrl = remote.toString();
+    const referer = refererMemory.get(memoryKey(source, sourceId));
 
     if (/\.m3u8([?#]|$)/i.test(remoteUrl)) {
-      const { buf } = await fetchRemote(remoteUrl, source, sourceId);
+      const { buf } = await fetchRemote(remoteUrl, source, sourceId, referer);
       setPlaylistHeaders(res);
       res.send(rewritePlaylist(buf.toString('utf8'), remoteUrl, source, sourceId));
       return;
@@ -196,7 +237,7 @@ export const getHlsProxy = async (req: Request, res: Response, next: NextFunctio
       return;
     }
 
-    const { buf, contentType } = await fetchRemote(remoteUrl, source, sourceId);
+    const { buf, contentType } = await fetchRemote(remoteUrl, source, sourceId, referer);
     setSegmentHeaders(res, contentType);
 
     if (buf.length >= 8 * 1024 && buf.length <= 32 * 1024 * 1024) {

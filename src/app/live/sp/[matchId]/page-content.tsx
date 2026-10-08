@@ -7,16 +7,19 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowsClockwise, Television, X, ShareNetwork, Check } from "@phosphor-icons/react";
 import LivePlayer from "@/components/LivePlayer";
 import { getSportsMatches, getSportsStream } from "@/services/sports";
-import { getLiveBallMatches, getLiveBallStream, getLiveBallChampionsLeague } from "@/services/liveball";
+import { getLiveBallMatches, getLiveBallChampionsLeague } from "@/services/liveball";
 import type { LiveChannel } from "@/types/live";
 import type { SportsMatch } from "@/types/sports";
 import { PopupFirewall } from "@/lib/PopupFirewall";
 
-/** Le flux résolu pour ce match : on n'en sert qu'un, celui qui répond. */
+/** Le flux résolu par la chaîne de providers : on n'en sert qu'un, celui qui diffuse. */
 interface ResolvedSportsStream {
   url: string;
   type: "hls" | "iframe";
   relayUrl?: string;
+  /** Referer à reconstituer côté proxy d'embarquement (hôtes « domain protected »). */
+  referer?: string;
+  provider?: string;
 }
 
 function normalizeTeamName(name?: string): string {
@@ -165,54 +168,24 @@ export default function SportsMatchContent() {
 
   const isUpcoming = match?.status === "upcoming";
 
-  // Résolution multi-fournisseurs (LiveBall, Kora, Kooorah, YallaPro, Streamiz)
+  // Le backend chaîne les providers (LiveBall, Kora, Kooorah, YallaPro, Streamiz)
+  // et ne renvoie que celui qui diffuse réellement.
   const { data: stream, isLoading, refetch } = useQuery({
-    queryKey: ["live", "unified", "stream", decodedId, reloadKey, matchedLb?.id, matchedSports?.id],
+    queryKey: ["live", "unified", "stream", decodedId, reloadKey],
     queryFn: async (): Promise<(ResolvedSportsStream & { match?: SportsMatch }) | null> => {
-      const targetLbId = matchedLb?.id || (isLb ? liveballId : null);
-      const targetSportsId = matchedSports?.id || (!isLb ? decodedId : null);
+      const targetId = isLb ? `liveball:${liveballId}` : decodedId;
+      const resolved = await getSportsStream(targetId);
+      if (!resolved?.url) return null;
 
-      // 1. Récupération parallèle des flux disponibles
-      const [lbRes, spRes] = await Promise.allSettled([
-        targetLbId ? getLiveBallStream(targetLbId) : Promise.resolve(null),
-        targetSportsId ? getSportsStream(targetSportsId) : Promise.resolve(null),
-      ]);
-
-      const lbStream = lbRes.status === "fulfilled" ? lbRes.value : null;
-      const spStream = spRes.status === "fulfilled" ? spRes.value : null;
-
-      // 2. Les flux candidats, par fournisseur
-      const candidates: (ResolvedSportsStream & { fromLiveBall: boolean })[] = [];
-
-      if (lbStream?.url && targetLbId) {
-        candidates.push({
-          url: lbStream.url,
-          type: lbStream.type,
-          relayUrl:
-            lbStream.type === "hls"
-              ? `/api/liveball/match/${targetLbId}/hls/playlist.m3u8`
-              : undefined,
-          fromLiveBall: true,
-        });
-      }
-
-      if (spStream?.url) {
-        const mirror = spStream.servers?.[0];
-        candidates.push({
-          url: mirror?.url ?? spStream.url,
-          type: (mirror?.type ?? spStream.type) || "iframe",
-          relayUrl: mirror?.relayUrl ?? spStream.relayUrl,
-          fromLiveBall: false,
-        });
-      }
-
-      if (candidates.length === 0) return null;
-
-      // Le flux du match demandé : LiveBall si l'on vient de LiveBall, sinon le
-      // miroir agrégé ; à défaut le premier candidat qui a répondu.
-      const chosen = candidates.find((c) => c.fromLiveBall === isLb) ?? candidates[0];
-
-      return { url: chosen.url, type: chosen.type, relayUrl: chosen.relayUrl, match };
+      const server = resolved.servers?.[0];
+      return {
+        url: resolved.url,
+        type: server?.type ?? resolved.type,
+        relayUrl: server?.relayUrl ?? resolved.relayUrl,
+        referer: server?.referer ?? resolved.referer,
+        provider: resolved.provider,
+        match,
+      };
     },
     staleTime: 0,
     retry: false,
@@ -222,10 +195,14 @@ export default function SportsMatchContent() {
   const resolvedMatch = stream?.match ?? match;
   const selectedType = stream?.type;
   const rawEmbedUrl = selectedType === "iframe" ? stream?.url : null;
+  // Les hôtes « domain protected » refusent notre origine : le proxy rejoue le
+  // Referer de la page qui embarque normalement le lecteur.
   const embedUrl = rawEmbedUrl
     ? (/youtube\.com|youtu\.be/i.test(rawEmbedUrl)
         ? rawEmbedUrl
-        : `/api/live/embed-proxy?url=${encodeURIComponent(rawEmbedUrl)}`)
+        : `/api/live/embed-proxy?url=${encodeURIComponent(rawEmbedUrl)}${
+            stream?.referer ? `&referer=${encodeURIComponent(stream.referer)}` : ""
+          }`)
     : null;
 
   const channel: LiveChannel | null = selectedType === "hls" && stream

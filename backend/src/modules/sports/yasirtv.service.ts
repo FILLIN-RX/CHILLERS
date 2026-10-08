@@ -140,17 +140,19 @@ export async function resolveKooorahStream(sourceId: string, force = false): Pro
     const iframe = extractIframe(page, sourceId);
     if (!iframe) return null;
 
-    // Tentative de décodage HLS direct
+    // Tentative de décodage HLS direct. Le lecteur vérifie le domaine qui
+    // l'embarque : sans le Referer de la page du canal, il ne répond qu'une
+    // page « domain protected » et rien n'est extractible.
     try {
-      const extracted = await extractDirectStream(iframe, 'https://www.livekora.vip/');
+      const extracted = await extractDirectStream(iframe, sourceId);
       if (extracted?.m3u8Url) {
         console.log(`[Kooorah] ✓ Flux HLS direct extrait: ${extracted.m3u8Url.slice(0, 60)}...`);
         const resolved: ResolvedSportsStream = {
           url: extracted.m3u8Url,
           type: 'hls',
           servers: [
-            { name: 'Serveur 1 (HLS Direct)', url: extracted.m3u8Url, type: 'hls' },
-            { name: 'Serveur 2 (Miroir)', url: iframe, type: 'iframe' },
+            { name: 'HLS', url: extracted.m3u8Url, type: 'hls', referer: extracted.referer || iframe },
+            { name: 'Miroir', url: iframe, type: 'iframe', referer: sourceId },
           ],
         };
         STREAM_CACHE.set(key, resolved);
@@ -158,7 +160,11 @@ export async function resolveKooorahStream(sourceId: string, force = false): Pro
       }
     } catch {}
 
-    const resolved: ResolvedSportsStream = { url: iframe, type: 'iframe', servers: [{ name: 'Serveur 1', url: iframe }] };
+    const resolved: ResolvedSportsStream = {
+      url: iframe,
+      type: 'iframe',
+      servers: [{ name: 'Player', url: iframe, type: 'iframe', referer: sourceId }],
+    };
     STREAM_CACHE.set(key, resolved);
     return resolved;
   } catch (err: any) {
@@ -225,11 +231,12 @@ export async function resolveYallaproStream(sourceId: string, force = false): Pr
 
     const resolvedServers = await Promise.all(
       [1, 2, 3].map(async (n) => {
-        const page = await fetchText(withServ(n), `${YALLAPRO_WP}/`);
+        const servUrl = withServ(n);
+        const page = await fetchText(servUrl, `${YALLAPRO_WP}/`);
         const iframe = extractIframe(page, `${YALLAPRO_WP}/`);
-        if (iframe) return { name: `Serveur ${n}`, url: iframe, type: 'iframe' as const };
-        const m3u8 = extractM3u8(page, withServ(n));
-        if (m3u8) return { name: `Serveur ${n}`, url: m3u8, type: 'hls' as const };
+        if (iframe) return { name: `Miroir ${n}`, url: iframe, type: 'iframe' as const, referer: servUrl };
+        const m3u8 = extractM3u8(page, servUrl);
+        if (m3u8) return { name: `Miroir ${n}`, url: m3u8, type: 'hls' as const, referer: servUrl };
         return null;
       })
     );

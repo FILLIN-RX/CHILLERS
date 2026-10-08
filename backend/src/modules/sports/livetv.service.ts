@@ -138,17 +138,18 @@ export async function resolveStreamizStream(sourceId: string, force = false): Pr
     const iframe = extractIframe(page);
     if (!iframe) return null;
 
-    // Tentative d'extraction directe HLS
+    // Tentative d'extraction directe HLS, avec le Referer de la page de relais
+    // qui embarque le lecteur (les hôtes vérifient le domaine appelant).
     try {
-      const extracted = await extractDirectStream(iframe, STREAMIZ_PAGE);
+      const extracted = await extractDirectStream(iframe, sourceId);
       if (extracted?.m3u8Url) {
         console.log(`[Streamiz] ✓ Flux HLS direct extrait: ${extracted.m3u8Url.slice(0, 60)}...`);
         const resolved: ResolvedSportsStream = {
           url: extracted.m3u8Url,
           type: 'hls',
           servers: [
-            { name: 'Serveur 1 (HLS Direct)', url: extracted.m3u8Url, type: 'hls' },
-            { name: 'Serveur 2 (Miroir)', url: iframe, type: 'iframe' },
+            { name: 'HLS', url: extracted.m3u8Url, type: 'hls', referer: extracted.referer || iframe },
+            { name: 'Miroir', url: iframe, type: 'iframe', referer: sourceId },
           ],
         };
         STREAM_CACHE.set(sourceId, resolved);
@@ -156,7 +157,11 @@ export async function resolveStreamizStream(sourceId: string, force = false): Pr
       }
     } catch {}
 
-    const resolved: ResolvedSportsStream = { url: iframe, type: 'iframe', servers: [{ name: 'Serveur 1', url: iframe }] };
+    const resolved: ResolvedSportsStream = {
+      url: iframe,
+      type: 'iframe',
+      servers: [{ name: 'Player', url: iframe, type: 'iframe', referer: sourceId }],
+    };
     STREAM_CACHE.set(sourceId, resolved);
     return resolved;
   } catch (err: any) {

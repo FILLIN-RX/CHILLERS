@@ -22,6 +22,8 @@ const USER_AGENT =
 
 const API_BASE = (process.env.KORA_API_BASE || 'https://cdn.kora-api.org/').replace(/\/?$/, '/');
 const API_TIMEOUT_MS = 12_000;
+/** Front-end public du CDN kora : les players exigent ce Referer. */
+const KORA_FRONT = 'https://goalakor.space/';
 
 /** Alphabet base64 personnalisé du site (celui des chaînes chiffrées). */
 const KORA_ALPHABET = 'MiljRIn9PX1o63wGBYTtFsKmEkSur-pC_U02cvzAdy5e8ZqLDgJ4OhVN7QbHxfWa';
@@ -198,7 +200,7 @@ export async function resolveKoraStream(matchId: string, force = false): Promise
       // 1. Tenter l'extraction directe du flux HLS .m3u8
       if (!directHls) {
         try {
-          const extracted = await extractDirectStream(url, 'https://goalakor.space/');
+          const extracted = await extractDirectStream(url, KORA_FRONT);
           if (extracted?.m3u8Url) {
             directHls = extracted.m3u8Url;
             console.log(`[Kora] ✓ Flux HLS direct extrait pour le match ${id}: ${directHls.slice(0, 60)}...`);
@@ -206,6 +208,7 @@ export async function resolveKoraStream(matchId: string, force = false): Promise
               name: `${serverName} (HLS Direct)`,
               url: directHls,
               type: 'hls',
+              referer: extracted.referer || KORA_FRONT,
             });
             continue;
           }
@@ -214,7 +217,7 @@ export async function resolveKoraStream(matchId: string, force = false): Promise
         }
       }
 
-      servers.push({ name: serverName, url, type: 'iframe' });
+      servers.push({ name: serverName, url, type: 'iframe', referer: KORA_FRONT });
     }
 
     if (servers.length === 0) return null;

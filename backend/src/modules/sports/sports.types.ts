@@ -35,6 +35,11 @@ export interface SportsServer {
    * type global n'est alors plus suffisant pour le switch côté client.
    */
   type?: 'hls' | 'iframe';
+  /**
+   * Page qui embarque ce lecteur. Beaucoup d'hôtes sont « domain protected » :
+   * sans ce Referer, ils répondent une page d'erreur au lieu du flux.
+   */
+  referer?: string;
 }
 
 /**
