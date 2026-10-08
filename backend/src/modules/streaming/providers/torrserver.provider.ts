@@ -21,6 +21,14 @@ import {
 } from '../torrents/torrents.service';
 import { resolveTmdbYear } from '../torrents/utils/tmdb-helper';
 
+/**
+ * Budget interne du provider P2P. ProviderManager l'avorte à 60 s
+ * (TORRENT_TIMEOUT) : on se cale en dessous pour qu'une recherche longue ne
+ * consomme pas le temps des métadonnées, et qu'un échec reste lisible plutôt
+ * qu'un AbortError en plein addTorrent.
+ */
+const TORRENT_BUDGET_MS = 50_000;
+
 export class TorrServerProvider implements StreamingProvider {
   readonly name = 'torrserver';
 
@@ -43,6 +51,7 @@ export class TorrServerProvider implements StreamingProvider {
   ): Promise<StreamResult | null> {
     if (!query.title || !isTorrentsConfigured()) return null;
 
+    const deadlineAt = Date.now() + TORRENT_BUDGET_MS;
     const year = await resolveTmdbYear(query);
     const label =
       type === 'movie'
@@ -50,12 +59,15 @@ export class TorrServerProvider implements StreamingProvider {
         : `"${query.title}" S${query.season}E${query.episode}`;
     console.log(`[TorrServer] Recherche torrent pour ${label}`);
 
-    const candidates = await searchTorrents({
-      title: query.title,
-      year,
-      season: type === 'episode' ? query.season : undefined,
-      episode: type === 'episode' ? query.episode : undefined,
-    });
+    const candidates = await searchTorrents(
+      {
+        title: query.title,
+        year,
+        season: type === 'episode' ? query.season : undefined,
+        episode: type === 'episode' ? query.episode : undefined,
+      },
+      deadlineAt
+    );
 
     if (candidates.length === 0) {
       console.log(`[TorrServer] Aucun torrent trouvé pour ${label}`);
@@ -65,26 +77,34 @@ export class TorrServerProvider implements StreamingProvider {
     const best = candidates[0];
     const sizeGB = best.size > 0 ? (best.size / 1024 ** 3).toFixed(2) : '?';
     console.log(
-      `[TorrServer] Meilleur choix: "${best.title}" | ${best.seeders} seeds | ${sizeGB} GB | ${best.indexer}`
+      `[TorrServer] Meilleur choix: "${best.title}" | ${best.seeders} seeds/santé | ${sizeGB} GB | ${best.indexer}`
     );
 
     const source = await resolveTorrentLink(best);
-    const hash = await addTorrent(source, best.title);
+    const hash = await addTorrent(source, best.title, deadlineAt);
 
     console.log(`[TorrServer] Hash ${hash} — attente des métadonnées...`);
-    const fileInfo = await waitForFileInfo(hash, {
-      season: type === 'episode' ? query.season : undefined,
-      episode: type === 'episode' ? query.episode : undefined,
-    });
+    const fileInfo = await waitForFileInfo(
+      hash,
+      {
+        season: type === 'episode' ? query.season : undefined,
+        episode: type === 'episode' ? query.episode : undefined,
+      },
+      deadlineAt
+    );
 
     if (!fileInfo) {
-      throw new Error('TorrServer: aucun fichier vidéo trouvé après attente des métadonnées');
+      // Absent de ce provider (métadonnées introuvables / fichier manquant) :
+      // 'skip' plutôt qu'une exception, qui ouvrirait le circuit breaker sur
+      // un simple contenu indisponible.
+      console.log(`[TorrServer] Aucun fichier vidéo lisible pour ${label} → skip`);
+      return null;
     }
 
     console.log(
       `[TorrServer] Fichier principal: "${fileInfo.filename}" (${(fileInfo.length / 1024 ** 3).toFixed(2)} GB)`
     );
-    await warmUpTorrent(hash, fileInfo.index);
+    await warmUpTorrent(hash, fileInfo.index, deadlineAt);
 
     return {
       provider: this.name,

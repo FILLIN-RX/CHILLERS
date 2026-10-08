@@ -1,4 +1,11 @@
-import { scoreTorrent, pickVideoFile, buildSearchQueries, sortTorrents, TorrentCandidate } from '../utils/torrents.utils';
+import {
+  scoreTorrent,
+  pickVideoFile,
+  buildSearchQueries,
+  isEpisodeRelease,
+  sortTorrents,
+  TorrentCandidate,
+} from '../utils/torrents.utils';
 
 function candidate(overrides: Partial<TorrentCandidate> = {}): TorrentCandidate {
   return {
@@ -72,13 +79,26 @@ describe('pickVideoFile', () => {
     expect([2, 5]).toContain(info?.index);
   });
 
-  it('retombe sur le plus gros fichier si aucun SxxExx ne correspond', () => {
-    const info = pickVideoFile(files, 3, 7);
-    expect(info?.index).toBe(3);
+  it('refuse de servir un film à la place de l’épisode demandé', () => {
+    expect(pickVideoFile(files, 3, 7)).toBeNull();
   });
 
   it('retourne null sans aucun fichier vidéo', () => {
     expect(pickVideoFile([{ id: 1, path: '/x.srt', length: 10 }])).toBeNull();
+  });
+});
+
+describe('isEpisodeRelease', () => {
+  it('accepte les formats SxxExx, NxN et pack de saison', () => {
+    expect(isEpisodeRelease('Naruto.S01E01.1080p.WEBRip', 1, 1)).toBe(true);
+    expect(isEpisodeRelease('Naruto 1x01 720p', 1, 1)).toBe(true);
+    expect(isEpisodeRelease('Naruto S01 1080p x264', 1, 7)).toBe(true);
+    expect(isEpisodeRelease('Naruto Saison 1 complète', 1, 3)).toBe(true);
+  });
+
+  it('écarte un film homonyme — le cas « Naruto za Mûbî » renvoyé pour S01E01', () => {
+    expect(isEpisodeRelease('Rôdo tu Ninja Naruto za Mûbî (2012) 1080p BRRip x264 -YTS', 1, 1)).toBe(false);
+    expect(isEpisodeRelease('Naruto Shippuden S03E05 1080p', 1, 1)).toBe(false);
   });
 });
 
@@ -87,6 +107,12 @@ describe('buildSearchQueries', () => {
     expect(buildSearchQueries({ title: 'Breaking Bad', season: 1, episode: 2 })[0]).toBe(
       'Breaking Bad S01E02'
     );
+  });
+
+  it('cherche aussi le pack de saison quand l’épisode seul n’existe pas', () => {
+    const queries = buildSearchQueries({ title: 'Naruto', season: 1, episode: 1, year: 2002 });
+    expect(queries[1]).toBe('Naruto S01');
+    expect(queries.indexOf('Naruto S01E01')).toBeLessThan(queries.indexOf('Naruto S01'));
   });
 
   it('inclut l’année entre parenthèses pour les films', () => {

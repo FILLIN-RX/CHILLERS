@@ -79,10 +79,31 @@ export function sortTorrents(items: TorrentCandidate[]): TorrentCandidate[] {
 }
 
 /**
+ * Marque de saison dans un nom de release : « S01E05 », « 1x05 », « S01 »
+ * (pack de saison) ou « Saison 1 ». Un film homonyme n'en porte jamais.
+ */
+export function isEpisodeRelease(title: string, season: number, episode?: number): boolean {
+  const ss = String(season).padStart(2, '0');
+  const patterns = [
+    episode != null
+      ? new RegExp(`\\bs\\s*${ss}\\s*e\\s*${String(episode).padStart(2, '0')}`, 'i')
+      : null,
+    episode != null ? new RegExp(`\\b${season}\\s*x\\s*${String(episode).padStart(2, '0')}`, 'i') : null,
+    // Pack de saison : « S01E07 » vaut saison 1, donc pas de \b après les chiffres.
+    new RegExp(`\\bs\\s*${ss}(?![0-9])`, 'i'),
+    new RegExp(`\\bsaison\\s*${season}\\b`, 'i'),
+  ].filter(Boolean) as RegExp[];
+
+  return patterns.some((re) => re.test(title));
+}
+
+/**
  * Choisit le fichier vidéo principal d'un torrent :
- * - Si saison/épisode fournis → priorité aux fichiers SxxExx / NxN
- *   correspondants (séries multi-épisodes dans un même torrent)
- * - Sinon → le plus gros fichier vidéo
+ * - Si saison/épisode fournis → uniquement le fichier SxxExx / NxN correspondant.
+ *   Sans correspondance, on renvoie null : le torrent est très probablement un
+ *   film homonyme (le search retombe sur la requête « Titre » seul), et servir
+ *   « le plus gros fichier » reviendrait à lire un film à la place de l'épisode.
+ * - Sinon → le plus gros fichier vidéo.
  */
 export function pickVideoFile(
   files: TorrentFile[],
@@ -106,6 +127,10 @@ export function pickVideoFile(
       const main = [...matches].sort((a, b) => b.length - a.length)[0];
       return { index: main.id, filename: cleanName(main.path), length: main.length };
     }
+    console.warn(
+      `[Torrents] Aucun fichier S${ss}E${es} dans ce torrent (${videos.length} vidéo(s)) — film homonyme ?`
+    );
+    return null;
   }
 
   const best = [...videos].sort((a, b) => b.length - a.length)[0];
@@ -126,9 +151,10 @@ export function buildSearchQueries(opts: {
   const queries: string[] = [];
 
   if (opts.season != null && opts.episode != null) {
-    queries.push(
-      `${opts.title} S${String(opts.season).padStart(2, '0')}E${String(opts.episode).padStart(2, '0')}`
-    );
+    const ss = String(opts.season).padStart(2, '0');
+    queries.push(`${opts.title} S${ss}E${String(opts.episode).padStart(2, '0')}`);
+    // Pack de saison : beaucoup de séries ne sortent qu'en S01 complet.
+    queries.push(`${opts.title} S${ss}`);
   }
   if (opts.year) queries.push(`${opts.title} (${opts.year})`);
   if (opts.year) queries.push(`${opts.title} ${opts.year}`);

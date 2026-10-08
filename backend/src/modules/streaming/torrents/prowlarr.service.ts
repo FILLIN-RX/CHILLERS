@@ -8,7 +8,13 @@
 
 import axios from 'axios';
 import { PROWLARR_URL, PROWLARR_API_KEY } from './config';
-import { TorrentCandidate, sortTorrents, buildSearchQueries, errMessage } from './utils/torrents.utils';
+import {
+  TorrentCandidate,
+  sortTorrents,
+  buildSearchQueries,
+  isEpisodeRelease,
+  errMessage,
+} from './utils/torrents.utils';
 
 const SEARCH_TIMEOUT = 12000;
 
@@ -31,17 +37,39 @@ export interface SearchOptions {
   limit?: number;
 }
 
-/** Recherche Prowlarr avec fallback de requêtes de plus en plus larges. */
-export async function searchTorrents(opts: SearchOptions): Promise<TorrentCandidate[]> {
+/**
+ * @param deadlineAt butoir absolu (Date.now() + ms). Le budget global du provider
+ *        torrents est borné par ProviderManager (TORRENT_TIMEOUT) : sans coup de
+ *        pouce ici, la 3e ou 4e requête de fallback mange tout le temps réservé
+ *        à addTorrent + attente des métadonnées, et l'abort laisse le joueur
+ *        sans rien alors que le torrent existait.
+ */
+export async function searchTorrents(
+  opts: SearchOptions,
+  deadlineAt?: number
+): Promise<TorrentCandidate[]> {
   if (!PROWLARR_API_KEY) return [];
 
   const queries = buildSearchQueries(opts);
 
   for (const query of queries) {
+    const left = deadlineAt ? deadlineAt - Date.now() : SEARCH_TIMEOUT;
+    if (left < 1500) {
+      console.warn(`[Torrents] Budget écoulé avant « ${query} », on s'arrête là.`);
+      break;
+    }
+
     try {
-      const items = await searchOnce(query);
-      if (items.length > 0) {
-        const sorted = sortTorrents(items);
+      const items = await searchOnce(query, Math.min(SEARCH_TIMEOUT, left));
+      let sorted = sortTorrents(items);
+
+      // Un résultat sans marque de saison est un film homonyme : « Naruto » seul
+      // remonte le film de 2012, que pickVideoFile servirait comme S01E01.
+      if (opts.season != null) {
+        sorted = sorted.filter((it) => isEpisodeRelease(it.title, opts.season as number, opts.episode));
+      }
+
+      if (sorted.length > 0) {
         console.log(`[Torrents] "${query}" → ${sorted.length} résultats, meilleur score ${scoreLabel(sorted[0])}`);
         return sorted.slice(0, opts.limit ?? 10);
       }
@@ -59,18 +87,21 @@ function scoreLabel(item: TorrentCandidate): string {
   return `"${item.title}" (${item.seeders} seeds, ${sizeGB} GB, ${item.indexer})`;
 }
 
-async function searchOnce(query: string): Promise<TorrentCandidate[]> {
+async function searchOnce(query: string, timeoutMs = SEARCH_TIMEOUT): Promise<TorrentCandidate[]> {
   const response = await axios.get(`${PROWLARR_URL}/api/v1/search`, {
     // Tableau → sérialisé en "categories=2000&categories=5000" (format requis
     // par l'API Prowlarr : une chaîne "2000,5000" renvoie un 400).
     params: { query, categories: [2000, 5000], limit: 50 },
     headers: { 'X-Api-Key': PROWLARR_API_KEY },
-    timeout: SEARCH_TIMEOUT,
+    timeout: timeoutMs,
   });
 
   const raw = (response.data || []) as ProwlarrSearchItem[];
 
   return raw
+    // NB : chez YTS, Prowlarr remonte la santé du torrent en pourcentage dans
+    // `seeders` (100 = « santé pleine », pas 100 pairs) — ce filtre écarte les
+    // indexeurs muets, pas les torrents morts. Le vrai test reste le warm-up P2P.
     .filter((item) => (item.magnetUrl || item.downloadUrl) && (item.seeders ?? 0) > 0)
     .map((item) => ({
       title: item.title,
