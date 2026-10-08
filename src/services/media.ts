@@ -193,7 +193,10 @@ export function mapTMDBToMovieOrShow(
   let type: MediaType = typeOverride || (isTV ? "series" : "movie");
 
   const genreIds = item.genre_ids || [];
-  if (genreIds.includes(16)) {
+  // « anime » qualifie la série animée. Un film d'animation qui recevrait cette
+  // étiquette est demandé comme /stream/tv/{id}/1/1 par les liens de lecture :
+  // les providers cherchent alors une saison qui n'existe pas.
+  if (genreIds.includes(16) && isTV) {
     type = "anime";
   } else if (genreIds.includes(99)) {
     type = "documentary";

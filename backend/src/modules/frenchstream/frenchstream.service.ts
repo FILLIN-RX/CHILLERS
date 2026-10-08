@@ -291,6 +291,23 @@ function extractYear(str: string): number | null {
   return m ? parseInt(m[1], 10) : null;
 }
 
+/**
+ * Sur French-Stream, une page de série porte toujours « Saison N » dans son titre
+ * ou son URL ; les films n'en portent jamais. La recherche « Bleach » remonte le
+ * film live-action de 2018 avant la série : sans ce tri, c'est son fichier qui
+ * est servi comme épisode.
+ */
+const SAISON_RE = /saison[\s.-]*(\d{1,2})/i;
+
+function saisonOf(text: string): number | null {
+  const m = text.match(SAISON_RE);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+function isSeriesPage(item: { title: string; url: string }): boolean {
+  return SAISON_RE.test(item.title) || SAISON_RE.test(item.url);
+}
+
 function rankCandidates(
   results: FrenchStreamSearchResult[],
   searchTitle: string,
@@ -680,11 +697,18 @@ export async function getFrenchStreamEpisode(
     let versions: FrenchStreamVersion[] = [];
     let resolvedTitle = '';
 
+    // Une page film mémorisée sur une fiche série (le film « Bleach » 2018 a été
+    // gardé comme page de la série) ne doit jamais servir un épisode.
+    const cachedPagePath = knownPagePath && SAISON_RE.test(knownPagePath) ? knownPagePath : undefined;
+    if (knownPagePath && !cachedPagePath) {
+      console.log(`[FrenchStream HQ] [Direct Cache] Page mémorisée « ${knownPagePath} » = film, ignorée pour un épisode.`);
+    }
+
     // 1. Tenter l'accès direct via pagePath connu en DB si disponible
-    if (knownPagePath) {
-      const fullKnownUrl = knownPagePath.startsWith('http')
-        ? knownPagePath
-        : `${BASE_URL}${knownPagePath.startsWith('/') ? '' : '/'}${knownPagePath}`;
+    if (cachedPagePath) {
+      const fullKnownUrl = cachedPagePath.startsWith('http')
+        ? cachedPagePath
+        : `${BASE_URL}${cachedPagePath.startsWith('/') ? '' : '/'}${cachedPagePath}`;
       console.log(`[FrenchStream HQ] [Direct Cache] Tentative directe série sur page mémorisée: ${fullKnownUrl} Ep ${targetEp}`);
       try {
         const directExtracted = await extractEpisodeEmbedVersions(fullKnownUrl, targetEp);
@@ -710,29 +734,38 @@ export async function getFrenchStreamEpisode(
       const seasonQuery = `${title} Saison ${targetSeason}`;
       let searchResults = await searchFrenchStream(seasonQuery);
 
-      if (searchResults.length === 0) {
-        // Fallback recherche avec titre simple
-        searchResults = await searchFrenchStream(title);
+      // Le moteur de recherche du site ne renvoie presque rien sur une requête à
+      // plusieurs mots : le titre seul est nécessaire, mais il mélange films et
+      // séries. On ne garde que les pages de saison.
+      if (!searchResults.some(isSeriesPage)) {
+        searchResults = [...searchResults, ...(await searchFrenchStream(title))];
       }
 
-      if (searchResults.length === 0) return null;
-
-      // Filtrer les résultats pour trouver la saison correspondante
-      const searchNorm = normalize(seasonQuery);
-      const titleNorm = normalize(title);
-      
-      // Préférer un résultat qui contient explicitement la saison
-      const exactSeasonMatch = searchResults.find(item => {
-        const itNorm = normalize(item.title);
-        return itNorm.includes(`saison${targetSeason}`) || itNorm.includes(`season${targetSeason}`) || itNorm === searchNorm;
-      });
-
-      const best = exactSeasonMatch || searchResults[0];
-
-      if (!normalize(best.title).includes(titleNorm) && !titleNorm.includes(normalize(best.title))) {
-        console.log(`[FrenchStream HQ] Série "${best.title}" trop éloignée de "${title}", skip.`);
+      const seriesResults = searchResults.filter(isSeriesPage);
+      if (seriesResults.length === 0) {
+        console.log(`[FrenchStream HQ] Aucune page série pour "${title}" sur FrenchStream (${searchResults.length} résultat(s), aucun « Saison N») — on ne sert pas un film à la place.`);
         return null;
       }
+
+      const titleNorm = normalize(title);
+      const relevant = seriesResults.filter(
+        (it) => normalize(it.title).includes(titleNorm) || titleNorm.includes(normalize(it.title))
+      );
+      const pool = relevant.length > 0 ? relevant : seriesResults;
+
+      // Saison annoncée exacte d'abord, sinon la page de saison la plus proche :
+      // les animés sont découpés en arcs « Saison N » qui ne suivent pas la
+      // numérotation TMDB.
+      const best =
+        pool.find((it) => saisonOf(it.title) === targetSeason || saisonOf(it.url) === targetSeason) ??
+        pool.reduce(
+          (a, b) =>
+            Math.abs((saisonOf(b.title ?? '') ?? 0) - targetSeason) <
+            Math.abs((saisonOf(a.title ?? '') ?? 0) - targetSeason)
+              ? b
+              : a,
+          pool[0]
+        );
 
       console.log(`[FrenchStream HQ] Page série trouvée: ${best.url} (${best.title})`);
       bestUrl = best.url;
