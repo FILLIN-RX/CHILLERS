@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { SITE_LOCALE } from "@/lib/seo";
+import { SITE_LOCALE, SITE_URL } from "@/lib/seo";
 import PageContent from "./page-content";
 
 export const metadata: Metadata = {
@@ -11,7 +11,7 @@ export const metadata: Metadata = {
     title: "À propos de CHILLERS",
     description:
       "Découvrez qui est derrière CHILLERS, la plateforme de streaming gratuit de films, séries et anime en VF/VOSTFR.",
-    url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://chillers.vercel.app"}/about`,
+    url: `${SITE_URL}/about`,
     siteName: "CHILLERS",
     locale: SITE_LOCALE,
   },

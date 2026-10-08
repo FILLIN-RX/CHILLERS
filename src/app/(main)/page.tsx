@@ -19,6 +19,7 @@ export const revalidate = 3600;
 export const metadata: Metadata = {
   title: "Accueil",
   description: "Découvrez les meilleurs films, séries et animes en streaming gratuit.",
+  alternates: { canonical: "/" },
 };
 
 export default async function HomePage() {

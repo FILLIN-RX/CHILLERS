@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 
-// Fallback robuste : utilise NEXT_PUBLIC_SITE_URL si défini, sinon l'URL Vercel du projet.
-// IMPORTANT: si ton domaine change, mets à jour NEXT_PUBLIC_SITE_URL dans Vercel > Settings > Env Vars.
-const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL ||
-  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://chillers.site");
+// Domaine canonique réellement servi : Vercel renvoie un 308 de chillers.site vers www.chillers.site.
+// NEXT_PUBLIC_SITE_URL doit donc être https://www.chillers.site en production.
+// VERCEL_URL est exclu volontairement : c'est l'URL du déploiement (*.vercel.app), pas le domaine
+// final — s'en servir canonicalise chaque page sur une URL jetable.
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.chillers.site";
 
 export const SITE_URL = siteUrl.replace(/\/$/, "");
 export const SITE_NAME = "CHILLERS";

@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import { Suspense } from "react";
-import { buildMediaMetadata, buildMediaJsonLd, SITE_LOCALE, DEFAULT_OG_IMAGE } from "@/lib/seo";
+import { buildMediaMetadata, buildMediaJsonLd, SITE_LOCALE, SITE_URL, DEFAULT_OG_IMAGE } from "@/lib/seo";
 import { getMediaDetails, getPopularTV, getPopularMovies } from "@/services/media";
 import MediaPageClient from "./client-page";
 
@@ -45,7 +45,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
         siteName: "CHILLERS",
         title: `${meta.title} · CHILLERS`,
         description: meta.description,
-        url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://chillers.vercel.app"}/media/${slug}`,
+        url: `${SITE_URL}/media/${slug}`,
         locale: SITE_LOCALE,
         images: [DEFAULT_OG_IMAGE],
       },

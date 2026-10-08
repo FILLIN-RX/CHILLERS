@@ -102,16 +102,45 @@ async function searchOnce(query: string, timeoutMs = SEARCH_TIMEOUT): Promise<To
     // NB : chez YTS, Prowlarr remonte la santé du torrent en pourcentage dans
     // `seeders` (100 = « santé pleine », pas 100 pairs) — ce filtre écarte les
     // indexeurs muets, pas les torrents morts. Le vrai test reste le warm-up P2P.
-    .filter((item) => (item.magnetUrl || item.downloadUrl) && (item.seeders ?? 0) > 0)
-    .map((item) => ({
-      title: item.title,
-      indexer: item.indexer || 'Inconnu',
-      size: item.size || 0,
-      seeders: item.seeders || 0,
-      magnet: item.magnetUrl,
-      downloadUrl: item.downloadUrl,
-      infoHash: item.infoHash || String(item.guid || '').split(':').pop(),
-    }));
+    .filter((item) => (item.magnetUrl || item.downloadUrl || item.infoHash) && (item.seeders ?? 0) > 0)
+    .map((item) => {
+      let infoHash = item.infoHash;
+      if (!infoHash && item.guid) {
+        const hashMatch = String(item.guid).match(/([0-9a-fA-F]{40})/);
+        if (hashMatch) infoHash = hashMatch[1];
+      }
+      if (!infoHash && (item.magnetUrl || item.downloadUrl)) {
+        const m = (item.magnetUrl || item.downloadUrl || '').match(/btih:([0-9a-fA-F]{40})/i);
+        if (m) infoHash = m[1];
+      }
+      return {
+        title: item.title,
+        indexer: item.indexer || 'Inconnu',
+        size: item.size || 0,
+        seeders: item.seeders || 0,
+        magnet: item.magnetUrl,
+        downloadUrl: item.downloadUrl,
+        infoHash,
+      };
+    });
+}
+
+const DEFAULT_TRACKERS = [
+  'udp://open.demonii.com:1337/announce',
+  'udp://tracker.openbittorrent.com:80',
+  'udp://tracker.coppersurfer.tk:6969',
+  'udp://glotorrents.pw:6969/announce',
+  'udp://tracker.opentrackr.org:1337/announce',
+  'udp://torrent.gresille.org:80/announce',
+  'udp://p4p.arenabg.com:1337',
+  'udp://tracker.leechers-paradise.org:6969',
+  'udp://tracker.torrent.eu.org:451/announce',
+  'udp://explodie.org:6969/announce',
+];
+
+export function buildMagnetFromHash(infoHash: string, title?: string): string {
+  const tr = DEFAULT_TRACKERS.map((t) => `&tr=${encodeURIComponent(t)}`).join('');
+  return `magnet:?xt=urn:btih:${infoHash.toLowerCase()}${title ? `&dn=${encodeURIComponent(title)}` : ''}${tr}`;
 }
 
 /** Ajoute la clé API Prowlarr à une URL d'indexeur (liens protégés). */
@@ -127,9 +156,8 @@ export function fixProwlarrUrl(url: string): string {
  * Résout le lien d'un résultat : suit les redirections de l'indexeur
  * jusqu'à obtenir un magnet (streaming) ou le fichier .torrent en base64.
  *
- * Attention : Prowlarr renvoie parfois `magnetUrl` sous forme d'URL HTTP
- * (proxy de téléchargement du .torrent) — seul un vrai "magnet:" est
- * traité comme lien direct.
+ * En cas d'échec de téléchargement du .torrent (404/timeout), repli automatique
+ * sur un lien magnet direct construit depuis infoHash.
  */
 export async function resolveTorrentLink(
   item: TorrentCandidate,
@@ -139,21 +167,37 @@ export async function resolveTorrentLink(
     return { kind: 'link', data: item.magnet };
   }
   const url = item.magnet || item.downloadUrl;
-  if (!url) throw new Error('Résultat sans lien téléchargeable');
+  if (!url) {
+    if (item.infoHash && /^[0-9a-f]{40}$/i.test(item.infoHash)) {
+      return { kind: 'link', data: buildMagnetFromHash(item.infoHash, item.title) };
+    }
+    throw new Error('Résultat sans lien téléchargeable');
+  }
   if (redirects <= 0) throw new Error('Trop de redirections pour résoudre le lien');
 
-  const response = await axios.get(fixProwlarrUrl(url), {
-    maxRedirects: 0,
-    validateStatus: (status) => status >= 200 && status < 400,
-    responseType: 'arraybuffer',
-    timeout: 15000,
-  });
+  try {
+    const response = await axios.get(fixProwlarrUrl(url), {
+      maxRedirects: 0,
+      validateStatus: (status) => status >= 200 && status < 400,
+      responseType: 'arraybuffer',
+      timeout: 15000,
+    });
 
-  if (response.status >= 300 && response.status < 400 && response.headers.location) {
-    const location = String(response.headers.location);
-    if (location.startsWith('magnet:')) return { kind: 'link', data: location };
-    return resolveTorrentLink({ ...item, magnet: location, downloadUrl: undefined }, redirects - 1);
+    if (response.status >= 300 && response.status < 400 && response.headers.location) {
+      const location = String(response.headers.location);
+      if (location.startsWith('magnet:')) return { kind: 'link', data: location };
+      return resolveTorrentLink({ ...item, magnet: location, downloadUrl: undefined }, redirects - 1);
+    }
+
+    return { kind: 'file', data: Buffer.from(response.data).toString('base64') };
+  } catch (err: any) {
+    // Si le téléchargement du .torrent échoue (ex: 404 YTS/Prowlarr) mais qu'on a le hash :
+    if (item.infoHash && /^[0-9a-f]{40}$/i.test(item.infoHash)) {
+      console.warn(
+        `[Torrents] Échec téléchargement .torrent (${err?.message || err}), repli sur magnet direct depuis infoHash: ${item.infoHash}`
+      );
+      return { kind: 'link', data: buildMagnetFromHash(item.infoHash, item.title) };
+    }
+    throw err;
   }
-
-  return { kind: 'file', data: Buffer.from(response.data).toString('base64') };
 }

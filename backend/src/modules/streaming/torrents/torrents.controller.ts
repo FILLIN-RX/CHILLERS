@@ -185,6 +185,10 @@ export async function streamFile(req: Request, res: Response) {
   ffmpeg.on('close', (code) => {
     release();
     console.log(`[Torrents][FFmpeg] Processus terminé (code ${code})`);
+    if (!res.headersSent && code !== 0) {
+      res.status(502).json({ success: false, message: 'Flux P2P indisponible ou interrompu' });
+      return;
+    }
     if (!res.writableEnded) res.end();
   });
 

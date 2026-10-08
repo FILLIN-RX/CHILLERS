@@ -74,42 +74,50 @@ export class TorrServerProvider implements StreamingProvider {
       return null;
     }
 
-    const best = candidates[0];
-    const sizeGB = best.size > 0 ? (best.size / 1024 ** 3).toFixed(2) : '?';
-    console.log(
-      `[TorrServer] Meilleur choix: "${best.title}" | ${best.seeders} seeds/santé | ${sizeGB} GB | ${best.indexer}`
-    );
+    const maxAttempts = Math.min(candidates.length, 3);
+    for (let i = 0; i < maxAttempts; i++) {
+      if (Date.now() >= deadlineAt - 5000) break;
+      const candidate = candidates[i];
+      const sizeGB = candidate.size > 0 ? (candidate.size / 1024 ** 3).toFixed(2) : '?';
+      console.log(
+        `[TorrServer] Candidat ${i + 1}/${maxAttempts}: "${candidate.title}" | ${candidate.seeders} seeds | ${sizeGB} GB | ${candidate.indexer}`
+      );
 
-    const source = await resolveTorrentLink(best);
-    const hash = await addTorrent(source, best.title, deadlineAt);
+      try {
+        const source = await resolveTorrentLink(candidate);
+        const hash = await addTorrent(source, candidate.title, deadlineAt);
 
-    console.log(`[TorrServer] Hash ${hash} — attente des métadonnées...`);
-    const fileInfo = await waitForFileInfo(
-      hash,
-      {
-        season: type === 'episode' ? query.season : undefined,
-        episode: type === 'episode' ? query.episode : undefined,
-      },
-      deadlineAt
-    );
+        console.log(`[TorrServer] Hash ${hash} — attente des métadonnées...`);
+        const fileInfo = await waitForFileInfo(
+          hash,
+          {
+            season: type === 'episode' ? query.season : undefined,
+            episode: type === 'episode' ? query.episode : undefined,
+          },
+          deadlineAt
+        );
 
-    if (!fileInfo) {
-      // Absent de ce provider (métadonnées introuvables / fichier manquant) :
-      // 'skip' plutôt qu'une exception, qui ouvrirait le circuit breaker sur
-      // un simple contenu indisponible.
-      console.log(`[TorrServer] Aucun fichier vidéo lisible pour ${label} → skip`);
-      return null;
+        if (!fileInfo) {
+          console.log(`[TorrServer] Métadonnées introuvables pour "${candidate.title}" → essai suivant`);
+          continue;
+        }
+
+        console.log(
+          `[TorrServer] Fichier principal: "${fileInfo.filename}" (${(fileInfo.length / 1024 ** 3).toFixed(2)} GB)`
+        );
+        await warmUpTorrent(hash, fileInfo.index, deadlineAt);
+
+        return {
+          provider: this.name,
+          embedUrl: buildStreamUrl(hash, fileInfo.index),
+          type,
+        };
+      } catch (err: any) {
+        console.warn(`[TorrServer] Échec candidat "${candidate.title}": ${err?.message || err}`);
+      }
     }
 
-    console.log(
-      `[TorrServer] Fichier principal: "${fileInfo.filename}" (${(fileInfo.length / 1024 ** 3).toFixed(2)} GB)`
-    );
-    await warmUpTorrent(hash, fileInfo.index, deadlineAt);
-
-    return {
-      provider: this.name,
-      embedUrl: buildStreamUrl(hash, fileInfo.index),
-      type,
-    };
+    console.log(`[TorrServer] Aucun candidat P2P n'a abouti pour ${label} → skip`);
+    return null;
   }
 }

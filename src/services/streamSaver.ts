@@ -77,7 +77,12 @@ export async function streamDownloadToDisk(
   if (isIOS()) {
     // iOS Safari doesn't support WritableStream / StreamSaver MITM iframe.
     // Trigger native iOS download dialog directly through backend proxy.
-    const href = url.startsWith('/api/') ? url : `/api/download/file?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`;
+    const isExternalPage = /doodstream\.com\/d\//i.test(url);
+    const href = isExternalPage
+      ? url
+      : url.startsWith('/api/')
+        ? url
+        : `/api/download/file?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`;
     const a = document.createElement("a");
     a.href = href;
     a.download = filename;

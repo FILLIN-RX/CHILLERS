@@ -34,7 +34,12 @@ export function buildEpisodeFilename(opts: {
   extension?: string;
 }): string {
   const { title, season, episodeNumber, extension = "mp4" } = opts;
-  const safeTitle = title.replace(/[^\w\-]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
+  const safeTitle = title
+    .replace(/\s*:\s*/g, " - ")
+    .replace(/[^\w\-\. ]+/g, "_")
+    .replace(/\s+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_|_$/g, "");
   if (season != null && episodeNumber != null) {
     return `${safeTitle}_S${String(season).padStart(2, "0")}E${String(episodeNumber).padStart(2, "0")}.${extension}`;
   }

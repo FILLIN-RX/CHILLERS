@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { SITE_LOCALE } from "@/lib/seo";
+import { SITE_LOCALE, SITE_URL } from "@/lib/seo";
 import PageContent from "./page-content";
 
 export const metadata: Metadata = {
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Confidentialité · CHILLERS",
     description: "Politique de confidentialité de CHILLERS, la plateforme de streaming gratuit de films et séries.",
-    url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://chillers.vercel.app"}/privacy`,
+    url: `${SITE_URL}/privacy`,
     siteName: "CHILLERS",
     locale: SITE_LOCALE,
   },

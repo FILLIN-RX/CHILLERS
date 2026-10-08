@@ -4,6 +4,8 @@ import axios from 'axios';
 import { ProviderManager } from '../streaming/provider-manager';
 import { StreamQuery } from '../streaming/providers/provider.interface';
 import { DirectScraper, getUqloadDirectLink } from '../streaming/providers/direct-scraper';
+import Movie from '../../models/Movie';
+import Serie from '../../models/Serie';
 
 const router = Router();
 const providerManager = new ProviderManager();
@@ -76,11 +78,88 @@ router.get('/resolve', async (req: Request, res: Response) => {
 
     console.log(`[Download Resolve] Résolution: "${cleanTitle || tmdb_id}" (type=${type}, S${season || 1}E${episode || 1}, premium=${isPrem})`);
 
-    const streamResult = isTv
-      ? await providerManager.getEpisodeStream(query)
-      : await providerManager.getMovieStream(query);
+    let downloadUrl: string | null = null;
+    let directType: 'mp4' | 'hls' | 'embed' = 'embed';
+    let resolvedProvider = 'chillers';
 
-    if (!streamResult || !streamResult.embedUrl) {
+    // 1. Priorité absolue : chercher dans la base MongoDB Chillers (films et séries)
+    // pour récupérer le vrai lien de téléchargement direct sans passer par le streaming
+    if (isTv) {
+      const serie = tmdbIdNum
+        ? await Serie.findOne({ tmdbId: tmdbIdNum }).lean().exec()
+        : cleanTitle
+          ? await Serie.findOne({ titre: { $regex: new RegExp(cleanTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } }).lean().exec()
+          : null;
+      if (serie) {
+        const sNum = query.season !== undefined ? Number(query.season) : 1;
+        const eNum = query.episode !== undefined ? Number(query.episode) : 1;
+        const ep = serie.episodes?.find((e: any) => Number(e.season) === sNum && Number(e.episodeNumber) === eNum);
+        if (ep) {
+          if (ep.uqloadCode) {
+            const uq = await getUqloadDirectLink(ep.uqloadCode, false);
+            if (uq?.directUrl) {
+              downloadUrl = uq.directUrl;
+              directType = 'mp4';
+              resolvedProvider = 'uqload';
+            }
+          }
+          if (!downloadUrl && ep.uqloadLink) {
+            downloadUrl = ep.uqloadLink;
+            directType = 'mp4';
+            resolvedProvider = 'uqload';
+          }
+          if (!downloadUrl && ep.lien) {
+            downloadUrl = ep.lien;
+            directType = /\.mp4(\?|$)/i.test(ep.lien) ? 'mp4' : 'embed';
+            resolvedProvider = 'mongodb';
+          }
+        }
+      }
+    } else {
+      const movie = tmdbIdNum
+        ? await Movie.findOne({ tmdbId: tmdbIdNum }).lean().exec()
+        : cleanTitle
+          ? await Movie.findOne({ titre: { $regex: new RegExp(cleanTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } }).lean().exec()
+          : null;
+      if (movie) {
+        if (movie.uqloadCode) {
+          const uq = await getUqloadDirectLink(movie.uqloadCode, false);
+          if (uq?.directUrl) {
+            downloadUrl = uq.directUrl;
+            directType = 'mp4';
+            resolvedProvider = 'uqload';
+          }
+        }
+        if (!downloadUrl && movie.uqloadLink) {
+          downloadUrl = movie.uqloadLink;
+          directType = 'mp4';
+          resolvedProvider = 'uqload';
+        }
+        if (!downloadUrl && movie.lien) {
+          downloadUrl = movie.lien;
+          directType = /\.mp4(\?|$)/i.test(movie.lien) ? 'mp4' : 'embed';
+          resolvedProvider = 'mongodb';
+        }
+      }
+    }
+
+    // 2. Fallback ProviderManager si introuvable en base directe
+    if (!downloadUrl) {
+      const streamResult = isTv
+        ? await providerManager.getEpisodeStream(query)
+        : await providerManager.getMovieStream(query);
+
+      if (streamResult) {
+        resolvedProvider = streamResult.provider;
+        const candidate = streamResult.downloadUrl || streamResult.directUrl || streamResult.embedUrl;
+        if (candidate) {
+          downloadUrl = unwrapUrl(candidate) || candidate;
+          directType = streamResult.directType || (/\.m3u8(\?|$)/i.test(downloadUrl) ? 'hls' : /\.mp4(\?|$)/i.test(downloadUrl) ? 'mp4' : 'embed');
+        }
+      }
+    }
+
+    if (!downloadUrl) {
       return res.status(404).json({
         success: false,
         error: 'Aucune source de téléchargement trouvée pour ce contenu',
@@ -88,11 +167,19 @@ router.get('/resolve', async (req: Request, res: Response) => {
       });
     }
 
-    const rawCandidate = streamResult.directUrl || streamResult.embedUrl;
-    let downloadUrl = unwrapUrl(rawCandidate) || rawCandidate;
-    let directType = streamResult.directType || (/\.m3u8(\?|$)/i.test(downloadUrl) ? 'hls' : /\.mp4(\?|$)/i.test(downloadUrl) ? 'mp4' : 'embed');
+    // Si on a une URL Uqload interne /api/download/uqload/<code>, la résoudre en MP4
+    if (downloadUrl.includes('/api/download/uqload/')) {
+      const match = downloadUrl.match(/\/api\/download\/uqload\/([a-zA-Z0-9]+)/);
+      if (match) {
+        const uq = await getUqloadDirectLink(match[1], false);
+        if (uq?.directUrl) {
+          downloadUrl = uq.directUrl;
+          directType = 'mp4';
+        }
+      }
+    }
 
-    // Pour le téléchargement : si on a reçu du HLS ou une URL embed, tenter d'extraire le MP4 direct (avec vraie taille et débit max)
+    // Si ce n'est pas encore un MP4 direct, tenter d'extraire le MP4 direct
     if (directType !== 'mp4' && downloadUrl) {
       try {
         const direct = await DirectScraper.resolve(downloadUrl, false);
@@ -106,24 +193,28 @@ router.get('/resolve', async (req: Request, res: Response) => {
       }
     }
 
-    const cleanFilename = `${(title || 'video').replace(/[^a-zA-Z0-9_\-]/g, '_')}${isTv ? `_S${season || 1}E${episode || 1}` : ''}.mp4`;
+    // Nettoyage propre du nom de fichier (sans les triples underscores)
+    const safeTitle = (title || 'video')
+      .replace(/\s*:\s*/g, ' - ')
+      .replace(/[/\\?%*:|"<>]/g, '')
+      .trim()
+      .replace(/\s+/g, ' ');
+    const cleanFilename = `${safeTitle}${isTv ? `_S${season || 1}E${episode || 1}` : ''}.mp4`;
 
-    // Déterminer le type de lien final pour construire la bonne URL de téléchargement
     const isHls = directType === 'hls' || /\.m3u8(\?|$)/i.test(downloadUrl);
     const isMp4Direct = directType === 'mp4' || /\.mp4(\?|$)/i.test(downloadUrl);
 
     let finalDownloadUrl: string;
 
     if (isMp4Direct && downloadUrl.startsWith('http')) {
-      // MP4 direct → proxy avec Range support et Content-Length d'origine (vitesse max + vraie taille)
+      // MP4 direct → proxy pour fournir Content-Disposition, Referer anti-blocage et Content-Length exact
       finalDownloadUrl = `/api/download/file?url=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(cleanFilename)}`;
       console.log(`[Download Resolve] MP4 direct → file proxy: ${downloadUrl.slice(0, 80)}...`);
     } else if (isHls && downloadUrl.startsWith('http')) {
-      // HLS de secours → FFmpeg convertit le flux en MP4 à la volée
+      // HLS uniquement en dernier recours si aucun MP4 n'existe
       finalDownloadUrl = `/api/download/stream?m3u8=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(cleanFilename)}`;
-      console.log(`[Download Resolve] HLS fallback → FFmpeg proxy: ${downloadUrl.slice(0, 80)}...`);
+      console.log(`[Download Resolve] HLS de dernier recours → FFmpeg proxy: ${downloadUrl.slice(0, 80)}...`);
     } else {
-      // Embed ou URL interne → on renvoie tel quel
       finalDownloadUrl = downloadUrl;
     }
 
@@ -133,7 +224,7 @@ router.get('/resolve', async (req: Request, res: Response) => {
         downloadUrl: finalDownloadUrl,
         rawUrl: downloadUrl,
         directType: directType,
-        provider: streamResult.provider,
+        provider: resolvedProvider,
         type: isTv ? 'episode' : 'movie',
         filename: cleanFilename,
         fileCode: ''
@@ -143,6 +234,28 @@ router.get('/resolve', async (req: Request, res: Response) => {
     console.error('[Download Resolve] Erreur:', error.message);
     return res.status(500).json({ success: false, error: error.message });
   }
+});
+
+/**
+ * GET /api/download/uqload/:code
+ *
+ * Résout le lien MP4 direct Uqload et le sert via le proxy avec Content-Length
+ */
+router.get('/uqload/:code', async (req: Request, res: Response) => {
+  const code = req.params.code as string;
+  const filename = (req.query.filename as string) || 'video.mp4';
+  try {
+    const direct = await getUqloadDirectLink(code, false);
+    if (direct?.directUrl) {
+      if (await serveFileProxy(req, res, direct.directUrl, filename)) {
+        return;
+      }
+      return res.redirect(direct.directUrl);
+    }
+  } catch (err: any) {
+    console.error('[Download Uqload] Erreur:', err.message);
+  }
+  res.status(404).json({ success: false, error: 'Fichier Uqload introuvable ou indisponible' });
 });
 
 /**

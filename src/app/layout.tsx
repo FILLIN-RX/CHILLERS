@@ -8,6 +8,7 @@ import PWARegister from "@/components/pwa/PWARegister";
 import SplashScreen from "@/components/pwa/SplashScreen";
 import PWAInstallBanner from "@/components/pwa/PWAInstallBanner";
 import NetworkStatusNotifier from "@/components/pwa/NetworkStatusNotifier";
+import { SITE_URL } from "@/lib/seo";
 
 import AdSense from "@/components/AdSense";
 import SessionSyncProvider from "@/components/providers/SessionSyncProvider";
@@ -30,7 +31,7 @@ const geistMono = Geist_Mono({
   preload: false,
 });
 
-const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://chillers.site").replace(/\/$/, "");
+const siteUrl = SITE_URL;
 
 const defaultOgImage = {
   url: "/og-image.png",
@@ -48,9 +49,6 @@ export const metadata: Metadata = {
   description:
     "Regardez vos films, séries, anime et matchs de football en direct streaming HD gratuit sans pub sur CHILLERS en VF et VOSTFR.",
   applicationName: "CHILLERS",
-  alternates: {
-    canonical: "/",
-  },
   robots: {
     index: true,
     follow: true,
