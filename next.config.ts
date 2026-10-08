@@ -1,11 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Désactiver Turbopack en dev, utiliser SWC à la place (plus stable avec gros projets)
   experimental: {
-    turbo: {
-      enabled: false,
-    },
     optimizePackageImports: [
       '@phosphor-icons/react',
       'antd',
