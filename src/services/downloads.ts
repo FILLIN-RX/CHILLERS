@@ -106,10 +106,10 @@ export function proxyDownloadHref(downloadUrl: string, filename: string): string
 }
 
 /**
- * Detects whether a URL should be opened in a new tab (DoodStream HTML page) or saved directly.
+ * Detects whether a URL should be opened in a new tab (deprecated: all downloads now stream directly).
  */
-export function isHtmlPageDownload(downloadUrl: string): boolean {
-  return /doodstream\.com\/d\//i.test(downloadUrl);
+export function isHtmlPageDownload(_downloadUrl: string): boolean {
+  return false;
 }
 
 /**

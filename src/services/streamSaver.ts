@@ -77,13 +77,6 @@ export async function streamDownloadToDisk(
   if (isIOS()) {
     // iOS Safari doesn't support WritableStream / StreamSaver MITM iframe.
     // Trigger native iOS download dialog directly through backend proxy on Railway
-    // (bypassing Vercel's serverless edge proxy timeout and payload limits).
-    const isExternalPage = /doodstream\.com\/d\//i.test(url) || /\.html?(\?|$)/i.test(url);
-    if (isExternalPage) {
-      window.open(url, "_blank");
-      return { totalBytes: null };
-    }
-
     const backendOrigin = getBackendOrigin();
     const href = url.startsWith('http')
       ? `${backendOrigin}/api/download/file?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`
@@ -96,7 +89,11 @@ export async function streamDownloadToDisk(
     a.download = filename;
     document.body.appendChild(a);
     a.click();
-    document.body.removeChild(a);
+    setTimeout(() => {
+      try {
+        document.body.removeChild(a);
+      } catch {}
+    }, 1000);
     return { totalBytes: null };
   }
 

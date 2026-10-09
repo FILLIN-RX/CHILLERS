@@ -161,7 +161,7 @@ export type { AfficheItem, AdminEnvelope } from "@/services/admin";
 
 /* Legacy helpers kept verbatim so we don't break existing call sites. */
 
-import { proxyDownloadHref, isHtmlPageDownload } from "@/services/downloads";
+import { proxyDownloadHref } from "@/services/downloads";
 
 /**
  * Triggers a browser download by appending an anchor to the DOM and clicking it.
@@ -172,10 +172,7 @@ import { proxyDownloadHref, isHtmlPageDownload } from "@/services/downloads";
 export function triggerDownload(downloadUrl: string, filename = "video.mp4"): void {
   if (typeof window === "undefined") return;
 
-  if (isHtmlPageDownload(downloadUrl)) {
-    window.open(downloadUrl, "_blank");
-    return;
-  }
+
 
   const href = proxyDownloadHref(downloadUrl, filename);
   const a = document.createElement("a");
