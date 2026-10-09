@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { resolveDownloadUrl, proxyDownloadHref } from "@/services/downloads";
-import { streamDownloadToDisk } from "@/services/streamSaver";
+import { streamDownloadToDisk, isIOS } from "@/services/streamSaver";
 import { streamVideoToIndexedDB } from "@/services/offlineStorage";
 import { buildEpisodeFilename, downloadTaskId } from "@/lib/format";
 import type { DownloadTask } from "@/types/download";
@@ -189,10 +189,11 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
       const user = useAuthStore.getState().user;
       const globalSubEnabled = useSubscriptionStore.getState().globalSubscriptionEnabled;
       const isSubscriber = isUserSubscriber(user, globalSubEnabled);
+      const iosDevice = isIOS();
 
       try {
-        if (isSubscriber) {
-          // Utilisateur Abonné : téléchargement fichier direct sur disque
+        if (isSubscriber || iosDevice) {
+          // Utilisateur Abonné ou appareil iOS : téléchargement direct via Safari / StreamSaver
           await streamDownloadToDisk(finalUrl, {
             filename: task.filename,
             signal: ctrl.signal,

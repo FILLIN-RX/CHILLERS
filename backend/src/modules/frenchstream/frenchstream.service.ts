@@ -39,9 +39,23 @@ export function toRelativePath(urlOrPath: string): string {
 }
 
 function normalize(str: string): string {
+  if (!str) return '';
   // Supprime l'année entre parenthèses comme (2026), (2025), etc.
   const withoutYear = str.replace(/\s*\(\s*\d{4}\s*\)\s*$/i, '');
-  return withoutYear.toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+  return withoutYear
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, '')
+    .trim();
+}
+
+export function cleanSearchQuery(q: string): string {
+  if (!q) return '';
+  return q
+    .replace(/[?!,;:#~"'\(\)\[\]{}*_\\\/]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 /**
@@ -49,7 +63,8 @@ function normalize(str: string): string {
  */
 export async function searchFrenchStream(query: string): Promise<FrenchStreamSearchResult[]> {
   try {
-    const postData = querystring.stringify({ query });
+    const cleaned = cleanSearchQuery(query);
+    const postData = querystring.stringify({ query: cleaned || query });
     const { data } = await axios.post(
       `${BASE_URL}/engine/ajax/controller.php?mod=search`,
       postData,
@@ -308,12 +323,27 @@ function isSeriesPage(item: { title: string; url: string }): boolean {
   return SAISON_RE.test(item.title) || SAISON_RE.test(item.url);
 }
 
+function isCandidateMatching(candidateTitle: string, titles: string[]): boolean {
+  const normCand = normalize(candidateTitle);
+  if (!normCand) return false;
+  for (const t of titles) {
+    const norm = normalize(t);
+    if (!norm) continue;
+    if (normCand === norm) return true;
+    if (normCand.startsWith(norm) || norm.startsWith(normCand)) return true;
+    if (normCand.includes(norm) || norm.includes(normCand)) return true;
+  }
+  return false;
+}
+
 function rankCandidates(
   results: FrenchStreamSearchResult[],
   searchTitle: string,
-  targetYear?: number
+  targetYear?: number,
+  originalTitle?: string
 ): FrenchStreamSearchResult[] {
-  const searchNorm = normalize(searchTitle);
+  const titlesToMatch = [searchTitle, originalTitle].filter(Boolean) as string[];
+  const searchNorms = titlesToMatch.map(t => normalize(t)).filter(Boolean);
 
   return [...results].sort((a, b) => {
     const normA = normalize(a.title);
@@ -323,13 +353,17 @@ function rankCandidates(
     let scoreB = 0;
 
     // Correspondance textuelle
-    if (normA === searchNorm) scoreA += 100;
-    else if (normA.startsWith(searchNorm) || searchNorm.startsWith(normA)) scoreA += 50;
-    else scoreA += 10;
+    for (const searchNorm of searchNorms) {
+      if (normA === searchNorm) scoreA = Math.max(scoreA, 100);
+      else if (normA.startsWith(searchNorm) || searchNorm.startsWith(normA)) scoreA = Math.max(scoreA, 50);
+      else if (normA.includes(searchNorm) || searchNorm.includes(normA)) scoreA = Math.max(scoreA, 40);
+      else scoreA = Math.max(scoreA, 10);
 
-    if (normB === searchNorm) scoreB += 100;
-    else if (normB.startsWith(searchNorm) || searchNorm.startsWith(normB)) scoreB += 50;
-    else scoreB += 10;
+      if (normB === searchNorm) scoreB = Math.max(scoreB, 100);
+      else if (normB.startsWith(searchNorm) || searchNorm.startsWith(normB)) scoreB = Math.max(scoreB, 50);
+      else if (normB.includes(searchNorm) || searchNorm.includes(normB)) scoreB = Math.max(scoreB, 40);
+      else scoreB = Math.max(scoreB, 10);
+    }
 
     // Correspondance d'année si spécifiée
     if (targetYear) {
@@ -362,7 +396,8 @@ export async function getFrenchStreamMovie(
   title: string,
   preferredLang: 'fr' | 'vostfr' | 'en' | 'vo' = 'fr',
   targetYear?: number,
-  knownPagePath?: string
+  knownPagePath?: string,
+  originalTitle?: string
 ): Promise<FrenchStreamDirectResult | null> {
   try {
     let bestUrl = '';
@@ -395,26 +430,51 @@ export async function getFrenchStreamMovie(
     // 2. Si pas de page connue ou si elle n'a rien renvoyé, effectuer la recherche par titre
     if (versions.length === 0) {
       console.log(`[FrenchStream HQ] Recherche film 1080p: "${title}" (lang=${preferredLang}, targetYear=${targetYear || 'non spécifiée'})`);
-      const searchResults = await searchFrenchStream(title);
+      let searchResults = await searchFrenchStream(title);
+
+      // Si aucun résultat, tentative avec le titre original si disponible et différent
+      if (searchResults.length === 0 && originalTitle && normalize(originalTitle) !== normalize(title)) {
+        console.log(`[FrenchStream HQ] Aucun résultat pour "${title}", tentative avec le titre original: "${originalTitle}"`);
+        searchResults = await searchFrenchStream(originalTitle);
+      }
+
       if (searchResults.length === 0) return null;
 
       // Classer et prioriser les résultats avec scoring par titre et année
-      const rankedResults = rankCandidates(searchResults, title, targetYear);
+      const rankedResults = rankCandidates(searchResults, title, targetYear, originalTitle);
       const best = rankedResults[0];
 
-      const searchNorm = normalize(title);
-      // Si aucun titre n'est proche du film demandé, rejeter pour éviter les faux films
-      if (normalize(best.title) !== searchNorm && !normalize(best.title).startsWith(searchNorm) && !searchNorm.startsWith(normalize(best.title))) {
-        console.log(`[FrenchStream HQ] Correspondance trop éloignée pour "${title}" (trouvé: "${best.title}"), skip.`);
-        return null;
+      const titlesToCheck = [title, originalTitle].filter(Boolean) as string[];
+      if (!isCandidateMatching(best.title, titlesToCheck)) {
+        console.log(`[FrenchStream HQ] Correspondance trop éloignée pour "${title}" (trouvé: "${best.title}"), test fallback VO...`);
+        // Si on n'avait pas encore cherché avec originalTitle
+        if (originalTitle && normalize(originalTitle) !== normalize(title)) {
+          const origResults = await searchFrenchStream(originalTitle);
+          if (origResults.length > 0) {
+            const rankedOrig = rankCandidates(origResults, title, targetYear, originalTitle);
+            const bestOrig = rankedOrig[0];
+            if (isCandidateMatching(bestOrig.title, titlesToCheck)) {
+              console.log(`[FrenchStream HQ] Page trouvée via titre original "${originalTitle}": ${bestOrig.url} (${bestOrig.title})`);
+              bestUrl = bestOrig.url;
+              bestTitle = bestOrig.title;
+              const extracted = await extractEmbedVersions(bestOrig.url);
+              resolvedTitle = extracted.title;
+              versions = extracted.versions;
+            }
+          }
+        }
+        if (versions.length === 0) {
+          console.log(`[FrenchStream HQ] Correspondance définitivement rejetée pour "${title}", skip.`);
+          return null;
+        }
+      } else {
+        console.log(`[FrenchStream HQ] Meilleure page trouvée: ${best.url} (${best.title})`);
+        bestUrl = best.url;
+        bestTitle = best.title;
+        const extracted = await extractEmbedVersions(best.url);
+        resolvedTitle = extracted.title;
+        versions = extracted.versions;
       }
-
-      console.log(`[FrenchStream HQ] Meilleure page trouvée: ${best.url} (${best.title})`);
-      bestUrl = best.url;
-      bestTitle = best.title;
-      const extracted = await extractEmbedVersions(best.url);
-      resolvedTitle = extracted.title;
-      versions = extracted.versions;
     }
 
     if (versions.length === 0) return null;
@@ -686,7 +746,8 @@ export async function getFrenchStreamEpisode(
   season: number = 1,
   episode: number = 1,
   preferredLang: 'fr' | 'vostfr' | 'en' | 'vo' = 'fr',
-  knownPagePath?: string
+  knownPagePath?: string,
+  originalTitle?: string
 ): Promise<FrenchStreamDirectResult | null> {
   try {
     const targetSeason = season > 0 ? season : 1;
@@ -741,6 +802,18 @@ export async function getFrenchStreamEpisode(
         searchResults = [...searchResults, ...(await searchFrenchStream(title))];
       }
 
+      // Si toujours aucun résultat pour la série, tenter avec originalTitle
+      if (!searchResults.some(isSeriesPage) && originalTitle && normalize(originalTitle) !== normalize(title)) {
+        console.log(`[FrenchStream HQ] Aucun résultat série pour "${title}", tentative avec titre original "${originalTitle}"`);
+        const origSeasonQuery = `${originalTitle} Saison ${targetSeason}`;
+        const origResults = await searchFrenchStream(origSeasonQuery);
+        if (origResults.some(isSeriesPage)) {
+          searchResults = origResults;
+        } else {
+          searchResults = [...searchResults, ...(await searchFrenchStream(originalTitle))];
+        }
+      }
+
       const seriesResults = searchResults.filter(isSeriesPage);
       if (seriesResults.length === 0) {
         console.log(`[FrenchStream HQ] Aucune page série pour "${title}" sur FrenchStream (${searchResults.length} résultat(s), aucun « Saison N») — on ne sert pas un film à la place.`);
@@ -748,9 +821,15 @@ export async function getFrenchStreamEpisode(
       }
 
       const titleNorm = normalize(title);
-      const relevant = seriesResults.filter(
-        (it) => normalize(it.title).includes(titleNorm) || titleNorm.includes(normalize(it.title))
-      );
+      const origNorm = originalTitle ? normalize(originalTitle) : '';
+      const relevant = seriesResults.filter((it) => {
+        const itNorm = normalize(it.title);
+        return (
+          itNorm.includes(titleNorm) ||
+          titleNorm.includes(itNorm) ||
+          (origNorm && (itNorm.includes(origNorm) || origNorm.includes(itNorm)))
+        );
+      });
       const pool = relevant.length > 0 ? relevant : seriesResults;
 
       // Saison annoncée exacte d'abord, sinon la page de saison la plus proche :

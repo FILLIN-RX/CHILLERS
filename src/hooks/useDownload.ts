@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { resolveDownloadUrl } from "@/services/downloads";
-import { streamDownloadToDisk } from "@/services/streamSaver";
+import { streamDownloadToDisk, isIOS } from "@/services/streamSaver";
 import { streamVideoToIndexedDB } from "@/services/offlineStorage";
 import { buildEpisodeFilename, downloadTaskId } from "@/lib/format";
 import type { DownloadTask, DownloadStatus } from "@/types/download";
@@ -197,12 +197,16 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
     const user = useAuthStore.getState().user;
     const globalSubEnabled = useSubscriptionStore.getState().globalSubscriptionEnabled;
     const isSubscriber = isUserSubscriber(user, globalSubEnabled);
+    const iosDevice = isIOS();
 
     try {
       setStatus(id, "downloading");
 
-      if (isSubscriber) {
-        // Utilisateur avec abonnement : Téléchargement direct sur le disque (dossier Téléchargements)
+      if (isSubscriber || iosDevice) {
+        // Utilisateur avec abonnement OU appareil iOS :
+        // Sur iOS, les restrictions WebKit (absence de Background Fetch, limite de RAM par onglet)
+        // font échouer ou crasher les Blobs IndexedDB (>500 Mo). On délègue toujours au gestionnaire natif
+        // Safari (Fichiers) via streamDownloadToDisk.
         await streamDownloadToDisk(url, {
           filename,
           signal: ctrl.signal,

@@ -337,6 +337,7 @@ async function serveFileProxy(
       url,
       headers,
       responseType: 'stream',
+      decompress: false,
       validateStatus: status => status >= 200 && status < 400
     });
   } catch (error: any) {
@@ -350,32 +351,49 @@ async function serveFileProxy(
     return false;
   }
 
-  const isIos = /iPhone|iPad|iPod/i.test(req.headers['user-agent'] || '');
   res.status(response.status);
 
-  if (isIos) {
-    // Force Safari iOS to trigger native download dialog to Files app
-    res.setHeader('Content-Type', 'application/octet-stream');
-  } else {
-    res.setHeader('Content-Type', (response.headers['content-type'] as string) || 'video/mp4');
-  }
+  // Pour iOS Safari et tous les navigateurs modernes :
+  // Toujours renvoyer un Content-Type vidéo explicite (video/mp4)
+  // Surtout PAS "application/octet-stream" qui perturbe la négociation HTTP Range sur WebKit
+  const upstreamType = (response.headers['content-type'] as string) || '';
+  const contentType = (upstreamType && !upstreamType.includes('text/html') && upstreamType !== 'application/octet-stream')
+    ? upstreamType
+    : 'video/mp4';
+  res.setHeader('Content-Type', contentType);
 
+  // Format RFC 6266 conforme pour Content-Disposition:
+  // - filename="ascii.mp4" (sans caractères spéciaux pour que Safari iOS ne tronque pas)
+  // - filename*=UTF-8''encoded.mp4 (pour préserver le titre complet et les accents)
+  const safeAsciiFilename = filename.replace(/[^\x20-\x7E]/g, '_').replace(/["\\]/g, '');
+  const encodedFilename = encodeURIComponent(filename);
   res.setHeader(
     'Content-Disposition',
-    `attachment; filename="${encodeURIComponent(filename)}"; filename*=UTF-8''${encodeURIComponent(filename)}`
+    `attachment; filename="${safeAsciiFilename}"; filename*=UTF-8''${encodedFilename}`
   );
 
+  // Indispensable pour Safari iOS : déclarer Accept-Ranges
+  res.setHeader('Accept-Ranges', 'bytes');
+
   for (const [key, val] of Object.entries(response.headers)) {
-    if (['content-length', 'accept-ranges', 'content-range', 'etag', 'last-modified'].includes(key.toLowerCase())) {
+    const lowerKey = key.toLowerCase();
+    if (['content-length', 'content-range', 'etag', 'last-modified'].includes(lowerKey)) {
       // Une longueur négative ou non numérique ferait afficher une taille
       // aberrante (-1 ko) par le téléchargeur natif d'iOS : on la rejette.
-      if (key.toLowerCase() === 'content-length') {
+      if (lowerKey === 'content-length') {
         const n = Number(val);
         if (!Number.isFinite(n) || n <= 0) continue;
       }
       res.setHeader(key, val as string);
     }
   }
+
+  // Nettoyer la connexion amont si le client iOS ferme ou annule
+  req.on('close', () => {
+    if (response?.data && typeof response.data.destroy === 'function') {
+      response.data.destroy();
+    }
+  });
 
   response.data.pipe(res);
   return true;
@@ -480,8 +498,15 @@ router.get('/stream', async (req: Request, res: Response) => {
   // donc Safari/iOS affiche une taille et une progression fiables.
   if (await upgradeToDirectFile(req, res, m3u8Url, filename)) return;
 
-  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  const safeAsciiFilename = filename.replace(/[^\x20-\x7E]/g, '_').replace(/["\\]/g, '');
+  const encodedFilename = encodeURIComponent(filename);
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename="${safeAsciiFilename}"; filename*=UTF-8''${encodedFilename}`
+  );
   res.setHeader('Content-Type', 'video/mp4');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
 
   const referer = m3u8Url.includes('uqload') ? 'https://uqload.is/' : m3u8Url.includes('vidzy') ? 'https://vidzy.cc/' : '';
   const headers = `User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\r\n${referer ? `Referer: ${referer}\r\n` : ''}`;

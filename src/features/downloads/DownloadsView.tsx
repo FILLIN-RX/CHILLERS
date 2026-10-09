@@ -10,7 +10,7 @@ import {
   WifiSlash, DotsThreeVertical, GearSix, Info, CaretRight, ShieldCheck
 } from "@phosphor-icons/react";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import { streamDownloadToDisk } from "@/services/streamSaver";
+import { streamDownloadToDisk, isIOS } from "@/services/streamSaver";
 import { streamVideoToIndexedDB, getStorageQuota, type StorageQuotaInfo } from "@/services/offlineStorage";
 import { useDownloadsStore } from "@/store/downloads";
 import DownloadProgressBar from "@/features/downloads/DownloadProgressBar";
@@ -137,7 +137,7 @@ export default function DownloadsView({
       (user.subscription.plan === "standard" || user.subscription.plan === "premium"));
 
   const startStreamForTask = async (taskToRun: DownloadTask, url: string, ctrl: AbortController) => {
-    if (isSubscriber) {
+    if (isSubscriber || isIOS()) {
       await streamDownloadToDisk(url, {
         filename: taskToRun.filename,
         signal: ctrl.signal,

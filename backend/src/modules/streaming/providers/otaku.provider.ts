@@ -2,6 +2,7 @@ import { StreamingProvider, StreamQuery, StreamResult } from './provider.interfa
 import { searchOtaku } from '../../otaku/otaku.service';
 import Movie from '../../../models/Movie';
 import Serie from '../../../models/Serie';
+import tmdbClient from '../../../config/tmdb';
 
 export class OtakuProvider implements StreamingProvider {
   readonly name = 'otaku';
@@ -11,14 +12,31 @@ export class OtakuProvider implements StreamingProvider {
   }
 
   async getMovieStream(query: StreamQuery): Promise<StreamResult | null> {
-    if (!query.title) return null;
+    let movieTitle = query.title;
+    let originalTitle = query.originalTitle;
+    let year = query.year;
+
+    // Si le titre, titre original ou l'année n'a pas été envoyé, le récupérer via l'API TMDB
+    if ((!movieTitle || !year || !originalTitle) && query.tmdbId) {
+      try {
+        const { data } = await tmdbClient.get(`/movie/${query.tmdbId}?language=${query.language || 'fr'}`);
+        if (!movieTitle) movieTitle = data?.title || data?.original_title;
+        if (!originalTitle && data?.original_title) originalTitle = data.original_title;
+        if (!year && data?.release_date) {
+          const y = new Date(data.release_date).getFullYear();
+          if (!isNaN(y)) year = y;
+        }
+      } catch (_) {}
+    }
+
+    if (!movieTitle) return null;
 
     // Recherche d'un ID/page mémorisé dans MongoDB
     let knownPageId: string | undefined;
     let existingMovie: any = null;
     try {
       existingMovie = await Movie.findOne(
-        query.tmdbId ? { tmdbId: query.tmdbId } : { titre: new RegExp(`^${query.title.trim()}$`, 'i') }
+        query.tmdbId ? { tmdbId: query.tmdbId } : { titre: new RegExp(`^${movieTitle.trim()}$`, 'i') }
       ).select('_id providerPages');
 
       const matchedPage = existingMovie?.providerPages?.find(
@@ -29,15 +47,16 @@ export class OtakuProvider implements StreamingProvider {
       }
     } catch (_) {}
 
-    console.log(`[Otaku] Searching movie: "${query.title}" (directId=${knownPageId || 'aucun'})`);
+    console.log(`[Otaku] Searching movie: "${movieTitle}" (directId=${knownPageId || 'aucun'}, year=${year || 'non spécifiée'})`);
     const result = await searchOtaku(
-      query.title,
+      movieTitle,
       'movie',
       undefined,
       undefined,
       query.language || 'fr',
-      query.year,
-      knownPageId
+      year,
+      knownPageId,
+      originalTitle
     );
 
     if (result?.lien) {
@@ -83,7 +102,24 @@ export class OtakuProvider implements StreamingProvider {
   }
 
   async getEpisodeStream(query: StreamQuery): Promise<StreamResult | null> {
-    if (!query.title) return null;
+    let seriesTitle = query.title;
+    let originalTitle = query.originalTitle;
+    let year = query.year;
+
+    // Si le titre n'a pas été envoyé, le récupérer via l'API TMDB
+    if ((!seriesTitle || !originalTitle) && query.tmdbId) {
+      try {
+        const { data } = await tmdbClient.get(`/tv/${query.tmdbId}?language=${query.language || 'fr'}`);
+        if (!seriesTitle) seriesTitle = data?.name || data?.original_name;
+        if (!originalTitle && data?.original_name) originalTitle = data.original_name;
+        if (!year && data?.first_air_date) {
+          const y = new Date(data.first_air_date).getFullYear();
+          if (!isNaN(y)) year = y;
+        }
+      } catch (_) {}
+    }
+
+    if (!seriesTitle) return null;
 
     const season = query.season || 1;
     const episode = query.episode || 1;
@@ -93,7 +129,7 @@ export class OtakuProvider implements StreamingProvider {
     let existingSerie: any = null;
     try {
       existingSerie = await Serie.findOne(
-        query.tmdbId ? { tmdbId: query.tmdbId } : { titre: new RegExp(`^${query.title.trim()}$`, 'i') }
+        query.tmdbId ? { tmdbId: query.tmdbId } : { titre: new RegExp(`^${seriesTitle.trim()}$`, 'i') }
       ).select('_id providerPages');
 
       const matchedPage = existingSerie?.providerPages?.find(
@@ -104,15 +140,16 @@ export class OtakuProvider implements StreamingProvider {
       }
     } catch (_) {}
 
-    console.log(`[Otaku] Searching series: "${query.title}" S${season}E${episode} (directId=${knownPageId || 'aucun'})`);
+    console.log(`[Otaku] Searching series: "${seriesTitle}" S${season}E${episode} (directId=${knownPageId || 'aucun'})`);
     const result = await searchOtaku(
-      query.title,
+      seriesTitle,
       'series',
       season,
       episode,
       query.language || 'fr',
-      query.year,
-      knownPageId
+      year,
+      knownPageId,
+      originalTitle
     );
 
     if (result?.lien) {

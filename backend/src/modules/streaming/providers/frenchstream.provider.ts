@@ -29,13 +29,15 @@ export class FrenchStreamProvider implements StreamingProvider {
 
   async getMovieStream(query: StreamQuery): Promise<StreamResult | null> {
     let movieTitle = query.title;
+    let originalTitle = query.originalTitle;
 
     // Si le titre ou l'année n'a pas été envoyé, le récupérer via l'API TMDB
     let year = query.year;
-    if ((!movieTitle || !year) && query.tmdbId) {
+    if ((!movieTitle || !year || !originalTitle) && query.tmdbId) {
       try {
         const { data } = await tmdbClient.get(`/movie/${query.tmdbId}?language=${query.language || 'fr'}`);
         if (!movieTitle) movieTitle = data?.title || data?.original_title;
+        if (!originalTitle && data?.original_title) originalTitle = data.original_title;
         if (!year && data?.release_date) {
           const y = new Date(data.release_date).getFullYear();
           if (!isNaN(y)) year = y;
@@ -62,7 +64,7 @@ export class FrenchStreamProvider implements StreamingProvider {
     } catch (_) {}
 
     console.log(`[FrenchStream Provider] Recherche film 1080p pour: "${movieTitle}" (year=${year || 'non spécifiée'}, lang=${query.language || 'fr'}, directPage=${knownPagePath || 'aucune'})`);
-    const result = await getFrenchStreamMovie(movieTitle, (query.language as any) || 'fr', year, knownPagePath);
+    const result = await getFrenchStreamMovie(movieTitle, (query.language as any) || 'fr', year, knownPagePath, originalTitle);
 
     if (result?.streamUrl) {
       console.log(`[FrenchStream Provider] Flux 1080p trouvé: ${result.streamUrl.slice(0, 80)}... (${result.fileSize})`);
@@ -128,12 +130,14 @@ export class FrenchStreamProvider implements StreamingProvider {
 
   async getEpisodeStream(query: StreamQuery): Promise<StreamResult | null> {
     let seriesTitle = query.title;
+    let originalTitle = query.originalTitle;
 
     // Si le titre n'a pas été envoyé, le récupérer via l'API TMDB
-    if (!seriesTitle && query.tmdbId) {
+    if ((!seriesTitle || !originalTitle) && query.tmdbId) {
       try {
         const { data } = await tmdbClient.get(`/tv/${query.tmdbId}?language=${query.language || 'fr'}`);
-        seriesTitle = data?.name || data?.original_name;
+        if (!seriesTitle) seriesTitle = data?.name || data?.original_name;
+        if (!originalTitle && data?.original_name) originalTitle = data.original_name;
       } catch (_) {}
     }
 
@@ -159,7 +163,7 @@ export class FrenchStreamProvider implements StreamingProvider {
     } catch (_) {}
 
     console.log(`[FrenchStream Provider] Recherche série 1080p pour: "${seriesTitle}" S${season}E${episode} (lang=${query.language || 'fr'}, directPage=${knownPagePath || 'aucune'})`);
-    const result = await getFrenchStreamEpisode(seriesTitle, season, episode, (query.language as any) || 'fr', knownPagePath);
+    const result = await getFrenchStreamEpisode(seriesTitle, season, episode, (query.language as any) || 'fr', knownPagePath, originalTitle);
 
     if (result?.streamUrl) {
       console.log(`[FrenchStream Provider] Flux série 1080p trouvé: ${result.streamUrl.slice(0, 80)}... (${result.fileSize})`);

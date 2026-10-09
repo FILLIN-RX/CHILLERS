@@ -14,6 +14,7 @@ export interface StreamQuery {
   tmdbId: number;
   type?: 'movie' | 'tv' | 'anime';
   title?: string;
+  originalTitle?: string;
   season?: number;
   episode?: number;
   language?: string;

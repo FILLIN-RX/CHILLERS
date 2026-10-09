@@ -419,7 +419,11 @@ export class ProviderManager {
   }
 
   private isIframeEmbedUrl(url: string): boolean {
+    if (!url) return false;
     return (
+      url.includes('vidzy.') ||
+      url.includes('open-otaku') ||
+      url.includes('french-stream') ||
       url.includes('vidlink.pro') ||
       url.includes('vidapi') ||
       url.includes('animekai') ||
@@ -443,14 +447,19 @@ export class ProviderManager {
       return true;
     }
 
+    const headers: Record<string, string> = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+    };
+    if (url.includes('vidzy')) {
+      headers['Referer'] = 'https://vidzy.org/';
+    }
+
     try {
       // 1. Try a HEAD request first to verify video URLs quickly without downloading body
       try {
         const headResponse = await axios.head(url, {
           timeout: VALIDATION_TIMEOUT,
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          },
+          headers,
           maxRedirects: 5,
         });
 
@@ -473,9 +482,7 @@ export class ProviderManager {
       const response = await axios.get(url, {
         timeout: VALIDATION_TIMEOUT,
         responseType: 'stream',
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        },
+        headers,
         maxRedirects: 5,
       });
 

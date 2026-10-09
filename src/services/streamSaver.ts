@@ -75,25 +75,23 @@ export async function streamDownloadToDisk(
   const { filename, signal, onProgress, throttleMs = 200, saveBlob = false } = opts;
 
   if (isIOS()) {
-    // iOS Safari doesn't support WritableStream / StreamSaver MITM iframe.
-    // Trigger native iOS download dialog directly through backend proxy on Railway
+    // iOS Safari ne supporte pas WritableStream / StreamSaver MITM iframe.
+    // Sur WebKit iOS, les clics synthétiques (a.click()) après async sont bloqués
+    // et l'attribut a.download est ignoré en cross-origin.
+    // La redirection directe via window.location.href déclenche infailliblement
+    // la boîte de dialogue native iOS ("Voulez-vous télécharger... ?") grâce au
+    // Content-Disposition: attachment servi par le backend.
     const backendOrigin = getBackendOrigin();
-    const href = url.startsWith('http')
-      ? `${backendOrigin}/api/download/file?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`
-      : url.startsWith('/api/')
-        ? `${backendOrigin}${url}`
-        : `${backendOrigin}/api/download/file?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`;
+    let href: string;
+    if (url.includes('/api/download/file') || url.includes('/api/download/stream')) {
+      href = url.startsWith('http') ? url : `${backendOrigin}${url}`;
+    } else if (url.startsWith('/api/')) {
+      href = `${backendOrigin}${url}`;
+    } else {
+      href = `${backendOrigin}/api/download/file?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`;
+    }
 
-    const a = document.createElement("a");
-    a.href = href;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => {
-      try {
-        document.body.removeChild(a);
-      } catch {}
-    }, 1000);
+    window.location.href = href;
     return { totalBytes: null };
   }
 

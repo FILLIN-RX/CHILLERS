@@ -105,24 +105,22 @@ function calculateRelevanceScore(
 }
 
 /**
- * Filtre les doublons et variantes en gardant le meilleur résultat par type + titre normalisé.
- * Le type fait partie de la clé : un film et une série homonymes (« Lucky Man ») sont deux
- * œuvres distinctes et doivent toutes deux remonter.
+ * Filtre les doublons par identifiant unique (media_type + id/tmdbId) tout en calculant
+ * le score de pertinence pour classer les résultats du plus pertinent au moins pertinent.
+ * Les œuvres distinctes portant le même titre (ex: remakes, films homonymes comme "Kraken")
+ * sont préservées et ne sont plus écrasées.
  */
 function deduplicateResults(results: any[], query: string): any[] {
   const seen = new Map<string, any>();
 
   for (const result of results) {
     const mediaType = result.media_type as 'movie' | 'tv';
-    const title = mediaType === 'movie' 
-      ? result.title || result.name 
-      : result.name || result.title;
-    
-    const normalized = normalizeTitle(title || '');
-    const key = `${mediaType}:${normalized}`;
+    const id = result.id || result.tmdbId || result._id;
+    if (!id) continue;
+    const key = `${mediaType}:${id}`;
     const score = calculateRelevanceScore(query, result, mediaType);
 
-    // Garde seulement le résultat avec le meilleur score pour chaque type + titre normalisé
+    // Garde seulement le résultat avec le meilleur score pour chaque ID unique
     if (!seen.has(key) || score > seen.get(key).score) {
       seen.set(key, { ...result, score });
     }
@@ -183,9 +181,9 @@ export const searchMulti = async (query: string, page: number = 1, language?: st
   // Déduplique et trie par pertinence
   const deduplicatedResults = deduplicateResults(allResults, query);
 
-  // Limite à 15 résultats les plus pertinents
+  // Limite aux 20 résultats les plus pertinents
   const tmdbResults = {
-    results: deduplicatedResults.slice(0, 15),
+    results: deduplicatedResults.slice(0, 20),
   };
 
   return {

@@ -24,7 +24,16 @@ function areTitlesMatching(searchTitle: string, candidateTitle: string): boolean
   if (s === c) return true;
   if (c.startsWith(s) && (c.length - s.length <= 15)) return true;
   if (s.startsWith(c) && (s.length - c.length <= 10)) return true;
+  if (c.includes(s) || s.includes(c)) return true;
   return false;
+}
+
+function cleanSearchQuery(q: string): string {
+  if (!q) return '';
+  return q
+    .replace(/[?!,;:#~"'\(\)\[\]{}*_\\\/]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function normalize(str: string): string {
@@ -91,7 +100,8 @@ export async function searchOtaku(
   episode?: number,
   language: string = 'fr',
   year?: number,
-  knownPageId?: string
+  knownPageId?: string,
+  originalTitle?: string
 ): Promise<OtakuResult | null> {
   try {
     const targetSeason = season && season > 0 ? season : 1;
@@ -128,12 +138,22 @@ export async function searchOtaku(
         queryTitle = `${title} Saison ${targetSeason}`;
       }
 
-      let data = await fetchWithRetry(`${BASE_URL}/api/fs-search`, { q: queryTitle });
+      const cleanQ = cleanSearchQuery(queryTitle);
+      let data = await fetchWithRetry(`${BASE_URL}/api/fs-search`, { q: cleanQ || queryTitle });
       let results: Array<{ id: string; title: string; poster?: string }> = data?.results || [];
 
       // Fallback recherche avec titre brut si aucun résultat avec le suffixe saison
       if (results.length === 0 && queryTitle !== title) {
-        data = await fetchWithRetry(`${BASE_URL}/api/fs-search`, { q: title });
+        const cleanRaw = cleanSearchQuery(title);
+        data = await fetchWithRetry(`${BASE_URL}/api/fs-search`, { q: cleanRaw || title });
+        results = data?.results || [];
+      }
+
+      // Fallback avec titre original (VO) si aucun résultat
+      if (results.length === 0 && originalTitle && cleanTitle(originalTitle) !== cleanTitle(title)) {
+        const cleanOrig = cleanSearchQuery(originalTitle);
+        console.log(`[Otaku] Aucun résultat pour "${title}", tentative avec titre original "${originalTitle}"`);
+        data = await fetchWithRetry(`${BASE_URL}/api/fs-search`, { q: cleanOrig || originalTitle });
         results = data?.results || [];
       }
 
@@ -146,8 +166,25 @@ export async function searchOtaku(
       const matchingItems: Array<{ id: string; title: string; poster?: string }> = [];
 
       for (const item of results) {
-        if (areTitlesMatching(queryTitle, item.title || '') || areTitlesMatching(title, item.title || '')) {
+        if (
+          areTitlesMatching(queryTitle, item.title || '') ||
+          areTitlesMatching(title, item.title || '') ||
+          (originalTitle && areTitlesMatching(originalTitle, item.title || ''))
+        ) {
           matchingItems.push(item);
+        }
+      }
+
+      // Si aucune correspondance sur les résultats mais qu'un titre original existe, tenter une recherche directe VO
+      if (matchingItems.length === 0 && originalTitle && cleanTitle(originalTitle) !== cleanTitle(title)) {
+        console.log(`[Otaku] Correspondance éloignée pour "${title}", recherche avec titre original "${originalTitle}"...`);
+        const cleanOrig = cleanSearchQuery(originalTitle);
+        const origData = await fetchWithRetry(`${BASE_URL}/api/fs-search`, { q: cleanOrig || originalTitle });
+        const origResults: Array<{ id: string; title: string; poster?: string }> = origData?.results || [];
+        for (const item of origResults) {
+          if (areTitlesMatching(originalTitle, item.title || '') || areTitlesMatching(title, item.title || '')) {
+            matchingItems.push(item);
+          }
         }
       }
 
