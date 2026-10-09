@@ -4,6 +4,7 @@ import { browserConfig } from '../../../config/browser';
 import Movie from '../../../models/Movie';
 import Serie from '../../../models/Serie';
 import { autoLink } from '../maintenance/auto-link';
+import { resolveYear } from './source-year';
 
 /**
  * Recherche et récupère les informations pour un film ou une série s'il est manquant
@@ -25,11 +26,12 @@ export async function fetchMissingMedia(title: string, type: 'movie' | 'series',
     if (type === 'series' && episodeNum) {
         const link = await getSpecificEpisodeLink(page, episodeNum);
         if (link) {
+            const year = await resolveYear(title, page.url());
             result = { titre: title, episode: `Ép ${episodeNum}`, lien: link };
             // Update MongoDB Serie
             const updated = await Serie.findOneAndUpdate(
                 { titre: title },
-                { $push: { episodes: { episode: `Ép ${episodeNum}`, lien: link } } },
+                { $push: { episodes: { episode: `Ép ${episodeNum}`, lien: link } }, ...(year ? { $set: { year } } : {}) },
                 { upsert: true, returnDocument: 'after' }
             );
             // Liaison TMDB en arrière-plan (fire-and-forget)
@@ -41,12 +43,14 @@ export async function fetchMissingMedia(title: string, type: 'movie' | 'series',
         await page.waitForTimeout(8000);
         const dlLink = page.locator('a#fs-dl-link');
         const link = await dlLink.getAttribute('href');
+        const pageUrl = page.url();
+        const year = await resolveYear(title, pageUrl);
         result = { titre: title, lien: link };
 
         // Update MongoDB Movie
         const updated = await Movie.findOneAndUpdate(
             { titre: title },
-            { $set: { titre: title, pageUrl: page.url(), lien: link } },
+            { $set: { titre: title, pageUrl, lien: link, ...(year ? { year } : {}) } },
             { upsert: true, returnDocument: 'after' }
         );
         // Liaison TMDB en arrière-plan (fire-and-forget)

@@ -85,6 +85,21 @@ async function getSeasonDetails(tmdbId: number, seasonNumber: number): Promise<a
 }
 
 /**
+ * Écrit la jointure TMDB d'une série. L'année est stockée avec l'ID : sans elle,
+ * deux séries homonymes (reboot, autre année) sont indistinguables côté lecture,
+ * et `titre` étant l'index unique de la collection, la seconde n'a jamais de doc.
+ */
+async function writeSerieTmdb(titre: string, tmdbId: number, year?: number | null) {
+  await Serie.updateMany({ titre }, { $set: { tmdbId, ...(year ? { year } : {}) } });
+}
+
+/** Année de début de série déclarée par TMDB. */
+function serieYearOf(details: any): number | null {
+  const y = parseInt(String(details?.first_air_date || '').slice(0, 4), 10);
+  return Number.isFinite(y) ? y : null;
+}
+
+/**
  * Lie une série MongoDB à son ID TMDB. Utilisable depuis un save-site (auto-link)
  * ou depuis le batch main(). Ne lève jamais — retourne un statut structuré.
  *
@@ -97,7 +112,7 @@ async function getSeasonDetails(tmdbId: number, seasonNumber: number): Promise<a
  */
 export async function linkSeriesTmdb(serieId: string): Promise<{ ok: boolean; tmdbId?: number; reason?: string }> {
   try {
-    const serie: any = await Serie.findById(serieId).select('titre episodes tmdbId').lean();
+    const serie: any = await Serie.findById(serieId).select('titre episodes tmdbId year').lean();
     if (!serie) return { ok: false, reason: 'not_found' };
     if (serie.tmdbId) return { ok: true, tmdbId: serie.tmdbId };
 
@@ -127,6 +142,10 @@ export async function linkSeriesTmdb(serieId: string): Promise<{ ok: boolean; tm
 
       const details = await getTvDetails(candidate.id);
       if (!details) continue;
+      // Pour une série, l'année de référence est celle déclarée par TMDB : le champ
+      // `year` des docs est souvent le millésime du TITRE (« 1992 - Saison 1 »,
+      // « Paris Police 1900 »), pas l'année de diffusion.
+      const serieYear = serieYearOf(details);
 
       const seasons = details.seasons || [];
       const seasonExists = seasons.some((s: any) => s.season_number === season);
@@ -153,14 +172,14 @@ export async function linkSeriesTmdb(serieId: string): Promise<{ ok: boolean; tm
         return nameSimilarity(u.title, tmdbEp.name) > 0.4;
       });
       if (titleMatches.length > 0) {
-        await Serie.updateMany({ titre: serie.titre }, { $set: { tmdbId: candidate.id } });
+        await writeSerieTmdb(serie.titre, candidate.id, serieYear);
         console.log(`[TMDB-AUTO] Series "${serie.titre}" → tmdbId=${candidate.id} (match titres épisodes)`);
         return { ok: true, tmdbId: candidate.id };
       }
 
       // Fallback : nombre exact d'épisodes
       if (tmdbCount === uploadedCount) {
-        await Serie.updateMany({ titre: serie.titre }, { $set: { tmdbId: candidate.id } });
+        await writeSerieTmdb(serie.titre, candidate.id, serieYear);
         console.log(`[TMDB-AUTO] Series "${serie.titre}" → tmdbId=${candidate.id} (count match)`);
         return { ok: true, tmdbId: candidate.id };
       }
@@ -174,7 +193,7 @@ export async function linkSeriesTmdb(serieId: string): Promise<{ ok: boolean; tm
         const tmdbEpNumbers = new Set(tmdbEpisodes.map((e: any) => e.episode_number));
         const anyNumMatch = [...uploadedEpNumbers].some(n => tmdbEpNumbers.has(n));
         if (anyNumMatch) {
-          await Serie.updateMany({ titre: serie.titre }, { $set: { tmdbId: candidate.id } });
+          await writeSerieTmdb(serie.titre, candidate.id, serieYear);
           console.log(`[TMDB-AUTO] Series "${serie.titre}" → tmdbId=${candidate.id} (relaxed match)`);
           return { ok: true, tmdbId: candidate.id };
         }
@@ -192,7 +211,7 @@ async function main() {
   await connectDB();
 
   const allSeries = await Serie.find({ tmdbId: { $exists: false } })
-    .select('titre episodes tmdbId')
+    .select('titre episodes tmdbId year')
     .lean();
 
   if (allSeries.length === 0) {
@@ -260,6 +279,7 @@ async function main() {
         console.log(`    → Impossible de récupérer les détails`);
         continue;
       }
+      const serieYear = serieYearOf(details);
 
       const seasons = details.seasons || [];
       const seasonExists = seasons.some((s: any) => s.season_number === season);
@@ -297,7 +317,7 @@ async function main() {
         console.log(`    ✅ Match par titres d'épisodes (ex: "${titleMatches[0].title}")`);
         const firstMatch = tmdbEpisodes.find((te: any) => te.episode_number === titleMatches[0].ep);
         console.log(`    ✅ LIEN RÉUSSI → tmdbId=${candidate.id}`);
-        await Serie.updateMany({ titre }, { $set: { tmdbId: candidate.id } });
+        await writeSerieTmdb(titre, candidate.id, serieYear);
         linked++;
         matched = true;
         break;
@@ -307,7 +327,7 @@ async function main() {
       if (tmdbCount === uploadedCount) {
         console.log(`    ⚠ Nombre exact d'épisodes: ${tmdbCount}`);
         console.log(`    ✅ LIEN RÉUSSI → tmdbId=${candidate.id}`);
-        await Serie.updateMany({ titre }, { $set: { tmdbId: candidate.id } });
+        await writeSerieTmdb(titre, candidate.id, serieYear);
         linked++;
         matched = true;
         break;
@@ -325,7 +345,7 @@ async function main() {
         if (anyNumMatch) {
           console.log(`    ⚠ Match relâché: TMDB=${tmdbCount}, uploadés=${uploadedCount}`);
           console.log(`    ✅ LIEN RÉUSSI → tmdbId=${candidate.id}`);
-          await Serie.updateMany({ titre }, { $set: { tmdbId: candidate.id } });
+          await writeSerieTmdb(titre, candidate.id, serieYear);
           linked++;
           matched = true;
           break;

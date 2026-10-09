@@ -7,6 +7,7 @@ const { connectDB } = require('../../config/db');
 const { browserConfig } = require('../../config/browser');
 const { UqloadClient } = require('../../modules/uqload/uqload.client');
 const { autoLink } = require('../maintenance/auto-link');
+const { resolveYear, yearFromTitle, fetchSourceYear } = require('./source-year');
 
 async function uploadToUqload(client, titre, lien, movieId) {
   if (!client) return;
@@ -124,6 +125,19 @@ async function scrapeFilms() {
 
                 const existingFilm = await Movie.findOne({ titre: titre });
                 if (existingFilm && existingFilm.pageUrl && existingFilm.lien) {
+                    // `titre` est l'index unique : un homonyme d'une autre année ne peut
+                    // pas avoir son propre document. On le signale au lieu de laisser
+                    // croire que le film est couvert, et on complète l'année manquante.
+                    // L'API source n'est appelée que si la base n'a rien : sinon chaque
+                    // carte déjà traitée coûterait une requête à chaque passage du cron.
+                    const sourceYear = yearFromTitle(titre)
+                        || (existingFilm.year ? null : await fetchSourceYear(existingFilm.pageUrl));
+                    if (sourceYear && existingFilm.year && Math.abs(sourceYear - existingFilm.year) > 1) {
+                        console.warn(`⚠️  Homonyme non couvrable : « ${titre} » est déjà en base en ${existingFilm.year}, la page scrapée est ${sourceYear} — le lien stocké n'est pas ce film`);
+                    } else if (sourceYear && !existingFilm.year) {
+                        await Movie.updateOne({ _id: existingFilm._id }, { $set: { year: sourceYear } });
+                        console.log(`Année complétée sur « ${titre} » : ${sourceYear}`);
+                    }
                     console.log(`Film déjà traité : ${titre}`);
                     continue;
                 }
@@ -134,6 +148,7 @@ async function scrapeFilms() {
                 await page.waitForTimeout(1000);
 
                 const pageUrl = page.url();
+                const year = await resolveYear(titre, pageUrl);
 
                 await page.click('button#fs-quick-download', { force: true });
                 await page.waitForTimeout(10000);
@@ -144,7 +159,7 @@ async function scrapeFilms() {
                 if (link && link !== "#") {
                     const saved = await Movie.findOneAndUpdate(
                         { titre: titre },
-                        { $set: { titre, pageUrl, lien: link } },
+                        { $set: { titre, pageUrl, lien: link, ...(year ? { year } : {}) } },
                         { upsert: true, returnDocument: 'after' }
                     );
                     console.log(`Film sauvegardé dans MongoDB : ${titre}`);

@@ -41,6 +41,12 @@ async function searchTmdbMovie(query: string, year?: number | null): Promise<any
   }
 }
 
+/** Année de production du candidat TMDB (recherche /movie). */
+function candidateYearOf(candidate: any): number | null {
+  const y = parseInt(String(candidate?.release_date || '').slice(0, 4), 10);
+  return Number.isFinite(y) ? y : null;
+}
+
 /**
  * Lie un film MongoDB à son ID TMDB. Utilisable depuis un save-site (auto-link)
  * ou depuis le batch main(). Ne lève jamais — retourne un statut structuré.
@@ -60,7 +66,14 @@ export async function linkMovieTmdb(movieId: string): Promise<{ ok: boolean; tmd
       const sim = nameSimilarity(movie.titre, candidateTitle);
       if (sim < 0.3) continue;
       if (sim >= 0.5 || (sim >= 0.3 && i === 0)) {
-        await Movie.updateOne({ _id: movie._id }, { $set: { tmdbId: candidate.id } });
+        // L'année du candidat TMDB est la seule dont dispose le scraper (les
+        // cartes du site ne l'affichent pas) : on la stocke avec l'ID, sinon
+        // rien ne permettra plus de distinguer deux homonymes.
+        const candidateYear = candidateYearOf(candidate);
+        await Movie.updateOne(
+          { _id: movie._id },
+          { $set: { tmdbId: candidate.id, ...(movie.year || candidateYear ? { year: movie.year || candidateYear } : {}) } }
+        );
         console.log(`[TMDB-AUTO] Movie "${movie.titre}" → tmdbId=${candidate.id} (sim=${sim.toFixed(2)})`);
         return { ok: true, tmdbId: candidate.id };
       }
@@ -76,7 +89,7 @@ async function main() {
   await connectDB();
 
   const toLink = await Movie.find({ tmdbId: { $exists: false } })
-    .select('titre lien tmdbId createdAt')
+    .select('titre lien tmdbId createdAt year')
     .lean();
 
   if (toLink.length === 0) {
@@ -99,7 +112,7 @@ async function main() {
 
     // Use the reusable linkMovieTmdb (it prints its own [TMDB-AUTO] on success).
     // Re-run a manual search here so the batch script keeps its rich console output.
-    const results = await searchTmdbMovie(title);
+    const results = await searchTmdbMovie(title, movie.year);
     if (results.length === 0) {
       errors.push(`[SEARCH] No TMDB results for "${title}"`);
       failed++;
@@ -125,7 +138,11 @@ async function main() {
 
       if (sim >= 0.5 || (sim >= 0.3 && i === 0)) {
         console.log(`    ✅ LIEN RÉUSSI → tmdbId=${candidate.id}`);
-        await Movie.updateOne({ _id: movie._id }, { $set: { tmdbId: candidate.id } });
+        await Movie.updateOne({
+          _id: movie._id,
+        }, {
+          $set: { tmdbId: candidate.id, ...(movie.year || candidateYear ? { year: movie.year || candidateYear } : {}) },
+        });
         linked++;
         matched = true;
         break;

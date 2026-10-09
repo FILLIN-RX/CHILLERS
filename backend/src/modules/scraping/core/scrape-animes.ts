@@ -6,6 +6,7 @@ import { browserConfig } from '../../../config/browser';
 import { connectDB } from '../../../config/db';
 import { uploadToStreamtape } from '../../streamtape/utils/streamtape.uploader';
 import { autoLink } from '../maintenance/auto-link';
+import { resolveYear, yearFromTitle, fetchSourceYear } from './source-year';
 
 function parseEpisodeLabel(label: string, defaultSeason = 1): { season: number; episodeNumber: number; canonical: string } {
     const trimmed = label.trim();
@@ -88,6 +89,16 @@ async function scrapeAnimesDetails() {
 
                 const existingAnime = await Serie.findOne({ titre: titre });
                 if (existingAnime && existingAnime.pageUrl && existingAnime.episodes && existingAnime.episodes.length > 0) {
+                    // L'API source n'est appelée que si la base n'a rien : sinon chaque
+                    // carte déjà traitée coûterait une requête à chaque passage du cron.
+                    const sourceYear = yearFromTitle(titre)
+                        || (existingAnime.year ? null : await fetchSourceYear(existingAnime.pageUrl));
+                    if (sourceYear && existingAnime.year && Math.abs(sourceYear - existingAnime.year) > 1) {
+                        console.warn(`⚠️  Homonyme non couvrable : « ${titre} » est déjà en base en ${existingAnime.year}, la page scrapée est ${sourceYear}`);
+                    } else if (sourceYear && !existingAnime.year) {
+                        await Serie.updateOne({ _id: existingAnime._id }, { $set: { year: sourceYear } });
+                        console.log(`Année complétée sur « ${titre} » : ${sourceYear}`);
+                    }
                     console.log(`Anime déjà traité : ${titre}`);
                     continue;
                 }
@@ -103,6 +114,10 @@ async function scrapeAnimesDetails() {
                     pageUrl,
                     episodes: existingAnime ? existingAnime.episodes : []
                 };
+
+                const year = await resolveYear(titre, pageUrl);
+                if (year) animeData.year = year;
+                else if (existingAnime?.year) animeData.year = existingAnime.year;
 
                 if (animeData.episodes.length === 0) {
                     console.log(`  -> Récupération des épisodes pour : ${titre}`);

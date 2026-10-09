@@ -7,6 +7,7 @@ import { connectDB } from '../../../config/db';
 import { UqloadClient } from '../../uqload/uqload.client';
 import { reuploadEpisode } from '../../reupload/reupload';
 import { autoLink } from '../maintenance/auto-link';
+import { resolveYear, yearFromTitle, fetchSourceYear } from './source-year';
 
 async function uploadEpisodeToUqload(client: UqloadClient | null, label: string, lien: string, serieId: string, episodeIndex: number) {
     if (!client) return;
@@ -114,6 +115,18 @@ async function scrapeSeriesDetails() {
 
                 const existingSeries = await Serie.findOne({ titre: titre });
                 if (existingSeries && existingSeries.pageUrl && existingSeries.episodes && existingSeries.episodes.length > 0) {
+                    // `titre` est l'index unique : deux séries homonymes (autre année,
+                    // autre reboot) ne peuvent pas coexister. On le rend visible.
+                    // L'API source n'est appelée que si la base n'a rien : sinon chaque
+                    // carte déjà traitée coûterait une requête à chaque passage du cron.
+                    const sourceYear = yearFromTitle(titre)
+                        || (existingSeries.year ? null : await fetchSourceYear(existingSeries.pageUrl));
+                    if (sourceYear && existingSeries.year && Math.abs(sourceYear - existingSeries.year) > 1) {
+                        console.warn(`⚠️  Homonyme non couvrable : « ${titre} » est déjà en base en ${existingSeries.year}, la page scrapée est ${sourceYear}`);
+                    } else if (sourceYear && !existingSeries.year) {
+                        await Serie.updateOne({ _id: existingSeries._id }, { $set: { year: sourceYear } });
+                        console.log(`Année complétée sur « ${titre} » : ${sourceYear}`);
+                    }
                     console.log(`Série déjà traitée et complète : ${titre}`);
                     continue;
                 }
@@ -129,6 +142,10 @@ async function scrapeSeriesDetails() {
                     pageUrl: pageUrl,
                     episodes: existingSeries ? existingSeries.episodes : []
                 };
+
+                const year = await resolveYear(titre, pageUrl);
+                if (year) serieData.year = year;
+                else if (existingSeries?.year) serieData.year = existingSeries.year;
 
                 if (serieData.episodes.length === 0) {
                     console.log(`  -> Récupération des épisodes pour : ${titre}`);
