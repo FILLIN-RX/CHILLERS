@@ -1,6 +1,6 @@
 "use client";
 
-import { API_BASE_PATH } from "@/services/http";
+import { API_BASE_PATH, getBackendOrigin } from "@/services/http";
 
 // Thin wrapper around StreamSaver.js that initialises the MITM polyfill lazily
 // (browser-only) and exposes a single `streamDownloadToDisk` function.
@@ -76,13 +76,21 @@ export async function streamDownloadToDisk(
 
   if (isIOS()) {
     // iOS Safari doesn't support WritableStream / StreamSaver MITM iframe.
-    // Trigger native iOS download dialog directly through backend proxy.
-    const isExternalPage = /doodstream\.com\/d\//i.test(url);
-    const href = isExternalPage
-      ? url
+    // Trigger native iOS download dialog directly through backend proxy on Railway
+    // (bypassing Vercel's serverless edge proxy timeout and payload limits).
+    const isExternalPage = /doodstream\.com\/d\//i.test(url) || /\.html?(\?|$)/i.test(url);
+    if (isExternalPage) {
+      window.open(url, "_blank");
+      return { totalBytes: null };
+    }
+
+    const backendOrigin = getBackendOrigin();
+    const href = url.startsWith('http')
+      ? `${backendOrigin}/api/download/file?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`
       : url.startsWith('/api/')
-        ? url
-        : `/api/download/file?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`;
+        ? `${backendOrigin}${url}`
+        : `${backendOrigin}/api/download/file?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`;
+
     const a = document.createElement("a");
     a.href = href;
     a.download = filename;

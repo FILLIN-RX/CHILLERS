@@ -46,12 +46,22 @@ export async function addTorrent(
     payload.link = source.data;
   }
 
-  const res = await axios.post(`${TORRSERVER_URL}/torrents`, payload, {
-    timeout: Math.min(ADD_TIMEOUT, left),
-  });
-  const hash = res.data?.hash;
-  if (!hash) throw new Error('TorrServer: hash introuvable dans la réponse');
-  return hash;
+  try {
+    const res = await axios.post(`${TORRSERVER_URL}/torrents`, payload, {
+      timeout: Math.min(ADD_TIMEOUT, left),
+    });
+    const hash = res.data?.hash;
+    if (!hash) throw new Error('TorrServer: hash introuvable dans la réponse');
+    return hash;
+  } catch (err: any) {
+    if (err.response?.status === 404 && err.response?.data?.message === 'Route not found') {
+      console.error(
+        `[TorrServer] ⚠️ CONFIGURATION ERROR: TORRSERVER_URL (${TORRSERVER_URL}) pointe vers une instance Express au lieu du binaire TorrServer ! Dans Railway, le service 'torrserver' doit déployer l'image Docker 'ghcr.io/yourok/torrserver:latest' (port 8090) et non le repository GitHub du backend.`
+      );
+      throw new Error(`TorrServer 404: ${TORRSERVER_URL} est un backend Express ("Route not found"), pas TorrServer`);
+    }
+    throw err;
+  }
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
