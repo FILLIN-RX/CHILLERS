@@ -107,7 +107,12 @@ export async function searchFrenchStream(query: string): Promise<FrenchStreamSea
 /**
  * Extrait les liens de lecteurs Vidzy (TRUEFRENCH, FRENCH, VOSTFR) depuis la page du film
  */
-export async function extractEmbedVersions(pageUrl: string): Promise<{ title: string; versions: FrenchStreamVersion[] }> {
+export async function extractEmbedVersions(pageUrl: string): Promise<{
+  title: string;
+  versions: FrenchStreamVersion[];
+  directors?: string[];
+  actors?: string[];
+}> {
   try {
     const { data: html } = await axios.get(pageUrl, {
       headers: {
@@ -212,8 +217,38 @@ export async function extractEmbedVersions(pageUrl: string): Promise<{ title: st
         }
       }
     }
+    let candidateDirectors: string[] = [];
+    let candidateActors: string[] = [];
 
-    return { title: rawTitle, versions };
+    // Extraction robuste depuis les balises HTML de FrenchStream
+    const actorsMatch = html.match(/<span>Acteurs:\s*<\/span>([\s\S]*?)<\/li>/i);
+    if (actorsMatch) {
+      candidateActors = (actorsMatch[1].match(/<a[^>]*>([^<]+)<\/a>/gi) || [])
+        .map((a: string) => a.replace(/<[^>]+>/g, '').trim())
+        .filter(Boolean);
+    }
+    const dirMatch = html.match(/<span>(?:Réalisateur|Réalisé par):\s*<\/span>([\s\S]*?)<\/li>/i);
+    if (dirMatch) {
+      candidateDirectors = (dirMatch[1].match(/<a[^>]*>([^<]+)<\/a>/gi) || [])
+        .map((a: string) => a.replace(/<[^>]+>/g, '').trim())
+        .filter(Boolean);
+    }
+
+    // Fallback regex sur les métadonnées JSON-LD (sans JSON.parse fragile)
+    if (candidateDirectors.length === 0) {
+      const dSection = html.match(/"director":\s*\[([\s\S]*?)\]/i)?.[1] || '';
+      candidateDirectors = (dSection.match(/"name":\s*"([^"]+)"/g) || [])
+        .map((m: string) => m.replace(/"name":\s*"/, '').replace(/"$/, '').trim())
+        .filter(Boolean);
+    }
+    if (candidateActors.length === 0) {
+      const aSection = html.match(/"actor":\s*\[([\s\S]*?)\]/i)?.[1] || '';
+      candidateActors = (aSection.match(/"name":\s*"([^"]+)"/g) || [])
+        .map((m: string) => m.replace(/"name":\s*"/, '').replace(/"$/, '').trim())
+        .filter(Boolean);
+    }
+
+    return { title: rawTitle, versions, directors: candidateDirectors, actors: candidateActors };
   } catch (error: any) {
     console.error(`[FrenchStream] Erreur extraction ${pageUrl}:`, error.message);
     return { title: '', versions: [] };
@@ -397,7 +432,9 @@ export async function getFrenchStreamMovie(
   preferredLang: 'fr' | 'vostfr' | 'en' | 'vo' = 'fr',
   targetYear?: number,
   knownPagePath?: string,
-  originalTitle?: string
+  originalTitle?: string,
+  directors?: string[],
+  mainActors?: string[]
 ): Promise<FrenchStreamDirectResult | null> {
   try {
     let bestUrl = '';
@@ -413,6 +450,18 @@ export async function getFrenchStreamMovie(
       console.log(`[FrenchStream HQ] [Direct Cache] Tentative directe sur page mémorisée: ${fullKnownUrl}`);
       try {
         const directExtracted = await extractEmbedVersions(fullKnownUrl);
+        if (directExtracted.versions.length > 0) {
+          const candDirs = directExtracted.directors || [];
+          const candActs = directExtracted.actors || [];
+          if ((candDirs.length > 0 || candActs.length > 0) && ((directors && directors.length > 0) || (mainActors && mainActors.length > 0))) {
+            const matchDir = directors?.some(d => candDirs.some(cd => cd.toLowerCase().includes(d.toLowerCase()) || d.toLowerCase().includes(cd.toLowerCase())));
+            const matchAct = mainActors?.some(a => candActs.some(ca => ca.toLowerCase().includes(a.toLowerCase()) || a.toLowerCase().includes(ca.toLowerCase())));
+            if (!matchDir && !matchAct) {
+              console.log(`[FrenchStream HQ] [Direct Cache] ⚠️ Page mémorisée rejetée pour "${title}" : homonyme incompatible.`);
+              directExtracted.versions = [];
+            }
+          }
+        }
         if (directExtracted.versions.length > 0) {
           bestUrl = fullKnownUrl;
           bestTitle = directExtracted.title || title;
@@ -472,6 +521,21 @@ export async function getFrenchStreamMovie(
         bestUrl = best.url;
         bestTitle = best.title;
         const extracted = await extractEmbedVersions(best.url);
+
+        const candidateDirectors = extracted.directors || [];
+        const candidateActors = extracted.actors || [];
+
+        // Protection homonymes : si la page fournit réalisateurs ou acteurs, vérifier la cohérence avec TMDB
+        if ((candidateDirectors.length > 0 || candidateActors.length > 0) && ((directors && directors.length > 0) || (mainActors && mainActors.length > 0))) {
+          const matchDirector = directors?.some(d => candidateDirectors.some(cd => cd.toLowerCase().includes(d.toLowerCase()) || d.toLowerCase().includes(cd.toLowerCase())));
+          const matchActor = mainActors?.some(a => candidateActors.some(ca => ca.toLowerCase().includes(a.toLowerCase()) || a.toLowerCase().includes(ca.toLowerCase())));
+
+          if (!matchDirector && !matchActor) {
+            console.log(`[FrenchStream HQ] ⚠️ Rejet homonyme pour "${title}" : réalisateurs/acteurs incompatibles (Page: ${candidateDirectors.join(', ')} / ${candidateActors.slice(0, 3).join(', ')} vs Cible: ${(directors || []).join(', ')} / ${(mainActors || []).slice(0, 3).join(', ')}).`);
+            return null;
+          }
+        }
+
         resolvedTitle = extracted.title;
         versions = extracted.versions;
       }

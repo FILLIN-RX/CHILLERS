@@ -33,14 +33,18 @@ export class StreamtapeProvider implements StreamingProvider {
 
   private async findMovieStream(query: StreamQuery): Promise<string | null> {
     try {
-      const movie = await Movie.findOne({
-        $or: [
-          ...(query.tmdbId ? [{ tmdbId: query.tmdbId }] : []),
-          ...(query.title
-            ? [{ titre: { $regex: new RegExp(query.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } }]
-            : []),
-        ],
-      }).exec();
+      let movie: any = null;
+      if (query.tmdbId) {
+        movie = await Movie.findOne({ tmdbId: query.tmdbId }).exec();
+      }
+      if (!movie && query.title) {
+        const byTitle = await Movie.findOne({
+          titre: { $regex: new RegExp(query.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') },
+        }).exec();
+        if (byTitle && (!query.tmdbId || !byTitle.tmdbId || Number(byTitle.tmdbId) === Number(query.tmdbId))) {
+          movie = byTitle;
+        }
+      }
 
       if (!movie) return null;
 

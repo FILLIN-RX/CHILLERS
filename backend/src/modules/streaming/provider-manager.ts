@@ -47,15 +47,22 @@ interface ProviderHealth {
 /** Cache court pour un résultat « weak » (embed sans URL directe jouable). */
 const WEAK_CACHE_TTL = 10 * 60 * 1000;
 
+function isEmbedOrHtml(url: string | null | undefined): boolean {
+  if (!url) return false;
+  return /\.html?(\?|$)/i.test(url) || url.includes('/embed-') || url.includes('/e/') || url.includes('/embed/');
+}
+
 /** Transforme la tentative gagnante en résultat mis en cache. */
 function toCachedStream(attempt: ProviderAttempt): CachedStream {
+  const r = attempt.result;
+  const isDirectMp4 = r?.directType === 'mp4' && r?.directUrl && !isEmbedOrHtml(r.directUrl);
   return {
     provider: attempt.provider,
     embedUrl: attempt.reason!,
-    directUrl: attempt.result?.directUrl,
-    directType: attempt.result?.directType,
-    downloadUrl: attempt.result?.downloadUrl,
-    referer: attempt.result?.referer,
+    directUrl: r?.directUrl,
+    directType: r?.directType,
+    downloadUrl: isDirectMp4 ? r.directUrl : (r?.downloadUrl && !isEmbedOrHtml(r.downloadUrl) ? r.downloadUrl : undefined),
+    referer: r?.referer,
   };
 }
 
@@ -347,6 +354,7 @@ export class ProviderManager {
             ...result,
             directUrl: outcome.directUrl,
             directType: outcome.directType,
+            downloadUrl: outcome.directType === 'mp4' ? outcome.directUrl : result.downloadUrl,
             referer: outcome.referer || result.referer,
           },
           weak: false,

@@ -30,17 +30,26 @@ export class FrenchStreamProvider implements StreamingProvider {
   async getMovieStream(query: StreamQuery): Promise<StreamResult | null> {
     let movieTitle = query.title;
     let originalTitle = query.originalTitle;
-
-    // Si le titre ou l'année n'a pas été envoyé, le récupérer via l'API TMDB
     let year = query.year;
-    if ((!movieTitle || !year || !originalTitle) && query.tmdbId) {
+
+    let directors: string[] | undefined;
+    let mainActors: string[] | undefined;
+
+    // Si tmdbId est fourni, récupérer les détails TMDB (titre, année, réalisateurs, acteurs)
+    if (query.tmdbId) {
       try {
-        const { data } = await tmdbClient.get(`/movie/${query.tmdbId}?language=${query.language || 'fr'}`);
+        const { data } = await tmdbClient.get(`/movie/${query.tmdbId}?language=${query.language || 'fr'}&append_to_response=credits`);
         if (!movieTitle) movieTitle = data?.title || data?.original_title;
         if (!originalTitle && data?.original_title) originalTitle = data.original_title;
         if (!year && data?.release_date) {
           const y = new Date(data.release_date).getFullYear();
           if (!isNaN(y)) year = y;
+        }
+        if (data?.credits?.crew) {
+          directors = data.credits.crew.filter((c: any) => c.job === 'Director').map((c: any) => c.name);
+        }
+        if (data?.credits?.cast) {
+          mainActors = data.credits.cast.slice(0, 5).map((a: any) => a.name);
         }
       } catch (_) {}
     }
@@ -64,7 +73,7 @@ export class FrenchStreamProvider implements StreamingProvider {
     } catch (_) {}
 
     console.log(`[FrenchStream Provider] Recherche film 1080p pour: "${movieTitle}" (year=${year || 'non spécifiée'}, lang=${query.language || 'fr'}, directPage=${knownPagePath || 'aucune'})`);
-    const result = await getFrenchStreamMovie(movieTitle, (query.language as any) || 'fr', year, knownPagePath, originalTitle);
+    const result = await getFrenchStreamMovie(movieTitle, (query.language as any) || 'fr', year, knownPagePath, originalTitle, directors, mainActors);
 
     if (result?.streamUrl) {
       console.log(`[FrenchStream Provider] Flux 1080p trouvé: ${result.streamUrl.slice(0, 80)}... (${result.fileSize})`);

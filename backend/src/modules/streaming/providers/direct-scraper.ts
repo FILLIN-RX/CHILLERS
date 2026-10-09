@@ -20,7 +20,7 @@ function isDirectVideoUrl(url: string): boolean {
 }
 
 function isVidzyUrl(url: string): boolean {
-  return /vidzy\.(?:cc|org|xyz|co|tv|top|to)\//i.test(url) || /u\d+\.vidzy\./i.test(url);
+  return /(?:[a-z0-9]+\.)?vidzy\.(?:cc|org|xyz|co|tv|top|to)\//i.test(url);
 }
 
 /**

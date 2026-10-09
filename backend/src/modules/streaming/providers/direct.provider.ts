@@ -240,7 +240,8 @@ export class DirectProvider implements StreamingProvider {
     // Priority 2: title regex fallback
     if (query.title) {
       const escaped = query.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const byTitle = await Serie.find({ titre: { $regex: new RegExp(escaped, 'i') } }).exec();
+      const allFound = await Serie.find({ titre: { $regex: new RegExp(escaped, 'i') } }).exec();
+      const byTitle = allFound.filter(s => !query.tmdbId || !s.tmdbId || Number(s.tmdbId) === Number(query.tmdbId));
       if (byTitle.length) {
         if (query.season !== undefined) {
           const bySeason = byTitle.find(s => s.episodes?.some(
@@ -270,6 +271,10 @@ export class DirectProvider implements StreamingProvider {
       const escaped = query.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const byTitle = await Movie.findOne({ titre: { $regex: new RegExp(escaped, 'i') } }).exec();
       if (byTitle) {
+        if (query.tmdbId && byTitle.tmdbId && Number(byTitle.tmdbId) !== Number(query.tmdbId)) {
+          console.log(`${TAG} findMovie: rejet homonyme "${byTitle.titre}" (tmdbId en base: ${byTitle.tmdbId} !== demandé: ${query.tmdbId})`);
+          return null;
+        }
         console.log(`${TAG} findMovie: matched by title "${byTitle.titre}" (tmdbId=${byTitle.tmdbId}) for query tmdbId=${query.tmdbId}`);
         return byTitle;
       }

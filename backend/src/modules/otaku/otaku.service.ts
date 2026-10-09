@@ -75,7 +75,11 @@ async function fetchWithRetry(url: string, params: any, retries = 3, delayMs = 3
   return null;
 }
 
-async function getDirectLink(embedUrl: string): Promise<string | null> {
+export async function getOtakuDirectLink(embedUrl: string): Promise<string | null> {
+  return getDirectLink(embedUrl);
+}
+
+export async function getDirectLink(embedUrl: string): Promise<string | null> {
   try {
     const dlUrl = toDownloadUrl(embedUrl);
     if (!dlUrl) return null;

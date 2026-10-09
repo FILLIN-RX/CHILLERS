@@ -24,6 +24,11 @@ function resolveUrl(url: string | undefined | null): string | null {
   return url;
 }
 
+function isDirectVideoUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  return /\.(mp4|mkv|webm|m3u8)(\?|$)/i.test(url);
+}
+
 function isEmbedOrProtectedUrl(url: string): boolean {
   return /doodstream|playmogo|d000d|d0000d|dood\.|vidlink|vidapi|uqload|streamtape|youtube|embed|\/e\//i.test(url);
 }
@@ -96,7 +101,7 @@ export class MongoDBProvider implements StreamingProvider {
         return {
           provider: this.name,
           embedUrl: toEmbedUrl(url),
-          downloadUrl: movie.lien || url,
+          downloadUrl: isDirectVideoUrl(url) ? url : undefined,
           type: 'movie',
         };
       }
@@ -158,7 +163,7 @@ export class MongoDBProvider implements StreamingProvider {
         return {
           provider: this.name,
           embedUrl: toEmbedUrl(url),
-          downloadUrl: ep.lien || url,
+          downloadUrl: isDirectVideoUrl(url) ? url : undefined,
           type: 'episode',
         };
       }

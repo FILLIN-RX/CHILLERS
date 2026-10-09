@@ -4,6 +4,7 @@ import axios from 'axios';
 import { ProviderManager } from '../streaming/provider-manager';
 import { StreamQuery } from '../streaming/providers/provider.interface';
 import { DirectScraper, getUqloadDirectLink, extractUqloadCode } from '../streaming/providers/direct-scraper';
+import { getOtakuDirectLink } from '../otaku/otaku.service';
 import Movie from '../../models/Movie';
 import Serie from '../../models/Serie';
 
@@ -31,6 +32,16 @@ function unwrapUrl(url: string | undefined | null): string {
     }
   }
   return current;
+}
+
+function isEmbedOrHtml(url: string | null | undefined): boolean {
+  if (!url) return false;
+  return /\.html?(\?|$)/i.test(url) || url.includes('/embed-') || url.includes('/e/') || url.includes('/embed/');
+}
+
+function isDirectVideoUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  return /\.(mp4|mkv|webm|m3u8)(\?|$)/i.test(url);
 }
 
 /**
@@ -79,6 +90,7 @@ router.get('/resolve', async (req: Request, res: Response) => {
     console.log(`[Download Resolve] Résolution: "${cleanTitle || tmdb_id}" (type=${type}, S${season || 1}E${episode || 1}, premium=${isPrem})`);
 
     let downloadUrl: string | null = null;
+    let fallbackEmbed: string | null = null;
     let directType: 'mp4' | 'hls' | 'embed' = 'embed';
     let resolvedProvider = 'chillers';
 
@@ -98,21 +110,24 @@ router.get('/resolve', async (req: Request, res: Response) => {
           const uqCode = ep.uqloadCode || (ep.uqloadLink ? extractUqloadCode(ep.uqloadLink) : null) || (ep.lien ? extractUqloadCode(ep.lien) : null);
           if (uqCode) {
             const uq = await getUqloadDirectLink(uqCode, false);
-            if (uq?.directUrl) {
+            if (uq?.directUrl && !isEmbedOrHtml(uq.directUrl)) {
               downloadUrl = uq.directUrl;
               directType = uq.type === 'hls' ? 'hls' : 'mp4';
               resolvedProvider = 'uqload';
             }
           }
-          if (!downloadUrl && ep.uqloadLink) {
+          if (!downloadUrl && ep.uqloadLink && !isEmbedOrHtml(ep.uqloadLink)) {
             downloadUrl = ep.uqloadLink;
-            directType = 'embed';
+            directType = 'mp4';
             resolvedProvider = 'uqload';
           }
-          if (!downloadUrl && ep.lien) {
+          if (!downloadUrl && ep.lien && !isEmbedOrHtml(ep.lien) && isDirectVideoUrl(ep.lien)) {
             downloadUrl = ep.lien;
-            directType = /\.mp4(\?|$)/i.test(ep.lien) ? 'mp4' : /\.m3u8(\?|$)/i.test(ep.lien) ? 'hls' : 'embed';
+            directType = /\.m3u8(\?|$)/i.test(ep.lien) ? 'hls' : 'mp4';
             resolvedProvider = 'mongodb';
+          }
+          if (!downloadUrl) {
+            fallbackEmbed = ep.lien || ep.uqloadLink || null;
           }
         }
       }
@@ -126,39 +141,58 @@ router.get('/resolve', async (req: Request, res: Response) => {
         const uqCode = movie.uqloadCode || (movie.uqloadLink ? extractUqloadCode(movie.uqloadLink) : null) || (movie.lien ? extractUqloadCode(movie.lien) : null);
         if (uqCode) {
           const uq = await getUqloadDirectLink(uqCode, false);
-          if (uq?.directUrl) {
+          if (uq?.directUrl && !isEmbedOrHtml(uq.directUrl)) {
             downloadUrl = uq.directUrl;
             directType = uq.type === 'hls' ? 'hls' : 'mp4';
             resolvedProvider = 'uqload';
           }
         }
-        if (!downloadUrl && movie.uqloadLink) {
+        if (!downloadUrl && movie.uqloadLink && !isEmbedOrHtml(movie.uqloadLink)) {
           downloadUrl = movie.uqloadLink;
-          directType = 'embed';
+          directType = 'mp4';
           resolvedProvider = 'uqload';
         }
-        if (!downloadUrl && movie.lien) {
+        if (!downloadUrl && movie.lien && !isEmbedOrHtml(movie.lien) && isDirectVideoUrl(movie.lien)) {
           downloadUrl = movie.lien;
-          directType = /\.mp4(\?|$)/i.test(movie.lien) ? 'mp4' : /\.m3u8(\?|$)/i.test(movie.lien) ? 'hls' : 'embed';
+          directType = /\.m3u8(\?|$)/i.test(movie.lien) ? 'hls' : 'mp4';
           resolvedProvider = 'mongodb';
+        }
+        if (!downloadUrl) {
+          fallbackEmbed = movie.lien || movie.uqloadLink || null;
         }
       }
     }
 
-    // 2. Fallback ProviderManager si introuvable en base directe
-    if (!downloadUrl) {
+    // 2. ProviderManager (vérifie le cache et tous les providers streaming : mongodb enrichi, direct, frenchstream, otaku...)
+    if (!downloadUrl || isEmbedOrHtml(downloadUrl)) {
       const streamResult = isTv
         ? await providerManager.getEpisodeStream(query)
         : await providerManager.getMovieStream(query);
 
       if (streamResult) {
         resolvedProvider = streamResult.provider;
-        const candidate = streamResult.downloadUrl || streamResult.directUrl || streamResult.embedUrl;
-        if (candidate) {
-          downloadUrl = unwrapUrl(candidate) || candidate;
-          directType = streamResult.directType || (/\.m3u8(\?|$)/i.test(downloadUrl) ? 'hls' : /\.mp4(\?|$)/i.test(downloadUrl) ? 'mp4' : 'embed');
+        // Priorité 1 : URL MP4 directe déjà enrichie / en cache
+        if (streamResult.directUrl && !isEmbedOrHtml(streamResult.directUrl)) {
+          downloadUrl = streamResult.directUrl;
+          directType = streamResult.directType || (/\.m3u8(\?|$)/i.test(downloadUrl) ? 'hls' : 'mp4');
+        } else if (streamResult.downloadUrl && !isEmbedOrHtml(streamResult.downloadUrl)) {
+          downloadUrl = unwrapUrl(streamResult.downloadUrl) || streamResult.downloadUrl;
+          directType = streamResult.directType || (/\.m3u8(\?|$)/i.test(downloadUrl) ? 'hls' : 'mp4');
+        } else {
+          // Si on n'a qu'un embed, on le garde comme cible pour l'étape d'extraction
+          const candidate = streamResult.downloadUrl || streamResult.embedUrl;
+          if (candidate) {
+            downloadUrl = unwrapUrl(candidate) || candidate;
+            directType = 'embed';
+          }
         }
       }
+    }
+
+    // 3. Fallback sur l'embed trouvé en base si le ProviderManager n'a rien renvoyé
+    if (!downloadUrl && fallbackEmbed) {
+      downloadUrl = fallbackEmbed;
+      directType = 'embed';
     }
 
     if (!downloadUrl) {
@@ -169,7 +203,7 @@ router.get('/resolve', async (req: Request, res: Response) => {
       });
     }
 
-    // Si on a une URL Uqload interne /api/download/uqload/<code>, la résoudre en MP4
+    // 4. Si on a une URL Uqload interne /api/download/uqload/<code>, la résoudre en MP4
     if (downloadUrl.includes('/api/download/uqload/')) {
       const match = downloadUrl.match(/\/api\/download\/uqload\/([a-zA-Z0-9]+)/);
       if (match) {
@@ -181,21 +215,42 @@ router.get('/resolve', async (req: Request, res: Response) => {
       }
     }
 
-    // Si ce n'est pas encore un MP4 direct, tenter d'extraire le stream direct (MP4 prioritaire)
-    if (directType !== 'mp4' && downloadUrl) {
+    // 5. Si downloadUrl est un embed HTML ou non direct, extraire le flux MP4 direct
+    if (downloadUrl && (isEmbedOrHtml(downloadUrl) || directType === 'embed')) {
       try {
+        // A. Uqload direct via scraper embed (obfuscation PACKER bypass)
         const uqCode = extractUqloadCode(downloadUrl);
         if (uqCode) {
           const uqDirect = await DirectScraper.scrapeUqloadEmbedDirect(uqCode);
-          if (uqDirect?.directUrl) {
+          if (uqDirect?.directUrl && !isEmbedOrHtml(uqDirect.directUrl)) {
             downloadUrl = uqDirect.directUrl;
             directType = uqDirect.type === 'hls' || /\.m3u8/i.test(uqDirect.directUrl) ? 'hls' : 'mp4';
             console.log(`[Download Resolve] ✅ Uqload Direct extrait: ${downloadUrl.slice(0, 80)}...`);
           }
         }
-        if (directType !== 'mp4' && directType !== 'hls') {
+
+        // B. Vidzy direct (scraper direct Vidzy + fallback OpenOtaku API)
+        if (downloadUrl && (isEmbedOrHtml(downloadUrl) || directType === 'embed') && DirectScraper.isVidzyUrl(downloadUrl)) {
+          const vidzyDirect = await DirectScraper.scrapeVidzyEmbed(downloadUrl);
+          if (vidzyDirect?.directUrl && !isEmbedOrHtml(vidzyDirect.directUrl)) {
+            downloadUrl = vidzyDirect.directUrl;
+            directType = vidzyDirect.type === 'hls' || /\.m3u8/i.test(vidzyDirect.directUrl) ? 'hls' : 'mp4';
+            console.log(`[Download Resolve] ✅ Vidzy Direct extrait: ${downloadUrl.slice(0, 80)}...`);
+          } else {
+            // Fallback OpenOtaku API pour Vidzy / LuluVid
+            const otakuDirect = await getOtakuDirectLink(downloadUrl);
+            if (otakuDirect && !isEmbedOrHtml(otakuDirect)) {
+              downloadUrl = otakuDirect;
+              directType = /\.m3u8/i.test(otakuDirect) ? 'hls' : 'mp4';
+              console.log(`[Download Resolve] ✅ OpenOtaku API direct extrait: ${downloadUrl.slice(0, 80)}...`);
+            }
+          }
+        }
+
+        // C. DirectScraper généraliste (Doodstream, etc.)
+        if (downloadUrl && (isEmbedOrHtml(downloadUrl) || directType === 'embed')) {
           const direct = await DirectScraper.resolve(downloadUrl, false);
-          if (direct?.directUrl) {
+          if (direct?.directUrl && !isEmbedOrHtml(direct.directUrl)) {
             downloadUrl = direct.directUrl;
             directType = direct.type === 'hls' || /\.m3u8/i.test(direct.directUrl) ? 'hls' : 'mp4';
             console.log(`[Download Resolve] ✅ ${directType.toUpperCase()} direct extrait avec succès pour download: ${downloadUrl.slice(0, 80)}...`);
@@ -214,7 +269,7 @@ router.get('/resolve', async (req: Request, res: Response) => {
       .replace(/\s+/g, ' ');
     const cleanFilename = `${safeTitle}${isTv ? `_S${season || 1}E${episode || 1}` : ''}.mp4`;
 
-    const isHtml = /\.html?(\?|$)/i.test(downloadUrl) || downloadUrl.includes('/embed-') || downloadUrl.includes('/e/');
+    const isHtml = isEmbedOrHtml(downloadUrl);
     if (isHtml) {
       console.warn(`[Download Resolve] ⚠️ URL finale reste une page HTML embed (${downloadUrl}) → rejeté pour éviter d'ouvrir une page web au lieu de télécharger.`);
       return res.status(404).json({
