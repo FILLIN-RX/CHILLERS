@@ -36,6 +36,9 @@ export async function resolveDownloadUrl(
   if (season !== undefined) query.season = String(season);
   if (episode !== undefined) query.episode = String(episode);
   if (language) query.language = language;
+  if (typeof navigator !== "undefined" && /iPad|iPhone|iPod/i.test(navigator.userAgent)) {
+    query.isIOS = "true";
+  }
 
   if (!query.tmdb_id && !query.title) return null;
 

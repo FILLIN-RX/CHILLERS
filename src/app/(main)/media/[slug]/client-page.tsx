@@ -273,10 +273,6 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
   };
 
   const handleDownload = () => {
-    if (!user) {
-      setIsAuthModalOpen(true);
-      return;
-    }
     setShowSingleDownload(true);
   };
 

@@ -15,7 +15,12 @@ const TAG = '[DirectScraper]';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+function isFakeOrPromoUrl(url: string): boolean {
+  return /\/(taunt|promo)\//i.test(url);
+}
+
 function isDirectVideoUrl(url: string): boolean {
+  if (isFakeOrPromoUrl(url)) return false;
   return /\.(mp4|webm|m3u8|ts|m4s)(\?|$)/i.test(url);
 }
 
@@ -404,6 +409,13 @@ async function getUqloadDirectLink(fileCode: string, preferHls = false): Promise
         return null;
       }
 
+      // Rejeter le piège Uqload : quand le compte API n'a pas de forfait Premium + Bandwidth,
+      // Uqload renvoie status=200 mais avec une fausse vidéo promo (/taunt/promo/master.m3u8).
+      if (/need premium|bandwidth plan/i.test(String(data?.msg || ''))) {
+        console.log(`${TAG} Uqload API: ⚠ Forfait bandwidth requis (${data.msg}) — passage au scraping embed`);
+        return null;
+      }
+
       if (data.status !== 200 || !data.result) {
         console.log(`${TAG} Uqload API: échec pour ${targetCode}`);
         return null;
@@ -413,6 +425,10 @@ async function getUqloadDirectLink(fileCode: string, preferHls = false): Promise
 
       // Préférer HLS pour le streaming, MP4 pour le download
       if (preferHls && result.hls_direct) {
+        if (isFakeOrPromoUrl(result.hls_direct)) {
+          console.log(`${TAG} Uqload API: ⚠ hls_direct est une fausse vidéo promo/taunt (${result.hls_direct}), fallback embed`);
+          return null;
+        }
         if (await isUrlReachable(result.hls_direct, 'https://uqload.is/')) {
           console.log(`${TAG} Uqload API: ✅ HLS direct → ${result.hls_direct.slice(0, 120)}`);
           return {
@@ -431,6 +447,10 @@ async function getUqloadDirectLink(fileCode: string, preferHls = false): Promise
         const sorted = [...versions].sort((a, b) => (qualityOrder[b.name] || 0) - (qualityOrder[a.name] || 0));
         if (sorted.length > 0) {
           const best = sorted[0];
+          if (isFakeOrPromoUrl(best.url)) {
+            console.log(`${TAG} Uqload API: ⚠ MP4 direct est une fausse vidéo promo/taunt (${best.url}), fallback embed`);
+            return null;
+          }
           console.log(`${TAG} Uqload API: ✅ MP4 direct (${best.name}) → ${best.url.slice(0, 120)}`);
           return {
             directUrl: best.url,

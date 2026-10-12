@@ -93,6 +93,7 @@ export async function getDirectLink(embedUrl: string): Promise<string | null> {
 export interface OtakuResult {
   titre: string;
   lien: string;
+  downloadUrl?: string;
   pagePath?: string;
   source: 'otaku';
 }

@@ -1,6 +1,6 @@
 import { StreamingProvider, StreamQuery, StreamResult } from './provider.interface';
 import { getFrenchStreamMovie, getFrenchStreamEpisode } from '../../frenchstream/frenchstream.service';
-import { DirectScraper } from './direct-scraper';
+import { DirectScraper, extractUqloadCode } from './direct-scraper';
 import tmdbClient from '../../../config/tmdb';
 import Movie from '../../../models/Movie';
 import Serie from '../../../models/Serie';
@@ -31,16 +31,18 @@ export class FrenchStreamProvider implements StreamingProvider {
     let movieTitle = query.title;
     let originalTitle = query.originalTitle;
     let year = query.year;
-
     let directors: string[] | undefined;
     let mainActors: string[] | undefined;
+
+    let frenchTitle = query.frenchTitle;
 
     // Si tmdbId est fourni, récupérer les détails TMDB (titre, année, réalisateurs, acteurs)
     if (query.tmdbId) {
       try {
         const { data } = await tmdbClient.get(`/movie/${query.tmdbId}?language=${query.language || 'fr'}&append_to_response=credits`);
-        if (!movieTitle) movieTitle = data?.title || data?.original_title;
+        if (!frenchTitle && data?.title) frenchTitle = data.title;
         if (!originalTitle && data?.original_title) originalTitle = data.original_title;
+        if (!movieTitle) movieTitle = frenchTitle || originalTitle;
         if (!year && data?.release_date) {
           const y = new Date(data.release_date).getFullYear();
           if (!isNaN(y)) year = y;
@@ -54,14 +56,17 @@ export class FrenchStreamProvider implements StreamingProvider {
       } catch (_) {}
     }
 
-    if (!movieTitle) return null;
+    if (!movieTitle && !frenchTitle && !originalTitle) return null;
 
     // Recherche d'une page source connue mémorisée dans MongoDB
     let knownPagePath: string | undefined;
     let existingMovie: any = null;
     try {
+      const searchTerms = [movieTitle, frenchTitle, originalTitle].filter(Boolean) as string[];
       existingMovie = await Movie.findOne(
-        query.tmdbId ? { tmdbId: query.tmdbId } : { titre: new RegExp(`^${movieTitle.trim()}$`, 'i') }
+        query.tmdbId
+          ? { tmdbId: query.tmdbId }
+          : { $or: searchTerms.map(t => ({ titre: new RegExp(`^${t.trim()}$`, 'i') })) }
       ).select('_id providerPages');
       
       const matchedPage = existingMovie?.providerPages?.find(
@@ -72,38 +77,55 @@ export class FrenchStreamProvider implements StreamingProvider {
       }
     } catch (_) {}
 
-    console.log(`[FrenchStream Provider] Recherche film 1080p pour: "${movieTitle}" (year=${year || 'non spécifiée'}, lang=${query.language || 'fr'}, directPage=${knownPagePath || 'aucune'})`);
-    const result = await getFrenchStreamMovie(movieTitle, (query.language as any) || 'fr', year, knownPagePath, originalTitle, directors, mainActors);
+    console.log(`[FrenchStream Provider] Recherche film 1080p pour: "${frenchTitle || movieTitle}" (VO="${originalTitle || 'N/A'}", year=${year || 'non spécifiée'}, lang=${query.language || 'fr'}, directPage=${knownPagePath || 'aucune'})`);
+    const result = await getFrenchStreamMovie(
+      movieTitle || frenchTitle || originalTitle!,
+      (query.language as any) || 'fr',
+      year,
+      knownPagePath,
+      originalTitle,
+      directors,
+      mainActors,
+      frenchTitle
+    );
 
     if (result?.streamUrl) {
       console.log(`[FrenchStream Provider] Flux 1080p trouvé: ${result.streamUrl.slice(0, 80)}... (${result.fileSize})`);
       
       // Mémoriser la page source dans MongoDB pour les futures requêtes
+      // et mettre à jour le lien principal du film si un nouvel embed a été trouvé
       if (result.pagePath && (existingMovie || query.tmdbId)) {
         const lang = query.language || 'fr';
         const filter = existingMovie?._id ? { _id: existingMovie._id } : { tmdbId: query.tmdbId };
+        const uqCode = extractUqloadCode(result.streamUrl);
+        const updatePayload: any = {
+          $push: {
+            providerPages: {
+              provider: this.name,
+              path: result.pagePath,
+              language: lang,
+              lastScrapedAt: new Date(),
+              isWorking: true,
+            },
+          },
+        };
+        if (uqCode) {
+          updatePayload.$set = {
+            uqloadCode: uqCode,
+            uqloadLink: `https://uqload.vc/embed-${uqCode}.html`,
+            lien: `https://uqload.vc/embed-${uqCode}.html`,
+          };
+          console.log(`[FrenchStream Provider] 🔄 MongoDB mis à jour pour le film avec uqCode=${uqCode}`);
+        }
         Movie.updateOne(
           filter,
           {
             $pull: { providerPages: { provider: this.name, language: lang } },
           }
         ).then(() => {
-          return Movie.updateOne(
-            filter,
-            {
-              $push: {
-                providerPages: {
-                  provider: this.name,
-                  path: result.pagePath,
-                  language: lang,
-                  lastScrapedAt: new Date(),
-                  isWorking: true,
-                },
-              },
-            }
-          );
+          return Movie.updateOne(filter, updatePayload);
         }).catch((err) => {
-          console.warn(`[FrenchStream Provider] Erreur sauvegarde providerPages film:`, err.message);
+          console.warn(`[FrenchStream Provider] Erreur sauvegarde film MongoDB:`, err.message);
         });
       }
 
@@ -122,12 +144,22 @@ export class FrenchStreamProvider implements StreamingProvider {
       const isDirectStream = /\.(mp4|webm|mkv|m3u8)(\?|$)/i.test(directStreamUrl) || /u\d+\.vidzy\.cc/i.test(directStreamUrl);
       const referer = getRefererForStreamUrl(directStreamUrl);
 
+      let downloadUrl: string | undefined = undefined;
+      if (isDirectStream) {
+        if (directType === 'mp4') {
+          downloadUrl = directStreamUrl;
+        } else if (directType === 'hls') {
+          downloadUrl = `/api/download/stream?m3u8=${encodeURIComponent(directStreamUrl)}`;
+        }
+      }
+
       return {
         provider: this.name,
         // L'URL directe est renvoyée brute : le lecteur proxy le HLS via
         // /api/live/proxy (le backend ne sert pas de proxy /api/doodstream/stream).
         embedUrl: directStreamUrl,
         directUrl: directStreamUrl,
+        downloadUrl,
         directType: isDirectStream ? directType : undefined,
         referer: isDirectStream ? referer : undefined,
         type: 'movie',
@@ -140,17 +172,19 @@ export class FrenchStreamProvider implements StreamingProvider {
   async getEpisodeStream(query: StreamQuery): Promise<StreamResult | null> {
     let seriesTitle = query.title;
     let originalTitle = query.originalTitle;
+    let frenchTitle = query.frenchTitle;
 
     // Si le titre n'a pas été envoyé, le récupérer via l'API TMDB
-    if ((!seriesTitle || !originalTitle) && query.tmdbId) {
+    if (query.tmdbId) {
       try {
         const { data } = await tmdbClient.get(`/tv/${query.tmdbId}?language=${query.language || 'fr'}`);
-        if (!seriesTitle) seriesTitle = data?.name || data?.original_name;
+        if (!frenchTitle && data?.name) frenchTitle = data.name;
         if (!originalTitle && data?.original_name) originalTitle = data.original_name;
+        if (!seriesTitle) seriesTitle = frenchTitle || originalTitle;
       } catch (_) {}
     }
 
-    if (!seriesTitle) return null;
+    if (!seriesTitle && !frenchTitle && !originalTitle) return null;
 
     const season = query.season || 1;
     const episode = query.episode || 1;
@@ -159,8 +193,11 @@ export class FrenchStreamProvider implements StreamingProvider {
     let knownPagePath: string | undefined;
     let existingSerie: any = null;
     try {
+      const searchTerms = [seriesTitle, frenchTitle, originalTitle].filter(Boolean) as string[];
       existingSerie = await Serie.findOne(
-        query.tmdbId ? { tmdbId: query.tmdbId } : { titre: new RegExp(`^${seriesTitle.trim()}$`, 'i') }
+        query.tmdbId
+          ? { tmdbId: query.tmdbId }
+          : { $or: searchTerms.map(t => ({ titre: new RegExp(`^${t.trim()}$`, 'i') })) }
       ).select('_id providerPages episodes');
 
       const matchedPage = existingSerie?.providerPages?.find(
@@ -171,8 +208,16 @@ export class FrenchStreamProvider implements StreamingProvider {
       }
     } catch (_) {}
 
-    console.log(`[FrenchStream Provider] Recherche série 1080p pour: "${seriesTitle}" S${season}E${episode} (lang=${query.language || 'fr'}, directPage=${knownPagePath || 'aucune'})`);
-    const result = await getFrenchStreamEpisode(seriesTitle, season, episode, (query.language as any) || 'fr', knownPagePath, originalTitle);
+    console.log(`[FrenchStream Provider] Recherche série 1080p pour: "${frenchTitle || seriesTitle}" S${season}E${episode} (lang=${query.language || 'fr'}, directPage=${knownPagePath || 'aucune'})`);
+    const result = await getFrenchStreamEpisode(
+      seriesTitle || frenchTitle || originalTitle!,
+      season,
+      episode,
+      (query.language as any) || 'fr',
+      knownPagePath,
+      originalTitle,
+      frenchTitle
+    );
 
     if (result?.streamUrl) {
       console.log(`[FrenchStream Provider] Flux série 1080p trouvé: ${result.streamUrl.slice(0, 80)}... (${result.fileSize})`);
@@ -222,12 +267,22 @@ export class FrenchStreamProvider implements StreamingProvider {
       const isDirectStream = /\.(mp4|webm|mkv|m3u8)(\?|$)/i.test(directStreamUrl) || /u\d+\.vidzy\.cc/i.test(directStreamUrl);
       const referer = getRefererForStreamUrl(directStreamUrl);
 
+      let downloadUrl: string | undefined = undefined;
+      if (isDirectStream) {
+        if (directType === 'mp4') {
+          downloadUrl = directStreamUrl;
+        } else if (directType === 'hls') {
+          downloadUrl = `/api/download/stream?m3u8=${encodeURIComponent(directStreamUrl)}`;
+        }
+      }
+
       return {
         provider: this.name,
         // L'URL directe est renvoyée brute : le lecteur proxy le HLS via
         // /api/live/proxy (le backend ne sert pas de proxy /api/doodstream/stream).
         embedUrl: directStreamUrl,
         directUrl: directStreamUrl,
+        downloadUrl,
         directType: isDirectStream ? directType : undefined,
         referer: isDirectStream ? referer : undefined,
         type: 'episode',

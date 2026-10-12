@@ -72,10 +72,14 @@ export class MongoDBProvider implements StreamingProvider {
     try {
       // Priority 1: exact tmdbId match
       let movie = query.tmdbId ? await Movie.findOne({ tmdbId: query.tmdbId }).exec() : null;
-      // Priority 2: title regex fallback
-      if (!movie && query.title) {
-        const escaped = query.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        movie = await Movie.findOne({ titre: { $regex: new RegExp(escaped, 'i') } }).exec();
+      // Priority 2: title regex fallback (check all title variants: frenchTitle, originalTitle, title)
+      if (!movie) {
+        const titles = [query.title, query.frenchTitle, query.originalTitle].filter(Boolean) as string[];
+        for (const t of titles) {
+          const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          movie = await Movie.findOne({ titre: { $regex: new RegExp(escaped, 'i') } }).exec();
+          if (movie) break;
+        }
       }
       if (!movie) return null;
 
@@ -120,15 +124,19 @@ export class MongoDBProvider implements StreamingProvider {
     try {
       // Priority 1: exact tmdbId match
       let serie = query.tmdbId ? await this.findSerie(query) : null;
-      // Priority 2: title regex fallback
-      if (!serie && query.title) {
-        const escaped = query.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const byTitle = await Serie.find({ titre: { $regex: new RegExp(escaped, 'i') } }).exec();
-        if (byTitle.length) {
-          const bySeason = byTitle.find(s => s.episodes?.some(
-            (e: any) => Number(e.season) === Number(query.season)
-          ));
-          serie = bySeason || byTitle[0];
+      // Priority 2: title regex fallback (check all title variants: frenchTitle, originalTitle, title)
+      if (!serie) {
+        const titles = [query.title, query.frenchTitle, query.originalTitle].filter(Boolean) as string[];
+        for (const t of titles) {
+          const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const byTitle = await Serie.find({ titre: { $regex: new RegExp(escaped, 'i') } }).exec();
+          if (byTitle.length) {
+            const bySeason = byTitle.find(s => s.episodes?.some(
+              (e: any) => Number(e.season) === Number(query.season)
+            ));
+            serie = bySeason || byTitle[0];
+            if (serie) break;
+          }
         }
       }
 

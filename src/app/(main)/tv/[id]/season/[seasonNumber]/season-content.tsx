@@ -361,10 +361,6 @@ export default function SeasonContent() {
   };
 
   const handleDownloadSingle = (ep?: Episode) => {
-    if (!user) {
-      setIsAuthModalOpen(true);
-      return;
-    }
     setSelectedDownloadEpisode(ep || currentEpisode || null);
     setShowSingleDownload(true);
   };
@@ -561,13 +557,9 @@ export default function SeasonContent() {
 
               <Button
                 onClick={() => {
-                  if (!user) {
-                    setIsAuthModalOpen(true);
-                    return;
-                  }
                   setShowBatchDownload(true);
                 }}
-                variant="primary"
+                variant="dark"
                 size="md"
                 text={_("download.series") || "Télécharger la saison"}
                 leftIcon={<DownloadSimple className="h-4 w-4" />}

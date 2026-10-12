@@ -8,8 +8,6 @@ import { useDownloadsBatch } from "@/hooks/useDownloadsBatch";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { downloadTaskId } from "@/lib/format";
 import type { Episode } from "@/types/media";
-import { useAuthStore } from "@/stores/useAuthStore";
-import AuthModal from "@/components/AuthModal";
 import DownloadProgressBar from "./DownloadProgressBar";
 
 interface Props {
@@ -32,15 +30,13 @@ export default function MultiDownloadModal({
   language = "fr",
 }: Props) {
   const { translate: _ } = useLanguage();
-  const user = useAuthStore((s) => s.user);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [started, setStarted] = useState(true);
 
   const batch = useDownloadsBatch({
     tmdbId,
     seriesTitle,
     type: "series",
-    episodes: user ? episodes : [],
+    episodes: episodes,
     language,
     gated: false,
   });
@@ -60,59 +56,6 @@ export default function MultiDownloadModal({
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
-
-  if (!user) {
-    return (
-      <div
-        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 backdrop-blur-md animate-fade-in"
-        onClick={(e) => {
-          if (e.target === e.currentTarget) onClose();
-        }}
-      >
-        <div className="relative w-full max-w-md mx-4 bg-[#141414] rounded-2xl border border-white/10 shadow-2xl p-8 text-center">
-          <button
-            onClick={onClose}
-            aria-label="Fermer"
-            className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 text-zinc-400 hover:text-white transition-all cursor-pointer"
-          >
-            <X className="h-5 w-5" />
-          </button>
-
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center bg-[#F42A7C]/15 border border-[#F42A7C]/25">
-            <User className="h-8 w-8 text-[#F42A7C]" />
-          </div>
-
-          <h3 className="text-xl font-black text-white mb-2">Connexion requise</h3>
-          <p className="text-zinc-400 text-xs sm:text-sm leading-relaxed mb-6">
-            Vous devez être connecté à votre compte CHILLERS pour télécharger des séries. Le streaming reste accessible gratuitement sans compte.
-          </p>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5">
-            <button
-              onClick={() => setIsAuthModalOpen(true)}
-              className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-brand-primary hover:bg-brand-primary/90 text-white font-bold text-sm transition-all shadow-lg active:scale-95 cursor-pointer"
-            >
-              Se connecter
-            </button>
-            <button
-              onClick={onClose}
-              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-zinc-300 hover:text-white font-semibold text-sm transition-all cursor-pointer"
-            >
-              Continuer en streaming
-            </button>
-          </div>
-        </div>
-
-        <AuthModal
-          isOpen={isAuthModalOpen}
-          onClose={() => {
-            setIsAuthModalOpen(false);
-            onClose();
-          }}
-        />
-      </div>
-    );
-  }
 
   const { totals, tasks } = batch;
   const taskByKey = new Map(

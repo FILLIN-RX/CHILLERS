@@ -57,20 +57,30 @@ export class TorrServerProvider implements StreamingProvider {
       type === 'movie'
         ? `"${query.title}"${year ? ` (${year})` : ''}`
         : `"${query.title}" S${query.season}E${query.episode}`;
-    console.log(`[TorrServer] Recherche torrent pour ${label}`);
+    const searchTitles = [
+      query.title,
+      query.frenchTitle,
+      query.originalTitle
+    ].filter(Boolean) as string[];
+    const uniqueTitles = [...new Set(searchTitles.map(t => t.trim()))];
 
-    const candidates = await searchTorrents(
-      {
-        title: query.title,
-        year,
-        season: type === 'episode' ? query.season : undefined,
-        episode: type === 'episode' ? query.episode : undefined,
-      },
-      deadlineAt
-    );
+    let candidates: any[] = [];
+    for (const searchT of uniqueTitles) {
+      console.log(`[TorrServer] Recherche torrent pour "${searchT}" (type=${type})`);
+      candidates = await searchTorrents(
+        {
+          title: searchT,
+          year,
+          season: type === 'episode' ? query.season : undefined,
+          episode: type === 'episode' ? query.episode : undefined,
+        },
+        deadlineAt
+      );
+      if (candidates.length > 0) break;
+    }
 
     if (candidates.length === 0) {
-      console.log(`[TorrServer] Aucun torrent trouvé pour ${label}`);
+      console.log(`[TorrServer] Aucun torrent trouvé pour [${uniqueTitles.join(', ')}]`);
       return null;
     }
 

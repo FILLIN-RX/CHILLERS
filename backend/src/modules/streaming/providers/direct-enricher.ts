@@ -67,6 +67,7 @@ function withTimeout<T>(promise: Promise<T | null>, ms: number): Promise<T | nul
 }
 
 function isDirectMediaUrl(url: string): boolean {
+  if (/\/(taunt|promo)\//i.test(url)) return false;
   return /\.(mp4|webm|m3u8|ts|m4s)(\?|$)/i.test(url);
 }
 

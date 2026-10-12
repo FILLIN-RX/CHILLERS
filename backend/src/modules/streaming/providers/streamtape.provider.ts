@@ -37,12 +37,16 @@ export class StreamtapeProvider implements StreamingProvider {
       if (query.tmdbId) {
         movie = await Movie.findOne({ tmdbId: query.tmdbId }).exec();
       }
-      if (!movie && query.title) {
-        const byTitle = await Movie.findOne({
-          titre: { $regex: new RegExp(query.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') },
-        }).exec();
-        if (byTitle && (!query.tmdbId || !byTitle.tmdbId || Number(byTitle.tmdbId) === Number(query.tmdbId))) {
-          movie = byTitle;
+      if (!movie) {
+        const titles = [query.title, query.frenchTitle, query.originalTitle].filter(Boolean) as string[];
+        for (const t of titles) {
+          const byTitle = await Movie.findOne({
+            titre: { $regex: new RegExp(t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') },
+          }).exec();
+          if (byTitle && (!query.tmdbId || !byTitle.tmdbId || Number(byTitle.tmdbId) === Number(query.tmdbId))) {
+            movie = byTitle;
+            break;
+          }
         }
       }
 
@@ -67,12 +71,13 @@ export class StreamtapeProvider implements StreamingProvider {
     if (query.season === undefined || query.episode === undefined) return null;
 
     try {
+      const titleVariants = [query.title, query.frenchTitle, query.originalTitle].filter(Boolean) as string[];
       const series = await Serie.findOne({
         $or: [
           ...(query.tmdbId ? [{ tmdbId: query.tmdbId }] : []),
-          ...(query.title
-            ? [{ titre: { $regex: new RegExp(query.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } }]
-            : []),
+          ...titleVariants.map(t => ({
+            titre: { $regex: new RegExp(t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') },
+          })),
         ],
       }).exec();
 

@@ -20,81 +20,93 @@ export class AfrolandProvider implements StreamingProvider {
     return !!(query.title || query.tmdbId);
   }
 
-  private async resolveTitle(query: StreamQuery, kind: 'movie' | 'tv'): Promise<string | undefined> {
-    if (query.title) return query.title;
-    if (!query.tmdbId) return undefined;
-    try {
-      const endpoint = kind === 'tv' ? `/tv/${query.tmdbId}` : `/movie/${query.tmdbId}`;
-      const { data } = await tmdbClient.get(`${endpoint}?language=${query.language || 'fr'}`);
-      return (kind === 'tv' ? data?.name || data?.original_name : data?.title || data?.original_title) || undefined;
-    } catch (_) {
-      return undefined;
+  private async resolveTitles(query: StreamQuery, kind: 'movie' | 'tv'): Promise<string[]> {
+    const list = [query.title, query.frenchTitle, query.originalTitle].filter(Boolean) as string[];
+    if (list.length === 0 && query.tmdbId) {
+      try {
+        const endpoint = kind === 'tv' ? `/tv/${query.tmdbId}` : `/movie/${query.tmdbId}`;
+        const { data } = await tmdbClient.get(`${endpoint}?language=${query.language || 'fr'}`);
+        if (kind === 'tv') {
+          if (data?.name) list.push(data.name);
+          if (data?.original_name) list.push(data.original_name);
+        } else {
+          if (data?.title) list.push(data.title);
+          if (data?.original_title) list.push(data.original_title);
+        }
+      } catch (_) {}
     }
+    return [...new Set(list.map(t => t.trim()))];
   }
 
   async getMovieStream(query: StreamQuery): Promise<StreamResult | null> {
-    const title = await this.resolveTitle(query, 'movie');
-    if (!title) return null;
+    const titles = await this.resolveTitles(query, 'movie');
+    if (titles.length === 0) return null;
 
     try {
-      const candidates = await searchAfrolandVideos(title);
-      const match = pickBestMatch(candidates, title);
-      if (!match) return null;
+      for (const title of titles) {
+        const candidates = await searchAfrolandVideos(title);
+        const match = pickBestMatch(candidates, title);
+        if (match) {
+          const stream = await resolveAfrolandStream(match);
+          if (stream) {
+            console.log(`[Afroland] Flux ${stream.directType.toUpperCase()} pour "${title}" → "${match.name}": ${stream.url.slice(0, 80)}...`);
 
-      const stream = await resolveAfrolandStream(match);
-      if (!stream) return null;
-
-      console.log(`[Afroland] Flux ${stream.directType.toUpperCase()} pour "${title}" → "${match.name}": ${stream.url.slice(0, 80)}...`);
-
-      return {
-        provider: this.name,
-        embedUrl: stream.url,
-        directUrl: stream.url,
-        directType: stream.directType,
-        type: 'movie',
-        language: 'en',
-      };
+            return {
+              provider: this.name,
+              embedUrl: stream.url,
+              directUrl: stream.url,
+              directType: stream.directType,
+              type: 'movie',
+              language: 'en',
+            };
+          }
+        }
+      }
+      return null;
     } catch (error: any) {
-      console.error(`[Afroland] Erreur film "${title}":`, error.message);
+      console.error(`[Afroland] Erreur film [${titles.join(', ')}]:`, error.message);
       return null;
     }
   }
 
   async getEpisodeStream(query: StreamQuery): Promise<StreamResult | null> {
-    const title = await this.resolveTitle(query, 'tv');
-    if (!title) return null;
+    const titles = await this.resolveTitles(query, 'tv');
+    if (titles.length === 0) return null;
 
     const season = query.season || 1;
     const episode = query.episode || 1;
 
     try {
-      const shows = await searchAfrolandShows(title);
-      const show = pickBestMatch(shows, title);
-      if (!show) return null;
+      for (const title of titles) {
+        const shows = await searchAfrolandShows(title);
+        const show = pickBestMatch(shows, title);
+        if (show) {
+          const episodes = await getAfrolandEpisodes(show.id);
+          const target =
+            episodes.find((e) => e.season === season && e.episode === episode) ||
+            (episodes.length >= episode && season === 1 ? episodes[episode - 1] : undefined);
+          if (target) {
+            const stream = await resolveAfrolandStream(target);
+            if (stream) {
+              console.log(
+                `[Afroland] Flux ${stream.directType.toUpperCase()} S${season}E${episode} → "${show.name}" / "${target.name}": ${stream.url.slice(0, 80)}...`
+              );
 
-      const episodes = await getAfrolandEpisodes(show.id);
-      const target =
-        episodes.find((e) => e.season === season && e.episode === episode) ||
-        (episodes.length >= episode && season === 1 ? episodes[episode - 1] : undefined);
-      if (!target) return null;
-
-      const stream = await resolveAfrolandStream(target);
-      if (!stream) return null;
-
-      console.log(
-        `[Afroland] Flux ${stream.directType.toUpperCase()} S${season}E${episode} → "${show.name}" / "${target.name}": ${stream.url.slice(0, 80)}...`
-      );
-
-      return {
-        provider: this.name,
-        embedUrl: stream.url,
-        directUrl: stream.url,
-        directType: stream.directType,
-        type: 'episode',
-        language: 'en',
-      };
+              return {
+                provider: this.name,
+                embedUrl: stream.url,
+                directUrl: stream.url,
+                directType: stream.directType,
+                type: 'episode',
+                language: 'en',
+              };
+            }
+          }
+        }
+      }
+      return null;
     } catch (error: any) {
-      console.error(`[Afroland] Erreur épisode "${title}" S${season}E${episode}:`, error.message);
+      console.error(`[Afroland] Erreur épisode [${titles.join(', ')}] S${season}E${episode}:`, error.message);
       return null;
     }
   }

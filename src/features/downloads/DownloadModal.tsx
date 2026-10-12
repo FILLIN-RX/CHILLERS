@@ -5,10 +5,9 @@ import { X, DownloadSimple, Check, Warning, Info, User } from "@phosphor-icons/r
 import { acquireModalScrollLock, releaseModalScrollLock } from "@/lib/modalScrollLock";
 import { useDownload } from "@/hooks/useDownload";
 import { useDownloadsStore } from "@/store/downloads";
-import { useAuthStore } from "@/stores/useAuthStore";
-import AuthModal from "@/components/AuthModal";
 import type { DownloadStatus } from "@/types/download";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { getBackendOrigin } from "@/services/http";
 
 interface DownloadModalProps {
   isOpen: boolean;
@@ -21,6 +20,8 @@ interface DownloadModalProps {
   posterUrl?: string;
   backdropUrl?: string;
   initialLanguage?: "fr" | "vostfr";
+  /** URL directe pré-résolue par le lecteur / flux (évite de ré-exécuter un scraping) */
+  initialDownloadUrl?: string | null;
 }
 
 const STATUS_LABEL: Record<DownloadStatus, string> = {
@@ -45,11 +46,10 @@ export default function DownloadModal({
   posterUrl,
   backdropUrl,
   initialLanguage = "fr",
+  initialDownloadUrl,
 }: DownloadModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const { translate: _ } = useLanguage();
-  const user = useAuthStore((s) => s.user);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [selectedLang, setSelectedLang] = useState<"fr" | "vostfr">(initialLanguage);
 
   useEffect(() => {
@@ -67,6 +67,7 @@ export default function DownloadModal({
     posterUrl,
     backdropUrl,
     language: selectedLang,
+    initialDownloadUrl: selectedLang === initialLanguage ? initialDownloadUrl : undefined,
   });
 
   const activeCount = useDownloadsStore((s) =>
@@ -91,72 +92,14 @@ export default function DownloadModal({
 
   // Auto-resolve: when opening or switching language, resolve if not already ready/downloading/done
   useEffect(() => {
-    if (!isOpen || !user) return;
+    if (!isOpen) return;
     if (dl.status !== "downloading" && dl.status !== "resolving" && dl.status !== "done" && dl.status !== "ready") {
       dl.retry();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, user, selectedLang]);
+  }, [isOpen, selectedLang]);
 
   if (!isOpen) return null;
-
-  if (!user) {
-    return (
-      <div
-        className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/85 backdrop-blur-md animate-fade-in"
-        onClick={(e) => {
-          if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
-            onClose();
-          }
-        }}
-      >
-        <div
-          ref={modalRef}
-          className="relative w-full max-w-md mx-4 bg-[#141414] rounded-2xl border border-white/10 shadow-2xl p-8 text-center"
-        >
-          <button
-            onClick={onClose}
-            aria-label="Fermer"
-            className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 text-zinc-400 hover:text-white transition-all cursor-pointer"
-          >
-            <X className="h-5 w-5" />
-          </button>
-
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center bg-[#F42A7C]/15 border border-[#F42A7C]/25">
-            <User className="h-8 w-8 text-[#F42A7C]" />
-          </div>
-
-          <h3 className="text-xl font-black text-white mb-2">Connexion requise</h3>
-          <p className="text-zinc-400 text-xs sm:text-sm leading-relaxed mb-6">
-            Vous devez être connecté à votre compte CHILLERS pour télécharger des films ou séries. Le streaming reste accessible gratuitement sans compte.
-          </p>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5">
-            <button
-              onClick={() => setIsAuthModalOpen(true)}
-              className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-brand-primary hover:bg-brand-primary/90 text-white font-bold text-sm transition-all shadow-lg active:scale-95 cursor-pointer"
-            >
-              Se connecter
-            </button>
-            <button
-              onClick={onClose}
-              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-zinc-300 hover:text-white font-semibold text-sm transition-all cursor-pointer"
-            >
-              Continuer en streaming
-            </button>
-          </div>
-        </div>
-
-        <AuthModal
-          isOpen={isAuthModalOpen}
-          onClose={() => {
-            setIsAuthModalOpen(false);
-            onClose();
-          }}
-        />
-      </div>
-    );
-  }
 
   const showSpinner = dl.status === "resolving" || dl.status === "downloading";
   const showSuccess = dl.status === "done";
@@ -286,13 +229,25 @@ export default function DownloadModal({
         </p>
 
         {dl.status === "ready" && (
-          <button
-            onClick={() => { dl.start(); onClose(); }}
-            className="w-full px-8 py-3 rounded-xl bg-white text-black font-bold text-sm hover:bg-zinc-200 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-95"
+          <a
+            href={
+              dl.task?.resolvedUrl
+                ? (dl.task.resolvedUrl.startsWith("http")
+                    ? dl.task.resolvedUrl
+                    : `${getBackendOrigin()}${dl.task.resolvedUrl}`)
+                : "#"
+            }
+            target="_blank"
+            rel="noopener noreferrer"
+            download={dl.task?.filename || `${title}.mp4`}
+            onClick={() => {
+              onClose();
+            }}
+            className="w-full px-8 py-3 rounded-xl bg-white text-black font-bold text-sm hover:bg-zinc-200 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-95 no-underline"
           >
             <DownloadSimple className="h-5 w-5" />
             Télécharger ({selectedLang.toUpperCase()})
-          </button>
+          </a>
         )}
 
         {dl.status === "error" && (

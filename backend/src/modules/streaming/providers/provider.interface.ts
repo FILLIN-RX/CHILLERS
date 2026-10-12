@@ -15,12 +15,14 @@ export interface StreamQuery {
   type?: 'movie' | 'tv' | 'anime';
   title?: string;
   originalTitle?: string;
+  frenchTitle?: string;
   season?: number;
   episode?: number;
   language?: string;
   year?: number;
   isPremium?: boolean;
   strict1080p?: boolean;
+  isIOS?: boolean;
 }
 
 export interface StreamingProvider {

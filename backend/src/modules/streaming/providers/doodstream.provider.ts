@@ -92,9 +92,14 @@ async function findByMongoDB(query: StreamQuery): Promise<{ fileCode: string; in
         ? await Movie.findOne({ tmdbId: query.tmdbId }).exec()
         : null;
       // 2. fallback sur titre exact (uniquement si tmdbId absent)
-      if (!movie && !query.tmdbId && query.title) {
-        const escaped = query.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        movie = await Movie.findOne({ titre: { $regex: new RegExp(`^${escaped}$`, 'i') } }).exec();
+      // Try all title variants: frenchTitle, originalTitle, title
+      if (!movie && !query.tmdbId) {
+        const titles = [query.title, query.frenchTitle, query.originalTitle].filter(Boolean) as string[];
+        for (const t of titles) {
+          const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          movie = await Movie.findOne({ titre: { $regex: new RegExp(`^${escaped}$`, 'i') } }).exec();
+          if (movie) break;
+        }
       }
       if (movie?.lien) {
         // Ne retourner QUE si le lien est hébergé sur Doodstream/Playmogo
@@ -123,9 +128,14 @@ async function findByMongoDB(query: StreamQuery): Promise<{ fileCode: string; in
         }
       }
       // 2. fallback sur titre exact (uniquement si tmdbId absent)
-      if (!series && !query.tmdbId && query.title) {
-        const escaped = query.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        series = await Serie.findOne({ titre: { $regex: new RegExp(`^${escaped}$`, 'i') } }).exec();
+      // Try all title variants: frenchTitle, originalTitle, title
+      if (!series && !query.tmdbId) {
+        const titles = [query.title, query.frenchTitle, query.originalTitle].filter(Boolean) as string[];
+        for (const t of titles) {
+          const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          series = await Serie.findOne({ titre: { $regex: new RegExp(`^${escaped}$`, 'i') } }).exec();
+          if (series) break;
+        }
       }
 
       if (series) {

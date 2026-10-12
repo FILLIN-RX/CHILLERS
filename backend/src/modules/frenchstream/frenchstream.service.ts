@@ -153,7 +153,7 @@ export async function extractEmbedVersions(pageUrl: string): Promise<{
     // 3. Si aucune version trouvée en HTML statique, interroger l'API interne film_api.php
     if (versions.length === 0) {
       const newsIdMatch = pageUrl.match(/\/(\d+)-/i) || html.match(/dle_news_id\s*=\s*['"](\d+)['"]/i);
-      const isPageVostfr = /version-film[\/&amp;=]+VOSTFR/i.test(html) || /data-version="VOSTFR"/i.test(html);
+      const isPageVostfr = /-vostfr\.html/i.test(pageUrl) || /\bVOSTFR\b/i.test(rawTitle);
 
       if (newsIdMatch && newsIdMatch[1]) {
         try {
@@ -375,9 +375,10 @@ function rankCandidates(
   results: FrenchStreamSearchResult[],
   searchTitle: string,
   targetYear?: number,
-  originalTitle?: string
+  originalTitle?: string,
+  frenchTitle?: string
 ): FrenchStreamSearchResult[] {
-  const titlesToMatch = [searchTitle, originalTitle].filter(Boolean) as string[];
+  const titlesToMatch = [frenchTitle, searchTitle, originalTitle].filter(Boolean) as string[];
   const searchNorms = titlesToMatch.map(t => normalize(t)).filter(Boolean);
 
   return [...results].sort((a, b) => {
@@ -434,7 +435,8 @@ export async function getFrenchStreamMovie(
   knownPagePath?: string,
   originalTitle?: string,
   directors?: string[],
-  mainActors?: string[]
+  mainActors?: string[],
+  frenchTitle?: string
 ): Promise<FrenchStreamDirectResult | null> {
   try {
     let bestUrl = '';
@@ -476,46 +478,48 @@ export async function getFrenchStreamMovie(
       }
     }
 
-    // 2. Si pas de page connue ou si elle n'a rien renvoyé, effectuer la recherche par titre
+    // 2. Si pas de page connue ou si elle n'a rien renvoyé, effectuer la recherche par titre (FR puis EN)
     if (versions.length === 0) {
-      console.log(`[FrenchStream HQ] Recherche film 1080p: "${title}" (lang=${preferredLang}, targetYear=${targetYear || 'non spécifiée'})`);
-      let searchResults = await searchFrenchStream(title);
+      const searchQueries = [
+        frenchTitle,
+        title,
+        originalTitle
+      ].filter(Boolean) as string[];
 
-      // Si aucun résultat, tentative avec le titre original si disponible et différent
-      if (searchResults.length === 0 && originalTitle && normalize(originalTitle) !== normalize(title)) {
-        console.log(`[FrenchStream HQ] Aucun résultat pour "${title}", tentative avec le titre original: "${originalTitle}"`);
-        searchResults = await searchFrenchStream(originalTitle);
+      const uniqueQueries: string[] = [];
+      const seenNorms = new Set<string>();
+      for (const q of searchQueries) {
+        const norm = normalize(q);
+        if (norm && !seenNorms.has(norm)) {
+          seenNorms.add(norm);
+          uniqueQueries.push(q);
+        }
       }
 
-      if (searchResults.length === 0) return null;
+      console.log(`[FrenchStream HQ] Recherche film 1080p: [${uniqueQueries.map(q => `"${q}"`).join(', ')}] (lang=${preferredLang}, targetYear=${targetYear || 'non spécifiée'})`);
 
-      // Classer et prioriser les résultats avec scoring par titre et année
-      const rankedResults = rankCandidates(searchResults, title, targetYear, originalTitle);
-      const best = rankedResults[0];
+      const titlesToCheck = uniqueQueries;
+      let allSearchResults: FrenchStreamSearchResult[] = [];
 
-      const titlesToCheck = [title, originalTitle].filter(Boolean) as string[];
-      if (!isCandidateMatching(best.title, titlesToCheck)) {
-        console.log(`[FrenchStream HQ] Correspondance trop éloignée pour "${title}" (trouvé: "${best.title}"), test fallback VO...`);
-        // Si on n'avait pas encore cherché avec originalTitle
-        if (originalTitle && normalize(originalTitle) !== normalize(title)) {
-          const origResults = await searchFrenchStream(originalTitle);
-          if (origResults.length > 0) {
-            const rankedOrig = rankCandidates(origResults, title, targetYear, originalTitle);
-            const bestOrig = rankedOrig[0];
-            if (isCandidateMatching(bestOrig.title, titlesToCheck)) {
-              console.log(`[FrenchStream HQ] Page trouvée via titre original "${originalTitle}": ${bestOrig.url} (${bestOrig.title})`);
-              bestUrl = bestOrig.url;
-              bestTitle = bestOrig.title;
-              const extracted = await extractEmbedVersions(bestOrig.url);
-              resolvedTitle = extracted.title;
-              versions = extracted.versions;
-            }
+      for (const queryStr of uniqueQueries) {
+        const results = await searchFrenchStream(queryStr);
+        if (results.length > 0) {
+          allSearchResults = results;
+          if (results.some(r => isCandidateMatching(r.title, titlesToCheck))) {
+            break;
           }
         }
-        if (versions.length === 0) {
-          console.log(`[FrenchStream HQ] Correspondance définitivement rejetée pour "${title}", skip.`);
-          return null;
-        }
+      }
+
+      if (allSearchResults.length === 0) return null;
+
+      // Classer et prioriser les résultats avec scoring par titre et année
+      const rankedResults = rankCandidates(allSearchResults, title, targetYear, originalTitle, frenchTitle);
+      const best = rankedResults[0];
+
+      if (!isCandidateMatching(best.title, titlesToCheck)) {
+        console.log(`[FrenchStream HQ] Correspondance définitivement rejetée pour [${titlesToCheck.join(', ')}] (trouvé: "${best.title}"), skip.`);
+        return null;
       } else {
         console.log(`[FrenchStream HQ] Meilleure page trouvée: ${best.url} (${best.title})`);
         bestUrl = best.url;
@@ -605,6 +609,33 @@ export async function getFrenchStreamMovie(
       }
     }
 
+    // 2. Tenter la résolution directe alternative (Uqload HLS / Doodstream) si Vidzy indisponible
+    const otherDirectVersions = filteredVersions
+      .filter(v => !v.embedUrl.includes('vidzy') && (v.embedUrl.includes('uqload') || v.embedUrl.includes('dood')))
+      .sort((a, b) => langRank(a.label) - langRank(b.label));
+
+    for (const v of otherDirectVersions) {
+      try {
+        const direct = await DirectScraper.resolve(v.embedUrl);
+        if (direct?.directUrl) {
+          if (strictLang && !isLanguageCompatible(preferredLang, { titre: bestTitle, lien: direct.directUrl })) {
+            console.log(`[FrenchStream HQ] Flux direct alternatif ignoré (incompatible avec lang=${preferredLang}): ${direct.directUrl.slice(0, 70)}...`);
+            continue;
+          }
+          console.log(`[FrenchStream HQ] Flux direct alternatif résolu (${v.label}): ${direct.directUrl.slice(0, 70)}...`);
+          return {
+            title: resolvedTitle || bestTitle,
+            quality: '1080p',
+            fileSize: '1080p Full HD',
+            streamUrl: direct.directUrl,
+            embedUrl: v.embedUrl,
+            pagePath: savedPagePath,
+            source: 'frenchstream'
+          };
+        }
+      } catch (_) {}
+    }
+
     const sortedVersions = [...filteredVersions].sort((a, b) => langRank(a.label) - langRank(b.label));
 
     const chosenVersion = sortedVersions[0];
@@ -650,7 +681,7 @@ export async function extractEpisodeEmbedVersions(
     const rawTitle = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, '').trim() : '';
 
     const newsIdMatch = pageUrl.match(/\/(\d+)-/i) || html.match(/dle_news_id\s*=\s*['"](\d+)['"]/i);
-    const isPageVostfr = /version-film[\/&amp;=]+VOSTFR/i.test(html) || /data-version="VOSTFR"/i.test(html);
+    const isPageVostfr = /-vostfr\.html/i.test(pageUrl) || /\bVOSTFR\b/i.test(rawTitle);
 
     const versions: FrenchStreamVersion[] = [];
 
@@ -811,7 +842,8 @@ export async function getFrenchStreamEpisode(
   episode: number = 1,
   preferredLang: 'fr' | 'vostfr' | 'en' | 'vo' = 'fr',
   knownPagePath?: string,
-  originalTitle?: string
+  originalTitle?: string,
+  frenchTitle?: string
 ): Promise<FrenchStreamDirectResult | null> {
   try {
     const targetSeason = season > 0 ? season : 1;
@@ -851,48 +883,48 @@ export async function getFrenchStreamEpisode(
       }
     }
 
-    // 2. Si pas de page connue ou si elle n'a rien renvoyé, effectuer la recherche par titre + saison
+    // 2. Si pas de page connue ou si elle n'a rien renvoyé, effectuer la recherche par titre (FR puis EN)
     if (versions.length === 0) {
-      console.log(`[FrenchStream HQ] Recherche série 1080p: "${title}" S${targetSeason}E${targetEp} (lang=${preferredLang})`);
+      const seriesQueries = [
+        frenchTitle,
+        title,
+        originalTitle
+      ].filter(Boolean) as string[];
 
-      // Recherche avec titre + saison
-      const seasonQuery = `${title} Saison ${targetSeason}`;
-      let searchResults = await searchFrenchStream(seasonQuery);
-
-      // Le moteur de recherche du site ne renvoie presque rien sur une requête à
-      // plusieurs mots : le titre seul est nécessaire, mais il mélange films et
-      // séries. On ne garde que les pages de saison.
-      if (!searchResults.some(isSeriesPage)) {
-        searchResults = [...searchResults, ...(await searchFrenchStream(title))];
-      }
-
-      // Si toujours aucun résultat pour la série, tenter avec originalTitle
-      if (!searchResults.some(isSeriesPage) && originalTitle && normalize(originalTitle) !== normalize(title)) {
-        console.log(`[FrenchStream HQ] Aucun résultat série pour "${title}", tentative avec titre original "${originalTitle}"`);
-        const origSeasonQuery = `${originalTitle} Saison ${targetSeason}`;
-        const origResults = await searchFrenchStream(origSeasonQuery);
-        if (origResults.some(isSeriesPage)) {
-          searchResults = origResults;
-        } else {
-          searchResults = [...searchResults, ...(await searchFrenchStream(originalTitle))];
+      const uniqueSeriesQueries: string[] = [];
+      const seen = new Set<string>();
+      for (const q of seriesQueries) {
+        const norm = normalize(q);
+        if (norm && !seen.has(norm)) {
+          seen.add(norm);
+          uniqueSeriesQueries.push(q);
         }
       }
 
-      const seriesResults = searchResults.filter(isSeriesPage);
+      console.log(`[FrenchStream HQ] Recherche série 1080p: [${uniqueSeriesQueries.map(q => `"${q}"`).join(', ')}] S${targetSeason}E${targetEp} (lang=${preferredLang})`);
+
+      let seriesResults: FrenchStreamSearchResult[] = [];
+
+      for (const sTitle of uniqueSeriesQueries) {
+        const seasonQuery = `${sTitle} Saison ${targetSeason}`;
+        let searchResults = await searchFrenchStream(seasonQuery);
+        if (!searchResults.some(isSeriesPage)) {
+          searchResults = [...searchResults, ...(await searchFrenchStream(sTitle))];
+        }
+        const filtered = searchResults.filter(isSeriesPage);
+        if (filtered.length > 0) {
+          seriesResults = filtered;
+          break;
+        }
+      }
+
       if (seriesResults.length === 0) {
-        console.log(`[FrenchStream HQ] Aucune page série pour "${title}" sur FrenchStream (${searchResults.length} résultat(s), aucun « Saison N») — on ne sert pas un film à la place.`);
+        console.log(`[FrenchStream HQ] Aucune page série pour [${uniqueSeriesQueries.join(', ')}] sur FrenchStream.`);
         return null;
       }
 
-      const titleNorm = normalize(title);
-      const origNorm = originalTitle ? normalize(originalTitle) : '';
       const relevant = seriesResults.filter((it) => {
-        const itNorm = normalize(it.title);
-        return (
-          itNorm.includes(titleNorm) ||
-          titleNorm.includes(itNorm) ||
-          (origNorm && (itNorm.includes(origNorm) || origNorm.includes(itNorm)))
-        );
+        return uniqueSeriesQueries.some(q => isCandidateMatching(it.title, [q]));
       });
       const pool = relevant.length > 0 ? relevant : seriesResults;
 
@@ -957,28 +989,35 @@ export async function getFrenchStreamEpisode(
 
     const savedPagePath = toRelativePath(bestUrl);
 
-    // 1. Tenter la résolution directe haute performance (Uqload HLS ou Vidzy MP4)
-    for (const v of filteredVersions) {
-      if (v.embedUrl.includes('uqload') || v.embedUrl.includes('vidzy')) {
-        try {
-          const direct = await DirectScraper.resolve(v.embedUrl);
-          if (direct?.directUrl) {
-            if (strictLang && !isLanguageCompatible(preferredLang, { titre: bestTitle, lien: direct.directUrl })) {
-              continue;
-            }
-            console.log(`[FrenchStream HQ] Flux série direct résolu (${v.label}): ${direct.directUrl.slice(0, 70)}...`);
-            return {
-              title: resolvedTitle || `${bestTitle} S${targetSeason}E${targetEp}`,
-              quality: '1080p',
-              fileSize: '1080p Full HD',
-              streamUrl: direct.directUrl,
-              embedUrl: v.embedUrl,
-              pagePath: savedPagePath,
-              source: 'frenchstream'
-            };
+    // 1. Tenter la résolution directe haute performance (Vidzy MP4 en priorité, puis Uqload / Dood)
+    const directCandidates = filteredVersions
+      .filter((v) => v.embedUrl.includes('vidzy') || v.embedUrl.includes('uqload') || v.embedUrl.includes('dood'))
+      .sort((a, b) => {
+        const hostRank = (u: string) => (u.includes('vidzy') ? 1 : u.includes('uqload') ? 2 : 3);
+        const diffHost = hostRank(a.embedUrl) - hostRank(b.embedUrl);
+        if (diffHost !== 0) return diffHost;
+        return langRank(a.label) - langRank(b.label);
+      });
+
+    for (const v of directCandidates) {
+      try {
+        const direct = await DirectScraper.resolve(v.embedUrl);
+        if (direct?.directUrl) {
+          if (strictLang && !isLanguageCompatible(preferredLang, { titre: bestTitle, lien: direct.directUrl })) {
+            continue;
           }
-        } catch (_) {}
-      }
+          console.log(`[FrenchStream HQ] Flux série direct résolu (${v.label}): ${direct.directUrl.slice(0, 70)}...`);
+          return {
+            title: resolvedTitle || `${bestTitle} S${targetSeason}E${targetEp}`,
+            quality: '1080p',
+            fileSize: '1080p Full HD',
+            streamUrl: direct.directUrl,
+            embedUrl: v.embedUrl,
+            pagePath: savedPagePath,
+            source: 'frenchstream'
+          };
+        }
+      } catch (_) {}
     }
 
     // 2. Fallback embed si aucune extraction directe n'a abouti

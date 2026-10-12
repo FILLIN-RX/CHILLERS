@@ -60,7 +60,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             name: user.username || user.name || user.email.split("@")[0],
             role: user.role || "user",
             avatarUrl: user.avatarUrl,
-            subscription: user.subscription,
+            subscription: user.subscription
+              ? { plan: user.subscription.plan, status: user.subscription.status }
+              : { plan: "free", status: "active" },
             backendToken: data.data.token,
           } as any;
         } catch (error: any) {
@@ -78,7 +80,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.avatarUrl = (user as any).avatarUrl;
         token.backendToken = (user as any).backendToken;
       }
-      if (account?.provider === "google" || token.provider === "google") {
+      if (account?.provider === "google") {
         token.provider = "google";
         try {
           const res = await fetch(`${API_BASE_URL}/auth/google`, {
@@ -94,10 +96,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           if (data.success && data.user) {
             token.id = data.user.id;
             token.role = data.user.role || "user";
-            token.subscription = data.user.subscription;
+            token.subscription = data.user.subscription
+              ? { plan: data.user.subscription.plan, status: data.user.subscription.status }
+              : { plan: "free", status: "active" };
             token.avatarUrl = data.user.avatarUrl;
             token.backendToken = data.token;
-            (token as any).userData = data.user;
           }
         } catch (error) {
           console.error("[NextAuth] Erreur de synchronisation Google avec la base de données:", error);
@@ -112,7 +115,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         (session.user as any).subscription = token.subscription;
         (session.user as any).avatarUrl = token.avatarUrl;
         (session.user as any).backendToken = token.backendToken;
-        (session.user as any).userData = (token as any).userData;
       }
       return session;
     },

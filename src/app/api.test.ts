@@ -23,7 +23,7 @@ describe('resolveDownloadUrl (download service)', () => {
 
     expect(global.fetch).toHaveBeenCalledTimes(1);
     const calledUrl = (global.fetch as jest.Mock).mock.calls[0][0] as string;
-    expect(calledUrl).toContain('/doodstream/download');
+    expect(calledUrl).toContain('/download/resolve');
     expect(calledUrl).toContain('tmdb_id=123');
     expect(calledUrl).toContain('title=Test+Movie');
 

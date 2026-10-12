@@ -17,6 +17,7 @@ import { userService } from "@/services/user";
 import { isSlowConnection } from "@/services/media";
 import { getAntiBotHeaders } from "@/lib/antibot";
 import { PopupFirewall } from "@/lib/PopupFirewall";
+import { getBackendOrigin } from "@/services/http";
 import Hls from "hls.js";
 
 interface VideoPlayerProps {
@@ -232,6 +233,40 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
   // URL de téléchargement direct (fallback torrent) — type chillers-test :
   // le backend proxy le flux TorrServer avec Content-Disposition: attachment.
   const torrentDownloadUrl = streamQuery.data?.downloadUrl ?? null;
+
+  // Déclenchement direct du téléchargement en 1 seul clic sans friction
+  const handleDirectDownload = useCallback(() => {
+    const directDl = torrentDownloadUrl || streamQuery.data?.downloadUrl;
+    const isIOS = typeof navigator !== "undefined" && /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isUqloadOrHls = directDl && (/uqload/i.test(directDl) || directDl.includes("/api/download/uqload/") || directDl.includes(".m3u8"));
+
+    // Sur iOS, un lien Uqload / HLS ne doit pas être téléchargé directement :
+    // on ouvre la modal qui résout automatiquement vers le MP4 direct (Vidzy/FrenchStream).
+    if (directDl && !(isIOS && isUqloadOrHls)) {
+      const cleanTitle = (item.title || "video")
+        .replace(/\s*:\s*/g, " - ")
+        .replace(/[/\\?%*:|"<>]/g, "")
+        .trim();
+      const filename = `${cleanTitle}${currentEpisode ? `_S${currentEpisode.season || 1}E${currentEpisode.number || 1}` : ""}.mp4`;
+      const backend = getBackendOrigin();
+      const href = directDl.startsWith("http") ? directDl : `${backend}${directDl}`;
+
+      const a = document.createElement("a");
+      a.href = href;
+      a.download = filename;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        try { a.remove(); } catch (_) {}
+      }, 1000);
+      return;
+    }
+
+    setShowSingleDownload(true);
+  }, [torrentDownloadUrl, streamQuery.data?.downloadUrl, item.title, currentEpisode]);
+
   const serverVideoUrl = useMemo(
     () => toEmbedUrl(resolvedStreamUrl ?? undefined),
     [resolvedStreamUrl],
@@ -874,6 +909,17 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
               </div>
 
               <div className="flex shrink-0 items-center gap-2">
+                {/* Bouton Téléchargement direct en 1 clic */}
+                <button
+                  type="button"
+                  onClick={handleDirectDownload}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-black/60 hover:bg-black/80 border border-white/15 hover:border-emerald-500/40 text-white text-xs font-semibold backdrop-blur-md transition-all active:scale-95 cursor-pointer shadow-lg"
+                  title="Télécharger"
+                >
+                  <DownloadSimple className="w-4 h-4 text-emerald-400" />
+                  <span className="text-[11px] font-medium hidden sm:inline">Télécharger</span>
+                </button>
+
                 {/* Bouton Lecteur Réduit / Navigation flottante comme YouTube (PiP) */}
                 <button
                   type="button"
@@ -1157,6 +1203,18 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
                                 </span>
                               </button>
                             )}
+
+                            {/* Download option */}
+                            <button
+                              onClick={() => {
+                                handleDirectDownload();
+                                setShowSpeedMenu(false);
+                              }}
+                              className="px-4 py-2.5 flex items-center justify-between hover:bg-white/10 transition-colors text-left border-t border-white/5"
+                            >
+                              <span className="text-zinc-300">Télécharger la vidéo</span>
+                              <DownloadSimple className="w-4 h-4 text-emerald-400" />
+                            </button>
 
                             {/* Picture-in-Picture on mobile */}
                             <button
@@ -1493,6 +1551,11 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
           season={currentEpisode?.season}
           episode={currentEpisode?.number}
           initialLanguage={audioVersion === "vostfr" ? "vostfr" : "fr"}
+          initialDownloadUrl={
+            typeof navigator !== "undefined" && /iPad|iPhone|iPod/.test(navigator.userAgent) && torrentDownloadUrl && (/uqload|\.m3u8/i.test(torrentDownloadUrl) || torrentDownloadUrl.includes("/api/download/uqload/"))
+              ? undefined
+              : torrentDownloadUrl
+          }
         />
       )}
       <NotificationModal

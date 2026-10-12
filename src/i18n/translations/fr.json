@@ -136,6 +136,7 @@
   },
   "download": {
     "single": "Télécharger",
+    "series": "Télécharger la saison",
     "all": "Télécharger toute la série",
     "preparing": "Préparation…",
     "impossible": "Téléchargement impossible",

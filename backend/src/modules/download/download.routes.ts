@@ -5,8 +5,10 @@ import { ProviderManager } from '../streaming/provider-manager';
 import { StreamQuery } from '../streaming/providers/provider.interface';
 import { DirectScraper, getUqloadDirectLink, extractUqloadCode } from '../streaming/providers/direct-scraper';
 import { getOtakuDirectLink } from '../otaku/otaku.service';
+import { isSignedLinkExpired } from '../../utils/link-ttl';
 import Movie from '../../models/Movie';
 import Serie from '../../models/Serie';
+import tmdbClient from '../../config/tmdb';
 
 const router = Router();
 const providerManager = new ProviderManager();
@@ -59,7 +61,8 @@ router.get('/resolve', async (req: Request, res: Response) => {
       season,
       episode,
       isPremium,
-      language = 'fr'
+      language = 'fr',
+      originalTitle
     } = req.query as {
       tmdb_id?: string;
       title?: string;
@@ -68,6 +71,7 @@ router.get('/resolve', async (req: Request, res: Response) => {
       episode?: string;
       isPremium?: string;
       language?: string;
+      originalTitle?: string;
     };
 
     const tmdbIdNum = tmdb_id && /^\d+$/.test(tmdb_id) ? parseInt(tmdb_id, 10) : 0;
@@ -77,30 +81,57 @@ router.get('/resolve', async (req: Request, res: Response) => {
       ? title.replace(/\s*·\s*(?:S\d+)?E\d+.*$/i, '').trim()
       : undefined;
 
+    const userAgent = (req.headers['user-agent'] as string) || '';
+    const isIOS = /iPad|iPhone|iPod/i.test(userAgent) || req.query.isIOS === 'true' || req.query.platform === 'ios';
+
+    let frenchTitle: string | undefined;
+    let origTitle = originalTitle;
+
+    if (tmdbIdNum) {
+      try {
+        const tmdbEndpoint = isTv ? `/tv/${tmdbIdNum}?language=fr` : `/movie/${tmdbIdNum}?language=fr`;
+        const { data } = await tmdbClient.get(tmdbEndpoint);
+        if (isTv) {
+          frenchTitle = data?.name;
+          origTitle = origTitle || data?.original_name;
+        } else {
+          frenchTitle = data?.title;
+          origTitle = origTitle || data?.original_title;
+        }
+      } catch (_) {}
+    }
+
     const query: StreamQuery = {
       tmdbId: tmdbIdNum,
-      title: cleanTitle,
+      title: cleanTitle || frenchTitle || origTitle,
+      frenchTitle,
+      originalTitle: origTitle,
       type: isTv ? 'tv' : 'movie',
       season: season !== undefined ? parseInt(season, 10) : undefined,
       episode: episode !== undefined ? parseInt(episode, 10) : undefined,
       isPremium: isPrem,
-      language
+      language,
+      isIOS,
     };
 
-    console.log(`[Download Resolve] Résolution: "${cleanTitle || tmdb_id}" (type=${type}, S${season || 1}E${episode || 1}, premium=${isPrem})`);
+    console.log(`[Download Resolve] Résolution: "${query.title}" (FR="${frenchTitle || 'N/A'}", VO="${origTitle || 'N/A'}", type=${type}, S${season || 1}E${episode || 1}, premium=${isPrem}, isIOS=${isIOS})`);
 
     let downloadUrl: string | null = null;
     let fallbackEmbed: string | null = null;
+    let iosFallbackUqload: { url: string; directType: 'mp4' | 'hls'; provider: string } | null = null;
     let directType: 'mp4' | 'hls' | 'embed' = 'embed';
     let resolvedProvider = 'chillers';
 
-    // 1. Priorité absolue : chercher dans la base MongoDB Chillers (films et séries)
-    // pour récupérer le vrai lien de téléchargement direct sans passer par le streaming
+    const searchTitles = [cleanTitle, frenchTitle, origTitle].filter(Boolean) as string[];
+
+    // 1. Priorité absolue : vérifier la base MongoDB Chillers d'abord (films et séries)
+    // On analyse le lien trouvé : si c'est Uqload et que le user est iOS, on le garde en fallback
+    // et on cherche un autre lien (FrenchStream/Vidzy MP4 natif).
     if (isTv) {
       const serie = tmdbIdNum
         ? await Serie.findOne({ tmdbId: tmdbIdNum }).lean().exec()
-        : cleanTitle
-          ? await Serie.findOne({ titre: { $regex: new RegExp(cleanTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } }).lean().exec()
+        : searchTitles.length > 0
+          ? await Serie.findOne({ $or: searchTitles.map(t => ({ titre: { $regex: new RegExp(t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } })) }).lean().exec()
           : null;
       if (serie) {
         const sNum = query.season !== undefined ? Number(query.season) : 1;
@@ -111,63 +142,111 @@ router.get('/resolve', async (req: Request, res: Response) => {
           if (uqCode) {
             const uq = await getUqloadDirectLink(uqCode, false);
             if (uq?.directUrl && !isEmbedOrHtml(uq.directUrl)) {
-              downloadUrl = uq.directUrl;
-              directType = uq.type === 'hls' ? 'hls' : 'mp4';
+              if (isIOS) {
+                console.log(`[Download Resolve] MongoDB a un lien Uqload pour la série mais client=iOS → conservé comme fallback`);
+                iosFallbackUqload = {
+                  url: uq.directUrl,
+                  directType: uq.type === 'hls' ? 'hls' : 'mp4',
+                  provider: 'uqload'
+                };
+              } else {
+                downloadUrl = uq.directUrl;
+                directType = uq.type === 'hls' ? 'hls' : 'mp4';
+                resolvedProvider = 'uqload';
+              }
+            }
+          }
+          if (!downloadUrl && !iosFallbackUqload && ep.uqloadLink && !isEmbedOrHtml(ep.uqloadLink) && /\.mp4(\?|$)/i.test(ep.uqloadLink) && !isSignedLinkExpired(ep.uqloadLink)) {
+            if (isIOS && /uqload/i.test(ep.uqloadLink)) {
+              console.log(`[Download Resolve] MongoDB a un uqloadLink pour la série mais client=iOS → conservé comme fallback`);
+              iosFallbackUqload = { url: ep.uqloadLink, directType: 'mp4', provider: 'uqload' };
+            } else {
+              downloadUrl = ep.uqloadLink;
+              directType = 'mp4';
               resolvedProvider = 'uqload';
             }
           }
-          if (!downloadUrl && ep.uqloadLink && !isEmbedOrHtml(ep.uqloadLink)) {
-            downloadUrl = ep.uqloadLink;
-            directType = 'mp4';
-            resolvedProvider = 'uqload';
-          }
-          if (!downloadUrl && ep.lien && !isEmbedOrHtml(ep.lien) && isDirectVideoUrl(ep.lien)) {
+          // Lien direct non-Uqload stocké en base (MP4 direct)
+          if (!downloadUrl && ep.lien && !isSignedLinkExpired(ep.lien) && !isEmbedOrHtml(ep.lien) && isDirectVideoUrl(ep.lien) && !/uqload|vidzy/i.test(ep.lien)) {
             downloadUrl = ep.lien;
             directType = /\.m3u8(\?|$)/i.test(ep.lien) ? 'hls' : 'mp4';
             resolvedProvider = 'mongodb';
           }
-          if (!downloadUrl) {
-            fallbackEmbed = ep.lien || ep.uqloadLink || null;
+          if (!downloadUrl && !iosFallbackUqload) {
+            const cand = ep.lien || ep.uqloadLink || null;
+            if (cand && !isSignedLinkExpired(cand)) {
+              if (isIOS && /uqload/i.test(cand)) {
+                iosFallbackUqload = { url: cand, directType: 'mp4', provider: 'uqload' };
+              } else {
+                fallbackEmbed = cand;
+              }
+            }
           }
         }
       }
     } else {
       const movie = tmdbIdNum
         ? await Movie.findOne({ tmdbId: tmdbIdNum }).lean().exec()
-        : cleanTitle
-          ? await Movie.findOne({ titre: { $regex: new RegExp(cleanTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } }).lean().exec()
+        : searchTitles.length > 0
+          ? await Movie.findOne({ $or: searchTitles.map(t => ({ titre: { $regex: new RegExp(t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } })) }).lean().exec()
           : null;
       if (movie) {
         const uqCode = movie.uqloadCode || (movie.uqloadLink ? extractUqloadCode(movie.uqloadLink) : null) || (movie.lien ? extractUqloadCode(movie.lien) : null);
         if (uqCode) {
           const uq = await getUqloadDirectLink(uqCode, false);
           if (uq?.directUrl && !isEmbedOrHtml(uq.directUrl)) {
-            downloadUrl = uq.directUrl;
-            directType = uq.type === 'hls' ? 'hls' : 'mp4';
+            if (isIOS) {
+              console.log(`[Download Resolve] MongoDB a un lien Uqload pour "${movie.titre}" mais client=iOS → conservé comme fallback`);
+              iosFallbackUqload = {
+                url: uq.directUrl,
+                directType: uq.type === 'hls' ? 'hls' : 'mp4',
+                provider: 'uqload'
+              };
+            } else {
+              downloadUrl = uq.directUrl;
+              directType = uq.type === 'hls' ? 'hls' : 'mp4';
+              resolvedProvider = 'uqload';
+            }
+          }
+        }
+        if (!downloadUrl && !iosFallbackUqload && movie.uqloadLink && !isEmbedOrHtml(movie.uqloadLink) && /\.mp4(\?|$)/i.test(movie.uqloadLink) && !isSignedLinkExpired(movie.uqloadLink)) {
+          if (isIOS && /uqload/i.test(movie.uqloadLink)) {
+            console.log(`[Download Resolve] MongoDB a un uqloadLink pour "${movie.titre}" mais client=iOS → conservé comme fallback`);
+            iosFallbackUqload = { url: movie.uqloadLink, directType: 'mp4', provider: 'uqload' };
+          } else {
+            downloadUrl = movie.uqloadLink;
+            directType = 'mp4';
             resolvedProvider = 'uqload';
           }
         }
-        if (!downloadUrl && movie.uqloadLink && !isEmbedOrHtml(movie.uqloadLink)) {
-          downloadUrl = movie.uqloadLink;
-          directType = 'mp4';
-          resolvedProvider = 'uqload';
-        }
-        if (!downloadUrl && movie.lien && !isEmbedOrHtml(movie.lien) && isDirectVideoUrl(movie.lien)) {
+        // Lien direct non-Uqload stocké en base (MP4 direct)
+        if (!downloadUrl && movie.lien && !isSignedLinkExpired(movie.lien) && !isEmbedOrHtml(movie.lien) && isDirectVideoUrl(movie.lien) && !/uqload|vidzy/i.test(movie.lien)) {
           downloadUrl = movie.lien;
           directType = /\.m3u8(\?|$)/i.test(movie.lien) ? 'hls' : 'mp4';
           resolvedProvider = 'mongodb';
         }
-        if (!downloadUrl) {
-          fallbackEmbed = movie.lien || movie.uqloadLink || null;
+        if (!downloadUrl && !iosFallbackUqload) {
+          const cand = movie.lien || movie.uqloadLink || null;
+          if (cand && !isSignedLinkExpired(cand)) {
+            if (isIOS && /uqload/i.test(cand)) {
+              iosFallbackUqload = { url: cand, directType: 'mp4', provider: 'uqload' };
+            } else {
+              fallbackEmbed = cand;
+            }
+          }
         }
       }
     }
 
-    // 2. ProviderManager (vérifie le cache et tous les providers streaming : mongodb enrichi, direct, frenchstream, otaku...)
+    // 2. ProviderManager (cherche parmi les autres providers : frenchstream, otaku...)
     if (!downloadUrl || isEmbedOrHtml(downloadUrl)) {
+      const providerOpts = isIOS && iosFallbackUqload
+        ? { only: ['frenchstream', 'otaku', 'fawesome'] }
+        : undefined;
+
       const streamResult = isTv
-        ? await providerManager.getEpisodeStream(query)
-        : await providerManager.getMovieStream(query);
+        ? await providerManager.getEpisodeStream(query, providerOpts)
+        : await providerManager.getMovieStream(query, providerOpts);
 
       if (streamResult) {
         resolvedProvider = streamResult.provider;
@@ -189,7 +268,15 @@ router.get('/resolve', async (req: Request, res: Response) => {
       }
     }
 
-    // 3. Fallback sur l'embed trouvé en base si le ProviderManager n'a rien renvoyé
+    // 3. Fallback iOS : si aucun autre provider n'a renvoyé de flux direct, on réutilise le lien Uqload MongoDB
+    if ((!downloadUrl || isEmbedOrHtml(downloadUrl)) && iosFallbackUqload) {
+      console.log(`[Download Resolve] iOS: Aucun autre provider direct trouvé, fallback sur MongoDB (${iosFallbackUqload.provider})`);
+      downloadUrl = iosFallbackUqload.url;
+      directType = iosFallbackUqload.directType;
+      resolvedProvider = iosFallbackUqload.provider;
+    }
+
+    // 4. Fallback sur l'embed trouvé en base si le ProviderManager n'a rien renvoyé
     if (!downloadUrl && fallbackEmbed) {
       downloadUrl = fallbackEmbed;
       directType = 'embed';
@@ -285,9 +372,16 @@ router.get('/resolve', async (req: Request, res: Response) => {
     let finalDownloadUrl: string;
 
     if (isMp4Direct && downloadUrl.startsWith('http')) {
-      // MP4 direct → proxy pour fournir Content-Disposition, Referer anti-blocage et Content-Length exact
-      finalDownloadUrl = `/api/download/file?url=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(cleanFilename)}`;
-      console.log(`[Download Resolve] MP4 direct → file proxy: ${downloadUrl.slice(0, 80)}...`);
+      // Pour Vidzy et tous les hébergeurs MP4 direct qui gèrent le téléchargement natif (comme OpenOtaku) :
+      // On sert l'URL directe pour une vitesse maximale et éviter que le proxy Node.js ne coupe la connexion
+      // ou ne produise des fichiers corrompus de 0 ko ou 55 bytes.
+      if (DirectScraper.isVidzyUrl(downloadUrl) || (!downloadUrl.includes('/api/') && /\.mp4(\?|$)/i.test(downloadUrl))) {
+        finalDownloadUrl = downloadUrl;
+        console.log(`[Download Resolve] MP4 direct (mode OpenOtaku direct): ${downloadUrl.slice(0, 80)}...`);
+      } else {
+        finalDownloadUrl = `/api/download/file?url=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(cleanFilename)}`;
+        console.log(`[Download Resolve] MP4 direct → file proxy: ${downloadUrl.slice(0, 80)}...`);
+      }
     } else if (isHls && downloadUrl.startsWith('http')) {
       // HLS uniquement en dernier recours si aucun MP4 n'existe
       finalDownloadUrl = `/api/download/stream?m3u8=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(cleanFilename)}`;
@@ -460,13 +554,14 @@ async function serveFileProxy(
  * Proxy de téléchargement haute vitesse avec gestion des noms de fichiers, referers et en-têtes Range
  */
 router.get('/file', async (req: Request, res: Response) => {
+  let target = '';
   try {
     const { url, filename = 'video.mp4' } = req.query as { url?: string; filename?: string };
     if (!url) {
       return res.status(400).json({ success: false, error: 'Paramètre ?url= requis' });
     }
 
-    const target = unwrapUrl(url);
+    target = unwrapUrl(url);
     try {
       if (!new URL(target).protocol.startsWith('http')) throw Error('protocole');
     } catch {
@@ -474,12 +569,19 @@ router.get('/file', async (req: Request, res: Response) => {
     }
 
     if (!(await serveFileProxy(req, res, target, filename))) {
-      return res.status(502).json({ success: false, error: 'Source de téléchargement injoignable' });
+      console.warn(`[Download File Proxy] Proxy échoué pour ${target.slice(0, 80)}...`);
+      if (target.includes('uqload') || target.includes('vidzy')) {
+        return res.status(502).json({
+          success: false,
+          error: "Ce lien de téléchargement a expiré ou est inaccessible auprès de l'hébergeur."
+        });
+      }
+      return res.redirect(target);
     }
   } catch (error: any) {
     console.error('[Download File Proxy] Erreur:', error.message);
     if (!res.headersSent) {
-      res.status(500).json({ success: false, error: 'Erreur proxy de téléchargement' });
+      return res.redirect(target || '/');
     }
   }
 });
@@ -510,7 +612,9 @@ async function upgradeToDirectFile(
   // Les HLS Uqload ne se relèvent pas depuis la playlist : le code du fichier
   // est dans le chemin (/hls2/…/<code>_h/master.m3u8) et l'API Uqload donne le
   // MP4 équivalent, celui qui porte une Content-Length.
-  const code = hlsUrl.match(/\/([a-z0-9]{10,})_h\/[^/]*\.m3u8/i)?.[1];
+  const code = hlsUrl.match(/\/([a-z0-9]{10,})_h\/[^/]*\.m3u8/i)?.[1]
+    || hlsUrl.match(/\/([a-z0-9]{10,})_[a-z,]+\.urlset/i)?.[1]
+    || extractUqloadCode(hlsUrl);
   if (code) {
     try {
       const uq = await getUqloadDirectLink(code, false);

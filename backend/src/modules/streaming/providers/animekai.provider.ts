@@ -21,17 +21,19 @@ export class AnimeKaiProvider implements StreamingProvider {
   }
 
   async getMovieStream(query: StreamQuery): Promise<StreamResult | null> {
-    // Try TMDB-ID based embed first (most reliable)
-    const embedUrl = query.title
-      ? `${BASE_URL}/embed/${slugify(query.title)}`
+    // Prefer originalTitle for anime (usually English/Japanese), fallback to title
+    const bestTitle = query.originalTitle || query.title;
+    const embedUrl = bestTitle
+      ? `${BASE_URL}/embed/${slugify(bestTitle)}`
       : `${BASE_URL}/embed/tmdb-${query.tmdbId}`;
     return { provider: this.name, embedUrl, type: 'movie' };
   }
 
   async getEpisodeStream(query: StreamQuery): Promise<StreamResult | null> {
     const ep = query.episode || 1;
-    const embedUrl = query.title
-      ? `${BASE_URL}/embed/${slugify(query.title)}?ep=${ep}`
+    const bestTitle = query.originalTitle || query.title;
+    const embedUrl = bestTitle
+      ? `${BASE_URL}/embed/${slugify(bestTitle)}?ep=${ep}`
       : `${BASE_URL}/embed/tmdb-${query.tmdbId}?ep=${ep}`;
     return { provider: this.name, embedUrl, type: 'episode' };
   }

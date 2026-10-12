@@ -521,10 +521,6 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
   }, [currentEpisodeIndex, playEpisode]);
 
   const handleDownloadSingle = (ep?: Episode) => {
-    if (!user) {
-      setIsAuthModalOpen(true);
-      return;
-    }
     if (ep) {
       setSelectedDownloadEpisode(ep);
     } else if (currentEpisode) {
@@ -819,17 +815,13 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
               {isTV ? (
                 <Button
                   onClick={() => {
-                    if (!user) {
-                      setIsAuthModalOpen(true);
-                      return;
-                    }
                     setShowBatchDownloadModal(true);
                   }}
-                  variant="primary"
+                  variant="dark"
                   size="md"
-                  text={_("download.series")}
+                  text={_("download.series") || "Télécharger la saison"}
                   leftIcon={<DownloadSimple className="h-4 w-4" />}
-                  ariaLabel={_("download.series")}
+                  ariaLabel={_("download.series") || "Télécharger la saison"}
                   className="flex-1 min-w-[140px]"
                 />
               ) : (

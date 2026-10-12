@@ -2,13 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { resolveDownloadUrl } from "@/services/downloads";
-import { streamDownloadToDisk, isIOS } from "@/services/streamSaver";
-import { streamVideoToIndexedDB } from "@/services/offlineStorage";
+import { streamDownloadToDisk } from "@/services/streamSaver";
 import { buildEpisodeFilename, downloadTaskId } from "@/lib/format";
 import type { DownloadTask, DownloadStatus } from "@/types/download";
 import { useDownloadsStore } from "@/store/downloads";
-import { useAuthStore } from "@/stores/useAuthStore";
-import { useSubscriptionStore, isUserSubscriber } from "@/stores/useSubscriptionStore";
 
 /**
  * useDownload — drives a single-file download lifecycle.
@@ -31,6 +28,8 @@ export interface UseDownloadArgs {
   posterUrl?: string;
   backdropUrl?: string;
   language?: "fr" | "vostfr";
+  /** URL directe pré-résolue par le lecteur / flux en cours (évite un second scraping) */
+  initialDownloadUrl?: string | null;
 }
 
 export interface UseDownloadReturn {
@@ -40,7 +39,7 @@ export interface UseDownloadReturn {
   percent: number | null;
   error: string | null;
   /** Resolve the download URL without streaming (sets status to "ready"). */
-  resolve: () => void;
+  resolve: (forcedUrl?: string) => void;
   /** Stream the resolved URL to disk. Safe to call from the "ready" state. */
   start: () => void;
   cancel: () => void;
@@ -49,7 +48,7 @@ export interface UseDownloadReturn {
 }
 
 export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
-  const { tmdbId, type, title, season, episodeNumber, posterUrl, backdropUrl, language = "fr" } = args;
+  const { tmdbId, type, title, season, episodeNumber, posterUrl, backdropUrl, language = "fr", initialDownloadUrl } = args;
   const id = downloadTaskId({ tmdbId, season, episodeNumber, language });
 
   const addMany = useDownloadsStore((s) => s.addMany);
@@ -120,16 +119,29 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
           filename,
           season,
           episodeNumber,
-          resolvedUrl: null,
+          resolvedUrl: initialDownloadUrl || null,
+          resolvedUrlAt: initialDownloadUrl ? Date.now() : undefined,
           bytesDownloaded: 0,
           totalBytes: null,
-          status: "queued",
+          status: initialDownloadUrl ? "ready" : "queued",
           createdAt: Date.now(),
           updatedAt: Date.now(),
         },
       ]);
+    } else if (initialDownloadUrl && (!existing.resolvedUrl || existing.status === "error" || existing.status === "queued")) {
+      updateTask(id, {
+        resolvedUrl: initialDownloadUrl,
+        resolvedUrlAt: Date.now(),
+      });
+      setStatus(id, "ready");
     }
-  }, [id, title, season, episodeNumber, addMany, tmdbId, type, posterUrl, backdropUrl]);
+  }, [id, title, season, episodeNumber, addMany, tmdbId, type, posterUrl, backdropUrl, initialDownloadUrl, updateTask, setStatus]);
+
+  useEffect(() => {
+    if (initialDownloadUrl) {
+      ensureTaskExists();
+    }
+  }, [initialDownloadUrl, ensureTaskExists]);
 
   const cancel = useCallback(() => {
     requestCancel(id);
@@ -137,10 +149,21 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
     ctrl?.abort();
   }, [id, requestCancel, getController]);
 
-  const resolve = useCallback(async () => {
+  const resolve = useCallback(async (forcedUrl?: string) => {
     if (isRunning) return;
     ensureTaskExists();
     clearCancelRequest(id);
+
+    const directUrl = forcedUrl || initialDownloadUrl;
+    if (directUrl) {
+      updateTask(id, {
+        resolvedUrl: directUrl,
+        resolvedUrlAt: Date.now(),
+      });
+      setStatus(id, "ready");
+      return;
+    }
+
     setIsRunning(true);
 
     const ctrl = new AbortController();
@@ -184,7 +207,7 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
     } finally {
       setIsRunning(false);
     }
-  }, [id, isRunning, isCancelRequested, setStatus, tmdbId, type, title, season, episodeNumber, updateTask, setController, clearCancelRequest, ensureTaskExists]);
+  }, [id, isRunning, isCancelRequested, setStatus, tmdbId, type, title, season, episodeNumber, updateTask, setController, clearCancelRequest, ensureTaskExists, initialDownloadUrl, language]);
 
   const streamCurrent = useCallback(async (url: string) => {
     setIsRunning(true);
@@ -193,70 +216,32 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
     setController(id, ctrl);
 
     const filename = taskRef.current?.filename ?? `download-${id}.mp4`;
-    const titleStr = taskRef.current?.title ?? title;
-    const user = useAuthStore.getState().user;
-    const globalSubEnabled = useSubscriptionStore.getState().globalSubscriptionEnabled;
-    const isSubscriber = isUserSubscriber(user, globalSubEnabled);
-    const iosDevice = isIOS();
 
     try {
       setStatus(id, "downloading");
 
-      if (isSubscriber || iosDevice) {
-        // Utilisateur avec abonnement OU appareil iOS :
-        // Sur iOS, les restrictions WebKit (absence de Background Fetch, limite de RAM par onglet)
-        // font échouer ou crasher les Blobs IndexedDB (>500 Mo). On délègue toujours au gestionnaire natif
-        // Safari (Fichiers) via streamDownloadToDisk.
-        await streamDownloadToDisk(url, {
-          filename,
-          signal: ctrl.signal,
-          saveBlob: false, // Ne pas surcharger la RAM, écrit directement sur disque
-          onProgress: (bytes, total) => {
-            setProgress(id, {
-              bytesDownloaded: bytes,
-              totalBytes: total,
-              percent:
-                total && total > 0
-                  ? Math.min(100, Math.round((bytes / total) * 100))
-                  : null,
-            });
-          },
-        });
+      // Téléchargement direct sur disque pour tous les utilisateurs (aucun IndexedDB)
+      // StreamSaver sur navigateurs normaux, gestionnaire de téléchargement Safari natif sur iOS
+      await streamDownloadToDisk(url, {
+        filename,
+        signal: ctrl.signal,
+        saveBlob: false,
+        onProgress: (bytes, total) => {
+          setProgress(id, {
+            bytesDownloaded: bytes,
+            totalBytes: total,
+            percent:
+              total && total > 0
+                ? Math.min(100, Math.round((bytes / total) * 100))
+                : null,
+          });
+        },
+      });
 
-        if (ctrl.signal.aborted) {
-          setStatus(id, "canceled");
-        } else {
-          setStatus(id, "done");
-        }
+      if (ctrl.signal.aborted) {
+        setStatus(id, "canceled");
       } else {
-        // Utilisateur gratuit : Background Fetch (YouTube-style) ou fetch normal fallback
-        const result = await streamVideoToIndexedDB(url, {
-          id,
-          filename,
-          title: titleStr,
-          signal: ctrl.signal,
-          onProgress: (bytes, total) => {
-            setProgress(id, {
-              bytesDownloaded: bytes,
-              totalBytes: total,
-              percent:
-                total && total > 0
-                  ? Math.min(100, Math.round((bytes / total) * 100))
-                  : null,
-            });
-          },
-        });
-
-        if (ctrl.signal.aborted) {
-          setStatus(id, "canceled");
-        } else if (result.totalBytes === null) {
-          // Background Fetch enregistré → le SW finira et enverra BG_FETCH_SUCCESS
-          // Le status "done" sera mis par le listener SW ci-dessous.
-          // On laisse "downloading" pour l'instant (progression via bgFetch.progress).
-        } else {
-          // Fetch standard terminé en main thread
-          setStatus(id, "done");
-        }
+        setStatus(id, "done");
       }
     } catch (err) {
       if (ctrl.signal.aborted || isCancelRequested(id)) {

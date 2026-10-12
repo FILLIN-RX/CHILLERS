@@ -19,42 +19,50 @@ export class FawesomeProvider implements StreamingProvider {
   }
 
   async getMovieStream(query: StreamQuery): Promise<StreamResult | null> {
-    let title = query.title;
+    const titlesToTry = [
+      query.originalTitle,
+      query.title,
+      query.frenchTitle
+    ].filter(Boolean) as string[];
 
-    if (!title && query.tmdbId) {
+    if (titlesToTry.length === 0 && query.tmdbId) {
       try {
         const { data } = await tmdbClient.get(`/movie/${query.tmdbId}?language=${query.language || 'fr'}`);
-        title = data?.title || data?.original_title;
+        if (data?.original_title) titlesToTry.push(data.original_title);
+        if (data?.title) titlesToTry.push(data.title);
       } catch (_) {}
     }
 
-    if (!title) return null;
+    const uniqueTitles = [...new Set(titlesToTry.map(t => t.trim()))];
+    if (uniqueTitles.length === 0) return null;
 
     try {
-      const results = await searchFawesome(title, 'movie');
-      const target = normalize(title);
-      const match = results.find((r) => normalize(r.title) === target);
+      for (const t of uniqueTitles) {
+        const results = await searchFawesome(t, 'movie');
+        const target = normalize(t);
+        const match = results.find((r) => normalize(r.title) === target);
 
-      if (!match) {
-        console.log(`[Fawesome] Pas de correspondance exacte pour "${title}" (${results.length} résultats écartés)`);
-        return null;
+        if (match) {
+          const url = match.mp4Url || match.hlsUrl;
+          if (url) {
+            const directType: 'mp4' | 'hls' = match.mp4Url ? 'mp4' : 'hls';
+            console.log(`[Fawesome] Flux ${directType.toUpperCase()} trouvé pour "${t}": ${url.slice(0, 80)}...`);
+
+            return {
+              provider: this.name,
+              embedUrl: url,
+              directUrl: url,
+              directType,
+              type: 'movie',
+            };
+          }
+        }
       }
 
-      const url = match.mp4Url || match.hlsUrl;
-      if (!url) return null;
-
-      const directType: 'mp4' | 'hls' = match.mp4Url ? 'mp4' : 'hls';
-      console.log(`[Fawesome] Flux ${directType.toUpperCase()} trouvé pour "${title}": ${url.slice(0, 80)}...`);
-
-      return {
-        provider: this.name,
-        embedUrl: url,
-        directUrl: url,
-        directType,
-        type: 'movie',
-      };
+      console.log(`[Fawesome] Pas de correspondance exacte pour [${uniqueTitles.join(', ')}]`);
+      return null;
     } catch (error: any) {
-      console.error(`[Fawesome] Erreur film "${title}":`, error.message);
+      console.error(`[Fawesome] Erreur film [${uniqueTitles.join(', ')}]:`, error.message);
       return null;
     }
   }

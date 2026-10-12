@@ -83,15 +83,24 @@ export async function streamDownloadToDisk(
     // Content-Disposition: attachment servi par le backend.
     const backendOrigin = getBackendOrigin();
     let href: string;
-    if (url.includes('/api/download/file') || url.includes('/api/download/stream')) {
-      href = url.startsWith('http') ? url : `${backendOrigin}${url}`;
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      href = url;
     } else if (url.startsWith('/api/')) {
       href = `${backendOrigin}${url}`;
     } else {
-      href = `${backendOrigin}/api/download/file?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`;
+      href = url;
     }
 
-    window.location.href = href;
+    const a = document.createElement("a");
+    a.href = href;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.download = filename || "video.mp4";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      try { a.remove(); } catch (_) {}
+    }, 1000);
     return { totalBytes: null };
   }
 

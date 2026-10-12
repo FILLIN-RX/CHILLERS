@@ -136,6 +136,7 @@
   },
   "download": {
     "single": "Download",
+    "series": "Download Season",
     "all": "Download Entire Series",
     "preparing": "Preparing…",
     "impossible": "Download Failed",

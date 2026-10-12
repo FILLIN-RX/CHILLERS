@@ -14,6 +14,7 @@ import { VidLinkProvider } from './providers/vidlink.provider';
 import { TorrServerProvider } from './providers/torrserver.provider';
 import { resolveDirectFromEmbed } from './providers/direct-enricher';
 import { CachedStream, streamCache, getCacheKey } from '../../utils/stream-cache';
+import tmdbClient from '../../config/tmdb';
 
 const VALIDATION_TIMEOUT = 5000;
 const PROVIDER_TIMEOUT = 10000;
@@ -117,9 +118,15 @@ export class ProviderManager {
     const cacheKey = getCacheKey('movie', query.tmdbId, undefined, undefined, query.isPremium, query.language || 'fr');
     const cached = streamCache.get(cacheKey);
     if (cached) {
-      console.log(`[Stream] Cache hit for movie ${query.tmdbId}`);
-      return cached;
+      if (cached.directUrl && /\/(taunt|promo)\//i.test(cached.directUrl)) {
+        streamCache.delete(cacheKey);
+      } else if (!opts?.only || opts.only.includes(cached.provider)) {
+        console.log(`[Stream] Cache hit for movie ${query.tmdbId} (${cached.provider})`);
+        return cached;
+      }
     }
+
+    await this.enrichQueryTitles(query);
 
     const attempts: ProviderAttempt[] = [];
     let weak: ProviderAttempt | null = null;
@@ -133,7 +140,9 @@ export class ProviderManager {
           `[Stream] Movie stream found via "${provider.name}" after ${attempts.length} attempt(s)`
         );
         const result = toCachedStream(attempt);
-        streamCache.set(cacheKey, result);
+        if (!opts?.only) {
+          streamCache.set(cacheKey, result);
+        }
         return result;
       }
       // Embed sans URL directe jouable : on continue la chaîne (frenchstream,
@@ -162,9 +171,15 @@ export class ProviderManager {
     const cacheKey = getCacheKey('episode', query.tmdbId, query.season, query.episode, query.isPremium, query.language || 'fr');
     const cached = streamCache.get(cacheKey);
     if (cached) {
-      console.log(`[Stream] Cache hit for episode ${query.tmdbId} S${query.season}E${query.episode}`);
-      return cached;
+      if (cached.directUrl && /\/(taunt|promo)\//i.test(cached.directUrl)) {
+        streamCache.delete(cacheKey);
+      } else if (!opts?.only || opts.only.includes(cached.provider)) {
+        console.log(`[Stream] Cache hit for episode ${query.tmdbId} S${query.season}E${query.episode} (${cached.provider})`);
+        return cached;
+      }
     }
+
+    await this.enrichQueryTitles(query);
 
     const attempts: ProviderAttempt[] = [];
     let weak: ProviderAttempt | null = null;
@@ -178,7 +193,9 @@ export class ProviderManager {
           `[Stream] Episode stream found via "${provider.name}" after ${attempts.length} attempt(s)`
         );
         const result = toCachedStream(attempt);
-        streamCache.set(cacheKey, result);
+        if (!opts?.only) {
+          streamCache.set(cacheKey, result);
+        }
         return result;
       }
       if (attempt.status === 'weak' && !weak) weak = attempt;
@@ -198,6 +215,47 @@ export class ProviderManager {
       attempts.map(a => `${a.provider}=${a.status}${a.reason ? ` (${a.reason})` : ''}`).join(', ')
     );
     return null;
+  }
+
+  private async enrichQueryTitles(query: StreamQuery): Promise<void> {
+    try {
+      if (!query.tmdbId && query.title) {
+        const searchPath = (query.type === 'tv' || query.season !== undefined) ? '/search/tv' : '/search/movie';
+        const { data: searchData } = await tmdbClient.get(`${searchPath}?query=${encodeURIComponent(query.title)}&language=fr`);
+        if (searchData?.results?.[0]) {
+          const first = searchData.results[0];
+          query.tmdbId = first.id;
+          query.frenchTitle = first.title || first.name;
+          query.originalTitle = first.original_title || first.original_name;
+        }
+      }
+
+      if (query.tmdbId) {
+        if (query.type === 'tv' || query.season !== undefined) {
+          const { data } = await tmdbClient.get(`/tv/${query.tmdbId}?language=fr`);
+          if (data) {
+            query.frenchTitle = data.name || data.original_name;
+            query.originalTitle = query.originalTitle || data.original_name;
+            if (!query.title) query.title = query.frenchTitle;
+            if (!query.year && data.first_air_date) {
+              const y = new Date(data.first_air_date).getFullYear();
+              if (!isNaN(y)) query.year = y;
+            }
+          }
+        } else {
+          const { data } = await tmdbClient.get(`/movie/${query.tmdbId}?language=fr`);
+          if (data) {
+            query.frenchTitle = data.title || data.original_title;
+            query.originalTitle = query.originalTitle || data.original_title;
+            if (!query.title) query.title = query.frenchTitle;
+            if (!query.year && data.release_date) {
+              const y = new Date(data.release_date).getFullYear();
+              if (!isNaN(y)) query.year = y;
+            }
+          }
+        }
+      }
+    } catch (_) {}
   }
 
   private isCircuitBroken(name: string): boolean {
@@ -337,6 +395,10 @@ export class ProviderManager {
     result: any,
     providerName: string,
   ): Promise<{ result: any; weak: boolean }> {
+    if (result?.directUrl && /\/(taunt|promo)\//i.test(result.directUrl)) {
+      delete result.directUrl;
+      delete result.directType;
+    }
     if (!result || result.directUrl || !result.embedUrl) return { result, weak: false };
 
     try {
