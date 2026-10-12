@@ -8,6 +8,7 @@ import { useDownloadsStore } from "@/store/downloads";
 import type { DownloadStatus } from "@/types/download";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { getBackendOrigin } from "@/services/http";
+import { isIOS } from "@/services/streamSaver";
 
 interface DownloadModalProps {
   isOpen: boolean;
@@ -104,6 +105,12 @@ export default function DownloadModal({
   const showSpinner = dl.status === "resolving" || dl.status === "downloading";
   const showSuccess = dl.status === "done";
   const showError = dl.status === "error";
+
+  const readyHref = dl.task?.resolvedUrl
+    ? (dl.task.resolvedUrl.startsWith("http")
+        ? dl.task.resolvedUrl
+        : `${getBackendOrigin()}${dl.task.resolvedUrl}`)
+    : "#";
 
   return (
     <div
@@ -230,17 +237,17 @@ export default function DownloadModal({
 
         {dl.status === "ready" && (
           <a
-            href={
-              dl.task?.resolvedUrl
-                ? (dl.task.resolvedUrl.startsWith("http")
-                    ? dl.task.resolvedUrl
-                    : `${getBackendOrigin()}${dl.task.resolvedUrl}`)
-                : "#"
-            }
+            href={readyHref}
             target="_blank"
             rel="noopener noreferrer"
             download={dl.task?.filename || `${title}.mp4`}
-            onClick={() => {
+            onClick={(e) => {
+              // En PWA standalone, WebKit iOS jette silencieusement les clics target="_blank".
+              // Le geste utilisateur doit donc partir de l'onglet courant.
+              if (isIOS() && dl.task?.resolvedUrl) {
+                e.preventDefault();
+                window.location.href = readyHref;
+              }
               onClose();
             }}
             className="w-full px-8 py-3 rounded-xl bg-white text-black font-bold text-sm hover:bg-zinc-200 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-95 no-underline"
