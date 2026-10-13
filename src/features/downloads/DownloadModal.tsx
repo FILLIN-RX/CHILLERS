@@ -8,6 +8,7 @@ import { useDownloadsStore } from "@/store/downloads";
 import type { DownloadStatus } from "@/types/download";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { getBackendOrigin } from "@/services/http";
+import { isDownloadableUrl } from "@/services/downloads";
 import { isIOS } from "@/services/streamSaver";
 
 interface DownloadModalProps {
@@ -104,13 +105,17 @@ export default function DownloadModal({
 
   const showSpinner = dl.status === "resolving" || dl.status === "downloading";
   const showSuccess = dl.status === "done";
-  const showError = dl.status === "error";
 
   const readyHref = dl.task?.resolvedUrl
     ? (dl.task.resolvedUrl.startsWith("http")
         ? dl.task.resolvedUrl
         : `${getBackendOrigin()}${dl.task.resolvedUrl}`)
     : "#";
+
+  const canDownload = dl.status === "ready" && isDownloadableUrl(dl.task?.resolvedUrl);
+  const noFileAvailable = dl.status === "ready" && !canDownload;
+
+  const showError = dl.status === "error" || noFileAvailable;
 
   return (
     <div
@@ -232,10 +237,14 @@ export default function DownloadModal({
         )}
 
         <p className="text-zinc-400 text-xs sm:text-sm mb-5">
-          {dl.error ? dl.error : STATUS_LABEL[dl.status]}
+          {dl.error
+            ? dl.error
+            : noFileAvailable
+              ? "Aucun fichier vidéo n'a pu être extrait pour cette version. Réessayez ou choisissez une autre langue."
+              : STATUS_LABEL[dl.status]}
         </p>
 
-        {dl.status === "ready" && (
+        {canDownload && (
           <a
             href={readyHref}
             target="_blank"

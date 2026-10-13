@@ -70,12 +70,13 @@ export default function CatalogSpotlightHero({
         
         {/* Background Backdrop with Gradient Overlays - Bright & Crisp */}
         <div className="absolute inset-0 z-0">
-          {current.backdropUrl ? (
+          {(current.backdropOriginalUrl || current.backdropUrl) ? (
             <Image
-              src={current.backdropUrl}
+              src={current.backdropOriginalUrl || current.backdropUrl}
               alt={current.title}
               fill
               priority
+              quality={95}
               className={`object-cover object-right md:object-center transition-all duration-700 ease-out ${
                 isFading ? "opacity-40 scale-105" : "opacity-90 scale-100"
               }`}

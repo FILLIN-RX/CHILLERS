@@ -172,7 +172,7 @@ function MovieCard({
   const isGridPoster = variant === "grid-poster";
 
   const posterSrc = item.posterUrl || item.backdropUrl;
-  const backdropSrc = !backdropFailed && item.backdropUrl ? item.backdropUrl : item.posterUrl;
+  const backdropSrc = !backdropFailed && (item.backdropOriginalUrl || item.backdropUrl) ? (item.backdropOriginalUrl || item.backdropUrl) : item.posterUrl;
   const primarySrc = isPoster ? posterSrc : backdropSrc;
 
   const gradients = [

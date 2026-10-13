@@ -129,3 +129,47 @@ export const getAfrican = async (page: number = 1, language?: string, country?: 
   });
   return data;
 };
+
+export const getDiscoverSmart = async (page: number = 1, language?: string) => {
+  const lang = toTMDBLanguage(language);
+
+  // Fetch top-rated recent films from TMDB /discover/movie
+  const { data } = await tmdbClient.get('/discover/movie', {
+    params: {
+      page,
+      language: lang,
+      sort_by: 'vote_average.desc',
+      'primary_release_date.gte': '2023-01-01',
+      'vote_count.gte': 200,
+      'vote_average.gte': 5,
+      include_adult: false,
+    },
+  });
+
+  const results: any[] = data.results || [];
+
+  // Calculate composite score for each film
+  const scored = results.map((movie: any) => {
+    const rating = movie.vote_average || 0;
+    const voteCount = movie.vote_count || 0;
+    const releaseYear = movie.release_date
+      ? new Date(movie.release_date).getFullYear()
+      : 2020;
+
+    const yearRecency = Math.min(1, Math.max(0, (2026 - releaseYear) / 2));
+    const score =
+      (rating / 10) * 0.4 +
+      (Math.log10(voteCount + 1) / 3) * 0.3 +
+      yearRecency * 0.3;
+
+    return { ...movie, _score: parseFloat(score.toFixed(4)) };
+  });
+
+  // Sort by composite score descending
+  scored.sort((a: any, b: any) => b._score - a._score);
+
+  return {
+    ...data,
+    results: scored,
+  };
+};

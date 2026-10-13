@@ -13,7 +13,7 @@ const nextConfig: NextConfig = {
   images: {
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 86400,
-    qualities: [75, 85],
+    qualities: [75, 85, 95],
     remotePatterns: [
       { protocol: "https", hostname: "image.tmdb.org" },
       { protocol: "https", hostname: "images.unsplash.com" },

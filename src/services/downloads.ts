@@ -68,6 +68,16 @@ export async function resolveDownloadUrl(
   return null;
 }
 
+/**
+ * Le résolveur backend peut renvoyer la page d'un hébergeur quand aucun fichier
+ * n'a pu en être extrait. Naviguer dessus ferait quitter l'app pour le site tiers.
+ */
+export function isDownloadableUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  if (url.includes("/api/download/")) return true;
+  return /\.(mp4|mkv|webm|m4v)(\?|$)/i.test(url);
+}
+
 interface SeriesDownloadCheckResponse {
   missing?: { season: number; episode: number }[];
   episodes?: { season: number; episode: number; fileCode: string; downloadUrl: string | null }[];

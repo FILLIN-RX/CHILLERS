@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo, Suspense } from "react";
 import Image from "next/image";
-import dynamic from "next/dynamic";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import {
   getMediaDetails,
@@ -14,7 +13,7 @@ import {
   getTopRatedTV,
   getUpcomingMovies,
   getAnimeSeries,
-  getPopularMoviesPage,
+  getAllMovies,
   getPopularTVPage,
   getAnimeSeriesPage,
   getMoviesByGenrePage,
@@ -48,8 +47,6 @@ import gsap from 'gsap';
 
 import CatalogSpotlightHero from "@/components/CatalogSpotlightHero";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
-
-const MovieModal = dynamic(() => import("@/components/MovieModal"), { ssr: false });
 
 const LISTING_TYPES = ["movies", "series", "anime"];
 
@@ -470,6 +467,7 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
             fill
             className="object-cover object-top filter brightness-[0.75]"
             sizes="100vw"
+            quality={95}
             priority
           />
         ) : (
@@ -1013,7 +1011,9 @@ function MediaListingPage() {
     try {
       let result: { results: MovieOrShow[]; totalPages: number } = { results: [], totalPages: 1 };
       if (type === "movies") {
-        result = await getPopularMoviesPage(nextPage);
+        // Utilise getAllMovies qui combine Popular + TopRated + Trending
+        const allMovies = await getAllMovies(nextPage);
+        result = { results: allMovies, totalPages: 1 }; // getAllMovies retourne un array simple
       } else if (type === "anime") {
         result = await getAnimeSeriesPage(nextPage);
       } else {
@@ -1037,9 +1037,6 @@ function MediaListingPage() {
     rootMargin: "600px",
   });
 
-  // Modal detail
-  const [selectedMovie, setSelectedMovie] = useState<MovieOrShow | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
 
 
@@ -1163,15 +1160,18 @@ function MediaListingPage() {
         });
 
         // Initialize the bottom infinite-scroll grid with page 1 of the main list
-        const page1 = await (async () => {
-          if (type === "movies") return getPopularMoviesPage(1);
+        const page1Data = await (async () => {
+          if (type === "movies") {
+            const allMovies = await getAllMovies(1);
+            return { results: allMovies, totalPages: 1 };
+          }
           if (type === "anime") return getAnimeSeriesPage(1);
           return getPopularTVPage(1);
         })();
         if (cancelled) return;
-        setCatalogGridItems(page1.results);
+        setCatalogGridItems(page1Data.results);
         setCatalogGridPage(1);
-        setCatalogGridTotalPages(page1.totalPages);
+        setCatalogGridTotalPages(page1Data.totalPages);
       } catch (err) {
         console.error("Error loading catalog:", err);
       } finally {
@@ -1230,17 +1230,7 @@ function MediaListingPage() {
   }, [type, page, activeGenreId]);
 
   const handleOpenDetails = (item: MovieOrShow) => {
-    // Mobile: navigate directly instead of opening modal
-    if (window.innerWidth < 768) {
-      if (item.type === "series" || item.type === "anime") {
-        router.push(`/tv/${item.id}`);
-      } else {
-        router.push(`/media/${item.id}`);
-      }
-      return;
-    }
-    setSelectedMovie(item);
-    setIsModalOpen(true);
+    router.push(item.type === "series" || item.type === "anime" ? `/tv/${item.id}` : `/media/${item.id}`);
   };
 
   const handlePlay = (item: MovieOrShow) => {
@@ -1478,19 +1468,6 @@ function MediaListingPage() {
         </div>
       )}
 
-      {/* Detail Movie Modal */}
-      {selectedMovie && (
-        <MovieModal
-          item={selectedMovie}
-          isOpen={isModalOpen}
-          onClose={() => {
-            setIsModalOpen(false);
-            setSelectedMovie(null);
-          }}
-          onWatch={handlePlay}
-          onOpenDetails={handleOpenDetails}
-        />
-      )}
     </main>
   );
 }

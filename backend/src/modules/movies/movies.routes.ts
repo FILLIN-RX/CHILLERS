@@ -8,6 +8,7 @@ router.get('/trending', moviesController.getTrending);
 router.get('/upcoming', moviesController.getUpcoming);
 router.get('/top-rated', moviesController.getTopRated);
 router.get('/african', moviesController.getAfrican);
+router.get('/discover-smart', moviesController.getDiscoverSmart);
 router.get('/genre/:genreId', moviesController.getByGenre);
 router.get('/:id/recommendations', moviesController.getRecommendations);
 router.get('/:id/trailer', moviesController.getTrailer);

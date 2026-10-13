@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useMemo, useCallback, startTransition } from "react";
 import { useRouter } from "next/navigation";
-import dynamic from "next/dynamic";
 import HeroCarousel from "@/components/HeroCarousel";
 import MovieCard from "@/components/MovieCard";
 import ContinueWatchingCard from "@/components/ContinueWatchingCard";
@@ -12,12 +11,10 @@ import MostViewedMovie from "@/components/MostViewedMovie";
 import Top10Row from "@/components/Top10Row";
 import SportsMatchesRow from "@/components/SportsMatchesRow";
 import { useLanguage } from "@/i18n/LanguageContext";
-import type { MovieOrShow, Episode } from "@/types/media";
+import type { MovieOrShow } from "@/types/media";
 import UpgradeModal from "@/components/UpgradeModal";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { HomeActionProvider } from "./HomeActionContext";
-
-const MovieModal = dynamic(() => import("@/components/MovieModal"), { ssr: false });
 
 export interface HomeClientWrapperProps {
   heroSlides: MovieOrShow[];
@@ -42,8 +39,6 @@ export default function HomeClientWrapper({
   const { translate: _ } = useLanguage();
   const user = useAuthStore((s) => s.user);
 
-  const [selectedMovie, setSelectedMovie] = useState<MovieOrShow | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [continueWatching, setContinueWatching] = useState<
     { item: MovieOrShow; progress: number; remaining: string; episodeName?: string; season?: number; episode?: number }[]
@@ -192,20 +187,10 @@ export default function HomeClientWrapper({
   }, [user]);
 
   const handleOpenDetails = useCallback((item: MovieOrShow) => {
-    if (typeof window !== "undefined" && window.innerWidth < 768) {
-      if (item.type === "series" || item.type === "anime") {
-        router.push(`/tv/${item.id}`);
-      } else {
-        router.push(`/media/${item.id}`);
-      }
-      return;
-    }
-    setSelectedMovie(item);
-    setIsModalOpen(true);
+    router.push(item.type === "series" || item.type === "anime" ? `/tv/${item.id}` : `/media/${item.id}`);
   }, [router]);
 
   const handleWatchNow = useCallback((item: MovieOrShow, season?: number, episode?: number, lang?: "fr" | "vostfr") => {
-    setIsModalOpen(false);
     const typeParam = item.type === "series" || item.type === "anime" ? "tv" : "movie";
     const preferredLang = lang || (typeof window !== "undefined" ? (localStorage.getItem("chillers_preferred_lang") as "fr" | "vostfr") : null) || "fr";
     let url = `/watch/${item.id}?type=${typeParam}&lang=${preferredLang}`;
@@ -223,10 +208,6 @@ export default function HomeClientWrapper({
     }
     handleWatchNow(item, season, episode);
   }, [user, handleWatchNow]);
-
-  const handleModalWatch = (item: MovieOrShow, episode?: Episode, lang?: "fr" | "vostfr") => {
-    handleWatchNow(item, episode?.season, episode?.number, lang);
-  };
 
   const actionContextValue = useMemo(() => ({
     onWatchNow: handleWatchNow,
@@ -335,19 +316,6 @@ export default function HomeClientWrapper({
           isOpen={showUpgradeModal} 
           onClose={() => setShowUpgradeModal(false)} 
           featureName="La reprise de lecture"
-        />
-
-        <MovieModal
-          item={selectedMovie}
-          isOpen={isModalOpen}
-          onClose={() => {
-            setIsModalOpen(false);
-            setSelectedMovie(null);
-          }}
-          onWatch={handleModalWatch}
-          onOpenDetails={(movie) => {
-            setSelectedMovie(movie);
-          }}
         />
       </div>
     </HomeActionProvider>

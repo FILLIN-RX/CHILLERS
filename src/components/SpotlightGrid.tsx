@@ -21,7 +21,7 @@ function SpotlightCard({
   onWatchNow: (m: MovieOrShow) => void;
   onOpenDetails: (m: MovieOrShow) => void;
 }) {
-  const backdrop = item.backdropUrl || item.backdropOriginalUrl;
+  const backdrop = item.backdropOriginalUrl || item.backdropUrl;
 
   return (
     <div className="relative group overflow-hidden rounded-2xl sm:rounded-3xl border border-white/5 bg-zinc-950/80 hover:border-white/15 transition-all duration-300 w-full flex flex-row items-stretch p-3 sm:p-4 gap-3 sm:gap-4 shadow-xl">

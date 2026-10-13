@@ -6,7 +6,7 @@ import { type Language, defaultLanguage } from "@/i18n";
 import AdminShortcut from "@/components/AdminShortcut";
 import PWARegister from "@/components/pwa/PWARegister";
 import SplashScreen from "@/components/pwa/SplashScreen";
-import PWAInstallBanner from "@/components/pwa/PWAInstallBanner";
+// import PWAInstallBanner from "@/components/pwa/PWAInstallBanner"; // Désactivé - banner pas désiré
 import NetworkStatusNotifier from "@/components/pwa/NetworkStatusNotifier";
 import { SITE_URL } from "@/lib/seo";
 
@@ -211,7 +211,7 @@ export default async function RootLayout({
             <LanguageProvider initialLang={initialLang}>
               <PWARegister />
               <SplashScreen />
-              <PWAInstallBanner />
+              {/* <PWAInstallBanner /> - Désactivé */}
               <NetworkStatusNotifier />
               <AdminShortcut />
               <AdSense />

@@ -843,18 +843,53 @@ export function getAnimeByGenre(genreId: string, page = 1, signal?: AbortSignal)
 
 /* Combined "all movies" payload used by the home carousel. */
 
+/** Compute composite smart score for a movie (same formula as backend). */
+function computeSmartScore(item: MovieOrShow): number {
+  const rating = item.rating || 0;
+  const voteCount = item.voteCount || 0;
+  const releaseYear = item.year || 2020;
+  const yearRecency = Math.min(1, Math.max(0, (2026 - releaseYear) / 2));
+  return (
+    (rating / 10) * 0.4 +
+    (Math.log10(voteCount + 1) / 3) * 0.3 +
+    yearRecency * 0.3
+  );
+}
+
 export async function getAllMovies(page = 1, signal?: AbortSignal): Promise<MovieOrShow[]> {
+  // 1. Try backend smart endpoint first
+  try {
+    const env = await httpJson<ApiEnvelope<{ results: TmdbRawItem[] }>>('/movies/discover-smart', {
+      query: { page, language: clientLang() },
+      signal,
+      timeoutMs: 8_000,
+    });
+    if (env.success && env.data?.results && env.data.results.length > 0) {
+      return env.data.results.map((r) => mapTMDBToMovieOrShow(r, 'movie'));
+    }
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') throw err;
+    // fall through to local scoring
+  }
+
+  // 2. Fallback: combine sources and apply smart scoring locally
   const [popular, topRated, trending] = await Promise.all([
     getPopularMovies(page, signal),
     getTopRatedMovies(page, signal),
     getTrendingMovies(signal),
   ]);
+
   const seen = new Set<string>();
-  return [...trending, ...popular, ...topRated].filter((item) => {
-    if (seen.has(item.id)) return false;
-    seen.add(item.id);
-    return true;
-  });
+  const combined: MovieOrShow[] = [];
+  for (const item of [...trending, ...popular, ...topRated]) {
+    if (!seen.has(item.id)) {
+      seen.add(item.id);
+      combined.push(item);
+    }
+  }
+
+  // Sort by composite smart score
+  return combined.sort((a, b) => computeSmartScore(b) - computeSmartScore(a));
 }
 
 /* ─── Hero trailer enrichment ────────────────────────────────────────────── */
