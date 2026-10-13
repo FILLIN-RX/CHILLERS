@@ -1,27 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowsClockwise, Television, X, ShareNetwork, Check } from "@phosphor-icons/react";
 import LivePlayer from "@/components/LivePlayer";
 import { getLiveBallStream, getLiveBallMatches, getLiveBallChampionsLeague } from "@/services/liveball";
 import { buildAffiche, useMatchPosterIndex } from "@/hooks/useMatchPosterIndex";
+import { useNow } from "@/hooks/useNow";
+import { formatMatchDay, formatMatchTime } from "@/lib/match-poster";
 import type { LiveChannel } from "@/types/live";
 import type { LiveBallMatch } from "@/types/liveball";
-
-function formatMatchTime(ts?: number): string {
-  if (!ts) return "";
-  return new Date(ts * 1000).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-}
-
-function formatMatchDay(ts?: number): string {
-  if (!ts) return "";
-  const [weekday, ...rest] = new Date(ts * 1000)
-    .toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })
-    .split(" ");
-  return [weekday.charAt(0).toUpperCase() + weekday.slice(1), ...rest].join(" ");
-}
 
 function TeamDisplay({ team, logo }: { team: string; logo?: string }) {
   const [broken, setBroken] = useState(false);
@@ -107,12 +97,20 @@ export default function LiveBallMatchContent() {
 
   const match: LiveBallMatch | undefined =
     matches.find((m) => m.id === matchId) || clMatches.find((m) => m.id === matchId);
-  const isUpcoming = match?.status === "upcoming";
 
   // Affiche officielle du service de score : nom de la compétition, écusson de
   // ligue et logo de club. Retombe sur la source quand la jointure échoue.
   const { posters } = useMatchPosterIndex();
   const affiche = match ? buildAffiche(match, posters) : null;
+
+  // La source marque le match « live » avant l'heure et n'en publie pas le coup
+  // d'envoi : c'est l'heure du service de score qui décide de l'écran d'attente.
+  // Tant qu'il n'est pas passé, l'affiche prime sur un flux de remplissage, et le
+  // player prend la main au coup d'envoi sans rechargement de la page.
+  const now = useNow(30_000);
+  const kickoff = affiche?.startTs;
+  const preMatch = Boolean(kickoff && kickoff * 1000 > now);
+  const isUpcoming = preMatch || match?.status === "upcoming";
 
   const { data: stream, isLoading, refetch } = useQuery({
     queryKey: ["live", "liveball", "stream", matchId, reloadKey],
@@ -177,7 +175,7 @@ export default function LiveBallMatchContent() {
       )}
 
       {/* ── Match à venir : pas encore commencé ─────────────────────── */}
-      {!isLoading && !stream && isUpcoming && match && (
+      {!isLoading && isUpcoming && (preMatch || !stream) && match && (
         <div className="w-full h-full flex flex-col items-center justify-center gap-8 bg-black px-6 py-10 overflow-y-auto no-scrollbar">
           <div className="flex flex-col items-center gap-6 w-full max-w-2xl">
             <div className="flex flex-wrap items-center justify-center gap-2">
@@ -212,10 +210,15 @@ export default function LiveBallMatchContent() {
                 Le match n&apos;a pas encore commencé
               </h1>
               <p className="mt-2.5 text-sm text-zinc-400 leading-relaxed">
-                Diffusion programmée pour{" "}
-                <span className="text-white font-bold capitalize">{formatMatchDay(match.startTs)}</span> à{" "}
-                <span className="text-white font-bold tabular-nums">{formatMatchTime(match.startTs)}</span>.
-                <br className="hidden sm:block" /> La lecture démarrera automatiquement au coup d&apos;envoi.
+                {kickoff && (
+                  <>
+                    Diffusion programmée pour{" "}
+                    <span className="text-white font-bold">{formatMatchDay(kickoff)}</span> à{" "}
+                    <span className="text-white font-bold tabular-nums">{formatMatchTime(kickoff)}</span>.
+                    <br className="hidden sm:block" />
+                  </>
+                )}
+                La lecture démarrera automatiquement au coup d&apos;envoi.
               </p>
             </div>
 
@@ -238,13 +241,13 @@ export default function LiveBallMatchContent() {
                 )}
                 {shareCopied ? "Lien copié" : "Partager"}
               </button>
-              <a
+              <Link
                 href="/live"
                 className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-wider transition-all"
               >
                 <X className="h-4 w-4" />
                 Retour aux directs
-              </a>
+              </Link>
             </div>
 
             <p className="text-[11px] text-zinc-600 flex items-center gap-1.5">
@@ -296,13 +299,13 @@ export default function LiveBallMatchContent() {
               )}
               {shareCopied ? "Lien copié" : "Partager"}
             </button>
-            <a
+            <Link
               href="/live"
               className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-wider transition-all"
             >
               <X className="h-4 w-4" />
               Retour aux directs
-            </a>
+            </Link>
           </div>
 
           <p className="text-[11px] text-zinc-500 flex items-center gap-2">
@@ -313,7 +316,7 @@ export default function LiveBallMatchContent() {
       )}
 
       {/* ── Flux au format "player à embarquer" (iframe directe sans pub) ────────────── */}
-      {embedUrl && (
+      {embedUrl && !preMatch && (
         <div className="absolute inset-0 bg-black">
           <iframe
             key={embedUrl}
@@ -327,7 +330,7 @@ export default function LiveBallMatchContent() {
       )}
 
       {/* ── Flux natif HLS via LivePlayer ────────────────────────────── */}
-      {channel && (
+      {channel && !preMatch && (
         <div className="absolute inset-0">
           <LivePlayer channel={channel} fill onBack={() => (window.location.href = "/live")} />
         </div>

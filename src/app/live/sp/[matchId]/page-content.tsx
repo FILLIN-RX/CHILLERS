@@ -9,6 +9,8 @@ import LivePlayer from "@/components/LivePlayer";
 import { getSportsMatches, getSportsStream } from "@/services/sports";
 import { getLiveBallMatches, getLiveBallChampionsLeague } from "@/services/liveball";
 import { buildAffiche, useMatchPosterIndex } from "@/hooks/useMatchPosterIndex";
+import { useNow } from "@/hooks/useNow";
+import { formatMatchDay, formatMatchTime } from "@/lib/match-poster";
 import type { LiveChannel } from "@/types/live";
 import type { SportsMatch } from "@/types/sports";
 import { PopupFirewall } from "@/lib/PopupFirewall";
@@ -49,19 +51,6 @@ function areTeamsMatching(h1?: string, a1?: string, h2?: string, a2?: string): b
     (normH1.includes(normH2) || normH2.includes(normH1)) &&
     (!normA1 || !normA2 || normA1.includes(normA2) || normA2.includes(normA1))
   );
-}
-
-function formatMatchTime(ts?: number): string {
-  if (!ts) return "";
-  return new Date(ts * 1000).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-}
-
-function formatMatchDay(ts?: number): string {
-  if (!ts) return "";
-  const [weekday, ...rest] = new Date(ts * 1000)
-    .toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })
-    .split(" ");
-  return [weekday.charAt(0).toUpperCase() + weekday.slice(1), ...rest].join(" ");
 }
 
 function TeamDisplay({ team, logo }: { team: string; logo?: string }) {
@@ -167,8 +156,6 @@ export default function SportsMatchContent() {
       }
     : matchedSports;
 
-  const isUpcoming = match?.status === "upcoming";
-
   // Le backend chaîne les providers (LiveBall, Kora, Kooorah, YallaPro, Streamiz)
   // et ne renvoie que celui qui diffuse réellement.
   const { data: stream, isLoading, refetch } = useQuery({
@@ -202,6 +189,15 @@ export default function SportsMatchContent() {
     () => (resolvedMatch ? buildAffiche(resolvedMatch, posters) : null),
     [resolvedMatch, posters]
   );
+
+  // Les sources marquent le match « live » avant l'heure et n'en publient pas
+  // toujours le coup d'envoi : l'heure du service de score décide de l'écran
+  // d'attente. Tant qu'il n'est pas passé, on montre l'affiche plutôt qu'un flux
+  // de remplissage ; le player prend la main au coup d'envoi, sans rechargement.
+  const now = useNow(30_000);
+  const kickoff = affiche?.startTs;
+  const preMatch = Boolean(kickoff && kickoff * 1000 > now);
+  const isUpcoming = preMatch || match?.status === "upcoming";
   const selectedType = stream?.type;
   const rawEmbedUrl = selectedType === "iframe" ? stream?.url : null;
   // Les hôtes « domain protected » refusent notre origine : le proxy rejoue le
@@ -269,7 +265,7 @@ export default function SportsMatchContent() {
       )}
 
       {/* ── Match à venir ─────────────────────────────────────────── */}
-      {!isLoading && !stream && isUpcoming && match && (
+      {!isLoading && isUpcoming && (preMatch || !stream) && match && (
         <div className="w-full h-full flex flex-col items-center justify-center gap-8 bg-black px-6 py-10 overflow-y-auto no-scrollbar">
           <div className="flex flex-col items-center gap-6 w-full max-w-2xl">
             <div className="flex flex-wrap items-center justify-center gap-2">
@@ -304,10 +300,15 @@ export default function SportsMatchContent() {
             <div className="text-center">
               <h1 className="text-xl sm:text-2xl font-black text-white">Le match n&apos;a pas encore commencé</h1>
               <p className="mt-2.5 text-sm text-zinc-400 leading-relaxed">
-                Diffusion programmée pour{" "}
-                <span className="text-white font-bold capitalize">{formatMatchDay(match.startTs)}</span> à{" "}
-                <span className="text-white font-bold tabular-nums">{formatMatchTime(match.startTs)}</span>.
-                <br className="hidden sm:block" /> La lecture démarrera automatiquement au coup d&apos;envoi.
+                {kickoff && (
+                  <>
+                    Diffusion programmée pour{" "}
+                    <span className="text-white font-bold">{formatMatchDay(kickoff)}</span> à{" "}
+                    <span className="text-white font-bold tabular-nums">{formatMatchTime(kickoff)}</span>.
+                    <br className="hidden sm:block" />
+                  </>
+                )}
+                La lecture démarrera automatiquement au coup d&apos;envoi.
               </p>
             </div>
 
@@ -396,7 +397,7 @@ export default function SportsMatchContent() {
       )}
 
       {/* ── Player embarqué (iframe) ───────────────────────────────── */}
-      {embedUrl && (
+      {embedUrl && !preMatch && (
         <div className="absolute inset-0 bg-black">
           <iframe
             key={embedUrl}
@@ -410,14 +411,14 @@ export default function SportsMatchContent() {
       )}
 
       {/* ── Flux HLS natif via notre relay ─────────────────────────── */}
-      {channel && (
+      {channel && !preMatch && (
         <div className="absolute inset-0">
           <LivePlayer channel={channel} fill hideTopBar onBack={() => (window.location.href = "/live")} />
         </div>
       )}
 
       {/* ── Barre de contrôle : retour, recharge, partage ──────────── */}
-      {stream && (
+      {stream && !preMatch && (
         <div className="absolute top-0 inset-x-0 z-30 pt-[calc(0.75rem_+_env(safe-area-inset-top,0px))] pb-3 pl-[calc(0.75rem_+_env(safe-area-inset-left,0px))] pr-[calc(0.75rem_+_env(safe-area-inset-right,0px))] bg-gradient-to-b from-black/90 via-black/50 to-transparent">
           <div className="flex items-center justify-between gap-3">
             <Link

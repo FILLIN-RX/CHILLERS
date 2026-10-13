@@ -199,7 +199,9 @@ export class MatchesService {
     }
 
     const index = Array.from(byId.values());
-    POSTER_CACHE.set(yyyymmdd, index);
+    // Un index vide sort presque toujours d'un fan-out ESPN qui a échoué : le
+    // garder 10 minutes laisserait la vitrine dégarnie après une micro-coupure.
+    POSTER_CACHE.set(yyyymmdd, index, index.length ? undefined : { ttl: 30_000 });
     return index;
   }
 

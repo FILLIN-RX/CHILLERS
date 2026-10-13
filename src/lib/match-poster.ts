@@ -137,6 +137,12 @@ export interface MatchPoster {
 const HOUR = 3600;
 const DAY_MS = 86_400_000;
 
+/** Heure locale du coup d'envoi ; chaîne vide quand aucune source ne la publie. */
+export function formatMatchTime(ts?: number): string {
+  if (!ts) return "";
+  return new Date(ts * 1000).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+}
+
 /**
  * Repère relatif sur le jour du coup d'envoi : « Aujourd'hui », « Demain »,
  * « Hier », puis la date courte. Une rencontre qui bascule après minuit se lit

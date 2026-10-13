@@ -7,7 +7,7 @@ import { ArrowRight } from "@phosphor-icons/react";
 import { getSportsMatches } from "@/services/sports";
 import { getLiveBallMatches } from "@/services/liveball";
 import { buildAffiche, useMatchPosterIndex, type MatchAffiche } from "@/hooks/useMatchPosterIndex";
-import { formatMatchDay } from "@/lib/match-poster";
+import { formatMatchDay, formatMatchTime } from "@/lib/match-poster";
 import CompetitionBadge from "@/components/CompetitionBadge";
 import type { SportsMatch } from "@/types/sports";
 import type { LiveBallMatch } from "@/types/liveball";
@@ -79,14 +79,11 @@ function getMatchFingerprint(m: SportsMatch): string {
   return `${teams}_${timeWindow}`;
 }
 
-function formatMatchTime(ts?: number): string {
-  if (!ts) return "Bientôt";
-  return new Date(ts * 1000).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-}
-
 function formatKickoff(ts?: number): string {
   const day = formatMatchDay(ts);
-  return day ? `${day} · ${formatMatchTime(ts)}` : formatMatchTime(ts);
+  const time = formatMatchTime(ts);
+  if (day && time) return `${day} · ${time}`;
+  return day || time || "Bientôt";
 }
 
 function TeamCrest({ src, alt }: { src?: string; alt: string }) {
