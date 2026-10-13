@@ -9,6 +9,10 @@ router.get('/', (req, res, next) => matchesController.getMatches(req, res, next)
 // GET /api/matches/leagues - Liste des compétitions & ligues supportées
 router.get('/leagues', (req, res, next) => matchesController.getLeagues(req, res, next));
 
+// GET /api/matches/posters - Index des rencontres des grandes compétitions (affiches)
+// Déclaré avant /:id, sinon 'posters' serait avalé comme un identifiant de match.
+router.get('/posters', (req, res, next) => matchesController.getPosters(req, res, next));
+
 // GET /api/matches/:id/summary - Détails complets d'un match (boxscore, rosters, keyEvents)
 router.get('/:id/summary', (req, res, next) => matchesController.getMatchSummary(req, res, next));
 

@@ -7,6 +7,7 @@ import {
   MatchLeague,
   MatchTeam,
   MatchesFilterOptions,
+  PosterFixture,
   SportType,
   MatchSummary,
   TeamBoxscore,
@@ -26,6 +27,13 @@ const MATCHES_CACHE = new LRUCache<string, SportMatch[]>({
 const SUMMARY_CACHE = new LRUCache<string, MatchSummary>({
   max: 100,
   ttl: 15_000, // 15s cache pour les détails complets (boxscore, compos, stats)
+});
+
+const POSTER_CACHE = new LRUCache<string, PosterFixture[]>({
+  max: 12,
+  // Compétitions et écussons ne varient pas à la seconde ; une journée de
+  // matchs se suffit à elle-même.
+  ttl: 10 * 60_000,
 });
 
 const LEAGUES_CONFIG: Array<{ id: string; slug: string; name: string; sport: SportType; espnLeague: string; logo: string; country: string }> = [
@@ -151,6 +159,48 @@ export class MatchesService {
       logo: l.logo,
       country: l.country,
     }));
+  }
+
+  /**
+   * Index des rencontres des compétitions configurées, pour habiller les
+   * affiches. Le flux global ESPN soccer ne nomme pas la compétition (il
+   * renvoie « Football ») : seules les requêtes par ligue portent le nom et le
+   * badge officiels, d'où le fan-out sur LEAGUES_CONFIG plutôt qu'un appel
+   * unique.
+   */
+  async getPosterIndex(dateStr?: string): Promise<PosterFixture[]> {
+    const yyyymmdd = this.formatDateForESPN(dateStr);
+    const cached = POSTER_CACHE.get(yyyymmdd);
+    if (cached) return cached;
+
+    const configs = LEAGUES_CONFIG.filter((l) => l.sport === 'football');
+    const settled = await Promise.allSettled(
+      configs.map((config) => this.fetchLeagueMatches(config, yyyymmdd))
+    );
+
+    const byId = new Map<string, PosterFixture>();
+    for (const res of settled) {
+      if (res.status !== 'fulfilled') continue;
+      for (const m of res.value) {
+        byId.set(m.id, {
+          id: m.id,
+          home: m.homeTeam.name,
+          away: m.awayTeam.name,
+          homeLogo: m.homeTeam.logo,
+          awayLogo: m.awayTeam.logo,
+          leagueId: m.league.id,
+          leagueName: m.league.name,
+          leagueSlug: m.league.slug || '',
+          leagueLogo: m.league.logo || '',
+          status: m.status,
+          startTs: Math.floor(m.startTimestamp / 1000),
+        });
+      }
+    }
+
+    const index = Array.from(byId.values());
+    POSTER_CACHE.set(yyyymmdd, index);
+    return index;
   }
 
   /**

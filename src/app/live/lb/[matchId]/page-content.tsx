@@ -6,17 +6,9 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowsClockwise, Television, X, ShareNetwork, Check } from "@phosphor-icons/react";
 import LivePlayer from "@/components/LivePlayer";
 import { getLiveBallStream, getLiveBallMatches, getLiveBallChampionsLeague } from "@/services/liveball";
+import { buildAffiche, useMatchPosterIndex } from "@/hooks/useMatchPosterIndex";
 import type { LiveChannel } from "@/types/live";
 import type { LiveBallMatch } from "@/types/liveball";
-
-function leagueLabel(slug?: string): string {
-  const map: Record<string, string> = {
-    "champions-league": "Champions League",
-    "europa-league": "Europa League",
-    "conference-league": "Conference League",
-  };
-  return map[slug || ""] || "Football";
-}
 
 function formatMatchTime(ts?: number): string {
   if (!ts) return "";
@@ -67,7 +59,7 @@ export default function LiveBallMatchContent() {
 
   const handleShare = async () => {
     const title = match
-      ? `${match.home} - ${match.away} · ${leagueLabel(match.league)} · En direct sur CHILLERS`
+      ? `${match.home} - ${match.away} · ${affiche?.competition || "Football"} · En direct sur CHILLERS`
       : "Match en direct sur CHILLERS";
     const url = window.location.href;
     try {
@@ -116,6 +108,11 @@ export default function LiveBallMatchContent() {
   const match: LiveBallMatch | undefined =
     matches.find((m) => m.id === matchId) || clMatches.find((m) => m.id === matchId);
   const isUpcoming = match?.status === "upcoming";
+
+  // Affiche officielle du service de score : nom de la compétition, écusson de
+  // ligue et logo de club. Retombe sur la source quand la jointure échoue.
+  const { posters } = useMatchPosterIndex();
+  const affiche = match ? buildAffiche(match, posters) : null;
 
   const { data: stream, isLoading, refetch } = useQuery({
     queryKey: ["live", "liveball", "stream", matchId, reloadKey],
@@ -184,8 +181,18 @@ export default function LiveBallMatchContent() {
         <div className="w-full h-full flex flex-col items-center justify-center gap-8 bg-black px-6 py-10 overflow-y-auto no-scrollbar">
           <div className="flex flex-col items-center gap-6 w-full max-w-2xl">
             <div className="flex flex-wrap items-center justify-center gap-2">
-              <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full bg-white/10 text-zinc-300 border border-white/10">
-                {leagueLabel(match.league)}
+              <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full bg-white/10 text-zinc-300 border border-white/10">
+                {affiche?.competitionLogo && (
+                  <span className="flex w-4 h-4 shrink-0 rounded bg-white items-center justify-center overflow-hidden">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={affiche.competitionLogo}
+                      alt=""
+                      className="w-3.5 h-3.5 object-contain"
+                    />
+                  </span>
+                )}
+                {affiche?.competition || "Football"}
               </span>
               <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full bg-[brand-primary] text-white">
                 À venir
@@ -193,11 +200,11 @@ export default function LiveBallMatchContent() {
             </div>
 
             <div className="flex items-center justify-center gap-4 sm:gap-10 w-full">
-              <TeamDisplay team={match.home} logo={match.homeLogo} />
+              <TeamDisplay team={match.home} logo={affiche?.homeLogo ?? match.homeLogo} />
               <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[brand-primary]/15 border-2 border-[brand-primary]/60 flex items-center justify-center text-lg sm:text-xl font-black text-[brand-primary] shrink-0">
                 VS
               </div>
-              <TeamDisplay team={match.away} logo={match.awayLogo} />
+              <TeamDisplay team={match.away} logo={affiche?.awayLogo ?? match.awayLogo} />
             </div>
 
             <div className="text-center">

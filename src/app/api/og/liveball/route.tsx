@@ -1,10 +1,34 @@
 import { ImageResponse } from "next/og";
 import { NextRequest } from "next/server";
 import { serverApiFetch } from "@/lib/server-api";
+import { findPoster, presentCompetition, type MatchPoster } from "@/lib/match-poster";
+import type { PosterFixture } from "@/types/matches";
 
 export const runtime = "edge";
 
 const BRAND = "brand-primary";
+
+/**
+ * Le service de score est la seule source qui nomme la compétition et donne les
+ * écussons officiels ; ses fiches ne sont pas passées dans l'URL de l'image.
+ * Sa panne ne doit pas empêcher l'image de se générer : on retombe sur les
+ * paramètres d'URL.
+ */
+async function fetchPoster(
+  home: string,
+  away: string,
+  startTs?: number
+): Promise<MatchPoster | null> {
+  try {
+    const res = await serverApiFetch("/matches/posters", { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) return null;
+    const json = (await res.json()) as { data?: PosterFixture[] };
+    const fixtures = Array.isArray(json?.data) ? json.data : [];
+    return findPoster(fixtures, { home, away, startTs });
+  } catch {
+    return null;
+  }
+}
 
 function initials(name: string): string {
   const parts = name.replace(/\s*\(.*\)$/, "").split(/[\s-]+/).filter(Boolean);
@@ -57,9 +81,19 @@ export async function GET(req: NextRequest) {
     const score = searchParams.get("score") || "";
 
     const isLive = status === "live";
-    const [hLogo, aLogo] = await Promise.all([
-      loadDataUri(homeLogo),
-      loadDataUri(awayLogo),
+    const poster = await fetchPoster(home, away, Number(startTs) || undefined);
+    const fixture = poster?.fixture;
+    // Les noms affichés viennent de la source ; son sens domicile/extérieur peut
+    // différer de celui du service de score, d'où l'échange des écussons.
+    const swapped = Boolean(poster?.swapped);
+    const homeLogoUrl = (swapped ? fixture?.awayLogo : fixture?.homeLogo) || homeLogo;
+    const awayLogoUrl = (swapped ? fixture?.homeLogo : fixture?.awayLogo) || awayLogo;
+    const competition = fixture?.leagueName || presentCompetition(league);
+
+    const [hLogo, aLogo, compLogo] = await Promise.all([
+      loadDataUri(homeLogoUrl),
+      loadDataUri(awayLogoUrl),
+      fixture?.leagueLogo ? loadDataUri(fixture.leagueLogo) : Promise.resolve(null),
     ]);
 
     const nameStyle = { fontSize: 40, fontWeight: 800, color: "#ffffff", lineHeight: 1.15, textAlign: "center" as const, maxWidth: 400, whiteSpace: "pre-wrap" as const };
@@ -191,12 +225,15 @@ export async function GET(req: NextRequest) {
               />
               {isLive ? "EN DIRECT" : "À VENIR"}
             </div>
-            {league && (
+            {competition && (
               <div
                 style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
                   backgroundColor: "rgba(255,255,255,0.08)",
                   border: "2px solid rgba(255,255,255,0.14)",
-                  color: "#a1a1aa",
+                  color: "#e4e4e7",
                   fontWeight: 700,
                   fontSize: 18,
                   padding: "10px 22px",
@@ -204,7 +241,26 @@ export async function GET(req: NextRequest) {
                   letterSpacing: 1,
                 }}
               >
-                {league}
+                {compLogo && (
+                  // Les écussons de ligue ESPN sont noirs sur fond transparent :
+                  // illisibles sur le badge sombre, ils besoin d'une pastille claire.
+                  <div
+                    style={{
+                      display: "flex",
+                      width: 34,
+                      height: 34,
+                      borderRadius: 8,
+                      backgroundColor: "#ffffff",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={compLogo} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} />
+                  </div>
+                )}
+                {competition}
               </div>
             )}
           </div>

@@ -41,6 +41,22 @@ export class MatchesController {
     }
   }
 
+  /** GET /api/matches/posters — index des rencontres des grandes compétitions (habillage des affiches). */
+  async getPosters(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const date = req.query.date as string | undefined;
+      const posters = await matchesService.getPosterIndex(date);
+      res.json({
+        success: true,
+        data: posters,
+        count: posters.length,
+        message: null,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getMatchById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const id = String(req.params.id);

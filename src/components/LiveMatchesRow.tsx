@@ -9,6 +9,8 @@ import {
   getLiveBallLeagueMatches,
   getLiveBallLiveAvailable,
 } from "@/services/liveball";
+import { buildAffiche, useMatchPosterIndex } from "@/hooks/useMatchPosterIndex";
+import CompetitionBadge from "@/components/CompetitionBadge";
 import type { LiveBallMatch } from "@/types/liveball";
 
 function SoccerBallIcon({ className = "w-4 h-4" }: { className?: string }) {
@@ -190,6 +192,8 @@ export default function LiveMatchesRow({
     staleTime: 60_000,
   });
 
+  const { posters, ready: postersReady } = useMatchPosterIndex();
+
   // Filter matches based on selected tab
   const filteredMatches = useMemo(() => {
     const nowSec = Math.floor(Date.now() / 1000);
@@ -228,11 +232,20 @@ export default function LiveMatchesRow({
     );
   }, [activeLeague, lbMatches, leagueMatches]);
 
-  const liveCount = useMemo(() => {
-    const map = new Set<string>();
-    for (const m of lbMatches) if (m?.id && m.status === "live") map.add(m.id);
-    return map.size;
-  }, [lbMatches]);
+  // Vitrine : les onglets « Tous » et « En Direct » ne montrent que les grandes
+  // compétitions. Un onglet de compétition est déjà un choix de l'utilisateur, et
+  // un index de score indisponible ne doit jamais vider la rangée.
+  const showcase = useMemo(() => {
+    const withAffiche = filteredMatches.map((m) => ({ match: m, affiche: buildAffiche(m, posters) }));
+    if (leagueSlug || !postersReady) return withAffiche;
+    return withAffiche.filter((entry) => entry.affiche.major);
+  }, [filteredMatches, posters, postersReady, leagueSlug]);
+
+  // Le compteur « En Direct » porte sur la rangée visible, pas sur l'ensemble du flux.
+  const liveCount = useMemo(
+    () => showcase.filter((entry) => entry.match.status === "live").length,
+    [showcase]
+  );
 
   if (lbMatches.length === 0 && leagueMatches.length === 0 && !isLoadingLeague) return null;
 
@@ -290,7 +303,7 @@ export default function LiveMatchesRow({
           <span className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
           <p className="text-xs text-zinc-400 font-medium">Chargement des matchs de la compétition...</p>
         </div>
-      ) : filteredMatches.length === 0 ? (
+      ) : showcase.length === 0 ? (
         <div className="py-8 px-4 rounded-2xl bg-zinc-900/40 text-center">
           <p className="text-xs text-zinc-500 font-medium">
             Aucun match programmé pour ce championnat en ce moment.
@@ -298,11 +311,8 @@ export default function LiveMatchesRow({
         </div>
       ) : (
         <div className="flex gap-4 sm:gap-5 overflow-x-auto no-scrollbar py-2 px-1">
-          {filteredMatches.map((m) => {
+          {showcase.map(({ match: m, affiche }) => {
             const isLive = m.status === "live";
-            const isUefa =
-              m.league &&
-              (m.league.toLowerCase().includes("champion") || m.league.toLowerCase().includes("uefa"));
 
             return (
               <Link
@@ -312,13 +322,7 @@ export default function LiveMatchesRow({
               >
                 {/* Card Top: League & Status Badge (Pure red text, no background) */}
                 <div className="flex items-center justify-between gap-1 mb-2.5">
-                  <span
-                    className={`text-[10px] font-bold truncate max-w-[130px] ${
-                      isUefa ? "text-amber-400" : "text-zinc-400"
-                    }`}
-                  >
-                    {m.league || "Football"}
-                  </span>
+                  <CompetitionBadge competition={affiche.competition} logo={affiche.competitionLogo} />
                   <span
                     className={`text-[10px] font-black uppercase tracking-wider ${
                       isLive
@@ -341,7 +345,7 @@ export default function LiveMatchesRow({
                 <div className="flex items-center justify-between gap-2 my-1">
                   {/* Home Team */}
                   <div className="flex-1 flex flex-col items-center text-center min-w-0">
-                    <TeamCrest src={m.homeLogo} alt={m.home} />
+                    <TeamCrest src={affiche.homeLogo} alt={m.home} />
                     <p className="mt-1.5 text-[11px] font-bold text-white truncate w-full group-hover:text-red-400 transition-colors">
                       {m.home}
                     </p>
@@ -360,7 +364,7 @@ export default function LiveMatchesRow({
 
                   {/* Away Team */}
                   <div className="flex-1 flex flex-col items-center text-center min-w-0">
-                    <TeamCrest src={m.awayLogo} alt={m.away} />
+                    <TeamCrest src={affiche.awayLogo} alt={m.away} />
                     <p className="mt-1.5 text-[11px] font-bold text-white truncate w-full group-hover:text-red-400 transition-colors">
                       {m.away}
                     </p>

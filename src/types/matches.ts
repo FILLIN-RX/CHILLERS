@@ -38,6 +38,26 @@ export interface SportMatch {
   highlightsUrl?: string;
 }
 
+/**
+ * Rencontre des grandes compétitions, telle que la publie le service de score :
+ * c'est la référence pour nommer la compétition et habiller l'affiche, les
+ * sources live ne fournissant ni ligue fiable ni toujours d'écusson.
+ */
+export interface PosterFixture {
+  id: string;
+  home: string;
+  away: string;
+  homeLogo?: string;
+  awayLogo?: string;
+  leagueId: string;
+  leagueName: string;
+  leagueSlug: string;
+  leagueLogo: string;
+  status: string;
+  /** Coupure d'envoi en secondes epoch. */
+  startTs: number;
+}
+
 export interface MatchesFilterOptions {
   status?: 'all' | 'live' | 'upcoming' | 'finished';
   league?: string;

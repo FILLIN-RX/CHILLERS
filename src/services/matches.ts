@@ -1,5 +1,6 @@
 import { httpJson } from "./http";
 import type { SportMatch, MatchLeague, MatchesFilterOptions } from "@/types/matches";
+import type { PosterFixture } from "@/lib/match-poster";
 
 interface Envelope<T> {
   success: boolean;
@@ -43,6 +44,24 @@ export async function getLeagues(): Promise<MatchLeague[]> {
     }
   } catch (error) {
     console.warn("[MatchesService] Erreur récupération des ligues:", error);
+  }
+  return [];
+}
+
+/**
+ * Index des rencontres des grandes compétitions, servant d'affiche aux matchs
+ * diffusés. Volontairement silencieux : sans index, les rangées live affichent
+ * les rencontres avec leurs propres logos plutôt de se vider.
+ */
+export async function getPosters(date?: string): Promise<PosterFixture[]> {
+  try {
+    const res = await httpJson<Envelope<PosterFixture[]>>("/matches/posters", {
+      query: date ? { date } : undefined,
+      timeoutMs: 20_000,
+    });
+    if (res?.data && Array.isArray(res.data)) return res.data;
+  } catch (error) {
+    console.warn("[MatchesService] Erreur récupération des affiches:", error);
   }
   return [];
 }

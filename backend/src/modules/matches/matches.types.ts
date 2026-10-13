@@ -46,6 +46,28 @@ export interface MatchesFilterOptions {
   search?: string;
 }
 
+/**
+ * Affiche d'une rencontre telle que la subit le site : les sources live
+ * (LiveBall, kora, …) publient le match et son flux mais rarement la
+ * compétition ni des écussons fiables, alors que le service de score les a.
+ * Cet index compact sert uniquement à rattacher une rencontre diffusée à sa
+ * compétition officielle et à ses logos.
+ */
+export interface PosterFixture {
+  id: string;
+  home: string;
+  away: string;
+  homeLogo?: string;
+  awayLogo?: string;
+  leagueId: string;
+  leagueName: string;
+  leagueSlug: string;
+  leagueLogo: string;
+  status: MatchStatus;
+  /** Coupure d'envoi en secondes epoch, pour vérifier que la jointure est du même jour. */
+  startTs: number;
+}
+
 export interface MatchStatistic {
   name: string;
   label: string;

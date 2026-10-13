@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -8,6 +8,7 @@ import { ArrowsClockwise, Television, X, ShareNetwork, Check } from "@phosphor-i
 import LivePlayer from "@/components/LivePlayer";
 import { getSportsMatches, getSportsStream } from "@/services/sports";
 import { getLiveBallMatches, getLiveBallChampionsLeague } from "@/services/liveball";
+import { buildAffiche, useMatchPosterIndex } from "@/hooks/useMatchPosterIndex";
 import type { LiveChannel } from "@/types/live";
 import type { SportsMatch } from "@/types/sports";
 import { PopupFirewall } from "@/lib/PopupFirewall";
@@ -193,6 +194,14 @@ export default function SportsMatchContent() {
   });
 
   const resolvedMatch = stream?.match ?? match;
+
+  // Affiche officielle du service de score : nom de la compétition, écusson de
+  // ligue et logo de club. Retombe sur la source quand la jointure échoue.
+  const { posters } = useMatchPosterIndex();
+  const affiche = useMemo(
+    () => (resolvedMatch ? buildAffiche(resolvedMatch, posters) : null),
+    [resolvedMatch, posters]
+  );
   const selectedType = stream?.type;
   const rawEmbedUrl = selectedType === "iframe" ? stream?.url : null;
   // Les hôtes « domain protected » refusent notre origine : le proxy rejoue le
@@ -226,7 +235,9 @@ export default function SportsMatchContent() {
 
   const handleShare = async () => {
     const title = resolvedMatch
-      ? `${resolvedMatch.home}${resolvedMatch.away ? ` - ${resolvedMatch.away}` : ""} · En direct sur CHILLERS`
+      ? `${resolvedMatch.home}${resolvedMatch.away ? ` - ${resolvedMatch.away}` : ""} · ${
+          affiche?.competition || "Football"
+        } · En direct sur CHILLERS`
       : "Match en direct sur CHILLERS";
     const url = window.location.href;
     try {
@@ -262,8 +273,18 @@ export default function SportsMatchContent() {
         <div className="w-full h-full flex flex-col items-center justify-center gap-8 bg-black px-6 py-10 overflow-y-auto no-scrollbar">
           <div className="flex flex-col items-center gap-6 w-full max-w-2xl">
             <div className="flex flex-wrap items-center justify-center gap-2">
-              <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full bg-white/10 text-zinc-300 border border-white/10">
-                {match.league || "Football"}
+              <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full bg-white/10 text-zinc-300 border border-white/10">
+                {affiche?.competitionLogo && (
+                  <span className="flex w-4 h-4 shrink-0 rounded bg-white items-center justify-center overflow-hidden">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={affiche.competitionLogo}
+                      alt=""
+                      className="w-3.5 h-3.5 object-contain"
+                    />
+                  </span>
+                )}
+                {affiche?.competition || "Football"}
               </span>
               <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full bg-[brand-primary] text-white">
                 À venir
@@ -272,11 +293,11 @@ export default function SportsMatchContent() {
 
             {match.away && (
               <div className="flex items-center justify-center gap-4 sm:gap-10 w-full">
-                <TeamDisplay team={match.home} logo={match.homeLogo} />
+                <TeamDisplay team={match.home} logo={affiche?.homeLogo ?? match.homeLogo} />
                 <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[brand-primary]/15 border-2 border-[brand-primary]/60 flex items-center justify-center text-lg sm:text-xl font-black text-[brand-primary] shrink-0">
                   VS
                 </div>
-                <TeamDisplay team={match.away} logo={match.awayLogo} />
+                <TeamDisplay team={match.away} logo={affiche?.awayLogo ?? match.awayLogo} />
               </div>
             )}
 
@@ -407,12 +428,24 @@ export default function SportsMatchContent() {
               <X className="h-5 w-5" />
             </Link>
 
-            <div className="flex-1 min-w-0 text-center">
-              <p className="text-xs sm:text-sm font-black uppercase tracking-wider text-white truncate">
+            <div className="flex-1 min-w-0 flex flex-col items-center gap-0.5">
+              <p className="text-xs sm:text-sm font-black uppercase tracking-wider text-white truncate max-w-full">
                 {resolvedMatch ? teamsLabel : "Match en direct"}
               </p>
-              {resolvedMatch?.league && (
-                <p className="text-[10px] text-zinc-400 truncate">{resolvedMatch.league}</p>
+              {affiche?.competition && (
+                <span className="flex items-center gap-1.5 min-w-0 max-w-full">
+                  {affiche.competitionLogo && (
+                    <span className="flex w-3.5 h-3.5 shrink-0 rounded-sm bg-white items-center justify-center overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={affiche.competitionLogo}
+                        alt=""
+                        className="w-3 h-3 object-contain"
+                      />
+                    </span>
+                  )}
+                  <span className="text-[10px] text-zinc-400 truncate">{affiche.competition}</span>
+                </span>
               )}
             </div>
 

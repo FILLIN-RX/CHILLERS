@@ -6,6 +6,8 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowRight } from "@phosphor-icons/react";
 import { getSportsMatches } from "@/services/sports";
 import { getLiveBallMatches } from "@/services/liveball";
+import { buildAffiche, useMatchPosterIndex } from "@/hooks/useMatchPosterIndex";
+import CompetitionBadge from "@/components/CompetitionBadge";
 import type { SportsMatch } from "@/types/sports";
 import type { LiveBallMatch } from "@/types/liveball";
 
@@ -103,6 +105,8 @@ export default function SportsMatchesRow({
 
   const isLoading = isLoadingSports && isLoadingLiveBall;
 
+  const { posters, ready: postersReady } = useMatchPosterIndex();
+
   // Déduplique intelligemment par équipes : LiveBall en priorité, fusion des logos et scores
   const deduped = useMemo<SportsMatch[]>(() => {
     // 1. Convertit les matchs LiveBall au format SportsMatch
@@ -157,14 +161,32 @@ export default function SportsMatchesRow({
     });
   }, [sportsMatches, liveballMatches]);
 
-  const filtered = useMemo(() => {
-    if (activeTab === "live") return deduped.filter((m) => m.status === "live");
-    return deduped;
-  }, [deduped, activeTab]);
+  // Vitrine : les grandes compétitions seulement. Le tri se fait sur le libellé
+  // de la source, renforcé par la jointure au service de score — jamais sur la
+  // jointure seule, sinon une panne du service de score viderait la rangée.
+  const showcase = useMemo(() => {
+    const withAffiche = deduped.map((m) => ({ match: m, affiche: buildAffiche(m, posters) }));
+    const majors = postersReady ? withAffiche.filter((entry) => entry.affiche.major) : withAffiche;
+
+    // Des sources différentes décrivent la même rencontre avec des noms de clubs
+    // et une heure de coup d'envoi qui ne se recouvrent pas : le fingerprint local
+    // ne les confond pas, l'identifiant du service de score oui.
+    const byKey = new Map<string, (typeof majors)[number]>();
+    for (const entry of majors) {
+      const key = entry.affiche.fixtureId || getMatchFingerprint(entry.match);
+      if (!byKey.has(key)) byKey.set(key, entry);
+    }
+    return Array.from(byKey.values());
+  }, [deduped, posters, postersReady]);
+
+  const cards = useMemo(
+    () => (activeTab === "live" ? showcase.filter((entry) => entry.match.status === "live") : showcase),
+    [showcase, activeTab]
+  );
 
   const liveCount = useMemo(
-    () => deduped.filter((m) => m.status === "live").length,
-    [deduped]
+    () => showcase.filter((entry) => entry.match.status === "live").length,
+    [showcase]
   );
 
   if (!isLoading && deduped.length === 0) return null;
@@ -228,7 +250,7 @@ export default function SportsMatchesRow({
           <span className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
           <p className="text-xs text-zinc-400 font-medium">Chargement des rencontres...</p>
         </div>
-      ) : filtered.length === 0 ? (
+      ) : cards.length === 0 ? (
         <div className="py-8 px-4 rounded-2xl bg-zinc-900/40 text-center">
           <p className="text-xs text-zinc-500 font-medium">
             {activeTab === "live" ? "Aucune rencontre en direct pour le moment." : "Aucune rencontre disponible."}
@@ -236,7 +258,7 @@ export default function SportsMatchesRow({
         </div>
       ) : (
         <div className="flex gap-4 sm:gap-5 overflow-x-auto no-scrollbar py-2 px-1">
-          {filtered.map((m) => {
+          {cards.map(({ match: m, affiche }) => {
             const isLive = m.status === "live";
 
             return (
@@ -246,9 +268,7 @@ export default function SportsMatchesRow({
                 className="group shrink-0 flex flex-col justify-between rounded-2xl p-3.5 w-[260px] sm:w-[280px] bg-transparent hover:bg-white/[0.04] transition-all duration-300 hover:scale-[1.02] cursor-pointer"
               >
                 <div className="flex items-center justify-between gap-1 mb-2.5">
-                  <span className="text-[10px] font-bold truncate max-w-[140px] text-zinc-400">
-                    {m.league || "Football"}
-                  </span>
+                  <CompetitionBadge competition={affiche.competition} logo={affiche.competitionLogo} />
                   <span
                     className={`text-[10px] font-black uppercase tracking-wider ${
                       isLive ? "text-red-500 flex items-center gap-1" : "text-zinc-500"
@@ -267,7 +287,7 @@ export default function SportsMatchesRow({
 
                 <div className="flex items-center justify-between gap-2 my-1">
                   <div className="flex-1 flex flex-col items-center text-center min-w-0">
-                    <TeamCrest src={m.homeLogo} alt={m.home} />
+                    <TeamCrest src={affiche.homeLogo} alt={m.home} />
                     <p className="mt-1.5 text-[11px] font-bold text-white truncate w-full group-hover:text-red-400 transition-colors">
                       {m.home}
                     </p>
@@ -275,12 +295,12 @@ export default function SportsMatchesRow({
 
                   <div className="shrink-0 px-2 text-center min-w-[32px]">
                     <span className={`text-xs font-black tabular-nums ${isLive ? "text-amber-400" : "text-zinc-400"}`}>
-                      {m.score || (m.away ? "VS" : "•")}
+                      {m.score || "VS"}
                     </span>
                   </div>
 
                   <div className="flex-1 flex flex-col items-center text-center min-w-0">
-                    <TeamCrest src={m.awayLogo} alt={m.away || "?"} />
+                    <TeamCrest src={affiche.awayLogo} alt={m.away || "?"} />
                     <p className="mt-1.5 text-[11px] font-bold text-white truncate w-full group-hover:text-red-400 transition-colors">
                       {m.away || ""}
                     </p>
