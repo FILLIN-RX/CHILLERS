@@ -6,7 +6,8 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowRight } from "@phosphor-icons/react";
 import { getSportsMatches } from "@/services/sports";
 import { getLiveBallMatches } from "@/services/liveball";
-import { buildAffiche, useMatchPosterIndex } from "@/hooks/useMatchPosterIndex";
+import { buildAffiche, useMatchPosterIndex, type MatchAffiche } from "@/hooks/useMatchPosterIndex";
+import { formatMatchDay } from "@/lib/match-poster";
 import CompetitionBadge from "@/components/CompetitionBadge";
 import type { SportsMatch } from "@/types/sports";
 import type { LiveBallMatch } from "@/types/liveball";
@@ -15,6 +16,43 @@ const STATUS_TABS: { id: "all" | "live"; label: string }[] = [
   { id: "all", label: "Tous les Matchs" },
   { id: "live", label: "En Direct" },
 ];
+
+type ShowcaseEntry = { match: SportsMatch; affiche: MatchAffiche };
+
+/** La source la plus bavarde sert de base à la carte fusionnée. */
+function rankSource(entry: ShowcaseEntry): number {
+  return (
+    (entry.match.score ? 4 : 0) +
+    (entry.match.source === "liveball" ? 2 : 0) +
+    (entry.affiche.fixtureId ? 1 : 0)
+  );
+}
+
+/**
+ * Deux sources décrivent la même rencontre sans publier les mêmes champs : l'une
+ * donne le score, l'autre les écussons. La carte retenue garde le meilleur des
+ * deux au lieu de laisser passer la plus pauvre.
+ */
+function mergeSources(kept: ShowcaseEntry, extra: ShowcaseEntry): ShowcaseEntry {
+  return {
+    match: {
+      ...kept.match,
+      score: kept.match.score || extra.match.score,
+      minute: kept.match.minute ?? extra.match.minute,
+      startTs: kept.match.startTs ?? extra.match.startTs,
+      homeLogo: kept.match.homeLogo || extra.match.homeLogo,
+      awayLogo: kept.match.awayLogo || extra.match.awayLogo,
+      league: kept.match.league || extra.match.league,
+    },
+    affiche: {
+      ...kept.affiche,
+      homeLogo: kept.affiche.homeLogo || extra.affiche.homeLogo,
+      awayLogo: kept.affiche.awayLogo || extra.affiche.awayLogo,
+      competitionLogo: kept.affiche.competitionLogo || extra.affiche.competitionLogo,
+      startTs: kept.affiche.startTs ?? extra.affiche.startTs,
+    },
+  };
+}
 
 function normalizeTeam(name?: string): string {
   if (!name) return "";
@@ -44,6 +82,11 @@ function getMatchFingerprint(m: SportsMatch): string {
 function formatMatchTime(ts?: number): string {
   if (!ts) return "Bientôt";
   return new Date(ts * 1000).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+}
+
+function formatKickoff(ts?: number): string {
+  const day = formatMatchDay(ts);
+  return day ? `${day} · ${formatMatchTime(ts)}` : formatMatchTime(ts);
 }
 
 function TeamCrest({ src, alt }: { src?: string; alt: string }) {
@@ -171,10 +214,12 @@ export default function SportsMatchesRow({
     // Des sources différentes décrivent la même rencontre avec des noms de clubs
     // et une heure de coup d'envoi qui ne se recouvrent pas : le fingerprint local
     // ne les confond pas, l'identifiant du service de score oui.
-    const byKey = new Map<string, (typeof majors)[number]>();
+    const byKey = new Map<string, ShowcaseEntry>();
     for (const entry of majors) {
       const key = entry.affiche.fixtureId || getMatchFingerprint(entry.match);
-      if (!byKey.has(key)) byKey.set(key, entry);
+      const kept = byKey.get(key);
+      if (!kept) byKey.set(key, entry);
+      else byKey.set(key, rankSource(entry) > rankSource(kept) ? mergeSources(entry, kept) : mergeSources(kept, entry));
     }
     return Array.from(byKey.values());
   }, [deduped, posters, postersReady]);
@@ -269,20 +314,16 @@ export default function SportsMatchesRow({
               >
                 <div className="flex items-center justify-between gap-1 mb-2.5">
                   <CompetitionBadge competition={affiche.competition} logo={affiche.competitionLogo} />
-                  <span
-                    className={`text-[10px] font-black uppercase tracking-wider ${
-                      isLive ? "text-red-500 flex items-center gap-1" : "text-zinc-500"
-                    }`}
-                  >
-                    {isLive ? (
-                      <>
-                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                        DIRECT
-                      </>
-                    ) : (
-                      formatMatchTime(m.startTs)
-                    )}
-                  </span>
+                  {isLive ? (
+                    <span className="text-[10px] font-black uppercase tracking-wider text-red-500 flex items-center gap-1 shrink-0">
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                      DIRECT
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-bold text-zinc-500 tabular-nums shrink-0">
+                      {formatKickoff(affiche.startTs)}
+                    </span>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-between gap-2 my-1">

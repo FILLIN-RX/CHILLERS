@@ -1,5 +1,6 @@
 import {
   findPoster,
+  formatMatchDay,
   isMajorCompetition,
   normalizeTeam,
   presentCompetition,
@@ -77,6 +78,22 @@ describe("presentCompetition", () => {
     expect(presentCompetition("Ligue des Champions UCL")).toBe("Ligue des Champions UCL");
     expect(presentCompetition("")).toBeNull();
     expect(presentCompetition(undefined)).toBeNull();
+  });
+});
+
+describe("formatMatchDay", () => {
+  const now = new Date(2026, 9, 13, 12, 0, 0);
+  const kickoff = (day: number) => Math.floor(new Date(2026, 9, day, 20, 0, 0).getTime() / 1000);
+
+  it("nomme le jour en relatif autour d'aujourd'hui", () => {
+    expect(formatMatchDay(kickoff(13), now)).toBe("Aujourd'hui");
+    expect(formatMatchDay(kickoff(14), now)).toBe("Demain");
+    expect(formatMatchDay(kickoff(12), now)).toBe("Hier");
+  });
+
+  it("donne la date courte au-delà, et rien sans coup d'envoi", () => {
+    expect(formatMatchDay(kickoff(18), now)).toBe("dim. 18 oct.");
+    expect(formatMatchDay(undefined, now)).toBeNull();
   });
 });
 

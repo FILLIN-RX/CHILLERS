@@ -135,6 +135,26 @@ export interface MatchPoster {
 }
 
 const HOUR = 3600;
+const DAY_MS = 86_400_000;
+
+/**
+ * Repère relatif sur le jour du coup d'envoi : « Aujourd'hui », « Demain »,
+ * « Hier », puis la date courte. Une rencontre qui bascule après minuit se lit
+ * mal avec la seule heure.
+ */
+export function formatMatchDay(ts?: number, now: Date = new Date()): string | null {
+  if (!ts) return null;
+  const start = new Date(ts * 1000);
+  const days = Math.round(
+    (Date.UTC(start.getFullYear(), start.getMonth(), start.getDate()) -
+      Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())) /
+      DAY_MS
+  );
+  if (days === 0) return "Aujourd'hui";
+  if (days === 1) return "Demain";
+  if (days === -1) return "Hier";
+  return start.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" });
+}
 
 /**
  * Trouve la fiche du service de score correspondant à une rencontre diffusée.

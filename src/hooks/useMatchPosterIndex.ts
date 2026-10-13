@@ -36,6 +36,8 @@ export interface MatchAffiche {
   major: boolean;
   /** Identifiant du service de score : sert à confondre les sources qui décrivent la même rencontre. */
   fixtureId?: string;
+  /** Coup d'envoi : LiveBall n'en publie aucun, la fiche du service de score le donne. */
+  startTs?: number;
 }
 
 /**
@@ -65,5 +67,6 @@ export function buildAffiche(
     awayLogo: (swapped ? fixture?.homeLogo : fixture?.awayLogo) || match.awayLogo,
     major: Boolean(fixture) || isMajorCompetition(match.league),
     fixtureId: fixture?.id,
+    startTs: fixture?.startTs ?? match.startTs,
   };
 }
