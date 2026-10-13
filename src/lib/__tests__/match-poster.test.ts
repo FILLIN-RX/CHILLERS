@@ -31,7 +31,14 @@ const serieA: PosterFixture = {
   leagueSlug: "serie-a",
 };
 
-const fixtures = [uclLens, serieA];
+const uclAtletico: PosterFixture = {
+  ...uclLens,
+  id: "401915423",
+  home: "Atlético Madrid",
+  away: "Manchester United",
+};
+
+const fixtures = [uclLens, serieA, uclAtletico];
 
 describe("isMajorCompetition", () => {
   it("reconnait les grandes compétitions quelle que soit la graphie de la source", () => {
@@ -102,6 +109,17 @@ describe("findPoster", () => {
     const found = findPoster(fixtures, { home: "Lens", away: "Sporting", startTs: 1791909900 });
     expect(found?.fixture.leagueName).toBe("Ligue des Champions");
     expect(found?.fixture.awayLogo).toBe(uclLens.awayLogo);
+  });
+
+  it("joint la rencontre quand la source préfixe le club de son abréviation", () => {
+    // Relevé en production sur streamiz : sans jointure, la carte survit sans
+    // identifiant de fiche et double l'affiche déjà retenue côté kora.
+    const found = findPoster(fixtures, {
+      home: "AM Atletico Madrid",
+      away: "MU Manchester Utd",
+      startTs: uclAtletico.startTs,
+    });
+    expect(found?.fixture.id).toBe(uclAtletico.id);
   });
 
   it("accepte les sources qui inversent domicile et extérieur", () => {

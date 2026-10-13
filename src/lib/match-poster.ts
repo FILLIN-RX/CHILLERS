@@ -84,6 +84,9 @@ const TEAM_ALIASES: Array<[RegExp, string]> = [
   [/\bparis\s+sg\b/g, "psg"],
   [/\bmanchester\s+city\b/g, "mancity"],
   [/\bmanchester\s+united\b/g, "manunited"],
+  // Streamiz abrège en plus le nom (« MU Manchester Utd ») : sans cette règle, la
+  // clé « mumanchesterutd » ne recouvre pas « manunited » et la carte fait doublon.
+  [/\bmanchester\s+utd\b/g, "manunited"],
   [/\bman\s+city\b/g, "mancity"],
   [/\bman\s+utd?\b/g, "manunited"],
   [/\batletico\s+madrid\b/g, "atleticomadrid"],
