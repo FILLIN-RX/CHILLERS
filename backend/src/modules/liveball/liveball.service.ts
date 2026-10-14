@@ -73,7 +73,23 @@ export const LIVEBALL_BASE_DOMAINS = [
 let webshareProxies: string[] = [];
 let lastWebshareFetch = 0;
 
+// Clé de cache du premier proxy qui a réellement débloqué une page liveball.
+// Les IPs datacenter sont quasi toutes bloquées par Cloudflare (403 "Just a
+// moment"). Tirer un proxy au hasard parmi 10 échecs revient à multiplier les
+// timeouts (~15s chacun) jusqu'à faire exploser la route côté prod. On mémorise
+// donc le proxy qui marche et on le réutilise tant qu'il répond.
+let workingProxy: string | null = null;
+
+function markProxyWorking(proxy: string | undefined): void {
+  if (proxy) workingProxy = proxy;
+}
+
+function markProxyFailed(proxy: string | undefined): void {
+  if (proxy && workingProxy === proxy) workingProxy = null;
+}
+
 async function getEffectiveProxy(): Promise<string | undefined> {
+  if (workingProxy) return workingProxy;
   if (LIVEBALL_PROXY) return LIVEBALL_PROXY;
   const apiKey = process.env.WEBSHARE_API_KEY || '7y3c7z8ycmfcrhloc2gwia16m76vuhod4r487muz';
   if (!apiKey) return undefined;
@@ -226,7 +242,7 @@ async function fetchHtmlWithCurl(url: string): Promise<string> {
     }
   } catch (_) {}
 
-  // 3. Fallback via Proxy si disponible
+  // 3. Fallback via Proxy si disponible (résidentiel potentiellement non bloqué)
   const proxy = await getEffectiveProxy();
   if (proxy) {
     try {
@@ -236,12 +252,16 @@ async function fetchHtmlWithCurl(url: string): Promise<string> {
         proxy,
       });
       if (typeof csRes === 'string' && isUsableLiveBallHtml(csRes)) {
+        markProxyWorking(proxy);
         return csRes;
       }
-    } catch (_) {}
+      markProxyFailed(proxy);
+    } catch (_) {
+      markProxyFailed(proxy);
+    }
   }
 
-  // 4. FlareSolverr si configuré
+  // 4. FlareSolverr si configuré (contourne Cloudflare côté navigateur headless)
   if (FLARESOLVERR_URL) {
     const solverRes = await fetchWithFlareSolverr(url, 'GET');
     if (isUsableLiveBallHtml(solverRes)) {
@@ -273,9 +293,13 @@ async function fetchHtmlWithCurl(url: string): Promise<string> {
     }
     const { data } = await axios.get<string>(url, axiosConfig);
     if (isUsableLiveBallHtml(data)) {
+      if (proxy) markProxyWorking(proxy);
       return data;
     }
-  } catch (_) {}
+    if (proxy) markProxyFailed(proxy);
+  } catch (_) {
+    if (proxy) markProxyFailed(proxy);
+  }
 
   throw new Error(`Unable to bypass Cloudflare for ${url}`);
 }
