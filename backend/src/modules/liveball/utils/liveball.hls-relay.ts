@@ -86,8 +86,21 @@ async function fetchRemote(
 }
 
 function isSelfReferential(url: URL, req: Request): boolean {
-  const selfHosts = ['localhost', '127.0.0.1', '0.0.0.0', 'chillers.onrender.com'];
-  if (req.get('host')) selfHosts.push(String(req.get('host')).split(':')[0]);
+  // Hôtes connus du backend (dev local + déploiements) + l'hôte réel de la
+  // requête (derrière le proxy/CDN : Railway/Render renvoient le domaine
+  // public dans Host, pas l'IP interne). On lit aussi x-forwarded-host.
+  const selfHosts = [
+    'localhost',
+    '127.0.0.1',
+    '0.0.0.0',
+    'chillers.onrender.com',
+    'chillers-production-636d.up.railway.app',
+    'chillers-production-8e02.up.railway.app',
+  ];
+  const hostHeader = String(req.get('host') || '').split(':')[0];
+  const fwdHost = String(req.get('x-forwarded-host') || '').split(',')[0].trim();
+  if (hostHeader) selfHosts.push(hostHeader);
+  if (fwdHost) selfHosts.push(fwdHost);
   return selfHosts.includes(url.hostname);
 }
 
