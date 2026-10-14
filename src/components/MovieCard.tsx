@@ -38,6 +38,7 @@ export interface MovieCardProps {
   className?: string;
   badge?: string;
   selected?: boolean;
+  appleFrame?: boolean;
 }
 
 // Apple design principles spring constants (§4 Behavior over animation):
@@ -63,6 +64,7 @@ function MovieCard({
   className = "",
   badge,
   selected = false,
+  appleFrame = false,
 }: MovieCardProps) {
   const router = useRouter();
   const { translate: _ } = useLanguage();
@@ -220,11 +222,14 @@ function MovieCard({
   // 1. POSTER VERTICAL VARIANT (Pure Apple TV Depth & Translucency)
   // ═════════════════════════════════════════════════════════════════════════
   if (isPoster) {
+    const frameClass = appleFrame
+      ? "bg-zinc-900/90 p-[1px] shadow-[0_10px_40px_-12px_rgba(0,0,0,0.8)]"
+      : "overflow-hidden bg-zinc-950";
     const posterContainerClass = isGridPoster
-      ? `group relative w-full aspect-[2/3] select-none cursor-pointer rounded-2xl overflow-hidden bg-zinc-950 shadow-[0_8px_24px_rgba(0,0,0,0.6)] hover:shadow-[0_20px_48px_rgba(0,0,0,0.92)] transition-shadow duration-300 ${
+      ? `group relative w-full aspect-[2/3] select-none cursor-pointer rounded-2xl transition-transform duration-300 ${frameClass} ${
           selected ? "ring-2 ring-brand-primary" : ""
         } ${className}`
-      : `group relative flex-none h-[250px] sm:h-[295px] md:h-[340px] lg:h-[385px] w-[165px] sm:w-[195px] md:w-[225px] lg:w-[255px] select-none cursor-pointer rounded-2xl overflow-hidden bg-zinc-950 shadow-[0_8px_24px_rgba(0,0,0,0.6)] hover:shadow-[0_20px_48px_rgba(0,0,0,0.92)] transition-shadow duration-300 ${
+      : `group relative flex-none h-[250px] sm:h-[295px] md:h-[340px] lg:h-[385px] w-[165px] sm:w-[195px] md:w-[225px] lg:w-[255px] select-none cursor-pointer rounded-2xl transition-transform duration-300 ${frameClass} ${
           selected ? "ring-2 ring-brand-primary" : ""
         } ${className}`;
 
@@ -263,6 +268,10 @@ function MovieCard({
         }}
         className={posterContainerClass}
       >
+        {appleFrame && (
+          <div className="pointer-events-none absolute inset-0 rounded-2xl border border-white/15 border-t-white/30 z-30" />
+        )}
+        <div className={appleFrame ? "relative w-full h-full rounded-2xl overflow-hidden bg-zinc-950" : "contents"}>
         {/* Shimmer Placeholder */}
         {(!imgLoaded || !primarySrc) && !imgError && (
           <div
@@ -297,9 +306,11 @@ function MovieCard({
             className={`w-full h-full flex flex-col items-center justify-center gap-2 bg-gradient-to-br ${gradients[gradientIndex]} p-3 text-center`}
           >
             <FilmSlate className="h-8 w-8 text-white/40" />
-            <span className="line-clamp-3 text-xs font-semibold text-white/70">
-              {item.title}
-            </span>
+            {imgError && (
+              <span className="line-clamp-3 text-xs font-semibold text-white/70">
+                {item.title}
+              </span>
+            )}
           </div>
         )}
 
@@ -318,11 +329,11 @@ function MovieCard({
           {/* Left: Rating Badge */}
           <div className="flex items-center gap-1.5">
             {badge ? (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-brand-primary text-white shadow-md">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-brand-primary text-white">
                 {badge}
               </span>
             ) : item.rating ? (
-              <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-xl text-amber-400 text-[10px] font-bold shadow-md">
+              <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-xl text-amber-400 text-[10px] font-bold">
                 <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
                 <span>{item.rating}</span>
               </div>
@@ -334,7 +345,7 @@ function MovieCard({
             <div className="flex items-center gap-1">
               {audioBadge && (
                 <span
-                  className={`rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider shadow-md backdrop-blur-md ${
+                  className={`rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider backdrop-blur-md ${
                     audioBadge.isFrench
                       ? "bg-brand-primary text-white"
                       : "bg-black/70 text-cyan-300"
@@ -344,12 +355,12 @@ function MovieCard({
                 </span>
               )}
               {isUpcoming && (
-                <span className="rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider bg-blue-600/90 backdrop-blur-md text-white flex items-center gap-1 shadow-md">
+                <span className="rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider bg-blue-600/90 backdrop-blur-md text-white flex items-center gap-1">
                   <HourglassSimple className="w-2.5 h-2.5" />
                   <span>À VENIR</span>
                 </span>
               )}
-              <span className="rounded-md px-2 py-0.5 text-[9px] font-black uppercase tracking-wider bg-black/60 backdrop-blur-xl text-zinc-200 shadow-md">
+              <span className="rounded-md px-2 py-0.5 text-[9px] font-black uppercase tracking-wider bg-black/60 backdrop-blur-xl text-zinc-200">
                 {item.isTrending
                   ? "NOUVEAU"
                   : item.type === "series"
@@ -394,68 +405,6 @@ function MovieCard({
           </div>
         </div>
 
-        {/* Bottom Cinematic Gradient & Typography */}
-        <div className="absolute inset-x-0 bottom-0 z-10 p-3.5 sm:p-4 pt-14 bg-gradient-to-t from-black via-black/85 to-transparent space-y-1.5">
-          <h3 className="text-xs sm:text-sm font-bold text-white leading-snug line-clamp-1 drop-shadow-sm tracking-[-0.015em]">
-            {item.title}
-          </h3>
-
-          {/* Metadata Tags */}
-          <div className="flex items-center gap-1.5 text-[10px] text-zinc-300 font-medium flex-wrap">
-            {item.rating && (
-              <span className="text-amber-400 font-bold">★ {item.rating}</span>
-            )}
-            {item.genres && item.genres.length > 0 && (
-              <span>• {item.genres[0]}</span>
-            )}
-            {isUpcoming && releaseDateLabel ? (
-              <span className="text-blue-400 font-semibold flex items-center gap-1">
-                <HourglassSimple className="w-2.5 h-2.5" />
-                <span>Sortie le {releaseDateLabel}</span>
-              </span>
-            ) : (
-              item.year && <span>• {item.year}</span>
-            )}
-          </div>
-
-          {/* Quick Action Buttons: ONLY visible on Hover */}
-          <AnimatePresence>
-            {isHovered && (
-              <motion.div
-                initial={{ opacity: 0, y: 8, height: 0 }}
-                animate={{ opacity: 1, y: 0, height: "auto" }}
-                exit={{ opacity: 0, y: 6, height: 0 }}
-                transition={HOVER_SPRING}
-                className="overflow-hidden pt-1"
-              >
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onPlay(item);
-                    }}
-                    className="flex-1 py-1.5 px-3 rounded-xl bg-brand-primary hover:brightness-110 hover:shadow-lg hover:shadow-brand-primary/30 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer"
-                    aria-label={_("media.watch")}
-                  >
-                    <Play className="h-3.5 w-3.5 fill-white translate-x-[0.5px]" />
-                    <span>Regarder</span>
-                  </button>
-
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onOpenDetails(item);
-                    }}
-                    title="Détails"
-                    aria-label={_("media.details")}
-                    className="h-8 w-8 rounded-xl bg-white/15 hover:bg-white/25 backdrop-blur-xl text-white flex items-center justify-center shrink-0 active:scale-95 transition-all cursor-pointer shadow-md"
-                  >
-                    <Info className="h-4 w-4" />
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
 
         {showPlaylistModal && (
@@ -516,7 +465,7 @@ function MovieCard({
         transformStyle: "preserve-3d",
         touchAction: "manipulation",
       }}
-      className={`group relative ${landscapeSizeClass} select-none cursor-pointer rounded-2xl overflow-hidden bg-zinc-950 shadow-[0_8px_24px_rgba(0,0,0,0.6)] hover:shadow-[0_20px_48px_rgba(0,0,0,0.92)] transition-shadow duration-300 ${
+      className={`group relative ${landscapeSizeClass} select-none cursor-pointer rounded-2xl overflow-hidden bg-zinc-950 transition-transform duration-300 ${
         selected ? "ring-2 ring-brand-primary" : ""
       } ${className}`}
     >
@@ -560,9 +509,11 @@ function MovieCard({
             className={`absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-br ${gradients[gradientIndex]} p-3 text-center`}
           >
             <FilmSlate className="h-8 w-8 text-white/40" />
-            <span className="line-clamp-3 text-xs font-semibold text-white/70">
-              {item.title}
-            </span>
+            {imgError && (
+              <span className="line-clamp-3 text-xs font-semibold text-white/70">
+                {item.title}
+              </span>
+            )}
           </div>
         )}
 
@@ -578,7 +529,7 @@ function MovieCard({
 
         {/* Top-left Rating Badge */}
         {Boolean(item.rating) && (
-          <div className="absolute top-2.5 left-2.5 z-20 flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-xl text-amber-400 text-[10px] font-bold shadow-md">
+          <div className="absolute top-2.5 left-2.5 z-20 flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-xl text-amber-400 text-[10px] font-bold">
             <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
             <span>{item.rating}</span>
           </div>
@@ -588,7 +539,7 @@ function MovieCard({
         <div className="absolute top-2.5 right-2.5 z-20 flex items-center gap-1">
           {audioBadge && (
             <span
-              className={`rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider shadow-md backdrop-blur-md ${
+              className={`rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider backdrop-blur-md ${
                 audioBadge.isFrench
                   ? "bg-brand-primary text-white"
                   : "bg-black/70 text-cyan-300"
@@ -598,12 +549,12 @@ function MovieCard({
             </span>
           )}
           {isUpcoming && (
-            <span className="rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider bg-blue-600/90 backdrop-blur-md text-white flex items-center gap-1 shadow-md">
+            <span className="rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider bg-blue-600/90 backdrop-blur-md text-white flex items-center gap-1">
               <HourglassSimple className="w-2.5 h-2.5" />
               <span>À VENIR</span>
             </span>
           )}
-          <span className="rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider bg-black/60 backdrop-blur-xl text-zinc-200 shadow-md">
+          <span className="rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider bg-black/60 backdrop-blur-xl text-zinc-200">
             {item.type === "series" ? "SÉRIE" : item.type === "anime" ? "ANIME" : "FILM"}
           </span>
         </div>
@@ -638,7 +589,7 @@ function MovieCard({
             transition={HOVER_SPRING}
             className="pointer-events-none absolute bottom-0 left-0 right-0 z-30 max-md:hidden"
           >
-            <div className="bg-black/85 backdrop-blur-2xl p-3 rounded-b-2xl space-y-1.5 shadow-[0_16px_40px_rgba(0,0,0,0.9)]">
+            <div className="bg-black/85 backdrop-blur-2xl p-3 rounded-b-2xl space-y-1.5">
               <div className="flex items-center justify-between gap-2">
                 <h3 className="text-xs font-bold text-white leading-tight line-clamp-1 drop-shadow-sm tracking-[-0.015em]">
                   {item.title}

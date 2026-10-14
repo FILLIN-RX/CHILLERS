@@ -147,7 +147,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
                   type="button"
                   onClick={() => handleSubmit(undefined, true)}
                   disabled={loading}
-                  className="w-full py-2 px-3 rounded-lg bg-[brand-primary] hover:opacity-95 text-white font-bold text-xs shadow transition-all active:scale-95 cursor-pointer"
+                  className="w-full py-2 px-3 rounded-[5px] bg-[brand-primary] hover:opacity-95 text-white font-bold text-xs shadow transition-all active:scale-95 cursor-pointer"
                 >
                   {lang === "fr"
                     ? "Déconnecter tous les autres appareils et continuer"
@@ -172,7 +172,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
                     setLoading(false);
                   }
                 }}
-                className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-xl text-white font-medium text-sm transition-all active:scale-[0.98] cursor-pointer"
+                className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-[5px] text-white font-medium text-sm transition-all active:scale-[0.98] cursor-pointer"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
                   <path fill="#EA4335" d="M12 5c1.56 0 2.98.54 4.09 1.58l3.07-3.07C17.29 1.7 14.83 1 12 1 7.42 1 3.53 3.61 1.63 7.39l3.73 2.89C6.27 7.23 8.89 5 12 5z" />
@@ -235,7 +235,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
             <button
               type="submit"
               disabled={loading}
-              className="relative w-full flex items-center justify-center py-3 rounded-xl bg-[brand-primary] text-white font-bold tracking-wide hover:shadow-[0_0_20px_rgba(215,4,102,0.4)] transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
+              className="relative w-full flex items-center justify-center py-3 rounded-[5px] bg-[brand-primary] text-white font-bold tracking-wide hover:shadow-[0_0_20px_rgba(215,4,102,0.4)] transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
             >
               {loading ? (
                 <Spinner className="w-5 h-5 animate-spin" />

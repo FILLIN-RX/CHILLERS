@@ -227,7 +227,7 @@ export default function AddToPlaylistModal({
           <button
             onClick={handleToggleWatchLater}
             disabled={loading}
-            className="w-full flex items-center justify-between p-3 rounded-2xl hover:bg-white/5 transition-all text-left group"
+            className="w-full flex items-center justify-between p-3 rounded-[5px] hover:bg-white/5 transition-all text-left group"
           >
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center">
@@ -257,7 +257,7 @@ export default function AddToPlaylistModal({
           <button
             onClick={handleToggleFavorite}
             disabled={loading}
-            className="w-full flex items-center justify-between p-3 rounded-2xl hover:bg-white/5 transition-all text-left group"
+            className="w-full flex items-center justify-between p-3 rounded-[5px] hover:bg-white/5 transition-all text-left group"
           >
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-xl bg-[brand-primary]/10 text-[brand-primary] flex items-center justify-center">
@@ -307,7 +307,7 @@ export default function AddToPlaylistModal({
                     key={pl.id}
                     onClick={() => handleTogglePlaylist(pl)}
                     disabled={loading}
-                    className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-white/5 transition-all text-left group"
+                    className="w-full flex items-center justify-between p-2.5 rounded-[5px] hover:bg-white/5 transition-all text-left group"
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
                       <ListNumbers className="w-4 h-4 text-cyan-400 flex-shrink-0" />
@@ -340,7 +340,7 @@ export default function AddToPlaylistModal({
           {!showCreateInput ? (
             <button
               onClick={() => setShowCreateInput(true)}
-              className="w-full py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/10 text-white text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer"
+              className="w-full py-2.5 px-3 rounded-[5px] bg-white/5 hover:bg-white/10 text-white text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>
@@ -366,14 +366,14 @@ export default function AddToPlaylistModal({
                     setShowCreateInput(false);
                     setNewTitle("");
                   }}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold text-zinc-400 hover:text-white"
+                  className="px-3 py-1.5 rounded-[5px] text-xs font-semibold text-zinc-400 hover:text-white"
                 >
                   {lang === "fr" ? "Annuler" : "Cancel"}
                 </button>
                 <button
                   type="submit"
                   disabled={loading || !newTitle.trim()}
-                  className="px-3 py-1.5 rounded-lg bg-[brand-primary] hover:bg-[#b5034f] disabled:opacity-50 text-xs font-bold text-white shadow"
+                  className="px-3 py-1.5 rounded-[5px] bg-[brand-primary] hover:bg-[#b5034f] disabled:opacity-50 text-xs font-bold text-white shadow"
                 >
                   {lang === "fr" ? "Créer et ajouter" : "Create & Add"}
                 </button>

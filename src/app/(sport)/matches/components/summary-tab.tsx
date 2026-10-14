@@ -9,8 +9,8 @@ import { CARD, DIVIDER, EmptyCard, MUTED, ORANGE } from "./match-tabs";
 function EventIcon({ type }: { type: string }) {
   const t = type.toLowerCase();
   if (t.includes("goal")) return <SoccerBall weight="fill" className="h-4 w-4 text-white" />;
-  if (t.includes("red")) return <span className="block h-4 w-3 rounded-[2px] bg-[#FF3B30]" />;
-  if (t.includes("yellow")) return <span className="block h-4 w-3 rounded-[2px] bg-[#FFD60A]" />;
+  if (t.includes("red")) return <span className="block h-4 w-3 rounded-[4px] bg-[#FF3B30]" />;
+  if (t.includes("yellow")) return <span className="block h-4 w-3 rounded-[4px] bg-[#FFD60A]" />;
   if (t.includes("substitution")) return <ArrowsLeftRight className="h-4 w-4" style={{ color: MUTED }} />;
   return <span className="block h-1.5 w-1.5 rounded-full bg-[#555]" />;
 }
@@ -100,7 +100,7 @@ export function SummaryTab({ match, summary }: { match: SportMatch; summary: Mat
               el.scrollIntoView({ behavior: "smooth", block: "start" });
             }
           }}
-          className="flex w-full items-center gap-3 rounded-xl px-4 py-3.5 text-left transition-colors hover:bg-[#1d1d1d] focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
+          className="flex w-full items-center gap-3 rounded-[5px] px-4 py-3.5 text-left transition-colors hover:bg-[#1d1d1d] focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
           style={{ background: CARD }}
         >
           <Broadcast className="h-5 w-5" style={{ color: ORANGE }} />

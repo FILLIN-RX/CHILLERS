@@ -334,25 +334,23 @@ export default function MovieModal({
                   <button
                     type="button"
                     onClick={() => handleLangSelect("fr")}
-                    className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    className={`px-2.5 py-1.5 rounded-[5px] text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                       selectedLang === "fr"
                         ? "bg-brand-primary text-white shadow-md shadow-brand-primary/30"
                         : "text-zinc-400 hover:text-white"
                     }`}
                   >
-                    <span>🇫🇷</span>
                     <span>VF</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => handleLangSelect("vostfr")}
-                    className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    className={`px-2.5 py-1.5 rounded-[5px] text-xs font-bold transition-all cursor-pointer ${
                       selectedLang === "vostfr"
                         ? "bg-brand-primary text-white shadow-md shadow-brand-primary/30"
                         : "text-zinc-400 hover:text-white"
                     }`}
                   >
-                    <span>🌐</span>
                     <span>VOSTFR</span>
                   </button>
                 </div>
@@ -423,7 +421,7 @@ export default function MovieModal({
                     <button
                       key={season.id}
                       onClick={() => isAvailable && handleSeasonChange(season)}
-                      className={`flex-none flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                      className={`flex-none flex items-center gap-1.5 px-3.5 py-2 rounded-[5px] text-xs font-semibold transition-all cursor-pointer ${
                         !isAvailable
                           ? "text-zinc-500 border-0 bg-white/5 cursor-default opacity-50"
                           : activeSeason?.id === season.id

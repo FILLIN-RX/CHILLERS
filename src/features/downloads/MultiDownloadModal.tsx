@@ -5,8 +5,12 @@ import Image from "next/image";
 import { X, DownloadSimple, FilmSlate, Warning, Check, User } from "@phosphor-icons/react";
 import { acquireModalScrollLock, releaseModalScrollLock } from "@/lib/modalScrollLock";
 import { useDownloadsBatch } from "@/hooks/useDownloadsBatch";
+import { isDownloadableUrl } from "@/services/downloads";
+import { getBackendOrigin } from "@/services/http";
+import { isIOS } from "@/services/streamSaver";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { downloadTaskId } from "@/lib/format";
+import type { DownloadTask } from "@/types/download";
 import type { Episode } from "@/types/media";
 import DownloadProgressBar from "./DownloadProgressBar";
 
@@ -30,7 +34,10 @@ export default function MultiDownloadModal({
   language = "fr",
 }: Props) {
   const { translate: _ } = useLanguage();
-  const [started, setStarted] = useState(true);
+  // Étape 1 = récupération de tous les liens, étape 2 = lancement des fichiers.
+  const [started, setStarted] = useState(false);
+  const [launched, setLaunched] = useState<Set<string>>(new Set());
+  const ios = isIOS();
 
   const batch = useDownloadsBatch({
     tmdbId,
@@ -38,7 +45,7 @@ export default function MultiDownloadModal({
     type: "series",
     episodes: episodes,
     language,
-    gated: false,
+    gated: !started,
   });
 
   // Scroll lock + ESC.
@@ -65,6 +72,20 @@ export default function MultiDownloadModal({
     ]),
   );
 
+  const launchEpisode = (task: DownloadTask) => {
+    const url = task.resolvedUrl;
+    if (!url || !isDownloadableUrl(url)) return;
+    const href = url.startsWith("http") ? url : `${getBackendOrigin()}${url}`;
+    // WebKit iOS n'autorise qu'un fichier par geste utilisateur : on navigue dans
+    // l'onglet courant (Content-Disposition: attachment) au lieu d'un clic synthétique.
+    window.location.assign(href);
+    setLaunched((prev) => {
+      const next = new Set(prev);
+      next.add(task.id);
+      return next;
+    });
+  };
+
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md animate-fade-in"
@@ -84,19 +105,25 @@ export default function MultiDownloadModal({
               <p className="text-xs text-zinc-500 mt-0.5">
                 {!started ? (
                   <span>
-                    {totals.ready > 0 && (
-                      <span className="text-emerald-400">
-                        {totals.ready} prêt{totals.ready > 1 ? "s" : ""}
-                      </span>
-                    )}
-                    {totals.ready > 0 && totals.failed > 0 && " · "}
-                    {totals.failed > 0 && (
-                      <span className="text-rose-400">{totals.failed} indisponible{totals.failed > 1 ? "s" : ""}</span>
-                    )}
-                    {totals.ready === 0 && totals.failed === 0 && (
-                      <span>Récupération des liens…</span>
+                    {totals.queued > 0 ? (
+                      <>
+                        Récupération des liens… {totals.ready + totals.failed}/{totals.total}
+                      </>
+                    ) : totals.ready > 0 ? (
+                      <>
+                        <span className="text-emerald-400">
+                          {totals.ready} lien{totals.ready > 1 ? "s" : ""} prêt{totals.ready > 1 ? "s" : ""}
+                        </span>
+                        {totals.failed > 0 && (
+                          <span className="text-rose-400"> · {totals.failed} indisponible{totals.failed > 1 ? "s" : ""}</span>
+                        )}
+                      </>
+                    ) : (
+                      <span className="text-rose-400">Aucun lien disponible pour cette version</span>
                     )}
                   </span>
+                ) : ios ? (
+                  <span>Touchez chaque épisode pour lancer son téléchargement</span>
                 ) : totals.running > 0 || totals.queued > 0 ? (
                   <span>
                     {totals.running > 0 && (
@@ -201,11 +228,31 @@ export default function MultiDownloadModal({
                         </svg>
                       </span>
                     )}
-                    {status === "ready" && (
-                      <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 rounded-full px-3 py-1">
-                        <Check className="h-3 w-3" />Prêt
-                      </span>
-                    )}
+                    {status === "ready" &&
+                      (started && ios && task ? (
+                        <button
+                          onClick={() => launchEpisode(task)}
+                          className={`flex items-center gap-1.5 text-xs font-bold rounded-full px-3 py-1 transition-colors cursor-pointer ${
+                            launched.has(id)
+                              ? "text-emerald-400 bg-emerald-500/10 border border-emerald-500/25"
+                              : "bg-white text-black hover:bg-zinc-200"
+                          }`}
+                        >
+                          {launched.has(id) ? (
+                            <>
+                              <Check className="h-3 w-3" />Lancé
+                            </>
+                          ) : (
+                            <>
+                              <DownloadSimple className="h-3 w-3" />Télécharger
+                            </>
+                          )}
+                        </button>
+                      ) : (
+                        <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 rounded-full px-3 py-1">
+                          <Check className="h-3 w-3" />Prêt
+                        </span>
+                      ))}
                     {status === "done" && (
                       <div className="flex items-center gap-2">
                         <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-400 bg-emerald-500/15 rounded-full px-2.5 py-1">
@@ -266,20 +313,20 @@ export default function MultiDownloadModal({
             <div className="flex-1 flex items-center gap-2">
               <button
                 onClick={() => setStarted(true)}
-                disabled={totals.ready === 0 && totals.queued === 0}
-                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-sm bg-white text-black hover:bg-zinc-200 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg cursor-pointer"
+                disabled={totals.ready === 0}
+                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-[5px] font-bold text-sm bg-white text-black hover:bg-zinc-200 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg cursor-pointer"
               >
                 <DownloadSimple className="h-4 w-4" />
                 {totals.ready > 0
                   ? `Télécharger ${totals.ready} épisode${totals.ready > 1 ? "s" : ""}`
                   : totals.queued > 0
-                  ? "Préparation des liens…"
-                  : `Télécharger (${episodes.length})`}
+                  ? "Récupération des liens…"
+                  : "Aucun lien disponible"}
               </button>
               {(totals.done > 0 || totals.canceled > 0) && (
                 <button
                   onClick={batch.relaunchAll}
-                  className="px-4 py-3 rounded-xl font-bold text-xs bg-white/10 text-white hover:bg-white/20 transition-all cursor-pointer"
+                  className="px-4 py-3 rounded-[5px] font-bold text-xs bg-white/10 text-white hover:bg-white/20 transition-all cursor-pointer"
                 >
                   Tout relancer
                 </button>
@@ -290,7 +337,7 @@ export default function MultiDownloadModal({
               {totals.running > 0 && (
                 <button
                   onClick={batch.cancelAll}
-                  className="flex-1 px-4 py-3 rounded-xl font-bold text-sm bg-zinc-800 text-white hover:bg-zinc-700 transition-all cursor-pointer"
+                  className="flex-1 px-4 py-3 rounded-[5px] font-bold text-sm bg-zinc-800 text-white hover:bg-zinc-700 transition-all cursor-pointer"
                 >
                   Tout arrêter
                 </button>
@@ -298,14 +345,14 @@ export default function MultiDownloadModal({
               {totals.running === 0 && (totals.done > 0 || totals.canceled > 0) && (
                 <button
                   onClick={batch.relaunchAll}
-                  className="flex-1 px-4 py-3 rounded-xl font-bold text-sm bg-white/10 text-white hover:bg-white/20 transition-all cursor-pointer"
+                  className="flex-1 px-4 py-3 rounded-[5px] font-bold text-sm bg-white/10 text-white hover:bg-white/20 transition-all cursor-pointer"
                 >
                   Tout re-télécharger
                 </button>
               )}
               <button
                 onClick={onClose}
-                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-sm bg-white text-black hover:bg-zinc-200 transition-all shadow-lg cursor-pointer"
+                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-[5px] font-bold text-sm bg-white text-black hover:bg-zinc-200 transition-all shadow-lg cursor-pointer"
               >
                 <Check className="h-4 w-4" />
                 {totals.done === totals.total && totals.total > 0

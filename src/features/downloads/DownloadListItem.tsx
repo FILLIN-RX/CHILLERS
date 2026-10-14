@@ -53,7 +53,7 @@ export default function DownloadListItem({
             {isRunning && onCancel && (
               <button
                 onClick={() => onCancel(task.id)}
-                className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-800 hover:text-white"
+                className="rounded-[5px] p-1.5 text-zinc-400 hover:bg-zinc-800 hover:text-white"
                 title="Annuler"
                 aria-label="Annuler"
               >
@@ -63,7 +63,7 @@ export default function DownloadListItem({
             {task.status === "error" && onRetry && (
               <button
                 onClick={() => onRetry(task.id)}
-                className="rounded-md p-1.5 text-amber-400 hover:bg-zinc-800 hover:text-amber-300"
+                className="rounded-[5px] p-1.5 text-amber-400 hover:bg-zinc-800 hover:text-amber-300"
                 title="Réessayer"
                 aria-label="Réessayer"
               >
@@ -73,7 +73,7 @@ export default function DownloadListItem({
             {(task.status === "queued" || task.status === "paused") && onStart && (
               <button
                 onClick={() => onStart(task.id)}
-                className="rounded-md p-1.5 text-emerald-400 hover:bg-zinc-800 hover:text-emerald-300"
+                className="rounded-[5px] p-1.5 text-emerald-400 hover:bg-zinc-800 hover:text-emerald-300"
                 title="Démarrer"
                 aria-label="Démarrer"
               >

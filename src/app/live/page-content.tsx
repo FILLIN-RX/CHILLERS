@@ -338,7 +338,7 @@ function HeroBannerCarousel() {
     <div
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
-      className="relative w-full overflow-hidden mb-10 select-none shadow-2xl min-h-[220px] sm:min-h-[270px] md:min-h-[300px]"
+      className="relative w-full overflow-hidden mb-10 select-none min-h-[220px] sm:min-h-[270px] md:min-h-[300px]"
     >
       {/* ── GPU-Accelerated Stacked Slides (0% JS Main-Thread Blockage) ── */}
       {HERO_SLIDES.map((slide, idx) => {
@@ -558,7 +558,7 @@ export function LiveChannelCard({
   return (
     <Link
       href={`/live/${channel.slug}`}
-      className="group relative flex flex-col justify-start rounded-2xl overflow-hidden bg-zinc-900/40 border border-white/10 hover:border-red-500/50 hover:bg-zinc-800/60 transition-all duration-300 shadow-lg hover:shadow-[0_8px_30px_rgba(220,38,38,0.2)] hover:-translate-y-1 cursor-pointer"
+      className="group relative flex flex-col justify-start rounded-2xl overflow-hidden bg-zinc-900/40 border border-white/10 hover:border-red-500/50 hover:bg-zinc-800/60 transition-all duration-300 hover:-translate-y-1 cursor-pointer"
     >
       {/* 1. Thumbnail Container 16:9 */}
       <div className="relative w-full aspect-video rounded-t-2xl overflow-hidden bg-zinc-950">
@@ -767,7 +767,7 @@ export default function LivePageContent() {
                 <button
                   key={cat.id}
                   onClick={() => setActiveCategory(cat.id)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all active:scale-95 ${
+                  className={`flex items-center gap-2 px-4 py-2 rounded-[5px] text-xs sm:text-sm font-bold whitespace-nowrap transition-all active:scale-95 ${
                     isActive
                       ? "bg-red-600 text-white shadow-lg shadow-red-600/30 scale-100"
                       : "bg-zinc-900/80 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-white/5"
@@ -786,7 +786,7 @@ export default function LivePageContent() {
             <div className="flex items-center bg-zinc-900/90 border border-white/10 rounded-xl p-0.5 shrink-0">
               <button
                 onClick={() => setViewMode("mosaic")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[5px] text-xs font-bold transition-all ${
                   viewMode === "mosaic"
                     ? "bg-red-600 text-white shadow-md shadow-red-600/30"
                     : "text-zinc-400 hover:text-white"
@@ -798,7 +798,7 @@ export default function LivePageContent() {
               </button>
               <button
                 onClick={() => setViewMode("cards")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[5px] text-xs font-bold transition-all ${
                   viewMode === "cards"
                     ? "bg-red-600 text-white shadow-md shadow-red-600/30"
                     : "text-zinc-400 hover:text-white"
@@ -812,7 +812,7 @@ export default function LivePageContent() {
 
             <button
               onClick={() => setIsMultiLiveOpen(true)}
-              className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl bg-red-600/20 hover:bg-red-600 border border-red-500/40 text-red-400 hover:text-white text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap"
+              className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-[5px] bg-red-600/20 hover:bg-red-600 border border-red-500/40 text-red-400 hover:text-white text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap"
             >
               <SquaresFour className="w-4 h-4" />
               <span className="hidden sm:inline">Multi-View</span>
@@ -870,7 +870,7 @@ export default function LivePageContent() {
           </p>
           <button
             onClick={loadMore}
-            className="mt-2 px-5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-bold text-zinc-300 border border-white/10 transition-colors"
+            className="mt-2 px-5 py-2 rounded-[5px] bg-zinc-800 hover:bg-zinc-700 text-xs font-bold text-zinc-300 border border-white/10 transition-colors"
           >
             Afficher plus manuellement
           </button>
@@ -925,7 +925,7 @@ export default function LivePageContent() {
               return (
                 <div
                   key={idx}
-                  className="relative bg-zinc-950 rounded-2xl overflow-hidden border border-white/10 shadow-2xl flex flex-col min-h-[240px] sm:min-h-0"
+                  className="relative bg-zinc-950 rounded-2xl overflow-hidden border border-white/10 flex flex-col min-h-[240px] sm:min-h-0"
                 >
                   {/* Selector Dropdown Header */}
                   <div className="absolute top-3 left-3 z-20 flex items-center gap-2 max-w-[calc(100%-1.5rem)]">

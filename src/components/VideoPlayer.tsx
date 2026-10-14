@@ -782,7 +782,7 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
               Chillers
             </span>
             <div className="flex items-center gap-1">
-              <button onClick={toggleFullscreen} className="p-1.5 text-white/70 hover:text-white rounded-lg hover:bg-white/10 transition-colors" title="Plein écran">
+              <button onClick={toggleFullscreen} className="p-1.5 text-white/70 hover:text-white rounded-[5px] hover:bg-white/10 transition-colors" title="Plein écran">
                 <ArrowsOutSimple className="h-4 w-4" />
               </button>
             </div>
@@ -1186,7 +1186,7 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
                               >
                                 <span className="text-zinc-300">Langue audio</span>
                                 <span className="text-zinc-400 font-medium truncate max-w-[100px] text-right">
-                                  {audioVersion === "fr" ? "🇫🇷 VF" : "🌐 VOSTFR"} ›
+                                  {audioVersion === "fr" ? "VF" : "VOSTFR"} ›
                                 </span>
                               </button>
                             )}
@@ -1245,7 +1245,6 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
                               }`}
                             >
                               <div className="flex items-center gap-2">
-                                <span>🇫🇷</span>
                                 <div>
                                   <p className="text-xs font-bold">Français (VF)</p>
                                   <p className="text-[10px] text-zinc-400">Doublage français 1080p</p>
@@ -1263,7 +1262,6 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
                               }`}
                             >
                               <div className="flex items-center gap-2">
-                                <span>🌐</span>
                                 <div>
                                   <p className="text-xs font-bold">Version Originale (VO / VOSTFR)</p>
                                   <p className="text-[10px] text-zinc-400">Audio original & sous-titres FR</p>
@@ -1443,7 +1441,7 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
                 <p className="text-white text-[13px] font-bold leading-tight">Tourne ton téléphone</p>
                 <p className="text-white/60 text-[11px] leading-tight">Mode paysage recommandé</p>
               </div>
-              <button onClick={() => setDismissPortraitPrompt(true)} aria-label="Fermer" className="shrink-0 p-1.5 text-white/60 hover:text-white rounded-lg hover:bg-white/10">
+              <button onClick={() => setDismissPortraitPrompt(true)} aria-label="Fermer" className="shrink-0 p-1.5 text-white/60 hover:text-white rounded-[5px] hover:bg-white/10">
                 <X className="h-4 w-4" />
               </button>
             </div>

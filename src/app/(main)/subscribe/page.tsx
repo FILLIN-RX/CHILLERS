@@ -194,7 +194,7 @@ export default function SubscribePage() {
     <div className="min-h-screen bg-[#09090b] text-white pt-24 sm:pt-28 pb-16 px-4 sm:px-6 lg:px-8 select-none">
       <div className="max-w-5xl mx-auto">
         <div className="text-center max-w-2xl mx-auto mb-10 sm:mb-12">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-[3px] bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-bold mb-4">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-[4px] bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-bold mb-4">
             <Crown className="w-4 h-4 text-amber-400 fill-amber-400" />
             <span>Formules VIP & Streaming Illimité</span>
           </div>
@@ -215,14 +215,14 @@ export default function SubscribePage() {
             return (
               <div
                 key={plan._id}
-                className={`relative flex-1 w-full rounded-[3px] p-6 sm:p-7 flex flex-col justify-between transition-all duration-300 ${
+                className={`relative flex-1 w-full rounded-[4px] p-6 sm:p-7 flex flex-col justify-between transition-all duration-300 ${
                   isPremium
                     ? 'bg-[#15111c] border-2 border-[#7C3AED]/60 shadow-[0_8px_30px_rgba(124,58,237,0.18)]'
                     : 'bg-[#121214] border border-white/10 hover:border-white/20'
                 }`}
               >
                 {isPremium && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-[2px] bg-[brand-primary] text-white text-[10px] font-black tracking-wider uppercase shadow-md">
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-[4px] bg-[brand-primary] text-white text-[10px] font-black tracking-wider uppercase shadow-md">
                     RECOMMANDÉ
                   </div>
                 )}
@@ -231,7 +231,7 @@ export default function SubscribePage() {
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-xl sm:text-2xl font-bold text-white">{plan.name}</h3>
                     {isCurrent && (
-                      <span className="px-2.5 py-0.5 rounded-[2px] bg-emerald-500/20 text-emerald-400 text-[11px] font-bold">
+                      <span className="px-2.5 py-0.5 rounded-[4px] bg-emerald-500/20 text-emerald-400 text-[11px] font-bold">
                         Actuel
                       </span>
                     )}
@@ -278,7 +278,7 @@ export default function SubscribePage() {
                     setErrorMessage(null);
                   }}
                   disabled={isCurrent}
-                  className={`w-full py-3 rounded-[3px] font-bold text-xs sm:text-sm transition-all cursor-pointer shadow-md active:scale-95 ${
+                  className={`w-full py-3 rounded-[5px] font-bold text-xs sm:text-sm transition-all cursor-pointer shadow-md active:scale-95 ${
                     isCurrent
                       ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
                       : isPremium
@@ -296,12 +296,12 @@ export default function SubscribePage() {
         {/* ── MODAL STEPPER DE PAIEMENT ULTRA-COMPACT ────────────────── */}
         {selectedPlan && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md overflow-y-auto animate-fade-in">
-            <div className="relative w-full max-w-md bg-[#121215] border border-white/15 rounded-[3px] p-5 sm:p-6 shadow-2xl my-4">
+            <div className="relative w-full max-w-md bg-[#121215] border border-white/15 rounded-[4px] p-5 sm:p-6 shadow-2xl my-4">
               {/* Close Button */}
               <button
                 onClick={() => setSelectedPlan(null)}
                 aria-label="Fermer"
-                className="absolute top-4 right-4 text-zinc-400 hover:text-white p-1 rounded-[2px] hover:bg-white/10 transition-all cursor-pointer"
+                className="absolute top-4 right-4 text-zinc-400 hover:text-white p-1 rounded-[5px] hover:bg-white/10 transition-all cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -318,7 +318,7 @@ export default function SubscribePage() {
                       setSelectedPlan(null);
                       router.push('/');
                     }}
-                    className="w-full py-2.5 rounded-[3px] bg-white text-black font-bold text-xs hover:bg-zinc-200 transition-all cursor-pointer"
+                    className="w-full py-2.5 rounded-[5px] bg-white text-black font-bold text-xs hover:bg-zinc-200 transition-all cursor-pointer"
                   >
                     Retour à l&apos;accueil
                   </button>
@@ -393,7 +393,7 @@ export default function SubscribePage() {
                         <button
                           type="button"
                           onClick={() => setPaymentMethod('orange')}
-                          className={`p-3 rounded-[3px] border flex flex-col items-center gap-1 transition-all cursor-pointer ${
+                          className={`p-3 rounded-[5px] border flex flex-col items-center gap-1 transition-all cursor-pointer ${
                             paymentMethod === 'orange'
                               ? 'bg-orange-500/15 border-orange-500 text-orange-400 font-bold shadow-[0_0_12px_rgba(249,115,22,0.2)]'
                               : 'bg-zinc-900 border-white/5 text-zinc-400 hover:border-white/20'
@@ -406,7 +406,7 @@ export default function SubscribePage() {
                         <button
                           type="button"
                           onClick={() => setPaymentMethod('mtn')}
-                          className={`p-3 rounded-[3px] border flex flex-col items-center gap-1 transition-all cursor-pointer ${
+                          className={`p-3 rounded-[5px] border flex flex-col items-center gap-1 transition-all cursor-pointer ${
                             paymentMethod === 'mtn'
                               ? 'bg-yellow-500/15 border-yellow-500 text-yellow-400 font-bold shadow-[0_0_12px_rgba(234,179,8,0.2)]'
                               : 'bg-zinc-900 border-white/5 text-zinc-400 hover:border-white/20'
@@ -420,7 +420,7 @@ export default function SubscribePage() {
                       <button
                         type="button"
                         onClick={() => setCurrentStep(2)}
-                        className="w-full py-2.5 rounded-[3px] bg-[brand-primary] hover:bg-[#b5034f] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md cursor-pointer transition-all active:scale-95"
+                        className="w-full py-2.5 rounded-[5px] bg-[brand-primary] hover:bg-[#b5034f] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md cursor-pointer transition-all active:scale-95"
                       >
                         <span>Continuer vers le Dépôt</span>
                         <ArrowRight className="w-4 h-4" />
@@ -431,7 +431,7 @@ export default function SubscribePage() {
                   {/* ── ÉTAPE 2 : Dépôt & Code USSD ──────────────────── */}
                   {currentStep === 2 && (
                     <div className="space-y-3.5 pt-1 animate-fade-in">
-                      <div className="bg-[#18181c] border border-white/10 rounded-[3px] p-3.5 space-y-2.5">
+                      <div className="bg-[#18181c] border border-white/10 rounded-[4px] p-3.5 space-y-2.5">
                         <div className="flex items-center justify-between">
                           <p className="text-xs text-zinc-300">
                             Montant exact : <strong className="text-white">{selectedPlan.price} FCFA</strong>
@@ -445,14 +445,14 @@ export default function SubscribePage() {
                         <button
                           type="button"
                           onClick={() => handleDialUssd(paymentMethod, selectedPlan.price)}
-                          className="w-full py-2.5 px-3 rounded-[3px] bg-[brand-primary] hover:bg-[#b5034f] text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all cursor-pointer"
+                          className="w-full py-2.5 px-3 rounded-[5px] bg-[brand-primary] hover:bg-[#b5034f] text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all cursor-pointer"
                         >
                           <PhoneCall className="w-4 h-4" />
                           <span>Lancer le code USSD automatique</span>
                         </button>
 
                         {/* Affichage du code et copie de secours */}
-                        <div className="flex items-center justify-between bg-black/60 px-3 py-1.5 rounded-[3px] border border-white/10 text-xs">
+                        <div className="flex items-center justify-between bg-black/60 px-3 py-1.5 rounded-[4px] border border-white/10 text-xs">
                           <code className="text-amber-400 font-mono font-bold text-xs tracking-wider select-all truncate mr-2">
                             {getUssdCode(paymentMethod, selectedPlan.price)}
                           </code>
@@ -464,7 +464,7 @@ export default function SubscribePage() {
                               setCopiedNumber(code);
                               setTimeout(() => setCopiedNumber(null), 2500);
                             }}
-                            className="flex items-center gap-1 px-2 py-1 rounded-[2px] bg-white/10 hover:bg-white/20 text-white text-[10px] font-bold transition-all active:scale-95 shrink-0 cursor-pointer"
+                            className="flex items-center gap-1 px-2 py-1 rounded-[5px] bg-white/10 hover:bg-white/20 text-white text-[10px] font-bold transition-all active:scale-95 shrink-0 cursor-pointer"
                           >
                             <Copy className="w-3 h-3" />
                             <span>{copiedNumber ? 'Copié !' : 'Copier'}</span>
@@ -480,7 +480,7 @@ export default function SubscribePage() {
                         <button
                           type="button"
                           onClick={() => setCurrentStep(1)}
-                          className="w-1/3 py-2.5 rounded-[3px] bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                          className="w-1/3 py-2.5 rounded-[5px] bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                         >
                           <ArrowLeft className="w-3.5 h-3.5" />
                           <span>Retour</span>
@@ -488,7 +488,7 @@ export default function SubscribePage() {
                         <button
                           type="button"
                           onClick={() => setCurrentStep(3)}
-                          className="flex-1 py-2.5 rounded-[3px] bg-[brand-primary] hover:bg-[#b5034f] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-md cursor-pointer transition-all active:scale-95"
+                          className="flex-1 py-2.5 rounded-[5px] bg-[brand-primary] hover:bg-[#b5034f] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-md cursor-pointer transition-all active:scale-95"
                         >
                           <span>J&apos;ai fait le dépôt</span>
                           <ArrowRight className="w-3.5 h-3.5" />
@@ -508,7 +508,7 @@ export default function SubscribePage() {
                             placeholder="6XXXXXXXX"
                             value={senderPhone}
                             onChange={(e) => setSenderPhone(e.target.value)}
-                            className="w-full px-2.5 py-1.5 rounded-[3px] bg-zinc-900 border border-white/10 text-white text-xs focus:outline-none focus:border-brand-primary"
+                            className="w-full px-2.5 py-1.5 rounded-[4px] bg-zinc-900 border border-white/10 text-white text-xs focus:outline-none focus:border-brand-primary"
                           />
                         </div>
 
@@ -519,7 +519,7 @@ export default function SubscribePage() {
                             placeholder="Tx123456"
                             value={transactionRef}
                             onChange={(e) => setTransactionRef(e.target.value)}
-                            className="w-full px-2.5 py-1.5 rounded-[3px] bg-zinc-900 border border-white/10 text-white text-xs focus:outline-none focus:border-brand-primary"
+                            className="w-full px-2.5 py-1.5 rounded-[4px] bg-zinc-900 border border-white/10 text-white text-xs focus:outline-none focus:border-brand-primary"
                           />
                         </div>
                       </div>
@@ -529,12 +529,12 @@ export default function SubscribePage() {
                         <label className="text-[11px] text-zinc-300 block mb-1 font-semibold">
                           Capture d&apos;écran du virement *
                         </label>
-                        <label className="flex flex-col items-center justify-center p-3 border border-dashed border-white/20 hover:border-brand-primary rounded-[3px] bg-zinc-900/60 cursor-pointer transition-all">
+                        <label className="flex flex-col items-center justify-center p-3 border border-dashed border-white/20 hover:border-brand-primary rounded-[4px] bg-zinc-900/60 cursor-pointer transition-all">
                           {screenshotPreview ? (
-                            <div className="relative w-full aspect-video max-h-36 rounded-[2px] overflow-hidden">
+                            <div className="relative w-full aspect-video max-h-36 rounded-[4px] overflow-hidden">
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img src={screenshotPreview} alt="Aperçu" className="w-full h-full object-cover" />
-                              <span className="absolute bottom-1.5 right-1.5 px-2 py-0.5 rounded-[2px] bg-black/80 text-[10px] font-bold text-white">
+                              <span className="absolute bottom-1.5 right-1.5 px-2 py-0.5 rounded-[4px] bg-black/80 text-[10px] font-bold text-white">
                                 Modifier
                               </span>
                             </div>
@@ -558,7 +558,7 @@ export default function SubscribePage() {
                       </div>
 
                       {errorMessage && (
-                        <div className="flex items-center gap-2 p-2 rounded-[3px] bg-red-500/15 border border-red-500/30 text-red-400 text-[11px]">
+                        <div className="flex items-center gap-2 p-2 rounded-[4px] bg-red-500/15 border border-red-500/30 text-red-400 text-[11px]">
                           <WarningCircle className="w-3.5 h-3.5 shrink-0" />
                           <span>{errorMessage}</span>
                         </div>
@@ -568,7 +568,7 @@ export default function SubscribePage() {
                         <button
                           type="button"
                           onClick={() => setCurrentStep(2)}
-                          className="w-1/3 py-2.5 rounded-[3px] bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-xs flex items-center justify-center gap-1 transition-all cursor-pointer"
+                          className="w-1/3 py-2.5 rounded-[5px] bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-xs flex items-center justify-center gap-1 transition-all cursor-pointer"
                         >
                           <ArrowLeft className="w-3.5 h-3.5" />
                           <span>Retour</span>
@@ -576,7 +576,7 @@ export default function SubscribePage() {
                         <button
                           type="submit"
                           disabled={submitting}
-                          className="flex-1 py-2.5 rounded-[3px] bg-[brand-primary] hover:bg-[#b5034f] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-md cursor-pointer transition-all active:scale-95 disabled:opacity-50"
+                          className="flex-1 py-2.5 rounded-[5px] bg-[brand-primary] hover:bg-[#b5034f] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-md cursor-pointer transition-all active:scale-95 disabled:opacity-50"
                         >
                           {submitting ? (
                             <>

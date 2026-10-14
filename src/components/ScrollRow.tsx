@@ -157,7 +157,7 @@ export default function ScrollRow({
             {seeAllHref ? (
               <Link
                 href={seeAllHref}
-                className="text-xs sm:text-sm font-semibold text-zinc-300 hover:text-white flex items-center gap-0.5 py-1 px-1.5 rounded-lg group transition-colors focus:outline-none"
+                className="text-xs sm:text-sm font-semibold text-zinc-300 hover:text-white flex items-center gap-0.5 py-1 px-1.5 rounded-[5px] group transition-colors focus:outline-none"
               >
                 <span>{seeAllText}</span>
                 <CaretRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
@@ -165,7 +165,7 @@ export default function ScrollRow({
             ) : onSeeAll ? (
               <button
                 onClick={onSeeAll}
-                className="text-xs sm:text-sm font-semibold text-zinc-300 hover:text-white flex items-center gap-0.5 py-1 px-1.5 rounded-lg group transition-colors focus:outline-none cursor-pointer"
+                className="text-xs sm:text-sm font-semibold text-zinc-300 hover:text-white flex items-center gap-0.5 py-1 px-1.5 rounded-[5px] group transition-colors focus:outline-none cursor-pointer"
               >
                 <span>{seeAllText}</span>
                 <CaretRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />

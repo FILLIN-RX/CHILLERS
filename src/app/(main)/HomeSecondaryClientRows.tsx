@@ -191,6 +191,7 @@ export default function HomeSecondaryClientRows({
                 key={item.id}
                 item={item}
                 variant={row.variant}
+                appleFrame
                 onPlay={onWatchNow}
                 onOpenDetails={onOpenDetails}
               />

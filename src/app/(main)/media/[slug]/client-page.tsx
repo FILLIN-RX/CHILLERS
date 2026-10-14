@@ -24,6 +24,8 @@ import {
   getMovieGenres,
   getTVGenres,
   getDisponible,
+  getMediaLogo,
+  getSimilarTitles,
 } from "@/services/media";
 import { httpJson } from "@/services/http";
 import type { Genre, MovieOrShow } from "@/types/media";
@@ -39,6 +41,7 @@ import MovieCardSkeleton from "@/components/MovieCardSkeleton";
 import AddToPlaylistModal from "@/components/AddToPlaylistModal";
 import Button from "@/components/Button";
 import CardImage from "@/components/CardImage";
+import MediaLogo from "@/components/MediaLogo";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { ArrowLeft, Play, Star, Clock, CalendarBlank, FilmSlate, CaretLeft, CaretRight, DownloadSimple, ShareNetwork, Sparkle, BookmarkSimple, ListNumbers } from '@phosphor-icons/react';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -76,6 +79,7 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
   const [loading, setLoading] = useState(!initialItem);
   const [trailerOpen, setTrailerOpen] = useState(false);
   const [trailerUrl, setTrailerUrl] = useState<string | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [notification, setNotification] = useState<{ title: string; message: string } | null>(null);
   const playerRef = useRef<HTMLDivElement>(null);
   const [shareOpen, setShareOpen] = useState(false);
@@ -127,10 +131,7 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
     if (!id || initialItem) return;
     setLoading(true);
     try {
-      const [detail, similarList] = await Promise.all([
-        getMediaDetails(id, isTV),
-        isTV ? getPopularTV(1) : getPopularMovies(1),
-      ]);
+      const detail = await getMediaDetails(id, isTV);
 
       if (detail) {
         if (detail.trailerUrl) {
@@ -141,11 +142,7 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
         setItem(detail);
       }
 
-      if (detail?.similar && detail.similar.length > 0) {
-        setSimilar(detail.similar);
-      } else if (similarList) {
-        setSimilar(similarList.filter((m) => m.id !== id).slice(0, 14));
-      }
+      setSimilar(await getSimilarTitles(id, isTV, detail));
     } catch (err) {
       console.error("Error loading detail page:", err);
     } finally {
@@ -220,6 +217,24 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
       requestAnimationFrame(checkCastScroll);
     }
   }, [item?.castDetails, checkCastScroll]);
+
+  // Load logo on item change
+  useEffect(() => {
+    if (!item || !id || item.logoUrl) return;
+    let cancelled = false;
+    
+    const loadLogo = async () => {
+      try {
+        const logo = await getMediaLogo(id, isTV);
+        if (logo && !cancelled) {
+          setLogoUrl(logo);
+        }
+      } catch {}
+    };
+    
+    loadLogo();
+    return () => { cancelled = true; };
+  }, [item?.id, isTV]);
 
   const handleWatch = async () => {
     if (!item) return;
@@ -336,7 +351,7 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
           <div className="absolute inset-0 bg-gradient-to-t from-[#09090B] via-[#09090B]/60 to-transparent" />
           <div className="absolute bottom-0 left-0 right-0 px-4 sm:px-8 md:px-12 lg:px-16 pb-8 sm:pb-12 flex flex-col md:flex-row md:items-end gap-6 sm:gap-8">
             {/* Poster vertical */}
-            <div className="relative w-[180px] sm:w-[210px] lg:w-[240px] aspect-[2/3] rounded-2xl bg-zinc-800 border border-white/10 shrink-0 shadow-2xl" />
+            <div className="relative w-[180px] sm:w-[210px] lg:w-[240px] aspect-[2/3] rounded-2xl bg-zinc-800 border border-white/10 shrink-0" />
 
             {/* Détails texte */}
             <div className="flex-1 space-y-4">
@@ -465,25 +480,26 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
             src={item.backdropOriginalUrl || item.backdropUrl}
             alt={item.title}
             fill
-            className="object-cover object-top filter brightness-[0.75]"
+            className="object-cover object-top scale-x-90"
             sizes="100vw"
-            quality={95}
+            quality={100}
             priority
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-b from-zinc-800 to-black" />
         )}
 
-        {/* Dégradés cinéma pour immersion */}
+        {/* Dégradé gauche à droite uniquement */}
         <div className="absolute inset-0 bg-gradient-to-r from-black via-black/60 to-transparent max-w-4xl" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#09090B] via-[#09090B]/40 to-transparent" />
-        <div className="absolute top-0 left-0 right-0 h-28 bg-gradient-to-b from-black/80 to-transparent pointer-events-none" />
+        
+        {/* Dégradé du bas avec petite hauteur */}
+        <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[#09090B] via-[#09090B]/40 to-transparent" />
 
         {/* Contenu du Hero */}
         <div className="relative z-20 w-full px-4 sm:px-8 md:px-12 lg:px-16 pt-24 pb-8 sm:pb-12">
           <div className="flex flex-col sm:flex-row gap-5 sm:gap-8 items-start sm:items-end w-full">
             {/* Poster vertical avec taille adaptative mobile / desktop */}
-            <div className="relative flex-none w-28 sm:w-44 md:w-52 lg:w-56 aspect-[2/3] rounded-xl sm:rounded-2xl overflow-hidden shadow-2xl border border-white/10 ring-1 ring-white/5 bg-zinc-900 shrink-0">
+            <div className="relative flex-none w-28 sm:w-44 md:w-52 lg:w-56 aspect-[2/3] rounded-xl sm:rounded-2xl overflow-hidden border border-white/10 ring-1 ring-white/5 bg-zinc-900 shrink-0">
               <CardImage
                 src={item.posterUrl}
                 alt={item.title}
@@ -540,10 +556,14 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
                 ))}
               </div>
 
-              {/* Titre */}
-              <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white leading-tight drop-shadow-xl">
-                {item.title}
-              </h1>
+              {/* Logo officiel (principale), fallback titre */}
+              {(item.logoUrl || logoUrl) ? (
+                <MediaLogo src={item.logoUrl || logoUrl || ""} alt={`Logo ${item.title}`} />
+              ) : (
+                <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white leading-tight drop-shadow-xl">
+                  {item.title}
+                </h1>
+              )}
 
               {/* Tagline */}
               {item.tagline && (
@@ -606,7 +626,7 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
                       <button
                         type="button"
                         onClick={() => handleLangSelect("fr")}
-                        className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                        className={`px-3 py-2 rounded-[5px] text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                           selectedLang === "fr"
                             ? "bg-brand-primary text-white shadow-md shadow-brand-primary/30"
                             : "text-zinc-400 hover:text-white"
@@ -618,7 +638,7 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
                       <button
                         type="button"
                         onClick={() => handleLangSelect("vostfr")}
-                        className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                        className={`px-3 py-2 rounded-[5px] text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                           selectedLang === "vostfr"
                             ? "bg-brand-primary text-white shadow-md shadow-brand-primary/30"
                             : "text-zinc-400 hover:text-white"
@@ -858,7 +878,7 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
           onClick={() => setTrailerOpen(false)}
         >
           <div
-            className="w-full max-w-5xl aspect-video rounded-3xl overflow-hidden border border-zinc-800 shadow-2xl"
+            className="w-full max-w-5xl aspect-video rounded-3xl overflow-hidden border border-zinc-800"
             onClick={(e) => e.stopPropagation()}
           >
             <iframe

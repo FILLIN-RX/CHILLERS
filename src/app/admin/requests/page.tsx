@@ -80,8 +80,8 @@ export default function AdminRequestsPage() {
       case "fulfilled":
         return (
           <span
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 rounded-[2px]"
-            style={{ borderRadius: "2px" }}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 rounded-[4px]"
+            style={{ borderRadius: "4px" }}
           >
             <CheckCircle size={14} weight="fill" />
             Trouvé & Intégré
@@ -90,8 +90,8 @@ export default function AdminRequestsPage() {
       case "searching":
         return (
           <span
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold bg-blue-500/15 text-blue-400 border border-blue-500/30 rounded-[2px]"
-            style={{ borderRadius: "2px" }}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold bg-blue-500/15 text-blue-400 border border-blue-500/30 rounded-[4px]"
+            style={{ borderRadius: "4px" }}
           >
             <div className="w-2.5 h-2.5 border-2 border-blue-400/30 border-t-blue-400 rounded-full animate-spin" />
             Scraping Go...
@@ -100,8 +100,8 @@ export default function AdminRequestsPage() {
       case "not_found":
         return (
           <span
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold bg-rose-500/15 text-rose-400 border border-rose-500/30 rounded-[2px]"
-            style={{ borderRadius: "2px" }}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold bg-rose-500/15 text-rose-400 border border-rose-500/30 rounded-[4px]"
+            style={{ borderRadius: "4px" }}
           >
             <XCircle size={14} weight="fill" />
             Non trouvé
@@ -111,8 +111,8 @@ export default function AdminRequestsPage() {
       default:
         return (
           <span
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30 rounded-[2px]"
-            style={{ borderRadius: "2px" }}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30 rounded-[4px]"
+            style={{ borderRadius: "4px" }}
           >
             <Hourglass size={14} />
             En attente
@@ -139,8 +139,8 @@ export default function AdminRequestsPage() {
         <button
           onClick={fetchRequests}
           disabled={loading}
-          className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium bg-white/10 hover:bg-white/15 text-white border border-white/10 transition-colors rounded-[2px] self-start md:self-auto"
-          style={{ borderRadius: "2px" }}
+          className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium bg-white/10 hover:bg-white/15 text-white border border-white/10 transition-colors rounded-[5px] self-start md:self-auto"
+          style={{ borderRadius: "4px" }}
         >
           <ArrowsClockwise size={16} className={loading ? "animate-spin" : ""} />
           Actualiser
@@ -150,12 +150,12 @@ export default function AdminRequestsPage() {
       {/* Action Banner */}
       {actionMessage && (
         <div
-          className={`p-3.5 text-xs font-medium border flex items-center justify-between rounded-[2px] ${
+          className={`p-3.5 text-xs font-medium border flex items-center justify-between rounded-[4px] ${
             actionMessage.type === "success"
               ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-300"
               : "bg-rose-500/10 border-rose-500/20 text-rose-300"
           }`}
-          style={{ borderRadius: "2px" }}
+          style={{ borderRadius: "4px" }}
         >
           <span>{actionMessage.text}</span>
           <button onClick={() => setActionMessage(null)} className="text-white/60 hover:text-white">
@@ -166,26 +166,26 @@ export default function AdminRequestsPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="p-4 bg-white/[0.02] border border-white/10 rounded-[2px]" style={{ borderRadius: "2px" }}>
+        <div className="p-4 bg-white/[0.02] border border-white/10 rounded-[4px]" style={{ borderRadius: "4px" }}>
           <span className="text-xs text-white/50 uppercase tracking-wider">Total Demandes</span>
           <p className="text-2xl font-bold text-white mt-1">{counts.total}</p>
         </div>
-        <div className="p-4 bg-white/[0.02] border border-blue-500/20 rounded-[2px]" style={{ borderRadius: "2px" }}>
+        <div className="p-4 bg-white/[0.02] border border-blue-500/20 rounded-[4px]" style={{ borderRadius: "4px" }}>
           <span className="text-xs text-blue-400/70 uppercase tracking-wider">En cours / Attente</span>
           <p className="text-2xl font-bold text-blue-400 mt-1">{counts.pending}</p>
         </div>
-        <div className="p-4 bg-white/[0.02] border border-emerald-500/20 rounded-[2px]" style={{ borderRadius: "2px" }}>
+        <div className="p-4 bg-white/[0.02] border border-emerald-500/20 rounded-[4px]" style={{ borderRadius: "4px" }}>
           <span className="text-xs text-emerald-400/70 uppercase tracking-wider">Trouvés & Liés</span>
           <p className="text-2xl font-bold text-emerald-400 mt-1">{counts.fulfilled}</p>
         </div>
-        <div className="p-4 bg-white/[0.02] border border-rose-500/20 rounded-[2px]" style={{ borderRadius: "2px" }}>
+        <div className="p-4 bg-white/[0.02] border border-rose-500/20 rounded-[4px]" style={{ borderRadius: "4px" }}>
           <span className="text-xs text-rose-400/70 uppercase tracking-wider">Non Trouvés</span>
           <p className="text-2xl font-bold text-rose-400 mt-1">{counts.notFound}</p>
         </div>
       </div>
 
       {/* Controls / Filters */}
-      <div className="flex flex-col md:flex-row items-center gap-3 p-3 bg-white/[0.02] border border-white/10 rounded-[2px]" style={{ borderRadius: "2px" }}>
+      <div className="flex flex-col md:flex-row items-center gap-3 p-3 bg-white/[0.02] border border-white/10 rounded-[4px]" style={{ borderRadius: "4px" }}>
         {/* Search */}
         <div className="relative flex-1 w-full">
           <MagnifyingGlass size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
@@ -194,8 +194,8 @@ export default function AdminRequestsPage() {
             placeholder="Rechercher par titre..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 bg-black/40 border border-white/10 text-xs text-white placeholder-white/40 focus:outline-none focus:border-primary rounded-[2px]"
-            style={{ borderRadius: "2px" }}
+            className="w-full pl-9 pr-3 py-2 bg-black/40 border border-white/10 text-xs text-white placeholder-white/40 focus:outline-none focus:border-primary rounded-[4px]"
+            style={{ borderRadius: "4px" }}
           />
         </div>
 
@@ -203,8 +203,8 @@ export default function AdminRequestsPage() {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="w-full md:w-44 px-3 py-2 bg-black/40 border border-white/10 text-xs text-white focus:outline-none focus:border-primary rounded-[2px]"
-          style={{ borderRadius: "2px" }}
+          className="w-full md:w-44 px-3 py-2 bg-black/40 border border-white/10 text-xs text-white focus:outline-none focus:border-primary rounded-[4px]"
+          style={{ borderRadius: "4px" }}
         >
           <option value="all">Tous les statuts</option>
           <option value="pending">En attente</option>
@@ -217,8 +217,8 @@ export default function AdminRequestsPage() {
         <select
           value={typeFilter}
           onChange={(e) => setTypeFilter(e.target.value)}
-          className="w-full md:w-36 px-3 py-2 bg-black/40 border border-white/10 text-xs text-white focus:outline-none focus:border-primary rounded-[2px]"
-          style={{ borderRadius: "2px" }}
+          className="w-full md:w-36 px-3 py-2 bg-black/40 border border-white/10 text-xs text-white focus:outline-none focus:border-primary rounded-[4px]"
+          style={{ borderRadius: "4px" }}
         >
           <option value="all">Tous les types</option>
           <option value="movie">Films</option>
@@ -227,7 +227,7 @@ export default function AdminRequestsPage() {
       </div>
 
       {/* Table */}
-      <div className="border border-white/10 overflow-x-auto bg-white/[0.01] rounded-[2px]" style={{ borderRadius: "2px" }}>
+      <div className="border border-white/10 overflow-x-auto bg-white/[0.01] rounded-[4px]" style={{ borderRadius: "4px" }}>
         <table className="w-full text-left text-xs text-white/80">
           <thead className="bg-white/[0.04] text-white/50 border-b border-white/10 uppercase tracking-wider font-semibold">
             <tr>
@@ -272,7 +272,7 @@ export default function AdminRequestsPage() {
                     </span>
                   </td>
                   <td className="py-3 px-4">
-                    <span className="inline-flex items-center gap-1 text-white font-medium bg-white/5 px-2 py-0.5 rounded-[2px]" style={{ borderRadius: "2px" }}>
+                    <span className="inline-flex items-center gap-1 text-white font-medium bg-white/5 px-2 py-0.5 rounded-[4px]" style={{ borderRadius: "4px" }}>
                       <Users size={12} className="text-white/50" />
                       {req.requestCount || 1}
                     </span>
@@ -284,8 +284,8 @@ export default function AdminRequestsPage() {
                         {req.streamSources.map((s, idx) => (
                           <span
                             key={idx}
-                            className="text-[10px] px-1.5 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-[2px]"
-                            style={{ borderRadius: "2px" }}
+                            className="text-[10px] px-1.5 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-[4px]"
+                            style={{ borderRadius: "4px" }}
                             title={s.streamUrl}
                           >
                             {s.source} ({s.server || "direct"})
@@ -300,8 +300,8 @@ export default function AdminRequestsPage() {
                     <button
                       onClick={() => handleRetry(req._id, req.title)}
                       disabled={retryingId === req._id}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-primary/20 hover:bg-primary/30 text-primary border border-primary/30 transition-all disabled:opacity-50 rounded-[2px]"
-                      style={{ borderRadius: "2px" }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-primary/20 hover:bg-primary/30 text-primary border border-primary/30 transition-all disabled:opacity-50 rounded-[5px]"
+                      style={{ borderRadius: "4px" }}
                     >
                       {retryingId === req._id ? (
                         <div className="w-3 h-3 border border-primary border-t-transparent rounded-full animate-spin" />

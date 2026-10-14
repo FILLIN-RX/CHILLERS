@@ -125,7 +125,7 @@ export default function NetflixDownloadButton({
       <button
         type="button"
         onClick={handleCancelOrAction}
-        className={`flex items-center gap-3 px-4 py-2.5 rounded-xl bg-zinc-900/90 border border-brand-primary/40 text-white font-semibold text-xs transition-all shadow-lg hover:border-brand-primary cursor-pointer active:scale-95 ${className}`}
+        className={`flex items-center gap-3 px-4 py-2.5 rounded-[5px] bg-zinc-900/90 border border-brand-primary/40 text-white font-semibold text-xs transition-all shadow-lg hover:border-brand-primary cursor-pointer active:scale-95 ${className}`}
       >
         {/* Anneau Circulaire de Progression Netflix */}
         <div className="relative flex items-center justify-center w-5 h-5">
@@ -161,7 +161,7 @@ export default function NetflixDownloadButton({
       <button
         type="button"
         onClick={onClick}
-        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-semibold text-xs transition-all shadow-lg hover:bg-emerald-500/20 cursor-pointer ${className}`}
+        className={`flex items-center gap-2 px-4 py-2.5 rounded-[5px] bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-semibold text-xs transition-all shadow-lg hover:bg-emerald-500/20 cursor-pointer ${className}`}
       >
         <CheckCircle className="w-4 h-4" weight="fill" />
         <span>Téléchargé</span>
@@ -173,7 +173,7 @@ export default function NetflixDownloadButton({
     <button
       type="button"
       onClick={onClick}
-      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand-primary hover:bg-brand-primary/90 text-white font-bold text-xs transition-all shadow-lg active:scale-95 cursor-pointer ${className}`}
+      className={`flex items-center gap-2 px-4 py-2.5 rounded-[5px] bg-brand-primary hover:bg-brand-primary/90 text-white font-bold text-xs transition-all shadow-lg active:scale-95 cursor-pointer ${className}`}
     >
       <DownloadSimple className="w-4 h-4" />
       <span>{title || "Télécharger"}</span>

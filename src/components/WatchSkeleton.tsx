@@ -7,7 +7,7 @@ export default function WatchSkeleton() {
       <div className="pt-[64px] sm:pt-[70px] pb-16 sm:pb-20 lg:pb-24 lg:pr-[26rem] xl:pr-[28rem]">
         
         {/* 1. CINEMA VIDEO PLAYER STAGE SKELETON (Full-width 16:9 up to 75dvh) */}
-        <div className="w-full bg-black relative aspect-video max-h-[75dvh] flex items-center justify-center overflow-hidden border-b border-white/5 shadow-2xl">
+        <div className="w-full bg-black relative aspect-video max-h-[75dvh] flex items-center justify-center overflow-hidden border-b border-white/5">
           {/* Subtle Ambient Glow */}
           <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/40 pointer-events-none z-10" />
           <div className="absolute inset-0 skeleton-loading opacity-20" aria-hidden="true" />

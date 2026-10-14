@@ -181,13 +181,12 @@ export default function DownloadModal({
               type="button"
               disabled={dl.status === "downloading"}
               onClick={() => setSelectedLang("fr")}
-              className={`p-2 rounded-lg border text-left transition-all cursor-pointer flex items-center gap-2 ${
+              className={`p-2 rounded-[5px] border text-left transition-all cursor-pointer flex items-center gap-2 ${
                 selectedLang === "fr"
                   ? "bg-brand-primary/20 border-brand-primary text-white shadow-sm ring-1 ring-brand-primary/40"
                   : "bg-white/5 border-white/5 text-zinc-400 hover:bg-white/10 hover:text-zinc-200"
               } ${dl.status === "downloading" ? "opacity-50 cursor-not-allowed" : ""}`}
             >
-              <span className="text-lg shrink-0">🇫🇷</span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-1">
                   <span className="text-xs font-bold truncate">Français</span>
@@ -205,13 +204,12 @@ export default function DownloadModal({
               type="button"
               disabled={dl.status === "downloading"}
               onClick={() => setSelectedLang("vostfr")}
-              className={`p-2 rounded-lg border text-left transition-all cursor-pointer flex items-center gap-2 ${
+              className={`p-2 rounded-[5px] border text-left transition-all cursor-pointer flex items-center gap-2 ${
                 selectedLang === "vostfr"
                   ? "bg-brand-primary/20 border-brand-primary text-white shadow-sm ring-1 ring-brand-primary/40"
                   : "bg-white/5 border-white/5 text-zinc-400 hover:bg-white/10 hover:text-zinc-200"
               } ${dl.status === "downloading" ? "opacity-50 cursor-not-allowed" : ""}`}
             >
-              <span className="text-lg shrink-0">🌐</span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-1">
                   <span className="text-xs font-bold truncate">Originale</span>
@@ -259,7 +257,7 @@ export default function DownloadModal({
               }
               onClose();
             }}
-            className="w-full px-8 py-3 rounded-xl bg-white text-black font-bold text-sm hover:bg-zinc-200 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-95 no-underline"
+            className="w-full px-8 py-3 rounded-[5px] bg-white text-black font-bold text-sm hover:bg-zinc-200 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-95 no-underline"
           >
             <DownloadSimple className="h-5 w-5" />
             Télécharger ({selectedLang.toUpperCase()})
@@ -269,7 +267,7 @@ export default function DownloadModal({
         {dl.status === "error" && (
           <button
             onClick={dl.retry}
-            className="w-full px-8 py-3 rounded-xl bg-white text-black font-bold text-sm hover:bg-zinc-200 transition-all cursor-pointer"
+            className="w-full px-8 py-3 rounded-[5px] bg-white text-black font-bold text-sm hover:bg-zinc-200 transition-all cursor-pointer"
           >
             Réessayer
           </button>
@@ -279,14 +277,14 @@ export default function DownloadModal({
           <div className="space-y-2.5">
             <button
               onClick={() => dl.retry()}
-              className="w-full px-8 py-3 rounded-xl bg-white text-black font-bold text-sm hover:bg-zinc-200 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full px-8 py-3 rounded-[5px] bg-white text-black font-bold text-sm hover:bg-zinc-200 transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <DownloadSimple className="h-5 w-5" />
               Télécharger à nouveau
             </button>
             <button
               onClick={onClose}
-              className="w-full px-8 py-3 rounded-xl bg-zinc-800 text-white font-bold text-sm hover:bg-zinc-700 transition-all cursor-pointer"
+              className="w-full px-8 py-3 rounded-[5px] bg-zinc-800 text-white font-bold text-sm hover:bg-zinc-700 transition-all cursor-pointer"
             >
               Fermer
             </button>
@@ -296,7 +294,7 @@ export default function DownloadModal({
         {showError && (
           <button
             onClick={onClose}
-            className="w-full px-8 py-3 rounded-xl bg-zinc-800 text-white font-bold text-sm hover:bg-zinc-700 transition-all mt-2.5 cursor-pointer"
+            className="w-full px-8 py-3 rounded-[5px] bg-zinc-800 text-white font-bold text-sm hover:bg-zinc-700 transition-all mt-2.5 cursor-pointer"
           >
             Fermer
           </button>
@@ -305,7 +303,7 @@ export default function DownloadModal({
         {dl.status === "downloading" && (
           <button
             onClick={() => { dl.cancel(); onClose(); }}
-            className="w-full px-8 py-3 rounded-xl bg-zinc-800 text-white font-bold text-sm hover:bg-zinc-700 transition-all mt-3 cursor-pointer"
+            className="w-full px-8 py-3 rounded-[5px] bg-zinc-800 text-white font-bold text-sm hover:bg-zinc-700 transition-all mt-3 cursor-pointer"
           >
             Annuler
           </button>

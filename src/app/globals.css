@@ -3,16 +3,17 @@
 @theme {
   --color-brand-primary: #F42A7C;
   --color-brand-secondary: #7C3AED;
-  /* Card and component border radius strictly between 2px and 3px */
-  --radius-DEFAULT: 2px;
+  /* Arrondis : plancher de 4px sur toute l'échelle (--radius-none reste à 0
+     pour les médias plein cadre : lecteur vidéo, tuiles live). */
+  --radius-DEFAULT: 4px;
   --radius-none: 0px;
-  --radius-xs: 2px;
-  --radius-sm: 2px;
-  --radius-md: 2px;
-  --radius-lg: 3px;
-  --radius-xl: 3px;
-  --radius-2xl: 3px;
-  --radius-3xl: 3px;
+  --radius-xs: 4px;
+  --radius-sm: 4px;
+  --radius-md: 5px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
+  --radius-2xl: 10px;
+  --radius-3xl: 12px;
   --radius-full: 9999px;
   /* Static fallback tokens — dynamic variants handled via CSS classes below */
   --font-sans: var(--font-geist-sans), Arial, sans-serif;
@@ -336,7 +337,7 @@ textarea:focus-visible,
 [role="button"]:focus-visible {
   outline: 2px solid var(--color-brand-primary);
   outline-offset: 2px;
-  border-radius: 2px;
+  border-radius: 4px;
 }
 
 .no-focus-outline,

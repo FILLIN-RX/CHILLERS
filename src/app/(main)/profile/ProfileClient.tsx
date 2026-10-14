@@ -329,7 +329,7 @@ export default function ProfileClient() {
             <div className="pt-2">
               <button
                 onClick={handleLogout}
-                className="w-full flex items-center justify-center gap-2.5 p-3.5 sm:p-4 rounded-xl bg-[brand-primary] hover:bg-[#b5034f] border border-[brand-primary] active:scale-[0.99] text-white font-bold text-sm transition-all cursor-pointer shadow-lg shadow-[brand-primary]/20"
+                className="w-full flex items-center justify-center gap-2.5 p-3.5 sm:p-4 rounded-[5px] bg-[brand-primary] hover:bg-[#b5034f] border border-[brand-primary] active:scale-[0.99] text-white font-bold text-sm transition-all cursor-pointer shadow-lg shadow-[brand-primary]/20"
               >
                 <SignOut className="w-5 h-5" />
                 <span>{lang === 'fr' ? 'Se déconnecter' : 'Log Out'}</span>
@@ -497,7 +497,7 @@ export default function ProfileClient() {
                     </p>
                     <button
                       onClick={() => setShowCreatePlaylistModal(true)}
-                      className="px-4 py-2 rounded-xl bg-[brand-primary] hover:bg-[#b5034f] text-white text-xs font-bold transition-all inline-flex items-center gap-2"
+                      className="px-4 py-2 rounded-[5px] bg-[brand-primary] hover:bg-[#b5034f] text-white text-xs font-bold transition-all inline-flex items-center gap-2"
                     >
                       <Plus className="w-4 h-4" />
                       <span>{lang === 'fr' ? 'Créer ma première playlist' : 'Create my first playlist'}</span>
@@ -728,7 +728,7 @@ export default function ProfileClient() {
                 </div>
                 <button
                   onClick={() => setShowCreatePlaylistModal(true)}
-                  className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[brand-primary] hover:bg-[#b5034f] text-white font-bold text-sm shadow-lg transition-all"
+                  className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-[5px] bg-[brand-primary] hover:bg-[#b5034f] text-white font-bold text-sm shadow-lg transition-all"
                 >
                   <Plus className="w-4 h-4" />
                   <span>{lang === 'fr' ? 'Nouvelle Playlist' : 'New Playlist'}</span>
@@ -752,7 +752,7 @@ export default function ProfileClient() {
                   </div>
                   <button
                     onClick={() => setShowCreatePlaylistModal(true)}
-                    className="px-6 py-2.5 rounded-xl bg-[brand-primary] text-white text-sm font-bold shadow-lg"
+                    className="px-6 py-2.5 rounded-[5px] bg-[brand-primary] text-white text-sm font-bold shadow-lg"
                   >
                     {lang === 'fr' ? 'Créer une playlist' : 'Create Playlist'}
                   </button>
@@ -808,7 +808,7 @@ export default function ProfileClient() {
                           </span>
                           <button
                             onClick={() => handleDeletePlaylist(pl.id)}
-                            className="p-1.5 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-white/5 transition-colors"
+                            className="p-1.5 rounded-[5px] text-zinc-500 hover:text-red-400 hover:bg-white/5 transition-colors"
                             title={lang === 'fr' ? 'Supprimer la playlist' : 'Delete playlist'}
                           >
                             <Trash className="w-4 h-4" />
@@ -869,7 +869,7 @@ export default function ProfileClient() {
                     return (
                       <div
                         key={wl.tmdbId}
-                        className="bg-zinc-900/50 border border-white/5 hover:border-white/15 rounded-2xl overflow-hidden group transition-all flex flex-col justify-between shadow-lg"
+                        className="bg-zinc-900/50 border border-white/5 hover:border-white/15 rounded-2xl overflow-hidden group transition-all flex flex-col justify-between"
                       >
                         <div className="relative aspect-video w-full bg-zinc-950 overflow-hidden">
                           {poster ? (
@@ -911,7 +911,7 @@ export default function ProfileClient() {
                           </div>
                           <button
                             onClick={() => handleRemoveFromWatchLater({ mediaType: wl.mediaType, tmdbId: wl.tmdbId, title: wl.title })}
-                            className="p-2 rounded-xl text-zinc-500 hover:text-red-400 hover:bg-white/5 transition-colors flex-shrink-0"
+                            className="p-2 rounded-[5px] text-zinc-500 hover:text-red-400 hover:bg-white/5 transition-colors flex-shrink-0"
                             title={lang === 'fr' ? 'Retirer' : 'Remove'}
                           >
                             <Trash className="w-4 h-4" />
@@ -950,7 +950,7 @@ export default function ProfileClient() {
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
                   {user.favorites.map((fav: any) => (
-                    <Link href={`/media/${fav.tmdbId}?type=${fav.mediaType}`} key={fav.tmdbId} className="group relative rounded-2xl overflow-hidden aspect-[2/3] bg-zinc-800 shadow-xl border border-white/5">
+                    <Link href={`/media/${fav.tmdbId}?type=${fav.mediaType}`} key={fav.tmdbId} className="group relative rounded-2xl overflow-hidden aspect-[2/3] bg-zinc-800 border border-white/5">
                       {fav.posterPath ? (
                         <img src={`https://image.tmdb.org/t/p/w500${fav.posterPath}`} alt={fav.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
                       ) : (
@@ -1065,7 +1065,7 @@ export default function ProfileClient() {
 
                 <button
                   onClick={handleSaveSettings}
-                  className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-[brand-primary] hover:bg-[#b5034f] text-white font-bold tracking-wide transition-all active:scale-[0.98]"
+                  className="w-full sm:w-auto px-8 py-3.5 rounded-[5px] bg-[brand-primary] hover:bg-[#b5034f] text-white font-bold tracking-wide transition-all active:scale-[0.98]"
                 >
                   {lang === 'fr' ? 'Enregistrer les modifications' : 'Save Changes'}
                 </button>
@@ -1187,7 +1187,7 @@ export default function ProfileClient() {
                             }
                           }
                         }}
-                        className="px-4 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 hover:text-red-300 font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer self-start sm:self-auto"
+                        className="px-4 py-2 rounded-[5px] bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 hover:text-red-300 font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer self-start sm:self-auto"
                       >
                         {lang === 'fr' ? 'Déconnecter tous les autres appareils' : 'Disconnect all other devices'}
                       </button>
@@ -1228,7 +1228,7 @@ export default function ProfileClient() {
                                       }
                                     }
                                   }}
-                                  className="text-xs font-semibold text-rose-400 hover:text-white bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 px-3 py-1 rounded-lg transition-colors cursor-pointer"
+                                  className="text-xs font-semibold text-rose-400 hover:text-white bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 px-3 py-1 rounded-[5px] transition-colors cursor-pointer"
                                 >
                                   {lang === 'fr' ? 'Déconnecter' : 'Disconnect'}
                                 </button>
@@ -1266,7 +1266,7 @@ export default function ProfileClient() {
               </div>
               <button
                 onClick={() => setShowCreatePlaylistModal(false)}
-                className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
+                className="p-1.5 rounded-[5px] text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1304,14 +1304,14 @@ export default function ProfileClient() {
                 <button
                   type="button"
                   onClick={() => setShowCreatePlaylistModal(false)}
-                  className="px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold transition-colors"
+                  className="px-4 py-2.5 rounded-[5px] bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold transition-colors"
                 >
                   {lang === 'fr' ? 'Annuler' : 'Cancel'}
                 </button>
                 <button
                   type="submit"
                   disabled={isCreatingPlaylist || !newPlaylistTitle.trim()}
-                  className="px-5 py-2.5 rounded-xl bg-[brand-primary] hover:bg-[#b5034f] disabled:opacity-50 text-white text-sm font-bold shadow-lg transition-all"
+                  className="px-5 py-2.5 rounded-[5px] bg-[brand-primary] hover:bg-[#b5034f] disabled:opacity-50 text-white text-sm font-bold shadow-lg transition-all"
                 >
                   {isCreatingPlaylist 
                     ? (lang === 'fr' ? 'Création...' : 'Creating...') 

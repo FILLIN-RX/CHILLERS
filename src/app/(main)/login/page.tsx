@@ -66,7 +66,7 @@ function LoginForm() {
       <div className="absolute top-4 left-4 sm:top-6 sm:left-6 z-20">
         <Link
           href="/"
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-900/80 hover:bg-zinc-800/90 border border-white/10 backdrop-blur-md text-xs font-semibold text-zinc-300 hover:text-white transition-all shadow-lg cursor-pointer"
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-[5px] bg-zinc-900/80 hover:bg-zinc-800/90 border border-white/10 backdrop-blur-md text-xs font-semibold text-zinc-300 hover:text-white transition-all shadow-lg cursor-pointer"
         >
           <CaretLeft className="w-4 h-4" />
           <span>{lang === "fr" ? "Accueil" : "Home"}</span>
@@ -107,7 +107,7 @@ function LoginForm() {
                   type="button"
                   onClick={() => handleSubmit(undefined, true)}
                   disabled={loading}
-                  className="w-full py-2.5 px-4 rounded-xl bg-[brand-primary] hover:opacity-95 text-white font-bold text-xs transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full py-2.5 px-4 rounded-[5px] bg-[brand-primary] hover:opacity-95 text-white font-bold text-xs transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
                 >
                   {loading && <Spinner className="w-3.5 h-3.5 animate-spin" />}
                   <span>
@@ -137,7 +137,7 @@ function LoginForm() {
                     setLoading(false);
                   }
                 }}
-                className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-xl text-white font-medium text-sm transition-all active:scale-[0.98] cursor-pointer"
+                className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-[5px] text-white font-medium text-sm transition-all active:scale-[0.98] cursor-pointer"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
                   <path fill="#EA4335" d="M12 5c1.56 0 2.98.54 4.09 1.58l3.07-3.07C17.29 1.7 14.83 1 12 1 7.42 1 3.53 3.61 1.63 7.39l3.73 2.89C6.27 7.23 8.89 5 12 5z" />
@@ -201,7 +201,7 @@ function LoginForm() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 px-4 rounded-xl bg-[brand-primary] hover:bg-[#b5034f] text-white text-sm font-bold shadow-lg transition-all active:scale-[0.98] disabled:opacity-60 flex items-center justify-center gap-2 mt-2"
+              className="w-full py-3.5 px-4 rounded-[5px] bg-[brand-primary] hover:bg-[#b5034f] text-white text-sm font-bold shadow-lg transition-all active:scale-[0.98] disabled:opacity-60 flex items-center justify-center gap-2 mt-2"
             >
               {loading && <Spinner className="w-4 h-4 animate-spin" />}
               <span>{lang === "fr" ? "Se connecter" : "Sign In"}</span>

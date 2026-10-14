@@ -126,7 +126,7 @@ export default function ContactPage() {
               </div>
               <button
                 type="submit"
-                className="w-full py-3 rounded-xl bg-[brand-primary] hover:bg-[#b5034f] text-white font-bold text-sm transition-all shadow-lg shadow-[brand-primary]/30"
+                className="w-full py-3 rounded-[5px] bg-[brand-primary] hover:bg-[#b5034f] text-white font-bold text-sm transition-all shadow-lg shadow-[brand-primary]/30"
               >
                 Envoyer
               </button>

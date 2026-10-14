@@ -224,7 +224,7 @@ export default function ErrorPage({
           <button
             onClick={handleRetry}
             disabled={isRetrying}
-            className="w-full sm:w-auto flex-1 inline-flex items-center justify-center gap-2.5 px-7 py-3.5 rounded-xl bg-gradient-to-r from-[brand-primary] to-[#E91E63] hover:from-[#E91E63] hover:to-[brand-primary] text-white font-bold text-sm sm:text-base active:scale-[0.98] transition-all cursor-pointer disabled:opacity-75"
+            className="w-full sm:w-auto flex-1 inline-flex items-center justify-center gap-2.5 px-7 py-3.5 rounded-[5px] bg-gradient-to-r from-[brand-primary] to-[#E91E63] hover:from-[#E91E63] hover:to-[brand-primary] text-white font-bold text-sm sm:text-base active:scale-[0.98] transition-all cursor-pointer disabled:opacity-75"
           >
             <ArrowsClockwise
               className={`w-5 h-5 ${isRetrying ? "animate-spin" : "group-hover:rotate-180 transition-transform duration-500"}`}
@@ -236,7 +236,7 @@ export default function ErrorPage({
           {/* Home Button */}
           <Link
             href="/"
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-7 py-3.5 rounded-xl bg-white/15 hover:bg-white/25 border border-white/25 text-white font-semibold text-sm sm:text-base transition-all backdrop-blur-md active:scale-[0.98] cursor-pointer"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-7 py-3.5 rounded-[5px] bg-white/15 hover:bg-white/25 border border-white/25 text-white font-semibold text-sm sm:text-base transition-all backdrop-blur-md active:scale-[0.98] cursor-pointer"
           >
             <House className="w-5 h-5 text-zinc-200" weight="bold" />
             <span>Accueil</span>
@@ -258,7 +258,7 @@ export default function ErrorPage({
             <div className="mt-3 p-4 bg-black/90 border border-white/20 rounded-xl text-left font-mono text-[11px] text-zinc-300 relative overflow-hidden animate-in fade-in zoom-in-95 duration-200 backdrop-blur-md">
               <button
                 onClick={handleCopy}
-                className="absolute top-2.5 right-2.5 p-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-zinc-300 transition-colors flex items-center gap-1 cursor-pointer"
+                className="absolute top-2.5 right-2.5 p-1.5 bg-white/10 hover:bg-white/20 rounded-[5px] text-zinc-300 transition-colors flex items-center gap-1 cursor-pointer"
                 title="Copier le rapport"
               >
                 {copied ? (

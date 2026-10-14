@@ -66,9 +66,9 @@ export default function CatalogSpotlightHero({
 
   return (
     <div className="relative w-full px-2 sm:px-6 md:px-12 lg:px-[3%] pt-2 pb-4">
-      <div className="relative w-full rounded-2xl sm:rounded-3xl overflow-hidden border border-white/10 bg-zinc-950 shadow-2xl min-h-[320px] sm:min-h-[380px] md:min-h-[440px] flex flex-col justify-end">
+      <div className="relative w-full rounded-2xl sm:rounded-3xl overflow-hidden border border-white/10 bg-zinc-950 min-h-[320px] sm:min-h-[380px] md:min-h-[440px] flex flex-col justify-end">
         
-        {/* Background Backdrop with Gradient Overlays - Bright & Crisp */}
+        {/* Background Backdrop - Bright & Crisp comme Prime Video */}
         <div className="absolute inset-0 z-0">
           {(current.backdropOriginalUrl || current.backdropUrl) ? (
             <Image
@@ -77,8 +77,8 @@ export default function CatalogSpotlightHero({
               fill
               priority
               quality={95}
-              className={`object-cover object-right md:object-center transition-all duration-700 ease-out ${
-                isFading ? "opacity-40 scale-105" : "opacity-90 scale-100"
+              className={`object-cover object-right transition-all duration-700 ease-out ${
+                isFading ? "opacity-40 scale-105" : "opacity-100 scale-100"
               }`}
             />
           ) : current.posterUrl ? (
@@ -87,16 +87,14 @@ export default function CatalogSpotlightHero({
               alt={current.title}
               fill
               priority
-              className={`object-cover object-right md:object-center transition-all duration-700 ease-out ${
-                isFading ? "opacity-40 scale-105" : "opacity-85 scale-100"
+              className={`object-cover object-right transition-all duration-700 ease-out ${
+                isFading ? "opacity-40 scale-105" : "opacity-100 scale-100"
               }`}
             />
           ) : null}
 
-          {/* Clean contrast shield for text readability */}
-          <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/70 to-transparent md:hidden" />
-          <div className="absolute inset-0 hidden md:block bg-gradient-to-r from-zinc-950 via-zinc-950/85 to-transparent w-3/4" />
-          <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-transparent to-transparent h-24 bottom-0" />
+          {/* Gradient subtil uniquement en bas pour la lisibilité du texte */}
+          <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/90 via-transparent to-transparent" />
         </div>
 
         {/* Content Body */}
@@ -182,7 +180,7 @@ export default function CatalogSpotlightHero({
               <button
                 onClick={handlePrev}
                 aria-label="Précédent"
-                className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
+                className="p-2 rounded-[5px] text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
               >
                 <CaretLeft className="h-4 w-4" />
               </button>
@@ -209,7 +207,7 @@ export default function CatalogSpotlightHero({
               <button
                 onClick={handleNext}
                 aria-label="Suivant"
-                className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
+                className="p-2 rounded-[5px] text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
               >
                 <CaretRight className="h-4 w-4" />
               </button>

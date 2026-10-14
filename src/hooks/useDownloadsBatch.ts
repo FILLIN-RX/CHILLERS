@@ -1,14 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
-import { resolveDownloadUrl, proxyDownloadHref } from "@/services/downloads";
-import { streamDownloadToDisk } from "@/services/streamSaver";
+import { resolveDownloadUrl, proxyDownloadHref, isDownloadableUrl } from "@/services/downloads";
+import { streamDownloadToDisk, isIOS } from "@/services/streamSaver";
 import { buildEpisodeFilename, downloadTaskId } from "@/lib/format";
 import type { DownloadTask } from "@/types/download";
 import type { Episode } from "@/types/media";
 import { useDownloadsStore } from "@/store/downloads";
 
-const MAX_CONCURRENT = 2;
+/** Un seul flux à la fois : les liens HLS sont convertis par FFmpeg côté backend, deux
+ *  conversions simultanées saturent le service et font tomber les téléchargements. */
+const MAX_CONCURRENT_DOWNLOADS = 1;
+/** La résolution est plus légère et doit rester rapide quand l'utilisateur sélectionne 20 épisodes. */
+const MAX_CONCURRENT_RESOLVES = 3;
 const MAX_RETRIES = 2;
 
 export interface UseDownloadsBatchArgs {
@@ -17,8 +21,8 @@ export interface UseDownloadsBatchArgs {
   type: "series" | "anime";
   episodes: Episode[];
   language?: "fr" | "vostfr";
-  /** When true, links are resolved to "ready" but nothing is streamed yet.
-   *  Flip it to false (e.g. user clicks "Télécharger") to launch the pool. */
+  /** Phase 1 when true: every link is resolved to "ready" but nothing is streamed.
+   *  Flip it to false (user clicks "Télécharger") to launch the download pool. */
   gated?: boolean;
 }
 
@@ -42,7 +46,7 @@ export interface UseDownloadsBatchReturn {
 }
 
 export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatchReturn {
-  const { tmdbId, seriesTitle, type, episodes, language = "fr", gated = false } = args;
+  const { tmdbId, seriesTitle, type, episodes, gated = false } = args;
 
   const tasks = useDownloadsStore((s) => s.tasks);
   const addMany = useDownloadsStore((s) => s.addMany);
@@ -70,17 +74,18 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
     tasksRef.current = tasks;
   }, [args, tasks]);
 
-  // Seed tasks when user actually triggers download (gated === false)
+  // Seed tasks as soon as episodes are handed to the hook: phase 1 (gated) needs
+  // rows to resolve links before anything is streamed.
   useEffect(() => {
-    if (gated) return;
     if (!episodes || episodes.length === 0) return;
 
+    // Identifiants alignés sur ceux de la liste et de relaunchAll : sans suffixe
+    // langue, sinon les lignes VOSTFR ne correspondent à aucune tâche.
     const ids = episodes.map((ep) =>
       downloadTaskId({
         tmdbId,
         season: ep.season ?? 1,
         episodeNumber: ep.number,
-        language,
       })
     );
 
@@ -120,7 +125,7 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
     if (toReset.length > 0) {
       resetTasks(toReset);
     }
-  }, [episodes, addMany, resetTasks, seriesTitle, tmdbId, type, gated, language]);
+  }, [episodes, addMany, resetTasks, seriesTitle, tmdbId, type]);
 
   // Main task execution
   const runOne = useCallback(async (task: DownloadTask) => {
@@ -129,7 +134,6 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
 
     const ctrl = new AbortController();
     setController(task.id, ctrl);
-    retriesRef.current.set(task.id, 0);
     inflightRef.current.add(task.id);
 
     if (isCancelRequested(task.id)) {
@@ -166,17 +170,27 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
       const cleanName = (task.filename || `${seriesTitle}.mp4`).replace(/[^a-zA-Z0-9_\-]/g, '_');
       const rawUrl = result.downloadUrl;
       const isHls = /\.m3u8(\?|$)/i.test(rawUrl);
-      const isMp4 = /\.mp4(\?|$)/i.test(rawUrl);
+      const isVideo = /\.(mp4|mkv|webm|m4v)(\?|$)/i.test(rawUrl);
       let finalUrl = rawUrl;
       if (isHls) {
         finalUrl = `/api/download/stream?m3u8=${encodeURIComponent(rawUrl)}&filename=${encodeURIComponent(cleanName)}`;
-      } else if (isMp4 && rawUrl.startsWith('http')) {
+      } else if (isVideo && rawUrl.startsWith('http')) {
         finalUrl = `/api/download/file?url=${encodeURIComponent(rawUrl)}&filename=${encodeURIComponent(cleanName)}`;
       }
 
-      updateTask(task.id, { resolvedUrl: finalUrl });
+      // Le résolveur renvoie parfois la page de l'hébergeur : ni flux ni fichier,
+      // le télécharger échouerait silencieusement ou éjecterait l'app vers le site tiers.
+      if (!isDownloadableUrl(finalUrl)) {
+        setStatus(task.id, "error", "Aucun fichier vidéo n'a pu être extrait pour cette version");
+        return;
+      }
 
-      if (argsRef.current.gated) {
+      updateTask(task.id, { resolvedUrl: finalUrl, resolvedUrlAt: Date.now() });
+
+      // Phase 1 : on s'arrête au lien prêt.
+      // Sur iOS, WebKit n'autorise qu'un fichier par geste utilisateur : la liste
+      // déclenche chaque épisode elle-même, un pool automatique produirait des "Terminé" vides.
+      if (argsRef.current.gated || isIOS()) {
         setStatus(task.id, "ready");
         return;
       }
@@ -252,11 +266,12 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
     }
   }, [isCancelRequested, setProgress, setStatus, updateTask, setController, removeController]);
 
-  // Scheduler loop: picks up queued/ready tasks up to concurrency limit
+  // Scheduler loop: phase 1 resolves links, phase 2 streams them one by one.
   const schedule = useCallback(() => {
     if (unmountedRef.current) return;
     const episodesNow = argsRef.current.episodes;
     const gatedNow = argsRef.current.gated ?? false;
+    const iosNow = isIOS();
     const currentTasks = tasksRef.current;
     const seriesTasks = currentTasks.filter(
       (t) =>
@@ -266,12 +281,13 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
         ),
     );
 
-    while (inflightRef.current.size < MAX_CONCURRENT && !unmountedRef.current) {
+    const limit = gatedNow ? MAX_CONCURRENT_RESOLVES : MAX_CONCURRENT_DOWNLOADS;
+
+    while (inflightRef.current.size < limit && !unmountedRef.current) {
       const next = seriesTasks.find(
         (t) =>
-          (t.status === "queued" || (!gatedNow && t.status === "ready")) &&
+          (t.status === "queued" || (!gatedNow && !iosNow && t.status === "ready")) &&
           !inflightRef.current.has(t.id) &&
-          !retriesRef.current.has(t.id) &&
           !isCancelRequested(t.id),
       );
       if (!next) break;

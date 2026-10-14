@@ -21,7 +21,7 @@ export default function OfflinePage() {
       <div className="flex flex-col sm:flex-row items-center gap-3 w-full max-w-xs">
         <Link
           href="/downloads"
-          className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-brand-primary hover:bg-brand-primary/90 text-white font-bold text-sm transition-all shadow-lg active:scale-95"
+          className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-[5px] bg-brand-primary hover:bg-brand-primary/90 text-white font-bold text-sm transition-all shadow-lg active:scale-95"
         >
           <DownloadSimple className="w-4 h-4 stroke-[2.5]" />
           <span>Accéder à mes téléchargements</span>
@@ -29,7 +29,7 @@ export default function OfflinePage() {
 
         <button
           onClick={() => window.location.reload()}
-          className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold text-sm transition-all"
+          className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-[5px] bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold text-sm transition-all"
         >
           <ArrowsClockwise className="w-4 h-4" />
           <span>Réessayer</span>

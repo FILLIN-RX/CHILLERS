@@ -51,6 +51,7 @@ export {
   clearTmdbCache,
   mapTMDBToMovieOrShow,
   getMediaTrailerUrl,
+  getMediaLogo,
   enrichHeroSlidesWithTrailers,
   getBoxOfficeMovies,
   getNewAnime,

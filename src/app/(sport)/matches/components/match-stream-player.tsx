@@ -136,7 +136,7 @@ export function MatchStreamPlayer({
       {/* Conteneur principal du Lecteur vidéo 16:9 */}
       <div
         ref={containerRef}
-        className="relative aspect-video w-full overflow-hidden rounded-2xl bg-[#0e0e0e] border border-[#222222] shadow-2xl"
+        className="relative aspect-video w-full overflow-hidden rounded-2xl bg-[#0e0e0e] border border-[#222222]"
       >
         {/* Badge Live / Statut en superposition */}
         <div className="absolute top-3 left-3 z-20 flex items-center gap-2 pointer-events-none">

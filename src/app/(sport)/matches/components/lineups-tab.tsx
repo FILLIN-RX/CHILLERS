@@ -121,10 +121,10 @@ function Player({ p, x, y, light }: { p: P; x: number; y: number; light?: boolea
 
         {/* Cartons */}
         {(p.redCards ?? 0) > 0 ? (
-          <span className="absolute -bottom-1 -left-1.5 h-3 w-2 rounded-[1px]" style={{ background: RED }} />
+          <span className="absolute -bottom-1 -left-1.5 h-3 w-2 rounded-[4px]" style={{ background: RED }} />
         ) : (
           (p.yellowCards ?? 0) > 0 && (
-            <span className="absolute -bottom-1 -left-1.5 h-3 w-2 rounded-[1px]" style={{ background: "#FFD60A" }} />
+            <span className="absolute -bottom-1 -left-1.5 h-3 w-2 rounded-[4px]" style={{ background: "#FFD60A" }} />
           )
         )}
 
@@ -208,9 +208,9 @@ function MiniIcons({ p }: { p: P }) {
       )}
       {(p.assists ?? 0) > 0 && <Sneaker weight="fill" className="h-3.5 w-3.5 text-white" />}
       {(p.redCards ?? 0) > 0 ? (
-        <span className="h-3 w-2 rounded-[1px]" style={{ background: RED }} />
+        <span className="h-3 w-2 rounded-[4px]" style={{ background: RED }} />
       ) : (
-        (p.yellowCards ?? 0) > 0 && <span className="h-3 w-2 rounded-[1px]" style={{ background: "#FFD60A" }} />
+        (p.yellowCards ?? 0) > 0 && <span className="h-3 w-2 rounded-[4px]" style={{ background: "#FFD60A" }} />
       )}
       {p.subbedIn && <ArrowUp weight="bold" className="h-3.5 w-3.5" style={{ color: GREEN }} />}
     </span>

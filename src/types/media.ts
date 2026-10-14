@@ -77,6 +77,8 @@ export interface MovieOrShow {
   isFrenchAudio?: boolean;
   /** Date de sortie ISO (YYYY-MM-DD) — utilisé pour détecter les films "À venir" */
   releaseDate?: string;
+  /** Logo officiel TMDb (PNG transparent) pour hero banners style Netflix */
+  logoUrl?: string;
 }
 
 export interface Genre {

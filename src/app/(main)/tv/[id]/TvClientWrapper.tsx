@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { getDisponible, AvailabilityEntry, mapTMDBToMovieOrShow } from "@/services/media";
+import { getDisponible, AvailabilityEntry, mapTMDBToMovieOrShow, getMediaLogo } from "@/services/media";
 import { httpJson } from "@/services/http";
 import type { MovieOrShow, Episode } from "@/types/media";
 import { useLanguage } from "@/i18n/LanguageContext";
@@ -15,6 +15,7 @@ import ScrollRow from "@/components/ScrollRow";
 import AddToPlaylistModal from "@/components/AddToPlaylistModal";
 import Button from "@/components/Button";
 import CardImage from "@/components/CardImage";
+import MediaLogo from "@/components/MediaLogo";
 import { ArrowLeft, Play, Star, CalendarBlank, FilmSlate, ShareNetwork, BookmarkSimple, X, Check, Sparkle, LinkSimple, ListNumbers } from "@phosphor-icons/react";
 
 interface TvClientWrapperProps {
@@ -62,6 +63,7 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
   const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [selectedLang, setSelectedLang] = useState<"fr" | "vostfr">("fr");
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
   
   const castScrollRef = useRef<HTMLDivElement>(null);
   const [castCanScrollLeft, setCastCanScrollLeft] = useState(false);
@@ -145,6 +147,24 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
       requestAnimationFrame(checkCastScroll);
     }
   }, [item?.castDetails, checkCastScroll]);
+
+  // Load logo on item change
+  useEffect(() => {
+    if (!item || !id || item.logoUrl) return;
+    let cancelled = false;
+    
+    const loadLogo = async () => {
+      try {
+        const logo = await getMediaLogo(id, true);
+        if (logo && !cancelled) {
+          setLogoUrl(logo);
+        }
+      } catch {}
+    };
+    
+    loadLogo();
+    return () => { cancelled = true; };
+  }, [item?.id, id]);
 
   // Toggle Favoris
   const toggleFavorite = async (e: React.MouseEvent) => {
@@ -238,16 +258,19 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
             alt={displayTitle}
             fill
             priority
-            className="object-cover object-top filter brightness-[0.70] scale-100"
+            quality={100}
+            className="object-cover object-top scale-x-90"
             sizes="100vw"
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-b from-zinc-800 to-[#09090B]" />
         )}
 
-        <div className="absolute inset-0 bg-gradient-to-t from-[#09090B] via-[#09090B]/65 to-transparent" />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#09090B] via-[#09090B]/70 to-transparent max-w-5xl" />
-        <div className="absolute top-0 left-0 right-0 h-28 bg-gradient-to-b from-black/80 to-transparent pointer-events-none" />
+        {/* Dégradé gauche à droite uniquement */}
+        <div className="absolute inset-0 bg-gradient-to-r from-black via-black/60 to-transparent max-w-4xl" />
+        
+        {/* Dégradé du bas avec petite hauteur */}
+        <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[#09090B] via-[#09090B]/40 to-transparent" />
 
         <div className="fixed top-4 left-4 z-50">
           <button
@@ -259,34 +282,39 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
           </button>
         </div>
 
-        <div className="relative z-20 w-full px-4 sm:px-8 md:px-12 lg:px-16 pb-10 sm:pb-14 pt-24 flex flex-col md:flex-row md:items-end gap-6 sm:gap-8">
-          <div className="relative w-[160px] sm:w-[200px] lg:w-[230px] aspect-[2/3] rounded-2xl overflow-hidden bg-zinc-900 border border-white/10 shrink-0 shadow-2xl">
-            <CardImage
-              src={displayPoster}
-              alt={displayTitle}
-              fill
-              className="object-cover object-top"
-              sizes="(max-width: 768px) 160px, 230px"
-              priority
-              fallbackText={displayTitle}
-            />
-          </div>
+        {/* Contenu du Hero - grille 7 colonnes : 2 vides, poster, texte collé sur 4 */}
+        <div className="relative z-20 w-full px-4 sm:px-8 md:px-12 lg:px-16 pb-8 sm:pb-12 pt-24">
+          <div className="mx-auto flex w-full max-w-[1600px] flex-col items-start gap-4 sm:grid sm:grid-cols-7 sm:items-end sm:gap-0">
+            {/* Poster vertical, collé à la boîte de texte */}
+            <div className="relative w-[160px] sm:w-full aspect-[2/3] rounded-2xl overflow-hidden bg-zinc-900 border border-white/10 shrink-0">
+              <CardImage
+                src={displayPoster}
+                alt={displayTitle}
+                fill
+                className="object-cover object-top"
+                sizes="160px, (max-width: 1024px) 165px, 265px"
+                priority
+                fallbackText={displayTitle}
+              />
+            </div>
 
-          <div className="flex-1 space-y-3.5 max-w-4xl">
-            <div className="flex flex-wrap items-center gap-2 text-xs font-bold">
+            {/* Boîte de texte en bas à gauche - style Prime Video */}
+            <div className="w-full min-w-0 sm:col-span-6">
+            <div className="p-4 sm:p-6 lg:p-8 space-y-3.5 w-full">
+              <div className="flex flex-wrap items-center gap-2 text-xs font-bold">
               <span className="text-[brand-primary] font-black tracking-widest text-[11px] uppercase flex items-center gap-1.5 bg-[brand-primary]/10 border border-[brand-primary]/20 px-2.5 py-0.5 rounded-full">
                 <Sparkle className="w-3.5 h-3.5" />
                 SÉRIE CHILLERS
               </span>
 
               {item.networks && item.networks.length > 0 && item.networks[0].logoUrl && (
-                <div className="bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-md border border-white/10 flex items-center h-6">
+                <div className="bg-white/90 px-2 py-0.5 rounded-md flex items-center h-6">
                   <Image
                     src={item.networks[0].logoUrl}
                     alt={item.networks[0].name}
                     width={60}
                     height={18}
-                    className="object-contain h-4 w-auto brightness-200"
+                    className="object-contain h-4 w-auto"
                   />
                 </div>
               )}
@@ -326,9 +354,14 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
               )}
             </div>
 
-            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight drop-shadow-2xl leading-tight">
-              {displayTitle}
-            </h1>
+            {/* Logo officiel (principale), fallback titre */}
+            {(item.logoUrl || logoUrl) ? (
+              <MediaLogo src={item.logoUrl || logoUrl || ""} alt={`Logo ${displayTitle}`} />
+            ) : (
+              <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight drop-shadow-2xl leading-tight">
+                {displayTitle}
+              </h1>
+            )}
 
             {item.tagline && (
               <p className="text-zinc-300 italic text-xs sm:text-sm font-medium line-clamp-1">
@@ -352,7 +385,7 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
               <span>{validSeasons.length} Saison{validSeasons.length > 1 ? "s" : ""}</span>
 
               {item.genres && item.genres.length > 0 && (
-                <>
+                <div className="flex items-center gap-3">
                   <span className="text-zinc-600">•</span>
                   <span className="text-zinc-400">
                     {item.genres
@@ -361,7 +394,7 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
                       .filter(Boolean)
                       .join(", ")}
                   </span>
-                </>
+                </div>
               )}
             </div>
 
@@ -395,25 +428,23 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
                     <button
                       type="button"
                       onClick={() => setSelectedLang("fr")}
-                      className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                      className={`px-3 py-2 rounded-[5px] text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                         selectedLang === "fr"
                           ? "bg-brand-primary text-white shadow-md shadow-brand-primary/30"
                           : "text-zinc-400 hover:text-white"
                       }`}
                     >
-                      <span>🇫🇷</span>
                       <span>VF</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => setSelectedLang("vostfr")}
-                      className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                      className={`px-3 py-2 rounded-[5px] text-xs font-bold transition-all cursor-pointer ${
                         selectedLang === "vostfr"
                           ? "bg-brand-primary text-white shadow-md shadow-brand-primary/30"
                           : "text-zinc-400 hover:text-white"
                       }`}
                     >
-                      <span>🌐</span>
                       <span>VOSTFR</span>
                     </button>
                   </div>
@@ -457,13 +488,13 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
                       href={`https://wa.me/?text=${encodeURIComponent((item.title || "Chillers") + " " + window.location.href)}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2.5 px-3 py-2 text-xs text-white hover:bg-zinc-800 rounded-lg transition-colors"
+                      className="flex items-center gap-2.5 px-3 py-2 text-xs text-white hover:bg-zinc-800 rounded-[5px] transition-colors"
                     >
                       <span>WhatsApp</span>
                     </a>
                     <button
                       onClick={copyToClipboard}
-                      className="w-full text-left flex items-center justify-between px-3 py-2 text-xs text-white hover:bg-zinc-800 rounded-lg transition-colors"
+                      className="w-full text-left flex items-center justify-between px-3 py-2 text-xs text-white hover:bg-zinc-800 rounded-[5px] transition-colors"
                     >
                       <span>{copiedLink ? "Lien copié !" : "Copier le lien"}</span>
                       {copiedLink && <Check className="w-3.5 h-3.5 text-[brand-primary]" />}
@@ -471,6 +502,8 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
                   </div>
                 )}
               </div>
+            </div>
+            </div>
             </div>
           </div>
         </div>
@@ -495,7 +528,7 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
                   onClick={() => router.push(`/tv/${id}/season/${season.seasonNumber}`)}
                   className="group cursor-pointer space-y-2 transition-transform duration-300 hover:scale-[1.03]"
                 >
-                  <div className="relative aspect-[2/3] w-full rounded-2xl overflow-hidden bg-zinc-900 shadow-xl">
+                  <div className="relative aspect-[2/3] w-full rounded-2xl overflow-hidden bg-zinc-900">
                     <CardImage
                       src={poster}
                       alt={season.name}
@@ -539,7 +572,7 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
                     onClick={() => router.push(`/tv/${id}/season/${season.seasonNumber}`)}
                     className="group cursor-pointer space-y-2 transition-transform duration-300 hover:scale-[1.03] flex-shrink-0"
                   >
-                    <div className="relative aspect-[2/3] w-32 rounded-2xl overflow-hidden bg-zinc-900 shadow-xl">
+                    <div className="relative aspect-[2/3] w-32 rounded-2xl overflow-hidden bg-zinc-900">
                       <CardImage
                         src={poster}
                         alt={season.name}
@@ -627,7 +660,7 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
 
       {trailerOpen && item.trailerUrl && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="relative w-full max-w-4xl aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl border border-zinc-800">
+          <div className="relative w-full max-w-4xl aspect-video bg-black rounded-2xl overflow-hidden border border-zinc-800">
             <button onClick={() => setTrailerOpen(false)} className="absolute top-4 right-4 z-20 p-2 rounded-full bg-black/60 text-white hover:bg-black/90 transition-colors">
               <X className="w-6 h-6" />
             </button>

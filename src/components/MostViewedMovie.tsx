@@ -152,7 +152,7 @@ export default function MostViewedMovie({
             <div className="flex items-center gap-2.5 sm:gap-3">
               <button
                 onClick={() => onOpenDetails(current)}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold text-xs sm:text-sm active:scale-95 transition-all cursor-pointer shadow-none border-0"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[5px] bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold text-xs sm:text-sm active:scale-95 transition-all cursor-pointer shadow-none border-0"
               >
                 <Info className="w-4 h-4 text-white" />
                 <span>Voir la fiche</span>

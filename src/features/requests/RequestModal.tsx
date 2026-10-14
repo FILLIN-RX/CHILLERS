@@ -83,8 +83,8 @@ export default function RequestModal({
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
       {/* Modal Box - Max 2px border radius */}
       <div
-        className="relative w-full max-w-lg bg-[#0f0f13] border border-white/10 shadow-2xl overflow-hidden rounded-[2px]"
-        style={{ borderRadius: "2px" }}
+        className="relative w-full max-w-lg bg-[#0f0f13] border border-white/10 shadow-2xl overflow-hidden rounded-[4px]"
+        style={{ borderRadius: "4px" }}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 bg-white/[0.02]">
@@ -96,8 +96,8 @@ export default function RequestModal({
           </div>
           <button
             onClick={onClose}
-            className="p-1 text-white/50 hover:text-white hover:bg-white/10 transition-colors rounded-[2px]"
-            style={{ borderRadius: "2px" }}
+            className="p-1 text-white/50 hover:text-white hover:bg-white/10 transition-colors rounded-[5px]"
+            style={{ borderRadius: "4px" }}
           >
             <X size={18} />
           </button>
@@ -116,16 +116,16 @@ export default function RequestModal({
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Type Switcher */}
-              <div className="grid grid-cols-2 gap-2 p-1 bg-white/[0.04] border border-white/10 rounded-[2px]" style={{ borderRadius: "2px" }}>
+              <div className="grid grid-cols-2 gap-2 p-1 bg-white/[0.04] border border-white/10 rounded-[4px]" style={{ borderRadius: "4px" }}>
                 <button
                   type="button"
                   onClick={() => setType("movie")}
-                  className={`flex items-center justify-center gap-2 py-2 text-xs font-medium uppercase tracking-wider transition-all rounded-[2px] ${
+                  className={`flex items-center justify-center gap-2 py-2 text-xs font-medium uppercase tracking-wider transition-all rounded-[5px] ${
                     type === "movie"
                       ? "bg-primary text-white shadow-md font-semibold"
                       : "text-white/60 hover:text-white"
                   }`}
-                  style={{ borderRadius: "2px" }}
+                  style={{ borderRadius: "4px" }}
                 >
                   <FilmReel size={16} />
                   Film
@@ -133,12 +133,12 @@ export default function RequestModal({
                 <button
                   type="button"
                   onClick={() => setType("series")}
-                  className={`flex items-center justify-center gap-2 py-2 text-xs font-medium uppercase tracking-wider transition-all rounded-[2px] ${
+                  className={`flex items-center justify-center gap-2 py-2 text-xs font-medium uppercase tracking-wider transition-all rounded-[5px] ${
                     type === "series"
                       ? "bg-primary text-white shadow-md font-semibold"
                       : "text-white/60 hover:text-white"
                   }`}
-                  style={{ borderRadius: "2px" }}
+                  style={{ borderRadius: "4px" }}
                 >
                   <Television size={16} />
                   Série
@@ -154,8 +154,8 @@ export default function RequestModal({
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Ex: Interstellar, Breaking Bad..."
                   required
-                  className="w-full px-3.5 py-2.5 bg-black/50 border border-white/15 text-white text-sm focus:outline-none focus:border-primary transition-colors rounded-[2px]"
-                  style={{ borderRadius: "2px" }}
+                  className="w-full px-3.5 py-2.5 bg-black/50 border border-white/15 text-white text-sm focus:outline-none focus:border-primary transition-colors rounded-[4px]"
+                  style={{ borderRadius: "4px" }}
                 />
               </div>
 
@@ -169,8 +169,8 @@ export default function RequestModal({
                       min={1}
                       value={season}
                       onChange={(e) => setSeason(parseInt(e.target.value, 10) || 1)}
-                      className="w-full px-3.5 py-2.5 bg-black/50 border border-white/15 text-white text-sm focus:outline-none focus:border-primary transition-colors rounded-[2px]"
-                      style={{ borderRadius: "2px" }}
+                      className="w-full px-3.5 py-2.5 bg-black/50 border border-white/15 text-white text-sm focus:outline-none focus:border-primary transition-colors rounded-[4px]"
+                      style={{ borderRadius: "4px" }}
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -180,21 +180,21 @@ export default function RequestModal({
                       min={1}
                       value={episode}
                       onChange={(e) => setEpisode(parseInt(e.target.value, 10) || 1)}
-                      className="w-full px-3.5 py-2.5 bg-black/50 border border-white/15 text-white text-sm focus:outline-none focus:border-primary transition-colors rounded-[2px]"
-                      style={{ borderRadius: "2px" }}
+                      className="w-full px-3.5 py-2.5 bg-black/50 border border-white/15 text-white text-sm focus:outline-none focus:border-primary transition-colors rounded-[4px]"
+                      style={{ borderRadius: "4px" }}
                     />
                   </div>
                 </div>
               )}
 
               {/* Info Note */}
-              <div className="p-3 bg-white/[0.02] border border-white/5 text-xs text-white/50 leading-relaxed rounded-[2px]" style={{ borderRadius: "2px" }}>
+              <div className="p-3 bg-white/[0.02] border border-white/5 text-xs text-white/50 leading-relaxed rounded-[4px]" style={{ borderRadius: "4px" }}>
                 💡 Dès la soumission, notre microservice autonome lance une recherche parallèle sur les serveurs partenaires et prépare les flux streaming.
               </div>
 
               {/* Error Alert */}
               {status === "error" && (
-                <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-xs rounded-[2px]" style={{ borderRadius: "2px" }}>
+                <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-xs rounded-[4px]" style={{ borderRadius: "4px" }}>
                   <WarningCircle size={16} className="shrink-0" />
                   <span>{errorMessage}</span>
                 </div>
@@ -205,16 +205,16 @@ export default function RequestModal({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2 text-xs font-medium text-white/70 hover:text-white bg-white/5 hover:bg-white/10 transition-colors rounded-[2px]"
-                  style={{ borderRadius: "2px" }}
+                  className="px-4 py-2 text-xs font-medium text-white/70 hover:text-white bg-white/5 hover:bg-white/10 transition-colors rounded-[5px]"
+                  style={{ borderRadius: "4px" }}
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
                   disabled={loading || !title.trim()}
-                  className="flex items-center gap-2 px-5 py-2 text-xs font-medium text-white bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg rounded-[2px]"
-                  style={{ borderRadius: "2px" }}
+                  className="flex items-center gap-2 px-5 py-2 text-xs font-medium text-white bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg rounded-[5px]"
+                  style={{ borderRadius: "4px" }}
                 >
                   {loading ? (
                     <>

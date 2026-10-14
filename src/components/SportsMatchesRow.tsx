@@ -290,7 +290,7 @@ export default function SportsMatchesRow({
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 focus:outline-none cursor-pointer ${
+              className={`shrink-0 px-3.5 py-1.5 rounded-[5px] text-xs font-bold transition-all duration-200 focus:outline-none cursor-pointer ${
                 isSelected
                   ? "bg-red-600 text-white shadow-md shadow-red-600/30 scale-[1.02]"
                   : "bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10"

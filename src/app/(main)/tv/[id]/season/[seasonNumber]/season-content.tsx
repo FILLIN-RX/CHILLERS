@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { getSeasonDetails, getMediaDetails, getStreamUrl, getPopularTV } from "@/services/media";
+import { getSeasonDetails, getMediaDetails, getStreamUrl, getSimilarTitles } from "@/services/media";
 import type { Episode, MovieOrShow } from "@/types/media";
 import VideoPlayer from "@/components/VideoPlayer";
 import MovieCard from "@/components/MovieCard";
@@ -113,10 +113,10 @@ export default function SeasonContent() {
 
     (async () => {
       try {
-        const [seasonData, detail, popularList] = await Promise.all([
+        const [seasonData, detail, similarList] = await Promise.all([
           getSeasonDetails(id, seasonNumber, signal),
           getMediaDetails(id, true, signal),
-          getPopularTV(1).catch(() => []),
+          getSimilarTitles(id, true, undefined, signal).catch(() => []),
         ]);
 
         if (cancelled) return;
@@ -126,8 +126,8 @@ export default function SeasonContent() {
           setShowTitle(detail.title);
         }
 
-        if (popularList && popularList.length > 0) {
-          setSimilar(popularList.filter((m) => m.id !== id).slice(0, 14));
+        if (similarList && similarList.length > 0) {
+          setSimilar(similarList);
         }
 
         if (seasonData && seasonData.episodes && seasonData.episodes.length > 0) {
@@ -456,7 +456,7 @@ export default function SeasonContent() {
               <button
                 onClick={playPrevEpisode}
                 disabled={currentIndex === 0}
-                className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-white/5 text-xs font-semibold text-zinc-300 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all flex-shrink-0 cursor-pointer"
+                className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-[5px] bg-white/5 text-xs font-semibold text-zinc-300 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all flex-shrink-0 cursor-pointer"
               >
                 <CaretCircleLeft className="h-4 w-4" />
                 <span className="hidden sm:inline">{_("common.previous") || "Précédent"}</span>
@@ -474,7 +474,7 @@ export default function SeasonContent() {
               <button
                 onClick={playNextEpisode}
                 disabled={currentIndex >= episodes.length - 1}
-                className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-white/5 text-xs font-semibold text-zinc-300 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all flex-shrink-0 cursor-pointer"
+                className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-[5px] bg-white/5 text-xs font-semibold text-zinc-300 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all flex-shrink-0 cursor-pointer"
               >
                 <span className="hidden sm:inline">{_("common.next") || "Suivant"}</span>
                 <CaretCircleRight className="h-4 w-4" />
@@ -828,7 +828,7 @@ function EpisodeCard({
                 onDownload();
               }}
               aria-label={`Download ${ep.title}`}
-              className="p-1 rounded-md text-zinc-500 hover:text-white hover:bg-white/10 transition-colors flex-none"
+              className="p-1 rounded-[5px] text-zinc-500 hover:text-white hover:bg-white/10 transition-colors flex-none"
             >
               <DownloadSimple className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </button>

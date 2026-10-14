@@ -100,7 +100,7 @@ export default function DonationModal({ isOpen, onClose }: DonationModalProps) {
               <button
                 type="button"
                 onClick={() => copyToClipboard("697407380", "om")}
-                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all ${
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-[5px] text-[11px] font-semibold transition-all ${
                   copiedType === "om"
                     ? "bg-brand-primary/20 text-brand-primary border border-brand-primary/30"
                     : "bg-zinc-700 hover:bg-zinc-600 text-zinc-200"
@@ -121,7 +121,7 @@ export default function DonationModal({ isOpen, onClose }: DonationModalProps) {
               <button
                 type="button"
                 onClick={() => copyToClipboard("674376424", "momo")}
-                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all ${
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-[5px] text-[11px] font-semibold transition-all ${
                   copiedType === "momo"
                     ? "bg-brand-primary/20 text-brand-primary border border-brand-primary/30"
                     : "bg-zinc-700 hover:bg-zinc-600 text-zinc-200"
@@ -137,7 +137,7 @@ export default function DonationModal({ isOpen, onClose }: DonationModalProps) {
         <button
           type="button"
           onClick={onClose}
-          className="w-full mt-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-bold transition-colors"
+          className="w-full mt-4 py-2.5 rounded-[5px] bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-bold transition-colors"
         >
           Fermer
         </button>

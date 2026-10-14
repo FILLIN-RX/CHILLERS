@@ -170,24 +170,24 @@ export default function SeriesDownloadModal({
               <button
                 type="button"
                 onClick={() => setSelectedLang("fr")}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                className={`px-2.5 py-1 rounded-[5px] text-[11px] font-bold transition-all cursor-pointer ${
                   selectedLang === "fr"
                     ? "bg-brand-primary text-white shadow-sm"
                     : "text-zinc-400 hover:text-white"
                 }`}
               >
-                🇫🇷 VF
+                VF
               </button>
               <button
                 type="button"
                 onClick={() => setSelectedLang("vostfr")}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                className={`px-2.5 py-1 rounded-[5px] text-[11px] font-bold transition-all cursor-pointer ${
                   selectedLang === "vostfr"
                     ? "bg-brand-primary text-white shadow-sm"
                     : "text-zinc-400 hover:text-white"
                 }`}
               >
-                🌐 VOSTFR
+                VOSTFR
               </button>
             </div>
 

@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { Suspense } from "react";
 import { buildMediaMetadata, buildMediaJsonLd, SITE_LOCALE, SITE_URL, DEFAULT_OG_IMAGE } from "@/lib/seo";
-import { getMediaDetails, getPopularTV, getPopularMovies } from "@/services/media";
+import { getMediaDetails, getSimilarTitles } from "@/services/media";
 import MediaPageClient from "./client-page";
 
 import MediaListingSkeleton from "@/components/MediaListingSkeleton";
@@ -95,17 +95,8 @@ export default async function Page({ params, searchParams }: Props) {
   const sp = await searchParams;
   const isTV = sp?.type === "tv" || sp?.type === "series";
   
-  const [item, similarList] = await Promise.all([
-    getMediaDetails(slug, isTV).catch(() => null),
-    (isTV ? getPopularTV(1) : getPopularMovies(1)).catch(() => [])
-  ]);
-
-  let similar: any[] = [];
-  if (item && item.similar && item.similar.length > 0) {
-    similar = item.similar;
-  } else if (similarList && similarList.length > 0) {
-    similar = similarList.filter((m: any) => String(m.id) !== slug).slice(0, 14);
-  }
+  const item = await getMediaDetails(slug, isTV).catch(() => null);
+  const similar = await getSimilarTitles(slug, isTV, item);
 
   let jsonLd = null;
   if (item) {

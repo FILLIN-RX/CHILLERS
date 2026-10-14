@@ -72,7 +72,7 @@ function BottomNavComponent({ onSearchClick }: BottomNavProps) {
                   key={item.id}
                   onClick={() => router.push("/login")}
                   aria-label={item.label}
-                  className={`relative flex flex-col items-center gap-1 py-1 px-2 min-w-[56px] rounded-xl transition-all duration-200 focus:outline-none active:scale-90 ${
+                  className={`relative flex flex-col items-center gap-1 py-1 px-2 min-w-[56px] rounded-[5px] transition-all duration-200 focus:outline-none active:scale-90 ${
                     isActive ? "text-[#00E599]" : "text-zinc-400"
                   }`}
                 >

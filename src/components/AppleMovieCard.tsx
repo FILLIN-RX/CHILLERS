@@ -3,10 +3,8 @@
 import React, { useRef, useState, useCallback, useEffect } from "react";
 import Image from "next/image";
 import { motion, useMotionValue, useSpring, useTransform, useReducedMotion } from "motion/react";
-import { Play, Star, Info, FilmSlate, BookmarkSimple, ListNumbers, HourglassSimple } from "@phosphor-icons/react";
+import { Play, Star, Info, FilmSlate, ListNumbers, HourglassSimple } from "@phosphor-icons/react";
 import type { MovieOrShow } from "@/types/media";
-import { useAuthStore } from "@/stores/useAuthStore";
-import { userService } from "@/services/user";
 
 export interface AppleMovieCardProps {
   item: MovieOrShow;
@@ -46,22 +44,10 @@ export default function AppleMovieCard({
   const cardRef = useRef<HTMLDivElement>(null);
   const shouldReduceMotion = useReducedMotion();
 
-  const isLoggedIn = useAuthStore((s) => Boolean(s.token));
-  const isFavorite = useAuthStore((s) =>
-    Boolean(
-      s.user?.favorites?.some(
-        (f) =>
-          f.tmdbId === String(item?.id) &&
-          f.mediaType === (item?.type === "series" ? "series" : item?.type === "anime" ? "anime" : "movie")
-      )
-    )
-  );
-
   const [imgLoaded, setImgLoaded] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [canHover, setCanHover] = useState(false);
-  const [favoriteLoading, setFavoriteLoading] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -106,28 +92,6 @@ export default function AppleMovieCard({
     mouseX.set(0.5);
     mouseY.set(0.5);
   }, [mouseX, mouseY]);
-
-  const toggleFavorite = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const { token, user, updateUser } = useAuthStore.getState();
-    if (!token || !user || !item) return;
-    setFavoriteLoading(true);
-    try {
-      const res = await userService.toggleFavorite(token, {
-        mediaType: item.type === "series" ? "series" : item.type === "anime" ? "anime" : "movie",
-        tmdbId: String(item.id),
-        title: item.title,
-        posterPath: item.posterUrl,
-      });
-      if (res.success) {
-        updateUser({ favorites: res.favorites });
-      }
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setFavoriteLoading(false);
-    }
-  };
 
   const isPoster = variant === "poster";
   const imageSrc = isPoster
@@ -186,8 +150,8 @@ export default function AppleMovieCard({
         transformStyle: "preserve-3d",
         touchAction: "manipulation",
       }}
-      className={`group relative select-none cursor-pointer rounded-2xl bg-zinc-900/90 p-[1px] shadow-[0_10px_30px_-10px_rgba(0,0,0,0.7)] hover:shadow-[0_22px_45px_-12px_rgba(0,0,0,0.9)] transition-shadow duration-300 ${
-        selected ? "ring-2 ring-red-500 shadow-red-500/20" : ""
+      className={`group relative select-none cursor-pointer rounded-2xl bg-zinc-900/90 p-[1px] transition-transform duration-300 ${
+        selected ? "ring-2 ring-red-500" : ""
       } ${
         isPoster
           ? "aspect-[2/3] w-full min-w-[150px] max-w-[260px]"
@@ -198,7 +162,7 @@ export default function AppleMovieCard({
       <div className="pointer-events-none absolute inset-0 rounded-2xl border border-white/15 border-t-white/30 z-30" />
 
       {/* ── Outer Rounded Container ── */}
-      <div className="relative w-full h-full rounded-[15px] overflow-hidden bg-zinc-950 flex flex-col justify-end">
+      <div className="relative w-full h-full rounded-2xl overflow-hidden bg-zinc-950 flex flex-col justify-end">
         {/* ── Poster / Backdrop Image with smooth crossfade ── */}
         {imageSrc && !imgError ? (
           <Image
@@ -237,11 +201,11 @@ export default function AppleMovieCard({
           {/* Left: Rating or Custom Badge */}
           <div className="flex items-center gap-1.5">
             {badge ? (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-red-600 text-white shadow-md">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-red-600 text-white">
                 {badge}
               </span>
             ) : item.rating ? (
-              <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/55 backdrop-blur-xl border border-white/10 text-amber-400 text-[10px] font-bold shadow-md">
+              <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/55 backdrop-blur-xl border border-white/10 text-amber-400 text-[10px] font-bold">
                 <Star className="w-3 h-3 fill-amber-400" />
                 <span>{item.rating}</span>
               </div>
@@ -252,7 +216,7 @@ export default function AppleMovieCard({
           <div className="flex items-center gap-1">
             {audioBadge && (
               <span
-                className={`px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider shadow-md backdrop-blur-md ${
+                className={`px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider backdrop-blur-md ${
                   audioBadge.isFrench
                     ? "bg-red-600 text-white"
                     : "bg-black/60 text-cyan-300 border border-cyan-400/30"
@@ -261,7 +225,7 @@ export default function AppleMovieCard({
                 {audioBadge.label}
               </span>
             )}
-            <span className="px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-black/60 backdrop-blur-xl border border-white/15 text-zinc-200 shadow-md">
+            <span className="px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-black/60 backdrop-blur-xl border border-white/15 text-zinc-200">
               {item.type === "series" ? "SÉRIE" : "FILM"}
             </span>
           </div>
@@ -276,39 +240,6 @@ export default function AppleMovieCard({
         >
           <Play className="w-5 h-5 fill-black translate-x-0.5" />
         </motion.div>
-
-        {/* ── Bottom Content Gradient & Title (Apple Typography & Vibrancy) ── */}
-        <div className="relative z-10 p-3 pt-10 bg-gradient-to-t from-black via-black/80 to-transparent space-y-1">
-          <h3 className="text-xs sm:text-sm font-bold text-white leading-tight line-clamp-1 drop-shadow-sm tracking-[-0.01em]">
-            {item.title}
-          </h3>
-
-          <div className="flex items-center justify-between text-[11px] text-zinc-400 font-medium">
-            <div className="flex items-center gap-1.5 truncate">
-              {item.year && <span>{item.year}</span>}
-              {item.genres && item.genres.length > 0 && (
-                <>
-                  <span className="text-zinc-600">•</span>
-                  <span className="truncate">{item.genres[0]}</span>
-                </>
-              )}
-            </div>
-
-            {isLoggedIn && (
-              <button
-                type="button"
-                onClick={toggleFavorite}
-                disabled={favoriteLoading}
-                className="p-1 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-colors pointer-events-auto"
-                title={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
-              >
-                <BookmarkSimple
-                  className={`w-3.5 h-3.5 ${isFavorite ? "fill-red-500 text-red-500" : ""}`}
-                />
-              </button>
-            )}
-          </div>
-        </div>
       </div>
     </motion.div>
   );

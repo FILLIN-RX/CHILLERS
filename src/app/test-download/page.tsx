@@ -292,7 +292,7 @@ export default function TestDownloadPage() {
             <button
               onClick={handleResolve}
               disabled={loading}
-              className="px-5 py-2.5 rounded-xl bg-pink-600 hover:bg-pink-500 active:scale-95 text-white font-bold text-xs flex items-center gap-2 transition disabled:opacity-50 cursor-pointer shadow-lg shadow-pink-600/30"
+              className="px-5 py-2.5 rounded-[5px] bg-pink-600 hover:bg-pink-500 active:scale-95 text-white font-bold text-xs flex items-center gap-2 transition disabled:opacity-50 cursor-pointer shadow-lg shadow-pink-600/30"
             >
               <ArrowClockwise className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
               <span>{loading ? "Résolution en cours..." : "1. Résoudre le film & inspecter"}</span>
@@ -306,7 +306,7 @@ export default function TestDownloadPage() {
                 setQuery("Spider-Man : Brand New Day");
                 setTmdbId("969681");
               }}
-              className="text-xs px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 transition"
+              className="text-xs px-2.5 py-1 rounded-[5px] bg-white/5 hover:bg-white/10 text-zinc-300 transition"
             >
               Spider-Man (969681)
             </button>
@@ -316,7 +316,7 @@ export default function TestDownloadPage() {
                 setQuery("Thunderstruck");
                 setTmdbId("119738");
               }}
-              className="text-xs px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 transition"
+              className="text-xs px-2.5 py-1 rounded-[5px] bg-white/5 hover:bg-white/10 text-zinc-300 transition"
             >
               Thunderstruck (119738)
             </button>
@@ -391,7 +391,7 @@ export default function TestDownloadPage() {
                 <button
                   type="button"
                   onClick={testIosMode}
-                  className="p-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-left border border-white/10 transition space-y-1 cursor-pointer"
+                  className="p-3 rounded-[5px] bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-left border border-white/10 transition space-y-1 cursor-pointer"
                 >
                   <div className="flex items-center gap-2 text-xs font-bold text-emerald-400">
                     <DeviceMobile className="w-4 h-4" /> Mode Natif iOS (Direct)
@@ -405,7 +405,7 @@ export default function TestDownloadPage() {
                 <button
                   type="button"
                   onClick={testStreamSaverMode}
-                  className="p-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-left border border-white/10 transition space-y-1 cursor-pointer"
+                  className="p-3 rounded-[5px] bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-left border border-white/10 transition space-y-1 cursor-pointer"
                 >
                   <div className="flex items-center gap-2 text-xs font-bold text-sky-400">
                     <Monitor className="w-4 h-4" /> Mode StreamSaver (Desktop)
@@ -419,7 +419,7 @@ export default function TestDownloadPage() {
                 <button
                   type="button"
                   onClick={testFfmpegStream}
-                  className="p-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-left border border-white/10 transition space-y-1 cursor-pointer"
+                  className="p-3 rounded-[5px] bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-left border border-white/10 transition space-y-1 cursor-pointer"
                 >
                   <div className="flex items-center gap-2 text-xs font-bold text-amber-400">
                     <Lightning className="w-4 h-4" /> Mode FFmpeg (À la volée)

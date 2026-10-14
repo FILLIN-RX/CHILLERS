@@ -186,7 +186,7 @@ export default function NotFound() {
         <div className="w-full max-w-xs">
           <Link
             href="/"
-            className="w-full inline-flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-xl bg-gradient-to-r from-[brand-primary] to-[#E91E63] hover:from-[#E91E63] hover:to-[brand-primary] text-white font-bold text-base active:scale-[0.98] transition-all cursor-pointer"
+            className="w-full inline-flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-[5px] bg-gradient-to-r from-[brand-primary] to-[#E91E63] hover:from-[#E91E63] hover:to-[brand-primary] text-white font-bold text-base active:scale-[0.98] transition-all cursor-pointer"
           >
             <House className="w-5 h-5" weight="bold" />
             <span>Retour à l'accueil</span>

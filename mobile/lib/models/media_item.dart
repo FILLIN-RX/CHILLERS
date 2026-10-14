@@ -122,7 +122,13 @@ class MediaItem {
     }
 
     List<MediaItem>? recs;
-    final rawRecs = json['recommendations']?['results'] ?? json['recommendations'] ?? json['similar']?['results'];
+    // TMDB renvoie souvent recommendations: {results: []}. Un tableau vide n'est pas
+    // null, donc ?? s'arrête dessus et similar n'est jamais lu : on prend le 1er pool non vide.
+    final rawRecs = <Object?>[
+      json['recommendations']?['results'],
+      json['recommendations'],
+      json['similar']?['results'],
+    ].firstWhere((p) => p is List && p.isNotEmpty, orElse: () => null);
     if (rawRecs is List) {
       recs = rawRecs
           .whereType<Map<String, dynamic>>()

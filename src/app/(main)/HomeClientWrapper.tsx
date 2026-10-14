@@ -260,6 +260,7 @@ export default function HomeClientWrapper({
                       key={item.id}
                       item={item}
                       variant={row.variant}
+                      appleFrame
                       onPlay={handleWatchNow}
                       onOpenDetails={handleOpenDetails}
                     />
@@ -291,6 +292,7 @@ export default function HomeClientWrapper({
                       key={item.id}
                       item={item}
                       variant={row.variant}
+                      appleFrame
                       onPlay={handleWatchNow}
                       onOpenDetails={handleOpenDetails}
                     />

@@ -630,13 +630,13 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
                 <div className="flex items-center gap-3 pt-2">
                   <button
                     onClick={() => router.back()}
-                    className="px-5 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs sm:text-sm transition-all active:scale-95 cursor-pointer"
+                    className="px-5 py-2 rounded-[5px] bg-white/10 hover:bg-white/15 text-white font-bold text-xs sm:text-sm transition-all active:scale-95 cursor-pointer"
                   >
                     Retour
                   </button>
                   <button
                     onClick={() => router.push("/")}
-                    className="px-5 py-2 rounded-xl bg-brand-primary hover:bg-brand-primary/90 text-white font-bold text-xs sm:text-sm transition-all active:scale-95 shadow-lg shadow-brand-primary/30 cursor-pointer"
+                    className="px-5 py-2 rounded-[5px] bg-brand-primary hover:bg-brand-primary/90 text-white font-bold text-xs sm:text-sm transition-all active:scale-95 shadow-lg shadow-brand-primary/30 cursor-pointer"
                   >
                     Explorer les nouveautés
                   </button>
@@ -713,7 +713,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
               <button
                 onClick={playPrevEpisode}
                 disabled={currentEpisodeIndex === 0}
-                className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-white/5 text-xs font-semibold text-zinc-300 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all flex-shrink-0 cursor-pointer"
+                className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-[5px] bg-white/5 text-xs font-semibold text-zinc-300 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all flex-shrink-0 cursor-pointer"
               >
                 <CaretCircleLeft className="h-4 w-4" />
                 <span className="hidden sm:inline">{_("common.previous")}</span>
@@ -731,7 +731,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
               <button
                 onClick={playNextEpisode}
                 disabled={currentEpisodeIndex >= episodes.length - 1}
-                className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-white/5 text-xs font-semibold text-zinc-300 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all flex-shrink-0 cursor-pointer"
+                className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-[5px] bg-white/5 text-xs font-semibold text-zinc-300 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all flex-shrink-0 cursor-pointer"
               >
                 <span className="hidden sm:inline">{_("common.next")}</span>
                 <CaretCircleRight className="h-4 w-4" />
@@ -1160,7 +1160,7 @@ function EpisodeCard({
                 onDownload();
               }}
               aria-label={`Download ${ep.title}`}
-              className="p-1 rounded-md text-zinc-500 hover:text-white hover:bg-white/10 transition-colors flex-none"
+              className="p-1 rounded-[5px] text-zinc-500 hover:text-white hover:bg-white/10 transition-colors flex-none"
             >
               <DownloadSimple className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </button>

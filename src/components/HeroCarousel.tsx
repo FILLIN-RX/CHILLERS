@@ -2,12 +2,13 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
+import MediaLogo from "@/components/MediaLogo";
 import type { MovieOrShow } from "@/types/media";
 import { Play, Star } from "@phosphor-icons/react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useHydrated } from "@/hooks/useHydrated";
 import Button from "@/components/Button";
-import { getMediaTrailerUrl } from "@/app/api";
+import { getMediaTrailerUrl, getMediaLogo } from "@/app/api";
 
 interface HeroCarouselProps {
   slides: MovieOrShow[];
@@ -39,6 +40,9 @@ export default function HeroCarousel({
   const [isVideoReady, setIsVideoReady] = useState(false);
   const [videoExpired, setVideoExpired] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [logoMap, setLogoMap] = useState<Record<string, string>>({});
+  const logoMapRef = useRef<Record<string, string>>({});
+  const logoPendingRef = useRef<Set<string>>(new Set());
   const videoRef = useRef<HTMLVideoElement>(null);
   const { translate: _ } = useLanguage();
 
@@ -48,6 +52,26 @@ export default function HeroCarousel({
     window.addEventListener('resize', handler);
     return () => window.removeEventListener('resize', handler);
   }, []);
+
+  // Logo propre à chaque slide : une seule clé par media, sinon la slide suivante
+  // hérite du logo de la précédente.
+  useEffect(() => {
+    const currentSlide = slides?.[currentIndex];
+    if (!currentSlide || currentSlide.logoUrl) return;
+
+    const key = String(currentSlide.id);
+    if (logoMapRef.current[key] || logoPendingRef.current.has(key)) return;
+
+    logoPendingRef.current.add(key);
+    getMediaLogo(key, currentSlide.type === "series" || currentSlide.type === "anime")
+      .then((logo) => {
+        if (!logo) return;
+        logoMapRef.current[key] = logo;
+        setLogoMap((prev) => ({ ...prev, [key]: logo }));
+      })
+      .catch(() => {})
+      .finally(() => logoPendingRef.current.delete(key));
+  }, [currentIndex, slides]);
 
   // Lazy loading fluide du trailer UNIQUEMENT pour la slide active avec debounce
   useEffect(() => {
@@ -191,6 +215,7 @@ export default function HeroCarousel({
         {slides.map((slide, index) => {
           const isActive = index === currentIndex;
           const activeTrailer = slide.videoUrl || trailerMap[slide.id];
+          const slideLogo = slide.logoUrl || logoMap[String(slide.id)];
           const ytKey = getYouTubeKey(activeTrailer);
 
           return (
@@ -201,7 +226,7 @@ export default function HeroCarousel({
                   src={slide.backdropOriginalUrl || slide.backdropUrl}
                   alt={slide.title}
                   fill
-                  className="object-cover object-center transition-opacity duration-700"
+                  className="object-cover object-center transition-opacity duration-700 scale-x-90"
                   style={{ filter: "brightness(0.8) saturate(1.1)" }}
                   sizes="100vw"
                   quality={95}
@@ -282,9 +307,14 @@ export default function HeroCarousel({
                     )}
                   </div>
 
-                  <h1 className="text-2xl font-black tracking-tight text-white sm:text-4xl md:text-5xl lg:text-6xl font-sans drop-shadow-lg leading-tight line-clamp-2">
-                    {slide.title}
-                  </h1>
+                  {/* Logo officiel (principale), fallback titre */}
+                  {(slideLogo) ? (
+                    <MediaLogo src={slideLogo} alt={`Logo ${slide.title}`} />
+                  ) : (
+                    <h1 className="text-2xl font-black tracking-tight text-white sm:text-4xl md:text-5xl lg:text-6xl font-sans drop-shadow-lg leading-tight line-clamp-2">
+                      {slide.title}
+                    </h1>
+                  )}
 
                   <p className="hidden sm:block text-xs sm:text-sm md:text-base text-zinc-300 max-w-2xl font-normal leading-relaxed line-clamp-2 sm:line-clamp-3">
                     {slide.description}

@@ -269,7 +269,7 @@ export default function TestLangContent() {
           <div className="flex items-center gap-3">
             <Link
               href="/"
-              className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-all flex items-center gap-2 text-xs font-bold"
+              className="p-2.5 rounded-[5px] bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-all flex items-center gap-2 text-xs font-bold"
             >
               <ArrowLeft className="w-4 h-4" />
               Retour
@@ -384,7 +384,7 @@ export default function TestLangContent() {
                     <button
                       key={m.id}
                       onClick={() => setSelectedMedia(m)}
-                      className={`w-full text-left flex items-center gap-3 p-2.5 rounded-xl transition-all cursor-pointer ${
+                      className={`w-full text-left flex items-center gap-3 p-2.5 rounded-[5px] transition-all cursor-pointer ${
                         isSelected
                           ? "bg-red-600 text-white shadow-lg shadow-red-600/30 scale-[1.01]"
                           : "bg-white/5 text-zinc-300 hover:bg-white/10 hover:text-white"
@@ -468,7 +468,7 @@ export default function TestLangContent() {
                     <button
                       key={lang.id}
                       onClick={() => setSelectedLang(lang.id)}
-                      className={`flex flex-col items-center justify-center p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer ${
+                      className={`flex flex-col items-center justify-center p-3.5 sm:p-4 rounded-[5px] border transition-all cursor-pointer ${
                         isSelected
                           ? "bg-red-600/20 border-red-500 text-white shadow-xl shadow-red-600/25 ring-2 ring-red-500/50 scale-[1.02]"
                           : "bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10 hover:text-white"
@@ -484,7 +484,7 @@ export default function TestLangContent() {
             </div>
 
             {/* ── Integrated Video Player (Inline, NO download trigger) ── */}
-            <div className="bg-zinc-900/60 border border-white/10 rounded-2xl overflow-hidden backdrop-blur-md shadow-2xl">
+            <div className="bg-zinc-900/60 border border-white/10 rounded-2xl overflow-hidden backdrop-blur-md">
               <div className="aspect-video w-full bg-black relative flex items-center justify-center">
                 {loading ? (
                   <div className="flex flex-col items-center gap-3 text-zinc-400">
@@ -558,7 +558,7 @@ export default function TestLangContent() {
                         target="_blank"
                         rel="noreferrer"
                         download
-                        className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-red-600 hover:bg-red-500 px-3 py-1.5 rounded-lg shadow-md shadow-red-600/20 transition-all"
+                        className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-red-600 hover:bg-red-500 px-3 py-1.5 rounded-[5px] shadow-md shadow-red-600/20 transition-all"
                       >
                         <DownloadSimple className="w-3.5 h-3.5" />
                         Télécharger ({selectedLang === "fr" ? "VF" : "VO"})

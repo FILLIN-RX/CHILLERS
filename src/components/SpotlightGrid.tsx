@@ -24,7 +24,7 @@ function SpotlightCard({
   const backdrop = item.backdropOriginalUrl || item.backdropUrl;
 
   return (
-    <div className="relative group overflow-hidden rounded-2xl sm:rounded-3xl border border-white/5 bg-zinc-950/80 hover:border-white/15 transition-all duration-300 w-full flex flex-row items-stretch p-3 sm:p-4 gap-3 sm:gap-4 shadow-xl">
+    <div className="relative group overflow-hidden rounded-2xl sm:rounded-3xl border border-white/5 bg-zinc-950/80 hover:border-white/15 transition-all duration-300 w-full flex flex-row items-stretch p-3 sm:p-4 gap-3 sm:gap-4">
       {/* Subtle backdrop ambient glow in card background */}
       {backdrop && (
         <div className="absolute inset-0 pointer-events-none opacity-20 group-hover:opacity-30 transition-opacity duration-500 overflow-hidden">
@@ -42,7 +42,7 @@ function SpotlightCard({
       {/* Left: Vertical Poster (2:3 aspect ratio) */}
       <div
         onClick={() => onOpenDetails(item)}
-        className="relative flex-none w-24 xs:w-28 sm:w-32 md:w-36 aspect-[2/3] rounded-xl sm:rounded-2xl overflow-hidden bg-zinc-900 shrink-0 cursor-pointer shadow-md group-hover:scale-[1.02] transition-transform duration-300 z-10"
+        className="relative flex-none w-24 xs:w-28 sm:w-32 md:w-36 aspect-[2/3] rounded-xl sm:rounded-2xl overflow-hidden bg-zinc-900 shrink-0 cursor-pointer group-hover:scale-[1.02] transition-transform duration-300 z-10"
       >
         {item.posterUrl ? (
           <Image

@@ -111,7 +111,7 @@ export default function Top10Row({ title, items, className = "" }: Top10RowProps
                 </div>
 
                 {/* Poster overlapping slightly the number */}
-                <div className="relative z-20 w-[115px] sm:w-[135px] md:w-[155px] aspect-[2/3] -ml-5 sm:-ml-7 md:-ml-8 rounded-xl overflow-hidden shadow-2xl bg-zinc-900 border border-white/5">
+                <div className="relative z-20 w-[115px] sm:w-[135px] md:w-[155px] aspect-[2/3] -ml-5 sm:-ml-7 md:-ml-8 rounded-xl overflow-hidden bg-zinc-900 border border-white/5">
                   {item.posterUrl ? (
                     <Image
                       src={item.posterUrl}
@@ -128,7 +128,7 @@ export default function Top10Row({ title, items, className = "" }: Top10RowProps
 
                   {/* Badge Premium */}
                   {(item as any).isPremium && (
-                    <div className="absolute top-2 right-2 bg-gradient-to-r from-brand-primary to-orange-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-lg">
+                    <div className="absolute top-2 right-2 bg-gradient-to-r from-brand-primary to-orange-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">
                       VIP
                     </div>
                   )}

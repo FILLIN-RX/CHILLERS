@@ -18,7 +18,7 @@ export default function PromoBanner({ item, onWatchNow, onOpenDetails }: PromoBa
     item.posterUrl;
 
   return (
-    <div className="relative w-full overflow-hidden rounded-2xl border border-white/10 shadow-2xl shadow-black/60">
+    <div className="relative w-full overflow-hidden rounded-2xl border border-white/10">
       <div className="relative aspect-[16/8] sm:aspect-[21/8] w-full">
         {background ? (
           <Image

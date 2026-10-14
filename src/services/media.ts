@@ -48,7 +48,7 @@ export function isSlowConnection(): boolean {
 
 export function getTmdbImageUrl(
   path?: string | null,
-  type: "poster" | "backdrop" | "still" = "poster",
+  type: "poster" | "backdrop" | "still" | "logo" = "poster",
   original = false,
 ): string {
   if (!path) return "";
@@ -68,6 +68,12 @@ export function getTmdbImageUrl(
   }
 
   if (type === "still") {
+    if (ultraLow) return `https://image.tmdb.org/t/p/w300${path}`;
+    return `https://image.tmdb.org/t/p/${weak ? "w300" : "w500"}${path}`;
+  }
+
+  if (type === "logo") {
+    if (original && !weak && !ultraLow) return `https://image.tmdb.org/t/p/original${path}`;
     if (ultraLow) return `https://image.tmdb.org/t/p/w300${path}`;
     return `https://image.tmdb.org/t/p/${weak ? "w300" : "w500"}${path}`;
   }
@@ -316,8 +322,12 @@ export function mapTMDBToMovieOrShow(
   }
 
   let similar: MovieOrShow[] = [];
-  const recs = item.recommendations?.results || item.similar?.results;
-  if (Array.isArray(recs)) {
+  // TMDB renvoie souvent recommendations: {results: []} — un tableau vide est truthy,
+  // il faut bien choisir le premier pool NON vide (similar est plus généreux en long tail).
+  const recs = [item.recommendations?.results, item.similar?.results].find(
+    (pool) => Array.isArray(pool) && pool.length > 0,
+  );
+  if (recs) {
     similar = recs.slice(0, 10).map((r) => mapTMDBToMovieOrShow(r, type));
   }
 
@@ -923,6 +933,47 @@ export async function getMediaTrailerUrl(
   return null;
 }
 
+/**
+ * Récupère le logo officiel TMDb (PNG transparent) pour un film ou une série.
+ * Utilisé pour les hero banners style Netflix/Disney+.
+ * Mise en cache 30 minutes.
+ */
+export async function getMediaLogo(
+  id: string,
+  isTV = false,
+  signal?: AbortSignal,
+): Promise<string | null> {
+  const cacheKey = `media_logo:${isTV ? "tv" : "movie"}:${id}`;
+  const cached = getCached<string>(cacheKey);
+  if (cached) return cached;
+
+  try {
+    // Appel direct à TMDb pour récupérer les images avec logos
+    const data = await fetchDirectTMDB<{ logos?: Array<{ file_path: string; vote_average: number; iso_639_1: string | null }> }>(
+      `/${isTV ? "tv" : "movie"}/${id}/images`,
+      { include_image_language: "en,null" },
+      signal,
+    );
+
+    if (data?.logos && data.logos.length > 0) {
+      // Trier par vote_average pour obtenir le meilleur logo
+      const sortedLogos = [...data.logos].sort((a, b) => (b.vote_average || 0) - (a.vote_average || 0));
+      const bestLogo = sortedLogos[0];
+      
+      if (bestLogo?.file_path) {
+        const logoUrl = getTmdbImageUrl(bestLogo.file_path, "logo");
+        setCached(cacheKey, logoUrl, 30 * 60 * 1000);
+        return logoUrl;
+      }
+    }
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") throw err;
+    console.warn(`[getMediaLogo] Failed to fetch logo for ${isTV ? "tv" : "movie"} ${id}:`, err);
+  }
+
+  return null;
+}
+
 export async function enrichHeroSlidesWithTrailers(
   slides: MovieOrShow[],
   signal?: AbortSignal,
@@ -1079,6 +1130,85 @@ export async function getMovieRecommendations(
       .map((r) => mapTMDBToMovieOrShow(r, r.media_type === "tv" ? "series" : "movie"));
   }
   return [];
+}
+
+export async function getTVRecommendations(
+  id: string,
+  signal?: AbortSignal,
+): Promise<MovieOrShow[]> {
+  try {
+    // Direct TMDB API pour les séries similaires
+    const lang = clientLang() === "fr" ? "fr-FR" : "en-US";
+    const directData = await fetchDirectTMDB<PaginatedRaw>(
+      `/tv/${id}/recommendations`,
+      { language: lang },
+      signal,
+    );
+    if (directData?.results) {
+      return directData.results
+        .filter((r) => r.media_type === "tv" || !r.media_type)
+        .slice(0, 20)
+        .map((r) => mapTMDBToMovieOrShow(r, "series"));
+    }
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") throw err;
+  }
+
+  // Fallback: essayer les séries similaires
+  try {
+    const lang = clientLang() === "fr" ? "fr-FR" : "en-US";
+    const similarData = await fetchDirectTMDB<PaginatedRaw>(
+      `/tv/${id}/similar`,
+      { language: lang },
+      signal,
+    );
+    if (similarData?.results) {
+      return similarData.results
+        .slice(0, 20)
+        .map((r) => mapTMDBToMovieOrShow(r, "series"));
+    }
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") throw err;
+  }
+  
+  return [];
+}
+
+/**
+ * Chaîne « titres similaires » pour une fiche : similar/recommandations TMDB du
+ * titre courant, puis popular en dernier recours. Sans ancrage sur `id`, la
+ * populaire est identique pour toutes les fiches — c'était le bug rapporté.
+ */
+export async function getSimilarTitles(
+  id: string,
+  isTV: boolean,
+  detail?: MovieOrShow | null,
+  signal?: AbortSignal,
+): Promise<MovieOrShow[]> {
+  const seen = new Set<string>([String(id)]);
+  const pick = (list: MovieOrShow[], limit: number) => {
+    const out: MovieOrShow[] = [];
+    for (const m of list) {
+      const key = String(m.id);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(m);
+      if (out.length >= limit) break;
+    }
+    return out;
+  };
+
+  if (detail?.similar?.length) return pick(detail.similar, 14);
+
+  const recs = await (isTV ? getTVRecommendations(id, signal) : getMovieRecommendations(id, signal)).catch(
+    () => [] as MovieOrShow[],
+  );
+  if (recs.length > 0) return pick(recs, 14);
+
+  const popular = await (isTV ? getPopularTV(1, signal) : getPopularMovies(1, signal)).catch(
+    () => [] as MovieOrShow[],
+  );
+  return pick(popular, 10);
 }
 
 export async function getRecommendedForYou(): Promise<MovieOrShow[]> {

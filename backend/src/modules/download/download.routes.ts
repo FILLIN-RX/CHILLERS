@@ -356,9 +356,13 @@ router.get('/resolve', async (req: Request, res: Response) => {
       .replace(/\s+/g, ' ');
     const cleanFilename = `${safeTitle}${isTv ? `_S${season || 1}E${episode || 1}` : ''}.mp4`;
 
+    // Une URL d'hébergeur sans extension vidéo (vidlink.pro/tv/...) n'est pas repérée par
+    // isEmbedOrHtml : on exige donc un fichier direct ou l'un de nos proxies, sinon le client
+    // naviguerait sur la page de l'hébergeur au lieu de télécharger.
     const isHtml = isEmbedOrHtml(downloadUrl);
-    if (isHtml) {
-      console.warn(`[Download Resolve] ⚠️ URL finale reste une page HTML embed (${downloadUrl}) → rejeté pour éviter d'ouvrir une page web au lieu de télécharger.`);
+    const isServedFile = isDirectVideoUrl(downloadUrl) || downloadUrl.includes('/api/download/');
+    if (isHtml || !isServedFile) {
+      console.warn(`[Download Resolve] ⚠️ URL finale non téléchargeable (${downloadUrl}) → rejeté pour éviter d'ouvrir une page web au lieu de télécharger.`);
       return res.status(404).json({
         success: false,
         error: "Ce contenu est disponible en streaming iframe mais aucun fichier vidéo brut (MP4) n'a pu être extrait pour le téléchargement direct.",

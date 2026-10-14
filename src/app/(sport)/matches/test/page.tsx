@@ -138,7 +138,7 @@ export default function MatchStreamTestPage() {
             <button
               onClick={loadMatches}
               disabled={isLoadingLists}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-sm font-semibold transition"
+              className="flex items-center gap-2 px-4 py-2 rounded-[5px] bg-white/10 hover:bg-white/15 text-sm font-semibold transition"
             >
               <ArrowsClockwise className={`h-4 w-4 ${isLoadingLists ? "animate-spin" : ""}`} />
               Actualiser les sources
@@ -175,7 +175,7 @@ export default function MatchStreamTestPage() {
                       setSelectedEspnId(manualId.trim());
                     }
                   }}
-                  className="px-4 py-2 rounded-xl text-sm font-bold text-black"
+                  className="px-4 py-2 rounded-[5px] text-sm font-bold text-black"
                   style={{ background: PRIMARY }}
                 >
                   Tester
@@ -211,7 +211,7 @@ export default function MatchStreamTestPage() {
                       <button
                         key={m.id}
                         onClick={() => setSelectedEspnId(String(m.id))}
-                        className={`w-full text-left p-3 rounded-xl border transition flex items-center justify-between ${
+                        className={`w-full text-left p-3 rounded-[5px] border transition flex items-center justify-between ${
                           isSelected
                             ? "bg-[#252525] border-[#FF6A00]"
                             : "bg-[#1c1c1c] border-white/5 hover:bg-[#222]"
@@ -316,7 +316,7 @@ export default function MatchStreamTestPage() {
                   <button
                     onClick={() => testStreamResolution(selectedEspnId)}
                     disabled={isResolvingStream}
-                    className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300"
+                    className="p-2 rounded-[5px] bg-white/5 hover:bg-white/10 text-zinc-300"
                     title="Rafraîchir ce flux"
                   >
                     <ArrowsClockwise className={`h-4 w-4 ${isResolvingStream ? "animate-spin" : ""}`} />
@@ -366,7 +366,7 @@ export default function MatchStreamTestPage() {
                     <button
                       key={idx}
                       onClick={() => setActiveServerIdx(idx)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                      className={`px-3 py-1.5 rounded-[5px] text-xs font-semibold transition ${
                         activeServerIdx === idx
                           ? "bg-[#FF6A00] text-white"
                           : "bg-white/10 hover:bg-white/15 text-zinc-300"

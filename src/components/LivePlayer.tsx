@@ -662,7 +662,7 @@ export default function LivePlayer({
             {allChannels.length > 0 && (
               <button
                 onClick={() => setShowChannelDrawer(!showChannelDrawer)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-wider transition-all"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-[5px] bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-wider transition-all"
               >
                 <Television className="h-4 w-4" />
                 <span className="hidden sm:inline">TOUTES LES CHAÎNES</span>
@@ -671,7 +671,7 @@ export default function LivePlayer({
 
             <button
               onClick={() => setShowEpgModal(!showEpgModal)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-white/10 text-zinc-300 hover:text-white text-xs font-bold uppercase tracking-wider transition-all hidden md:flex"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-[5px] hover:bg-white/10 text-zinc-300 hover:text-white text-xs font-bold uppercase tracking-wider transition-all hidden md:flex"
             >
               <Clock className="h-4 w-4" />
               <span>REVOIR / À SUIVRE</span>
@@ -796,7 +796,7 @@ export default function LivePlayer({
           {/* Toggle basse latence */}
           <button
             onClick={toggleLatencyMode}
-            className="flex items-center justify-between gap-3 w-full rounded-xl bg-zinc-900/60 border border-white/10 p-3 text-left hover:bg-zinc-900 transition-colors"
+            className="flex items-center justify-between gap-3 w-full rounded-[5px] bg-zinc-900/60 border border-white/10 p-3 text-left hover:bg-zinc-900 transition-colors"
           >
             <div>
               <p className="text-sm font-bold text-white flex items-center gap-1.5">

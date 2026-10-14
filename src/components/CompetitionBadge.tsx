@@ -16,7 +16,7 @@ export default function CompetitionBadge({
       {logo && (
         // Les écussons de ligue ESPN sont noirs sur fond transparent : sans
         // pastille claire ils disparaissent sur le fond sombre du site.
-        <span className="flex w-4 h-4 shrink-0 rounded-[3px] bg-white items-center justify-center overflow-hidden">
+        <span className="flex w-4 h-4 shrink-0 rounded-[4px] bg-white items-center justify-center overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={logo} alt="" loading="lazy" className="w-3.5 h-3.5 object-contain" />
         </span>

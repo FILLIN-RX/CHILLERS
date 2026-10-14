@@ -311,7 +311,7 @@ export default function OfflinePlayerModal({
           </p>
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-white text-black font-bold text-xs hover:bg-zinc-200 transition-all cursor-pointer shadow-lg active:scale-95"
+            className="flex items-center gap-2 px-6 py-3 rounded-[5px] bg-white text-black font-bold text-xs hover:bg-zinc-200 transition-all cursor-pointer shadow-lg active:scale-95"
           >
             <FolderOpen className="w-4 h-4" />
             Ouvrir le fichier

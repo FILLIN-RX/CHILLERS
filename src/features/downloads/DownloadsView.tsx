@@ -292,7 +292,7 @@ export default function DownloadsView({
         <div className="flex items-center gap-2">
           <button
             onClick={() => router.push("/profile?tab=settings")}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-[3px] bg-zinc-900 hover:bg-zinc-800 border border-white/10 text-xs font-semibold text-zinc-300 hover:text-white transition-all cursor-pointer shadow-sm active:scale-95"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-[5px] bg-zinc-900 hover:bg-zinc-800 border border-white/10 text-xs font-semibold text-zinc-300 hover:text-white transition-all cursor-pointer shadow-sm active:scale-95"
           >
             <GearSix className="w-4 h-4" />
             <span>Paramètres</span>
@@ -314,7 +314,7 @@ export default function DownloadsView({
               <button
                 key={tab.id}
                 onClick={() => setFilter(tab.id as any)}
-                className={`px-3 py-1.5 rounded-[3px] text-xs font-bold transition-all cursor-pointer whitespace-nowrap active:scale-95 ${
+                className={`px-3 py-1.5 rounded-[5px] text-xs font-bold transition-all cursor-pointer whitespace-nowrap active:scale-95 ${
                   filter === tab.id
                     ? "bg-white text-black shadow-sm"
                     : "bg-zinc-900/90 text-zinc-400 hover:text-white hover:bg-zinc-800 border border-white/5"
@@ -334,14 +334,14 @@ export default function DownloadsView({
                 placeholder="Filtrer..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-zinc-900 border border-white/10 rounded-[3px] pl-8 pr-3 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-white/30 transition-colors"
+                className="w-full bg-zinc-900 border border-white/10 rounded-[4px] pl-8 pr-3 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-white/30 transition-colors"
               />
             </div>
 
             {doneTasks.length > 0 && (
               <button
                 onClick={handleClearFinished}
-                className="px-3 py-1.5 rounded-[3px] bg-zinc-900 hover:bg-zinc-800 border border-white/10 text-zinc-300 text-xs font-medium transition-colors cursor-pointer whitespace-nowrap"
+                className="px-3 py-1.5 rounded-[5px] bg-zinc-900 hover:bg-zinc-800 border border-white/10 text-zinc-300 text-xs font-medium transition-colors cursor-pointer whitespace-nowrap"
               >
                 Nettoyer
               </button>
@@ -349,7 +349,7 @@ export default function DownloadsView({
 
             <button
               onClick={() => setShowClearAllModal(true)}
-              className="px-3 py-1.5 rounded-[3px] bg-zinc-900 hover:bg-red-500/20 border border-white/10 hover:border-red-500/30 text-red-400 text-xs font-medium transition-colors cursor-pointer whitespace-nowrap"
+              className="px-3 py-1.5 rounded-[5px] bg-zinc-900 hover:bg-red-500/20 border border-white/10 hover:border-red-500/30 text-red-400 text-xs font-medium transition-colors cursor-pointer whitespace-nowrap"
             >
               Tout effacer
             </button>
@@ -385,7 +385,7 @@ export default function DownloadsView({
                 {/* 1. Miniature 16:9 YouTube avec badges discrets */}
                 <div
                   onClick={() => isDone && handleWatch(task)}
-                  className={`relative aspect-video w-full rounded-[3px] overflow-hidden bg-zinc-900 border border-white/10 group-hover:border-white/25 transition-all shadow-md ${
+                  className={`relative aspect-video w-full rounded-[4px] overflow-hidden bg-zinc-900 border border-white/10 group-hover:border-white/25 transition-all ${
                     isDone ? "cursor-pointer" : ""
                   }`}
                 >
@@ -425,7 +425,7 @@ export default function DownloadsView({
 
                   {/* Badge Durée / Taille en bas à droite (Style YouTube exact) */}
                   <div className="absolute bottom-1.5 right-1.5 flex items-center gap-1 z-10">
-                    <span className="px-1.5 py-0.5 rounded-[2px] bg-black/90 text-white text-[10px] font-mono font-bold tracking-tight shadow">
+                    <span className="px-1.5 py-0.5 rounded-[4px] bg-black/90 text-white text-[10px] font-mono font-bold tracking-tight shadow">
                       {task.totalBytes || task.bytesDownloaded
                         ? formatBytes(task.totalBytes || task.bytesDownloaded || 0)
                         : isDone
@@ -453,14 +453,14 @@ export default function DownloadsView({
                   {/* Badge statut si erreur ou pause */}
                   {isPaused && (
                     <div className="absolute top-1.5 left-1.5 z-10">
-                      <span className="px-1.5 py-0.5 rounded-[2px] bg-amber-500/90 text-black text-[9px] font-black uppercase">
+                      <span className="px-1.5 py-0.5 rounded-[4px] bg-amber-500/90 text-black text-[9px] font-black uppercase">
                         Pause
                       </span>
                     </div>
                   )}
                   {isError && (
                     <div className="absolute top-1.5 left-1.5 z-10">
-                      <span className="px-1.5 py-0.5 rounded-[2px] bg-red-600 text-white text-[9px] font-black uppercase">
+                      <span className="px-1.5 py-0.5 rounded-[4px] bg-red-600 text-white text-[9px] font-black uppercase">
                         Erreur
                       </span>
                     </div>
@@ -502,14 +502,14 @@ export default function DownloadsView({
                     {isMenuOpen && (
                       <div
                         ref={menuRef}
-                        className="absolute right-0 top-full mt-1 w-48 bg-[#18181c] border border-white/15 rounded-[3px] shadow-2xl p-1 z-30 flex flex-col divide-y divide-white/5 animate-in fade-in zoom-in-95 duration-150"
+                        className="absolute right-0 top-full mt-1 w-48 bg-[#18181c] border border-white/15 rounded-[4px] shadow-2xl p-1 z-30 flex flex-col divide-y divide-white/5 animate-in fade-in zoom-in-95 duration-150"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className="py-1">
                           {isDone && (
                             <button
                               onClick={() => handleWatch(task)}
-                              className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-semibold text-white hover:bg-white/10 rounded-[2px] transition-colors cursor-pointer text-left"
+                              className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-semibold text-white hover:bg-white/10 rounded-[5px] transition-colors cursor-pointer text-left"
                             >
                               <Play className="w-3.5 h-3.5 fill-white text-white" />
                               <span>Regarder</span>
@@ -518,7 +518,7 @@ export default function DownloadsView({
 
                           <button
                             onClick={() => goToDetails(task)}
-                            className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/10 rounded-[2px] transition-colors cursor-pointer text-left"
+                            className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/10 rounded-[5px] transition-colors cursor-pointer text-left"
                           >
                             <Info className="w-3.5 h-3.5" />
                             <span>Voir les détails</span>
@@ -527,7 +527,7 @@ export default function DownloadsView({
                           {isRunning && (
                             <button
                               onClick={() => handlePauseOne(task.id)}
-                              className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-semibold text-amber-400 hover:bg-white/10 rounded-[2px] transition-colors cursor-pointer text-left"
+                              className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-semibold text-amber-400 hover:bg-white/10 rounded-[5px] transition-colors cursor-pointer text-left"
                             >
                               <Pause className="w-3.5 h-3.5" />
                               <span>Mettre en pause</span>
@@ -537,7 +537,7 @@ export default function DownloadsView({
                           {isPaused && (
                             <button
                               onClick={() => handleResumeOne(task)}
-                              className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-semibold text-emerald-400 hover:bg-white/10 rounded-[2px] transition-colors cursor-pointer text-left"
+                              className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-semibold text-emerald-400 hover:bg-white/10 rounded-[5px] transition-colors cursor-pointer text-left"
                             >
                               <Play className="w-3.5 h-3.5 fill-emerald-400" />
                               <span>Reprendre</span>
@@ -547,7 +547,7 @@ export default function DownloadsView({
                           {isError && (
                             <button
                               onClick={() => handleRetryOne(task.id)}
-                              className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-semibold text-emerald-400 hover:bg-white/10 rounded-[2px] transition-colors cursor-pointer text-left"
+                              className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-semibold text-emerald-400 hover:bg-white/10 rounded-[5px] transition-colors cursor-pointer text-left"
                             >
                               <ArrowsClockwise className="w-3.5 h-3.5" />
                               <span>Relancer</span>
@@ -558,7 +558,7 @@ export default function DownloadsView({
                         <div className="py-1">
                           <button
                             onClick={() => handleDeleteOne(task.id)}
-                            className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-semibold text-red-400 hover:bg-red-500/20 rounded-[2px] transition-colors cursor-pointer text-left"
+                            className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-semibold text-red-400 hover:bg-red-500/20 rounded-[5px] transition-colors cursor-pointer text-left"
                           >
                             <Trash className="w-3.5 h-3.5" />
                             <span>Supprimer</span>
@@ -591,7 +591,7 @@ export default function DownloadsView({
           {!user ? (
             <button
               onClick={() => router.push("/login")}
-              className="px-5 py-2.5 rounded-xl bg-brand-primary hover:bg-brand-primary/90 text-white text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer"
+              className="px-5 py-2.5 rounded-[5px] bg-brand-primary hover:bg-brand-primary/90 text-white text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer"
             >
               Se connecter
             </button>
@@ -618,7 +618,7 @@ export default function DownloadsView({
           onClick={() => setShowClearAllModal(false)}
         >
           <div
-            className="bg-[#141417] border border-white/15 rounded-[3px] p-6 max-w-sm w-full text-center space-y-4 shadow-2xl"
+            className="bg-[#141417] border border-white/15 rounded-[4px] p-6 max-w-sm w-full text-center space-y-4 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="w-12 h-12 rounded-full bg-red-500/15 text-red-500 flex items-center justify-center mx-auto">
@@ -635,13 +635,13 @@ export default function DownloadsView({
             <div className="grid grid-cols-2 gap-2 pt-2">
               <button
                 onClick={() => setShowClearAllModal(false)}
-                className="py-2.5 rounded-[3px] bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-white transition-colors cursor-pointer"
+                className="py-2.5 rounded-[5px] bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-white transition-colors cursor-pointer"
               >
                 Annuler
               </button>
               <button
                 onClick={handleClearAll}
-                className="py-2.5 rounded-[3px] bg-[brand-primary] hover:bg-[#b5034f] text-xs font-semibold text-white transition-colors cursor-pointer"
+                className="py-2.5 rounded-[5px] bg-[brand-primary] hover:bg-[#b5034f] text-xs font-semibold text-white transition-colors cursor-pointer"
               >
                 Tout effacer
               </button>

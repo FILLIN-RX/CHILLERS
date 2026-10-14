@@ -94,7 +94,7 @@ export default function PWAInstallBanner() {
           <button
             onClick={handleInstallClick}
             aria-label="Installer l'application CHILLERS"
-            className="flex-shrink-0 flex items-center gap-1.5 px-3.5 py-2.5 min-h-[40px] rounded-xl text-xs font-bold bg-white text-black hover:bg-zinc-200 active:scale-95 transition-all cursor-pointer shadow-md"
+            className="flex-shrink-0 flex items-center gap-1.5 px-3.5 py-2.5 min-h-[40px] rounded-[5px] text-xs font-bold bg-white text-black hover:bg-zinc-200 active:scale-95 transition-all cursor-pointer shadow-md"
           >
             <DownloadSimple className="w-4 h-4" />
             Installer
@@ -166,7 +166,7 @@ export default function PWAInstallBanner() {
 
             <button
               onClick={() => setShowIosGuide(false)}
-              className="w-full py-3 rounded-xl bg-white text-black font-bold text-sm hover:bg-zinc-200 transition-colors"
+              className="w-full py-3 rounded-[5px] bg-white text-black font-bold text-sm hover:bg-zinc-200 transition-colors"
             >
               J'ai compris
             </button>

@@ -162,7 +162,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
         <div className="hidden sm:flex items-center gap-2 shrink-0">
           <button
             onClick={onClose}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 text-xs text-zinc-300 hover:text-white transition-all cursor-pointer font-medium"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[5px] bg-white/10 hover:bg-white/20 border border-white/10 text-xs text-zinc-300 hover:text-white transition-all cursor-pointer font-medium"
             title="Fermer (Échap)"
           >
             <span className="text-[10px] text-zinc-400 font-mono">ESC</span>
@@ -195,7 +195,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                       onClick={() => goToDetail(m)}
                       className="group flex-none w-32 sm:w-44 space-y-2 text-left cursor-pointer transition-transform hover:scale-[1.02] active:scale-98"
                     >
-                      <div className="relative aspect-video w-full rounded-lg overflow-hidden bg-zinc-900 border border-white/10 group-hover:border-white/30 transition-all shadow-md">
+                      <div className="relative aspect-video w-full rounded-lg overflow-hidden bg-zinc-900 border border-white/10 group-hover:border-white/30 transition-all">
                         <CardImage
                           src={m.backdropUrl || m.posterUrl}
                           alt={m.title}
@@ -229,7 +229,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                     <button
                       key={g.id}
                       onClick={() => search.setQuery(g.name)}
-                      className="p-2.5 sm:p-3.5 rounded-lg bg-zinc-900/90 hover:bg-zinc-800 border border-white/10 hover:border-white/30 text-center font-bold text-xs sm:text-sm text-zinc-300 hover:text-white transition-all cursor-pointer active:scale-95 shadow-sm"
+                      className="p-2.5 sm:p-3.5 rounded-[5px] bg-zinc-900/90 hover:bg-zinc-800 border border-white/10 hover:border-white/30 text-center font-bold text-xs sm:text-sm text-zinc-300 hover:text-white transition-all cursor-pointer active:scale-95 shadow-sm"
                     >
                       {g.name}
                     </button>

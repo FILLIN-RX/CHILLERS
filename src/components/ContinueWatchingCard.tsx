@@ -109,7 +109,7 @@ function ContinueWatchingCard({
       className="group relative flex-none w-[250px] sm:w-[300px] md:w-[360px] lg:w-[420px] cursor-pointer"
     >
       {/* 16:9 landscape box with glass border & rounded corners */}
-      <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-zinc-900 shadow-lg transition-colors duration-300">
+      <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-zinc-900 transition-colors duration-300">
         <div
           className={`absolute inset-0 skeleton-loading z-10 pointer-events-none transition-opacity duration-700 ease-out ${
             imgLoaded ? "opacity-0" : "opacity-100"

@@ -134,7 +134,7 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
               <button
                 onClick={() => setIsDrawerOpen(true)}
                 aria-label="Menu"
-                className="md:hidden flex h-9 w-9 items-center justify-center rounded-xl text-zinc-300 hover:text-white hover:bg-white/10 active:scale-95 transition-all cursor-pointer"
+                className="md:hidden flex h-9 w-9 items-center justify-center rounded-[5px] text-zinc-300 hover:text-white hover:bg-white/10 active:scale-95 transition-all cursor-pointer"
               >
                 <List className="w-6 h-6 stroke-[2.2]" />
               </button>
@@ -288,7 +288,7 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
 
                     <Link
                       href="/profile"
-                      className="flex items-center gap-2.5 px-3 py-2 text-xs text-zinc-300 hover:text-white hover:bg-white/10 rounded-xl transition-colors font-medium"
+                      className="flex items-center gap-2.5 px-3 py-2 text-xs text-zinc-300 hover:text-white hover:bg-white/10 rounded-[5px] transition-colors font-medium"
                     >
                       <User className="w-4 h-4" />
                       {lang === "fr" ? "Mon Profil" : "My Profile"}
@@ -296,7 +296,7 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
 
                     <Link
                       href="/downloads"
-                      className="flex items-center gap-2.5 px-3 py-2 text-xs text-zinc-300 hover:text-white hover:bg-white/10 rounded-xl transition-colors font-medium"
+                      className="flex items-center gap-2.5 px-3 py-2 text-xs text-zinc-300 hover:text-white hover:bg-white/10 rounded-[5px] transition-colors font-medium"
                     >
                       <DownloadSimple className="w-4 h-4 text-emerald-400" />
                       {lang === "fr" ? "Mes Téléchargements" : "Downloads"}
@@ -309,7 +309,7 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
 
                     <Link
                       href="/profile?tab=watchlist"
-                      className="flex items-center gap-2.5 px-3 py-2 text-xs text-zinc-300 hover:text-white hover:bg-white/10 rounded-xl transition-colors font-medium"
+                      className="flex items-center gap-2.5 px-3 py-2 text-xs text-zinc-300 hover:text-white hover:bg-white/10 rounded-[5px] transition-colors font-medium"
                     >
                       <BookmarkSimple className="w-4 h-4" />
                       {lang === "fr" ? "Ma Liste" : "Watchlist"}
@@ -317,7 +317,7 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
 
                     <Link
                       href="/profile?tab=history"
-                      className="flex items-center gap-2.5 px-3 py-2 text-xs text-zinc-300 hover:text-white hover:bg-white/10 rounded-xl transition-colors font-medium"
+                      className="flex items-center gap-2.5 px-3 py-2 text-xs text-zinc-300 hover:text-white hover:bg-white/10 rounded-[5px] transition-colors font-medium"
                     >
                       <ClockCounterClockwise className="w-4 h-4" />
                       {lang === "fr" ? "Historique" : "History"}
@@ -327,7 +327,7 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
 
                     <button
                       onClick={logout}
-                      className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-[brand-primary] hover:bg-[#b5034f] border border-[brand-primary] active:scale-95 text-white font-bold text-xs shadow-md transition-all cursor-pointer mt-1"
+                      className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-[5px] bg-[brand-primary] hover:bg-[#b5034f] border border-[brand-primary] active:scale-95 text-white font-bold text-xs shadow-md transition-all cursor-pointer mt-1"
                     >
                       <SignOut className="w-4 h-4" />
                       <span>{lang === "fr" ? "Se déconnecter" : "Log out"}</span>
@@ -397,7 +397,7 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
                 </Link>
                 <button
                   onClick={() => setIsDrawerOpen(false)}
-                  className="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-white/10"
+                  className="p-1.5 text-zinc-400 hover:text-white rounded-[5px] hover:bg-white/10"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -465,7 +465,7 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
                     setIsDrawerOpen(false);
                     logout();
                   }}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-[brand-primary] hover:bg-[#b5034f] border border-[brand-primary] active:scale-95 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-[5px] bg-[brand-primary] hover:bg-[#b5034f] border border-[brand-primary] active:scale-95 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
                 >
                   <SignOut className="w-4 h-4" />
                   <span>{lang === "fr" ? "Se déconnecter" : "Logout"}</span>

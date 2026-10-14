@@ -49,10 +49,10 @@ export default function RequestButton({
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className={`inline-flex items-center gap-2 font-medium transition-all duration-200 active:scale-95 rounded-[2px] ${
+        className={`inline-flex items-center gap-2 font-medium transition-all duration-200 active:scale-95 rounded-[5px] ${
           variant === "compact" ? "text-xs py-1 px-2.5" : "text-sm py-2.5 px-4"
         } ${getVariantStyles()} ${className}`}
-        style={{ borderRadius: "2px" }}
+        style={{ borderRadius: "4px" }}
         title="Rechercher et ajouter ce contenu sur CHILLERS"
       >
         <Sparkle size={variant === "compact" ? 14 : 16} weight="fill" className="text-amber-400" />

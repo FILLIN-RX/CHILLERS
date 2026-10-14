@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { Suspense, cache } from "react";
 import { API_BASE, getServerApiHeaders } from "@/lib/server-api";
 import { buildMediaMetadata, buildMediaJsonLd, SITE_LOCALE, DEFAULT_OG_IMAGE } from "@/lib/seo";
-import { getMediaDetails, getPopularTV, mapTMDBToMovieOrShow } from "@/services/media";
+import { getMediaDetails, getSimilarTitles, mapTMDBToMovieOrShow } from "@/services/media";
 import TvClientWrapper from "./TvClientWrapper";
 
 export const dynamic = "force-dynamic";
@@ -81,12 +81,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function TvPage({ params }: Props) {
   const { id } = await params;
   
-  const [item, popularList] = await Promise.all([
-    fetchTvData(id),
-    getPopularTV(1).catch(() => []),
-  ]);
-  
-  const similar = popularList ? popularList.filter((m: any) => m.id !== id).slice(0, 14) : [];
+  const item = await fetchTvData(id);
+  const similar = await getSimilarTitles(id, true, item);
   
   let jsonLd = null;
   if (item) {
@@ -124,7 +120,7 @@ function TvFallback() {
       <div className="relative w-full h-[65vh] sm:h-[75vh] lg:h-[80vh] max-h-[800px] overflow-hidden bg-zinc-900 animate-pulse">
         <div className="absolute inset-0 bg-gradient-to-t from-[#09090B] via-[#09090B]/60 to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 px-4 sm:px-8 md:px-12 lg:px-16 pb-10 sm:pb-16 flex flex-col md:flex-row md:items-end gap-6 sm:gap-8">
-          <div className="w-[170px] sm:w-[210px] lg:w-[240px] aspect-[2/3] rounded-2xl bg-zinc-800 border border-white/10 shrink-0 shadow-2xl" />
+          <div className="w-[170px] sm:w-[210px] lg:w-[240px] aspect-[2/3] rounded-2xl bg-zinc-800 border border-white/10 shrink-0" />
           <div className="flex-1 space-y-4">
             <div className="flex gap-2">
               <div className="h-6 w-24 rounded-full bg-zinc-800" />

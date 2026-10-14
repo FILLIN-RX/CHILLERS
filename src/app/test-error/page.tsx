@@ -18,7 +18,7 @@ export default function TestErrorPage() {
         </p>
         <button
           onClick={() => setShouldThrow(true)}
-          className="w-full py-3.5 px-6 rounded-xl bg-[brand-primary] hover:bg-[#E91E63] text-white font-bold text-sm shadow-[0_0_20px_rgba(215,4,102,0.4)] transition-all cursor-pointer"
+          className="w-full py-3.5 px-6 rounded-[5px] bg-[brand-primary] hover:bg-[#E91E63] text-white font-bold text-sm shadow-[0_0_20px_rgba(215,4,102,0.4)] transition-all cursor-pointer"
         >
           Déclencher l'erreur (Afficher error.tsx)
         </button>

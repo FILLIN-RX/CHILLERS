@@ -113,12 +113,12 @@ function ToastCard({ toast, onDismiss, onNavigate }: ToastCardProps) {
   return (
     <div
       className="pointer-events-auto w-full animate-slide-up"
-      style={{ borderRadius: "2px" }}
+      style={{ borderRadius: "4px" }}
     >
       {/* Card */}
       <div
         style={{
-          borderRadius: "2px",
+          borderRadius: "4px",
           background: "linear-gradient(135deg, #111111 0%, #1a1a1a 100%)",
           border: "1px solid rgba(255,255,255,0.10)",
           boxShadow: "0 8px 32px rgba(0,0,0,0.7), 0 0 0 1px rgba(215,4,102,0.08)",
@@ -130,7 +130,7 @@ function ToastCard({ toast, onDismiss, onNavigate }: ToastCardProps) {
           {/* Icon */}
           <div
             style={{
-              borderRadius: "2px",
+              borderRadius: "4px",
               background: "rgba(16, 185, 129, 0.12)",
               border: "1px solid rgba(16, 185, 129, 0.25)",
               width: 36,
@@ -165,7 +165,7 @@ function ToastCard({ toast, onDismiss, onNavigate }: ToastCardProps) {
             <button
               onClick={onNavigate}
               className="flex items-center gap-1 px-2 py-1.5 text-xs font-bold text-[brand-primary] hover:text-white hover:bg-[brand-primary] transition-all"
-              style={{ borderRadius: "2px" }}
+              style={{ borderRadius: "4px" }}
               aria-label="Voir les téléchargements"
             >
               <ArrowRight className="h-3.5 w-3.5" />
@@ -173,7 +173,7 @@ function ToastCard({ toast, onDismiss, onNavigate }: ToastCardProps) {
             <button
               onClick={onDismiss}
               className="flex items-center justify-center w-6 h-6 text-zinc-600 hover:text-white hover:bg-white/10 transition-all"
-              style={{ borderRadius: "2px" }}
+              style={{ borderRadius: "4px" }}
               aria-label="Fermer"
             >
               <X className="h-3 w-3" />

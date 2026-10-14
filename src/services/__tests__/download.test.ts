@@ -11,6 +11,7 @@ import {
   resolveDownloadUrl,
   verifyDownloadStarted,
   getPremiumDownloadUrl,
+  isDownloadableUrl,
 } from '@/services/downloads';
 
 describe('Download Service & Platform Detection (Normal vs iOS)', () => {
@@ -237,5 +238,28 @@ describe('Download Service & Platform Detection (Normal vs iOS)', () => {
       const verified = await verifyDownloadStarted('https://cdn.example.com/forbidden.mp4');
       expect(verified).toBe(false);
     });
+  });
+});
+
+describe('isDownloadableUrl()', () => {
+  it('accepts our own proxy routes', () => {
+    expect(isDownloadableUrl('/api/download/stream?m3u8=https%3A%2F%2Fx.m3u8&filename=Fight%20Club.mp4')).toBe(true);
+    expect(isDownloadableUrl('https://backend.example.com/api/download/file?url=https%3A%2F%2Fcdn%2Fv.mp4&filename=v.mp4')).toBe(true);
+  });
+
+  it('accepts signed direct video files', () => {
+    expect(isDownloadableUrl('https://u14.vidzy.cc/v/06/Big_Hero_6_2014_VF2.mkv.mp4?t=UvDVR3xE&s=1791829463')).toBe(true);
+    expect(isDownloadableUrl('https://cdn.example.com/movie.mp4')).toBe(true);
+  });
+
+  it('refuses host player pages that would navigate the app away', () => {
+    expect(isDownloadableUrl('https://vidlink.pro/tv/46260/1/1?primaryColor=D70466&autoplay=false')).toBe(false);
+    expect(isDownloadableUrl('https://vidshare.tv/embed-abc123.html')).toBe(false);
+  });
+
+  it('refuses empty values', () => {
+    expect(isDownloadableUrl(null)).toBe(false);
+    expect(isDownloadableUrl(undefined)).toBe(false);
+    expect(isDownloadableUrl('')).toBe(false);
   });
 });

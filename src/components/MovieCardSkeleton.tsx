@@ -30,7 +30,7 @@ export default function MovieCardSkeleton({
         </div>
 
         {/* Poster Skeleton */}
-        <div className="relative z-20 w-[115px] sm:w-[135px] md:w-[155px] aspect-[2/3] -ml-5 sm:-ml-7 md:-ml-8 rounded-xl overflow-hidden shadow-2xl bg-zinc-950 border border-white/5">
+        <div className="relative z-20 w-[115px] sm:w-[135px] md:w-[155px] aspect-[2/3] -ml-5 sm:-ml-7 md:-ml-8 rounded-xl overflow-hidden bg-zinc-950 border border-white/5">
           <div className="absolute inset-0 skeleton-loading" aria-hidden="true" />
           <div className="absolute top-2 right-2 z-10 h-3.5 w-10 rounded bg-white/10 backdrop-blur-md" />
         </div>
@@ -41,8 +41,8 @@ export default function MovieCardSkeleton({
   // 2. VERTICAL POSTER SKELETON (Primary format for home rows)
   if (isPoster) {
     const posterCardClass = isGridPoster
-      ? `relative w-full aspect-[2/3] rounded-2xl overflow-hidden bg-zinc-950 shadow-[0_8px_24px_rgba(0,0,0,0.6)] card-ambient-shimmer ${className}`
-      : `relative flex-none h-[250px] sm:h-[295px] md:h-[340px] lg:h-[385px] w-[165px] sm:w-[195px] md:w-[225px] lg:w-[255px] rounded-2xl overflow-hidden bg-zinc-950 shadow-[0_8px_24px_rgba(0,0,0,0.6)] card-ambient-shimmer ${className}`;
+      ? `relative w-full aspect-[2/3] rounded-2xl overflow-hidden bg-zinc-950 card-ambient-shimmer ${className}`
+      : `relative flex-none h-[250px] sm:h-[295px] md:h-[340px] lg:h-[385px] w-[165px] sm:w-[195px] md:w-[225px] lg:w-[255px] rounded-2xl overflow-hidden bg-zinc-950 card-ambient-shimmer ${className}`;
 
     return (
       <div className={posterCardClass}>
@@ -67,7 +67,7 @@ export default function MovieCardSkeleton({
   if (isContinueWatching) {
     return (
       <div className={`relative flex-none w-[250px] sm:w-[300px] md:w-[360px] lg:w-[420px] ${className}`}>
-        <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-zinc-900 border border-white/5 shadow-md">
+        <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-zinc-900 border border-white/5">
           <div className="absolute inset-0 skeleton-loading" aria-hidden="true" />
 
           {/* Bottom Title & Details */}
@@ -97,7 +97,7 @@ export default function MovieCardSkeleton({
 
   return (
     <div className={`relative ${landscapeSizeClass} ${className}`}>
-      <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-zinc-900 shadow-md">
+      <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-zinc-900">
         <div className="absolute inset-0 skeleton-loading" aria-hidden="true" />
 
         {/* Top-left Rating */}
