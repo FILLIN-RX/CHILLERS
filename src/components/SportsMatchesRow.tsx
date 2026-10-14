@@ -86,6 +86,21 @@ function formatKickoff(ts?: number): string {
   return day || time || "Bientôt";
 }
 
+/**
+ * L'habillage « Apple TV » donne à chaque club son propre panneau coloré, et
+ * aucune de nos sources ne publie la couleur d'un club. Teinte déterministe tirée
+ * du nom : une rencontre garde le même habillage d'un rafraîchissement à l'autre.
+ */
+function panelTint(name?: string): { from: string; to: string } {
+  let hue = 0;
+  for (const char of name || "?") hue = (hue * 31 + (char.codePointAt(0) ?? 0)) % 360;
+  return { from: `hsl(${hue} 40% 32%)`, to: `hsl(${hue} 34% 14%)` };
+}
+
+/** Cout oblique entre les deux panneaux, plus large en haut côté domicile. */
+const HOME_PANEL = "polygon(0 0, 58% 0, 42% 100%, 0 100%)";
+const AWAY_PANEL = "polygon(58% 0, 100% 0, 100% 100%, 42% 100%)";
+
 function TeamCrest({ src, alt }: { src?: string; alt: string }) {
   // On mémorise l'URL qui a échoué : une affiche 404 retombe sur les initiales,
   // et une URL remplacée par la query suivante se reteste normalement.
@@ -115,7 +130,7 @@ function TeamCrest({ src, alt }: { src?: string; alt: string }) {
       alt={alt}
       loading="lazy"
       onError={() => setBrokenSrc(src)}
-      className="w-12 h-12 sm:w-14 sm:h-14 object-contain shrink-0 drop-shadow-md"
+      className="w-12 h-12 sm:w-14 sm:h-14 object-contain shrink-0"
     />
   );
 }
@@ -302,60 +317,58 @@ export default function SportsMatchesRow({
         <div className="flex gap-4 sm:gap-5 overflow-x-auto no-scrollbar py-2 px-1">
           {cards.map(({ match: m, affiche }) => {
             const isLive = m.status === "live";
+            const home = panelTint(m.home);
+            const away = panelTint(m.away);
 
             return (
               <Link
                 key={m.id}
                 href={`/live/sp/${encodeURIComponent(m.id)}`}
-                className="group shrink-0 flex flex-col justify-between rounded-2xl p-3.5 w-[260px] sm:w-[280px] bg-transparent hover:bg-white/[0.04] transition-all duration-300 hover:scale-[1.02] cursor-pointer"
+                className="group relative shrink-0 w-[290px] sm:w-[330px] aspect-[5/2] overflow-hidden rounded-[10px] bg-zinc-900 transition-transform duration-300 hover:scale-[1.015] cursor-pointer"
               >
-                <div className="flex items-center justify-between gap-1 mb-2.5">
-                  <CompetitionBadge competition={affiche.competition} logo={affiche.competitionLogo} />
-                  {isLive ? (
-                    <span className="text-[10px] font-black uppercase tracking-wider text-red-500 flex items-center gap-1 shrink-0">
-                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                      DIRECT
-                    </span>
-                  ) : (
-                    <span className="text-[10px] font-bold text-zinc-500 tabular-nums shrink-0">
-                      {formatKickoff(affiche.startTs)}
-                    </span>
-                  )}
-                </div>
+                <span
+                  aria-hidden
+                  className="absolute inset-0"
+                  style={{ background: `linear-gradient(150deg, ${home.from}, ${home.to})`, clipPath: HOME_PANEL }}
+                />
+                <span
+                  aria-hidden
+                  className="absolute inset-0"
+                  style={{ background: `linear-gradient(150deg, ${away.from}, ${away.to})`, clipPath: AWAY_PANEL }}
+                />
+                {/* Voile : sans lui, les inscriptions se liraient mal sur les panneaux. */}
+                <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/45" />
 
-                <div className="flex items-center justify-between gap-2 my-1">
-                  <div className="flex-1 flex flex-col items-center text-center min-w-0">
-                    <TeamCrest src={affiche.homeLogo} alt={m.home} />
-                    <p className="mt-1.5 text-[11px] font-bold text-white truncate w-full group-hover:text-red-400 transition-colors">
-                      {m.home}
+                <div className="relative h-full p-2.5 sm:p-3 flex flex-col justify-between">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="inline-flex items-center gap-1.5 shrink-0 rounded-[5px] bg-black/45 px-2 py-[3px] text-[10px] font-bold uppercase tracking-wide text-white tabular-nums">
+                      {isLive && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />}
+                      {isLive ? (m.minute ? `Direct · ${m.minute}` : "Direct") : formatKickoff(affiche.startTs)}
+                    </span>
+                    <div className="min-w-0 flex justify-end">
+                      <CompetitionBadge competition={affiche.competition} logo={affiche.competitionLogo} />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center">
+                    <div className="flex-1 flex justify-center">
+                      <TeamCrest src={affiche.homeLogo} alt={m.home} />
+                    </div>
+                    <div className="flex-1 flex justify-center">
+                      <TeamCrest src={affiche.awayLogo} alt={m.away || "?"} />
+                    </div>
+                  </div>
+
+                  <div className="flex items-end justify-between gap-2">
+                    <p className="min-w-0 flex-1 truncate text-[13px] font-bold text-white">
+                      {m.home} - {m.away}
                     </p>
+                    {isLive && (
+                      <span className="shrink-0 text-[13px] font-black text-white tabular-nums">
+                        {m.score || "VS"}
+                      </span>
+                    )}
                   </div>
-
-                  <div className="shrink-0 px-2 text-center min-w-[32px]">
-                    <span className={`text-xs font-black tabular-nums ${isLive ? "text-amber-400" : "text-zinc-400"}`}>
-                      {m.score || "VS"}
-                    </span>
-                  </div>
-
-                  <div className="flex-1 flex flex-col items-center text-center min-w-0">
-                    <TeamCrest src={affiche.awayLogo} alt={m.away || "?"} />
-                    <p className="mt-1.5 text-[11px] font-bold text-white truncate w-full group-hover:text-red-400 transition-colors">
-                      {m.away || ""}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-2.5 pt-2 flex items-center justify-center gap-2 text-center">
-                  <span
-                    className={`text-[11px] font-bold ${
-                      isLive ? "text-red-500 group-hover:text-red-400" : "text-zinc-400"
-                    } transition-colors`}
-                  >
-                    {isLive ? "Regarder le direct" : "Voir le match"}
-                  </span>
-                  {isLive && (
-                    <ArrowRight className="w-3.5 h-3.5 text-red-500 transition-transform group-hover:translate-x-0.5" />
-                  )}
                 </div>
               </Link>
             );
