@@ -184,14 +184,14 @@ export default function SubscribePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#09090b] flex items-center justify-center text-white">
+      <div className="min-h-screen bg-[#1F1F1F] flex items-center justify-center text-white">
         <Spinner className="w-8 h-8 animate-spin text-brand-primary" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-white pt-24 sm:pt-28 pb-16 px-4 sm:px-6 lg:px-8 select-none">
+    <div className="min-h-screen bg-[#1F1F1F] text-white pt-24 sm:pt-28 pb-16 px-4 sm:px-6 lg:px-8 select-none">
       <div className="max-w-5xl mx-auto">
         <div className="text-center max-w-2xl mx-auto mb-10 sm:mb-12">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-[4px] bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-bold mb-4">

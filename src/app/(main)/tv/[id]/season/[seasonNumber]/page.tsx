@@ -110,7 +110,7 @@ export default async function SeasonPage({ params }: Props) {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-[#09090B] flex items-center justify-center">
+        <div className="min-h-screen bg-[#1F1F1F] flex items-center justify-center">
           <div className="h-12 w-12 border-4 border-zinc-700 border-t-brand-primary rounded-full animate-spin" />
         </div>
       }

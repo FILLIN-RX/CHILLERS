@@ -337,7 +337,7 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
 
   if (loading) {
     return (
-      <div className="flex-1 flex flex-col bg-[#09090B] text-white pb-20">
+      <div className="flex-1 flex flex-col bg-[#1F1F1F] text-white pb-20">
         {/* Bouton retour */}
         <div className="fixed top-4 left-4 z-50">
           <button
@@ -438,7 +438,7 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
 
   if (!item) {
     return (
-      <div className="min-h-screen bg-[#09090B] flex items-center justify-center text-white">
+      <div className="min-h-screen bg-[#1F1F1F] flex items-center justify-center text-white">
         <div className="text-center space-y-4">
           <FilmSlate className="h-16 w-16 text-zinc-700 mx-auto" />
           <p className="text-zinc-400 text-lg">{_("media.notFound")}</p>
@@ -456,7 +456,7 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
   const isYouTube = trailerUrl?.includes("youtube.com") || trailerUrl?.includes("embed");
 
   return (
-    <div className="flex-1 flex flex-col bg-[#09090B] text-white pb-20 sm:pb-0">
+    <div className="flex-1 flex flex-col bg-[#1F1F1F] text-white pb-20 sm:pb-0">
 
       {/* Floating Back Button (Mobile & Desktop) */}
       <div className="fixed top-4 left-4 z-50">
@@ -635,7 +635,6 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
                             : "text-zinc-400 hover:text-white"
                         }`}
                       >
-                        <span>🇫🇷</span>
                         <span>VF</span>
                       </button>
                       <button
@@ -647,7 +646,6 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
                             : "text-zinc-400 hover:text-white"
                         }`}
                       >
-                        <span>🌐</span>
                         <span>VOSTFR</span>
                       </button>
                     </div>
@@ -772,7 +770,7 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
                   {castCanScrollLeft && (
                     <button
                       onClick={() => castScrollRef.current?.scrollBy({ left: -200, behavior: "smooth" })}
-                      className="hidden md:flex absolute left-0 top-0 h-full w-12 z-20 items-center justify-start pl-1 bg-[#0c0c0e] cursor-pointer"
+                      className="hidden md:flex absolute left-0 top-0 h-full w-12 z-20 items-center justify-start pl-1 bg-[#1F1F1F] cursor-pointer"
                     >
                       <span className="flex h-9 w-9 items-center justify-center rounded-full bg-black/70 border border-white/20">
                         <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
@@ -782,7 +780,7 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
                   {castCanScrollRight && (
                     <button
                       onClick={() => castScrollRef.current?.scrollBy({ left: 200, behavior: "smooth" })}
-                      className="hidden md:flex absolute right-0 top-0 h-full w-12 z-20 items-center justify-end pr-1 bg-[#0c0c0e] cursor-pointer"
+                      className="hidden md:flex absolute right-0 top-0 h-full w-12 z-20 items-center justify-end pr-1 bg-[#1F1F1F] cursor-pointer"
                     >
                       <span className="flex h-9 w-9 items-center justify-center rounded-full bg-black/70 border border-white/20">
                         <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>

@@ -223,7 +223,7 @@ function RegisterForm() {
 
 export default function RegisterPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#09090B]" />}>
+    <Suspense fallback={<div className="min-h-screen bg-[#1F1F1F]" />}>
       <RegisterForm />
     </Suspense>
   );

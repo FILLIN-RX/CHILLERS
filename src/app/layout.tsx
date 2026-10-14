@@ -117,7 +117,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#0a0a0a",
+  themeColor: "#1F1F1F",
 };
 
 // P2-#30: resolve the language from the cookie on the server so the first
@@ -155,7 +155,7 @@ export default async function RootLayout({
           #__chillers_splash {
             position:fixed;inset:0;z-index:99999;
             display:flex;align-items:center;justify-content:center;
-            background:#09090b;
+            background:#1F1F1F;
             pointer-events:none;
           }
           #__chillers_splash .splash-spinner {

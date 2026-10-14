@@ -16,7 +16,7 @@ import AddToPlaylistModal from "@/components/AddToPlaylistModal";
 import Button from "@/components/Button";
 import CardImage from "@/components/CardImage";
 import MediaLogo from "@/components/MediaLogo";
-import { ArrowLeft, Play, Star, CalendarBlank, FilmSlate, ShareNetwork, BookmarkSimple, X, Check, Sparkle, LinkSimple, ListNumbers } from "@phosphor-icons/react";
+import { ArrowLeft, Play, Star, CalendarBlank, FilmSlate, ShareNetwork, BookmarkSimple, X, Check, LinkSimple, ListNumbers } from "@phosphor-icons/react";
 
 interface TvClientWrapperProps {
   id: string;
@@ -211,7 +211,7 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
 
   if (!item) {
     return (
-      <div className="min-h-screen bg-[#09090B] text-white flex flex-col items-center justify-center p-4 text-center">
+      <div className="min-h-screen bg-[#1F1F1F] text-white flex flex-col items-center justify-center p-4 text-center">
         <h2 className="text-2xl font-bold mb-2">Série introuvable</h2>
         <p className="text-zinc-400 mb-6">Cette série n&apos;est pas disponible ou a été déplacée.</p>
         <button
@@ -250,7 +250,7 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
   const displayBackdrop = item.backdropOriginalUrl || item.backdropUrl || (rawItem.backdrop_path ? `https://image.tmdb.org/t/p/original${rawItem.backdrop_path}` : "");
 
   return (
-    <div className="min-h-screen bg-[#09090B] text-white select-none pb-20">
+    <div className="min-h-screen bg-[#1F1F1F] text-white select-none pb-20">
       <div className="relative w-full min-h-[65vh] sm:min-h-[75vh] lg:min-h-[82vh] overflow-hidden flex flex-col justify-end">
         {displayBackdrop ? (
           <Image
@@ -302,11 +302,6 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
             <div className="w-full min-w-0 sm:col-span-6">
             <div className="p-4 sm:p-6 lg:p-8 space-y-3.5 w-full">
               <div className="flex flex-wrap items-center gap-2 text-xs font-bold">
-              <span className="text-[brand-primary] font-black tracking-widest text-[11px] uppercase flex items-center gap-1.5 bg-[brand-primary]/10 border border-[brand-primary]/20 px-2.5 py-0.5 rounded-full">
-                <Sparkle className="w-3.5 h-3.5" />
-                SÉRIE CHILLERS
-              </span>
-
               {item.networks && item.networks.length > 0 && item.networks[0].logoUrl && (
                 <div className="bg-white/90 px-2 py-0.5 rounded-md flex items-center h-6">
                   <Image

@@ -232,6 +232,30 @@ export async function searchOtaku(
         }
       }
 
+      // Pour une série, le 1er candidat matché peut être un FILM homonyme (ex:
+      // "Black Clover : L'épée de l'empereur-mage" pour la série "Black Clover").
+      // On parcourt alors les candidats et on retient le premier qui expose
+      // réellement des épisodes, au lieu d'abandonner sur le film.
+      if (type === 'series' && bestItem) {
+        const preferredId = bestItem.id;
+        const ordered = [
+          bestItem,
+          ...matchingItems.filter((it) => it.id !== preferredId),
+        ];
+        for (const cand of ordered) {
+          const w = await fetchWithRetry(`${BASE_URL}/api/fs-watch`, { id: cand.id });
+          const eps = w?.episodes || {};
+          const hasEpisodes =
+            Object.keys(eps.vf || {}).length > 0 || Object.keys(eps.vostfr || {}).length > 0;
+          if (hasEpisodes) {
+            bestItem = cand;
+            watch = w;
+            console.log(`[Otaku] Candidat série avec épisodes retenu: "${cand.title}" (ID: ${cand.id})`);
+            break;
+          }
+        }
+      }
+
       // Récupérer les détails de visionnage si pas déjà récupérés
       if (!watch && bestItem) {
         watch = await fetchWithRetry(`${BASE_URL}/api/fs-watch`, { id: bestItem.id });

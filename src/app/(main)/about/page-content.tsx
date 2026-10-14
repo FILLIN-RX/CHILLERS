@@ -6,7 +6,7 @@ import { ArrowLeft, Play, MagnifyingGlass, Heart, ShieldCheckered } from '@phosp
 
 export default function AboutPage() {
   return (
-    <div className="min-h-screen bg-[#09090B] text-white">
+    <div className="min-h-screen bg-[#1F1F1F] text-white">
       <div className="fixed top-0 left-0 z-40 p-4">
         <button
           onClick={() => { window.scrollTo(0, 0); window.history.back(); }}

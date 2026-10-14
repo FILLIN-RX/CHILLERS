@@ -115,7 +115,7 @@ export default async function TvPage({ params }: Props) {
 
 function TvFallback() {
   return (
-    <div className="min-h-screen bg-[#09090B] text-white select-none pb-24">
+    <div className="min-h-screen bg-[#1F1F1F] text-white select-none pb-24">
       {/* 1. HERO SKELETON */}
       <div className="relative w-full h-[65vh] sm:h-[75vh] lg:h-[80vh] max-h-[800px] overflow-hidden bg-zinc-900 animate-pulse">
         <div className="absolute inset-0 bg-gradient-to-t from-[#09090B] via-[#09090B]/60 to-transparent" />

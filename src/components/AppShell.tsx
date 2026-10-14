@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, Suspense } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -20,10 +20,6 @@ const DownloadSuccessToast = dynamic(
   { ssr: false },
 );
 
-const SearchOverlay = dynamic(() => import("@/components/SearchOverlay"), {
-  ssr: false,
-});
-
 const DonationModal = dynamic(() => import("@/components/DonationModal"), {
   ssr: false,
 });
@@ -34,8 +30,9 @@ interface AppShellProps {
 }
 
 export default function AppShell({ children, showBottomNav }: AppShellProps) {
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isDonationOpen, setIsDonationOpen] = useState(false);
+  const router = useRouter();
+  const openSearch = () => router.push("/search");
 
   // Fire window events whenever a download task transitions to "done"
   useDownloadToastEmitter();
@@ -61,7 +58,7 @@ export default function AppShell({ children, showBottomNav }: AppShellProps) {
   const isLivePath = pathname?.startsWith("/live");
 
   useEffect(() => {
-    const handleSearch = () => setIsSearchOpen(true);
+    const handleSearch = () => router.push("/search");
     // Suppress donation popup entirely on live pages (both auto and manual triggers)
     const handleDonation = () => {
       if (isLivePath) return;
@@ -91,22 +88,17 @@ export default function AppShell({ children, showBottomNav }: AppShellProps) {
       window.removeEventListener("open-search", handleSearch);
       window.removeEventListener("open-donation", handleDonation);
     };
-  }, [pathname, isLivePath]);
+  }, [pathname, isLivePath, router]);
 
   const isAuthPage = pathname === "/login" || pathname === "/register";
 
   return (
     <>
-      <SearchOverlay
-        isOpen={isSearchOpen}
-        onClose={() => setIsSearchOpen(false)}
-        onOpenDetails={() => setIsSearchOpen(false)}
-      />
       <DonationModal
         isOpen={isDonationOpen}
         onClose={() => setIsDonationOpen(false)}
       />
-      {!isAuthPage && !isPlayerRoute && <Header onSearchClick={() => setIsSearchOpen(true)} />}
+      {!isAuthPage && !isPlayerRoute && <Header onSearchClick={openSearch} />}
       <main className="flex-1 flex flex-col">{children}</main>
       {!isAuthPage && !pathname?.startsWith("/profile") && !isPlayerRoute && <Footer />}
       {!isPlayerRoute && <NetworkStatusBanner />}
@@ -116,7 +108,7 @@ export default function AppShell({ children, showBottomNav }: AppShellProps) {
       <Suspense>
         <DownloadSuccessToast />
       </Suspense>
-      {shouldShowBottomNav && !isAuthPage && !isPlayerRoute && <BottomNav onSearchClick={() => setIsSearchOpen(true)} />}
+      {shouldShowBottomNav && !isAuthPage && !isPlayerRoute && <BottomNav onSearchClick={openSearch} />}
     </>
   );
 }

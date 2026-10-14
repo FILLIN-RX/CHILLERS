@@ -382,7 +382,7 @@ export default function SeasonContent() {
   const hasEpisodes = episodes.length > 0;
 
   return (
-    <div className="min-h-screen bg-[#09090B] text-white">
+    <div className="min-h-screen bg-[#1F1F1F] text-white">
       <div
         className={`pt-[64px] sm:pt-[70px] pb-16 sm:pb-20 lg:pb-24 ${
           hasEpisodes ? "lg:pr-[26rem] xl:pr-[28rem]" : ""
@@ -485,10 +485,6 @@ export default function SeasonContent() {
           {/* Title Header */}
           {detailItem ? (
             <div className="space-y-1">
-              <span className="text-brand-primary font-black tracking-widest text-[9px] sm:text-xs uppercase">
-                CHILLERS SÉRIE
-              </span>
-
               <h1 className="text-lg sm:text-2xl md:text-3xl lg:text-4xl font-black text-white leading-tight break-words">
                 {showTitle}
               </h1>
@@ -683,9 +679,9 @@ export default function SeasonContent() {
 
       {/* ─── Desktop Persistent Right Sidebar (PC Only) ─── */}
       {hasEpisodes && (
-        <aside className="hidden lg:block fixed top-[64px] sm:top-[70px] right-0 w-[26rem] xl:w-[28rem] h-[calc(100dvh-64px)] sm:h-[calc(100dvh-70px)] bg-[#0c0c0e]/98 backdrop-blur-2xl border-l border-white/5 overflow-y-auto p-4 z-30 space-y-3">
+        <aside className="hidden lg:block fixed top-[64px] sm:top-[70px] right-0 w-[26rem] xl:w-[28rem] h-[calc(100dvh-64px)] sm:h-[calc(100dvh-70px)] bg-[#1F1F1F]/98 backdrop-blur-2xl border-l border-white/5 overflow-y-auto p-4 z-30 space-y-3">
           {/* Season Selector Dropdown */}
-          <div className="sticky top-0 bg-[#0c0c0e] backdrop-blur-md pb-3 pt-1 z-30 border-b border-white/5 space-y-2">
+          <div className="sticky top-0 bg-[#1F1F1F] backdrop-blur-md pb-3 pt-1 z-30 border-b border-white/5 space-y-2">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
                 <span className="h-3 w-1 rounded-full bg-brand-primary" />

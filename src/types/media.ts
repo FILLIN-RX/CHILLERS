@@ -124,7 +124,7 @@ export interface SeasonDetails {
     runtime?: number;
     still_path?: string | null;
     overview?: string;
-    air_date?: string;
+    air_date?: string | null;
     vote_average?: number;
   }>;
 }

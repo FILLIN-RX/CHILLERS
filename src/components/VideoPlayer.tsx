@@ -781,9 +781,6 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
               controlsVisible ? "opacity-100" : "opacity-0 pointer-events-none"
             }`}
           >
-            <span className="text-sm font-black tracking-widest uppercase text-brand-primary">
-              Chillers
-            </span>
             <div className="flex items-center gap-1">
               <button onClick={toggleFullscreen} className="p-1.5 text-white/70 hover:text-white rounded-[5px] hover:bg-white/10 transition-colors" title="Plein écran">
                 <ArrowsOutSimple className="h-4 w-4" />
@@ -896,21 +893,7 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
             }`}
           >
             {/* ── Top bar: Title, PRO VIP Badge & P2P ── */}
-            <div className="pointer-events-auto flex items-center justify-between gap-2 bg-gradient-to-b from-black/80 via-black/30 to-transparent pt-[calc(0.75rem_+_env(safe-area-inset-top,0px))] pb-3 pl-[calc(0.75rem_+_env(safe-area-inset-left,0px))] pr-[calc(0.75rem_+_env(safe-area-inset-right,0px))]">
-              <div className="flex min-w-0 flex-1 items-center gap-2">
-
-                <div className="flex min-w-0 flex-col">
-                  <span className="text-sm sm:text-base font-bold text-white drop-shadow truncate">
-                    {item.title}
-                  </span>
-                  {currentEpisode && (
-                    <span className="text-xs text-white/70 font-medium">
-                      S{String(currentEpisode.season ?? 1).padStart(2, "0")}E{String(currentEpisode.number).padStart(2, "0")} · {currentEpisode.title}
-                    </span>
-                  )}
-                </div>
-              </div>
-
+            <div className="pointer-events-auto flex items-center justify-end gap-2 bg-gradient-to-b from-black/80 via-black/30 to-transparent pt-[calc(0.75rem_+_env(safe-area-inset-top,0px))] pb-3 pl-[calc(0.75rem_+_env(safe-area-inset-left,0px))] pr-[calc(0.75rem_+_env(safe-area-inset-right,0px))]">
               <div className="flex shrink-0 items-center gap-2">
                 {/* Bouton Téléchargement direct en 1 clic */}
                 <button

@@ -121,7 +121,7 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
           isDetailPage && !isWatchPage && !isSeasonPage ? "max-sm:hidden" : ""
         } ${
           isScrolled || isWatchPage || isSeasonPage
-            ? "bg-[#0c0c0e]/95 backdrop-blur-xl shadow-2xl border-b border-white/8"
+            ? "bg-[#1F1F1F]/95 backdrop-blur-xl shadow-2xl border-b border-white/8"
             : "bg-gradient-to-b from-black/90 via-black/40 to-transparent border-b-0"
         }`}
       >

@@ -57,7 +57,7 @@ function BottomNavComponent({ onSearchClick }: BottomNavProps) {
 
   return (
     <>
-      <nav className="glass-nav fixed bottom-0 left-0 w-full z-50 md:hidden border-t border-zinc-800/60 bg-[#0e0e11]/95 backdrop-blur-xl">
+      <nav className="glass-nav fixed bottom-0 left-0 w-full z-50 md:hidden border-t border-zinc-800/60 bg-[#1F1F1F]/95 backdrop-blur-xl">
         <div className="flex items-center justify-around py-2 px-1 pb-[max(8px,env(safe-area-inset-bottom))]">
           {items.map((item) => {
             const Icon = item.icon;

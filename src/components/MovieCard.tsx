@@ -223,7 +223,7 @@ function MovieCard({
   // ═════════════════════════════════════════════════════════════════════════
   if (isPoster) {
     const frameClass = appleFrame
-      ? "bg-zinc-900/90 p-[1px] shadow-[0_10px_40px_-12px_rgba(0,0,0,0.8)]"
+      ? "bg-zinc-900/90 p-[1px]"
       : "overflow-hidden bg-zinc-950";
     const posterContainerClass = isGridPoster
       ? `group relative w-full aspect-[2/3] select-none cursor-pointer rounded-2xl transition-transform duration-300 ${frameClass} ${

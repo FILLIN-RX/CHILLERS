@@ -13,7 +13,6 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { acquireModalScrollLock, releaseModalScrollLock } from "@/lib/modalScrollLock";
 import MovieCard from "./MovieCard";
-import CardImage from "./CardImage";
 import UserAvatar from "./UserAvatar";
 
 const SESSION_KEY = "chillers_search_query";
@@ -72,7 +71,6 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
   }, [isOpen, onClose]);
 
   const goToDetail = (item: MovieOrShow) => {
-    onClose();
     if (item.type === "series" || item.type === "anime") {
       router.push(`/tv/${item.id}`);
     } else {
@@ -89,32 +87,15 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
   const genres = genresQuery.data ?? [];
   const results = useMemo(() => dedup(search.results), [search.results]);
 
-  // Suggestions de recherche au repos (style Apple) : termes dérivés des titres
-  // tendance, uniques et sur une longueur exploitable.
-  const suggestions = useMemo(() => {
-    const seen = new Set<string>();
-    const out: string[] = [];
-    for (const m of trendingMovies) {
-      const t = m.title?.trim();
-      if (!t || t.length < 3) continue;
-      const key = t.toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-      out.push(t);
-      if (out.length >= 10) break;
-    }
-    return out;
-  }, [trendingMovies]);
-
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col bg-[#09090b] text-white animate-fade-in select-none h-dvh overflow-hidden">
+    <div className="fixed inset-0 z-[100] flex flex-col bg-[#1F1F1F] text-white animate-fade-in select-none h-dvh overflow-hidden">
       {/* ── Barre de recherche (verre Apple TV) ───────────────────── */}
-      <div className="shrink-0 z-10 border-b border-white/10 bg-[#0c0c0e]/80 backdrop-blur-2xl">
-        <div className="mx-auto max-w-7xl h-16 sm:h-20 px-3 sm:px-6 lg:px-10 flex items-center gap-2.5 sm:gap-4">
+      <div className="shrink-0 z-10 border-b border-white/10 bg-[#1F1F1F]/80 backdrop-blur-2xl">
+        <div className="mx-auto max-w-8xl h-16 sm:h-20 px-4 sm:px-8 lg:px-16 xl:px-20 flex items-center gap-2.5 sm:gap-4">
           {/* Gauche : retour mobile / logo desktop */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex-1 flex items-center gap-2 min-w-0">
             <button
               onClick={onClose}
               aria-label="Fermer la recherche"
@@ -140,7 +121,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
           </div>
 
           {/* Centre : champ de recherche en pastille de verre */}
-          <div className="flex-1 max-w-2xl min-w-0">
+          <div className="flex-none w-full max-w-2xl min-w-0">
             <div
               onClick={() => inputRef.current?.focus()}
               className="relative w-full bg-white/10 backdrop-blur-md border border-white/15 focus-within:border-white/40 focus-within:bg-white/15 rounded-2xl px-4 py-2.5 sm:py-3 flex items-center gap-3 transition-all cursor-text"
@@ -176,7 +157,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
           </div>
 
           {/* Droite : avatar / ESC */}
-          <div className="hidden sm:flex items-center gap-2 shrink-0">
+          <div className="hidden sm:flex flex-1 items-center justify-end gap-2 min-w-0">
             <button
               onClick={onClose}
               className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-xs text-zinc-300 hover:text-white transition-all cursor-pointer font-medium"
@@ -187,7 +168,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
             </button>
 
             {user && (
-              <div className="cursor-pointer" onClick={() => { onClose(); router.push("/profile"); }}>
+              <div className="cursor-pointer" onClick={() => { router.push("/profile"); }}>
                 <UserAvatar user={user} size="sm" showBadge={false} />
               </div>
             )}
@@ -196,62 +177,29 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
       </div>
 
       {/* ── Corps (Tendances / Genres / Résultats) ────────────────── */}
-      <div className="flex-1 overflow-y-auto px-3 sm:px-6 lg:px-10 py-5 sm:py-8 pb-28 sm:pb-14 overscroll-contain">
+      <div className="flex-1 overflow-y-auto px-4 sm:px-8 lg:px-16 xl:px-20 py-5 sm:py-8 pb-28 sm:pb-14 overscroll-contain">
         {search.query.trim() === "" ? (
-          <div className="max-w-7xl mx-auto space-y-10 sm:space-y-12">
-            {/* 0. Suggestions de recherche (repos, style Apple) */}
-            {suggestions.length > 0 && (
-              <div className="space-y-4">
-                <h3 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
-                  <MagnifyingGlass className="h-5 w-5 text-white/70" />
-                  <span>Suggestions</span>
-                </h3>
-                <div className="flex flex-wrap gap-2.5 sm:gap-3">
-                  {suggestions.map((term) => (
-                    <button
-                      key={term}
-                      onClick={() => search.setQuery(term)}
-                      className="inline-flex items-center gap-2 rounded-full bg-white/10 backdrop-blur-md border border-white/15 hover:bg-white/20 hover:border-white/30 px-4 sm:px-5 py-2 sm:py-2.5 text-sm font-medium text-white/90 hover:text-white transition-all cursor-pointer active:scale-95"
-                    >
-                      <MagnifyingGlass className="h-4 w-4 text-white/40" />
-                      {term}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* 1. Tendances actuelles */}
+          <div className="max-w-8xl mx-auto space-y-10 sm:space-y-12">
+            {/* Suggestions : cartes de films qui remplissent l'espace */}
             {trendingMovies.length > 0 && (
               <div className="space-y-4">
                 <h3 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
                   <Flame className="h-5 w-5 text-brand-primary" />
-                  <span>Recherches tendances</span>
+                  <span>Suggestions</span>
                 </h3>
-                <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-2 -mx-3 px-3 sm:mx-0 sm:px-0 no-scrollbar">
-                  {trendingMovies.slice(0, 12).map((m) => (
-                    <button
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-8 gap-4 sm:gap-5 lg:gap-6">
+                  {trendingMovies.slice(0, 18).map((m) => (
+                    <MovieCard
                       key={m.id}
-                      onClick={() => goToDetail(m)}
-                      className="group flex-none w-40 sm:w-56 rounded-2xl overflow-hidden bg-white/5 backdrop-blur-md border border-white/10 hover:border-white/25 hover:bg-white/10 transition-all cursor-pointer"
-                    >
-                      <div className="relative aspect-video w-full">
-                        <CardImage
-                          src={m.backdropUrl || m.posterUrl}
-                          alt={m.title}
-                          fill
-                          className="object-cover group-hover:scale-105 transition-transform duration-500"
-                          sizes="(max-width: 640px) 160px, 224px"
-                          fallbackText={m.title}
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent pointer-events-none" />
-                        <div className="absolute bottom-0 inset-x-0 p-3">
-                          <p className="text-sm font-semibold text-white truncate drop-shadow-md">
-                            {m.title}
-                          </p>
-                        </div>
-                      </div>
-                    </button>
+                      item={m}
+                      variant="grid-poster"
+                      appleFrame
+                      onPlay={(i) => {
+                        const typeParam = i.type === "series" || i.type === "anime" ? "tv" : "movie";
+                        router.push(`/watch/${i.id}?type=${typeParam}`);
+                      }}
+                      onOpenDetails={(i) => goToDetail(i)}
+                    />
                   ))}
                 </div>
               </div>
@@ -284,13 +232,13 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
             <p className="text-xs text-white/50 font-medium">Recherche en cours…</p>
           </div>
         ) : results.length > 0 ? (
-          <div className="max-w-7xl mx-auto space-y-5">
+          <div className="max-w-8xl mx-auto space-y-5">
             <p className="text-sm text-white/50 font-medium">
               <span className="text-white font-bold">{results.length}</span> résultats pour &quot;
               <span className="text-white font-semibold">{search.query}</span>&quot;
             </p>
             {/* Grille de cartes Apple (même habillage que l'accueil) */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-8 gap-4 sm:gap-5 lg:gap-6">
               {results.map((item) => (
                 <MovieCard
                   key={item.id}
@@ -299,7 +247,6 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                   appleFrame
                   onPlay={(i) => {
                     const typeParam = i.type === "series" || i.type === "anime" ? "tv" : "movie";
-                    onClose();
                     router.push(`/watch/${i.id}?type=${typeParam}`);
                   }}
                   onOpenDetails={(i) => goToDetail(i)}

@@ -59,7 +59,7 @@ export default function ProfileClient() {
   if (!user) {
     if (tab === "downloads") {
       return (
-        <div className="min-h-screen bg-[#0e0e11] text-white">
+        <div className="min-h-screen bg-[#1F1F1F] text-white">
           <DownloadsView />
         </div>
       );

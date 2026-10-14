@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 /** Layout indépendant du reste du site (sans AppShell) : header CHILLERS SPORT + contenu. */
 export default function SportLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-[#111111] text-white">
+    <div className="min-h-screen bg-[#1F1F1F] text-white">
       <SportHeader />
       {children}
     </div>

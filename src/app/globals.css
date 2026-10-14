@@ -23,18 +23,18 @@
 }
 
 :root {
-  --background: #18181B; /* Lightened from #09090B */
+  --background: #1F1F1F; /* Fond principal de l'app (plus de full black) */
   --foreground: #FAFAFA; /* Lightened from #F4F4F5 */
   --card-bg: #27272A; /* Lightened from #121214 */
   --card-border: rgba(255, 255, 255, 0.06);
   --text-muted: #D4D4D8; /* Lightened from #A1A1AA */
-  --glass-bg: rgba(39, 39, 42, 0.6);
+  --glass-bg: rgba(31, 31, 31, 0.6);
   --glass-border: rgba(255, 255, 255, 0.06);
-  --glass-nav-bg: rgba(24, 24, 27, 0.75);
+  --glass-nav-bg: rgba(31, 31, 31, 0.75);
   --glass-nav-border: rgba(255, 255, 255, 0.06);
-  --glass-modal-bg: rgba(30, 30, 33, 0.85);
+  --glass-modal-bg: rgba(31, 31, 31, 0.85);
   --glass-modal-border: rgba(255, 255, 255, 0.08);
-  --overlay-base: 24, 24, 27;
+  --overlay-base: 31, 31, 31;
   --skeleton-base: #27272A;
   --skeleton-shimmer: #3F3F46;
 }
@@ -109,21 +109,19 @@ body {
 }
 
 .glass-card-overlay {
-  background: linear-gradient(180deg, rgba(16, 16, 22, 0) 0%, rgba(16, 16, 22, 0.4) 20%, rgba(8, 8, 12, 0.95) 100%);
+  background: linear-gradient(180deg, rgba(31, 31, 31, 0) 0%, rgba(31, 31, 31, 0.4) 20%, rgba(31, 31, 31, 0.95) 100%);
   backdrop-filter: blur(24px) saturate(190%);
   -webkit-backdrop-filter: blur(24px) saturate(190%);
-  box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.9);
 }
 
 .glass-card-poster-panel {
-  background: linear-gradient(135deg, rgba(18, 18, 24, 0.88) 0%, rgba(8, 8, 12, 0.96) 100%);
+  background: linear-gradient(135deg, rgba(31, 31, 31, 0.88) 0%, rgba(31, 31, 31, 0.96) 100%);
   backdrop-filter: blur(28px) saturate(200%);
   -webkit-backdrop-filter: blur(28px) saturate(200%);
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.9);
 }
 
 .glass-badge {
-  background: rgba(18, 18, 24, 0.75);
+  background: rgba(31, 31, 31, 0.75);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border: 0 !important;
@@ -163,7 +161,6 @@ body {
 
 .hover-glow:hover {
   transform: translateY(-4px) scale(1.02);
-  box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.6);
   border-color: transparent !important;
 }
 

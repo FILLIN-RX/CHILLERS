@@ -104,6 +104,19 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
   const [isFullscreen, setIsFullscreen] = useState(false);
   const currentEpisode = episodes[currentEpisodeIndex];
 
+  // Année de diffusion de l'épisode courant (s'il a une date air), sinon celle
+  // de la série. Les providers utilisent cette année pour cibler la bonne
+  // release : sans elle, une série dont la saison N est sortie bien après la
+  // saison 1 (ex. Black Clover S2) chercherait la mauvaise année.
+  const streamYear = (() => {
+    const air = currentEpisode?.airDate;
+    if (air) {
+      const y = new Date(air).getFullYear();
+      if (!isNaN(y) && y > 1900) return y;
+    }
+    return item?.year;
+  })();
+
   useEffect(() => {
     const onChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
@@ -129,6 +142,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
             ? `https://image.tmdb.org/t/p/w185${ep.still_path}`
             : "",
           synopsis: ep.overview || "",
+          airDate: ep.air_date || undefined,
         };
       });
       setEpisodes(eps);
@@ -173,7 +187,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
           signal,
           (item as any)?.originalTitle || (item as any)?.original_title,
           item?.releaseDate,
-          item?.year,
+          streamYear,
           audioVersion,
         );
 
@@ -232,6 +246,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
                 ? `https://image.tmdb.org/t/p/w185${ep.still_path}`
                 : "",
               synopsis: ep.overview || "",
+              airDate: ep.air_date || undefined,
             };
           });
           setEpisodes(eps);
@@ -345,6 +360,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
               ? `https://image.tmdb.org/t/p/w185${ep.still_path}`
               : "",
             synopsis: ep.overview || "",
+            airDate: ep.air_date || undefined,
           }));
           setEpisodes(eps);
           setCurrentEpisodeIndex(0);
@@ -359,7 +375,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
             undefined,
             (item as any)?.originalTitle || (item as any)?.original_title,
             item?.releaseDate,
-            item?.year,
+            streamYear,
             audioVersion,
           );
         if (!applyStream(stream)) {
@@ -407,7 +423,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
           undefined,
           (item as any)?.originalTitle || (item as any)?.original_title,
           item?.releaseDate,
-          item?.year,
+          streamYear,
           audioVersion,
         );
           if (!applyStream(stream)) {
@@ -462,7 +478,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
             undefined,
             originalTitle,
             item?.releaseDate,
-            item?.year,
+            streamYear,
             newLang,
           );
         if (!applyStream(stream)) {
@@ -484,7 +500,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
             undefined,
             originalTitle,
             item?.releaseDate,
-            item?.year,
+            streamYear,
             newLang,
           );
         if (!applyStream(stream)) {
@@ -578,7 +594,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
 
   if (!pageLoading && !item) {
     return (
-      <div className="min-h-screen bg-[#09090B] text-white flex items-center justify-center px-4 pt-16">
+      <div className="min-h-screen bg-[#1F1F1F] text-white flex items-center justify-center px-4 pt-16">
         <div className="text-center space-y-4 max-w-md">
           <FilmSlate className="h-16 w-16 text-zinc-700 mx-auto" />
           <h1 className="text-xl font-bold text-white">{_("watch.contentNotFound")}</h1>
@@ -600,7 +616,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
   const hasSidebar = hasEpisodes || (!isTV && similar.length > 0);
 
   return (
-    <div className="min-h-screen bg-[#09090B] text-white">
+    <div className="min-h-screen bg-[#1F1F1F] text-white">
       <div
         className={`pt-[64px] sm:pt-[70px] pb-16 sm:pb-20 lg:pb-24 ${
           hasSidebar ? "lg:pr-[26rem] xl:pr-[28rem]" : ""
@@ -742,9 +758,16 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
           {/* Title Header */}
           {item ? (
             <div className="space-y-1">
-              <span className="text-brand-primary font-black tracking-widest text-[9px] sm:text-xs uppercase">
-                CHILLERS {isTV ? "SÉRIE" : "FILM"}
-              </span>
+              {item.logoUrl ? (
+                <Image
+                  src={item.logoUrl}
+                  alt={item.title}
+                  width={280}
+                  height={80}
+                  className="h-7 sm:h-10 md:h-12 w-auto object-contain object-left"
+                  priority
+                />
+              ) : null}
 
               <h1 className="text-lg sm:text-2xl md:text-3xl lg:text-4xl font-black text-white leading-tight break-words">
                 {item.title}
@@ -773,8 +796,8 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
           {item ? (
             <div className="flex flex-wrap items-center gap-1.5 sm:gap-3 text-[11px] sm:text-sm text-zinc-400 font-medium">
               {item.rating > 0 && (
-                <span className="text-brand-primary font-bold flex items-center gap-1">
-                  <Star className="h-3.5 w-3.5 sm:h-4 sm:w-4 fill-brand-primary" />
+                <span className="text-amber-400 font-bold flex items-center gap-1">
+                  <Star className="h-3.5 w-3.5 sm:h-4 sm:w-4 fill-amber-400" />
                   {Math.round(item.rating * 10)}%
                 </span>
               )}
@@ -958,9 +981,9 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
       {/* ─── Desktop Persistent Right Sidebar (PC Only) ─── */}
       {/* Case 1: Series / Anime (Episodes Drawer) */}
       {hasEpisodes ? (
-        <aside className="hidden lg:block fixed top-[64px] sm:top-[70px] right-0 w-[26rem] xl:w-[28rem] h-[calc(100dvh-64px)] sm:h-[calc(100dvh-70px)] bg-[#0c0c0e]/98 backdrop-blur-2xl border-l border-white/5 overflow-y-auto p-4 z-30 space-y-3">
+        <aside className="hidden lg:block fixed top-[64px] sm:top-[70px] right-0 w-[26rem] xl:w-[28rem] h-[calc(100dvh-64px)] sm:h-[calc(100dvh-70px)] bg-[#1F1F1F]/98 backdrop-blur-2xl border-l border-white/5 overflow-y-auto p-4 z-30 space-y-3">
           {/* Season Selector Dropdown */}
-          <div className="sticky top-0 bg-[#0c0c0e] backdrop-blur-md pb-3 pt-1 z-30 border-b border-white/5 space-y-2">
+          <div className="sticky top-0 bg-[#1F1F1F] backdrop-blur-md pb-3 pt-1 z-30 border-b border-white/5 space-y-2">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
                 <span className="h-3 w-1 rounded-full bg-brand-primary" />
@@ -1001,8 +1024,8 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
         </aside>
       ) : !isTV && similar.length > 0 ? (
         /* Case 2: Movies (Similar Recommendations Drawer on PC) */
-        <aside className="hidden lg:block fixed top-[64px] sm:top-[70px] right-0 w-[26rem] xl:w-[28rem] h-[calc(100dvh-64px)] sm:h-[calc(100dvh-70px)] bg-[#0c0c0e]/98 backdrop-blur-2xl border-l border-white/5 overflow-y-auto p-4 z-30 space-y-3">
-          <div className="sticky top-0 bg-[#0c0c0e] backdrop-blur-md pb-3 pt-1 z-30 border-b border-white/5 flex items-center justify-between">
+        <aside className="hidden lg:block fixed top-[64px] sm:top-[70px] right-0 w-[26rem] xl:w-[28rem] h-[calc(100dvh-64px)] sm:h-[calc(100dvh-70px)] bg-[#1F1F1F]/98 backdrop-blur-2xl border-l border-white/5 overflow-y-auto p-4 z-30 space-y-3">
+          <div className="sticky top-0 bg-[#1F1F1F] backdrop-blur-md pb-3 pt-1 z-30 border-b border-white/5 flex items-center justify-between">
             <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
               <span className="h-3 w-1 rounded-full bg-brand-primary" />
               {_("media.youMightAlsoLike")} ({similar.length})
@@ -1017,13 +1040,13 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
                 onClick={() => router.push(`/watch/${sim.id}?type=movie`)}
                 className="group flex items-start gap-3 p-2.5 rounded-xl cursor-pointer transition-all bg-white/[0.02] hover:bg-white/[0.06] border border-transparent hover:border-white/10"
               >
-                <div className="flex-none w-28 aspect-video rounded-lg overflow-hidden bg-zinc-800 relative">
+                <div className="flex-none w-20 sm:w-24 aspect-[2/3] rounded-lg overflow-hidden bg-zinc-800 relative">
                   <CardImage
-                    src={sim.backdropUrl || sim.posterUrl}
+                    src={sim.posterUrl || sim.backdropUrl}
                     alt={sim.title}
                     fill
                     className="object-cover transition-transform group-hover:scale-105"
-                    sizes="128px"
+                    sizes="96px"
                     fallbackText={sim.title}
                   />
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -1040,8 +1063,8 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
                   <div className="flex items-center gap-2 text-[10px] text-zinc-400 mt-1">
                     {sim.year > 0 && <span>{sim.year}</span>}
                     {sim.rating > 0 && (
-                      <span className="text-brand-primary font-semibold flex items-center gap-0.5">
-                        <Star className="h-3 w-3 fill-brand-primary" />
+                      <span className="text-amber-400 font-semibold flex items-center gap-0.5">
+                        <Star className="h-3 w-3 fill-amber-400" />
                         {Math.round(sim.rating * 10)}%
                       </span>
                     )}

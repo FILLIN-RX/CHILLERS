@@ -262,7 +262,7 @@ export default function TestLangContent() {
   const isVideoDirect = isDirectVideoUrl(playbackUrl);
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-white p-4 sm:p-8 lg:p-12 font-sans selection:bg-red-500 selection:text-white">
+    <div className="min-h-screen bg-[#1F1F1F] text-white p-4 sm:p-8 lg:p-12 font-sans selection:bg-red-500 selection:text-white">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* ── Top Header ── */}
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-6">

@@ -746,7 +746,7 @@ export default function LivePageContent() {
   }, [hasMore, loadMore]);
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-white pt-20 sm:pt-24 pb-28 px-3 sm:px-6 md:px-10 lg:px-[5%] select-none">
+    <div className="min-h-screen bg-[#1F1F1F] text-white pt-20 sm:pt-24 pb-28 px-3 sm:px-6 md:px-10 lg:px-[5%] select-none">
       {/* ── 1. Hero Promo Banners (Replica of CAN 2027 & Sports broadcasts) ── */}
       {!search && activeCategory === "all" && <HeroBannerCarousel />}
 
@@ -756,7 +756,7 @@ export default function LivePageContent() {
       </div>
 
       {/* ── 3. Controls & Filter Bar ───────────────────────────────────────── */}
-      <div className="sticky top-16 sm:top-20 z-30 bg-[#09090b]/95 backdrop-blur-xl py-3 -mx-3 px-3 sm:-mx-6 sm:px-6 md:-mx-10 md:px-10 lg:-mx-[5%] lg:px-[5%] border-b border-white/10 mb-8">
+      <div className="sticky top-16 sm:top-20 z-30 bg-[#1F1F1F]/95 backdrop-blur-xl py-3 -mx-3 px-3 sm:-mx-6 sm:px-6 md:-mx-10 md:px-10 lg:-mx-[5%] lg:px-[5%] border-b border-white/10 mb-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           {/* Category Tabs */}
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth py-1">

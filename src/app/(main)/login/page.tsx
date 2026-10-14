@@ -227,7 +227,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#09090B]" />}>
+    <Suspense fallback={<div className="min-h-screen bg-[#1F1F1F]" />}>
       <LoginForm />
     </Suspense>
   );

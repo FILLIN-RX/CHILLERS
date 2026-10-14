@@ -2,7 +2,7 @@ import React from "react";
 
 export default function WatchSkeleton() {
   return (
-    <div className="min-h-screen bg-[#09090B] text-white select-none overflow-x-hidden">
+    <div className="min-h-screen bg-[#1F1F1F] text-white select-none overflow-x-hidden">
       {/* Container with space for the PC episode sidebar on large screens */}
       <div className="pt-[64px] sm:pt-[70px] pb-16 sm:pb-20 lg:pb-24 lg:pr-[26rem] xl:pr-[28rem]">
         

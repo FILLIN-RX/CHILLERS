@@ -143,6 +143,8 @@ export interface TmdbRawItem {
   vote_count?: number;
   genre_ids?: number[];
   genres?: { id: number; name: string }[];
+  origin_country?: string[];
+  original_language?: string;
   release_date?: string;
   first_air_date?: string;
   runtime?: number;
@@ -202,7 +204,12 @@ export function mapTMDBToMovieOrShow(
   // « anime » qualifie la série animée. Un film d'animation qui recevrait cette
   // étiquette est demandé comme /stream/tv/{id}/1/1 par les liens de lecture :
   // les providers cherchent alors une saison qui n'existe pas.
-  if (genreIds.includes(16) && isTV) {
+  // Fallback : si le backend proxy filtre genre_ids, on détecte l'anime via le
+  // pays / la langue d'origine japonaise sur un contenu TV (évite qu'un animé
+  // soit classé en simple « série »).
+  const isJapaneseOrigin =
+    (item.origin_country?.includes("JP") ?? false) || item.original_language === "ja";
+  if (isTV && (genreIds.includes(16) || (isJapaneseOrigin && genreIds.length === 0))) {
     type = "anime";
   } else if (genreIds.includes(99)) {
     type = "documentary";
@@ -1096,6 +1103,7 @@ export interface SeasonDetails {
     runtime?: number;
     still_path?: string | null;
     overview?: string;
+    air_date?: string | null;
   }>;
 }
 
