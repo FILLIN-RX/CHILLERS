@@ -20,8 +20,19 @@ on:
           - 'animes'
           - 'maintenance'
           - 'link-tmdb'
+          - 'realign'
           - 'keepalive'
           - 'deploy-migration'
+      apply:
+        description: 'realign : écrire les tmdbId corrigés en base (sinon dry-run, lecture seule)'
+        required: false
+        default: false
+        type: boolean
+
+# Deux jobs qui écrivent dans le même Atlas en même temps se marchent dessus.
+concurrency:
+  group: scraper
+  cancel-in-progress: false
 
 jobs:
   scrape-and-maintenance:
@@ -44,6 +55,32 @@ jobs:
           cd backend
           npm ci
 
+      # Le job a été silencieusement mort pendant des semaines : les chemins
+      # pointaient sur src/scraping/** (le code est dans src/modules/scraping/**)
+      # et chaque ligne portait un `|| true` qui avalait l'erreur. Ce garde-fou
+      # échoue à la place de passer quand un script bouge.
+      - name: Vérification des chemins de scripts
+        working-directory: backend
+        run: |
+          for f in \
+            src/modules/scraping/core/scrape-films.js \
+            src/modules/scraping/core/scrape-series.ts \
+            src/modules/scraping/core/scrape-animes.ts \
+            src/modules/scraping/maintenance/link-movies-tmdb.ts \
+            src/modules/scraping/maintenance/link-series-tmdb.ts \
+            src/modules/scraping/maintenance/check-all-links.ts \
+            src/modules/scraping/maintenance/maintainer.ts \
+            src/modules/scraping/maintenance/organize-series.ts \
+            src/modules/scraping/maintenance/sync-series-to-mongo.ts \
+            src/modules/scraping/maintenance/realign-tmdb-links.ts \
+            scripts/backfill-uqload-links.ts \
+            src/scripts/migrate-dood-to-uqload.ts \
+            src/scripts/upload-uqload.ts
+          do
+            test -f "$f" || { echo "::error::script manquant : $f"; exit 1; }
+          done
+          echo "Tous les scripts référencés sont présents."
+
       - name: Scraping & Maintenance
         env:
           NODE_ENV: production
@@ -55,6 +92,7 @@ jobs:
           STREAMTAPE_LOGIN: ${{ secrets.STREAMTAPE_LOGIN }}
           STREAMTAPE_KEY: ${{ secrets.STREAMTAPE_KEY }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          REALIGN_APPLY: ${{ github.event.inputs.apply == 'true' && '1' || '0' }}
         run: |
           cd backend
           TASK="${{ github.event.inputs.task || 'all' }}"
@@ -62,30 +100,41 @@ jobs:
 
           case "$TASK" in
             "films")
-              npx tsx src/scraping/core/scrape-films.ts
+              npx tsx src/modules/scraping/core/scrape-films.js
               ;;
             "series")
-              npx tsx src/scraping/core/scrape-series.ts
+              npx tsx src/modules/scraping/core/scrape-series.ts
               ;;
             "animes")
-              npx tsx src/scraping/core/scrape-animes.ts
+              npx tsx src/modules/scraping/core/scrape-animes.ts
               ;;
             "maintenance")
               echo "1/4 Vérification des liens morts..."
-              npx tsx src/scraping/maintenance/check-all-links.ts || true
+              npx tsx src/modules/scraping/maintenance/check-all-links.ts || true
               echo "2/4 Maintenance liens séries..."
-              npx tsx src/scraping/maintenance/maintainer.ts || true
+              npx tsx src/modules/scraping/maintenance/maintainer.ts || true
               echo "3/4 Organize séries Doodstream..."
-              npx tsx src/scraping/maintenance/organize-series.ts || true
+              npx tsx src/modules/scraping/maintenance/organize-series.ts || true
               echo "4/4 Sync séries vers MongoDB..."
-              npx tsx src/scraping/maintenance/sync-series-to-mongo.ts || true
+              npx tsx src/modules/scraping/maintenance/sync-series-to-mongo.ts || true
               ;;
             "link-tmdb")
-              npx tsx src/scraping/maintenance/link-movies-tmdb.ts
-              npx tsx src/scraping/maintenance/link-series-tmdb.ts
+              npx tsx src/modules/scraping/maintenance/link-movies-tmdb.ts
+              npx tsx src/modules/scraping/maintenance/link-series-tmdb.ts
+              ;;
+            "realign")
+              # Réaligne les fiches dont le tmdbId ou le fichier désigne une
+              # autre œuvre. Écrit seulement si apply a été coché au dispatch.
+              if [ "$REALIGN_APPLY" = "1" ]; then
+                npx tsx src/modules/scraping/maintenance/realign-tmdb-links.ts --apply
+              else
+                npx tsx src/modules/scraping/maintenance/realign-tmdb-links.ts
+              fi
               ;;
             "keepalive")
-              npx tsx src/scraping/maintenance/keepalive-uqload.ts
+              # Les liens Uqload stockés sont signés et expirent : seule une
+              # re-mint par fileCode les ressuscite.
+              npx tsx scripts/backfill-uqload-links.ts
               ;;
             "deploy-migration")
               echo "Migration DoodStream → Uqload..."
@@ -93,22 +142,28 @@ jobs:
               npx tsx src/scripts/upload-uqload.ts --verify || true
               ;;
             "all")
-              echo "=== 1/7 Scraping Films ==="
-              npx tsx src/scraping/core/scrape-films.ts
-              echo "=== 2/7 Scraping Séries ==="
-              npx tsx src/scraping/core/scrape-series.ts
-              echo "=== 3/7 Scraping Animes ==="
-              npx tsx src/scraping/core/scrape-animes.ts
-              echo "=== 4/7 Linking TMDB ==="
-              npx tsx src/scraping/maintenance/link-movies-tmdb.ts || true
-              npx tsx src/scraping/maintenance/link-series-tmdb.ts || true
-              echo "=== 5/7 Vérification liens morts ==="
-              npx tsx src/scraping/maintenance/check-all-links.ts || true
-              echo "=== 6/7 Maintenance liens séries ==="
-              npx tsx src/scraping/maintenance/maintainer.ts || true
-              echo "=== 7/7 Organize + Sync séries ==="
-              npx tsx src/scraping/maintenance/organize-series.ts || true
-              npx tsx src/scraping/maintenance/sync-series-to-mongo.ts || true
+              echo "=== 1/8 Scraping Films ==="
+              npx tsx src/modules/scraping/core/scrape-films.js
+              echo "=== 2/8 Scraping Séries ==="
+              npx tsx src/modules/scraping/core/scrape-series.ts
+              echo "=== 3/8 Scraping Animes ==="
+              npx tsx src/modules/scraping/core/scrape-animes.ts
+              echo "=== 4/8 Linking TMDB ==="
+              npx tsx src/modules/scraping/maintenance/link-movies-tmdb.ts || true
+              npx tsx src/modules/scraping/maintenance/link-series-tmdb.ts || true
+              echo "=== 5/8 Réalignement des fiches (lecture seule) ==="
+              if [ "$REALIGN_APPLY" = "1" ]; then
+                npx tsx src/modules/scraping/maintenance/realign-tmdb-links.ts --apply || true
+              else
+                npx tsx src/modules/scraping/maintenance/realign-tmdb-links.ts || true
+              fi
+              echo "=== 6/8 Vérification liens morts ==="
+              npx tsx src/modules/scraping/maintenance/check-all-links.ts || true
+              echo "=== 7/8 Maintenance liens séries ==="
+              npx tsx src/modules/scraping/maintenance/maintainer.ts || true
+              echo "=== 8/8 Organize + Sync séries ==="
+              npx tsx src/modules/scraping/maintenance/organize-series.ts || true
+              npx tsx src/modules/scraping/maintenance/sync-series-to-mongo.ts || true
               ;;
             *)
               echo "Tâche inconnue : $TASK"
@@ -131,5 +186,16 @@ jobs:
               exit 0
             fi
           fi
-          echo "=== KeepAlive Uqload ==="
-          npx tsx src/scraping/maintenance/keepalive-uqload.ts
+          echo "=== KeepAlive Uqload : re-mint des liens signés expirés ==="
+          npx tsx scripts/backfill-uqload-links.ts
+
+      # Le rapport du correcteur est hors du repo : sans artefact, le dry-run
+      # nocturne ne laisse rien à lire.
+      - name: Artefact du rapport realign
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: realign-tmdb-links-${{ github.run_number }}
+          path: /tmp/realign-tmdb-links.json
+          if-no-files-found: ignore
+          retention-days: 14

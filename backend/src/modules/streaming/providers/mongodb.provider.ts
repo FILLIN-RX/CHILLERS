@@ -2,7 +2,46 @@ import { StreamingProvider, StreamResult, StreamQuery } from './provider.interfa
 import Movie from '../../../models/Movie';
 import Serie from '../../../models/Serie';
 import { isSignedLinkExpired } from '../../../utils/link-ttl';
+import { normalizeTitle, yearFromTitle } from '../../../utils/title-match';
 import axios from 'axios';
+
+/**
+ * Le repli par titre était un « titre CONTIENT X » : la fiche « Animals »
+ * attrapait le document « American Animals » et le lecteur servait un autre
+ * film que celui demandé. La jointure exige le même titre — en tolérant le
+ * suffixe de saison que le scraper ajoute (« X - Saison 1 ») — et l'année
+ * quand les deux côtés la connaissent.
+ */
+function matchesWork(doc: { titre?: string; year?: any }, wanted: string, allowSeasonSuffix: boolean): boolean {
+  const a = normalizeTitle(doc.titre);
+  const b = normalizeTitle(wanted);
+  if (!a || !b) return false;
+  if (a !== b && !(allowSeasonSuffix && a.startsWith(`${b} `))) return false;
+
+  const suffix = a.slice(b.length).trim();
+  if (allowSeasonSuffix && suffix && !/^(saison ?\d+|s\d+|vol(?:ume)? ?\d+|\d+)$/.test(suffix)) return false;
+
+  return true;
+}
+
+/** Le titre du document désigne-t-il l'œuvre demandée (et non un homonyme) ? */
+function docMatchesQuery(
+  doc: { titre?: string; year?: any },
+  titles: string[],
+  year?: number | null,
+  allowSeasonSuffix = false,
+): boolean {
+  return titles.some((t) => {
+    if (!matchesWork(doc, t, allowSeasonSuffix)) return false;
+    // Le scraper note parfois l'année dans le titre seul : « Kraken (2000) ».
+    const docYear = Number(doc.year) || yearFromTitle(doc.titre);
+    return !(year && docYear && Math.abs(Number(docYear) - year) > 1);
+  });
+}
+
+function escapeRe(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
 function toEmbedUrl(lien: string): string {
   const match = lien.match(/(?:doodstream\.com|playmogo\.com|d000d\.com|d0000d\.com|dood\.(?:to|sh|so|cx|la|wf|pm))\/(?:d|e)\/([a-zA-Z0-9]+)/i);
@@ -71,14 +110,15 @@ export class MongoDBProvider implements StreamingProvider {
   async getMovieStream(query: StreamQuery): Promise<StreamResult | null> {
     try {
       // Priority 1: exact tmdbId match
-      let movie = query.tmdbId ? await Movie.findOne({ tmdbId: query.tmdbId }).exec() : null;
-      // Priority 2: title regex fallback (check all title variants: frenchTitle, originalTitle, title)
+      let movie: any = query.tmdbId ? await Movie.findOne({ tmdbId: query.tmdbId }).lean().exec() : null;
+      // Priority 2: titre identique (jamais « contient »), année si on la connaît
       if (!movie) {
         const titles = [query.title, query.frenchTitle, query.originalTitle].filter(Boolean) as string[];
-        for (const t of titles) {
-          const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          movie = await Movie.findOne({ titre: { $regex: new RegExp(escaped, 'i') } }).exec();
-          if (movie) break;
+        if (titles.length) {
+          const candidates = await Movie.find({
+            $or: titles.map((t) => ({ titre: { $regex: new RegExp(escapeRe(t), 'i') } })),
+          }).limit(30).lean();
+          movie = candidates.find((d: any) => docMatchesQuery(d, titles, query.year)) || null;
         }
       }
       if (!movie) return null;
@@ -124,18 +164,19 @@ export class MongoDBProvider implements StreamingProvider {
     try {
       // Priority 1: exact tmdbId match
       let serie = query.tmdbId ? await this.findSerie(query) : null;
-      // Priority 2: title regex fallback (check all title variants: frenchTitle, originalTitle, title)
+      // Priority 2: titre identique, en tolérant le suffixe « - Saison N »
       if (!serie) {
         const titles = [query.title, query.frenchTitle, query.originalTitle].filter(Boolean) as string[];
-        for (const t of titles) {
-          const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          const byTitle = await Serie.find({ titre: { $regex: new RegExp(escaped, 'i') } }).exec();
+        if (titles.length) {
+          const byTitleRaw = await Serie.find({
+            $or: titles.map((t) => ({ titre: { $regex: new RegExp(escapeRe(t), 'i') } })),
+          }).limit(40).lean();
+          const byTitle = byTitleRaw.filter((s: any) => docMatchesQuery(s, titles, query.year, true));
           if (byTitle.length) {
-            const bySeason = byTitle.find(s => s.episodes?.some(
+            const bySeason = byTitle.find((s: any) => s.episodes?.some(
               (e: any) => Number(e.season) === Number(query.season)
             ));
             serie = bySeason || byTitle[0];
-            if (serie) break;
           }
         }
       }
