@@ -324,22 +324,25 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
   const isHls = !isIframe && !!videoUrl && (videoUrl.includes(".m3u8") || videoUrl.includes("m3u8"));
 
   // Referer CDN : fourni par le backend quand il scrape l'embed Uqload/Vidzy.
-  const hlsReferer = streamQuery.data?.referer || streamReferer || null;
+  const cdnReferer = streamQuery.data?.referer || streamReferer || null;
 
   /**
-   * hls.js charge playlists et segments en cross-origin : le Referer ne peut
-   * pas être posé depuis le navigateur (header interdit, silencieusement
-   * ignoré) et le CDN anti-leech refuse sans lui. On fait donc transiter le
-   * HLS par /api/live/proxy, qui réécrit les playlists et injecte le Referer
-   * côté serveur. Les URLs same-origin (torrents, transcodes) passent telles quelles.
+   * Anti-leech : le Referer est un header interdit en cross-origin (le
+   * navigateur l'ignore silencieusement), et les CDN « domain protected »
+   * répondent sans lui soit une erreur, soit une vidéo leurre de quelques
+   * secondes (« FSTREAM.TOP » chez Vidzy) à la place du film. HLS et MP4
+   * protégés transitent donc par /api/live/proxy, qui repose le Referer côté
+   * serveur. Un MP4 sans Referer demandé et les URLs same-origin (torrents,
+   * transcodes) restent téléchargés en direct.
    */
-  const hlsSource = useMemo(() => {
-    if (!videoUrl || !isHls) return videoUrl;
+  const mediaSource = useMemo(() => {
+    if (!videoUrl) return videoUrl;
     if (videoUrl.startsWith("/") || videoUrl.includes("/api/live/proxy")) return videoUrl;
+    if (!isHls && !cdnReferer) return videoUrl;
     const qs = new URLSearchParams({ url: videoUrl });
-    if (hlsReferer) qs.set("referer", hlsReferer);
+    if (cdnReferer) qs.set("referer", cdnReferer);
     return `/api/live/proxy?${qs.toString()}`;
-  }, [videoUrl, isHls, hlsReferer]);
+  }, [videoUrl, isHls, cdnReferer]);
 
   /* ───────── HLS setup & Network Optimization ───────── */
   useEffect(() => {
@@ -382,9 +385,9 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
           levelLoadingMaxRetryTimeout: 64000,
         });
 
-        // Toutes les requêtes HLS passent par /api/live/proxy (voir hlsSource) :
+        // Toutes les requêtes HLS passent par /api/live/proxy (voir mediaSource) :
         // c'est lui qui injecte le Referer CDN exigé par l'anti-leech.
-        hls.loadSource(hlsSource ?? videoUrl);
+        hls.loadSource(mediaSource ?? videoUrl);
         hls.attachMedia(video);
 
         hls.on(Hls.Events.MANIFEST_PARSED, (_event, data) => {
@@ -422,11 +425,11 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
 
         hlsRef.current = hls;
       } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-        video.src = hlsSource ?? videoUrl;
+        video.src = mediaSource ?? videoUrl;
         video.play().catch(() => {});
       }
     } else {
-      video.src = videoUrl;
+      video.src = mediaSource ?? videoUrl;
       video.play().catch(() => {});
     }
 
@@ -436,7 +439,7 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
         hlsRef.current = null;
       }
     };
-  }, [videoUrl, hlsSource, isHls, isIframe, hasStarted]);
+  }, [videoUrl, mediaSource, isHls, isIframe, hasStarted]);
 
   /* ───────── Quality Selector Handler ───────── */
   const changeQuality = useCallback((qualityIndex: number) => {
@@ -793,7 +796,7 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
           {/* ─── VIDEO NATIVE ─── */}
           <video
             ref={videoRef}
-            src={!isHls && videoUrl ? videoUrl : undefined}
+            src={!isHls && mediaSource ? mediaSource : undefined}
             className="w-full h-full object-contain bg-black"
             autoPlay
             playsInline

@@ -71,6 +71,11 @@ export async function GET(request: NextRequest) {
   }
 
   const refererParam = request.nextUrl.searchParams.get("referer");
+  // Un MP4 progressif ne se lit que si le relay sait répondre aux requêtes
+  // d'octets : le navigateur envoie Range pour seek et pour lire un moov atom
+  // placé en fin de fichier.
+  const rangeParam = request.headers.get("range");
+  const ifRangeParam = request.headers.get("if-range");
 
   try {
     const headers: Record<string, string> = {
@@ -78,6 +83,8 @@ export async function GET(request: NextRequest) {
       Accept: "*/*",
       Referer: refererParam || `${targetUrl.protocol}//${targetUrl.host}/`,
     };
+    if (rangeParam) headers.Range = rangeParam;
+    if (ifRangeParam) headers["If-Range"] = ifRangeParam;
 
     // Timeout d'établissement uniquement : on le libère dès que les en-têtes
     // arrivent, sinon un segment volumineux sur connexion lente serait coupé
@@ -141,17 +148,25 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Sinon (segment binaire .ts, audio, etc.), on renvoie le stream avec headers CORS
+    // Sinon (segment binaire .ts, audio, MP4 progressif), on renvoie le stream
+    // avec headers CORS. Le statut et les en-têtes d'octets de l'amont sont
+    // recopiés : sans 206 + Content-Range, un <video> refuse la source.
     const body = response.body;
-    return new NextResponse(body, {
-      status: 200,
-      headers: {
-        "Content-Type": contentType || "video/MP2T",
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
-        "Cache-Control": "public, max-age=3600",
-      },
-    });
+    const relayHeaders = new Headers();
+    relayHeaders.set("Content-Type", contentType || "video/MP2T");
+    relayHeaders.set("Access-Control-Allow-Origin", "*");
+    relayHeaders.set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+    relayHeaders.set("Access-Control-Expose-Headers", "Content-Range,Accept-Ranges,Content-Length");
+    // Les segments HLS sont immuables et restent cacheables ; une réponse
+    // partielle de fichier progressif ne doit jamais être resservie.
+    relayHeaders.set("Cache-Control", rangeParam ? "no-store" : "public, max-age=3600");
+    for (const name of ["content-length", "content-range", "accept-ranges", "etag", "last-modified"]) {
+      const value = response.headers.get(name);
+      if (value) relayHeaders.set(name, value);
+    }
+    if (!relayHeaders.get("accept-ranges")) relayHeaders.set("Accept-Ranges", "bytes");
+
+    return new NextResponse(body, { status: response.status, headers: relayHeaders });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return new NextResponse(`Proxy error: ${message || "Internal error"}`, {
