@@ -267,8 +267,15 @@ async function realignCollection(model: any, type: 'movie' | 'tv', label: string
           if (apply) {
             // Double garde : ne jamais écraser un id corrigé entre-temps par le scraper.
             const r = await model.updateOne({ _id: doc._id, tmdbId: doc.tmdbId }, { $set: { tmdbId: best.id } });
-            if (r.modifiedCount > 0) push({ ...base, kind: 'realigne', newTmdbId: best.id, detail: `${doc.tmdbId} → ${to}` });
-            else push({ ...base, kind: 'tmdb_wrong', detail: `${why} — écriture annulée (id changé en base)` });
+            if (r.modifiedCount > 0) {
+              push({ ...base, kind: 'realigne', newTmdbId: best.id, detail: `${doc.tmdbId} → ${to}` });
+              // Écho immédiat : un job tué avant la fin ne laisse aucun rapport
+              // sur disque, et sans la liste ancien → nouveau il n'y a pas de
+              // quoi annuler.
+              console.log(`    [ÉCRITURE] "${doc.titre}" tmdbId ${doc.tmdbId} → ${best.id}`);
+            } else {
+              push({ ...base, kind: 'tmdb_wrong', detail: `${why} — écriture annulée (id changé en base)` });
+            }
           } else {
             push({ ...base, kind: 'realignable', newTmdbId: best.id, detail: `${doc.tmdbId} → ${to}` });
           }

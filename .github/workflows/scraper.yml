@@ -37,7 +37,9 @@ concurrency:
 jobs:
   scrape-and-maintenance:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # Le parcours complet du catalogue (21 151 films + les séries) tourne à
+    # ~500 fiches/minute côté TMDB : 60 minutes coupe le job en plein writes.
+    timeout-minutes: 180
 
     steps:
       - name: Checkout du code source
