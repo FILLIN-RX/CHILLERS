@@ -258,8 +258,8 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
             alt={displayTitle}
             fill
             priority
-            quality={100}
-            className="object-cover object-top scale-x-90"
+            quality={75}
+            className="object-cover object-top"
             sizes="100vw"
           />
         ) : (

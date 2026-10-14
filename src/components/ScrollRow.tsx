@@ -207,16 +207,6 @@ export default function ScrollRow({
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
-        <div
-          className={`pointer-events-none absolute left-0 top-0 h-full w-16 z-10 transition-opacity duration-300 hidden md:block
-            bg-[#0c0c0e] ${canScrollLeft ? "opacity-100" : "opacity-0"}`}
-        />
-
-        <div
-          className={`pointer-events-none absolute right-0 top-0 h-full w-16 z-10 transition-opacity duration-300 hidden md:block
-            bg-[#0c0c0e] ${canScrollRight ? "opacity-100" : "opacity-0"}`}
-        />
-
         {canScrollLeft && (
           <button
             onClick={() => scroll("left")}

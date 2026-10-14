@@ -139,4 +139,19 @@ describe("findPoster", () => {
     expect(findPoster(fixtures, { home: "Al Sadd", away: "Al-Hilal" })).toBeNull();
     expect(findPoster([], { home: "Lens", away: "Sporting CP" })).toBeNull();
   });
+
+  it("ne joint pas un match des jeunes (U19) à la rencontre de l'équipe première", () => {
+    // Relevé en production : « AS Roma (U-19) » se normalisait en « romau19 »,
+    // dont la clé « roma » de l'équipe première est incluse → le match des jeunes
+    // héritait du coup d'envoi de la A (« 20:00 ») et restait bloqué sur l'écran
+    // d'attente alors qu'il était déjà en direct.
+    const senior: PosterFixture = { ...uclLens, id: "900000001", home: "AS Roma", away: "Real Madrid" };
+    expect(findPoster([senior], { home: "AS Roma (U-19)", away: "Real Madrid (U-19)" })).toBeNull();
+  });
+
+  it("joint un match des jeunes à la fiche des jeunes quand elle existe", () => {
+    const u19: PosterFixture = { ...uclLens, id: "900000002", home: "AS Roma U19", away: "Real Madrid U19" };
+    const found = findPoster([u19], { home: "AS Roma (U-19)", away: "Real Madrid (U-19)" });
+    expect(found?.fixture.id).toBe(u19.id);
+  });
 });

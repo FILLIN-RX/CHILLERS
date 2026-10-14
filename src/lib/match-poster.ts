@@ -123,11 +123,29 @@ export function normalizeTeam(name?: string): string {
   return s.trim();
 }
 
+/**
+ * Catégorie d'une équipe (U19, U21, réserves…) : elle désigne une autre équipe
+ * que l'équipe première. Sans ce repère, le recouvrement de chaînes ci-dessous
+ * joindrait « AS Roma (U-19) » à « AS Roma » et ferait hériter au match des
+ * jeunes le coup d'envoi de l'équipe première (« 20:00 ») → écran d'attente
+ * bloquant alors que le match est déjà en direct.
+ */
+export function teamTier(name?: string): string {
+  if (!name) return "";
+  const s = name.toLowerCase();
+  const age = s.match(/\b(?:u|under)\s?-?\s?(\d{1,2})\b/);
+  if (age) return `u${age[1]}`;
+  if (/\breserves?\b|\breserve team\b|\bii\b/.test(s)) return "reserves";
+  return "";
+}
+
 /** Vrai quand les deux noms désignent la même équipe ; les clés trop courtes sont rejetées. */
 function sameTeam(a: string | undefined, b: string | undefined): boolean {
   const ka = normalizeTeam(a);
   const kb = normalizeTeam(b);
   if (ka.length < 3 || kb.length < 3) return false;
+  // Deux catégories différentes ne sont jamais la même équipe.
+  if (teamTier(a) !== teamTier(b)) return false;
   return ka === kb || ka.includes(kb) || kb.includes(ka);
 }
 

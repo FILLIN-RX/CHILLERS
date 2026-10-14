@@ -73,7 +73,7 @@ function BottomNavComponent({ onSearchClick }: BottomNavProps) {
                   onClick={() => router.push("/login")}
                   aria-label={item.label}
                   className={`relative flex flex-col items-center gap-1 py-1 px-2 min-w-[56px] rounded-[5px] transition-all duration-200 focus:outline-none active:scale-90 ${
-                    isActive ? "text-[#00E599]" : "text-zinc-400"
+                    isActive ? "text-brand-primary" : "text-zinc-400"
                   }`}
                 >
                   <Icon className="h-5 w-5 stroke-[2.2]" />
@@ -90,25 +90,19 @@ function BottomNavComponent({ onSearchClick }: BottomNavProps) {
                 href={item.href}
                 aria-label={item.label}
                 className={`relative flex flex-col items-center gap-1 py-1 px-2 min-w-[56px] rounded-xl transition-all duration-200 focus:outline-none active:scale-90 ${
-                  isActive ? "text-[#00E599]" : "text-zinc-400"
+                  isActive ? "text-brand-primary" : "text-zinc-400"
                 }`}
               >
                 <div className="relative flex items-center justify-center">
                   {isProfile && user ? (
-                    <div
-                      className={`rounded-full p-0.5 ${
-                        isActive ? "ring-2 ring-[#00E599]" : ""
-                      }`}
-                    >
-                      <UserAvatar user={user} size="xs" showBadge={false} />
-                    </div>
+                    <UserAvatar user={user} size="xs" showBadge={false} />
                   ) : (
                     <Icon className="h-5 w-5 stroke-[2.2]" />
                   )}
                 </div>
                 <span
                   className={`text-[10px] font-bold leading-none truncate max-w-[60px] ${
-                    isActive ? "text-[#00E599]" : "text-zinc-400"
+                    isActive ? "text-brand-primary" : "text-zinc-400"
                   }`}
                 >
                   {item.label}

@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { buildMediaMetadata, buildMediaJsonLd, SITE_LOCALE, SITE_URL, DEFAULT_OG_IMAGE } from "@/lib/seo";
 import { getMediaDetails, getSimilarTitles } from "@/services/media";
@@ -61,20 +62,26 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const sp = await searchParams;
   const isTV = sp?.type === "tv" || sp?.type === "series";
 
+  // ?type=tv est une ancienne forme d'URL : la fiche série vit sous /tv/{id}.
+  // Le canonical pointe déjà vers la vraie URL, la page redirige en dessous.
+  if (isTV) {
+    return { alternates: { canonical: `/tv/${slug}` } };
+  }
+
   try {
-    const d = await getMediaDetails(slug, isTV);
+    const d = await getMediaDetails(slug, false);
     if (d) {
       return buildMediaMetadata({
         id: slug,
         title: d.title,
-        type: isTV ? "tv" : "movie",
+        type: "movie",
         overview: d.synopsis || d.description,
         posterPath: d.posterUrl,
         backdropPath: d.backdropUrl,
         year: d.year,
         rating: d.rating,
         genres: d.genres,
-        path: `/media/${slug}?type=${isTV ? "tv" : "movie"}`,
+        path: `/media/${slug}`,
       });
     }
   } catch {}
@@ -94,23 +101,26 @@ export default async function Page({ params, searchParams }: Props) {
 
   const sp = await searchParams;
   const isTV = sp?.type === "tv" || sp?.type === "series";
-  
-  const item = await getMediaDetails(slug, isTV).catch(() => null);
-  const similar = await getSimilarTitles(slug, isTV, item);
+  // Redirection serveur plutôt que celle du client : Google ne voit plus une coquille vide
+  // qui se réoriente après coup, et on évite une requête de détails doublonnée.
+  if (isTV) redirect(`/tv/${slug}`);
+
+  const item = await getMediaDetails(slug, false).catch(() => null);
+  const similar = await getSimilarTitles(slug, false, item);
 
   let jsonLd = null;
   if (item) {
     jsonLd = buildMediaJsonLd({
       id: slug,
       title: item.title,
-      type: isTV ? "tv" : "movie",
+      type: "movie",
       overview: item.synopsis || item.description,
       posterPath: item.posterUrl,
       backdropPath: item.backdropUrl,
       year: item.year,
       rating: item.rating,
       genres: item.genres,
-      path: `/media/${slug}?type=${isTV ? "tv" : "movie"}`,
+      path: `/media/${slug}`,
     });
   }
 

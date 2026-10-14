@@ -9,6 +9,7 @@ import { getLiveBallMatches } from "@/services/liveball";
 import { buildAffiche, useMatchPosterIndex, type MatchAffiche } from "@/hooks/useMatchPosterIndex";
 import { formatMatchDay, formatMatchTime } from "@/lib/match-poster";
 import CompetitionBadge from "@/components/CompetitionBadge";
+import { MatchBackdrop, TeamCrest } from "@/components/MatchCardBackdrop";
 import type { SportsMatch } from "@/types/sports";
 import type { LiveBallMatch } from "@/types/liveball";
 
@@ -86,54 +87,6 @@ function formatKickoff(ts?: number): string {
   return day || time || "Bientôt";
 }
 
-/**
- * L'habillage « Apple TV » donne à chaque club son propre panneau coloré, et
- * aucune de nos sources ne publie la couleur d'un club. Teinte déterministe tirée
- * du nom : une rencontre garde le même habillage d'un rafraîchissement à l'autre.
- */
-function panelTint(name?: string): { from: string; to: string } {
-  let hue = 0;
-  for (const char of name || "?") hue = (hue * 31 + (char.codePointAt(0) ?? 0)) % 360;
-  return { from: `hsl(${hue} 40% 32%)`, to: `hsl(${hue} 34% 14%)` };
-}
-
-/** Cout oblique entre les deux panneaux, plus large en haut côté domicile. */
-const HOME_PANEL = "polygon(0 0, 58% 0, 42% 100%, 0 100%)";
-const AWAY_PANEL = "polygon(58% 0, 100% 0, 100% 100%, 42% 100%)";
-
-function TeamCrest({ src, alt }: { src?: string; alt: string }) {
-  // On mémorise l'URL qui a échoué : une affiche 404 retombe sur les initiales,
-  // et une URL remplacée par la query suivante se reteste normalement.
-  const [brokenSrc, setBrokenSrc] = useState<string | undefined>();
-  const broken = brokenSrc === src;
-
-  const initials = (alt || "?")
-    .split(/[\s-]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase();
-
-  if (!src || broken) {
-    return (
-      <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center text-xs font-black text-zinc-500 bg-white/[0.04] shrink-0">
-        {initials || "?"}
-      </div>
-    );
-  }
-
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={src}
-      alt={alt}
-      loading="lazy"
-      onError={() => setBrokenSrc(src)}
-      className="w-12 h-12 sm:w-14 sm:h-14 object-contain shrink-0"
-    />
-  );
-}
 
 export default function SportsMatchesRow({
   title = "Matchs de Football en Direct",
@@ -317,8 +270,6 @@ export default function SportsMatchesRow({
         <div className="flex gap-4 sm:gap-5 overflow-x-auto no-scrollbar py-2 px-1">
           {cards.map(({ match: m, affiche }) => {
             const isLive = m.status === "live";
-            const home = panelTint(m.home);
-            const away = panelTint(m.away);
 
             return (
               <Link
@@ -326,18 +277,7 @@ export default function SportsMatchesRow({
                 href={`/live/sp/${encodeURIComponent(m.id)}`}
                 className="group relative shrink-0 w-[290px] sm:w-[330px] aspect-[5/2] overflow-hidden rounded-[10px] bg-zinc-900 transition-transform duration-300 hover:scale-[1.015] cursor-pointer"
               >
-                <span
-                  aria-hidden
-                  className="absolute inset-0"
-                  style={{ background: `linear-gradient(150deg, ${home.from}, ${home.to})`, clipPath: HOME_PANEL }}
-                />
-                <span
-                  aria-hidden
-                  className="absolute inset-0"
-                  style={{ background: `linear-gradient(150deg, ${away.from}, ${away.to})`, clipPath: AWAY_PANEL }}
-                />
-                {/* Voile : sans lui, les inscriptions se liraient mal sur les panneaux. */}
-                <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/45" />
+                <MatchBackdrop home={m.home} away={m.away} />
 
                 <div className="relative h-full p-2.5 sm:p-3 flex flex-col justify-between">
                   <div className="flex items-start justify-between gap-2">

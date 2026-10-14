@@ -286,7 +286,7 @@ function MovieCard({
             src={primarySrc}
             alt={item.title || ""}
             fill
-            className={`object-cover object-top transition-all duration-500 will-change-transform z-10 ${
+            className={`object-cover object-top transition-all duration-500 z-10 ${
               "opacity-100 scale-100"
             } ${isHovered ? "scale-105 brightness-105" : "scale-100"}`}
             sizes={
@@ -315,7 +315,7 @@ function MovieCard({
         )}
 
         {/* Apple TV Parabolic Glare (Soft Ambient Sheen, No Stroke Border) */}
-        {!shouldReduceMotion && (
+        {canHover && !shouldReduceMotion && (
           <motion.div
             className="pointer-events-none absolute inset-0 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 mix-blend-overlay"
             style={{
@@ -458,13 +458,17 @@ function MovieCard({
               transition: TAP_SPRING,
             }
       }
-      style={{
-        rotateX: canHover ? rotateX : 0,
-        rotateY: canHover ? rotateY : 0,
-        transformPerspective: 900,
-        transformStyle: "preserve-3d",
-        touchAction: "manipulation",
-      }}
+      style={
+        canHover
+          ? {
+              rotateX,
+              rotateY,
+              transformPerspective: 900,
+              transformStyle: "preserve-3d",
+              touchAction: "manipulation",
+            }
+          : { touchAction: "manipulation" }
+      }
       className={`group relative ${landscapeSizeClass} select-none cursor-pointer rounded-2xl overflow-hidden bg-zinc-950 transition-transform duration-300 ${
         selected ? "ring-2 ring-brand-primary" : ""
       } ${className}`}
@@ -485,7 +489,7 @@ function MovieCard({
             src={primarySrc}
             alt={item.title || ""}
             fill
-            className={`object-cover object-top transition-all duration-500 will-change-transform z-10 ${
+            className={`object-cover object-top transition-all duration-500 z-10 ${
               "opacity-100 scale-100"
             } ${isHovered ? "scale-105 brightness-105" : "scale-100"}`}
             loading="lazy"
@@ -518,7 +522,7 @@ function MovieCard({
         )}
 
         {/* Apple TV Parabolic Glare (Soft Ambient Sheen, No Stroke Border) */}
-        {!shouldReduceMotion && (
+        {canHover && !shouldReduceMotion && (
           <motion.div
             className="pointer-events-none absolute inset-0 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 mix-blend-overlay"
             style={{

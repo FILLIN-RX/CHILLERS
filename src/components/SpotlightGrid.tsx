@@ -21,23 +21,13 @@ function SpotlightCard({
   onWatchNow: (m: MovieOrShow) => void;
   onOpenDetails: (m: MovieOrShow) => void;
 }) {
-  const backdrop = item.backdropOriginalUrl || item.backdropUrl;
-
   return (
     <div className="relative group overflow-hidden rounded-2xl sm:rounded-3xl border border-white/5 bg-zinc-950/80 hover:border-white/15 transition-all duration-300 w-full flex flex-row items-stretch p-3 sm:p-4 gap-3 sm:gap-4">
-      {/* Subtle backdrop ambient glow in card background */}
-      {backdrop && (
-        <div className="absolute inset-0 pointer-events-none opacity-20 group-hover:opacity-30 transition-opacity duration-500 overflow-hidden">
-          <Image
-            src={backdrop}
-            alt=""
-            fill
-            aria-hidden="true"
-            className="object-cover blur-xl scale-110"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-zinc-950 via-zinc-950/90 to-zinc-950/80" />
-        </div>
-      )}
+      {/* Ambient glow : dégradé CSS (avant : image full-size blur-xl = GPU lourd) */}
+      <div className="absolute inset-0 pointer-events-none opacity-60 transition-opacity duration-500 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-brand-primary/10 via-transparent to-sky-500/10" />
+        <div className="absolute inset-0 bg-gradient-to-r from-zinc-950 via-zinc-950/90 to-zinc-950/80" />
+      </div>
 
       {/* Left: Vertical Poster (2:3 aspect ratio) */}
       <div

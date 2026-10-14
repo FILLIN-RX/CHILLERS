@@ -1,6 +1,6 @@
 /* global self ReadableStream Response Headers fetch caches IDBKeyRange */
 
-const CACHE_NAME = 'chillers-cache-v8';
+const CACHE_NAME = 'chillers-cache-v9';
 
 // ── StreamSaver map pour le streaming de téléchargement ────────
 const map = new Map();
@@ -225,6 +225,9 @@ self.addEventListener('fetch', event => {
           })
           .catch(err => {
             console.warn('[SW] Asset fetch failed:', url, err);
+            // IMPORTANT : ne jamais renvoyer undefined à respondWith(),
+            // sinon le navigateur traite la requête comme un échec (image cassée).
+            return Response.error();
           });
       })
     );
@@ -275,7 +278,7 @@ self.addEventListener('fetch', event => {
             }
             return networkResponse;
           })
-          .catch(() => cached);
+          .catch(() => cached || Response.error());
 
         return cached || fetchPromise;
       })

@@ -751,7 +751,7 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
       className={`${
         isFullscreen
           ? "fixed inset-0 z-[99999] w-screen h-[100dvh] max-h-none rounded-none aspect-auto bg-black"
-          : `relative w-full aspect-video sm:min-h-[420px] md:min-h-[520px] lg:min-h-[600px] xl:min-h-[660px] ${isTheater ? "max-h-[92dvh]" : "max-h-[85dvh]"} bg-black rounded-none sm:rounded-xl`
+          : `relative w-full aspect-[16/9.9] sm:aspect-video sm:min-h-[420px] md:min-h-[520px] lg:min-h-[600px] xl:min-h-[660px] ${isTheater ? "max-h-[92dvh]" : "max-h-[85dvh]"} bg-black rounded-none sm:rounded-xl`
       } overflow-hidden select-none transition-all duration-300 shadow-[0_20px_70px_rgba(0,0,0,0.95)] group/container ${
         !controlsVisible && isPlaying ? "cursor-none" : "cursor-default"
       }`}

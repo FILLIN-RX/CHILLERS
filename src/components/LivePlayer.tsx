@@ -5,7 +5,7 @@ import Hls from "hls.js";
 import { useLanguage } from "@/i18n/LanguageContext";
 import type { LiveChannel } from "@/types/live";
 import { PopupFirewall } from "@/lib/PopupFirewall";
-import { ArrowLeft, X, Play, Pause, ArrowsClockwise, SpeakerSimpleHigh, SpeakerSimpleSlash, ArrowsOutSimple, ArrowsInSimple, Television, Clock, DotsThreeVertical, PictureInPicture, CaretRight, ShareNetwork, Check } from "@phosphor-icons/react";
+import { ArrowLeft, X, Play, Pause, ArrowsClockwise, SpeakerSimpleHigh, SpeakerSimpleSlash, ArrowsOutSimple, ArrowsInSimple, Television, DotsThreeVertical, PictureInPicture, ShareNetwork, Check } from "@phosphor-icons/react";
 
 interface LivePlayerProps {
   channel: LiveChannel;
@@ -19,6 +19,12 @@ interface LivePlayerProps {
 }
 
 const PROXY_BASE = "/api/live/proxy";
+
+/* Contrôles « Apple TV » : verre dépoli, cercles, bordure blanche discrète. */
+const GLASS_BTN =
+  "flex items-center justify-center rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-white/90 hover:text-white hover:bg-white/20 transition-colors";
+const GLASS_PILL =
+  "inline-flex items-center gap-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-white/90 hover:text-white hover:bg-white/20 transition-colors";
 
 function buildProxyUrl(url: string): string {
   if (!url) return "";
@@ -109,7 +115,6 @@ export default function LivePlayer({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [showChannelDrawer, setShowChannelDrawer] = useState(false);
-  const [showEpgModal, setShowEpgModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
@@ -177,7 +182,7 @@ export default function LivePlayer({
     setShowControls(true);
     if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
     controlsTimeoutRef.current = setTimeout(() => {
-      if (!showChannelDrawer && !showEpgModal && !showSettingsModal) {
+      if (!showChannelDrawer && !showSettingsModal) {
         setShowControls(false);
       }
     }, 4000);
@@ -419,7 +424,7 @@ export default function LivePlayer({
         setShowControls(true);
         if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
         controlsTimeoutRef.current = setTimeout(() => {
-          if (!showChannelDrawer && !showEpgModal && !showSettingsModal) {
+          if (!showChannelDrawer && !showSettingsModal) {
             setShowControls(false);
           }
         }, 4000);
@@ -498,11 +503,11 @@ export default function LivePlayer({
         }`}
       >
         <div className="flex items-center justify-between gap-4">
-          {/* Gauche : Retour + Logo + Titre de la chaîne */}
+          {/* Gauche : Retour + Logo + Titre */}
           <div className="flex items-center gap-3 sm:gap-4 min-w-0">
             <button
               onClick={onBack}
-              className="flex items-center justify-center w-11 h-11 rounded-full bg-black/50 hover:bg-white/20 text-white transition-colors"
+              className={`${GLASS_BTN} w-11 h-11 shrink-0`}
               aria-label="Retour"
             >
               <ArrowLeft className="h-5 w-5" />
@@ -516,23 +521,25 @@ export default function LivePlayer({
             />
 
             <div className="min-w-0">
-              <div className="flex items-center gap-1.5 cursor-pointer hover:text-red-400 transition-colors">
-                <h1 className="text-sm sm:text-base md:text-lg font-black uppercase tracking-wider text-white truncate">
-                  {channel.name}
-                </h1>
-                <CaretRight className="h-4 w-4 text-zinc-400 shrink-0" />
-              </div>
-              <p className="text-[11px] sm:text-xs text-zinc-400 font-medium truncate">
-                {isLive ? "En direct HD" : "Différé"} · {channel.categories?.[0]?.toUpperCase() || "DIRECT"}
+              <h1 className="text-sm sm:text-base font-semibold text-white truncate">
+                {channel.name}
+              </h1>
+              <p className="flex items-center gap-1.5 text-[11px] sm:text-xs text-white/60 font-medium truncate">
+                <span
+                  className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                    isLive ? "bg-red-500 animate-pulse" : "bg-zinc-500"
+                  }`}
+                />
+                {isLive ? "En direct" : "Différé"}
               </p>
             </div>
           </div>
 
-          {/* Droite : Volume + PiP + Fermer */}
+          {/* Droite : Volume + PiP + Partager */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <button
               onClick={toggleMute}
-              className="min-w-11 min-h-11 p-2 flex items-center justify-center rounded-full hover:bg-white/10 text-white transition-colors"
+              className={`${GLASS_BTN} w-11 h-11`}
               aria-label="Volume"
             >
               {isMuted ? (
@@ -544,7 +551,7 @@ export default function LivePlayer({
 
             <button
               onClick={togglePictureInPicture}
-              className="p-2 rounded-full hover:bg-white/10 text-white transition-colors hidden sm:block"
+              className={`${GLASS_BTN} w-11 h-11 hidden sm:flex`}
               aria-label="Picture-in-Picture"
               title="Mini-lecteur"
             >
@@ -553,7 +560,7 @@ export default function LivePlayer({
 
             <button
               onClick={handleShare}
-              className="min-w-11 min-h-11 p-2 flex items-center justify-center rounded-full hover:bg-white/10 text-white transition-colors"
+              className={`${GLASS_BTN} w-11 h-11`}
               aria-label="Partager"
               title={shareCopied ? "Lien copié !" : "Partager"}
             >
@@ -562,14 +569,6 @@ export default function LivePlayer({
               ) : (
                 <ShareNetwork className="h-5 w-5" />
               )}
-            </button>
-
-            <button
-              onClick={onBack}
-              className="min-w-11 min-h-11 p-2 flex items-center justify-center rounded-full hover:bg-white/10 text-white transition-colors"
-              aria-label="Fermer"
-            >
-              <X className="h-5 w-5" />
             </button>
           </div>
         </div>
@@ -581,36 +580,28 @@ export default function LivePlayer({
           showControls ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
       >
-        {/* Barre de timeline de diffusion en direct (interactive) */}
-        <div className="space-y-1">
+        {/* Barre de timeline en direct (interactive) */}
+        <div
+          onClick={handleTimelineClick}
+          className="relative w-full h-1 rounded-full overflow-hidden cursor-pointer bg-white/15 backdrop-blur-md"
+        >
           <div
-            onClick={handleTimelineClick}
-            className="relative w-full h-1.5 sm:h-2 bg-zinc-800/90 rounded-full overflow-hidden cursor-pointer group/bar"
-          >
-            <div
-              style={{ width: `${liveProgress}%` }}
-              className={`absolute top-0 bottom-0 left-0 rounded-r-full transition-all duration-150 ${
-                isLive
-                  ? "bg-red-600 shadow-[0_0_12px_rgba(220,38,38,0.9)]"
-                  : "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]"
-              }`}
-            />
-          </div>
-          <div className="flex items-center justify-between text-[10px] sm:text-xs text-zinc-400 font-mono">
-            <span>{isLive ? "En direct" : "En différé"}</span>
-            <span className={isLive ? "text-red-500 font-bold" : "text-zinc-500"}>
-              {isLive ? "LIVE HD" : "PAUSE / DIFFÉRÉ"}
-            </span>
-          </div>
+            style={{ width: `${liveProgress}%` }}
+            className={`absolute top-0 bottom-0 left-0 rounded-full transition-all duration-150 ${
+              isLive
+                ? "bg-red-600 shadow-[0_0_10px_rgba(220,38,38,0.8)]"
+                : "bg-white/80"
+            }`}
+          />
         </div>
 
         {/* Ligne des contrôles */}
-        <div className="flex items-center justify-between gap-2 sm:gap-4 flex-wrap gap-y-2">
-          {/* Contrôles de gauche : -10s, Play/Pause, +10s, Bouton LIVE dynamique */}
-          <div className="flex items-center gap-2 sm:gap-4">
+        <div className="flex items-center justify-between gap-2 sm:gap-4">
+          {/* Gauche : -10s, Lecture/Pause, +10s, LIVE */}
+          <div className="flex items-center gap-2 sm:gap-3">
             <button
               onClick={() => seekRelative(-10)}
-              className="min-w-11 min-h-11 p-2 hidden sm:flex items-center justify-center rounded-full hover:bg-white/10 text-white/80 hover:text-white transition-colors"
+              className={`${GLASS_BTN} w-11 h-11 hidden sm:flex`}
               aria-label="Reculer de 10s"
               title="Reculer de 10s"
             >
@@ -619,37 +610,36 @@ export default function LivePlayer({
 
             <button
               onClick={togglePlay}
-              className="flex items-center justify-center w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all transform hover:scale-105 active:scale-95"
+              className="flex items-center justify-center w-12 h-12 rounded-full bg-white/15 backdrop-blur-md border border-white/20 text-white transition-all transform hover:scale-105 active:scale-95"
               aria-label={isPlaying ? "Pause" : "Lecture"}
             >
               {isPlaying ? (
-                <Pause className="h-5 w-5 fill-white" />
+                <Pause className="h-6 w-6 fill-white" />
               ) : (
-                <Play className="h-5 w-5 fill-white ml-0.5" />
+                <Play className="h-6 w-6 fill-white ml-0.5" />
               )}
             </button>
 
             <button
               onClick={() => seekRelative(10)}
-              className="min-w-11 min-h-11 p-2 hidden sm:flex items-center justify-center rounded-full hover:bg-white/10 text-white/80 hover:text-white transition-colors"
+              className={`${GLASS_BTN} w-11 h-11 hidden sm:flex`}
               aria-label="Avancer de 10s"
               title="Avancer de 10s"
             >
               <ArrowsClockwise className="h-5 w-5" />
             </button>
 
-            {/* Bouton LIVE Canal+ : Rouge en direct, Gris si en pause/différé */}
             <button
               onClick={jumpToLive}
               title={isLive ? "Vous êtes en direct" : "Cliquer pour revenir au direct"}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded text-[11px] font-black uppercase tracking-wider transition-all duration-200 ml-1 ${
+              className={`ml-1 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide transition-all duration-200 backdrop-blur-md border ${
                 isLive
-                  ? "bg-red-600 text-white shadow-md shadow-red-600/30 hover:bg-red-500 cursor-default"
-                  : "bg-zinc-800/90 border border-white/15 text-zinc-400 hover:text-white hover:bg-zinc-700 hover:border-white/30 cursor-pointer"
+                  ? "bg-red-600 border-red-500 text-white shadow-md shadow-red-600/30 cursor-default"
+                  : "bg-white/10 border-white/15 text-white/70 hover:text-white hover:bg-white/20 cursor-pointer"
               }`}
             >
               <span
-                className={`w-2 h-2 rounded-full ${
+                className={`w-1.5 h-1.5 rounded-full ${
                   isLive ? "bg-white animate-pulse" : "bg-zinc-500"
                 }`}
               />
@@ -657,29 +647,21 @@ export default function LivePlayer({
             </button>
           </div>
 
-          {/* Contrôles de droite : TOUTES LES CHAÎNES, REVOIR/À SUIVRE, Options, Plein écran */}
-          <div className="flex items-center gap-2 sm:gap-4">
+          {/* Droite : Chaînes, Options, Plein écran */}
+          <div className="flex items-center gap-2 sm:gap-3">
             {allChannels.length > 0 && (
               <button
                 onClick={() => setShowChannelDrawer(!showChannelDrawer)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-[5px] bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-wider transition-all"
+                className={`${GLASS_PILL}`}
               >
                 <Television className="h-4 w-4" />
-                <span className="hidden sm:inline">TOUTES LES CHAÎNES</span>
+                <span className="hidden sm:inline">Chaînes</span>
               </button>
             )}
 
             <button
-              onClick={() => setShowEpgModal(!showEpgModal)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-[5px] hover:bg-white/10 text-zinc-300 hover:text-white text-xs font-bold uppercase tracking-wider transition-all hidden md:flex"
-            >
-              <Clock className="h-4 w-4" />
-              <span>REVOIR / À SUIVRE</span>
-            </button>
-
-            <button
               onClick={() => setShowSettingsModal(!showSettingsModal)}
-              className="min-w-11 min-h-11 p-2 flex items-center justify-center rounded-full hover:bg-white/10 text-zinc-300 hover:text-white transition-colors"
+              className={`${GLASS_BTN} w-11 h-11`}
               aria-label="Options"
             >
               <DotsThreeVertical className="h-5 w-5" />
@@ -687,7 +669,7 @@ export default function LivePlayer({
 
             <button
               onClick={toggleFullscreen}
-              className="min-w-11 min-h-11 p-2 flex items-center justify-center rounded-full hover:bg-white/10 text-white transition-colors"
+              className={`${GLASS_BTN} w-11 h-11`}
               aria-label="Plein écran"
             >
               {isFullscreen ? (
@@ -796,7 +778,7 @@ export default function LivePlayer({
           {/* Toggle basse latence */}
           <button
             onClick={toggleLatencyMode}
-            className="flex items-center justify-between gap-3 w-full rounded-[5px] bg-zinc-900/60 border border-white/10 p-3 text-left hover:bg-zinc-900 transition-colors"
+            className="flex items-center justify-between gap-3 w-full rounded-lg bg-white/5 border border-white/10 p-3 text-left hover:bg-white/10 transition-colors"
           >
             <div>
               <p className="text-sm font-bold text-white flex items-center gap-1.5">

@@ -31,21 +31,27 @@ const STATIC_PAGES: StaticPage[] = [
   { path: "/privacy", changeFrequency: "yearly", priority: 0.2 },
 ];
 
-// Les fiches lisent ?type=tv|movie pour savoir quoi requêter ; c'est aussi le canonical
-// qu'elles déclarent elles-mêmes, donc le sitemap doit utiliser exactement cette forme.
-function mediaUrl(item: MovieOrShow): string {
-  const type = item.type === "movie" ? "movie" : "tv";
-  return `${SITE_URL}/media/${item.id}?type=${type}`;
+type Route = "media" | "tv";
+
+// /tv/{id} est la fiche série/anime canonique, /media/{id} la fiche film : ce sont exactement
+// les URL que l'app utilise elle-même pour lier (MovieCard). Y ajouter ?type=tv renverrait
+// Google sur une coquille vide qui se redirige côté client, donc non indexée.
+function mediaUrl(item: MovieOrShow, route: Route): string {
+  return `${SITE_URL}/${route}/${item.id}`;
 }
 
-function mediaEntry(item: MovieOrShow, priority: number): MetadataRoute.Sitemap[number] | null {
+function mediaEntry(
+  item: MovieOrShow,
+  route: Route,
+  priority: number
+): MetadataRoute.Sitemap[number] | null {
   if (!item?.id) return null;
   const now = new Date();
   const released = item.releaseDate ? new Date(item.releaseDate) : null;
   // Google ignore un <lastmod> postérieur à aujourd'hui ; les sorties "à venir" sont donc bornées.
   const lastmod = released && !Number.isNaN(released.getTime()) && released < now ? released : now;
   return {
-    url: mediaUrl(item),
+    url: mediaUrl(item, route),
     lastModified: lastmod,
     changeFrequency: "weekly",
     priority,
@@ -74,16 +80,26 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     });
   }
 
+  // La route dépend de la liste d'origine : item.type peut être "documentary" ou "anime"
+  // pour une série TV, et ces étiquettes ne disent pas sur quelle route la fiche se rend.
   const lists = await Promise.all([
-    ...[1, 2, 3].map((p) => safe(() => getPopularMovies(p)).then((items) => [items, 0.7] as const)),
-    ...[1, 2, 3].map((p) => safe(() => getPopularTV(p)).then((items) => [items, 0.7] as const)),
-    ...[1, 2, 3].map((p) => safe(() => getAnimeSeries(p)).then((items) => [items, 0.65] as const)),
-    ...[1, 2].map((p) => safe(() => getTopRatedMovies(p)).then((items) => [items, 0.6] as const)),
+    ...[1, 2, 3].map((p) =>
+      safe(() => getPopularMovies(p)).then((items) => [items, "media", 0.7] as const)
+    ),
+    ...[1, 2, 3].map((p) =>
+      safe(() => getPopularTV(p)).then((items) => [items, "tv", 0.7] as const)
+    ),
+    ...[1, 2, 3].map((p) =>
+      safe(() => getAnimeSeries(p)).then((items) => [items, "tv", 0.65] as const)
+    ),
+    ...[1, 2].map((p) =>
+      safe(() => getTopRatedMovies(p)).then((items) => [items, "media", 0.6] as const)
+    ),
   ]);
 
-  for (const [items, priority] of lists) {
+  for (const [items, route, priority] of lists) {
     for (const item of items) {
-      const entry = mediaEntry(item, priority);
+      const entry = mediaEntry(item, route, priority);
       // Une fiche déjà listée avec une priorité plus forte garde la sienne.
       if (entry && !out.has(entry.url)) out.set(entry.url, entry);
     }

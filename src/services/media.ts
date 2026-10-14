@@ -902,6 +902,48 @@ export async function getAllMovies(page = 1, signal?: AbortSignal): Promise<Movi
   return combined.sort((a, b) => computeSmartScore(b) - computeSmartScore(a));
 }
 
+/** Variante paginée de getAllMovies qui expose aussi le nombre total de pages,
+ *  indispensable pour que le scroll infini des pages Films continue à charger. */
+export async function getAllMoviesPage(
+  page = 1,
+  signal?: AbortSignal,
+): Promise<{ results: MovieOrShow[]; totalPages: number }> {
+  try {
+    const env = await httpJson<ApiEnvelope<{ results: TmdbRawItem[]; total_pages?: number }>>(
+      "/movies/discover-smart",
+      { query: { page, language: clientLang() }, signal, timeoutMs: 8_000 },
+    );
+    if (env.success && env.data?.results && env.data.results.length > 0) {
+      return {
+        results: env.data.results.map((r) => mapTMDBToMovieOrShow(r, "movie")),
+        totalPages: env.data.total_pages || 1,
+      };
+    }
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") throw err;
+  }
+
+  // Fallback local : merge de Popular + TopRated + Trending (pas de total fiable,
+  // on garde une borne haute TMDB pour que le scroll continue).
+  const [popular, topRated, trending] = await Promise.all([
+    getPopularMovies(page, signal),
+    getTopRatedMovies(page, signal),
+    getTrendingMovies(signal),
+  ]);
+  const seen = new Set<string>();
+  const combined: MovieOrShow[] = [];
+  for (const item of [...trending, ...popular, ...topRated]) {
+    if (!seen.has(item.id)) {
+      seen.add(item.id);
+      combined.push(item);
+    }
+  }
+  return {
+    results: combined.sort((a, b) => computeSmartScore(b) - computeSmartScore(a)),
+    totalPages: 500,
+  };
+}
+
 /* ─── Hero trailer enrichment ────────────────────────────────────────────── */
 
 /**

@@ -13,7 +13,7 @@ import {
   getTopRatedTV,
   getUpcomingMovies,
   getAnimeSeries,
-  getAllMovies,
+  getAllMoviesPage,
   getPopularTVPage,
   getAnimeSeriesPage,
   getMoviesByGenrePage,
@@ -52,6 +52,9 @@ import CatalogSpotlightHero from "@/components/CatalogSpotlightHero";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 
 const LISTING_TYPES = ["movies", "series", "anime"];
+
+/** Taille d'un lot révélé à chaque déclenchement du scroll infini du catalogue. */
+const CATALOG_BATCH = 15;
 
 interface MediaPageProps {
   initialItem?: MovieOrShow | null;
@@ -480,9 +483,9 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
             src={item.backdropOriginalUrl || item.backdropUrl}
             alt={item.title}
             fill
-            className="object-cover object-top scale-x-90"
+            className="object-cover object-top"
             sizes="100vw"
-            quality={100}
+            quality={75}
             priority
           />
         ) : (
@@ -982,6 +985,24 @@ const ANIME_ROWS_CONFIG = [
   { id: '35', title: 'Comédie & Slice of Life', genreId: '35', variant: 'poster' as const },
 ];
 
+/** Retire les doublons entre les lignes de catégories : un film ne doit apparaître
+ *  que dans la première ligne où on le rencontre. `seen` (ids déjà affichés,
+ *  dont le hero) est muté au fil de l'eau pour propager la déduplication d'une
+ *  ligne à l'autre et d'un lot à l'autre. */
+function dedupeRows<T extends { id: string; items: MovieOrShow[] }>(
+  rows: T[],
+  seen: Set<string>,
+): T[] {
+  return rows.map((row) => {
+    const unique = row.items.filter((it) => {
+      if (seen.has(it.id)) return false;
+      seen.add(it.id);
+      return true;
+    });
+    return { ...row, items: unique };
+  });
+}
+
 function MediaListingPage() {
   const params = useParams();
   const type = params?.slug as string;
@@ -999,6 +1020,9 @@ function MediaListingPage() {
   const [catalogGridPage, setCatalogGridPage] = useState(1);
   const [catalogGridTotalPages, setCatalogGridTotalPages] = useState(1);
   const [isLoadingCatalogMore, setIsLoadingCatalogMore] = useState(false);
+  // Nombre d'items du buffer effectivement affichés : on révèle par lots de
+  // CATALOG_BATCH pour un scroll infini fluide, sans jamais sauter d'items.
+  const [catalogVisible, setCatalogVisible] = useState(CATALOG_BATCH);
 
   // Single Genre Infinite Scroll Grid state (YouTube-style)
   const [gridItems, setGridItems] = useState<MovieOrShow[]>([]);
@@ -1025,34 +1049,54 @@ function MediaListingPage() {
   // Infinite scroll for the bottom grid in multi-category mode
   const loadMoreCatalogGrid = useCallback(async () => {
     if (isLoadingCatalogMore) return;
+
+    // Le buffer contient encore des items pas encore affichés : on révèle un
+    // lot de CATALOG_BATCH sans déclencher de requête (scroll plus fluide).
+    if (catalogVisible + CATALOG_BATCH <= catalogGridItems.length) {
+      setCatalogVisible((v) => v + CATALOG_BATCH);
+      return;
+    }
+
     const nextPage = catalogGridPage + 1;
-    if (nextPage > catalogGridTotalPages) return;
+    if (nextPage > catalogGridTotalPages) {
+      // Plus de pages à fetcher : on révèle simplement le reste du buffer.
+      if (catalogVisible < catalogGridItems.length) setCatalogVisible(catalogGridItems.length);
+      return;
+    }
+
     setIsLoadingCatalogMore(true);
     try {
       let result: { results: MovieOrShow[]; totalPages: number } = { results: [], totalPages: 1 };
       if (type === "movies") {
-        // Utilise getAllMovies qui combine Popular + TopRated + Trending
-        const allMovies = await getAllMovies(nextPage);
-        result = { results: allMovies, totalPages: 1 }; // getAllMovies retourne un array simple
+        // Paginé avec le vrai total_pages pour que le scroll infini continue.
+        result = await getAllMoviesPage(nextPage);
       } else if (type === "anime") {
         result = await getAnimeSeriesPage(nextPage);
       } else {
         result = await getPopularTVPage(nextPage);
       }
+
+      const prevLen = catalogGridItems.length;
+      const seen = new Set(catalogGridItems.map((i) => i.id));
+      const unique = result.results.filter((i) => !seen.has(i.id));
+      const newLen = prevLen + unique.length;
+
       setCatalogGridItems((prev) => {
-        const seen = new Set(prev.map((i) => i.id));
-        const unique = result.results.filter((i) => !seen.has(i.id));
-        return [...prev, ...unique];
+        const s = new Set(prev.map((i) => i.id));
+        return [...prev, ...result.results.filter((i) => !s.has(i.id))];
       });
+      setCatalogVisible((v) => Math.min(v + CATALOG_BATCH, newLen));
       setCatalogGridPage(nextPage);
       setCatalogGridTotalPages(result.totalPages);
     } catch { }
     setIsLoadingCatalogMore(false);
-  }, [type, catalogGridPage, catalogGridTotalPages, isLoadingCatalogMore]);
+  }, [type, catalogGridPage, catalogGridTotalPages, isLoadingCatalogMore, catalogVisible, catalogGridItems.length]);
+
+  const catalogHasMore = catalogGridPage < catalogGridTotalPages || catalogVisible < catalogGridItems.length;
 
   const { sentinelRef: catalogSentinelRef } = useInfiniteScroll({
     onLoadMore: loadMoreCatalogGrid,
-    hasMore: catalogGridPage < catalogGridTotalPages,
+    hasMore: catalogHasMore,
     isLoading: isLoadingCatalogMore,
     rootMargin: "600px",
   });
@@ -1075,6 +1119,7 @@ function MediaListingPage() {
     setActiveGenreId(null);
     setPage(1);
     setCatalogGridItems([]);
+    setCatalogVisible(CATALOG_BATCH);
     setCatalogGridPage(1);
     setCatalogGridTotalPages(1);
   }, [type]);
@@ -1149,7 +1194,9 @@ function MediaListingPage() {
         );
 
         if (cancelled) return;
-        setCategoryRows(initialResults.filter(r => r.items.length > 0));
+        // Les hero/top10 et les premières lignes ne doivent pas se répéter.
+        const seenIds = new Set(heroes.map((h) => h.id));
+        setCategoryRows(dedupeRows(initialResults, seenIds).filter(r => r.items.length > 0));
         setIsLoadingCatalog(false);
 
         // Progressively load remaining rows
@@ -1174,22 +1221,22 @@ function MediaListingPage() {
         );
 
         if (cancelled) return;
+        // Dédupliqué contre le hero + les lignes déjà affichées (seenIds cumulé).
+        const dedupedRemaining = dedupeRows(remainingResults, seenIds);
         setCategoryRows((prev) => {
-          const valid = remainingResults.filter(r => r.items.length > 0);
+          const valid = dedupedRemaining.filter(r => r.items.length > 0);
           return [...prev, ...valid];
         });
 
         // Initialize the bottom infinite-scroll grid with page 1 of the main list
         const page1Data = await (async () => {
-          if (type === "movies") {
-            const allMovies = await getAllMovies(1);
-            return { results: allMovies, totalPages: 1 };
-          }
+          if (type === "movies") return getAllMoviesPage(1);
           if (type === "anime") return getAnimeSeriesPage(1);
           return getPopularTVPage(1);
         })();
         if (cancelled) return;
         setCatalogGridItems(page1Data.results);
+        setCatalogVisible(Math.min(CATALOG_BATCH, page1Data.results.length));
         setCatalogGridPage(1);
         setCatalogGridTotalPages(page1Data.totalPages);
       } catch (err) {
@@ -1389,7 +1436,7 @@ function MediaListingPage() {
                 </p>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
-                {catalogGridItems.map((item) => (
+                {catalogGridItems.slice(0, catalogVisible).map((item) => (
                   <MovieCard
                     key={item.id}
                     item={item}
@@ -1406,7 +1453,7 @@ function MediaListingPage() {
                     />
                   ))}
               </div>
-              {catalogGridPage < catalogGridTotalPages && (
+              {catalogHasMore && (
                 <div
                   ref={catalogSentinelRef}
                   className="w-full py-6 flex flex-col items-center justify-center gap-2"

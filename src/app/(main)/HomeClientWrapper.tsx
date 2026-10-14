@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback, startTransition } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef, startTransition } from "react";
 import { useRouter } from "next/navigation";
 import HeroCarousel from "@/components/HeroCarousel";
 import MovieCard from "@/components/MovieCard";
@@ -15,6 +15,39 @@ import type { MovieOrShow } from "@/types/media";
 import UpgradeModal from "@/components/UpgradeModal";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { HomeActionProvider } from "./HomeActionContext";
+
+// Monte son contenu seulement quand il approche du viewport.
+// Évite de monter ~40-60 cartes motion d'un coup sur la home.
+function LazyMount({
+  children,
+  minHeight = 320,
+}: {
+  children: React.ReactNode;
+  minHeight?: number;
+}) {
+  const [visible, setVisible] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (visible) return;
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) setVisible(true);
+      },
+      { rootMargin: "600px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [visible]);
+
+  return (
+    <div ref={ref} style={visible ? undefined : { minHeight }}>
+      {visible ? children : null}
+    </div>
+  );
+}
 
 export interface HomeClientWrapperProps {
   heroSlides: MovieOrShow[];
@@ -250,62 +283,70 @@ export default function HomeClientWrapper({
               <SportsMatchesRow />
 
               {primaryRows.slice(0, 2).map((row) => (
-                <ScrollRow
-                  key={row.title}
-                  title={row.title}
-                  accentColor={row.accent}
-                >
-                  {row.items.map((item) => (
-                    <MovieCard
-                      key={item.id}
-                      item={item}
-                      variant={row.variant}
-                      appleFrame
-                      onPlay={handleWatchNow}
-                      onOpenDetails={handleOpenDetails}
-                    />
-                  ))}
-                </ScrollRow>
+                <LazyMount key={row.title} minHeight={400}>
+                  <ScrollRow
+                    title={row.title}
+                    accentColor={row.accent}
+                  >
+                    {row.items.map((item) => (
+                      <MovieCard
+                        key={item.id}
+                        item={item}
+                        variant={row.variant}
+                        appleFrame
+                        onPlay={handleWatchNow}
+                        onOpenDetails={handleOpenDetails}
+                      />
+                    ))}
+                  </ScrollRow>
+                </LazyMount>
               ))}
 
               {(upcomingList.length > 0 || trendingAll.length > 0) && (
-                <MostViewedMovie
-                  items={upcomingList.length > 0 ? upcomingList : trendingAll}
-                  onWatchNow={handleWatchNow}
-                  onOpenDetails={handleOpenDetails}
-                />
+                <LazyMount minHeight={320}>
+                  <MostViewedMovie
+                    items={upcomingList.length > 0 ? upcomingList : trendingAll}
+                    onWatchNow={handleWatchNow}
+                    onOpenDetails={handleOpenDetails}
+                  />
+                </LazyMount>
               )}
 
-              <Top10Row
-                title="Top 10 : Ce que tout le monde regarde"
-                items={trendingAll}
-              />
+              <LazyMount minHeight={320}>
+                <Top10Row
+                  title="Top 10 : Ce que tout le monde regarde"
+                  items={trendingAll}
+                />
+              </LazyMount>
 
               {primaryRows.slice(2).map((row) => (
-                <ScrollRow
-                  key={row.title}
-                  title={row.title}
-                  accentColor={row.accent}
-                >
-                  {row.items.map((item) => (
-                    <MovieCard
-                      key={item.id}
-                      item={item}
-                      variant={row.variant}
-                      appleFrame
-                      onPlay={handleWatchNow}
-                      onOpenDetails={handleOpenDetails}
-                    />
-                  ))}
-                </ScrollRow>
+                <LazyMount key={row.title} minHeight={400}>
+                  <ScrollRow
+                    title={row.title}
+                    accentColor={row.accent}
+                  >
+                    {row.items.map((item) => (
+                      <MovieCard
+                        key={item.id}
+                        item={item}
+                        variant={row.variant}
+                        appleFrame
+                        onPlay={handleWatchNow}
+                        onOpenDetails={handleOpenDetails}
+                      />
+                    ))}
+                  </ScrollRow>
+                </LazyMount>
               ))}
 
               {trendingAll.length >= 6 && (
-                <SpotlightGrid
-                  items={trendingAll.slice(1, 6)}
-                  onWatchNow={handleWatchNow}
-                  onOpenDetails={handleOpenDetails}
-                />
+                <LazyMount minHeight={200}>
+                  <SpotlightGrid
+                    items={trendingAll.slice(1, 6)}
+                    onWatchNow={handleWatchNow}
+                    onOpenDetails={handleOpenDetails}
+                  />
+                </LazyMount>
               )}
 
               {/* Streamed Below-the-fold content */}

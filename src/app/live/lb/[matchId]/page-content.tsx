@@ -6,41 +6,14 @@ import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowsClockwise, Television, X, ShareNetwork, Check } from "@phosphor-icons/react";
 import LivePlayer from "@/components/LivePlayer";
+import CompetitionBadge from "@/components/CompetitionBadge";
+import { MatchBackdrop, TeamCrest } from "@/components/MatchCardBackdrop";
 import { getLiveBallStream, getLiveBallMatches, getLiveBallChampionsLeague } from "@/services/liveball";
 import { buildAffiche, useMatchPosterIndex } from "@/hooks/useMatchPosterIndex";
 import { useNow } from "@/hooks/useNow";
 import { formatMatchDay, formatMatchTime } from "@/lib/match-poster";
 import type { LiveChannel } from "@/types/live";
 import type { LiveBallMatch } from "@/types/liveball";
-
-function TeamDisplay({ team, logo }: { team: string; logo?: string }) {
-  const [broken, setBroken] = useState(false);
-  useEffect(() => setBroken(false), [logo]);
-  const initials = team
-    .replace(/\s*\(.*\)$/, "")
-    .split(/[\s-]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase();
-
-  return (
-    <div className="flex flex-col items-center gap-3 w-[130px] sm:w-[180px] min-w-0">
-      <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-white flex items-center justify-center overflow-hidden shadow-lg shadow-black/50 ring-2 ring-white/15">
-        {logo && !broken ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={logo} alt={team} className="w-16 h-16 sm:w-20 sm:h-20 object-contain" onError={() => setBroken(true)} />
-        ) : (
-          <span className="text-3xl font-black text-zinc-900">{initials || "?"}</span>
-        )}
-      </div>
-      <p className="text-center text-sm sm:text-base font-extrabold text-white leading-tight truncate w-full">
-        {team}
-      </p>
-    </div>
-  );
-}
 
 export default function LiveBallMatchContent() {
   const { matchId } = useParams<{ matchId: string }>();
@@ -111,6 +84,7 @@ export default function LiveBallMatchContent() {
   const kickoff = affiche?.startTs;
   const preMatch = Boolean(kickoff && kickoff * 1000 > now);
   const isUpcoming = preMatch || match?.status === "upcoming";
+  const isLive = match?.status === "live";
 
   const { data: stream, isLoading, refetch } = useQuery({
     queryKey: ["live", "liveball", "stream", matchId, reloadKey],
@@ -176,56 +150,65 @@ export default function LiveBallMatchContent() {
 
       {/* ── Match à venir : pas encore commencé ─────────────────────── */}
       {!isLoading && isUpcoming && (preMatch || !stream) && match && (
-        <div className="w-full h-full flex flex-col items-center justify-center gap-8 bg-black px-6 py-10 overflow-y-auto no-scrollbar">
-          <div className="flex flex-col items-center gap-6 w-full max-w-2xl">
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full bg-white/10 text-zinc-300 border border-white/10">
-                {affiche?.competitionLogo && (
-                  <span className="flex w-4 h-4 shrink-0 rounded bg-white items-center justify-center overflow-hidden">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={affiche.competitionLogo}
-                      alt=""
-                      className="w-3.5 h-3.5 object-contain"
-                    />
-                  </span>
-                )}
-                {affiche?.competition || "Football"}
-              </span>
-              <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full bg-[brand-primary] text-white">
-                À venir
-              </span>
-            </div>
+        <div className="relative w-full h-full overflow-hidden bg-black">
+          <MatchBackdrop home={match.home} away={match.away} />
 
-            <div className="flex items-center justify-center gap-4 sm:gap-10 w-full">
-              <TeamDisplay team={match.home} logo={affiche?.homeLogo ?? match.homeLogo} />
-              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[brand-primary]/15 border-2 border-[brand-primary]/60 flex items-center justify-center text-lg sm:text-xl font-black text-[brand-primary] shrink-0">
-                VS
+          <div className="relative z-10 h-full flex flex-col">
+            {/* Bandeau haut : état (direct / coup d'envoi) + compétition */}
+            <div className="flex items-start justify-between gap-3 p-4 sm:p-6 pt-[calc(1rem_+_env(safe-area-inset-top,0px))]">
+              <span className="inline-flex items-center gap-1.5 shrink-0 rounded-[5px] bg-black/50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-white tabular-nums">
+                {isLive && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />}
+                {isLive
+                  ? match.minute
+                    ? `Direct · ${match.minute}`
+                    : "Direct"
+                  : kickoff
+                    ? `${formatMatchDay(kickoff)} · ${formatMatchTime(kickoff)}`
+                    : "À venir"}
+              </span>
+              <div className="min-w-0 flex justify-end">
+                <CompetitionBadge competition={affiche?.competition ?? null} logo={affiche?.competitionLogo} />
               </div>
-              <TeamDisplay team={match.away} logo={affiche?.awayLogo ?? match.awayLogo} />
             </div>
 
-            <div className="text-center">
-              <h1 className="text-xl sm:text-2xl font-black text-white">
-                Le match n&apos;a pas encore commencé
-              </h1>
-              <p className="mt-2.5 text-sm text-zinc-400 leading-relaxed">
-                {kickoff && (
-                  <>
-                    Diffusion programmée pour{" "}
-                    <span className="text-white font-bold">{formatMatchDay(kickoff)}</span> à{" "}
-                    <span className="text-white font-bold tabular-nums">{formatMatchTime(kickoff)}</span>.
-                    <br className="hidden sm:block" />
-                  </>
+            {/* Centre : écussons, noms, score */}
+            <div className="flex-1 flex flex-col items-center justify-center gap-5 px-6 text-center">
+              <div className="flex items-center justify-center gap-6 sm:gap-14">
+                <TeamCrest src={affiche?.homeLogo ?? match.homeLogo} alt={match.home} size="lg" />
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-black/40 border border-white/15 flex items-center justify-center text-lg sm:text-xl font-black text-white shrink-0">
+                  VS
+                </div>
+                <TeamCrest src={affiche?.awayLogo ?? match.awayLogo} alt={match.away || "?"} size="lg" />
+              </div>
+
+              <div className="space-y-1">
+                <h1 className="text-xl sm:text-3xl font-black text-white leading-tight">
+                  {match.home}
+                  {match.away ? ` — ${match.away}` : ""}
+                </h1>
+                {isLive && match.score && (
+                  <p className="text-2xl sm:text-3xl font-black text-white tabular-nums">{match.score}</p>
                 )}
-                La lecture démarrera automatiquement au coup d&apos;envoi.
+              </div>
+
+              <p className="max-w-md text-sm text-zinc-300 leading-relaxed">
+                {kickoff ? (
+                  <>
+                    Diffusion programmée pour <span className="text-white font-bold">{formatMatchDay(kickoff)}</span> à{" "}
+                    <span className="text-white font-bold tabular-nums">{formatMatchTime(kickoff)}</span>. La lecture
+                    démarrera au coup d&apos;envoi.
+                  </>
+                ) : (
+                  <>La lecture démarrera automatiquement au coup d&apos;envoi.</>
+                )}
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center justify-center gap-3">
+            {/* Bas : actions */}
+            <div className="flex flex-wrap items-center justify-center gap-3 px-6 pb-[calc(1.5rem_+_env(safe-area-inset-bottom,0px))]">
               <button
                 onClick={retry}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-red-600 hover:bg-red-700 text-white text-xs font-black uppercase tracking-wider transition-all"
+                className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-[brand-primary] hover:brightness-110 text-white text-xs font-black uppercase tracking-wider transition-all"
               >
                 <ArrowsClockwise className="h-4 w-4" />
                 Actualiser
@@ -234,11 +217,59 @@ export default function LiveBallMatchContent() {
                 onClick={handleShare}
                 className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-wider transition-all"
               >
-                {shareCopied ? (
-                  <Check className="h-4 w-4 text-red-500" />
+                {shareCopied ? <Check className="h-4 w-4 text-[brand-primary]" /> : <ShareNetwork className="h-4 w-4" />}
+                {shareCopied ? "Lien copié" : "Partager"}
+              </button>
+              <Link
+                href="/live"
+                className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-wider transition-all"
+              >
+                <X className="h-4 w-4" />
+                Retour aux directs
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Aucun flux détecté (habillage carte Apple TV) ──────────── */}
+      {!isLoading && !stream && !isUpcoming && (
+        <div className="relative w-full h-full overflow-hidden bg-black">
+          <MatchBackdrop home={match?.home} away={match?.away} />
+
+          <div className="relative z-10 w-full h-full flex flex-col items-center justify-center gap-6 px-6 text-center">
+            <div className="h-20 w-20 rounded-full bg-red-600/15 border border-red-500/30 flex items-center justify-center text-red-500 shadow-2xl">
+              <Television className="h-10 w-10" />
+            </div>
+
+            <div className="max-w-lg space-y-2">
+              <h3 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">
+                Flux vidéo non détecté
+              </h3>
+              <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed">
+                {match ? (
+                  <>
+                    La diffusion directe pour <strong className="text-white">{match.home} vs {match.away}</strong> n&apos;est pas encore disponible ou le signal source est momentanément interrompu.
+                  </>
                 ) : (
-                  <ShareNetwork className="h-4 w-4" />
+                  "Aucun flux vidéo direct actif n'a pu être extrait pour cette rencontre."
                 )}
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <button
+                onClick={retry}
+                className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-[brand-primary] hover:brightness-110 text-white text-xs font-black uppercase tracking-wider transition-all shadow-lg shadow-red-600/20"
+              >
+                <ArrowsClockwise className="h-4 w-4" />
+                Réessayer la connexion
+              </button>
+              <button
+                onClick={handleShare}
+                className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-wider transition-all"
+              >
+                {shareCopied ? <Check className="h-4 w-4 text-[brand-primary]" /> : <ShareNetwork className="h-4 w-4" />}
                 {shareCopied ? "Lien copié" : "Partager"}
               </button>
               <Link
@@ -250,68 +281,11 @@ export default function LiveBallMatchContent() {
               </Link>
             </div>
 
-            <p className="text-[11px] text-zinc-600 flex items-center gap-1.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
-              Vérification automatique du flux toutes les 30 secondes
+            <p className="text-[11px] text-zinc-400 flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-red-500 animate-ping" />
+              Nouvelle tentative automatique de détection du signal toutes les 30s
             </p>
           </div>
-        </div>
-      )}
-
-      {/* ── Match sans flux disponible / introuvable ─────────────────── */}
-      {!isLoading && !stream && !isUpcoming && (
-        <div className="w-full h-full flex flex-col items-center justify-center gap-6 bg-black/95 px-6 text-center">
-          <div className="h-20 w-20 rounded-full bg-red-600/15 border border-red-500/30 flex items-center justify-center text-red-500 shadow-2xl">
-            <Television className="h-10 w-10" />
-          </div>
-
-          <div className="max-w-lg space-y-2">
-            <h3 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">
-              Flux vidéo non détecté
-            </h3>
-            <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
-              {match ? (
-                <>
-                  La diffusion directe pour <strong className="text-white">{match.home} vs {match.away}</strong> n&apos;est pas encore disponible ou le signal source est momentanément interrompu.
-                </>
-              ) : (
-                "Aucun flux vidéo direct actif n'a pu être extrait pour cette rencontre."
-              )}
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <button
-              onClick={retry}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-red-600 hover:bg-red-700 text-white text-xs font-black uppercase tracking-wider transition-all shadow-lg shadow-red-600/20"
-            >
-              <ArrowsClockwise className="h-4 w-4" />
-              Réessayer la connexion
-            </button>
-            <button
-              onClick={handleShare}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-wider transition-all"
-            >
-              {shareCopied ? (
-                <Check className="h-4 w-4 text-red-500" />
-              ) : (
-                <ShareNetwork className="h-4 w-4" />
-              )}
-              {shareCopied ? "Lien copié" : "Partager"}
-            </button>
-            <Link
-              href="/live"
-              className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-wider transition-all"
-            >
-              <X className="h-4 w-4" />
-              Retour aux directs
-            </Link>
-          </div>
-
-          <p className="text-[11px] text-zinc-500 flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-red-500 animate-ping" />
-            Nouvelle tentative automatique de détection du signal toutes les 30s
-          </p>
         </div>
       )}
 

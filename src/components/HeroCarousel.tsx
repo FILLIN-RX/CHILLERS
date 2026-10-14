@@ -214,6 +214,9 @@ export default function HeroCarousel({
       >
         {slides.map((slide, index) => {
           const isActive = index === currentIndex;
+          // Ne rendre l'image que pour les slides proches (courante ±1) :
+          // évite de charger/décoder 10 backdrops full-bleed dès le premier rendu.
+          const isNear = Math.abs(index - currentIndex) <= 1;
           const activeTrailer = slide.videoUrl || trailerMap[slide.id];
           const slideLogo = slide.logoUrl || logoMap[String(slide.id)];
           const ytKey = getYouTubeKey(activeTrailer);
@@ -221,19 +224,21 @@ export default function HeroCarousel({
           return (
             <div key={slide.id} className="w-full h-full flex-shrink-0 relative">
               <div className="absolute inset-0 w-full h-full bg-black">
-                {/* Backdrop Image */}
-                <Image
-                  src={slide.backdropOriginalUrl || slide.backdropUrl}
-                  alt={slide.title}
-                  fill
-                  className="object-cover object-center transition-opacity duration-700 scale-x-90"
-                  style={{ filter: "brightness(0.8) saturate(1.1)" }}
-                  sizes="100vw"
-                  quality={95}
-                  priority={index === 0}
-                  loading={index === 0 ? "eager" : "lazy"}
-                  {...(index === 0 ? { fetchPriority: "high" } : {})}
-                />
+                {/* Backdrop Image (uniquement slides proches) */}
+                {isNear && (
+                  <Image
+                    src={slide.backdropOriginalUrl || slide.backdropUrl}
+                    alt={slide.title}
+                    fill
+                    className="object-cover object-center transition-opacity duration-700"
+                    style={{ filter: "brightness(0.8) saturate(1.1)" }}
+                    sizes="100vw"
+                    quality={75}
+                    priority={index === 0}
+                    loading={index === 0 ? "eager" : "lazy"}
+                    {...(index === 0 ? { fetchPriority: "high" } : {})}
+                  />
+                )}
 
                 {/* Video / Trailer Overlay (Smooth Fade-in) */}
                 {isActive && activeTrailer && isVideoReady && !isPaused && !videoExpired && !isMobile && (

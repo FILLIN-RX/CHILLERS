@@ -5,15 +5,17 @@ const nextConfig: NextConfig = {
     optimizePackageImports: [
       '@phosphor-icons/react',
       'antd',
-      '@mantine/core',
-      '@mantine/hooks',
       'gsap',
     ],
   },
   images: {
-    formats: ['image/avif', 'image/webp'],
+    // WebP uniquement : l'encodage AVIF (CPU-lourd) provoquait des timeouts de
+    // l'optimiseur sous charge → images cassées sur mobile. WebP est fiable et rapide.
+    formats: ['image/webp'],
     minimumCacheTTL: 86400,
-    qualities: [75, 85, 95],
+    // Une seule qualité : réduit fortement le nombre de variantes générées
+    // (formats × qualités × largeurs) → moins de pression sur l'optimiseur.
+    qualities: [75],
     remotePatterns: [
       { protocol: "https", hostname: "image.tmdb.org" },
       { protocol: "https", hostname: "images.unsplash.com" },

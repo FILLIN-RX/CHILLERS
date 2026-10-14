@@ -52,7 +52,7 @@ export interface MediaMetaInput {
   year?: number | string;
   rating?: number;
   genres?: string[];
-  path: string; // canonical path, e.g. /media/123?type=tv
+  path: string; // canonical path, sans query string : /media/123 ou /tv/123
   seasonLabel?: string;
   context?: "detail" | "watch" | "season";
 }
