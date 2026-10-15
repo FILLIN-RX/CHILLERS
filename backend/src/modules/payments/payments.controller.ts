@@ -64,7 +64,7 @@ export const getPlans = async (req: Request, res: Response) => {
 export const startSoftpay = async (req: AuthRequest, res: Response) => {
   try {
     const { planCode, donationAmount, currency, country, network, phone, firstName, lastName, email, otp } = req.body || {};
-    const result = await initiateSoftpay(req.user!.id, {
+    const result = await initiateSoftpay(req.user?.id ?? null, {
       planCode,
       donationAmount: Number(donationAmount) || 0,
       currency,
@@ -84,7 +84,7 @@ export const startSoftpay = async (req: AuthRequest, res: Response) => {
 
 export const getStatus = async (req: AuthRequest, res: Response) => {
   try {
-    res.json({ success: true, data: await getPaymentStatus(req.user!.id, String(req.params.id)), message: null });
+    res.json({ success: true, data: await getPaymentStatus(req.user?.id ?? null, String(req.params.id)), message: null });
   } catch (err) {
     sendError(res, err);
   }
@@ -92,7 +92,7 @@ export const getStatus = async (req: AuthRequest, res: Response) => {
 
 export const confirmOtp = async (req: AuthRequest, res: Response) => {
   try {
-    const result = await confirmOtpForPayment(req.user!.id, String(req.params.id), String(req.body?.otp || ''));
+    const result = await confirmOtpForPayment(req.user?.id ?? null, String(req.params.id), String(req.body?.otp || ''));
     res.json({ success: true, data: result, message: null });
   } catch (err) {
     sendError(res, err);
@@ -101,7 +101,7 @@ export const confirmOtp = async (req: AuthRequest, res: Response) => {
 
 export const retry = async (req: AuthRequest, res: Response) => {
   try {
-    const result = await retryPayment(req.user!.id, String(req.params.id));
+    const result = await retryPayment(req.user?.id ?? null, String(req.params.id));
     res.json({ success: true, data: result, message: null });
   } catch (err) {
     sendError(res, err);

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth } from '../../middleware/auth.middleware';
+import { optionalAuth } from '../../middleware/auth.middleware';
 import {
   confirmOtp,
   getConfig,
@@ -23,10 +23,13 @@ router.get('/networks', getNetworks);
 router.get('/rates', getRatesCtrl);
 router.get('/plans', getPlans);
 
-// Paiement (utilisateur authentifié)
-router.post('/softpay', requireAuth, startSoftpay);
-router.get('/:id', requireAuth, getStatus);
-router.post('/:id/confirm-otp', requireAuth, confirmOtp);
-router.post('/:id/retry', requireAuth, retry);
+// Paiement : le don est ouvert aux non-connectés (transaction anonyme).
+// L'auth est optionnelle — le service exige un compte uniquement pour un
+// abonnement, et chaque accès reste cloisonné (user → ses txns, anonyme →
+// les txns sans compte).
+router.post('/softpay', optionalAuth, startSoftpay);
+router.get('/:id', optionalAuth, getStatus);
+router.post('/:id/confirm-otp', optionalAuth, confirmOtp);
+router.post('/:id/retry', optionalAuth, retry);
 
 export default router;

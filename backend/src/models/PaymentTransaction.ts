@@ -8,7 +8,8 @@ import mongoose, { Document, Model, Schema } from 'mongoose';
 export type PaymentStatus = 'PENDING' | 'SUCCESS' | 'FAILED' | 'CANCELLED';
 
 export interface IPaymentTransaction extends Document {
-  userId: mongoose.Types.ObjectId | string;
+  /** null = don anonyme (aucun compte rattaché). */
+  userId: mongoose.Types.ObjectId | string | null;
   planCode: string;
   planName?: string;
   amount: number;
@@ -30,7 +31,7 @@ export interface IPaymentTransaction extends Document {
 
 const PaymentTransactionSchema: Schema = new Schema(
   {
-    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    userId: { type: Schema.Types.ObjectId, ref: 'User', required: false, default: null, index: true },
     planCode: { type: String, required: true, lowercase: true, trim: true },
     planName: { type: String },
     amount: { type: Number, required: true },

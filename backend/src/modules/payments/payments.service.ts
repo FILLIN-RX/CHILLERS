@@ -215,7 +215,8 @@ export interface InitiateResult {
   currency: string;
 }
 
-export async function initiateSoftpay(userId: string, input: InitiateInput): Promise<InitiateResult> {
+/** `userId: null` = don anonyme. Un abonnement exige un compte (garde plus bas). */
+export async function initiateSoftpay(userId: string | null, input: InitiateInput): Promise<InitiateResult> {
   if (!isSaspayConfigured()) {
     throw new PaymentError('Le paiement en ligne est momentanément indisponible.', 503, 'not_configured');
   }
@@ -223,6 +224,10 @@ export async function initiateSoftpay(userId: string, input: InitiateInput): Pro
   const donationAmount = Number(input.donationAmount || 0);
   const isDonation = Number.isFinite(donationAmount) && donationAmount > 0;
   const planCode = (input.planCode || '').toLowerCase().trim();
+  // Don anonyme ouvert à tous ; un abonnement se rattache toujours à un compte.
+  if (!isDonation && !userId) {
+    throw new PaymentError('Connexion requise pour souscrire un abonnement.', 401, 'auth_required');
+  }
   const network = (input.network || '').trim();
   const phone = (input.phone || '').trim();
   // Carte / crypto → checkout hébergé SasPay : le numéro Mobile Money
@@ -244,8 +249,8 @@ export async function initiateSoftpay(userId: string, input: InitiateInput): Pro
     plan = { name: found.name, price: found.price };
   }
 
-  const user = await User.findById(userId).lean();
-  if (!user) throw new PaymentError('Utilisateur introuvable.', 404, 'user_not_found');
+  const user = userId ? await User.findById(userId).lean() : null;
+  if (userId && !user) throw new PaymentError('Utilisateur introuvable.', 404, 'user_not_found');
 
   // Conversion du prix de base (XAF) vers la devise choisie.
   const wanted = (input.currency || BASE_CURRENCY).toUpperCase();
@@ -268,13 +273,13 @@ export async function initiateSoftpay(userId: string, input: InitiateInput): Pro
     amount = rate ? round2((plan as { name: string; price: number }).price / rate) : (plan as { name: string; price: number }).price;
   }
 
-  const firstName = (input.firstName || user.username || user.email?.split('@')[0] || 'Client').trim();
+  const firstName = (input.firstName || user?.username || user?.email?.split('@')[0] || 'Client').trim();
   const lastName = (input.lastName || '.').trim();
-  const email = (input.email || user.email || '').trim();
+  const email = (input.email || user?.email || '').trim();
 
   const idempotencyKey = randomUUID();
   const txn = await PaymentTransaction.create({
-    userId,
+    userId: userId ?? null,
     planCode: isDonation ? 'don' : planCode,
     planName: isDonation ? 'Don' : (plan as { name: string }).name,
     amount,
@@ -304,7 +309,7 @@ export async function initiateSoftpay(userId: string, input: InitiateInput): Pro
         customer: { email, first_name: firstName, last_name: lastName, phone: phone || undefined },
         ...(input.otp ? { otp: input.otp } : {}),
         return_url: returnUrl,
-        metadata: { userId, planCode: isDonation ? 'don' : planCode, localId: String(txn._id) },
+        metadata: { ...(userId ? { userId } : {}), planCode: isDonation ? 'don' : planCode, localId: String(txn._id) },
       },
       idempotencyKey
     );
@@ -317,7 +322,7 @@ export async function initiateSoftpay(userId: string, input: InitiateInput): Pro
     txn.checkoutUrl = resp.checkout_url || undefined;
     txn.instructions = resp.instructions || undefined;
 
-    if (status === 'SUCCESS' && !isDonation) {
+    if (status === 'SUCCESS' && !isDonation && userId) {
       const result = await activateSubscription(userId, planCode);
       if (result) txn.activatedAt = new Date();
     }
@@ -349,7 +354,7 @@ async function applyVerifiedStatus(txn: InstanceType<typeof PaymentTransaction>,
     txn.status = 'SUCCESS';
     if (verified.reference) txn.reference = String(verified.reference);
     // Les dons ('don') n'activent aucun abonnement.
-    if (!txn.activatedAt && txn.planCode !== 'don') {
+    if (!txn.activatedAt && txn.planCode !== 'don' && txn.userId) {
       const result = await activateSubscription(String(txn.userId), txn.planCode);
       if (result) txn.activatedAt = new Date();
     }
@@ -361,8 +366,8 @@ async function applyVerifiedStatus(txn: InstanceType<typeof PaymentTransaction>,
   await txn.save();
 }
 
-export async function getPaymentStatus(userId: string, id: string) {
-  const txn = await PaymentTransaction.findOne({ _id: id, userId });
+export async function getPaymentStatus(userId: string | null, id: string) {
+  const txn = await PaymentTransaction.findOne({ _id: id, ...(userId ? { userId } : { userId: null }) });
   if (!txn) throw new PaymentError('Paiement introuvable.', 404, 'not_found');
 
   // PENDING côté local ⇒ on revérifie TOUJOURS l'état réel côté gateway.
@@ -388,11 +393,11 @@ export async function getPaymentStatus(userId: string, id: string) {
   };
 }
 
-export async function confirmOtpForPayment(userId: string, id: string, otp: string) {
+export async function confirmOtpForPayment(userId: string | null, id: string, otp: string) {
   const code = (otp || '').trim();
   if (!code) throw new PaymentError('Code OTP requis.', 400, 'otp_required');
 
-  const txn = await PaymentTransaction.findOne({ _id: id, userId });
+  const txn = await PaymentTransaction.findOne({ _id: id, ...(userId ? { userId } : { userId: null }) });
   if (!txn) throw new PaymentError('Paiement introuvable.', 404, 'not_found');
   if (!txn.saspayPaymentId) throw new PaymentError('Paiement non initié.', 409, 'no_payment');
   if (txn.status === 'SUCCESS') {
@@ -409,8 +414,8 @@ export async function confirmOtpForPayment(userId: string, id: string, otp: stri
   }
 }
 
-export async function retryPayment(userId: string, id: string) {
-  const txn = await PaymentTransaction.findOne({ _id: id, userId });
+export async function retryPayment(userId: string | null, id: string) {
+  const txn = await PaymentTransaction.findOne({ _id: id, ...(userId ? { userId } : { userId: null }) });
   if (!txn) throw new PaymentError('Paiement introuvable.', 404, 'not_found');
   if (txn.status === 'SUCCESS') throw new PaymentError('Paiement déjà réussi.', 409, 'not_retryable');
   if (!txn.saspayPaymentId) throw new PaymentError('Paiement non initié.', 409, 'no_payment');

@@ -1,9 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Heart, X, WarningCircle, Spinner, ShieldCheck, Check, ArrowLeft, CreditCard, CurrencyCircleDollar } from "@phosphor-icons/react";
-import { useAuthStore } from "@/stores/useAuthStore";
 import { HttpError } from "@/services/http";
 import {
   paymentsService,
@@ -35,9 +33,6 @@ type ModalView = "form" | "processing" | "success";
 type PaymentPhase = "idle" | "pending" | "success" | "failed";
 
 export default function DonationModal({ isOpen, onClose, initialPaymentId }: DonationModalProps) {
-  const { token } = useAuthStore();
-  const router = useRouter();
-
   const [config, setConfig] = useState<PaymentsConfig | null>(null);
   const [rates, setRates] = useState<PaymentRate[]>([]);
   const [country, setCountry] = useState("CM");
@@ -204,10 +199,6 @@ export default function DonationModal({ isOpen, onClose, initialPaymentId }: Don
   const handlePay = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!network) return;
-    if (!token) {
-      router.push("/login?redirect=/support");
-      return;
-    }
     if (!Number.isFinite(effectiveAmount) || effectiveAmount < 100) {
       setErrorMessage("Montant minimum : 100 FCFA.");
       return;
@@ -368,27 +359,6 @@ export default function DonationModal({ isOpen, onClose, initialPaymentId }: Don
               className="w-full py-2.5 rounded-[5px] bg-white text-black font-bold text-xs hover:bg-zinc-200 transition-all cursor-pointer"
             >
               Fermer
-            </button>
-          </div>
-        ) : !token ? (
-          /* ── Non connecté ── */
-          <div className="text-center py-4 space-y-4">
-            <div className="w-12 h-12 rounded-xl bg-brand-primary/10 border border-brand-primary/20 flex items-center justify-center mx-auto">
-              <Heart className="h-6 w-6 text-brand-primary" fill="currentColor" />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-white">
-                Soutenir <span className="text-brand-primary">CHILLERS</span>
-              </h3>
-              <p className="text-xs text-zinc-300 mt-1">
-                Connecte-toi pour faire un don en Mobile Money ou carte.
-              </p>
-            </div>
-            <button
-              onClick={() => router.push("/login?redirect=/support")}
-              className="w-full py-2.5 rounded-[5px] bg-brand-primary hover:bg-[#b5034f] text-white font-bold text-xs transition-all cursor-pointer"
-            >
-              Se connecter
             </button>
           </div>
         ) : view === "processing" || phase === "pending" || phase === "failed" ? (
