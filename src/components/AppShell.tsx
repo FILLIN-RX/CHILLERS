@@ -24,6 +24,11 @@ const DonationModal = dynamic(() => import("@/components/DonationModal"), {
   ssr: false,
 });
 
+const SupportIntroModal = dynamic(
+  () => import("@/components/SupportIntroModal"),
+  { ssr: false },
+);
+
 interface AppShellProps {
   children: React.ReactNode;
   showBottomNav?: boolean;
@@ -31,6 +36,7 @@ interface AppShellProps {
 
 export default function AppShell({ children, showBottomNav }: AppShellProps) {
   const [isDonationOpen, setIsDonationOpen] = useState(false);
+  const [isIntroOpen, setIsIntroOpen] = useState(false);
   const router = useRouter();
   const openSearch = () => router.push("/search");
 
@@ -68,12 +74,12 @@ export default function AppShell({ children, showBottomNav }: AppShellProps) {
     window.addEventListener("open-search", handleSearch);
     window.addEventListener("open-donation", handleDonation);
 
-    // Auto-pop donation modal once per session on site load
+    // Auto-pop intro de soutien (une fois par session) : Fermer / Soutenir
     try {
       const alreadyShown = sessionStorage.getItem("chillers_donation_shown");
       if (!alreadyShown && !pathname?.startsWith("/admin") && !isLivePath) {
         const timer = setTimeout(() => {
-          setIsDonationOpen(true);
+          setIsIntroOpen(true);
           sessionStorage.setItem("chillers_donation_shown", "true");
         }, 1800);
         return () => {
@@ -96,6 +102,14 @@ export default function AppShell({ children, showBottomNav }: AppShellProps) {
 
   return (
     <>
+      <SupportIntroModal
+        isOpen={isIntroOpen}
+        onClose={() => setIsIntroOpen(false)}
+        onSupport={() => {
+          setIsIntroOpen(false);
+          setIsDonationOpen(true);
+        }}
+      />
       <DonationModal
         isOpen={isDonationOpen}
         onClose={() => setIsDonationOpen(false)}
