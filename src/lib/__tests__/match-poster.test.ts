@@ -50,11 +50,23 @@ describe("isMajorCompetition", () => {
     expect(isMajorCompetition("Soccer, UEFA - Champions League")).toBe(true);
   });
 
-  it("écarte les divisions homonymes, les coupes continentales mineures et les rencontres sans ligue", () => {
-    expect(isMajorCompetition("Egypt. Premier League")).toBe(false);
-    expect(isMajorCompetition("AFC Champions League Elite")).toBe(false);
+  it("écarte les divisions homonymes, les catégories mineures et les rencontres sans ligue", () => {
+    // La vitrine retient les grands championnats et coupes : l'Égypte, l'Arabie
+    // pro et l'Asie passent désormais, mais pas les divisions inférieures ni les
+    // rencontres féminines/juniores.
+    expect(isMajorCompetition("AFC Champions League Elite")).toBe(true);
+    expect(isMajorCompetition("CAF Champions League")).toBe(true);
+    expect(isMajorCompetition("Egypt. Premier League")).toBe(true);
+    expect(isMajorCompetition("Saudi Pro League")).toBe(true);
+    expect(isMajorCompetition("Turkish Super Lig")).toBe(true);
+    expect(isMajorCompetition("Botola Pro")).toBe(true);
+    expect(isMajorCompetition("Liga MX")).toBe(true);
     expect(isMajorCompetition("Saudi Arabia. Division 1")).toBe(false);
+    expect(isMajorCompetition("Brazilian Serie B")).toBe(false);
+    expect(isMajorCompetition("English League Championship")).toBe(false);
     expect(isMajorCompetition("Women. World Cup Qualification. Europe")).toBe(false);
+    expect(isMajorCompetition("UEFA Women's Champions League")).toBe(false);
+    expect(isMajorCompetition("Inter U19")).toBe(false);
     expect(isMajorCompetition(undefined)).toBe(false);
     expect(isMajorCompetition("")).toBe(false);
   });

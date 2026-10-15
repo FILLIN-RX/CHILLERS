@@ -5,7 +5,7 @@ import Link from "next/link";
 import { LeagueView } from "./components/league-view";
 import { MatchCard } from "./components/match-card";
 import { useSearchParams } from "next/navigation";
-import { getMatches } from "@/services/matches";
+import { getLeagues, getMatches } from "@/services/matches";
 import type { SportMatch, MatchLeague } from "@/types/matches";
 import { CalendarBlank, CaretDown, CaretLeft, CaretRight, CaretUp, MagnifyingGlass, X } from "@phosphor-icons/react";
 import { FONT_STACK, cacheMatch, formatTime, localDateStr, matchHref } from "./match-utils";
@@ -21,10 +21,11 @@ const FOCUS =
 // ─── Logo sécurisé anti-404 (sans carte autour) ───
 export function TeamLogo({ src, name, className = "h-8 w-8" }: { src?: string; name: string; className?: string }) {
   const [hasError, setHasError] = useState(false);
-
-  useEffect(() => {
+  const [lastSrc, setLastSrc] = useState(src);
+  if (src !== lastSrc) {
+    setLastSrc(src);
     setHasError(false);
-  }, [src]);
+  }
 
   if (!src || hasError) {
     return (
@@ -37,8 +38,12 @@ export function TeamLogo({ src, name, className = "h-8 w-8" }: { src?: string; n
   return <img src={src} alt={name} onError={() => setHasError(true)} className={`shrink-0 object-contain ${className}`} />;
 }
 
-// ─── Championnats majeurs (football uniquement) ───
-const MAJOR_LEAGUES: Array<{ id: string; name: string; country: string; logo: string | null }> = [
+// ─── Championnats majeurs (football uniquement) : liste de repli, remplacée
+// par `/matches/leagues` dès que le service répond (elle contient toutes les
+// compétitions retenues, grandir sans toucher au front). ───
+type LeagueEntry = { id: string; name: string; country: string; logo: string | null };
+
+const FALLBACK_LEAGUES: LeagueEntry[] = [
   { id: "all", name: "Tous les championnats", country: "Monde entier", logo: null },
   { id: "uefa.champions", name: "Ligue des Champions", country: "Europe", logo: "https://a.espncdn.com/i/leaguelogos/soccer/500/2.png" },
   { id: "eng.1", name: "Premier League", country: "Angleterre", logo: "https://a.espncdn.com/i/leaguelogos/soccer/500/23.png" },
@@ -47,10 +52,19 @@ const MAJOR_LEAGUES: Array<{ id: string; name: string; country: string; logo: st
   { id: "ita.1", name: "Serie A", country: "Italie", logo: "https://a.espncdn.com/i/leaguelogos/soccer/500/12.png" },
   { id: "ger.1", name: "Bundesliga", country: "Allemagne", logo: "https://a.espncdn.com/i/leaguelogos/soccer/500/10.png" },
   { id: "uefa.europa", name: "Ligue Europa", country: "Europe", logo: "https://a.espncdn.com/i/leaguelogos/soccer/500/2.png" },
+  { id: "uefa.europa.conf", name: "UEFA Conference League", country: "Europe", logo: "https://a.espncdn.com/i/leaguelogos/soccer/500/20296.png" },
   { id: "uefa.nations", name: "UEFA Nations League", country: "Europe", logo: "https://a.espncdn.com/i/leaguelogos/soccer/500/2034.png" },
-  { id: "sau.1", name: "Saudi Pro League", country: "Arabie saoudite", logo: "https://a.espncdn.com/i/leaguelogos/soccer/500/2177.png" },
+  { id: "ksa.1", name: "Saudi Pro League", country: "Arabie saoudite", logo: "https://a.espncdn.com/i/leaguelogos/soccer/500/2488.png" },
+  { id: "afc.champions", name: "Ligue des Champions d'Asie", country: "Asie", logo: "https://a.espncdn.com/i/leaguelogos/soccer/500/2200.png" },
+  { id: "caf.champions", name: "Ligue des Champions d'Afrique", country: "Afrique", logo: "https://a.espncdn.com/i/leaguelogos/soccer/500/2391.png" },
+  { id: "caf.nations", name: "Coupe d'Afrique des Nations", country: "Afrique", logo: "https://a.espncdn.com/i/leaguelogos/soccer/500/76.png" },
+  { id: "tur.1", name: "Super Lig", country: "Turquie", logo: "https://a.espncdn.com/i/leaguelogos/soccer/500/18.png" },
   { id: "usa.1", name: "MLS", country: "États-Unis", logo: "https://a.espncdn.com/i/leaguelogos/soccer/500/19.png" },
+  { id: "mex.1", name: "Liga MX", country: "Mexique", logo: "https://a.espncdn.com/i/leaguelogos/soccer/500/22.png" },
+  { id: "bra.1", name: "Série A Brésil", country: "Brésil", logo: "https://a.espncdn.com/i/leaguelogos/soccer/500/85.png" },
+  { id: "arg.1", name: "Liga Profesional", country: "Argentine", logo: "https://a.espncdn.com/i/leaguelogos/soccer/500/1.png" },
   { id: "conmebol.libertadores", name: "Copa Libertadores", country: "Amérique du Sud", logo: "https://a.espncdn.com/i/leaguelogos/soccer/500/2676.png" },
+  { id: "conmebol.sudamericana", name: "Copa Sudamericana", country: "Amérique du Sud", logo: "https://a.espncdn.com/i/leaguelogos/soccer/500/1208.png" },
 ];
 
 export default function MatchesContent() {
@@ -64,6 +78,33 @@ export default function MatchesContent() {
   const [matches, setMatches] = useState<SportMatch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  // Sidebar : alimentée par le service (source unique des compétitions retenues),
+  // repli sur la liste statique tant que le service n'a pas répondu.
+  const [leagues, setLeagues] = useState<LeagueEntry[]>(FALLBACK_LEAGUES);
+
+  useEffect(() => {
+    let cancelled = false;
+    getLeagues()
+      .then((list) => {
+        const football = list.filter((l) => (l.sport ?? "football") === "football");
+        if (cancelled || football.length === 0) return;
+        setLeagues([
+          FALLBACK_LEAGUES[0],
+          ...football.map((l) => ({
+            id: l.id,
+            name: l.name,
+            country: l.country || "Compétition",
+            logo: l.logo || null,
+          })),
+        ]);
+      })
+      .catch(() => {
+        /* le repli statique suffit */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const replaceParam = (key: string, value: string | null) => {
     const url = new URL(window.location.href);
@@ -112,7 +153,10 @@ export default function MatchesContent() {
   );
 
   useEffect(() => {
-    fetchMatchesList();
+    // Microtask : fetchMatchesList active le loader (setState) — hors corps
+    // d'effet pour éviter un rendu en cascade immédiat.
+    const t = setTimeout(() => fetchMatchesList(), 0);
+    return () => clearTimeout(t);
   }, [fetchMatchesList]);
 
   // Polling automatique 30s
@@ -122,8 +166,8 @@ export default function MatchesContent() {
   }, [fetchMatchesList]);
 
   const leagueInfo = useMemo(
-    () => (selectedLeague === "all" ? null : MAJOR_LEAGUES.find((l) => l.id === selectedLeague) ?? null),
-    [selectedLeague]
+    () => (selectedLeague === "all" ? null : leagues.find((l) => l.id === selectedLeague) ?? null),
+    [selectedLeague, leagues]
   );
 
   const filteredMatches = useMemo(() => {
@@ -171,7 +215,7 @@ export default function MatchesContent() {
               Compétitions
             </h2>
             <ul>
-              {MAJOR_LEAGUES.map((league) => {
+              {leagues.map((league) => {
                 const selected = selectedLeague === league.id;
                 return (
                   <li key={league.id}>
@@ -241,7 +285,7 @@ export default function MatchesContent() {
 
             {/* Compétitions (mobile) : onglets texte soulignés */}
             <div className="no-scrollbar -mx-3 flex overflow-x-auto border-b px-3 lg:hidden" style={{ borderColor: DIVIDER }}>
-              {MAJOR_LEAGUES.map((league) => {
+              {leagues.map((league) => {
                 const selected = selectedLeague === league.id;
                 return (
                   <button

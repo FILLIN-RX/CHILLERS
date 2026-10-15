@@ -18,6 +18,8 @@ export interface MatchLeague {
   logo?: string;
   country?: string;
   flag?: string;
+  /** Sport rattaché : la page /matches filtre le football, la liste des ligues sert aussi la vitrine. */
+  sport?: SportType;
 }
 
 export interface SportMatch {

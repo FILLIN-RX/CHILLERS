@@ -322,7 +322,7 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
                 <span
                   className={`px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider border-0 ${
                     item.statusLabel === "En cours"
-                      ? "bg-[brand-primary]/20 text-[brand-primary]"
+                      ? "bg-brand-primary/20 text-brand-primary"
                       : "bg-white/10 text-zinc-300"
                   }`}
                 >
@@ -334,7 +334,7 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
                 <span
                   className={`px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider border-0 shadow-none ${
                     isFrench
-                      ? "bg-[brand-primary]/90 text-white"
+                      ? "bg-brand-primary/90 text-white"
                       : "bg-amber-600/90 text-white"
                   }`}
                 >
@@ -492,7 +492,7 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
                       className="w-full text-left flex items-center justify-between px-3 py-2 text-xs text-white hover:bg-zinc-800 rounded-[5px] transition-colors"
                     >
                       <span>{copiedLink ? "Lien copié !" : "Copier le lien"}</span>
-                      {copiedLink && <Check className="w-3.5 h-3.5 text-[brand-primary]" />}
+                      {copiedLink && <Check className="w-3.5 h-3.5 text-brand-primary" />}
                     </button>
                   </div>
                 )}
@@ -508,7 +508,7 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
         <section className="space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2">
-              <LinkSimple className="w-6 h-6 text-[brand-primary]" />
+              <LinkSimple className="w-6 h-6 text-brand-primary" />
               <span>Saisons Disponibles</span>
               <span className="text-xs text-zinc-500 font-normal">({validSeasons.length})</span>
             </h2>
@@ -539,13 +539,13 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
                       </span>
                     </div>
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 z-20 pointer-events-none">
-                      <div className="w-12 h-12 rounded-full bg-[brand-primary] flex items-center justify-center text-white shadow-xl transform scale-90 group-hover:scale-100 transition-transform">
+                      <div className="w-12 h-12 rounded-full bg-brand-primary flex items-center justify-center text-white shadow-xl transform scale-90 group-hover:scale-100 transition-transform">
                         <Play className="w-5 h-5 fill-white translate-x-0.5" />
                       </div>
                     </div>
                   </div>
                   <div className="space-y-0.5 pt-1">
-                    <h3 className="text-sm sm:text-base font-bold text-white group-hover:text-[brand-primary] transition-colors truncate">
+                    <h3 className="text-sm sm:text-base font-bold text-white group-hover:text-brand-primary transition-colors truncate">
                       {season.name || `Saison ${season.seasonNumber}`}
                     </h3>
                     <p className="text-xs text-zinc-400">
@@ -583,7 +583,7 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
                         </span>
                       </div>
                       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40">
-                        <div className="w-10 h-10 rounded-full bg-[brand-primary] flex items-center justify-center text-white shadow-xl">
+                        <div className="w-10 h-10 rounded-full bg-brand-primary flex items-center justify-center text-white shadow-xl">
                           <Play className="w-4 h-4 fill-white translate-x-0.5" />
                         </div>
                       </div>
@@ -609,7 +609,7 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
               <div ref={castScrollRef} onScroll={checkCastScroll} className="flex items-start gap-4 sm:gap-6 overflow-x-auto no-scrollbar scroll-smooth py-2 px-1">
                 {item.castDetails.map((actor) => (
                   <div key={actor.id} className="flex flex-col items-center text-center space-y-2 flex-shrink-0 w-20 sm:w-24 group cursor-pointer">
-                    <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden bg-zinc-800 shadow-md ring-2 ring-white/5 group-hover:ring-[brand-primary] group-hover:scale-105 transition-all duration-300">
+                    <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden bg-zinc-800 shadow-md ring-2 ring-white/5 group-hover:ring-brand-primary group-hover:scale-105 transition-all duration-300">
                       {actor.profileUrl ? (
                         <Image src={actor.profileUrl} alt={actor.name} fill className="object-cover object-top" sizes="80px" />
                       ) : (
@@ -619,7 +619,7 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
                       )}
                     </div>
                     <div className="w-full">
-                      <p className="text-[11px] sm:text-xs font-bold text-white truncate group-hover:text-[brand-primary] transition-colors" title={actor.name}>{actor.name}</p>
+                      <p className="text-[11px] sm:text-xs font-bold text-white truncate group-hover:text-brand-primary transition-colors" title={actor.name}>{actor.name}</p>
                       <p className="text-[10px] text-zinc-400 truncate" title={actor.character}>{actor.character}</p>
                     </div>
                   </div>

@@ -4,8 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { MagnifyingGlass, House, FilmSlate, Television, Star, Radio, User, ClockCounterClockwise, BookmarkSimple, SignOut, Crown, DownloadSimple, List, X, SquaresFour, CaretLeft, CaretRight, GearSix } from "@phosphor-icons/react";
-import gsap from "gsap";
+import { MagnifyingGlass, House, FilmSlate, Television, Star, Radio, User, ClockCounterClockwise, BookmarkSimple, SignOut, Crown, DownloadSimple, CaretLeft, CaretRight } from "@phosphor-icons/react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { getActiveNavTab } from "@/lib/navActive";
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -59,7 +58,8 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
 
   useEffect(() => {
     if (!isListingPage || !listingType) return;
-    setGenresLoading(true);
+    // Microtask : le setState ne doit pas s'exécuter dans le corps de l'effet.
+    queueMicrotask(() => setGenresLoading(true));
     const fetcher = listingType === "movies" ? getMovieGenres : getTVGenres;
     fetcher()
       .then(setGenres)
@@ -104,13 +104,16 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Fermer le drawer lors d'une navigation
+  // Fermer le drawer lors d'une navigation (microtask, hors corps d'effet)
   useEffect(() => {
-    setIsDrawerOpen(false);
+    const t = setTimeout(() => setIsDrawerOpen(false), 0);
+    return () => clearTimeout(t);
   }, [pathname]);
 
   const isWatchPage = pathname?.startsWith("/watch");
   const isSeasonPage = Boolean(pathname?.includes("/season"));
+  // Glassmorphism au scroll (type Plex) : le verre remplace le gradient d'accueil.
+  const isGlass = isScrolled || isWatchPage || isSeasonPage;
 
   return (
     <>
@@ -119,13 +122,28 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
         style={{ top: "var(--network-banner-height, 0px)" }}
         className={`fixed left-0 w-full z-40 select-none [app-region:drag] transition-all duration-300 ease-out ${
           isDetailPage && !isWatchPage && !isSeasonPage ? "max-sm:hidden" : ""
-        } ${
-          isScrolled || isWatchPage || isSeasonPage
-            ? "bg-[#1F1F1F]/95 backdrop-blur-xl shadow-2xl border-b border-white/8"
-            : "bg-gradient-to-b from-black/90 via-black/40 to-transparent border-b-0"
-        }`}
+        } ${isGlass ? "border-b border-white/10 shadow-[0_10px_40px_-12px_rgba(0,0,0,0.6)]" : "border-b-0"}`}
       >
-        <div className="flex flex-col max-w-[1920px] mx-auto px-3 sm:px-6 lg:px-8 pt-2 pb-2.5 sm:py-3 gap-2">
+        {/* Verre dépoli au scroll : fond translucide + blur + saturation (au
+           -dessus du gradient, il s'y substitue par un simple fondu) */}
+        <div
+          aria-hidden
+          className={`glass-nav pointer-events-none absolute inset-0 backdrop-saturate-150 transition-opacity duration-300 ease-out ${
+            isGlass ? "opacity-100" : "opacity-0"
+          }`}
+        />
+        {/* Gradient d'accueil, s'efface dès que le verre prend le dessus */}
+        <div
+          aria-hidden
+          className={`pointer-events-none absolute inset-0 bg-gradient-to-b from-black/90 via-black/40 to-transparent transition-opacity duration-300 ease-out ${
+            isGlass ? "opacity-0" : "opacity-100"
+          }`}
+        />
+        <div
+          className={`relative flex flex-col max-w-[1920px] mx-auto px-3 sm:px-6 lg:px-8 gap-2 transition-all duration-300 ease-out ${
+            isGlass ? "pt-1.5 pb-2 sm:py-2" : "pt-2 pb-2.5 sm:py-3"
+          }`}
+        >
           {/* LIGNE PRINCIPALE : Menu burger (mobile), Logo, Nav PC, Search PC, Bouton PRO & Profil */}
           <div className="flex items-center justify-between gap-3 sm:gap-4">
             {/* GAUCHE : BURGER (Mobile) + RETOUR + LOGO + NAV PC */}
@@ -327,7 +345,7 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
 
                     <button
                       onClick={logout}
-                      className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-[5px] bg-[brand-primary] hover:bg-[#b5034f] border border-[brand-primary] active:scale-95 text-white font-bold text-xs shadow-md transition-all cursor-pointer mt-1"
+                      className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-[5px] bg-brand-primary hover:bg-[#b5034f] border border-brand-primary active:scale-95 text-white font-bold text-xs shadow-md transition-all cursor-pointer mt-1"
                     >
                       <SignOut className="w-4 h-4" />
                       <span>{lang === "fr" ? "Se déconnecter" : "Log out"}</span>
@@ -465,7 +483,7 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
                     setIsDrawerOpen(false);
                     logout();
                   }}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-[5px] bg-[brand-primary] hover:bg-[#b5034f] border border-[brand-primary] active:scale-95 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-[5px] bg-brand-primary hover:bg-[#b5034f] border border-brand-primary active:scale-95 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
                 >
                   <SignOut className="w-4 h-4" />
                   <span>{lang === "fr" ? "Se déconnecter" : "Logout"}</span>

@@ -18,6 +18,7 @@ export interface MatchLeague {
   logo?: string;
   country?: string;
   flag?: string;
+  sport?: string;
 }
 
 export interface SportMatch {

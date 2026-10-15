@@ -91,6 +91,8 @@ export default function AppShell({ children, showBottomNav }: AppShellProps) {
   }, [pathname, isLivePath, router]);
 
   const isAuthPage = pathname === "/login" || pathname === "/register";
+  // Pages de paiement focus (don / abonnement) : plein écran, sans footer.
+  const isPaymentPage = pathname === "/support" || pathname === "/subscribe";
 
   return (
     <>
@@ -100,7 +102,7 @@ export default function AppShell({ children, showBottomNav }: AppShellProps) {
       />
       {!isAuthPage && !isPlayerRoute && <Header onSearchClick={openSearch} />}
       <main className="flex-1 flex flex-col">{children}</main>
-      {!isAuthPage && !pathname?.startsWith("/profile") && !isPlayerRoute && <Footer />}
+      {!isAuthPage && !isPaymentPage && !pathname?.startsWith("/profile") && !isPlayerRoute && <Footer />}
       {!isPlayerRoute && <NetworkStatusBanner />}
       <Suspense>
         {!isPlayerRoute && <DownloadFloatingBar />}

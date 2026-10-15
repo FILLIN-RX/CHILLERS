@@ -439,7 +439,7 @@ export default function SeasonContent() {
                   onOpenDetails={() => router.push(`/tv/${id}`)}
                 />
                 {isFullscreen && (
-                  <span className="pointer-events-none absolute top-4 left-4 z-50 text-xs sm:text-sm font-black tracking-widest uppercase text-[brand-primary] drop-shadow-lg">
+                  <span className="pointer-events-none absolute top-4 left-4 z-50 text-xs sm:text-sm font-black tracking-widest uppercase text-brand-primary drop-shadow-lg">
                     CHILLERS
                   </span>
                 )}

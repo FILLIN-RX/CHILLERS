@@ -5,7 +5,7 @@ import type { SportMatch, MatchSummary } from "@/types/matches";
 const CACHE_PREFIX = "chillers_match_";
 
 export const FONT_STACK =
-  "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', system-ui, sans-serif";
+  "var(--font-sans, -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif)";
 
 /** Date locale au format YYYY-MM-DD (évite le décalage UTC de toISOString). */
 export function localDateStr(d: Date = new Date()): string {

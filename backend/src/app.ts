@@ -33,6 +33,7 @@ import authRoutes from './modules/auth/auth.routes';
 import userRoutes from './modules/user/user.routes';
 import omnisaveRoutes from './modules/omnisave/omnisave.routes';
 import requestsRoutes from './modules/requests/requests.routes';
+import paymentsRoutes from './modules/payments/payments.routes';
 
 import compression from 'compression';
 
@@ -138,7 +139,18 @@ app.use(helmet({
     },
   },
 }));
-app.use(express.json({ limit: '10mb' }));
+app.use(
+  express.json({
+    limit: '10mb',
+    // Conserve le corps BRUT pour la vérification HMAC des webhooks SasPay
+    // (une re-sérialisation casserait la comparaison bit à bit de la signature).
+    verify: (req, _res, buf) => {
+      if ((req as any).originalUrl?.startsWith('/api/payments/webhook')) {
+        (req as any).rawBody = Buffer.from(buf);
+      }
+    },
+  })
+);
 
 // Fichiers uploadés manuellement par l'admin (uploads/ en mémoire) - servis
 // publiquement pour permettre l'upload Uqload via URL
@@ -211,6 +223,7 @@ app.use('/api/omnisave', omnisaveRoutes);
 app.use('/api/requests', requestsRoutes);
 app.use('/api/admin/requests', requestsRoutes);
 app.use('/api/internal/requests', requestsRoutes);
+app.use('/api/payments', paymentsRoutes);
 
 app.use((_req, res) => {
   res.status(404).json({

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import { LanguageProvider } from "@/i18n/LanguageContext";
 import { type Language, defaultLanguage } from "@/i18n";
 import AdminShortcut from "@/components/AdminShortcut";
@@ -17,9 +18,14 @@ import { auth } from "@/auth";
 import "./globals.css";
 import Script from "next/script";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+// SF Pro (variable, subset latin+latin-ext auto-hébergé) : la police du site.
+// next/font émet les @font-face + préload ; la variable est portée par <html>.
+const sfPro = localFont({
+  src: [
+    { path: "./fonts/SFPro.woff2", weight: "100 900", style: "normal" },
+    { path: "./fonts/SFPro-Italic.woff2", weight: "100 900", style: "italic" },
+  ],
+  variable: "--font-sf-pro",
   display: "swap",
   preload: false,
 });
@@ -144,7 +150,7 @@ export default async function RootLayout({
   return (
     <html
       lang={initialLang}
-      className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
+      className={`${sfPro.variable} ${geistMono.variable} dark h-full antialiased`}
     >
       <head>
         {/*

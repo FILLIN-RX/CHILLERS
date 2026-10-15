@@ -141,7 +141,7 @@ export default function LiveBallMatchContent() {
     <div className="fixed inset-0 z-40 h-dvh w-screen bg-black overflow-hidden">
       {isLoading && !channel && !embedUrl && (
         <div className="w-full h-full flex flex-col items-center justify-center gap-3 bg-black">
-          <div className="h-12 w-12 border-4 border-[brand-primary] border-t-transparent rounded-full animate-spin" />
+          <div className="h-12 w-12 border-4 border-brand-primary border-t-transparent rounded-full animate-spin" />
           <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
             Résolution du flux...
           </p>
@@ -208,7 +208,7 @@ export default function LiveBallMatchContent() {
             <div className="flex flex-wrap items-center justify-center gap-3 px-6 pb-[calc(1.5rem_+_env(safe-area-inset-bottom,0px))]">
               <button
                 onClick={retry}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-[brand-primary] hover:brightness-110 text-white text-xs font-black uppercase tracking-wider transition-all"
+                className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-brand-primary hover:brightness-110 text-white text-xs font-black uppercase tracking-wider transition-all"
               >
                 <ArrowsClockwise className="h-4 w-4" />
                 Actualiser
@@ -217,7 +217,7 @@ export default function LiveBallMatchContent() {
                 onClick={handleShare}
                 className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-wider transition-all"
               >
-                {shareCopied ? <Check className="h-4 w-4 text-[brand-primary]" /> : <ShareNetwork className="h-4 w-4" />}
+                {shareCopied ? <Check className="h-4 w-4 text-brand-primary" /> : <ShareNetwork className="h-4 w-4" />}
                 {shareCopied ? "Lien copié" : "Partager"}
               </button>
               <Link
@@ -260,7 +260,7 @@ export default function LiveBallMatchContent() {
             <div className="flex flex-wrap items-center justify-center gap-3">
               <button
                 onClick={retry}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-[brand-primary] hover:brightness-110 text-white text-xs font-black uppercase tracking-wider transition-all shadow-lg shadow-red-600/20"
+                className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-brand-primary hover:brightness-110 text-white text-xs font-black uppercase tracking-wider transition-all shadow-lg shadow-red-600/20"
               >
                 <ArrowsClockwise className="h-4 w-4" />
                 Réessayer la connexion
@@ -269,7 +269,7 @@ export default function LiveBallMatchContent() {
                 onClick={handleShare}
                 className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-wider transition-all"
               >
-                {shareCopied ? <Check className="h-4 w-4 text-[brand-primary]" /> : <ShareNetwork className="h-4 w-4" />}
+                {shareCopied ? <Check className="h-4 w-4 text-brand-primary" /> : <ShareNetwork className="h-4 w-4" />}
                 {shareCopied ? "Lien copié" : "Partager"}
               </button>
               <Link

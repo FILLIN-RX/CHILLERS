@@ -10,31 +10,94 @@
  *    se rejoint pas disparaîtrait de la page. La jointure enrichit, elle n'exclut
  *    jamais.
  * 2. HABILLER L'AFFICHE (badge de compétition, écussons). Le service de score est
- *    la seule source qui nomme la compétition correctement (le flux ESPN global
- *    répond « Football ») et donne les écussons officiels.
+ *    la seule source qui donne les écussons officiels ; le flux ESPN global
+ *    publie désormais la ligue réelle (résolue côté serveur via summary), et
+ *    LiveBall écrit les noms en français.
  */
 import type { PosterFixture } from "@/types/matches";
 
 export type { PosterFixture };
 
 /**
+ * Catégories écartées de la vitrine, quels que soient les libellés
+ * qualifiants : femmes, jeunes, réserves, futsal/salle, divisions
+ * inférieures (« Saudi Arabia. Division 1 », « Brazilian Serie B »,
+ * « English League Championship »).
+ */
+function isMinorCompetition(label: string): boolean {
+  return (
+    /\b(women|feminine|youth|reserve|reserves|amateur|indoor|futsal|beach|street|esports)\b/.test(label) ||
+    /\bu ?(1[5-9]|2[01]|23)\b/.test(label) ||
+    /\b(division [0-9]|league 2|league one|league two|2 liga|segunda|serie b|championship|second division|reserves?)\b/.test(
+      label
+    )
+  );
+}
+
+/**
  * Libellés de compétitions à retenir. Comparaison sur le libellé normalisé
  * (minuscules, sans accents, sans ponctuation) : égalité stricte pour les ligues
- * dont le nom seul désigne une division (« Egypt. Premier League » n'est pas la
- * Premier League), recouvrement pour les familles UEFA où la source ajoute un
- * qualifiant (« UEFA Women's Champions League »).
+ * dont le nom seul désigne une division (« Egypt. Premier League » est
+ * qualifié via son pays, « Saudi Arabia. Division 1 » est écarté comme
+ * division inférieure), recouvrement pour les familles de coupes où la source
+ * ajoute un qualifiant (« AFC Champions League Elite »).
  */
 const MAJOR_COMPETITIONS: Array<(label: string) => boolean> = [
+  // Coupes continentales (UEFA, AFC, CAF, CONCACAF, CONMEBOL)
+  (l) => l.includes("champions league"),
+  (l) => l.includes("champions cup"),
   (l) => l.includes("europa"),
   (l) => l.includes("conference league"),
-  (l) => l.includes("nations league"),
+  (l) => l.includes("libertadores"),
+  (l) => l.includes("sudamericana"),
+  (l) => l.includes("concacaf"),
+  (l) => l.includes("africa cup") || l.includes("afcon"),
+  // Cinq grands championnats : égalité stricte sur le nom de la division
   (l) => l === "premier league" || l === "english premier league" || l === "epl",
   (l) => l === "la liga" || l === "laliga" || l === "spain la liga",
   (l) => l === "serie a" || l === "italy serie a",
   (l) => l === "bundesliga" || l === "germany bundesliga",
   (l) => l === "ligue 1" || l === "france ligue 1",
-  (l) => l.includes("libertadores"),
-  (l) => l.includes("champions league") && !/\b(afc|caf|concacaf|ofc|amateur)\b/.test(l),
+  // Autres grands championnats européens
+  (l) => l.includes("super lig"),
+  (l) => l.includes("primeira liga"),
+  (l) => l.includes("eredivisie"),
+  (l) => l.includes("pro league"),
+  (l) => l.includes("scottish premiership"),
+  (l) => l.includes("super league"),
+  (l) => l.includes("austrian bundesliga"),
+  (l) => l.includes("nations league"),
+  // Grandes coupes nationales
+  (l) => l.includes("fa cup"),
+  (l) => l.includes("pokal") || l.includes("dfb"),
+  (l) => l.includes("copa del rey") || l.includes("coupe du roi"),
+  (l) => l.includes("coppa italia") || l.includes("coupe d italie"),
+  (l) => l.includes("coupe de france"),
+  (l) => l.includes("king s cup") || l.includes("kings cup"),
+  // Monde arabe et Afrique du Nord (« Saudi Pro League », « Egypt. Premier
+  // League », « Botola Pro », « Qatar Stars League »…)
+  (l) => l.includes("saudi"),
+  (l) => l.includes("qatar"),
+  (l) => l.includes("emirates") || l.includes("united arab") || l.includes("arab gulf") || l.includes("uae"),
+  (l) => l.includes("egypt"),
+  (l) => l.includes("morocc") || l.includes("botola"),
+  (l) => l.includes("alger"),
+  (l) => l.includes("tunisi"),
+  (l) =>
+    l.includes("iraq") ||
+    l.includes("kuwait") ||
+    l.includes("bahrain") ||
+    l.includes("oman") ||
+    l.includes("jordan"),
+  // Amériques
+  (l) => l === "mls" || l.includes("major league soccer"),
+  (l) => l.includes("liga mx") || l.includes("liga bbva") || l === "mexican liga bbva mx",
+  (l) => l.includes("liga profesional") || l.includes("argentine"),
+  (l) => l.includes("brazilian") || l.includes("brasileir") || l.includes("brasil"),
+  (l) => l.includes("primera a"),
+  // Compétitions mondiales
+  (l) => l.includes("world cup"),
+  (l) => l.includes("olympic"),
 ];
 
 function normalizeLabel(league?: string): string {
@@ -56,6 +119,7 @@ function normalizeLabel(league?: string): string {
 export function isMajorCompetition(league?: string): boolean {
   const label = normalizeLabel(league);
   if (!label) return false;
+  if (isMinorCompetition(label)) return false;
   return MAJOR_COMPETITIONS.some((test) => test(label));
 }
 

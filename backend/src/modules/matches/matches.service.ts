@@ -36,6 +36,83 @@ const POSTER_CACHE = new LRUCache<string, PosterFixture[]>({
   ttl: 10 * 60_000,
 });
 
+/**
+ * Le flux mondial `soccer/all/scoreboard` ne publie AUCUNE information de
+ * ligue (event.league = null sur 100% des événements) : sans résolution, tous
+ * les matchs arrivent étiquetés « Football » et la vitrine « grandes
+ * compétitions » les écarte. On récupère la ligue via `summary?event=`
+ * (header.league), une seule fois par ligue puis mémorisé 24h.
+ */
+interface ResolvedLeague {
+  id: string;
+  slug: string;
+  name: string;
+  logo: string | null;
+}
+
+// Enveloppe non-nulle : lru-cache refuse `null` comme valeur, et on veut
+// quand même mémoriser les échecs de résolution (sinon on re-fetch à l'infini).
+const LEAGUE_BY_NUMERIC_ID = new LRUCache<string, { league: ResolvedLeague | null }>({
+  max: 300,
+  ttl: 24 * 60 * 60_000,
+});
+const LEAGUE_RESOLVE_INFLIGHT = new Map<string, Promise<ResolvedLeague | null>>();
+
+/** `s:600~l:776~e:401915573` → `776` (identifiant numérique de ligue ESPN). */
+function numericLeagueId(event: any): string | null {
+  const uid = String(event?.uid || '');
+  const m = uid.match(/~l:(\d+)~/);
+  return m ? m[1] : null;
+}
+
+/** Réunit l'identité de la ligue d'un événement du flux mondial (concurrence limitée). */
+async function resolveLeaguesForEvents(events: any[]): Promise<void> {
+  const byNumeric = new Map<string, any>();
+  for (const ev of events) {
+    if (ev?.league) continue; // déjà étiqueté par la source
+    const num = numericLeagueId(ev);
+    if (!num || LEAGUE_BY_NUMERIC_ID.has(num) || byNumeric.has(num)) continue;
+    byNumeric.set(num, ev);
+  }
+  if (byNumeric.size === 0) return;
+
+  const jobs = Array.from(byNumeric.entries());
+  const WORKERS = 6;
+  let cursor = 0;
+  const worker = async () => {
+    while (cursor < jobs.length) {
+      const [num, ev] = jobs[cursor++];
+      let pending = LEAGUE_RESOLVE_INFLIGHT.get(num);
+      if (!pending) {
+        pending = (async (): Promise<ResolvedLeague | null> => {
+          try {
+            const { data } = await axios.get(
+              `https://site.api.espn.com/apis/site/v2/sports/soccer/all/summary?event=${ev.id}`,
+              { headers: { 'User-Agent': USER_AGENT }, timeout: 8000, responseType: 'json' }
+            );
+            const lg = data?.header?.league;
+            if (!lg?.slug) throw new Error('header.league absent');
+            return {
+              id: String(lg.id ?? ''),
+              slug: String(lg.slug),
+              name: String(lg.name || lg.slug),
+              logo: lg.logos?.[0]?.href || null,
+            };
+          } catch {
+            return null;
+          } finally {
+            LEAGUE_RESOLVE_INFLIGHT.delete(num);
+          }
+        })();
+        LEAGUE_RESOLVE_INFLIGHT.set(num, pending);
+      }
+      const resolved = await pending;
+      LEAGUE_BY_NUMERIC_ID.set(num, { league: resolved });
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(WORKERS, jobs.length) }, () => worker()));
+}
+
 const LEAGUES_CONFIG: Array<{ id: string; slug: string; name: string; sport: SportType; espnLeague: string; logo: string; country: string }> = [
   {
     id: 'uefa.champions',
@@ -110,12 +187,14 @@ const LEAGUES_CONFIG: Array<{ id: string; slug: string; name: string; sport: Spo
     country: 'Europe',
   },
   {
-    id: 'sau.1',
+    // ESPN a renommé la ligue : l'ancien id `sau.1` renvoie désormais 400,
+    // ce qui vidait silencieusement l'onglet Arabie saoudite.
+    id: 'ksa.1',
     slug: 'saudi-league',
     name: 'Saudi Pro League',
     sport: 'football',
-    espnLeague: 'sau.1',
-    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/2177.png',
+    espnLeague: 'ksa.1',
+    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/2488.png',
     country: 'Arabie Saoudite',
   },
   {
@@ -135,6 +214,231 @@ const LEAGUES_CONFIG: Array<{ id: string; slug: string; name: string; sport: Spo
     espnLeague: 'conmebol.libertadores',
     logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/2676.png',
     country: 'Amérique du Sud',
+  },
+  {
+    id: 'conmebol.sudamericana',
+    slug: 'copa-sudamericana',
+    name: 'Copa Sudamericana',
+    sport: 'football',
+    espnLeague: 'conmebol.sudamericana',
+    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/1208.png',
+    country: 'Amérique du Sud',
+  },
+  {
+    id: 'afc.champions',
+    slug: 'afc-champions-league',
+    name: 'Ligue des Champions d\'Asie',
+    sport: 'football',
+    espnLeague: 'afc.champions',
+    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/2200.png',
+    country: 'Asie',
+  },
+  {
+    id: 'caf.champions',
+    slug: 'caf-champions-league',
+    name: 'Ligue des Champions d\'Afrique',
+    sport: 'football',
+    espnLeague: 'caf.champions',
+    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/2391.png',
+    country: 'Afrique',
+  },
+  {
+    id: 'caf.nations',
+    slug: 'africa-cup-of-nations',
+    name: 'Coupe d\'Afrique des Nations',
+    sport: 'football',
+    espnLeague: 'caf.nations',
+    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/76.png',
+    country: 'Afrique',
+  },
+  {
+    id: 'uefa.europa.conf',
+    slug: 'conference-league',
+    name: 'UEFA Conference League',
+    sport: 'football',
+    espnLeague: 'uefa.europa.conf',
+    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/20296.png',
+    country: 'Europe',
+  },
+  {
+    id: 'tur.1',
+    slug: 'super-lig',
+    name: 'Super Lig',
+    sport: 'football',
+    espnLeague: 'tur.1',
+    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/18.png',
+    country: 'Turquie',
+  },
+  {
+    id: 'por.1',
+    slug: 'primeira-liga',
+    name: 'Liga Portugal',
+    sport: 'football',
+    espnLeague: 'por.1',
+    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/14.png',
+    country: 'Portugal',
+  },
+  {
+    id: 'ned.1',
+    slug: 'eredivisie',
+    name: 'Eredivisie',
+    sport: 'football',
+    espnLeague: 'ned.1',
+    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/11.png',
+    country: 'Pays-Bas',
+  },
+  {
+    id: 'bel.1',
+    slug: 'pro-league',
+    name: 'Pro League',
+    sport: 'football',
+    espnLeague: 'bel.1',
+    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/6.png',
+    country: 'Belgique',
+  },
+  {
+    id: 'gre.1',
+    slug: 'super-league',
+    name: 'Super League Grèce',
+    sport: 'football',
+    espnLeague: 'gre.1',
+    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/98.png',
+    country: 'Grèce',
+  },
+  {
+    id: 'aut.1',
+    slug: 'bundesliga-austria',
+    name: 'Bundesliga Autriche',
+    sport: 'football',
+    espnLeague: 'aut.1',
+    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/5.png',
+    country: 'Autriche',
+  },
+  {
+    id: 'sco.1',
+    slug: 'scottish-premiership',
+    name: 'Scottish Premiership',
+    sport: 'football',
+    espnLeague: 'sco.1',
+    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/45.png',
+    country: 'Écosse',
+  },
+  {
+    id: 'arg.1',
+    slug: 'liga-profesional',
+    name: 'Liga Profesional',
+    sport: 'football',
+    espnLeague: 'arg.1',
+    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/1.png',
+    country: 'Argentine',
+  },
+  {
+    id: 'bra.1',
+    slug: 'brasileirao',
+    name: 'Série A Brésil',
+    sport: 'football',
+    espnLeague: 'bra.1',
+    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/85.png',
+    country: 'Brésil',
+  },
+  {
+    id: 'mex.1',
+    slug: 'liga-mx',
+    name: 'Liga MX',
+    sport: 'football',
+    espnLeague: 'mex.1',
+    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/22.png',
+    country: 'Mexique',
+  },
+  {
+    id: 'col.1',
+    slug: 'liga-aguila',
+    name: 'Liga Águila',
+    sport: 'football',
+    espnLeague: 'col.1',
+    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/1543.png',
+    country: 'Colombie',
+  },
+  {
+    id: 'concacaf.champions_cup',
+    slug: 'concacaf-champions-cup',
+    name: 'CONCACAF Champions Cup',
+    sport: 'football',
+    espnLeague: 'concacaf.champions_cup',
+    logo: 'https://a.espncdn.com/combiner/i?img=/i/teamlogos/soccer/500/default-team-logo-500.png&w=100&h=100',
+    country: 'Concacaf',
+  },
+  {
+    id: 'fifa.world',
+    slug: 'fifa-world-cup',
+    name: 'Coupe du Monde',
+    sport: 'football',
+    espnLeague: 'fifa.world',
+    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/4.png',
+    country: 'Monde',
+  },
+  {
+    id: 'eng.fa',
+    slug: 'fa-cup',
+    name: 'FA Cup',
+    sport: 'football',
+    espnLeague: 'eng.fa',
+    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/40.png',
+    country: 'Angleterre',
+  },
+  {
+    id: 'eng.league_cup',
+    slug: 'league-cup',
+    name: 'Carabao Cup',
+    sport: 'football',
+    espnLeague: 'eng.league_cup',
+    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/41.png',
+    country: 'Angleterre',
+  },
+  {
+    id: 'esp.copa_del_rey',
+    slug: 'copa-del-rey',
+    name: 'Coupe du Roi',
+    sport: 'football',
+    espnLeague: 'esp.copa_del_rey',
+    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/80.png',
+    country: 'Espagne',
+  },
+  {
+    id: 'ita.coppa_italia',
+    slug: 'coppa-italia',
+    name: 'Coupe d\'Italie',
+    sport: 'football',
+    espnLeague: 'ita.coppa_italia',
+    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/2192.png',
+    country: 'Italie',
+  },
+  {
+    id: 'fra.coupe_de_france',
+    slug: 'coupe-de-france',
+    name: 'Coupe de France',
+    sport: 'football',
+    espnLeague: 'fra.coupe_de_france',
+    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/182.png',
+    country: 'France',
+  },
+  {
+    id: 'ger.dfb_pokal',
+    slug: 'dfb-pokal',
+    name: 'DFB-Pokal',
+    sport: 'football',
+    espnLeague: 'ger.dfb_pokal',
+    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/2061.png',
+    country: 'Allemagne',
+  },
+  {
+    id: 'ksa.kings.cup',
+    slug: 'kings-cup',
+    name: 'King\'s Cup',
+    sport: 'football',
+    espnLeague: 'ksa.kings.cup',
+    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/2488.png',
+    country: 'Arabie Saoudite',
   },
   {
     id: 'nba',
@@ -158,6 +462,7 @@ export class MatchesService {
       slug: l.slug,
       logo: l.logo,
       country: l.country,
+      sport: l.sport,
     }));
   }
 
@@ -403,7 +708,11 @@ export class MatchesService {
   }
 
   /**
-   * Récupère tous les matchs mondiaux du jour (flux global soccer all)
+   * Récupère tous les matchs mondiaux du jour (flux global soccer all).
+   *
+   * Le flux global n'embarque pas la ligue : on la résout via summary (cache
+   * 24h par identifiant numérique) pour que chaque match soit étiqueté, groupé
+   * et qualifiable « grande compétition » — sans ça, tout arrive en « Football ».
    */
   async fetchGlobalSoccerMatches(yyyymmdd: string): Promise<SportMatch[]> {
     try {
@@ -415,10 +724,42 @@ export class MatchesService {
 
       if (!data?.events || !Array.isArray(data.events)) return [];
 
+      const events: any[] = data.events;
+      await resolveLeaguesForEvents(events);
+
       const matches: SportMatch[] = [];
-      for (const ev of data.events) {
+      for (const ev of events) {
         const leagueId = ev.league?.id || '';
-        const matchingConfig = LEAGUES_CONFIG.find((l) => l.id === leagueId || ev.league?.name?.toLowerCase()?.includes(l.slug));
+        let matchingConfig = LEAGUES_CONFIG.find(
+          (l) => l.id === leagueId || ev.league?.name?.toLowerCase()?.includes(l.slug)
+        );
+
+        if (!matchingConfig && !ev.league) {
+          const num = numericLeagueId(ev);
+          const resolved = num ? LEAGUE_BY_NUMERIC_ID.get(num)?.league : undefined;
+          if (resolved) {
+            matchingConfig = LEAGUES_CONFIG.find(
+              (l) =>
+                l.id === resolved.slug ||
+                l.slug === resolved.slug ||
+                l.name.toLowerCase() === (resolved.name || '').toLowerCase()
+            );
+            if (!matchingConfig) {
+              // Ligue non listée dans la config : on étiquette avec son identité
+              // réelle plutôt que « Football » (groupement + vitrine corrects).
+              matchingConfig = {
+                id: resolved.slug,
+                slug: resolved.slug,
+                name: resolved.name,
+                sport: 'football' as SportType,
+                espnLeague: resolved.slug,
+                logo: resolved.logo || 'https://a.espncdn.com/i/leaguelogos/soccer/500/2.png',
+                country: 'International',
+              };
+            }
+          }
+        }
+
         const parsed = this.parseEspnEvent(ev, matchingConfig, 'football');
         if (parsed) matches.push(parsed);
       }

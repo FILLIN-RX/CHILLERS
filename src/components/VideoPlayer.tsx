@@ -913,7 +913,7 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
                   className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-black/60 hover:bg-black/80 border border-white/15 text-white text-xs font-semibold backdrop-blur-md transition-all active:scale-95 cursor-pointer shadow-lg"
                   title="Lecteur réduit / Naviguer en regardant (PiP)"
                 >
-                  <PictureInPicture className="w-4 h-4 text-[brand-primary]" />
+                  <PictureInPicture className="w-4 h-4 text-brand-primary" />
                   <span className="text-[11px] font-medium hidden sm:inline">Lecteur réduit</span>
                 </button>
 
@@ -1137,7 +1137,7 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
                               className="px-4 py-2.5 flex items-center justify-between hover:bg-white/10 transition-colors text-left"
                             >
                               <span className="text-zinc-300">Lecture auto</span>
-                              <span className={`font-semibold ${autoplay ? "text-[brand-primary]" : "text-zinc-400"}`}>
+                              <span className={`font-semibold ${autoplay ? "text-brand-primary" : "text-zinc-400"}`}>
                                 {autoplay ? "Activée" : "Désactivée"}
                               </span>
                             </button>
@@ -1227,7 +1227,7 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
                                 setShowSpeedMenu(false);
                               }}
                               className={`px-4 py-2.5 text-left flex items-center justify-between hover:bg-white/10 transition-colors ${
-                                audioVersion === "fr" ? "text-[brand-primary] font-bold" : "text-white"
+                                audioVersion === "fr" ? "text-brand-primary font-bold" : "text-white"
                               }`}
                             >
                               <div className="flex items-center gap-2">
@@ -1244,7 +1244,7 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
                                 setShowSpeedMenu(false);
                               }}
                               className={`px-4 py-2.5 text-left flex items-center justify-between hover:bg-white/10 transition-colors ${
-                                audioVersion === "vostfr" ? "text-[brand-primary] font-bold" : "text-white"
+                                audioVersion === "vostfr" ? "text-brand-primary font-bold" : "text-white"
                               }`}
                             >
                               <div className="flex items-center gap-2">
@@ -1480,13 +1480,13 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
 
             <div className="mt-6 sm:mt-8 relative">
               {/* Breathing aura */}
-              <div className="absolute -inset-4 rounded-full bg-[brand-primary] opacity-40 blur-xl animate-pulse pointer-events-none" />
+              <div className="absolute -inset-4 rounded-full bg-brand-primary opacity-40 blur-xl animate-pulse pointer-events-none" />
               
               <button
                 type="button"
                 onClick={startPlayback}
                 aria-label="Lire la vidéo"
-                className="group/play relative flex items-center justify-center w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-[brand-primary] shadow-[0_0_40px_rgba(215,4,102,0.6)] ring-4 ring-white/20 transition-all duration-300 hover:scale-110 active:scale-95 text-white"
+                className="group/play relative flex items-center justify-center w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-brand-primary shadow-[0_0_40px_rgba(215,4,102,0.6)] ring-4 ring-white/20 transition-all duration-300 hover:scale-110 active:scale-95 text-white"
               >
                 <Play className="h-9 w-9 sm:h-11 sm:w-11 translate-x-0.5 drop-shadow-lg" fill="currentColor" />
               </button>
@@ -1502,7 +1502,7 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
       {/* ─── Loading state ─── */}
       {!videoUrl && streamQuery.isLoading && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-zinc-950">
-          <div className="h-14 w-14 rounded-full border-[3px] border-white/10 border-t-[brand-primary] border-r-[#7C3AED] animate-spin" />
+          <div className="h-14 w-14 rounded-full border-[3px] border-white/10 border-t-brand-primary border-r-[#7C3AED] animate-spin" />
           <p className="text-zinc-500 text-xs uppercase tracking-widest font-bold">Chargement du flux…</p>
         </div>
       )}
@@ -1517,7 +1517,7 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
           <button
             type="button"
             onClick={() => { setP2pHardFail(false); p2p.retry(); }}
-            className="px-5 py-2 text-xs font-bold text-white bg-[brand-primary] hover:bg-[#b90356] rounded-full transition-colors"
+            className="px-5 py-2 text-xs font-bold text-white bg-brand-primary hover:bg-[#b90356] rounded-full transition-colors"
           >
             Réessayer en P2P
           </button>

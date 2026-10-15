@@ -3,6 +3,11 @@
 @theme {
   --color-brand-primary: #F42A7C;
   --color-brand-secondary: #7C3AED;
+  /* Alias courts : génère bg-primary / text-primary / border-primary
+     (utilisés par RequestButton, RequestModal, admin…). Sans ce token,
+     ces classes ne produisaient aucun CSS → fond transparent. */
+  --color-primary: #F42A7C;
+  --color-secondary: #7C3AED;
   /* Arrondis : plancher de 4px sur toute l'échelle (--radius-none reste à 0
      pour les médias plein cadre : lecteur vidéo, tuiles live). */
   --radius-DEFAULT: 4px;
@@ -16,7 +21,7 @@
   --radius-3xl: 12px;
   --radius-full: 9999px;
   /* Static fallback tokens — dynamic variants handled via CSS classes below */
-  --font-sans: var(--font-geist-sans), Arial, sans-serif;
+  --font-sans: var(--font-sf-pro, -apple-system), -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Arial, sans-serif;
   --font-mono: var(--font-geist-mono), monospace;
   /* Custom xs breakpoint (480px) */
   --breakpoint-xs: 480px;
@@ -26,7 +31,9 @@
   --background: #1F1F1F; /* Fond principal de l'app (plus de full black) */
   --foreground: #FAFAFA; /* Lightened from #F4F4F5 */
   --card-bg: #27272A; /* Lightened from #121214 */
-  --card-border: rgba(255, 255, 255, 0.06);
+  /* Bordure = couleur de la carte elle-même (style Apple : le bord appartient
+     au matériau, pas un contour étranger). 90% carte + 10% blanc en dark. */
+  --card-border: color-mix(in srgb, var(--card-bg) 90%, #ffffff);
   --text-muted: #D4D4D8; /* Lightened from #A1A1AA */
   --glass-bg: rgba(31, 31, 31, 0.6);
   --glass-border: rgba(255, 255, 255, 0.06);
@@ -43,7 +50,8 @@
   --background: #F5F5F7;
   --foreground: #09090B;
   --card-bg: #FFFFFF;
-  --card-border: #E4E4E7;
+  /* Même principe en light :90% carte + 10% noir → hairline cohérent. */
+  --card-border: color-mix(in srgb, var(--card-bg) 90%, #000000);
   --text-muted: #52525B;
   --glass-bg: rgba(255, 255, 255, 0.6);
   --glass-border: rgba(0, 0, 0, 0.06);
