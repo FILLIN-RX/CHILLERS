@@ -45,6 +45,9 @@
     "test-downloader",
     "test_serveur",
     "mobile",
-    "matches-app"
+    "matches-app",
+    "**/__tests__/**",
+    "**/*.test.ts",
+    "**/*.test.tsx"
   ]
 }
