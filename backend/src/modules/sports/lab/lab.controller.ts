@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import { findFixture, listChannels, listFixtures, loadSnapshot } from './lab-store';
+import { findFixture, listChannels, loadSnapshot } from './lab-store';
 
 export const getLabReport = async (_req: Request, res: Response, next: NextFunction) => {
   try {

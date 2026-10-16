@@ -92,9 +92,9 @@ async function fetchRemote(
       throw new Error(`Challenge HTML renvoyé (${url.slice(0, 80)})`);
     }
     return { buf, contentType };
-  } catch (err: any) {
+  } catch (err) {
     // Jeton expiré : on retente une fois avec le Referer par défaut de l'origine.
-    const status = err?.response?.status;
+    const status = (err as { response?: { status?: number } })?.response?.status;
     if ((status === 401 || status === 403 || status === 404) && retry === 0 && referer) {
       refererByOrigin.set(originOf(url), '');
       return fetchRemote(url, undefined, retry + 1);
