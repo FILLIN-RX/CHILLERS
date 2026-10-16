@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Lab de test (scraping chaînes) : non linté par le front.
+    "sports-channels-lab/**",
   ]),
 ]);
 

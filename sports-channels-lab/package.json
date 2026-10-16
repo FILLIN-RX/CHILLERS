@@ -1,0 +1,13 @@
+{
+  "name": "sports-channels-lab",
+  "private": true,
+  "description": "Lab de test : scan multi-providers des chaînes/serveurs de matchs, enregistrement JSONL, probe de jouabilité, rapport.",
+  "scripts": {
+    "scan": "../backend/node_modules/.bin/tsx src/scan.ts",
+    "iptv": "../backend/node_modules/.bin/tsx src/iptv.ts",
+    "probe": "../backend/node_modules/.bin/tsx src/probe.ts",
+    "deep": "../backend/node_modules/.bin/tsx src/deep.ts",
+    "report": "../backend/node_modules/.bin/tsx src/report.ts",
+    "all": "../backend/node_modules/.bin/tsx src/scan.ts && ../backend/node_modules/.bin/tsx src/probe.ts && ../backend/node_modules/.bin/tsx src/report.ts"
+  }
+}

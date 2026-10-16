@@ -46,6 +46,7 @@
     "test_serveur",
     "mobile",
     "matches-app",
+    "sports-channels-lab",
     "**/__tests__/**",
     "**/*.test.ts",
     "**/*.test.tsx"
