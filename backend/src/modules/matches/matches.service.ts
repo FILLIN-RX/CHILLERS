@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { LRUCache } from 'lru-cache';
-import { getSportsMatches, resolveSportsFlux } from '../sports/sports.service';
+import { getSportsMatches, resolveSportsFlux, warmupMatchChannels } from '../sports/sports.service';
+import { MULTI_SERVER_ENABLED, getRegisteredChannels } from '../sports/match-channels.registry';
 import {
   SportMatch,
   MatchStatus,
@@ -1116,6 +1117,19 @@ export class MatchesService {
       const flux = await resolveSportsFlux(matched);
       if (!flux) return null;
 
+      // Le registre (peuplé par une agrégation antérieure) sert les autres
+      // serveurs instantanément ; sinon l'agrégation démarre en arrière-plan et
+      // le prochain appel proposera toute la liste du match.
+      let servers = flux.stream.servers;
+      if (MULTI_SERVER_ENABLED) {
+        const registered = getRegisteredChannels(matched.id);
+        if (registered && registered.servers.length > servers.length) {
+          servers = registered.servers;
+        } else {
+          warmupMatchChannels(matched);
+        }
+      }
+
       // Relay HLS same-origin : le player consomme notre backend (referer et IP
       // côté serveur), pas le CDN distant. Disponible pour toutes les sources.
       const relayUrl =
@@ -1131,11 +1145,17 @@ export class MatchesService {
         directUrl: flux.stream.url,
         type: flux.stream.type,
         relayUrl,
-        servers: flux.stream.servers.map((s) => ({
-          name: flux.source.toUpperCase(),
+        servers: servers.map((s) => ({
+          // Un serveur peut venir d'un jumeau du match : on garde son nom de
+          // canal, et à défaut celui de sa source (et son relay).
+          name: s.name?.trim() || (s.source ?? flux.source).toUpperCase(),
           url: s.url,
           type: (s.type || flux.stream.type) as 'hls' | 'iframe',
-          relayUrl,
+          relayUrl:
+            (s.type || flux.stream.type) === 'hls'
+              ? `/api/sports/match/${s.source ?? flux.source}/${encodeURIComponent(s.sourceId ?? flux.sourceId)}/hls/playlist.m3u8`
+              : undefined,
+          referer: s.referer,
         })),
       };
 

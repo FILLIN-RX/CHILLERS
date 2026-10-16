@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import type { ResolvedSportsStream } from './sports.types';
+import type { ResolvedSportsStream, SportsServer } from './sports.types';
 import {
   findSportsMatch,
   getSportsMatches,
@@ -7,7 +7,9 @@ import {
   isSportsSource,
   resolveSportsFlux,
   resolveSportsFluxById,
+  warmupMatchChannels,
 } from './sports.service';
+import { MULTI_SERVER_ENABLED, getRegisteredChannels } from './match-channels.registry';
 
 export const getMatches = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -40,28 +42,50 @@ function relayBase(req: Request): string {
 }
 
 /**
- * Sérialise le flux retenu par la chaîne : un seul lecteur, celui qui a répondu.
- * Les HLS passent par notre relay (referer/IP côté serveur), les players iframe
- * restent embarqués tels quels.
+ * Sérialise le flux retenu par la chaîne : le premier serveur est celui qui a
+ * répondu, les suivants sont les autres serveurs/jumeaux du match (mode
+ * agrégé). Les HLS passent par notre relay (referer/IP côté serveur), les
+ * players iframe restent embarqués tels quels — chaque serveur porte son
+ * relay, car il vient éventuellement d'une autre source.
  */
 function serializeStream(req: Request, source: string, sourceId: string, stream: ResolvedSportsStream) {
-  const server = stream.servers[0] ?? { name: source, url: stream.url, type: stream.type };
-  const type = server.type ?? stream.type;
-  const relayUrl =
-    type === 'hls'
-      ? `${relayBase(req)}/${source}/${encodeURIComponent(sourceId)}/hls/playlist.m3u8`
-      : undefined;
+  const list: SportsServer[] = stream.servers.length
+    ? stream.servers
+    : [{ name: source, url: stream.url, type: stream.type }];
 
+  const servers = list.map((s) => {
+    const provider = s.source ?? source;
+    const sid = s.sourceId ?? sourceId;
+    const type = (s.type ?? stream.type) as 'hls' | 'iframe';
+    const relayUrl =
+      type === 'hls' ? `${relayBase(req)}/${provider}/${encodeURIComponent(sid)}/hls/playlist.m3u8` : undefined;
+    return {
+      // Le nom du canal (« BeIN Sport 1 », « TNT 5 ») rend le sélecteur lisible ;
+      // à défaut on retombe sur le nom de la source.
+      name: s.name?.trim() || provider.toUpperCase(),
+      url: s.url,
+      directUrl: s.url,
+      type,
+      relayUrl,
+      /** Referer attendu par le lecteur (beaucoup d'hôtes sont « domain protected »). */
+      referer: s.referer,
+      /** Source qui sert effectivement ce serveur — pas forcément celle du match affiché. */
+      provider,
+      sourceId: sid,
+    };
+  });
+
+  const primary = servers[0];
   return {
-    url: type === 'hls' && relayUrl ? relayUrl : server.url,
-    directUrl: server.url,
-    relayUrl,
-    type,
+    url: primary.type === 'hls' && primary.relayUrl ? primary.relayUrl : primary.url,
+    directUrl: primary.directUrl,
+    relayUrl: primary.relayUrl,
+    type: primary.type,
     /** Referer attendu par le lecteur (beaucoup d'hôtes sont « domain protected »). */
-    referer: server.referer,
+    referer: primary.referer,
     /** Source qui sert effectivement le flux — pas forcément celle du match affiché. */
-    provider: source,
-    servers: [{ name: source.toUpperCase(), url: server.url, type, relayUrl, referer: server.referer }],
+    provider: primary.provider,
+    servers,
   };
 }
 
@@ -89,6 +113,10 @@ export const getMatchStream = async (req: Request, res: Response, next: NextFunc
       return;
     }
 
+    // Le player part tout de suite, l'agrégation des autres serveurs suit en
+    // arrière-plan (registre 24 h) : le prochain /channels est instantané.
+    if (MULTI_SERVER_ENABLED) warmupMatchChannels(match);
+
     res.json({
       success: true,
       data: { ...serializeStream(req, flux.source, flux.sourceId, flux.stream), match },
@@ -113,6 +141,7 @@ export const getMatchStreamById = async (req: Request, res: Response, next: Next
     }
 
     const { match, flux } = resolved;
+    if (MULTI_SERVER_ENABLED) warmupMatchChannels(match);
     res.json({
       success: true,
       data: { ...serializeStream(req, flux.source, flux.sourceId, flux.stream), match },
@@ -120,6 +149,59 @@ export const getMatchStreamById = async (req: Request, res: Response, next: Next
     });
   } catch (error) {
     console.error('[Sports] Erreur de résolution du flux:', error);
+    next(error);
+  }
+};
+
+/**
+ * Tous les serveurs connus du match : le registre 24 h répond s'il est déjà
+ * peuplé, sinon la chaîne complète est épuisée (une fois — ensuite tout est
+ * servi depuis le registre). Le flag `SPORTS_MULTI_SERVER=1` est requis : hors
+ * test, on sert toujours le seul flux qui joue.
+ */
+export const getChannels = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const matchId = String(req.params.matchId);
+    const forceRefresh = req.query.refresh === 'true' || req.query.force === '1';
+
+    if (!forceRefresh) {
+      const registered = getRegisteredChannels(matchId);
+      if (registered && registered.servers.length > 0) {
+        const cachedStream: ResolvedSportsStream = {
+          url: registered.servers[0].url,
+          type: registered.servers[0].type ?? 'iframe',
+          servers: registered.servers,
+        };
+        res.json({
+          success: true,
+          data: {
+            ...serializeStream(req, registered.source, registered.sourceId, cachedStream),
+            complete: registered.complete,
+          },
+          message: null,
+        });
+        return;
+      }
+    }
+
+    const resolved = await resolveSportsFluxById(matchId, forceRefresh, { collectAll: true });
+    if (!resolved) {
+      res.status(404).json({ success: false, data: null, message: 'Aucun serveur connu pour ce match' });
+      return;
+    }
+
+    const { match, flux } = resolved;
+    res.json({
+      success: true,
+      data: {
+        ...serializeStream(req, flux.source, flux.sourceId, flux.stream),
+        match,
+        complete: getRegisteredChannels(match.id)?.complete ?? true,
+      },
+      message: null,
+    });
+  } catch (error) {
+    console.error('[Sports] Erreur de collecte des chaînes:', error);
     next(error);
   }
 };

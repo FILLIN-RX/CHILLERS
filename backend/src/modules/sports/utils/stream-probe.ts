@@ -127,35 +127,48 @@ export async function probeIframe(
 }
 
 /**
- * Choisit le premier serveur réellement jouable du flux résolu.
- * `null` = la source a bien répondu mais ne diffuse rien pour l'instant.
+ * Choisit tous les serveurs réellement jouables du flux résolu, HLS d'abord
+ * (meilleure lecture) puis iframe (rejouable). `[]` = la source a bien répondu
+ * mais ne diffuse rien pour l'instant.
+ *
+ * La sonde est parallélisée : trois serveurs à 7 s chacun en séquentiel
+ * dépasserait le budget de la chaîne.
  */
-export async function pickPlayableServer(stream: ResolvedSportsStream): Promise<SportsServer | null> {
+export async function pickPlayableServers(stream: ResolvedSportsStream): Promise<SportsServer[]> {
   const servers = stream.servers.slice(0, MAX_SERVERS_PROBED);
   if (servers.length === 0 && stream.url) {
     servers.push({ name: stream.type || 'iframe', url: stream.url, type: stream.type });
   }
+  if (servers.length === 0) return [];
 
-  let iframeFallback: SportsServer | null = null;
+  const outcomes = await Promise.all(
+    servers.map(async (server): Promise<SportsServer | null> => {
+      // Un player « domain protected » ne répond qu'au Referer de la page qui
+      // l'embarque ; sans lui, la sonde verrait une page d'erreur.
+      const referer = server.referer || originOf(server.url);
 
-  for (const server of servers) {
-    // Un player « domain protected » ne répond qu'au Referer de la page qui
-    // l'embarque ; sans lui, la sonde verrait une page d'erreur.
-    const referer = server.referer || originOf(server.url);
+      if (server.type === 'hls' || /\.m3u8([?#]|$)/i.test(server.url)) {
+        return (await probeHls(server.url, referer)) ? { ...server, type: 'hls' } : null;
+      }
 
-    if (server.type === 'hls' || /\.m3u8([?#]|$)/i.test(server.url)) {
-      if (await probeHls(server.url, referer)) return { ...server, type: 'hls' };
-      continue;
-    }
+      const outcome = await probeIframe(server.url, referer);
+      if (!outcome) return null;
+      if (outcome.type === 'hls') {
+        return { name: server.name, url: outcome.url, type: 'hls', referer: server.url };
+      }
+      // Player embarqué : rejouable, mais un HLS ailleurs serait meilleur.
+      return { ...server, type: 'iframe' };
+    }),
+  );
 
-    const outcome = await probeIframe(server.url, referer);
-    if (!outcome) continue;
-    if (outcome.type === 'hls') {
-      return { name: server.name, url: outcome.url, type: 'hls', referer: server.url };
-    }
-    // Player embarqué : rejouable, mais un HLS ailleurs serait meilleur.
-    iframeFallback ??= { ...server, type: 'iframe' };
-  }
+  const playable = outcomes.filter((s): s is SportsServer => s !== null);
+  return [...playable.filter((s) => s.type === 'hls'), ...playable.filter((s) => s.type !== 'hls')];
+}
 
-  return iframeFallback;
+/**
+ * Premier serveur jouable du flux résolu.
+ * `null` = la source a bien répondu mais ne diffuse rien pour l'instant.
+ */
+export async function pickPlayableServer(stream: ResolvedSportsStream): Promise<SportsServer | null> {
+  return (await pickPlayableServers(stream))[0] ?? null;
 }

@@ -40,6 +40,14 @@ export interface SportsServer {
    * sans ce Referer, ils répondent une page d'erreur au lieu du flux.
    */
   referer?: string;
+  /**
+   * Source et identifiant d'origine de ce serveur précis. Un match peut être
+   * servi par plusieurs providers (les jumeaux d'une même rencontre) : c'est ce
+   * couple qui permet de reconstruire le relay HLS d'un serveur venu d'une
+   * autre source que celle du match affiché.
+   */
+  source?: SportsSourceId;
+  sourceId?: string;
 }
 
 /**

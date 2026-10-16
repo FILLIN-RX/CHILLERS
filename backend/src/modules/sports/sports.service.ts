@@ -16,8 +16,9 @@ import { getKoraMatches, resolveKoraStream } from './kora.service';
 import { getKooorahMatches, getYallaproMatches, resolveKooorahStream, resolveYallaproStream } from './yasirtv.service';
 import { getStreamizMatches, resolveStreamizStream } from './livetv.service';
 import { fixtureScore, isSameFixture } from './utils/fixture-match';
-import { pickPlayableServer } from './utils/stream-probe';
-import { SPORTS_SOURCES, type ResolvedSportsStream, type SportsMatch, type SportsSourceId } from './sports.types';
+import { pickPlayableServer, pickPlayableServers } from './utils/stream-probe';
+import { SPORTS_SOURCES, type ResolvedSportsStream, type SportsMatch, type SportsServer, type SportsSourceId } from './sports.types';
+import { getRegisteredChannels, rememberChannels } from './match-channels.registry';
 
 export * from './sports.types';
 
@@ -165,10 +166,21 @@ export interface SportsFlux {
 }
 
 const CHAIN_DEADLINE_MS = 18_000;
+/** Agrégation de tous les providers : on parcourt toute la chaîne, pas seulement le premier qui joue. */
+const MULTI_CHAIN_DEADLINE_MS = 30_000;
 const ATTEMPT_BUDGET_MS = 7_000;
 const FLUX_OK_TTL = 3 * 60_000;
 const FLUX_KO_TTL = 30_000;
-const FLUX_CACHE = new Map<string, { ts: number; data: SportsFlux | null }>();
+const FLUX_CACHE = new Map<string, { ts: number; data: SportsFlux | null; complete: boolean }>();
+
+export interface ResolveSportsOptions {
+  /**
+   * Ne pas s'arrêter au premier provider jouable : sonder toute la chaîne et
+   * agréger tous les serveurs du match (le mode normal sert toujours le
+   * premier, aucun changement de comportement par défaut).
+   */
+  collectAll?: boolean;
+}
 
 function withBudget<T>(promise: Promise<T>, budgetMs: number): Promise<T | null> {
   if (budgetMs <= 0) return Promise.resolve(null);
@@ -193,16 +205,31 @@ async function chainCandidates(target: SportsMatch): Promise<SportsMatch[]> {
  * Chaîne de providers : comme pour les films, on sert le premier qui a vraiment
  * le flux. Chaque candidat est résolu puis sondé, un player qui répond sans rien
  * diffuser ne compte pas comme une réussite.
+ *
+ * En mode `collectAll`, la chaîne est épuisée et tous les serveurs jouables de
+ * tous les jumeaux du match sont agrégés dans `stream.servers`, chacun tagué de
+ * sa source d'origine (nom + relay HLS à reconstruire côté client).
  */
-export async function resolveSportsFlux(target: SportsMatch, force = false): Promise<SportsFlux | null> {
+export async function resolveSportsFlux(
+  target: SportsMatch,
+  force = false,
+  opts: ResolveSportsOptions = {},
+): Promise<SportsFlux | null> {
+  const collectAll = opts.collectAll === true;
   const cached = FLUX_CACHE.get(target.id);
-  if (!force && cached && Date.now() - cached.ts < (cached.data ? FLUX_OK_TTL : FLUX_KO_TTL)) {
-    return cached.data;
+  const fresh = cached !== undefined && Date.now() - cached.ts < (cached.data ? FLUX_OK_TTL : FLUX_KO_TTL);
+  if (!force && fresh) {
+    // Le mode agrégé a besoin du résultat exhaustif : un cache partiel (servi en
+    // mode normal) ne suffit pas et relance la chaîne.
+    if (!collectAll || cached.complete) return cached.data;
   }
 
-  const deadline = Date.now() + CHAIN_DEADLINE_MS;
+  const deadline = Date.now() + (collectAll ? MULTI_CHAIN_DEADLINE_MS : CHAIN_DEADLINE_MS);
   const candidates = await chainCandidates(target);
   const attempts: string[] = [];
+  const servers: SportsServer[] = [];
+  let primary: SportsFlux | null = null;
+  let exhausted = false;
 
   for (const candidate of candidates) {
     const budget = Math.min(ATTEMPT_BUDGET_MS, deadline - Date.now());
@@ -217,40 +244,98 @@ export async function resolveSportsFlux(target: SportsMatch, force = false): Pro
       continue;
     }
 
+    const probeBudget = Math.min(ATTEMPT_BUDGET_MS, deadline - Date.now());
     const playable = await withBudget(
-      pickPlayableServer(resolved).catch(() => null),
-      Math.min(ATTEMPT_BUDGET_MS, deadline - Date.now()),
+      (collectAll
+        ? pickPlayableServers(resolved)
+        : pickPlayableServer(resolved).then((s) => (s ? [s] : []))
+      ).catch(() => []),
+      probeBudget,
     );
-    if (!playable) {
+    if (!playable || playable.length === 0) {
       attempts.push(`${candidate.source}=flux non jouable`);
       continue;
     }
 
-    const flux: SportsFlux = {
-      stream: { url: playable.url, type: playable.type ?? 'iframe', servers: [playable] },
+    const tagged: SportsServer[] = playable.map((s) => ({
+      ...s,
       source: candidate.source,
       sourceId: candidate.sourceId,
-    };
-    console.log(
-      `[sports] flux servi par "${candidate.source}" après ${attempts.length + 1} tentative(s) pour ${target.id} (${playable.type})`
-    );
-    FLUX_CACHE.set(target.id, { ts: Date.now(), data: flux });
-    return flux;
+    }));
+    servers.push(...tagged);
+
+    if (!primary) {
+      primary = {
+        stream: { url: tagged[0].url, type: tagged[0].type ?? 'iframe', servers: tagged },
+        source: candidate.source,
+        sourceId: candidate.sourceId,
+      };
+      console.log(
+        `[sports] flux servi par "${candidate.source}" après ${attempts.length + 1} tentative(s) pour ${target.id} (${tagged[0].type})`
+      );
+    }
+
+    if (!collectAll) {
+      // Mode normal : le premier qui joue suffit, on laisse la suite pour plus tard.
+      break;
+    }
+    exhausted = true;
   }
 
-  console.warn(`[sports] aucun provider jouable pour ${target.id}: ${attempts.join(', ') || 'aucun candidat'}`);
-  FLUX_CACHE.set(target.id, { ts: Date.now(), data: null });
-  return null;
+  if (!primary) {
+    console.warn(`[sports] aucun provider jouable pour ${target.id}: ${attempts.join(', ') || 'aucun candidat'}`);
+    FLUX_CACHE.set(target.id, { ts: Date.now(), data: null, complete: exhausted && collectAll });
+    return null;
+  }
+
+  const flux: SportsFlux = {
+    stream: { ...primary.stream, servers },
+    source: primary.source,
+    sourceId: primary.sourceId,
+  };
+
+  if (collectAll) {
+    console.log(
+      `[sports] agrégation pour ${target.id} : ${servers.length} serveur(s)${exhausted ? '' : ' (chaîne incomplète : budget)'}`
+    );
+  }
+
+  const complete = collectAll && exhausted;
+  FLUX_CACHE.set(target.id, { ts: Date.now(), data: flux, complete });
+  // Registre mémoire (24 h) : le prochain appel /channels part de ce point de
+  // départ sans repeindre toute la chaîne.
+  rememberChannels(target.id, { source: flux.source, sourceId: flux.sourceId, servers, complete });
+  return flux;
 }
 
 /** Variante par identifiant composite (`liveball:1534869`). */
 export async function resolveSportsFluxById(
   matchId: string,
-  force = false
+  force = false,
+  opts: ResolveSportsOptions = {},
 ): Promise<{ match: SportsMatch; flux: SportsFlux } | null> {
   const match = await findSportsMatch(matchId);
   if (!match) return null;
 
-  const flux = await resolveSportsFlux(match, force);
+  const flux = await resolveSportsFlux(match, force, opts);
   return flux ? { match, flux } : null;
+}
+
+/** Matchs dont une agrégation est déjà en vol (évite de lancer la chaîne deux fois). */
+const collectInFlight = new Set<string>();
+
+/**
+ * Enchaîne l'agrégation complète en arrière-plan. Le flux principal part tout
+ * de suite (le premier provider qui joue suffit au player), les autres serveurs
+ * arrivent dans le registre quelques secondes plus tard — le prochain appel
+ * /channels les sert alors instantanément.
+ */
+export function warmupMatchChannels(match: SportsMatch): void {
+  if (collectInFlight.has(match.id)) return;
+  if (getRegisteredChannels(match.id)?.complete) return;
+
+  collectInFlight.add(match.id);
+  resolveSportsFlux(match, false, { collectAll: true })
+    .catch((err) => console.warn(`[sports] agrégation en arrière-plan échouée pour ${match.id}:`, err))
+    .finally(() => collectInFlight.delete(match.id));
 }
