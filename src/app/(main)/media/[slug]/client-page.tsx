@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo, Suspense } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import {
-  getMediaDetails,
   getPopularMovies,
   getPopularTV,
   getTrendingMovies,
@@ -27,6 +27,8 @@ import {
   getMediaLogo,
   getSimilarTitles,
 } from "@/services/media";
+import { useMediaDetails } from "@/hooks/useMediaDetails";
+import { useBackdropAmbiance } from "@/hooks/useBackdropAmbiance";
 import { httpJson } from "@/services/http";
 import type { Genre, MovieOrShow } from "@/types/media";
 import GenreFilterBar from "@/components/GenreFilterBar";
@@ -46,7 +48,6 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { ArrowLeft, Play, Star, Clock, CalendarBlank, FilmSlate, CaretLeft, CaretRight, DownloadSimple, ShareNetwork, Sparkle, BookmarkSimple, ListNumbers } from '@phosphor-icons/react';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { userService } from '@/services/user';
-import gsap from 'gsap';
 
 import CatalogSpotlightHero from "@/components/CatalogSpotlightHero";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
@@ -77,11 +78,21 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
     }
   }, [isTV, id, router]);
 
-  const [item, setItem] = useState<MovieOrShow | null>(initialItem || null);
+  const { data: itemData, isLoading: itemLoading } = useMediaDetails(id, isTV, {
+    initialData: initialItem ?? undefined,
+    staleTime: 5 * 60_000,
+  });
+  const item = itemData ?? null;
+  const ambiance = useBackdropAmbiance(item?.backdropOriginalUrl || item?.backdropUrl || undefined);
+  const loading = itemLoading && !item;
   const [similar, setSimilar] = useState<MovieOrShow[]>(initialSimilar || []);
-  const [loading, setLoading] = useState(!initialItem);
   const [trailerOpen, setTrailerOpen] = useState(false);
-  const [trailerUrl, setTrailerUrl] = useState<string | null>(null);
+  const trailerUrl = useMemo(() => {
+    if (!item) return null;
+    if (item.trailerUrl) return item.trailerUrl;
+    if (item.videoUrl?.includes("youtube.com") || item.videoUrl?.includes("embed")) return item.videoUrl;
+    return null;
+  }, [item]);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [notification, setNotification] = useState<{ title: string; message: string } | null>(null);
   const playerRef = useRef<HTMLDivElement>(null);
@@ -130,48 +141,23 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
     setCastCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
   }, []);
 
-  const fetchData = useCallback(async () => {
-    if (!id || initialItem) return;
-    setLoading(true);
-    try {
-      const detail = await getMediaDetails(id, isTV);
-
-      if (detail) {
-        if (detail.trailerUrl) {
-          setTrailerUrl(detail.trailerUrl);
-        } else if (detail.videoUrl?.includes("youtube.com") || detail.videoUrl?.includes("embed")) {
-          setTrailerUrl(detail.videoUrl);
-        }
-        setItem(detail);
-      }
-
-      setSimilar(await getSimilarTitles(id, isTV, detail));
-    } catch (err) {
-      console.error("Error loading detail page:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [id, isTV, initialItem]);
-
+  // Similaires : fetchés côté client uniquement quand le détail ne vient pas du RSC
+  // (même comportement que l'ancien fetchData — le RSC fournit initialSimilar sinon).
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (!id || !item || initialItem) return;
+    let cancelled = false;
+    getSimilarTitles(id, isTV, item)
+      .then((s) => { if (!cancelled) setSimilar(s); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [id, isTV, item, initialItem]);
 
   // Handle availability check separately (client-side only polling)
   useEffect(() => {
     let cancelled = false;
     const checkAvailability = async () => {
-      const targetItem = initialItem || item;
+      const targetItem = item;
       if (!targetItem || !id) return;
-      
-      // Initialize trailerUrl if not already set by fetchData
-      if (initialItem && !trailerUrl) {
-        if (targetItem.trailerUrl) {
-          setTrailerUrl(targetItem.trailerUrl);
-        } else if (targetItem.videoUrl?.includes("youtube.com") || targetItem.videoUrl?.includes("embed")) {
-          setTrailerUrl(targetItem.videoUrl);
-        }
-      }
 
       // Si le film n'est pas encore sorti, ne pas spammer /api/requests
       const unreleased = targetItem.releaseDate && new Date(targetItem.releaseDate).getTime() > Date.now();
@@ -199,7 +185,7 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
         let attempts = 0;
         const pollTimer = setInterval(async () => {
           attempts++;
-          if (attempts > 4 || cancelled) {
+          if (attempts > 2 || cancelled) {
             clearInterval(pollTimer);
             return;
           }
@@ -208,12 +194,12 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
             setDisponible(updatedDispo);
             clearInterval(pollTimer);
           }
-        }, 3000);
+        }, 8000);
       }
     };
     checkAvailability();
     return () => { cancelled = true; };
-  }, [id, initialItem, item, isTV, trailerUrl]);
+  }, [id, item, isTV]);
 
   useEffect(() => {
     if (item?.castDetails?.length) {
@@ -485,11 +471,34 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
             fill
             className="object-cover object-top"
             sizes="100vw"
-            quality={75}
+            quality={85}
             priority
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-b from-zinc-800 to-black" />
+        )}
+
+        {/* Ambiance colorimétrique tirée du backdrop : teinte l'image, puis halo */}
+        {ambiance && (
+          <>
+            <div
+              aria-hidden
+              className="absolute inset-0 pointer-events-none mix-blend-soft-light animate-in fade-in duration-1000"
+              style={{
+                background: `linear-gradient(205deg, rgb(${ambiance.vivid} / 0.75) 0%, rgb(${ambiance.dominant} / 0.6) 55%, rgb(${ambiance.vivid} / 0.45) 100%)`,
+              }}
+            />
+            <div
+              aria-hidden
+              className="absolute inset-0 pointer-events-none animate-in fade-in duration-1000"
+              style={{
+                background: [
+                  `radial-gradient(90% 110% at 78% 10%, rgb(${ambiance.dominant} / 0.5), transparent 68%)`,
+                  `radial-gradient(55% 75% at 12% 92%, rgb(${ambiance.vivid} / 0.22), transparent 72%)`,
+                ].join(", "),
+              }}
+            />
+          </>
         )}
 
         {/* Dégradé gauche à droite uniquement */}
@@ -497,6 +506,17 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
         
         {/* Dégradé du bas avec petite hauteur */}
         <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[#09090B] via-[#09090B]/40 to-transparent" />
+
+        {/* Fade bas teinté : prolonge l'ambiance jusqu'au contenu, sans couture */}
+        {ambiance && (
+          <div
+            aria-hidden
+            className="absolute bottom-0 left-0 right-0 h-32 pointer-events-none animate-in fade-in duration-1000"
+            style={{
+              background: `linear-gradient(to top, color-mix(in srgb, rgb(${ambiance.dominant}) 26%, black) 0%, color-mix(in srgb, rgb(${ambiance.dominant}) 12%, transparent) 55%, transparent 100%)`,
+            }}
+          />
+        )}
 
         {/* Contenu du Hero */}
         <div className="relative z-20 w-full px-4 sm:px-8 md:px-12 lg:px-16 pt-24 pb-8 sm:pb-12">
@@ -736,8 +756,9 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
                     className="flex gap-4 overflow-x-auto no-scrollbar pb-2 scroll-smooth"
                   >
                     {item.castDetails.map((actor) => (
-                      <div
+                      <Link
                         key={actor.id}
+                        href={`/person/${actor.id}`}
                         className="flex-none w-24 sm:w-28 flex flex-col items-center text-center group"
                       >
                         <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden bg-zinc-800 border border-white/10 group-hover:border-brand-primary/50 transition-all shadow-lg mb-2 relative">
@@ -764,7 +785,7 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
                             {actor.character}
                           </p>
                         )}
-                      </div>
+                      </Link>
                     ))}
                   </div>
                   {castCanScrollLeft && (

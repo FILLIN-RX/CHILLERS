@@ -12,6 +12,7 @@ import {
   verifyDownloadStarted,
   getPremiumDownloadUrl,
   isDownloadableUrl,
+  toIOSDownloadHref,
 } from '@/services/downloads';
 
 describe('Download Service & Platform Detection (Normal vs iOS)', () => {
@@ -126,61 +127,52 @@ describe('Download Service & Platform Detection (Normal vs iOS)', () => {
       });
     });
 
-    it('triggers native iOS download via an anchor click without WritableStream/StreamSaver', async () => {
-      const clickSpy = jest.fn();
-      const appendChildSpy = jest.spyOn(document.body, 'appendChild');
-
-      // Mock createElement pour capturer l'élément 'a'
-      const origCreateElement = document.createElement.bind(document);
-      jest.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
-        const el = origCreateElement(tagName);
-        if (tagName === 'a') {
-          el.click = clickSpy;
-        }
-        return el;
-      });
-
+    it('bypasses StreamSaver and returns totalBytes: null (navigation handled by toIOSDownloadHref)', async () => {
+      // jsdom verrouille window.location (configurable: false) : on ne peut pas
+      // capturer l'assignation de href. La logique de construction d'URL est
+      // couverte par les tests toIOSDownloadHref() ci-dessous ; ici on vérifie
+      // que streamDownloadToDisk ne tente PAS StreamSaver/WritableStream sur iOS.
       const abortCtrl = new AbortController();
       const result = await streamDownloadToDisk('https://cdn.example.com/video.mp4', {
         filename: 'mon-film.mp4',
         signal: abortCtrl.signal,
       });
 
-      expect(appendChildSpy).toHaveBeenCalled();
-      expect(clickSpy).toHaveBeenCalledTimes(1);
-
-      // Vérifie les attributs requis pour iOS
-      const createdAnchor = appendChildSpy.mock.calls.find(
-        ([node]) => (node as HTMLElement).tagName === 'A'
-      )?.[0] as HTMLAnchorElement;
-
-      expect(createdAnchor).toBeDefined();
-      expect(createdAnchor.href).toBe('https://cdn.example.com/video.mp4');
-      expect(createdAnchor.download).toBe('mon-film.mp4');
-      expect(createdAnchor.target).toBe('_blank');
-      expect(createdAnchor.rel).toContain('noopener');
-
-      // Sur iOS Safari, streamSaver est contourné et retourne totalBytes: null
+      // Retour immédiat sans progress (pas de fetch, pas de StreamSaver)
       expect(result).toEqual({ totalBytes: null });
     });
 
-    it('handles relative /api/ URLs on iOS by prepending backend origin', async () => {
-      const clickSpy = jest.fn();
-      jest.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
-        const el = document.createElementNS('http://www.w3.org/1999/xhtml', tagName) as HTMLElement;
-        if (tagName === 'a') {
-          el.click = clickSpy;
-        }
-        return el;
-      });
-
+    it('does not throw on relative /api/ URLs on iOS', async () => {
       const abortCtrl = new AbortController();
-      await streamDownloadToDisk('/api/download/file?url=abc', {
+      const result = await streamDownloadToDisk('/api/download/file?url=abc', {
         filename: 'test.mp4',
         signal: abortCtrl.signal,
       });
+      expect(result).toEqual({ totalBytes: null });
+    });
+  });
 
-      expect(clickSpy).toHaveBeenCalledTimes(1);
+  describe('toIOSDownloadHref() — proxy /file for iOS navigation', () => {
+    it('wraps raw third-party http URLs through /api/download/file (attachment garanti)', () => {
+      const href = toIOSDownloadHref('https://cdn.example.com/video.mp4', 'mon-film.mp4');
+      expect(href).toContain('/api/download/file?url=');
+      expect(href).toContain(encodeURIComponent('https://cdn.example.com/video.mp4'));
+      expect(href).toContain('filename=mon-film.mp4');
+    });
+
+    it('keeps already-proxied /api/ URLs untouched (no double wrapping)', () => {
+      const href = toIOSDownloadHref('/api/download/file?url=abc', 'test.mp4');
+      expect(href).toBe('/api/download/file?url=abc');
+    });
+
+    it('keeps /api/ URLs with API_BASE_PATH prefix untouched', () => {
+      const href = toIOSDownloadHref('/api/download/stream?m3u8=x', 'test.mp4');
+      expect(href).toBe('/api/download/stream?m3u8=x');
+    });
+
+    it('falls back to video.mp4 when filename is empty', () => {
+      const href = toIOSDownloadHref('https://cdn.example.com/v.mp4', '');
+      expect(href).toContain('filename=video.mp4');
     });
   });
 

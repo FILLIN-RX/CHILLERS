@@ -274,7 +274,7 @@ export default function SportsMatchesRow({
             return (
               <Link
                 key={m.id}
-                href={`/live/sp/${encodeURIComponent(m.id)}`}
+                href={`/live/sp/${m.slug ?? m.id}`}
                 className="group relative shrink-0 w-[290px] sm:w-[330px] aspect-[5/2] overflow-hidden rounded-[10px] bg-zinc-900 transition-transform duration-300 hover:scale-[1.015] cursor-pointer"
               >
                 <MatchBackdrop home={m.home} away={m.away} />

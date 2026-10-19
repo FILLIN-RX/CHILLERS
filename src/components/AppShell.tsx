@@ -44,9 +44,10 @@ export default function AppShell({ children, showBottomNav }: AppShellProps) {
   useDownloadToastEmitter();
   const pathname = usePathname();
 
-  // Fallback : garantit que le splash disparaît sur les pages sans fetch home
-  // (1500 ms = temps raisonnable pour que la page soit rendue)
-  useSplashReady(1500);
+  // Fallback : garantit que le splash disparaît sur les pages sans fetch home.
+  // Les pages détail servent leurs données via RSC (SSR) : le contenu est déjà
+  // utilisable à l'hydratation, inutile d'attendre 1.5s — 400ms suffisent.
+  useSplashReady(400);
 
   // Fullscreen player routes: no page chrome, just the player with its controls (for raw live embed & direct live matches).
   const isPlayerRoute =
@@ -114,7 +115,11 @@ export default function AppShell({ children, showBottomNav }: AppShellProps) {
         isOpen={isDonationOpen}
         onClose={() => setIsDonationOpen(false)}
       />
-      {!isAuthPage && !isPlayerRoute && <Header onSearchClick={openSearch} />}
+      {/* Suspense obligatoire : Header lit useSearchParams() — sans frontière,
+          la moindre page statique (?genre) échouerait au prerender. */}
+      <Suspense>
+        {!isAuthPage && !isPlayerRoute && <Header onSearchClick={openSearch} />}
+      </Suspense>
       <main className="flex-1 flex flex-col">{children}</main>
       {!isAuthPage && !isPaymentPage && !pathname?.startsWith("/profile") && !isPlayerRoute && <Footer />}
       {!isPlayerRoute && <NetworkStatusBanner />}

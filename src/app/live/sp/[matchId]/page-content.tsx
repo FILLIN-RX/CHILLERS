@@ -8,16 +8,16 @@ import { ArrowsClockwise, Television, X, ShareNetwork, Check } from "@phosphor-i
 import LivePlayer from "@/components/LivePlayer";
 import CompetitionBadge from "@/components/CompetitionBadge";
 import { MatchBackdrop, TeamCrest } from "@/components/MatchCardBackdrop";
-import { getSportsMatches, getSportsStream } from "@/services/sports";
+import { getSportsChannels, getSportsMatches, getSportsStream } from "@/services/sports";
 import { getLiveBallMatches, getLiveBallChampionsLeague } from "@/services/liveball";
 import { buildAffiche, useMatchPosterIndex } from "@/hooks/useMatchPosterIndex";
 import { useNow } from "@/hooks/useNow";
 import { formatMatchDay, formatMatchTime, teamTier } from "@/lib/match-poster";
 import type { LiveChannel } from "@/types/live";
-import type { SportsMatch } from "@/types/sports";
+import type { SportsMatch, SportsServer } from "@/types/sports";
 import { PopupFirewall } from "@/lib/PopupFirewall";
 
-/** Le flux résolu par la chaîne de providers : on n'en sert qu'un, celui qui diffuse. */
+/** Flux joué : le serveur sélectionné, ou le premier que la chaîne a trouvé. */
 interface ResolvedSportsStream {
   url: string;
   type: "hls" | "iframe";
@@ -66,6 +66,8 @@ export default function SportsMatchContent() {
 
   const [reloadKey, setReloadKey] = useState(0);
   const [shareCopied, setShareCopied] = useState(false);
+  /** Serveur choisi dans le sélecteur, indexé par match : changer de match remet le flux principal. */
+  const [serverChoice, setServerChoice] = useState<{ id: string; idx: number } | null>(null);
 
   // Verrouille le scroll tant que le player est ouvert et active le pare-feu anti-pub
   useEffect(() => {
@@ -108,17 +110,18 @@ export default function SportsMatchContent() {
   const matchedLb = isLb
     ? allLbMatches.find((m) => m.id === liveballId)
     : allLbMatches.find((lb) => {
-        const sm = sportsMatches.find((s) => s.id === decodedId);
+        const sm = sportsMatches.find((s) => s.id === decodedId || s.slug === decodedId);
         return sm ? areTeamsMatching(sm.home, sm.away, lb.home, lb.away) : false;
       });
 
   const matchedSports = !isLb
-    ? sportsMatches.find((m) => m.id === decodedId)
+    ? sportsMatches.find((m) => m.id === decodedId || m.slug === decodedId)
     : sportsMatches.find((sm) => {
         return matchedLb ? areTeamsMatching(matchedLb.home, matchedLb.away, sm.home, sm.away) : false;
       });
 
-  const match: SportsMatch | undefined = matchedLb
+  // useMemo : l'objet est recréé à chaque render, et `playing` en dépend.
+  const match = useMemo<SportsMatch | undefined>(() => (matchedLb
     ? {
         id: `liveball:${matchedLb.id}`,
         sourceId: matchedLb.id,
@@ -133,7 +136,7 @@ export default function SportsMatchContent() {
         startTs: matchedLb.startTs || matchedSports?.startTs,
         league: matchedLb.league || matchedSports?.league,
       }
-    : matchedSports;
+    : matchedSports), [matchedLb, matchedSports]);
 
   // Le backend chaîne les providers (LiveBall, Kora, Kooorah, YallaPro, Streamiz)
   // et ne renvoie que celui qui diffuse réellement.
@@ -159,7 +162,71 @@ export default function SportsMatchContent() {
     refetchInterval: (query) => (query.state.data ? false : 30_000),
   });
 
-  const resolvedMatch = stream?.match ?? match;
+  // Tous les serveurs du match : /stream donne le flux principal tout de suite,
+  // /channels complète la liste en arrière-plan (registre 24 h côté backend,
+  // agrégation multi-providers) — le sélecteur apparaît dès qu'elle répond.
+  const { data: channels } = useQuery({
+    queryKey: ["live", "unified", "channels", decodedId, reloadKey],
+    queryFn: () => getSportsChannels(isLb ? `liveball:${liveballId}` : decodedId),
+    enabled: Boolean(decodedId),
+    staleTime: 60_000,
+    retry: false,
+    // /stream a déjà mis le flux principal au registre : le premier /channels
+    // répond vite (liste partielle). On re-tant tant que `complete` est faux
+    // (la chaîne complète arrive en arrière-plan), et même après un échec —
+    // providers en panne au premier coup, vivants 15 s plus tard.
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      if (data === null) return 15_000;
+      if (data && data.complete === false) return 8_000;
+      return false;
+    },
+  });
+
+  const servers = useMemo<SportsServer[]>(() => {
+    const list: SportsServer[] = channels?.servers?.length
+      ? channels.servers
+      : stream
+        ? [
+            {
+              name: stream.provider ? stream.provider.toUpperCase() : "Direct",
+              url: stream.url,
+              type: stream.type,
+              relayUrl: stream.relayUrl,
+              referer: stream.referer,
+            },
+          ]
+        : [];
+    // HLS direct d'abord (repli des anciens registres déjà en mémoire),
+    // embed provider ensuite.
+    return [...list].sort((a, b) => (a.type === "hls" ? 0 : 1) - (b.type === "hls" ? 0 : 1));
+  }, [channels, stream]);
+
+  const activeIdx = serverChoice?.id === decodedId ? serverChoice.idx : null;
+  const activeServer = activeIdx !== null ? servers[activeIdx] ?? null : null;
+
+  const playing = useMemo<(ResolvedSportsStream & { match?: SportsMatch }) | null>(() => {
+    const fromServer = (s: SportsServer, fallback: SportsMatch | undefined) => ({
+      // Un miroir HLS se lit toujours par notre relay (jeton + CORS).
+      url: s.type === "hls" && s.relayUrl ? s.relayUrl : s.url,
+      type: s.type ?? ("iframe" as const),
+      relayUrl: s.relayUrl,
+      referer: s.referer,
+      provider: s.provider,
+      match: fallback,
+    });
+    if (activeServer) return fromServer(activeServer, stream?.match ?? match);
+    // Dès que la liste complète arrive, le HLS direct (notre relay) devient la
+    // lecture par défaut : l'embed provider n'est qu'un repli manuel.
+    if (channels?.servers?.length) {
+      const preferred = servers.find((s) => s.type === "hls") ?? servers[0];
+      if (preferred) return fromServer(preferred, stream?.match ?? match);
+    }
+    if (stream) return { ...stream, match: stream.match ?? match };
+    return null;
+  }, [activeServer, channels, stream, servers, match]);
+
+  const resolvedMatch = playing?.match ?? match;
 
   // Affiche officielle du service de score : nom de la compétition, écusson de
   // ligue et logo de club. Retombe sur la source quand la jointure échoue.
@@ -178,26 +245,26 @@ export default function SportsMatchContent() {
   const preMatch = Boolean(kickoff && kickoff * 1000 > now);
   const isUpcoming = preMatch || match?.status === "upcoming";
   const isLive = resolvedMatch?.status === "live";
-  const selectedType = stream?.type;
-  const rawEmbedUrl = selectedType === "iframe" ? stream?.url : null;
+  const selectedType = playing?.type;
+  const rawEmbedUrl = selectedType === "iframe" ? playing?.url : null;
   // Les hôtes « domain protected » refusent notre origine : le proxy rejoue le
   // Referer de la page qui embarque normalement le lecteur.
   const embedUrl = rawEmbedUrl
     ? (/youtube\.com|youtu\.be/i.test(rawEmbedUrl)
         ? rawEmbedUrl
         : `/api/live/embed-proxy?url=${encodeURIComponent(rawEmbedUrl)}${
-            stream?.referer ? `&referer=${encodeURIComponent(stream.referer)}` : ""
+            playing?.referer ? `&referer=${encodeURIComponent(playing.referer)}` : ""
           }`)
     : null;
 
-  const channel: LiveChannel | null = selectedType === "hls" && stream
+  const channel: LiveChannel | null = selectedType === "hls" && playing
     ? {
         _id: `sp-${decodedId}`,
         name: resolvedMatch ? `${resolvedMatch.home}${resolvedMatch.away ? ` - ${resolvedMatch.away}` : ""}` : "Match",
         slug: `sp-${decodedId}`,
         categories: ["sports"],
         type: "hls",
-        streamUrl: stream.relayUrl || stream.url,
+        streamUrl: playing.relayUrl || playing.url,
         enabled: true,
         order: 0,
         isOnline: true,
@@ -205,6 +272,7 @@ export default function SportsMatchContent() {
     : null;
 
   const retry = () => {
+    setServerChoice(null);
     setReloadKey((k) => k + 1);
     refetch();
   };
@@ -245,7 +313,7 @@ export default function SportsMatchContent() {
       )}
 
       {/* ── Match à venir (habillage carte Apple TV) ───────────────── */}
-      {!isLoading && isUpcoming && (preMatch || !stream) && match && (
+      {!isLoading && isUpcoming && (preMatch || !playing) && match && (
         <div className="relative w-full h-full overflow-hidden bg-black">
           <MatchBackdrop home={match.home} away={match.away} />
 
@@ -329,7 +397,7 @@ export default function SportsMatchContent() {
       )}
 
       {/* ── Aucun flux détecté (habillage carte Apple TV) ──────────── */}
-      {!isLoading && !stream && !isUpcoming && (
+      {!isLoading && !playing && !isUpcoming && (
         <div className="relative w-full h-full overflow-hidden bg-black">
           <MatchBackdrop home={resolvedMatch?.home} away={resolvedMatch?.away} />
 
@@ -401,12 +469,19 @@ export default function SportsMatchContent() {
       {/* ── Flux HLS natif via notre relay ─────────────────────────── */}
       {channel && !preMatch && (
         <div className="absolute inset-0">
-          <LivePlayer channel={channel} fill hideTopBar onBack={() => (window.location.href = "/live")} />
+          {/* key : un changement de serveur remonte le player sur le nouveau flux */}
+          <LivePlayer
+            key={`${decodedId}-${activeIdx ?? "primary"}`}
+            channel={channel}
+            fill
+            hideTopBar
+            onBack={() => (window.location.href = "/live")}
+          />
         </div>
       )}
 
       {/* ── Barre de contrôle : retour, recharge, partage ──────────── */}
-      {stream && !preMatch && (
+      {playing && !preMatch && (
         <div className="absolute top-0 inset-x-0 z-30 pt-[calc(0.75rem_+_env(safe-area-inset-top,0px))] pb-3 pl-[calc(0.75rem_+_env(safe-area-inset-left,0px))] pr-[calc(0.75rem_+_env(safe-area-inset-right,0px))] bg-gradient-to-b from-black/90 via-black/50 to-transparent">
           <div className="flex items-center justify-between gap-3">
             <Link
@@ -454,6 +529,37 @@ export default function SportsMatchContent() {
                 {shareCopied ? <Check className="h-4 w-4 text-brand-primary" /> : <ShareNetwork className="h-4 w-4" />}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Sélecteur de serveurs (tous les liens du match) ─────────── */}
+      {playing && !preMatch && servers.length > 1 && (
+        <div className="absolute bottom-0 inset-x-0 z-30 pt-10 pb-[calc(0.75rem_+_env(safe-area-inset-bottom,0px))] bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none">
+          <div className="flex items-center gap-2 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden pointer-events-auto">
+            {servers.map((s, idx) => {
+              const isActive = (activeIdx ?? 0) === idx;
+              return (
+                <button
+                  key={`${s.provider ?? "srv"}-${s.sourceId ?? idx}-${idx}`}
+                  onClick={() => setServerChoice({ id: decodedId, idx })}
+                  className={`shrink-0 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide backdrop-blur-md transition-colors ${
+                    isActive
+                      ? "bg-brand-primary text-white"
+                      : "bg-black/60 text-zinc-300 border border-white/15 hover:bg-white/15"
+                  }`}
+                >
+                  <span className="truncate max-w-[9rem]">{s.name}</span>
+                  <span
+                    className={`text-[9px] font-black uppercase ${
+                      isActive ? "text-white/80" : "text-zinc-500"
+                    }`}
+                  >
+                    {s.type === "hls" ? "HD" : "Web"}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
       )}

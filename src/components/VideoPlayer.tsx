@@ -18,7 +18,9 @@ import { isSlowConnection } from "@/services/media";
 import { getAntiBotHeaders } from "@/lib/antibot";
 import { PopupFirewall } from "@/lib/PopupFirewall";
 import { getBackendOrigin } from "@/services/http";
-import Hls from "hls.js";
+// Type-only : hls.js (~530 Ko) est importé dynamiquement dans l'effet HLS,
+// jamais inclus dans le bundle initial de la page watch.
+import type Hls from "hls.js";
 
 interface VideoPlayerProps {
   item: MovieOrShow;
@@ -249,6 +251,19 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
         .trim();
       const filename = `${cleanTitle}${currentEpisode ? `_S${currentEpisode.season || 1}E${currentEpisode.number || 1}` : ""}.mp4`;
       const backend = getBackendOrigin();
+
+      if (isIOS) {
+        // iOS : target="_blank" + download cross-origin est ignoré par WebKit →
+        // Safari lisait le MP4 dans un nouvel onglet au lieu de télécharger.
+        // On navigue dans l'onglet courant et on passe toute URL tierce par le
+        // proxy /file qui envoie Content-Disposition: attachment (boîte native).
+        const proxied = directDl.startsWith("http") && !directDl.includes("/api/")
+          ? `/api/download/file?url=${encodeURIComponent(directDl)}&filename=${encodeURIComponent(filename)}`
+          : directDl;
+        window.location.href = proxied.startsWith("http") ? proxied : `${backend}${proxied}`;
+        return;
+      }
+
       const href = directDl.startsWith("http") ? directDl : `${backend}${directDl}`;
 
       const a = document.createElement("a");
@@ -358,82 +373,93 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
     const slowConn = isSlowConnection();
     setIsLowBandwidth(slowConn);
 
+    let cancelled = false;
+
     if (isHls) {
-      if (Hls.isSupported()) {
-        const hls = new Hls({
-          enableWorker: true,
-          capLevelToPlayerSize: true, // Don't fetch 1080p if screen or window is small
-          abrEwmaDefaultEstimate: slowConn ? 500_000 : 1_500_000, // conservative bandwidth start
-          abrBandWidthFactor: 0.8, // safety margin before stepping up
-          abrBandWidthUpFactor: 0.7, // slow ramp up prevents buffering jitter
-          maxBufferLength: 60, // 60s forward buffer
-          maxMaxBufferLength: 120, // 120s max
-          backBufferLength: 180, // Garde 3 minutes de vidéo passée en mémoire RAM (retour arrière instantané sans re-téléchargement)
-          maxBufferSize: 60 * 1024 * 1024, // 60 Mo de cache tampon
-          lowLatencyMode: false, // deep buffer for stability on packet-lossy connections
-          startLevel: slowConn ? 0 : -1, // start at lowest bitrate immediately on 2G/3G
+      // Import à la demande de hls.js (~530 Ko) : le chunk n'est chargé que
+      // lorsqu'une source HLS est réellement lue. Les sources MP4/iframe ne
+      // le paient jamais, et le bundle initial de la page watch allège.
+      void (async () => {
+        const { default: Hls } = await import("hls.js");
+        if (cancelled) return;
 
-          // Aggressive loading retries on bad connections:
-          fragLoadingMaxRetry: 8,
-          fragLoadingRetryDelay: 1000,
-          fragLoadingMaxRetryTimeout: 64000,
-          manifestLoadingMaxRetry: 8,
-          manifestLoadingRetryDelay: 1000,
-          manifestLoadingMaxRetryTimeout: 64000,
-          levelLoadingMaxRetry: 8,
-          levelLoadingRetryDelay: 1000,
-          levelLoadingMaxRetryTimeout: 64000,
-        });
+        if (Hls.isSupported()) {
+          const hls = new Hls({
+            enableWorker: true,
+            capLevelToPlayerSize: true, // Don't fetch 1080p if screen or window is small
+            abrEwmaDefaultEstimate: slowConn ? 500_000 : 1_500_000, // conservative bandwidth start
+            abrBandWidthFactor: 0.8, // safety margin before stepping up
+            abrBandWidthUpFactor: 0.7, // slow ramp up prevents buffering jitter
+            maxBufferLength: 60, // 60s forward buffer
+            maxMaxBufferLength: 120, // 120s max
+            backBufferLength: 180, // Garde 3 minutes de vidéo passée en mémoire RAM (retour arrière instantané sans re-téléchargement)
+            maxBufferSize: 60 * 1024 * 1024, // 60 Mo de cache tampon
+            lowLatencyMode: false, // deep buffer for stability on packet-lossy connections
+            startLevel: slowConn ? 0 : -1, // start at lowest bitrate immediately on 2G/3G
 
-        // Toutes les requêtes HLS passent par /api/live/proxy (voir mediaSource) :
-        // c'est lui qui injecte le Referer CDN exigé par l'anti-leech.
-        hls.loadSource(mediaSource ?? videoUrl);
-        hls.attachMedia(video);
+            // Aggressive loading retries on bad connections:
+            fragLoadingMaxRetry: 8,
+            fragLoadingRetryDelay: 1000,
+            fragLoadingMaxRetryTimeout: 64000,
+            manifestLoadingMaxRetry: 8,
+            manifestLoadingRetryDelay: 1000,
+            manifestLoadingMaxRetryTimeout: 64000,
+            levelLoadingMaxRetry: 8,
+            levelLoadingRetryDelay: 1000,
+            levelLoadingMaxRetryTimeout: 64000,
+          });
 
-        hls.on(Hls.Events.MANIFEST_PARSED, (_event, data) => {
-          if (data && data.levels && data.levels.length > 1) {
-            const lvls = data.levels.map((l, idx) => ({
-              index: idx,
-              height: l.height,
-              bitrate: l.bitrate,
-              label: l.height ? `${l.height}p` : `${Math.round(l.bitrate / 1000)}k`,
-            }));
-            setQualityLevels(lvls);
-          }
-          video.play().catch(() => {});
-        });
+          // Toutes les requêtes HLS passent par /api/live/proxy (voir mediaSource) :
+          // c'est lui qui injecte le Referer CDN exigé par l'anti-leech.
+          hls.loadSource(mediaSource ?? videoUrl);
+          hls.attachMedia(video);
 
-        // Error recovery against network dropouts and media stalls
-        hls.on(Hls.Events.ERROR, (_event, data) => {
-          if (data.fatal) {
-            switch (data.type) {
-              case Hls.ErrorTypes.NETWORK_ERROR:
-                console.warn("[HLS] Network error, recovering...", data);
-                hls.startLoad();
-                break;
-              case Hls.ErrorTypes.MEDIA_ERROR:
-                console.warn("[HLS] Media error, recovering...", data);
-                hls.recoverMediaError();
-                break;
-              default:
-                console.error("[HLS] Fatal error, destroying instance", data);
-                hls.destroy();
-                break;
+          hls.on(Hls.Events.MANIFEST_PARSED, (_event, data) => {
+            if (data && data.levels && data.levels.length > 1) {
+              const lvls = data.levels.map((l, idx) => ({
+                index: idx,
+                height: l.height,
+                bitrate: l.bitrate,
+                label: l.height ? `${l.height}p` : `${Math.round(l.bitrate / 1000)}k`,
+              }));
+              setQualityLevels(lvls);
             }
-          }
-        });
+            video.play().catch(() => {});
+          });
 
-        hlsRef.current = hls;
-      } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-        video.src = mediaSource ?? videoUrl;
-        video.play().catch(() => {});
-      }
+          // Error recovery against network dropouts and media stalls
+          hls.on(Hls.Events.ERROR, (_event, data) => {
+            if (data.fatal) {
+              switch (data.type) {
+                case Hls.ErrorTypes.NETWORK_ERROR:
+                  console.warn("[HLS] Network error, recovering...", data);
+                  hls.startLoad();
+                  break;
+                case Hls.ErrorTypes.MEDIA_ERROR:
+                  console.warn("[HLS] Media error, recovering...", data);
+                  hls.recoverMediaError();
+                  break;
+                default:
+                  console.error("[HLS] Fatal error, destroying instance", data);
+                  hls.destroy();
+                  break;
+              }
+            }
+          });
+
+          hlsRef.current = hls;
+        } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+          video.src = mediaSource ?? videoUrl;
+          video.play().catch(() => {});
+        }
+      })();
     } else {
       video.src = mediaSource ?? videoUrl;
       video.play().catch(() => {});
     }
 
     return () => {
+      cancelled = true;
       if (hlsRef.current) {
         hlsRef.current.destroy();
         hlsRef.current = null;

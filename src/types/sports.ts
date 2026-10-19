@@ -1,10 +1,15 @@
 export type SportsSourceId = "liveball" | "kora" | "kooorah" | "yallapro" | "streamiz";
 
 export interface SportsMatch {
-  /** Identifiant composite `source:sourceId`, utilisé dans les URL. */
+  /** Identifiant composite `source:sourceId` (interne, historique des URL). */
   id: string;
   /** Identifiant technique propre à la source (numéro, hash, URL). */
   sourceId: string;
+  /**
+   * Slug neutle pour l'URL (`/live/sp/<slug>`) : `sourceId` lisible s'il est
+   * unique, sinon un hash de la rencontre. Pas de provider dans le routing.
+   */
+  slug?: string;
   source: SportsSourceId;
   status: "live" | "upcoming";
   home: string;
@@ -26,6 +31,10 @@ export interface SportsServer {
   relayUrl?: string;
   /** Referer attendu par le lecteur (hôtes « domain protected »). */
   referer?: string;
+  /** Source qui diffuse ce serveur précis (un match peut en croiser plusieurs). */
+  provider?: SportsSourceId;
+  /** Identifiant du match chez cette source : reconstruit le relay HLS du miroir. */
+  sourceId?: string;
 }
 
 export interface SportsStream {
@@ -40,5 +49,7 @@ export interface SportsStream {
   /** Source qui sert effectivement le flux : pas forcément celle du match affiché. */
   provider?: SportsSourceId;
   servers: SportsServer[];
+  /** true = la collecte multi-providers est épuisée (liste exhaustive). */
+  complete?: boolean;
   match?: SportsMatch;
 }

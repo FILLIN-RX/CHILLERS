@@ -1,8 +1,7 @@
 import type { Metadata, Viewport } from "next";
-import { cookies } from "next/headers";
 import { Geist_Mono } from "next/font/google";
 import { LanguageProvider } from "@/i18n/LanguageContext";
-import { type Language, defaultLanguage } from "@/i18n";
+import { defaultLanguage } from "@/i18n";
 import AdminShortcut from "@/components/AdminShortcut";
 import PWARegister from "@/components/pwa/PWARegister";
 import SplashScreen from "@/components/pwa/SplashScreen";
@@ -13,7 +12,6 @@ import { SITE_URL } from "@/lib/seo";
 import AdSense from "@/components/AdSense";
 import SessionSyncProvider from "@/components/providers/SessionSyncProvider";
 import QueryProvider from "@/components/QueryProvider";
-import { auth } from "@/auth";
 import "./globals.css";
 import Script from "next/script";
 
@@ -113,30 +111,19 @@ export const viewport: Viewport = {
   themeColor: "#1F1F1F",
 };
 
-// P2-#30: resolve the language from the cookie on the server so the first
-// paint already has the right translations. Middleware guarantees the cookie
-// exists, so this is just a typed read. In Next 16 `cookies()` is async.
-async function resolveInitialLang(): Promise<Language> {
-  try {
-    const store = await cookies();
-    const c = store.get("chillers-lang")?.value;
-    if (c === "fr" || c === "en") return c;
-  } catch {
-    /* cookies() throws in some server contexts; fall through to default */
-  }
-  return defaultLanguage;
-}
-
-export default async function RootLayout({
+// P3: ce layout est volontairement SANS API dynamique (cookies()/auth()) :
+// c'est la condition pour que les pages publiques (/, /categories…) soient
+// prérédigées à build time et servies en ISR. La langue est résolue côté
+// client (localStorage/cookie/navigator) par LanguageProvider, et la session
+// NextAuth est chargée côté client par SessionProvider.
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const initialLang = await resolveInitialLang();
-  const session = await auth().catch(() => null);
   return (
     <html
-      lang={initialLang}
+      lang={defaultLanguage}
       className={`${geistMono.variable} dark h-full antialiased`}
     >
       <head>
@@ -199,9 +186,9 @@ export default async function RootLayout({
             __html: `<div id="__chillers_splash" aria-hidden="true"><div class="splash-spinner"></div><script>setTimeout(function(){var s=document.getElementById("__chillers_splash");if(s){s.style.transition="opacity 0.4s ease";s.style.opacity="0";setTimeout(function(){if(s&&s.parentNode)s.parentNode.removeChild(s);},400);}},3500);</script></div>`,
           }}
         />
-        <SessionSyncProvider session={session}>
+        <SessionSyncProvider>
           <QueryProvider>
-            <LanguageProvider initialLang={initialLang}>
+            <LanguageProvider>
               <PWARegister />
               <SplashScreen />
               {/* <PWAInstallBanner /> - Désactivé */}

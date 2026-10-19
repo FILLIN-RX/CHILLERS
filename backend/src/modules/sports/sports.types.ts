@@ -13,6 +13,12 @@ export interface SportsMatch {
   id: string;
   /** Identifiant brut de la source (numérique pour kora/kooorah, slug sinon). */
   sourceId: string;
+  /**
+   * Identifiant neutle pour l'URL (`/live/sp/<slug>`) : le `sourceId` lisible
+   * s'il est unique dans la liste fusionnée, sinon un hash de la rencontre.
+   * Aucun nom de provider dans le routing.
+   */
+  slug?: string;
   source: SportsSourceId;
   status: 'live' | 'upcoming';
   home: string;
@@ -48,6 +54,11 @@ export interface SportsServer {
    */
   source?: SportsSourceId;
   sourceId?: string;
+  /**
+   * Relay HLS déjà construit (fast path lab) : surcharge le relay générique
+   * `source/sourceId` quand le lien vient du snapshot et non de la chaîne.
+   */
+  relayUrl?: string;
 }
 
 /**

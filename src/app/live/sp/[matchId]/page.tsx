@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { SITE_URL, SITE_NAME, SITE_LOCALE } from "@/lib/seo";
+import { API_BASE_URL } from "@/lib/api-base";
 import SportsMatchContent from "./page-content";
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === "production" ? "https://chillers-production-8e02.up.railway.app/api" : "http://localhost:4000/api");
+const API_BASE = API_BASE_URL;
 
 interface MatchInfo {
   id: string;
@@ -15,6 +15,7 @@ interface MatchInfo {
   score?: string;
   startTs?: number;
   league?: string;
+  slug?: string;
 }
 
 async function fetchMatch(matchId: string): Promise<MatchInfo | null> {
@@ -22,7 +23,7 @@ async function fetchMatch(matchId: string): Promise<MatchInfo | null> {
     const res = await fetch(`${API_BASE}/sports/matches`, { next: { revalidate: 60 } });
     if (!res.ok) return null;
     const body = await res.json();
-    return (body?.data || []).find((m: MatchInfo) => m.id === matchId) ?? null;
+    return (body?.data || []).find((m: MatchInfo) => m.id === matchId || m.slug === matchId) ?? null;
   } catch {
     return null;
   }
@@ -34,7 +35,9 @@ export async function generateMetadata({
   params: Promise<{ matchId: string }>;
 }): Promise<Metadata> {
   const { matchId } = await params;
-  const canonical = `${SITE_URL}/live/sp/${encodeURIComponent(matchId)}`;
+  // `:` est valide dans un segment d'URL : on garde l'URL telle que le
+  // navigateur l'affiche (lien de la liste + partage), sans %3A.
+  const canonical = `${SITE_URL}/live/sp/${matchId}`;
 
   const match = await fetchMatch(decodeURIComponent(matchId));
   const isLive = match?.status === "live";

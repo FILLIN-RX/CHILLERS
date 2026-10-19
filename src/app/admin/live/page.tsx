@@ -172,7 +172,7 @@ export default function AdminLive() {
       width: 150,
       render: (_, ch) => (
         <Space>
-          <Button size="small" icon={<PlayCircleOutlined />} href={`/live/${ch.slug}`} target="_blank" />
+          <Button size="small" icon={<PlayCircleOutlined />} href="/live" target="_blank" />
           <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(ch)} />
           <Popconfirm title="Supprimer cette chaîne ?" onConfirm={() => handleDelete(ch._id)}>
             <Button size="small" danger icon={<DeleteOutlined />} />

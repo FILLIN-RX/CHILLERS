@@ -20,6 +20,7 @@ import {
   WarningCircle,
   Spinner,
   ArrowLeft,
+  CaretRight,
   ShieldCheck,
   CreditCard,
   CurrencyCircleDollar,
@@ -27,6 +28,7 @@ import {
 } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import PosterWallBackground from "@/components/PosterWallBackground";
+import PaymentStepIndicator, { type WizardStep } from "@/components/PaymentStepIndicator";
 
 /* Symboles / indicatifs pour les pays et devises courants */
 const CURRENCY_SYMBOL: Record<string, string> = {
@@ -62,6 +64,7 @@ export default function SubscribePage() {
   /* ── Modal de paiement ── */
   const [selectedPlan, setSelectedPlan] = useState<PaymentPlan | null>(null);
   const [view, setView] = useState<ModalView>("form");
+  const [step, setStep] = useState<WizardStep>(1);
   const [country, setCountry] = useState("CM");
   const [network, setNetwork] = useState("");
   const [networks, setNetworks] = useState<PaymentNetwork[]>([]);
@@ -228,6 +231,7 @@ export default function SubscribePage() {
     }
     setSelectedPlan(plan);
     setView("form");
+    setStep(1);
     setPhase("idle");
     setActivePayment(null);
     setErrorMessage(null);
@@ -248,6 +252,29 @@ export default function SubscribePage() {
     setActivePayment(null);
     setPhase("idle");
     setErrorMessage(null);
+  };
+
+  /* ── Wizard : navigation entre les 3 étapes ── */
+  const needsPhone = network !== "card" && network !== "crypto";
+
+  const goFromMethod = () => {
+    setErrorMessage(null);
+    if (!network) return;
+    // Carte / crypto → checkout hébergé : pas d'étape « numéro », direct confirmation.
+    setStep(needsPhone ? 2 : 3);
+  };
+
+  const goFromPhone = () => {
+    setErrorMessage(null);
+    if (!phone.trim() || phone.replace(/\D/g, "").length < 6) {
+      setErrorMessage("Entrez un numéro de téléphone valide.");
+      return;
+    }
+    if (activeRate?.otpRequired && !preOtp.trim()) {
+      setErrorMessage("Ce réseau exige un code obtenu avant le paiement (voir consignes).");
+      return;
+    }
+    setStep(3);
   };
 
   /* ── Envoi softpay ── */
@@ -625,7 +652,15 @@ export default function SubscribePage() {
 
                   <div className="flex gap-2 pt-1">
                     <button
-                      onClick={() => (phase === "failed" ? setView("form") : closeModal())}
+                      onClick={() => {
+                        if (phase === "failed") {
+                          setView("form");
+                          setPhase("idle");
+                          setStep(1);
+                        } else {
+                          closeModal();
+                        }
+                      }}
                       className="w-1/3 py-2.5 rounded-md bg-brand-card hover:bg-zinc-700 text-brand-text-muted font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                     >
                       {phase === "failed" ? (
@@ -656,7 +691,7 @@ export default function SubscribePage() {
                   </div>
                 </div>
               ) : (
-                /* ── Formulaire de paiement ── */
+                /* ── Formulaire de paiement (wizard : Méthode → Numéro → Confirmation) ── */
                 <form onSubmit={handlePay} className="space-y-4">
                   <div className="flex items-center justify-between border-b border-brand-border pb-3 pr-6">
                     <div>
@@ -684,140 +719,187 @@ export default function SubscribePage() {
                     </div>
                   ) : (
                     <>
-                      {/* Pays */}
-                      <div>
-                        <label className="text-[10px] text-brand-text-muted block mb-1 font-semibold">
-                          Pays
-                        </label>
-                        <select
-                          value={country}
-                          onChange={(e) => {
-                            const iso = e.target.value;
-                            setCountry(iso);
-                            // La devise suit le pays par défaut (convertible si besoin)
-                            const cur = config?.countries?.find((c) => c.iso === iso)?.currency;
-                            if (cur && cur.toUpperCase() !== currency) {
-                              changeCurrency(cur.toUpperCase());
-                            }
-                          }}
-                          className="w-full px-2.5 py-2 rounded-xs bg-brand-card border border-brand-border text-foreground text-xs focus:outline-none focus:border-brand-primary cursor-pointer"
-                        >
-                          {(config?.countries || []).map((c) => (
-                            <option key={c.iso} value={c.iso}>
-                              {c.name} ({c.iso})
-                            </option>
-                          ))}
-                          {!config?.countries?.length && <option value="CM">Cameroun (CM)</option>}
-                        </select>
-                      </div>
+                      <PaymentStepIndicator step={step} />
 
-                      {/* Réseau */}
-                      <div>
-                        <label className="text-[10px] text-brand-text-muted block mb-1 font-semibold">
-                          Moyen de paiement
-                        </label>
-                        <div className="grid grid-cols-2 gap-2">
-                          {networks.map((n) => {
-                            const selected = network === n.code;
-                            const isCard = n.code === "card";
-                            const isCrypto = n.code === "crypto";
-                            return (
-                              <button
-                                type="button"
-                                key={n.code}
-                                onClick={() => setNetwork(n.code)}
-                                className={`p-2.5 rounded-md border flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                                  selected
-                                    ? "bg-brand-primary/15 border-brand-primary text-brand-primary font-bold shadow-[0_0_12px_rgba(244,42,124,0.18)]"
-                                    : "bg-brand-card border-brand-border text-brand-text-muted hover:border-brand-primary/40"
-                                }`}
-                              >
-                                {isCard ? (
-                                  <CreditCard className="w-3.5 h-3.5" />
-                                ) : isCrypto ? (
-                                  <CurrencyCircleDollar className="w-3.5 h-3.5" />
-                                ) : null}
-                                <span className="text-[11px] font-black tracking-wide truncate">
-                                  {n.name}
-                                </span>
-                              </button>
-                            );
-                          })}
+                      {/* ── Étape 1 · Méthode ── */}
+                      {step === 1 && (
+                        <div className="space-y-4">
+                          {/* Pays */}
+                          <div>
+                            <label className="text-[10px] text-brand-text-muted block mb-1 font-semibold">
+                              Pays
+                            </label>
+                            <select
+                              value={country}
+                              onChange={(e) => {
+                                const iso = e.target.value;
+                                setCountry(iso);
+                                // La devise suit le pays par défaut (convertible si besoin)
+                                const cur = config?.countries?.find((c) => c.iso === iso)?.currency;
+                                if (cur && cur.toUpperCase() !== currency) {
+                                  changeCurrency(cur.toUpperCase());
+                                }
+                              }}
+                              className="w-full px-2.5 py-2 rounded-xs bg-brand-card border border-brand-border text-foreground text-xs focus:outline-none focus:border-brand-primary cursor-pointer"
+                            >
+                              {(config?.countries || []).map((c) => (
+                                <option key={c.iso} value={c.iso}>
+                                  {c.name} ({c.iso})
+                                </option>
+                              ))}
+                              {!config?.countries?.length && <option value="CM">Cameroun (CM)</option>}
+                            </select>
+                          </div>
+
+                          {/* Réseau */}
+                          <div>
+                            <label className="text-[10px] text-brand-text-muted block mb-1 font-semibold">
+                              Moyen de paiement
+                            </label>
+                            <div className="grid grid-cols-2 gap-2">
+                              {networks.map((n) => {
+                                const selected = network === n.code;
+                                const isCard = n.code === "card";
+                                const isCrypto = n.code === "crypto";
+                                return (
+                                  <button
+                                    type="button"
+                                    key={n.code}
+                                    onClick={() => setNetwork(n.code)}
+                                    className={`p-2.5 rounded-md border flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                                      selected
+                                        ? "bg-brand-primary/15 border-brand-primary text-brand-primary font-bold shadow-[0_0_12px_rgba(244,42,124,0.18)]"
+                                        : "bg-brand-card border-brand-border text-brand-text-muted hover:border-brand-primary/40"
+                                    }`}
+                                  >
+                                    {isCard ? (
+                                      <CreditCard className="w-3.5 h-3.5" />
+                                    ) : isCrypto ? (
+                                      <CurrencyCircleDollar className="w-3.5 h-3.5" />
+                                    ) : null}
+                                    <span className="text-[11px] font-black tracking-wide truncate">
+                                      {n.name}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
                         </div>
-                      </div>
+                      )}
 
-                      {/* Frais + OTP pré-paiement */}
-                      {activeRate && (
-                        <div className="bg-brand-card/60 border border-brand-border rounded-xs p-2.5 space-y-2">
-                          {activeRate.feePercent > 0 && (
-                            <p className="text-[10px] text-brand-text-muted">
-                              Frais opérateur :{" "}
-                              <strong className="text-foreground">
-                                {activeRate.feePercent}%
-                                {activeRate.feeFixed > 0 ? ` + ${formatAmount(activeRate.feeFixed)}` : ""}
-                              </strong>{" "}
-                              {activeRate.feeMode === "DEDUCTED"
-                                ? "inclus dans le montant"
-                                : "ajoutés au montant débité"}
-                              .
-                            </p>
-                          )}
-                          {activeRate.otpRequired && (
-                            <>
+                      {/* ── Étape 2 · Numéro ── */}
+                      {step === 2 && needsPhone && (
+                        <div className="space-y-3">
+                          {/* Mini-récap méthode */}
+                          <div className="flex items-center justify-between bg-brand-card/60 border border-brand-border rounded-xs px-3 py-2">
+                            <span className="text-[11px] text-brand-text-muted font-semibold">
+                              {networks.find((n) => n.code === network)?.name || network}
+                            </span>
+                            <span className="text-xs font-black text-foreground">
+                              {formatAmount(selectedPlan.price)} {symbolFor(selectedPlan.currency)}
+                            </span>
+                          </div>
+
+                          {/* Téléphone */}
+                          <div>
+                            <label className="text-[10px] text-brand-text-muted block mb-1 font-semibold">
+                              Numéro Mobile Money
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <span className="px-2.5 py-2 rounded-xs bg-brand-card border border-brand-border text-brand-text-muted text-xs font-bold shrink-0">
+                                {COUNTRY_DIAL[country] || "+"}
+                              </span>
+                              <input
+                                type="tel"
+                                inputMode="tel"
+                                placeholder="6XXXXXXXX"
+                                value={phone}
+                                onChange={(e) => setPhone(e.target.value)}
+                                className="flex-1 px-2.5 py-2 rounded-xs bg-brand-card border border-brand-border text-foreground text-xs focus:outline-none focus:border-brand-primary"
+                                required
+                                autoFocus
+                              />
+                            </div>
+                          </div>
+
+                          {/* OTP pré-paiement */}
+                          {activeRate?.otpRequired && (
+                            <div className="bg-brand-card/60 border border-amber-500/25 rounded-xs p-3 space-y-1.5">
                               <p className="text-amber-300 text-[11px] font-semibold leading-relaxed">
                                 ⚠️ Ce réseau exige un code <strong>avant</strong> le paiement :
                               </p>
                               <p className="text-brand-text-muted text-[10px] leading-relaxed">
                                 {activeRate.otpInstructions}
                               </p>
-                            </>
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                placeholder="Code USSD reçu"
+                                value={preOtp}
+                                onChange={(e) => setPreOtp(e.target.value)}
+                                className="w-full px-2.5 py-2 rounded-xs bg-brand-card border border-amber-500/30 text-foreground text-xs focus:outline-none focus:border-amber-400"
+                                required
+                              />
+                            </div>
                           )}
                         </div>
                       )}
 
-                      {/* Téléphone (Mobile Money uniquement — carte/crypto = checkout hébergé) */}
-                      {network !== "card" && network !== "crypto" ? (
-                        <div>
-                          <label className="text-[10px] text-brand-text-muted block mb-1 font-semibold">
-                            Numéro Mobile Money
-                          </label>
-                          <div className="flex items-center gap-2">
-                            <span className="px-2.5 py-2 rounded-xs bg-brand-card border border-brand-border text-brand-text-muted text-xs font-bold shrink-0">
-                              {COUNTRY_DIAL[country] || "+"}
-                            </span>
-                            <input
-                              type="tel"
-                              inputMode="tel"
-                              placeholder="6XXXXXXXX"
-                              value={phone}
-                              onChange={(e) => setPhone(e.target.value)}
-                              className="flex-1 px-2.5 py-2 rounded-xs bg-brand-card border border-brand-border text-foreground text-xs focus:outline-none focus:border-brand-primary"
-                              required
-                            />
+                      {/* ── Étape 3 · Confirmation ── */}
+                      {step === 3 && (
+                        <div className="bg-brand-card/60 border border-brand-border rounded-xs divide-y divide-brand-border/60 text-xs">
+                          <div className="flex items-center justify-between px-3 py-2">
+                            <span className="text-brand-text-muted">Formule</span>
+                            <span className="font-black text-foreground">{selectedPlan.name}</span>
                           </div>
-                        </div>
-                      ) : (
-                        <p className="text-[10px] text-brand-text-muted leading-relaxed">
-                          Vous serez redirigé vers une page de paiement sécurisée pour finaliser
-                          avec {network === "card" ? "votre carte" : "votre crypto"}.
-                        </p>
-                      )}
-
-                      {/* OTP pré-paiement */}
-                      {activeRate?.otpRequired && (
-                        <div>
-                          <label className="text-[10px] text-brand-text-muted block mb-1 font-semibold">
-                            Code obtenu avant paiement *
-                          </label>
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            placeholder="Code USSD reçu"
-                            value={preOtp}
-                            onChange={(e) => setPreOtp(e.target.value)}
-                            className="w-full px-2.5 py-2 rounded-xs bg-brand-card border border-amber-500/30 text-foreground text-xs focus:outline-none focus:border-amber-400"
-                            required
-                          />
+                          <div className="flex items-center justify-between px-3 py-2">
+                            <span className="text-brand-text-muted">Montant</span>
+                            <span className="font-black text-foreground">
+                              {formatAmount(selectedPlan.price)} {symbolFor(selectedPlan.currency)}{" "}
+                              / mois
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between px-3 py-2">
+                            <span className="text-brand-text-muted">Moyen</span>
+                            <span className="font-bold text-foreground">
+                              {networks.find((n) => n.code === network)?.name || network}
+                            </span>
+                          </div>
+                          {needsPhone ? (
+                            <div className="flex items-center justify-between px-3 py-2">
+                              <span className="text-brand-text-muted">Numéro</span>
+                              <span className="font-bold text-foreground">
+                                {COUNTRY_DIAL[country] || "+"} {phone.trim()}
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="px-3 py-2 text-[10px] text-brand-text-muted leading-relaxed">
+                              Vous serez redirigé vers une page de paiement sécurisée pour finaliser
+                              avec {network === "card" ? "votre carte" : "votre crypto"}.
+                            </div>
+                          )}
+                          {activeRate?.otpRequired && preOtp.trim() && (
+                            <div className="flex items-center justify-between px-3 py-2">
+                              <span className="text-brand-text-muted">Code</span>
+                              <span className="font-bold text-foreground">{preOtp.trim()}</span>
+                            </div>
+                          )}
+                          {activeRate && activeRate.feePercent > 0 && (
+                            <div className="px-3 py-2 text-[10px] text-brand-text-muted leading-relaxed">
+                              Frais opérateur :{" "}
+                              <strong className="text-foreground">
+                                {activeRate.feePercent}%
+                                {activeRate.feeFixed > 0
+                                  ? ` + ${formatAmount(activeRate.feeFixed)}`
+                                  : ""}
+                              </strong>{" "}
+                              {activeRate.feeMode === "DEDUCTED"
+                                ? "inclus dans le montant"
+                                : "ajoutés au montant débité"}
+                              .
+                            </div>
+                          )}
                         </div>
                       )}
                     </>
@@ -830,36 +912,76 @@ export default function SubscribePage() {
                     </div>
                   )}
 
-                  <div className="flex gap-2 pt-1">
-                    <button
-                      type="button"
-                      onClick={closeModal}
-                      className="w-1/3 py-2.5 rounded-md bg-brand-card hover:bg-zinc-700 text-brand-text-muted font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-                    >
-                      <ArrowLeft className="w-3.5 h-3.5" />
-                      <span>Retour</span>
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={submitting || !configured || !network}
-                      className="flex-1 py-2.5 rounded-md bg-brand-primary hover:bg-brand-primary/85 text-foreground font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-md cursor-pointer transition-all active:scale-95 disabled:opacity-50"
-                    >
-                      {submitting ? (
-                        <>
-                          <Spinner className="w-4 h-4 animate-spin" />
-                          <span>Démarrage…</span>
-                        </>
+                  {/* Actions par étape */}
+                  {configured && (
+                    <div className="flex gap-2 pt-1">
+                      {step > 1 ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setErrorMessage(null);
+                            setStep(step === 3 && needsPhone ? 2 : 1);
+                          }}
+                          className="w-1/3 py-2.5 rounded-md bg-brand-card hover:bg-zinc-700 text-brand-text-muted font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                        >
+                          <ArrowLeft className="w-3.5 h-3.5" />
+                          <span>Retour</span>
+                        </button>
                       ) : (
-                        <>
-                          <ShieldCheck className="w-4 h-4" />
-                          <span>
-                            Payer {formatAmount(selectedPlan.price)}{" "}
-                            {symbolFor(selectedPlan.currency)}
-                          </span>
-                        </>
+                        <button
+                          type="button"
+                          onClick={closeModal}
+                          className="w-1/3 py-2.5 rounded-md bg-brand-card hover:bg-zinc-700 text-brand-text-muted font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                        >
+                          <ArrowLeft className="w-3.5 h-3.5" />
+                          <span>Retour</span>
+                        </button>
                       )}
-                    </button>
-                  </div>
+                      {step === 1 && (
+                        <button
+                          type="button"
+                          onClick={goFromMethod}
+                          disabled={!network}
+                          className="flex-1 py-2.5 rounded-md bg-white text-black hover:bg-zinc-200 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-95 disabled:opacity-40"
+                        >
+                          <span>Continuer</span>
+                          <CaretRight className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      {step === 2 && needsPhone && (
+                        <button
+                          type="button"
+                          onClick={goFromPhone}
+                          className="flex-1 py-2.5 rounded-md bg-white text-black hover:bg-zinc-200 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-95"
+                        >
+                          <span>Continuer</span>
+                          <CaretRight className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      {step === 3 && (
+                        <button
+                          type="submit"
+                          disabled={submitting || !configured || !network}
+                          className="flex-1 py-2.5 rounded-md bg-brand-primary hover:bg-brand-primary/85 text-foreground font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-md cursor-pointer transition-all active:scale-95 disabled:opacity-50"
+                        >
+                          {submitting ? (
+                            <>
+                              <Spinner className="w-4 h-4 animate-spin" />
+                              <span>Démarrage…</span>
+                            </>
+                          ) : (
+                            <>
+                              <ShieldCheck className="w-4 h-4" />
+                              <span>
+                                Payer {formatAmount(selectedPlan.price)}{" "}
+                                {symbolFor(selectedPlan.currency)}
+                              </span>
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </form>
               )}
             </div>

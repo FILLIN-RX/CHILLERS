@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { API_BASE_URL } from "@/lib/api-base";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
+const BACKEND_URL = API_BASE_URL;
 
 export async function POST(req: NextRequest) {
   try {

@@ -1,12 +1,9 @@
 import { getAntiBotHeaders } from "@/lib/antibot";
+import { API_BASE_URL, LEGACY_API_BASE_URL } from "@/lib/api-base";
 
-const isProd = process.env.NODE_ENV === "production";
+export const API_BASE = API_BASE_URL;
 
-export const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL ||
-  (isProd ? "https://chillers.onrender.com/api" : "http://localhost:4000/api");
-
-const FALLBACK_API_URL = "https://chillers.onrender.com/api";
+const FALLBACK_API_URL = LEGACY_API_BASE_URL;
 
 export function getServerApiHeaders(extraHeaders: Record<string, string> = {}): Record<string, string> {
   return {

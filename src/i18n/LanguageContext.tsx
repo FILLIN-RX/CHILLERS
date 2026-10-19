@@ -23,6 +23,10 @@ function readStoredLanguage(): Language {
   if (typeof window === "undefined") return defaultLanguage;
   const stored = localStorage.getItem("chillers-lang") as Language | null;
   if (stored && (stored === "fr" || stored === "en")) return stored;
+  // Cookie (miroir écrit par setLang) : couvre les utilisateurs dont le
+  // localStorage a été vidé ou qui viennent d'un autre appareil.
+  const cookie = document.cookie.match(/(?:^|;\s*)chillers-lang=(fr|en)(?:;|$)/);
+  if (cookie?.[1]) return cookie[1] as Language;
   const browser = navigator.language?.slice(0, 2);
   if (browser === "en") return "en";
   return defaultLanguage;
@@ -30,24 +34,15 @@ function readStoredLanguage(): Language {
 
 interface LanguageProviderProps {
   children: ReactNode;
-  // P2-#30: server passes the language resolved from the `chillers-lang`
-  // cookie. This is the language the layout was rendered with, so the first
-  // client paint already matches — no flash on hydration.
-  initialLang?: Language;
 }
 
-export function LanguageProvider({ children, initialLang }: LanguageProviderProps) {
-  // Seed state with whatever the server resolved. If the client also has a
-  // localStorage value that's *different*, we still want the server value on
-  // first render to avoid a hydration mismatch — then `useEffect` below
-  // upgrades to the client value.
-  const [lang, setLangState] = useState<Language>(initialLang ?? defaultLanguage);
+export function LanguageProvider({ children }: LanguageProviderProps) {
+  // Le layout racine est statique (lang="fr" côté serveur). On hydrate avec la
+  // même valeur pour éviter tout mismatch, puis on monte vers la langue réelle
+  // (localStorage → cookie → navigator.language) juste après l'hydration.
+  const [lang, setLangState] = useState<Language>(defaultLanguage);
 
   useEffect(() => {
-    // After hydration, prefer localStorage / navigator.language over whatever
-    // the cookie said. This is the "step up" step: it may still cause a
-    // one-frame switch, but only for users whose cookie and localStorage
-    // disagree (rare; first-visit users see no flash at all).
     const clientLang = readStoredLanguage();
     if (clientLang !== lang) {
       setLangState(clientLang);
@@ -55,6 +50,12 @@ export function LanguageProvider({ children, initialLang }: LanguageProviderProp
     // We only want this to run once on mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Garde <html lang> en phase avec la langue active (utile pour les lecteurs
+  // d'écran et le SEO client-side).
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
 
   const setLang = useCallback((newLang: Language) => {
     setLangState(newLang);

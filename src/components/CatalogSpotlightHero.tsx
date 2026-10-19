@@ -76,7 +76,7 @@ export default function CatalogSpotlightHero({
               alt={current.title}
               fill
               priority
-              quality={75}
+              quality={85}
               className={`object-cover object-right transition-all duration-700 ease-out ${
                 isFading ? "opacity-40 scale-105" : "opacity-100 scale-100"
               }`}

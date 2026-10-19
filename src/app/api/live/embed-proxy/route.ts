@@ -65,6 +65,13 @@ export async function GET(request: NextRequest) {
     // Strip meta headers that enforce framing restrictions
     html = html.replace(/<meta[^>]*http-equiv=["']?(x-frame-options|content-security-policy)["']?[^>]*>/gi, "");
 
+    // Cloudflare RUM (beacon.min.js / cdn-cgi/rum) : injecté par le CDN amont,
+    // son XHR part avec notre origine → erreur CORS permanente en console,
+    // sans aucun effet sur la lecture.
+    html = html.replace(/<script\b[^>]*cloudflareinsights[^>]*>[\s\S]*?<\/script>/gi, "");
+    html = html.replace(/<script\b[^>]*>[\s\S]*?(?:cloudflareinsights|cdn-cgi\/rum)[\s\S]*?<\/script>/gi, "");
+    html = html.replace(/\s*data-cf-beacon=(["'])[\s\S]*?\1/gi, "");
+
     // Inject base tag, document.referrer spoofing, and ad/popup blocker into the embedded page
     const adBlockerScript = `
 <script>

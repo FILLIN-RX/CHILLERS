@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import type { ResolvedSportsStream, SportsServer } from './sports.types';
+import type { ResolvedSportsStream, SportsMatch, SportsServer } from './sports.types';
 import {
   findSportsMatch,
   getSportsMatches,
@@ -10,6 +10,13 @@ import {
   warmupMatchChannels,
 } from './sports.service';
 import { MULTI_SERVER_ENABLED, getRegisteredChannels } from './match-channels.registry';
+import { matchLog } from './match-logger';
+
+/** Libellé compact d'un match pour les traces serveur (`PSG vs OM [kora:478]`). */
+function matchLabel(match: SportsMatch): string {
+  const teams = match.away ? `${match.home} vs ${match.away}` : match.home;
+  return `${teams} [${match.id}]`;
+}
 
 export const getMatches = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -53,12 +60,18 @@ function serializeStream(req: Request, source: string, sourceId: string, stream:
     ? stream.servers
     : [{ name: source, url: stream.url, type: stream.type }];
 
-  const servers = list.map((s) => {
+  // Le lien direct (HLS, surtout via notre relay) prime : l'embed provider
+  // n'est qu'un repli quand aucun HLS n'a été trouvé.
+  const rank = (s: SportsServer) => (s.type === 'hls' ? 0 : 1);
+  const ordered = [...list].sort((a, b) => rank(a) - rank(b));
+
+  const servers = ordered.map((s) => {
     const provider = s.source ?? source;
     const sid = s.sourceId ?? sourceId;
     const type = (s.type ?? stream.type) as 'hls' | 'iframe';
     const relayUrl =
-      type === 'hls' ? `${relayBase(req)}/${provider}/${encodeURIComponent(sid)}/hls/playlist.m3u8` : undefined;
+      s.relayUrl ??
+      (type === 'hls' ? `${relayBase(req)}/${provider}/${encodeURIComponent(sid)}/hls/playlist.m3u8` : undefined);
     return {
       // Le nom du canal (« BeIN Sport 1 », « TNT 5 ») rend le sélecteur lisible ;
       // à défaut on retombe sur le nom de la source.
@@ -117,9 +130,13 @@ export const getMatchStream = async (req: Request, res: Response, next: NextFunc
     // arrière-plan (registre 24 h) : le prochain /channels est instantané.
     if (MULTI_SERVER_ENABLED) warmupMatchChannels(match);
 
+    const payload = serializeStream(req, flux.source, flux.sourceId, flux.stream);
+    matchLog(
+      `Flux résolu ${matchLabel(match)} type=${payload.type} serveurs=${payload.servers.length} source=${flux.source}`,
+    );
     res.json({
       success: true,
-      data: { ...serializeStream(req, flux.source, flux.sourceId, flux.stream), match },
+      data: { ...payload, match },
       message: null,
     });
   } catch (error) {
@@ -142,9 +159,13 @@ export const getMatchStreamById = async (req: Request, res: Response, next: Next
 
     const { match, flux } = resolved;
     if (MULTI_SERVER_ENABLED) warmupMatchChannels(match);
+    const payload = serializeStream(req, flux.source, flux.sourceId, flux.stream);
+    matchLog(
+      `Flux résolu ${matchLabel(match)} type=${payload.type} serveurs=${payload.servers.length} source=${flux.source}`,
+    );
     res.json({
       success: true,
-      data: { ...serializeStream(req, flux.source, flux.sourceId, flux.stream), match },
+      data: { ...payload, match },
       message: null,
     });
   } catch (error) {
@@ -161,17 +182,33 @@ export const getMatchStreamById = async (req: Request, res: Response, next: Next
  */
 export const getChannels = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const matchId = String(req.params.matchId);
+    const rawId = String(req.params.matchId);
     const forceRefresh = req.query.refresh === 'true' || req.query.force === '1';
+
+    // L'identifiant peut être neutle (slug d'URL sans provider) : le registre
+    // est toujours indexé par l'identifiant composite du match.
+    const match = await findSportsMatch(rawId);
+    if (!match) {
+      res.status(404).json({ success: false, data: null, message: 'Aucun serveur connu pour ce match' });
+      return;
+    }
+    const matchId = match.id;
 
     if (!forceRefresh) {
       const registered = getRegisteredChannels(matchId);
       if (registered && registered.servers.length > 0) {
+        // Registre partiel (flux principal seul, la collecte complète est en
+        // vol ou morte) : on relance l'agrégation en arrière-plan, la réponse
+        // part immédiatement avec ce qu'on a déjà.
+        if (!registered.complete) warmupMatchChannels(match);
         const cachedStream: ResolvedSportsStream = {
           url: registered.servers[0].url,
           type: registered.servers[0].type ?? 'iframe',
           servers: registered.servers,
         };
+        matchLog(
+          `Chaînes ${matchId}: ${registered.servers.length} serveur(s) depuis le registre (complet=${registered.complete})`,
+        );
         res.json({
           success: true,
           data: {
@@ -184,19 +221,22 @@ export const getChannels = async (req: Request, res: Response, next: NextFunctio
       }
     }
 
-    const resolved = await resolveSportsFluxById(matchId, forceRefresh, { collectAll: true });
-    if (!resolved) {
+    const flux = await resolveSportsFlux(match, forceRefresh, { collectAll: true });
+    if (!flux) {
       res.status(404).json({ success: false, data: null, message: 'Aucun serveur connu pour ce match' });
       return;
     }
 
-    const { match, flux } = resolved;
+    const complete = getRegisteredChannels(match.id)?.complete ?? true;
+    matchLog(
+      `Chaînes ${matchId}: ${flux.stream.servers.length} serveur(s) collectés pour ${matchLabel(match)} (complet=${complete})`,
+    );
     res.json({
       success: true,
       data: {
         ...serializeStream(req, flux.source, flux.sourceId, flux.stream),
         match,
-        complete: getRegisteredChannels(match.id)?.complete ?? true,
+        complete,
       },
       message: null,
     });

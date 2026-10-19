@@ -9,7 +9,7 @@
 import { cache } from "react";
 import { httpJson, HttpError, API_BASE_PATH } from "./http";
 import { getAntiBotHeaders } from "@/lib/antibot";
-import type { MovieOrShow, Genre, MediaType, CastMember, Network } from "@/types/media";
+import type { MovieOrShow, Genre, MediaType, CastMember, Network, PersonDetails } from "@/types/media";
 
 /* ─── in-memory client cache (5 min TTL) ─────────────────────────────────── */
 const clientCache = new Map<string, { data: any; expiry: number }>();
@@ -46,39 +46,12 @@ export function isSlowConnection(): boolean {
   return true; // Faible résolution par défaut
 }
 
-export function getTmdbImageUrl(
-  path?: string | null,
-  type: "poster" | "backdrop" | "still" | "logo" = "poster",
-  original = false,
-): string {
+export function getTmdbImageUrl(path?: string | null): string {
   if (!path) return "";
-  const ultraLow = isUltraLowBandwidth();
-  const weak = isSlowConnection();
-
-  if (type === "poster") {
-    if (original && !weak && !ultraLow) return `https://image.tmdb.org/t/p/original${path}`;
-    if (ultraLow) return `https://image.tmdb.org/t/p/w342${path}`;
-    return `https://image.tmdb.org/t/p/${weak ? "w342" : "w500"}${path}`;
-  }
-
-  if (type === "backdrop") {
-    if (original && !weak && !ultraLow) return `https://image.tmdb.org/t/p/original${path}`;
-    if (ultraLow) return `https://image.tmdb.org/t/p/w780${path}`;
-    return `https://image.tmdb.org/t/p/${weak ? "w780" : "w1280"}${path}`;
-  }
-
-  if (type === "still") {
-    if (ultraLow) return `https://image.tmdb.org/t/p/w300${path}`;
-    return `https://image.tmdb.org/t/p/${weak ? "w300" : "w500"}${path}`;
-  }
-
-  if (type === "logo") {
-    if (original && !weak && !ultraLow) return `https://image.tmdb.org/t/p/original${path}`;
-    if (ultraLow) return `https://image.tmdb.org/t/p/w300${path}`;
-    return `https://image.tmdb.org/t/p/${weak ? "w300" : "w500"}${path}`;
-  }
-
-  return `https://image.tmdb.org/t/p/${weak ? "w342" : "w500"}${path}`;
+  // Toujours l'URL TMDB `original` : aucune dégradation selon le réseau.
+  // Le redimensionnement est confié à l'optimiseur Next (buckets 640→3840,
+  // q85) — jamais d'agrandissement, donc pas de flou sur retina/Safari/Firefox.
+  return `https://image.tmdb.org/t/p/original${path}`;
 }
 
 function clientLang(): string {
@@ -189,6 +162,98 @@ export interface TmdbRawItem {
   similar?: { results?: TmdbRawItem[] };
 }
 
+/** Raw shape of TMDB /person/{id} (append_to_response=combined_credits). */
+export interface TmdbPersonRaw {
+  id: number;
+  name: string;
+  biography?: string;
+  birthday?: string | null;
+  deathday?: string | null;
+  place_of_birth?: string | null;
+  profile_path?: string | null;
+  known_for_department?: string;
+  also_known_as?: string[];
+  gender?: number;
+  popularity?: number;
+  combined_credits?: {
+    cast?: Array<TmdbRawItem & { character?: string; media_type?: string; popularity?: number }>;
+    crew?: Array<TmdbRawItem & { job?: string; department?: string; media_type?: string; popularity?: number }>;
+  };
+  movie_credits?: {
+    cast?: Array<TmdbRawItem & { character?: string; popularity?: number }>;
+  };
+  tv_credits?: {
+    cast?: Array<TmdbRawItem & { character?: string; popularity?: number }>;
+  };
+}
+
+function computeAge(birthday?: string | null, deathday?: string | null): number | null {
+  if (!birthday) return null;
+  const start = new Date(birthday);
+  if (Number.isNaN(start.getTime())) return null;
+  const end = deathday ? new Date(deathday) : new Date();
+  if (Number.isNaN(end.getTime())) return null;
+  let age = end.getFullYear() - start.getFullYear();
+  const m = end.getMonth() - start.getMonth();
+  if (m < 0 || (m === 0 && end.getDate() < start.getDate())) age--;
+  return age >= 0 ? age : null;
+}
+
+/** Mappe TMDB /person/{id} (+ combined_credits) vers PersonDetails. */
+export function mapTMDBToPersonDetails(raw: TmdbPersonRaw): PersonDetails {
+  const combined = raw.combined_credits;
+  const movieCast = combined?.cast ?? raw.movie_credits?.cast ?? [];
+  const tvCast = combined?.cast ?? raw.tv_credits?.cast ?? [];
+
+  const mapCredit = (c: TmdbRawItem & { media_type?: string; popularity?: number }, mediaType: "movie" | "tv") => {
+    const mapped = mapTMDBToMovieOrShow(c, mediaType === "tv" ? "series" : "movie");
+    return { item: mapped, popularity: c.popularity ?? 0 };
+  };
+
+  const seenMovies = new Set<string>();
+  const movies = movieCast
+    .filter((c) => (c.media_type ?? (c.title ? "movie" : "tv")) === "movie")
+    .map((c) => mapCredit(c, "movie"))
+    .filter(({ item }) => {
+      if (!item.id || seenMovies.has(item.id)) return false;
+      seenMovies.add(item.id);
+      return true;
+    })
+    .sort((a, b) => b.popularity - a.popularity)
+    .map(({ item }) => item);
+
+  const seenTv = new Set<string>();
+  const tvShows = tvCast
+    .filter((c) => (c.media_type ?? (c.name ? "tv" : "movie")) === "tv")
+    .map((c) => mapCredit(c, "tv"))
+    .filter(({ item }) => {
+      if (!item.id || seenTv.has(item.id)) return false;
+      seenTv.add(item.id);
+      return true;
+    })
+    .sort((a, b) => b.popularity - a.popularity)
+    .map(({ item }) => item);
+
+  const creditsCount = (combined?.cast?.length ?? 0) + (combined?.crew?.length ?? 0);
+
+  return {
+    id: String(raw.id),
+    name: raw.name || "Inconnu",
+    biography: raw.biography || "",
+    birthday: raw.birthday || null,
+    deathday: raw.deathday || null,
+    placeOfBirth: raw.place_of_birth || null,
+    profileUrl: raw.profile_path ? getTmdbImageUrl(raw.profile_path) : "",
+    knownForDepartment: raw.known_for_department || "",
+    alsoKnownAs: raw.also_known_as || [],
+    gender: raw.gender ?? 0,
+    age: computeAge(raw.birthday, raw.deathday),
+    movies,
+    tvShows,
+    creditsCount,
+  };
+}
+
 export function mapTMDBToMovieOrShow(
   item: TmdbRawItem,
   typeOverride?: MediaType,
@@ -244,7 +309,7 @@ export function mapTMDBToMovieOrShow(
         id: String(s.id),
         name: s.name,
         seasonNumber: s.season_number,
-        posterUrl: getTmdbImageUrl(s.poster_path, "poster"),
+        posterUrl: getTmdbImageUrl(s.poster_path),
         episodeCount: s.episode_count ?? 0,
         airDate: s.air_date || undefined,
         overview: s.overview,
@@ -260,7 +325,7 @@ export function mapTMDBToMovieOrShow(
       id: actor.id,
       name: actor.name,
       character: actor.character || "Rôle non spécifié",
-      profileUrl: actor.profile_path ? getTmdbImageUrl(actor.profile_path, "still") : "",
+      profileUrl: actor.profile_path ? getTmdbImageUrl(actor.profile_path) : "",
     }));
   }
 
@@ -286,7 +351,7 @@ export function mapTMDBToMovieOrShow(
         networks.push({
           id: n.id,
           name: n.name,
-          logoUrl: n.logo_path ? `https://image.tmdb.org/t/p/w300${n.logo_path}` : "",
+          logoUrl: n.logo_path ? `https://image.tmdb.org/t/p/original${n.logo_path}` : "",
         });
       }
     }
@@ -338,9 +403,9 @@ export function mapTMDBToMovieOrShow(
     similar = recs.slice(0, 10).map((r) => mapTMDBToMovieOrShow(r, type));
   }
 
-  const backdropUrl = getTmdbImageUrl(item.backdrop_path, "backdrop");
-  const backdropOriginalUrl = getTmdbImageUrl(item.backdrop_path, "backdrop", true);
-  const posterUrl = getTmdbImageUrl(item.poster_path, "poster");
+  const backdropUrl = getTmdbImageUrl(item.backdrop_path);
+  const backdropOriginalUrl = backdropUrl;
+  const posterUrl = getTmdbImageUrl(item.poster_path);
 
   return {
     id: String(item.id),
@@ -1010,7 +1075,7 @@ export async function getMediaLogo(
       const bestLogo = sortedLogos[0];
       
       if (bestLogo?.file_path) {
-        const logoUrl = getTmdbImageUrl(bestLogo.file_path, "logo");
+        const logoUrl = getTmdbImageUrl(bestLogo.file_path);
         setCached(cacheKey, logoUrl, 30 * 60 * 1000);
         return logoUrl;
       }
@@ -1083,6 +1148,33 @@ export const getMediaDetails = cache(async function getMediaDetails(
   );
   if (directData) {
     const mapped = mapTMDBToMovieOrShow(directData, isTV ? "series" : "movie");
+    setCached(cacheKey, mapped, 10 * 60 * 1000);
+    return mapped;
+  }
+
+  return null;
+});
+
+/* Person details (actor / director / ...). Uses TMDB combined_credits
+   (films ET séries en un seul appel), comme demandé pour la page /person. */
+
+export const getPersonDetails = cache(async function getPersonDetails(
+  id: string,
+  signal?: AbortSignal,
+): Promise<PersonDetails | null> {
+  const cacheKey = `person_details:${id}:${clientLang()}`;
+  const cached = getCached<PersonDetails>(cacheKey);
+  if (cached) return cached;
+
+  const lang = clientLang() === "fr" ? "fr-FR" : "en-US";
+  // combined_credits regroupe movie_credits + tv_credits en une seule réponse.
+  const directData = await fetchDirectTMDB<TmdbPersonRaw>(
+    `/person/${id}`,
+    { append_to_response: "combined_credits,images", language: lang },
+    signal,
+  );
+  if (directData && directData.id) {
+    const mapped = mapTMDBToPersonDetails(directData);
     setCached(cacheKey, mapped, 10 * 60 * 1000);
     return mapped;
   }

@@ -86,6 +86,28 @@ export interface Genre {
   name: string;
 }
 
+/** Fiche personne (acteur / réalisateur / …) issue de TMDB /person/{id}. */
+export interface PersonDetails {
+  id: string;
+  name: string;
+  biography: string;
+  birthday: string | null;
+  deathday: string | null;
+  placeOfBirth: string | null;
+  profileUrl: string;
+  knownForDepartment: string;
+  alsoKnownAs: string[];
+  gender: number;
+  /** Calculé à partir de birthday/deathday (années). */
+  age: number | null;
+  /** Filmographie : crédits "cast" (et réalisation) des films — triée par popularité. */
+  movies: MovieOrShow[];
+  /** Filmographie TV : crédits "cast" des séries / émissions — triée par popularité. */
+  tvShows: MovieOrShow[];
+  /** Nombre total de crédits (films + séries). */
+  creditsCount: number;
+}
+
 export interface StreamResult {
   /** The embeddable URL (iframe src for VidLink/DoodStream/YouTube, or direct .mp4/.m3u8) */
   embedUrl: string;

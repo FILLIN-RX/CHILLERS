@@ -12,11 +12,13 @@ import {
   resolveLiveBallStream,
   type LiveBallMatch,
 } from '../liveball/liveball.service';
+import { createHash } from 'node:crypto';
 import { getKoraMatches, resolveKoraStream } from './kora.service';
 import { getKooorahMatches, getYallaproMatches, resolveKooorahStream, resolveYallaproStream } from './yasirtv.service';
 import { getStreamizMatches, resolveStreamizStream } from './livetv.service';
-import { fixtureScore, isSameFixture } from './utils/fixture-match';
+import { CLOSE_KICKOFF_S, fixtureScore, isSameFixture } from './utils/fixture-match';
 import { pickPlayableServer, pickPlayableServers } from './utils/stream-probe';
+import { labFastPathServers } from './lab-fast-path';
 import { SPORTS_SOURCES, type ResolvedSportsStream, type SportsMatch, type SportsServer, type SportsSourceId } from './sports.types';
 import { getRegisteredChannels, rememberChannels } from './match-channels.registry';
 
@@ -83,8 +85,39 @@ export function isSportsSource(value: string): value is SportsSourceId {
 const MATCHES_CACHE = new Map<string, { ts: number; data: SportsMatch[] }>();
 
 /**
- * Matchs de toutes les sources (ou d'une seule), dédupliqués et triés :
- * directs d'abord, puis par heure de coupure.
+ * Représentante d'une affiche publiée par plusieurs sources : les sources
+ * HLS (liveball, kooorah…) passent avant kora, qui n'est qu'un repli.
+ */
+const SOURCE_PRIORITY: Record<SportsSourceId, number> = {
+  liveball: 0,
+  kooorah: 1,
+  yallapro: 2,
+  streamiz: 3,
+  kora: 4,
+};
+
+function representative(a: SportsMatch, b: SportsMatch): SportsMatch {
+  const pa = SOURCE_PRIORITY[a.source];
+  const pb = SOURCE_PRIORITY[b.source];
+  if (pa !== pb) return pa < pb ? a : b;
+  if (a.status !== b.status) return a.status === 'live' ? a : b;
+  return (a.startTs ?? Number.MAX_SAFE_INTEGER) <= (b.startTs ?? Number.MAX_SAFE_INTEGER) ? a : b;
+}
+
+/** Slug d'URL neutle : `sourceId` lisible s'il en est un, sinon hash de la rencontre. */
+function readableSlug(m: SportsMatch): string | null {
+  return /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/.test(m.sourceId) ? m.sourceId.toLowerCase() : null;
+}
+
+function fixtureHash(m: SportsMatch): string {
+  return `f${createHash('sha1').update(`${m.home}|${m.away}|${m.startTs ?? ''}`).digest('hex').slice(0, 10)}`;
+}
+
+/**
+ * Matchs de toutes les sources (ou d'une seule), dédupliqués par rencontre et
+ * triés : directs d'abord, puis par heure de coupure. Chaque affiche n'apparaît
+ * qu'une fois — la source représentante est la meilleure (kora en dernier) —
+ * et porte un `slug` neutle pour le routing.
  */
 export async function getSportsMatches(source?: string): Promise<SportsMatch[]> {
   const cacheKey = source || 'all';
@@ -108,9 +141,48 @@ export async function getSportsMatches(source?: string): Promise<SportsMatch[]> 
     }
   });
 
-  const seen = new Set<string>();
-  const sorted = matches
-    .filter((m) => (seen.has(m.id) ? false : (seen.add(m.id), true)))
+  // Regroupement par rencontre : les entrées datées sont parcourues en ordre
+  // de coupure d'envoi (fenêtre de 2 × la tolérance isSameFixture), les
+  // entrées sans heure comparées entre elles.
+  const WINDOW_S = CLOSE_KICKOFF_S * 2;
+  const withTs = matches
+    .filter((m) => m.startTs !== undefined)
+    .sort((a, b) => (a.startTs as number) - (b.startTs as number));
+  const withoutTs = matches.filter((m) => m.startTs === undefined);
+
+  const groups: SportsMatch[] = [];
+  for (const m of withTs) {
+    let merged = false;
+    for (let i = groups.length - 1; i >= 0; i--) {
+      const g = groups[i];
+      if ((m.startTs as number) - (g.startTs as number) > WINDOW_S) break;
+      if (isSameFixture(g, m)) {
+        groups[i] = representative(g, m);
+        merged = true;
+        break;
+      }
+    }
+    if (!merged) groups.push(m);
+  }
+  for (const m of withoutTs) {
+    let merged = false;
+    for (let i = 0; i < groups.length; i++) {
+      if (isSameFixture(groups[i], m)) {
+        groups[i] = representative(groups[i], m);
+        merged = true;
+        break;
+      }
+    }
+    if (!merged) groups.push(m);
+  }
+
+  // Slug neutle : `sourceId` lisible si personne d'autre ne le porte déjà,
+  // sinon hash stable de la rencontre (pas de collision, pas de provider).
+  const based = groups.map((m) => ({ ...m, slug: readableSlug(m) ?? fixtureHash(m) }));
+  const slugCounts = new Map<string, number>();
+  for (const m of based) slugCounts.set(m.slug as string, (slugCounts.get(m.slug as string) ?? 0) + 1);
+  const sorted = based
+    .map((m) => (slugCounts.get(m.slug as string)! > 1 ? { ...m, slug: fixtureHash(m) } : m))
     .sort((a, b) => {
       if (a.status !== b.status) return a.status === 'live' ? -1 : 1;
       return (a.startTs ?? Number.MAX_SAFE_INTEGER) - (b.startTs ?? Number.MAX_SAFE_INTEGER);
@@ -137,7 +209,13 @@ export async function resolveSportsStream(
  */
 export async function findSportsMatch(matchId: string): Promise<SportsMatch | null> {
   const separator = matchId.indexOf(':');
-  if (separator === -1) return null;
+  if (separator === -1) {
+    // URL neutle (`/live/sp/478`, `/live/sp/f3a9c2…`) : pas de provider dans
+    // l'identifiant, on cherche le slug dans la liste fusionnée.
+    if (!matchId) return null;
+    const matches = await getSportsMatches();
+    return matches.find((m) => m.slug === matchId) ?? null;
+  }
 
   const source = matchId.slice(0, separator);
   if (!isSportsSource(source)) return null;
@@ -187,7 +265,7 @@ function withBudget<T>(promise: Promise<T>, budgetMs: number): Promise<T | null>
   return Promise.race([promise, new Promise<null>((resolve) => setTimeout(() => resolve(null), budgetMs))]);
 }
 
-/** Le match demandé d'abord, puis ses jumeaux découverts chez les autres sources. */
+/** Le match demandé d'abord, puis ses jumeaux découverts chez les autres sources — kora en tout dernier : c'est un repli, pas la source primaire. */
 async function chainCandidates(target: SportsMatch): Promise<SportsMatch[]> {
   const all = await getSportsMatches();
   const own = all.find((m) => m.id === target.id) ?? target;
@@ -198,7 +276,8 @@ async function chainCandidates(target: SportsMatch): Promise<SportsMatch[]> {
     .sort((a, b) => b.score - a.score || a.gap - b.gap)
     .map((x) => x.m);
 
-  return [own, ...twins];
+  const chain = [own, ...twins];
+  return [...chain.filter((m) => m.source !== 'kora'), ...chain.filter((m) => m.source === 'kora')];
 }
 
 /**
@@ -231,7 +310,34 @@ export async function resolveSportsFlux(
   let primary: SportsFlux | null = null;
   let exhausted = false;
 
-  for (const candidate of candidates) {
+  // Fast path lab : les HLS du snapshot frais, probeés à la volée, partent en
+  // premier — inutile de re-scrappe le provider quand le lab les a déjà.
+  const labServers = labFastPathServers(target);
+  if (labServers.length) {
+    const labBudget = Math.min(ATTEMPT_BUDGET_MS, deadline - Date.now());
+    const labPlayable = await withBudget(
+      pickPlayableServers({ url: labServers[0].url, type: 'hls', servers: labServers }).catch(() => []),
+      labBudget,
+    );
+    if (labPlayable && labPlayable.length > 0) {
+      servers.push(...labPlayable);
+      primary = {
+        stream: { url: labPlayable[0].url, type: 'hls', servers: labPlayable },
+        source: labPlayable[0].source ?? target.source,
+        sourceId: labPlayable[0].sourceId ?? target.sourceId,
+      };
+      attempts.push(`lab=${labPlayable.length} HLS`);
+      console.log(`[sports] flux servi par le lab (${labPlayable.length} HLS déjà récolté(s)) pour ${target.id}`);
+    } else {
+      attempts.push('lab=aucun HLS jouable');
+    }
+  }
+
+  // Mode normal : un lab jouable suffit. En agrégation, la chaîne continue
+  // pour compléter avec les providers.
+  const chain = !primary || collectAll ? candidates : [];
+
+  for (const candidate of chain) {
     const budget = Math.min(ATTEMPT_BUDGET_MS, deadline - Date.now());
     if (budget <= 0) {
       attempts.push(`${candidate.source}=budget épuisé`);
@@ -325,6 +431,14 @@ export async function resolveSportsFluxById(
 const collectInFlight = new Set<string>();
 
 /**
+ * Anti-raz-de-marée : si la collecte complète échoue (budget, providers en
+ * panne), on ne la relance pas à chaque appel /channels — 60 s de répit, puis
+ * nouvelle tentative.
+ */
+const COLLECT_COOLDOWN_MS = 60_000;
+const lastCollectAt = new Map<string, number>();
+
+/**
  * Enchaîne l'agrégation complète en arrière-plan. Le flux principal part tout
  * de suite (le premier provider qui joue suffit au player), les autres serveurs
  * arrivent dans le registre quelques secondes plus tard — le prochain appel
@@ -333,7 +447,10 @@ const collectInFlight = new Set<string>();
 export function warmupMatchChannels(match: SportsMatch): void {
   if (collectInFlight.has(match.id)) return;
   if (getRegisteredChannels(match.id)?.complete) return;
+  const last = lastCollectAt.get(match.id) ?? 0;
+  if (Date.now() - last < COLLECT_COOLDOWN_MS) return;
 
+  lastCollectAt.set(match.id, Date.now());
   collectInFlight.add(match.id);
   resolveSportsFlux(match, false, { collectAll: true })
     .catch((err) => console.warn(`[sports] agrégation en arrière-plan échouée pour ${match.id}:`, err))

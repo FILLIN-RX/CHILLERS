@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef, startTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import HeroCarousel from "@/components/HeroCarousel";
 import MovieCard from "@/components/MovieCard";
 import ContinueWatchingCard from "@/components/ContinueWatchingCard";
@@ -71,6 +72,7 @@ export default function HomeClientWrapper({
   const router = useRouter();
   const { translate: _ } = useLanguage();
   const user = useAuthStore((s) => s.user);
+  const queryClient = useQueryClient();
 
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [continueWatching, setContinueWatching] = useState<
@@ -79,6 +81,20 @@ export default function HomeClientWrapper({
 
   const [trendingAll, setTrendingAll] = useState<MovieOrShow[]>([]);
   const [newReleases, setNewReleases] = useState<MovieOrShow[]>([]);
+
+  // Seed le cache react-query avec les données déjà fournies par le RSC :
+  // toute requête client ultérieure (useHomeData, prefetch) répondra instantanément.
+  useEffect(() => {
+    if (popularSeries.length > 0) {
+      queryClient.setQueryData(["home", "popular-tv"], popularSeries);
+    }
+    if (animeCollection.length > 0) {
+      queryClient.setQueryData(["home", "anime"], animeCollection);
+    }
+    if (heroSlides.length > 0) {
+      queryClient.setQueryData(["home", "hero-slides"], heroSlides);
+    }
+  }, [queryClient, popularSeries, animeCollection, heroSlides]);
 
   // Resolve deferred promises on client side
   useEffect(() => {
@@ -91,11 +107,14 @@ export default function HomeClientWrapper({
         ]);
         setTrendingAll([...trendingMovies, ...trendingTV]);
         setNewReleases(upcomingMovies);
+        queryClient.setQueryData(["home", "trending-movies"], trendingMovies);
+        queryClient.setQueryData(["home", "trending-tv"], trendingTV);
+        queryClient.setQueryData(["home", "upcoming-movies"], upcomingMovies);
       } catch (e) {
         console.error("Failed to load deferred data:", e);
       }
     })();
-  }, [trendingMoviesPromise, trendingTVPromise, upcomingMoviesPromise]);
+  }, [trendingMoviesPromise, trendingTVPromise, upcomingMoviesPromise, queryClient]);
 
   // Filter strictly unreleased upcoming movies with poster for the full-width spotlight banner
   const upcomingList = useMemo(() => {

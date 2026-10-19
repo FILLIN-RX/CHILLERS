@@ -379,18 +379,6 @@ export async function getLiveChannels(params?: {
   return sortChannelsWithSportsFirst(list, params?.category);
 }
 
-export async function getLiveChannel(slug: string): Promise<LiveChannel | null> {
-  try {
-    const res = await httpJson<Envelope<LiveChannel>>(`/live/channels/${slug}`, {
-      timeoutMs: 4000,
-    });
-    if (res?.data) return res.data;
-  } catch {
-    // Fallback
-  }
-  return FALLBACK_CHANNELS.find((c) => c.slug === slug) ?? null;
-}
-
 export async function getLiveCategories(): Promise<string[]> {
   try {
     const res = await httpJson<Envelope<string[]>>("/live/channels/categories", {

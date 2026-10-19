@@ -636,6 +636,34 @@ export async function getFrenchStreamMovie(
       } catch (_) {}
     }
 
+    // 3. Hôtes restants (VOE et clones, /e/<code>) : tentative générique —
+    //    extraire le lien direct plutôt que de servir le lecteur (et ses pubs).
+    const restVersions = filteredVersions
+      .filter(v => !v.embedUrl.includes('vidzy') && !v.embedUrl.includes('uqload') && !v.embedUrl.includes('dood'))
+      .sort((a, b) => langRank(a.label) - langRank(b.label));
+
+    for (const v of restVersions.slice(0, 3)) {
+      try {
+        const direct = await DirectScraper.resolve(v.embedUrl);
+        if (direct?.directUrl) {
+          if (strictLang && !isLanguageCompatible(preferredLang, { titre: `${bestTitle} ${v.label}`, lien: direct.directUrl })) {
+            console.log(`[FrenchStream HQ] Lecteur générique ignoré (incompatible avec lang=${preferredLang}): ${direct.directUrl.slice(0, 70)}...`);
+            continue;
+          }
+          console.log(`[FrenchStream HQ] Lecteur générique résolu (${v.label}): ${direct.directUrl.slice(0, 70)}...`);
+          return {
+            title: resolvedTitle || bestTitle,
+            quality: '1080p',
+            fileSize: '1080p Full HD',
+            streamUrl: direct.directUrl,
+            embedUrl: v.embedUrl,
+            pagePath: savedPagePath,
+            source: 'frenchstream'
+          };
+        }
+      } catch (_) {}
+    }
+
     const sortedVersions = [...filteredVersions].sort((a, b) => langRank(a.label) - langRank(b.label));
 
     const chosenVersion = sortedVersions[0];

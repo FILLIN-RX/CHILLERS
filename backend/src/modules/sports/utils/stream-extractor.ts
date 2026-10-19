@@ -11,6 +11,28 @@ export interface ExtractedStream {
 }
 
 /**
+ * Une URL .m3u8 dans une page de lecteur est tantôt absolue, tantôt
+ * protocole-relative (`//host/x.m3u8`), tantôt un chemin relatif — les trois
+ * formes apparaissent chez les mêmes hébergeurs (azplay, apl627…).
+ */
+function findM3u8Url(html: string, baseUrl: string): string | null {
+  const absolute = html.match(/(?:https?:)?\/\/[^\s"'<>\\)]+?\.m3u8(?:\?[^\s"'<>\\)]*)?/i);
+  if (absolute?.[0]) {
+    const raw = absolute[0];
+    return raw.startsWith('//') ? `https:${raw}` : raw;
+  }
+  const relative = html.match(/["'(]\/(?!\/)[^\s"'<>\\)]+?\.m3u8(?:\?[^\s"'<>\\)]*)?/i);
+  if (relative?.[0]) {
+    try {
+      return new URL(relative[0].slice(1), baseUrl).toString();
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+/**
  * Décode la configuration chiffrée _econfig des lecteurs Dynproclaim / Xstream
  */
 export function decodeDynproclaimConfig(rawB64: string): Record<string, any> | null {
@@ -86,11 +108,11 @@ export async function extractDirectStream(initialUrl: string, initialReferer?: s
         }
       }
 
-      // 2. Détection directe d'une URL .m3u8 en clair
-      const m3u8Match = html.match(/(https?:\/\/[^\s"'<>\\)]+?\.m3u8(?:\?[^\s"'<>\\)]*)?)/i);
-      if (m3u8Match && m3u8Match[1]) {
+      // 2. Détection directe d'une URL .m3u8 en clair (absolue, protocole-relative ou relative)
+      const m3u8Url = findM3u8Url(html, currentUrl);
+      if (m3u8Url) {
         return {
-          m3u8Url: m3u8Match[1],
+          m3u8Url,
           referer: currentUrl,
         };
       }
@@ -100,10 +122,10 @@ export async function extractDirectStream(initialUrl: string, initialReferer?: s
       if (packedMatch) {
         try {
           const unpacked = unpackJs(packedMatch[0]);
-          const innerM3u8 = unpacked.match(/(https?:\/\/[^\s"'<>\\)]+?\.m3u8(?:\?[^\s"'<>\\)]*)?)/i);
-          if (innerM3u8 && innerM3u8[1]) {
+          const innerM3u8 = findM3u8Url(unpacked, currentUrl);
+          if (innerM3u8) {
             return {
-              m3u8Url: innerM3u8[1],
+              m3u8Url: innerM3u8,
               referer: currentUrl,
             };
           }

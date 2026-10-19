@@ -77,6 +77,9 @@ export async function GET(request: NextRequest) {
   const rangeParam = request.headers.get("range");
   const ifRangeParam = request.headers.get("if-range");
 
+  const startedAt = Date.now();
+  const targetLabel = `${targetUrl.protocol}//${targetUrl.host}${targetUrl.pathname.slice(0, 80)}`;
+
   try {
     const headers: Record<string, string> = {
       "User-Agent": USER_AGENT,
@@ -90,13 +93,16 @@ export async function GET(request: NextRequest) {
     // arrivent, sinon un segment volumineux sur connexion lente serait coupé
     // en plein téléchargement (AbortSignal.timeout porte sur tout le body).
     const controller = new AbortController();
-    const connectTimer = setTimeout(() => controller.abort(), 15000);
+    const connectTimer = setTimeout(() => controller.abort(), 8000);
     const response = await fetch(targetUrl.toString(), {
       headers,
       signal: controller.signal,
     }).finally(() => clearTimeout(connectTimer));
 
     if (!response.ok) {
+      console.warn(
+        `[live-proxy] ${response.status} ${targetLabel} (${Date.now() - startedAt}ms)`,
+      );
       return new NextResponse(`Upstream error: ${response.status}`, {
         status: response.status,
       });
@@ -169,6 +175,9 @@ export async function GET(request: NextRequest) {
     return new NextResponse(body, { status: response.status, headers: relayHeaders });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    console.warn(
+      `[live-proxy] ERR ${targetLabel} → ${message} (${Date.now() - startedAt}ms)`,
+    );
     return new NextResponse(`Proxy error: ${message || "Internal error"}`, {
       status: 502,
       headers: {

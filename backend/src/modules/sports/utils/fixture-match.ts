@@ -64,7 +64,7 @@ export function fixtureScore(a: Pick<SportsMatch, 'home' | 'away'>, b: Pick<Spor
   return Math.max(straight, crossed);
 }
 
-const CLOSE_KICKOFF_S = 45 * 60;
+export const CLOSE_KICKOFF_S = 45 * 60;
 
 /**
  * Deux entrées désignent la même rencontre. Un score parfait passe sans autre

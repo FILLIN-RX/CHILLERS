@@ -407,7 +407,7 @@ export default function ProfileClient() {
                   <div className="flex gap-4 overflow-x-auto no-scrollbar pb-3 pt-1">
                     {user.watchHistory.slice().reverse().slice(0, 10).map((h: any, i: number) => {
                       const poster = h.posterPath 
-                        ? (h.posterPath.startsWith('http') ? h.posterPath : `https://image.tmdb.org/t/p/w500${h.posterPath}`)
+                        ? (h.posterPath.startsWith('http') ? h.posterPath : `https://image.tmdb.org/t/p/original${h.posterPath}`)
                         : null;
                       return (
                         <Link
@@ -508,7 +508,7 @@ export default function ProfileClient() {
                     {user.playlists.map((pl: any) => {
                       const firstItem = pl.items && pl.items.length > 0 ? pl.items[0] : null;
                       const cover = firstItem?.posterPath 
-                        ? (firstItem.posterPath.startsWith('http') ? firstItem.posterPath : `https://image.tmdb.org/t/p/w500${firstItem.posterPath}`)
+                        ? (firstItem.posterPath.startsWith('http') ? firstItem.posterPath : `https://image.tmdb.org/t/p/original${firstItem.posterPath}`)
                         : null;
                       return (
                         <div
@@ -585,7 +585,7 @@ export default function ProfileClient() {
                   <div className="flex gap-4 overflow-x-auto no-scrollbar pb-3 pt-1">
                     {user.watchLater.map((wl: any, i: number) => {
                       const poster = wl.posterPath
-                        ? (wl.posterPath.startsWith('http') ? wl.posterPath : `https://image.tmdb.org/t/p/w500${wl.posterPath}`)
+                        ? (wl.posterPath.startsWith('http') ? wl.posterPath : `https://image.tmdb.org/t/p/original${wl.posterPath}`)
                         : null;
                       return (
                         <Link
@@ -663,7 +663,7 @@ export default function ProfileClient() {
                   <div className="flex gap-4 overflow-x-auto no-scrollbar pb-3 pt-1">
                     {user.favorites.map((fav: any) => {
                       const poster = fav.posterPath
-                        ? (fav.posterPath.startsWith('http') ? fav.posterPath : `https://image.tmdb.org/t/p/w500${fav.posterPath}`)
+                        ? (fav.posterPath.startsWith('http') ? fav.posterPath : `https://image.tmdb.org/t/p/original${fav.posterPath}`)
                         : null;
                       return (
                         <Link
@@ -762,7 +762,7 @@ export default function ProfileClient() {
                   {user.playlists.map((pl: any) => {
                     const firstItem = pl.items && pl.items.length > 0 ? pl.items[0] : null;
                     const cover = firstItem?.posterPath
-                      ? (firstItem.posterPath.startsWith('http') ? firstItem.posterPath : `https://image.tmdb.org/t/p/w500${firstItem.posterPath}`)
+                      ? (firstItem.posterPath.startsWith('http') ? firstItem.posterPath : `https://image.tmdb.org/t/p/original${firstItem.posterPath}`)
                       : null;
                     return (
                       <div
@@ -864,7 +864,7 @@ export default function ProfileClient() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                   {user.watchLater.map((wl: any) => {
                     const poster = wl.posterPath
-                      ? (wl.posterPath.startsWith('http') ? wl.posterPath : `https://image.tmdb.org/t/p/w500${wl.posterPath}`)
+                      ? (wl.posterPath.startsWith('http') ? wl.posterPath : `https://image.tmdb.org/t/p/original${wl.posterPath}`)
                       : null;
                     return (
                       <div
@@ -952,7 +952,7 @@ export default function ProfileClient() {
                   {user.favorites.map((fav: any) => (
                     <Link href={`/media/${fav.tmdbId}?type=${fav.mediaType}`} key={fav.tmdbId} className="group relative rounded-2xl overflow-hidden aspect-[2/3] bg-zinc-800 border border-white/5">
                       {fav.posterPath ? (
-                        <img src={`https://image.tmdb.org/t/p/w500${fav.posterPath}`} alt={fav.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                        <img src={`https://image.tmdb.org/t/p/original${fav.posterPath}`} alt={fav.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center p-4 text-center">
                           <span className="text-sm text-zinc-400 font-medium">{fav.title}</span>

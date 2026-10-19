@@ -1,5 +1,14 @@
 export type LiveChannelType = "hls" | "youtube" | "dailymotion";
 
+/** Programme TV (EPG) : à l'antenne puis suivant. */
+export interface LiveEpgEntry {
+  title: string;
+  /** ISO 8601 UTC */
+  start?: string;
+  /** ISO 8601 UTC */
+  end?: string;
+}
+
 export interface LiveChannel {
   _id: string;
   name: string;
@@ -21,6 +30,11 @@ export interface LiveChannel {
   source?: string;
   createdAt?: string;
   updatedAt?: string;
+  /** Force le lecteur à passer le flux par /api/live/proxy (CORS/anti-leech). */
+  proxy?: boolean;
+  /** Programme en cours puis suivant (catalogue oha / EPG). */
+  epgNow?: LiveEpgEntry;
+  epgNext?: LiveEpgEntry;
 }
 
 export interface LiveChannelInput {

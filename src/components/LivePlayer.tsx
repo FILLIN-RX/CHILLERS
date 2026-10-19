@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import Hls from "hls.js";
+// Type-only : hls.js (~530 Ko) est importé dynamiquement dans l'effet HLS.
+import type Hls from "hls.js";
 import { useLanguage } from "@/i18n/LanguageContext";
 import type { LiveChannel } from "@/types/live";
 import { PopupFirewall } from "@/lib/PopupFirewall";
@@ -32,15 +33,20 @@ function buildProxyUrl(url: string): string {
   return `${PROXY_BASE}?url=${encodeURIComponent(url)}`;
 }
 
-const BaseLoader: any = (Hls as any).DefaultConfig?.loader;
-
-class ProxiedHlsLoader extends BaseLoader {
-  load(context: any, config: any, callbacks: any) {
-    if (context?.url && !context.url.includes("/api/live/proxy")) {
-      context.url = buildProxyUrl(context.url);
+// Construit le loader proxy à partir du module hls.js (importé dynamiquement) :
+// toute requête fragment/manifest passe par /api/live/proxy pour les CDN
+// soumis à anti-leech (Referer) ou bloqués en CORS.
+function buildProxiedLoader(HlsModule: typeof Hls) {
+  const BaseLoader: any = (HlsModule as any).DefaultConfig?.loader;
+  if (!BaseLoader) return null;
+  return class ProxiedHlsLoader extends BaseLoader {
+    load(context: any, config: any, callbacks: any) {
+      if (context?.url && !context.url.includes("/api/live/proxy")) {
+        context.url = buildProxyUrl(context.url);
+      }
+      super.load(context, config, callbacks);
     }
-    super.load(context, config, callbacks);
-  }
+  };
 }
 
 /** Composant Logo avec fallback élégant pour ne jamais casser l'interface */
@@ -239,11 +245,6 @@ export default function LivePlayer({
       channel.streamUrl?.includes('edgesuite.net')
     );
 
-    if ((proxyMode || isCorsRestricted) && BaseLoader) {
-      config.loader = ProxiedHlsLoader;
-      config.pLoader = ProxiedHlsLoader;
-    }
-
     const effectiveUrl = (proxyMode || isCorsRestricted)
       ? buildProxyUrl(channel.streamUrl)
       : channel.streamUrl;
@@ -256,48 +257,64 @@ export default function LivePlayer({
       setIsLive(true);
     };
 
+    let cancelled = false;
     let hls: Hls | null = null;
 
-    if (Hls.isSupported()) {
-      hls = new Hls(config);
-      hls.loadSource(effectiveUrl);
-      hls.attachMedia(el);
-      hls.on(Hls.Events.MANIFEST_PARSED, startPlayback);
-      hls.on(Hls.Events.FRAG_LOADED, () => {
-        setIsLoading(false);
-        updateLiveState();
-      });
-      hls.on(Hls.Events.ERROR, (_e, data) => {
-        if (!data?.fatal) return;
-        if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
-          hls?.recoverMediaError();
-          return;
+    // Import à la demande de hls.js (~530 Ko) : jamais dans le bundle initial.
+    void (async () => {
+      const { default: Hls } = await import("hls.js");
+      if (cancelled) return;
+
+      if ((proxyMode || isCorsRestricted) && Hls.DefaultConfig?.loader) {
+        const ProxiedHlsLoader = buildProxiedLoader(Hls);
+        if (ProxiedHlsLoader) {
+          config.loader = ProxiedHlsLoader;
+          config.pLoader = ProxiedHlsLoader;
         }
-        if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-          if (!proxyMode) {
-            setProxyMode(true);
+      }
+
+      if (Hls.isSupported()) {
+        hls = new Hls(config);
+        hls.loadSource(effectiveUrl);
+        hls.attachMedia(el);
+        hls.on(Hls.Events.MANIFEST_PARSED, startPlayback);
+        hls.on(Hls.Events.FRAG_LOADED, () => {
+          setIsLoading(false);
+          updateLiveState();
+        });
+        hls.on(Hls.Events.ERROR, (_e, data) => {
+          if (!data?.fatal) return;
+          if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+            hls?.recoverMediaError();
             return;
           }
-          hls?.startLoad();
-          return;
-        }
-        setError("stream");
-      });
-    } else if (el.canPlayType("application/vnd.apple.mpegurl")) {
-      el.src = effectiveUrl;
-      el.addEventListener("loadedmetadata", startPlayback);
-      el.addEventListener("error", () => {
-        if (!proxyMode) {
-          setProxyMode(true);
-        } else {
+          if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+            if (!proxyMode) {
+              setProxyMode(true);
+              return;
+            }
+            hls?.startLoad();
+            return;
+          }
           setError("stream");
-        }
-      });
-    } else {
-      setError("unsupported");
-    }
+        });
+      } else if (el.canPlayType("application/vnd.apple.mpegurl")) {
+        el.src = effectiveUrl;
+        el.addEventListener("loadedmetadata", startPlayback);
+        el.addEventListener("error", () => {
+          if (!proxyMode) {
+            setProxyMode(true);
+          } else {
+            setError("stream");
+          }
+        });
+      } else {
+        setError("unsupported");
+      }
+    })();
 
     return () => {
+      cancelled = true;
       if (hls) hls.destroy();
     };
   }, [isHls, channel.streamUrl, proxyMode, reloadKey, isMuted, updateLiveState, latencyMode]);
@@ -503,7 +520,7 @@ export default function LivePlayer({
         }`}
       >
         <div className="flex items-center justify-between gap-4">
-          {/* Gauche : Retour + Logo + Titre */}
+          {/* Gauche : Retour + Marque CHILLERS + Titre chaîne */}
           <div className="flex items-center gap-3 sm:gap-4 min-w-0">
             <button
               onClick={onBack}
@@ -513,12 +530,17 @@ export default function LivePlayer({
               <ArrowLeft className="h-5 w-5" />
             </button>
 
-            <ChannelLogoBadge
-              logo={channel.logo}
-              name={channel.name}
-              className="h-7 w-auto max-w-[80px]"
-              fallbackClassName="w-8 h-7"
-            />
+            {/* Marque CHILLERS (logo + nom) */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              <img
+                src="/favicon-32x32.png"
+                alt="CHILLERS"
+                className="h-6 sm:h-7 w-auto object-contain drop-shadow-[0_0_10px_rgba(215,4,102,0.5)]"
+              />
+              <span className="hidden sm:flex text-sm sm:text-base font-isometra tracking-tight text-white">
+                HILL<span className="text-brand-primary">ERS</span>
+              </span>
+            </div>
 
             <div className="min-w-0">
               <h1 className="text-sm sm:text-base font-semibold text-white truncate">
@@ -535,8 +557,15 @@ export default function LivePlayer({
             </div>
           </div>
 
-          {/* Droite : Volume + PiP + Partager */}
+          {/* Droite : Logo chaîne + Volume + PiP + Partager */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <ChannelLogoBadge
+              logo={channel.logo}
+              name={channel.name}
+              className="h-7 w-auto max-w-[80px]"
+              fallbackClassName="w-8 h-7"
+            />
+
             <button
               onClick={toggleMute}
               className={`${GLASS_BTN} w-11 h-11`}

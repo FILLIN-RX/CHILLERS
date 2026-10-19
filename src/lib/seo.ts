@@ -12,6 +12,22 @@ export const SITE_LOCALE = "fr_FR";
 
 export const TMDB_IMAGE = "https://image.tmdb.org/t/p";
 
+/**
+ * URL TMDB à la taille voulue. Les pages passent désormais des URLs complètes
+ * (`…/t/p/original/x.jpg`) et non des chemins : on réécrit la taille au lieu de
+ * préfixer, ce qui produisait des doubles URLs (`w1280https://…`). Les URL
+ * non-TMDB passent telles quelles.
+ */
+export function tmdbImg(urlOrPath: string | undefined, size: string): string | undefined {
+  if (!urlOrPath) return undefined;
+  if (/^https?:\/\//i.test(urlOrPath)) {
+    return urlOrPath.includes("image.tmdb.org/t/p/")
+      ? urlOrPath.replace(/\/t\/p\/[^/]+\//, `/t/p/${size}/`)
+      : urlOrPath;
+  }
+  return `${TMDB_IMAGE}/${size}${urlOrPath}`;
+}
+
 export const DEFAULT_OG_IMAGE = {
   url: `${SITE_URL}/og-image.png`,
   width: 1200,
@@ -102,8 +118,8 @@ export function buildMediaMetadata(input: MediaMetaInput): Metadata {
   const canonical = `${SITE_URL}${path}`;
 
   // 2. Images HD et bannière 16:9 dynamique /api/og
-  const poster = posterPath ? `${TMDB_IMAGE}/w780${posterPath}` : undefined;
-  const backdrop = backdropPath ? `${TMDB_IMAGE}/w1280${backdropPath}` : undefined;
+  const poster = tmdbImg(posterPath, "w780");
+  const backdrop = tmdbImg(backdropPath, "w1280");
 
   const ogApiParams = new URLSearchParams({
     id: id.toString(),
@@ -188,8 +204,8 @@ export function buildMediaJsonLd(input: MediaMetaInput) {
   const { id, title, type, overview, posterPath, backdropPath, year, rating, path } = input;
   const isTV = type === "tv";
   const canonical = `${SITE_URL}${path}`;
-  const poster = posterPath ? `${TMDB_IMAGE}/w780${posterPath}` : `${SITE_URL}/og-image.png`;
-  const backdrop = backdropPath ? `${TMDB_IMAGE}/w1280${backdropPath}` : poster;
+  const poster = tmdbImg(posterPath, "w780") ?? `${SITE_URL}/og-image.png`;
+  const backdrop = tmdbImg(backdropPath, "w1280") ?? poster;
 
   return {
     "@context": "https://schema.org",

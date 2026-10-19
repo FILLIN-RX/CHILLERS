@@ -15,8 +15,14 @@ export async function GET(req: NextRequest) {
     const overview = searchParams.get("overview");
 
     const tmdbBase = "https://image.tmdb.org/t/p";
-    const posterUrl = poster ? `${tmdbBase}/w500${poster}` : null;
-    const backdropUrl = backdrop ? `${tmdbBase}/w1280${backdrop}` : posterUrl;
+    // Les pages envoient des URLs complètes (…/t/p/original/x.jpg) : on
+    // réécrit la taille, sinon l'URL devient `w500https://…`.
+    const sizeUrl = (raw: string, size: string) =>
+      /^https?:\/\//i.test(raw)
+        ? raw.replace(/\/t\/p\/[^/]+\//, `/t/p/${size}/`)
+        : `${tmdbBase}/${size}${raw}`;
+    const posterUrl = poster ? sizeUrl(poster, "w500") : null;
+    const backdropUrl = backdrop ? sizeUrl(backdrop, "w1280") : posterUrl;
 
     const isTV = type === "tv";
     const mediaTypeLabel = isTV ? "SÉRIE" : "FILM";

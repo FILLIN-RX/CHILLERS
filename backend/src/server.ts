@@ -6,6 +6,7 @@ import Admin from './models/Admin';
 import { SubscriptionPlan } from './models/SubscriptionPlan';
 import { syncSeed } from './modules/live/live.service';
 import { initializeSystemSettings } from './scripts/init-system-settings';
+import { startLabScheduler } from './modules/sports/lab/lab-scheduler';
 
 const PORT = process.env.PORT || 4000;
 
@@ -64,5 +65,8 @@ connectDB().then(async () => {
   app.listen(PORT, () => {
     console.log(`[Chiller API] Running on http://localhost:${PORT}`);
     console.log(`[Chiller System] Cron géré par GitHub Actions. Le backend ne lance plus de tâches automatiques.`);
+    // Seul exception : le snapshot « chaînes de match » du lab (flag dédié),
+    // qui doit écrire un fichier local — impossible depuis une CI.
+    startLabScheduler();
   });
 });

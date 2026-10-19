@@ -1,6 +1,7 @@
 "use client";
 
 import { API_BASE_PATH, getBackendOrigin } from "@/services/http";
+import { toIOSDownloadHref } from "@/services/downloads";
 
 // Thin wrapper around StreamSaver.js that initialises the MITM polyfill lazily
 // (browser-only) and exposes a single `streamDownloadToDisk` function.
@@ -75,32 +76,19 @@ export async function streamDownloadToDisk(
   const { filename, signal, onProgress, throttleMs = 200, saveBlob = false } = opts;
 
   if (isIOS()) {
-    // iOS Safari ne supporte pas WritableStream / StreamSaver MITM iframe.
-    // Sur WebKit iOS, les clics synthétiques (a.click()) après async sont bloqués
-    // et l'attribut a.download est ignoré en cross-origin.
-    // La redirection directe via window.location.href déclenche infailliblement
-    // la boîte de dialogue native iOS ("Voulez-vous télécharger... ?") grâce au
-    // Content-Disposition: attachment servi par le backend.
+    // iOS Safari ne supporte pas WritableStream / StreamSaver MITM iframe, et
+    // ignore l'attribut `download` cross-origin. Seul un serveur qui répond
+    // `Content-Disposition: attachment` déclenche la boîte native de téléchargement.
+    //
+    // → On navigue dans l'ONGLET COURANT (window.location.href). Un `target="_blank"`
+    //   ouvrait un onglet où Safari lisait le MP4 inline au lieu de télécharger.
+    // → toIOSDownloadHref proxifie toute URL tierce via /api/download/file
+    //   (headers safari-safe : attachment + video/mp4 + Accept-Ranges).
     const backendOrigin = getBackendOrigin();
-    let href: string;
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      href = url;
-    } else if (url.startsWith('/api/')) {
-      href = `${backendOrigin}${url}`;
-    } else {
-      href = url;
-    }
+    const relative = toIOSDownloadHref(url, filename || "video.mp4");
+    const href = relative.startsWith("http") ? relative : `${backendOrigin}${relative}`;
 
-    const a = document.createElement("a");
-    a.href = href;
-    a.target = "_blank";
-    a.rel = "noopener noreferrer";
-    a.download = filename || "video.mp4";
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => {
-      try { a.remove(); } catch (_) {}
-    }, 1000);
+    window.location.href = href;
     return { totalBytes: null };
   }
 

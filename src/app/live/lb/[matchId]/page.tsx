@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { SITE_URL, SITE_NAME, SITE_LOCALE } from "@/lib/seo";
+import { API_BASE_URL } from "@/lib/api-base";
 import LiveBallMatchContent from "./page-content";
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === "production" ? "https://chillers-production-8e02.up.railway.app/api" : "http://localhost:4000/api");
+const API_BASE = API_BASE_URL;
 
 interface MatchInfo {
   id: string;

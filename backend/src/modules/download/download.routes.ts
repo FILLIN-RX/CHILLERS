@@ -376,10 +376,16 @@ router.get('/resolve', async (req: Request, res: Response) => {
     let finalDownloadUrl: string;
 
     if (isMp4Direct && downloadUrl.startsWith('http')) {
-      // Pour Vidzy et tous les hébergeurs MP4 direct qui gèrent le téléchargement natif (comme OpenOtaku) :
-      // On sert l'URL directe pour une vitesse maximale et éviter que le proxy Node.js ne coupe la connexion
-      // ou ne produise des fichiers corrompus de 0 ko ou 55 bytes.
-      if (DirectScraper.isVidzyUrl(downloadUrl) || (!downloadUrl.includes('/api/') && /\.mp4(\?|$)/i.test(downloadUrl))) {
+      // iOS : WebKit ignore l'attribut download cross-origin et lit le MP4 inline
+      // si le serveur ne renvoie pas Content-Disposition: attachment. On passe
+      // donc TOUJOURS par le proxy /file sur iOS (headers safari-safe).
+      if (isIOS) {
+        finalDownloadUrl = `/api/download/file?url=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(cleanFilename)}`;
+        console.log(`[Download Resolve] MP4 direct client=iOS → file proxy: ${downloadUrl.slice(0, 80)}...`);
+      } else if (DirectScraper.isVidzyUrl(downloadUrl) || (!downloadUrl.includes('/api/') && /\.mp4(\?|$)/i.test(downloadUrl))) {
+        // Pour Vidzy et tous les hébergeurs MP4 direct qui gèrent le téléchargement natif (comme OpenOtaku) :
+        // On sert l'URL directe pour une vitesse maximale et éviter que le proxy Node.js ne coupe la connexion
+        // ou ne produise des fichiers corrompus de 0 ko ou 55 bytes.
         finalDownloadUrl = downloadUrl;
         console.log(`[Download Resolve] MP4 direct (mode OpenOtaku direct): ${downloadUrl.slice(0, 80)}...`);
       } else {

@@ -139,7 +139,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
           number: ep.episode_number,
           season: currentSeason,
           thumbnail: ep.still_path
-            ? `https://image.tmdb.org/t/p/w185${ep.still_path}`
+            ? `https://image.tmdb.org/t/p/original${ep.still_path}`
             : "",
           synopsis: ep.overview || "",
           airDate: ep.air_date || undefined,
@@ -243,7 +243,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
               number: ep.episode_number,
               season: targetSeason,
               thumbnail: ep.still_path
-                ? `https://image.tmdb.org/t/p/w185${ep.still_path}`
+                ? `https://image.tmdb.org/t/p/original${ep.still_path}`
                 : "",
               synopsis: ep.overview || "",
               airDate: ep.air_date || undefined,
@@ -357,7 +357,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
             number: ep.episode_number,
             season: newSeason,
             thumbnail: ep.still_path
-              ? `https://image.tmdb.org/t/p/w185${ep.still_path}`
+              ? `https://image.tmdb.org/t/p/original${ep.still_path}`
               : "",
             synopsis: ep.overview || "",
             airDate: ep.air_date || undefined,

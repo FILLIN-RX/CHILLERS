@@ -6,6 +6,7 @@
 // All service modules in src/services/*.ts should funnel their HTTP through here.
 
 import { getAntiBotHeaders } from "@/lib/antibot";
+import { API_BASE_URL } from "@/lib/api-base";
 
 export const API_BASE_PATH = "/api";
 const DEFAULT_TIMEOUT_MS = 12_000;
@@ -28,8 +29,7 @@ function getAdaptiveTimeout(): number {
 
 /** Read NEXT_PUBLIC_API_URL at runtime on the client to resolve the backend origin for /uploads and absolute image URLs. */
 export function getBackendOrigin(): string {
-  const raw = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === "production" ? "https://chillers-production-636d.up.railway.app/api" : "http://localhost:4000/api");
-  return raw.replace(/\/api\/?$/, "");
+  return API_BASE_URL.replace(/\/api\/?$/, "");
 }
 
 export class HttpError extends Error {
@@ -58,9 +58,8 @@ function buildUrl(path: string, query?: HttpJsonOptions["query"]): string {
   if (!path.startsWith("http")) {
     const isServer = typeof window === "undefined";
     if (isServer) {
-      const backendApi = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === "production" ? "https://chillers-production-636d.up.railway.app/api" : "http://localhost:4000/api");
       const cleanPath = path.startsWith(API_BASE_PATH) ? path.substring(API_BASE_PATH.length) : path;
-      base = `${backendApi}${cleanPath.startsWith("/") ? cleanPath : `/${cleanPath}`}`;
+      base = `${API_BASE_URL}${cleanPath.startsWith("/") ? cleanPath : `/${cleanPath}`}`;
     } else {
       base = path.startsWith(API_BASE_PATH)
         ? path

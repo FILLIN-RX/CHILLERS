@@ -54,20 +54,12 @@ function SessionSyncInner({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-export default function SessionSyncProvider({
-  children,
-  session,
-}: {
-  children: React.ReactNode;
-  session?: any;
-}) {
+// P3: pas de `session` initial passée depuis le serveur — ce provider est
+// monté dans le layout racine qui doit rester statique. SessionProvider
+// charge la session côté client (/api/nextauth/session) au montage.
+export default function SessionSyncProvider({ children }: { children: React.ReactNode }) {
   return (
-    <SessionProvider
-      session={session}
-      basePath="/api/nextauth"
-      refetchOnWindowFocus={false}
-      refetchInterval={0}
-    >
+    <SessionProvider basePath="/api/nextauth" refetchOnWindowFocus={false} refetchInterval={0}>
       <SessionSyncInner>{children}</SessionSyncInner>
     </SessionProvider>
   );

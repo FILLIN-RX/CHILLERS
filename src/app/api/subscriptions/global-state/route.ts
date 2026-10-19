@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { API_BASE_URL } from "@/lib/api-base";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -6,11 +7,7 @@ export const runtime = "nodejs";
 // In-memory fallback state for Next.js server instance
 let globalSubscriptionState = true;
 
-const BACKEND_API =
-  process.env.NEXT_PUBLIC_API_URL ||
-  (process.env.NODE_ENV === "production"
-    ? "https://chillers.onrender.com/api"
-    : "http://localhost:4000/api");
+const BACKEND_API = API_BASE_URL;
 
 export async function GET() {
   try {

@@ -40,3 +40,22 @@ export async function getSportsStream(matchId: string): Promise<SportsStream | n
   }
   return null;
 }
+
+/**
+ * Tous les serveurs/chaînes connus du match (union des providers). Le flux
+ * principal arrive déjà par `/stream` — cet endpoint sert le sélecteur, et le
+ * premier appel peut être lent (la chaîne complète est épuisée une fois, puis
+ * le registre 24 h du backend répond instantanément).
+ */
+export async function getSportsChannels(matchId: string): Promise<SportsStream | null> {
+  try {
+    const res = await httpJson<Envelope<SportsStream>>(
+      `/sports/match/${encodeURIComponent(matchId)}/channels`,
+      { timeoutMs: 60_000 }
+    );
+    if (res?.success && res.data?.servers?.length) return res.data;
+  } catch {
+    // Sans multi-serveurs (flag hors prod) ou chaîne épuisée : on garde /stream.
+  }
+  return null;
+}

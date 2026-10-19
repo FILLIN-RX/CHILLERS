@@ -519,7 +519,6 @@ export default function TestLangContent() {
                       src={playbackUrl}
                       title="Player Test"
                       className="w-full h-full border-0"
-                      allowFullScreen
                       allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
                     />
                   )

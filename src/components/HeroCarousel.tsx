@@ -233,7 +233,7 @@ export default function HeroCarousel({
                     className="object-cover object-center transition-opacity duration-700"
                     style={{ filter: "brightness(0.8) saturate(1.1)" }}
                     sizes="100vw"
-                    quality={75}
+                    quality={85}
                     priority={index === 0}
                     loading={index === 0 ? "eager" : "lazy"}
                     {...(index === 0 ? { fetchPriority: "high" } : {})}
@@ -249,8 +249,7 @@ export default function HeroCarousel({
                           data-hero-video
                           src={`https://www.youtube.com/embed/${ytKey}?autoplay=1&mute=1&controls=0&loop=1&playlist=${ytKey}&playsinline=1&rel=0&showinfo=0&iv_load_policy=3&modestbranding=1&enablejsapi=1`}
                           className="w-full h-full border-none pointer-events-none"
-                          allow="autoplay; encrypted-media; gyroscope; picture-in-picture"
-                          allowFullScreen
+                          allow="autoplay; encrypted-media; fullscreen; gyroscope; picture-in-picture"
                           title={slide.title}
                         />
                       </div>

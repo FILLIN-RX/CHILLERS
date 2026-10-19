@@ -3,10 +3,20 @@
  * `sports.routes.ts` : sans `SPORTS_CHANNELS_LAB=1`, `/api/sports/lab/*` n'existe pas.
  */
 import { Router } from 'express';
-import { getLabFixture, getLabFixtureChannels, getLabReport } from './lab.controller';
+import {
+  getLabFixture,
+  getLabFixtureChannels,
+  getLabReport,
+  getLabStatus,
+  postLabScan,
+} from './lab.controller';
 import { getLabPlaylist, getLabProxy } from './lab-relay';
 
 const router = Router();
+
+// Ordonnanceur du snapshot : état + déclenchement manuel
+router.get('/status', getLabStatus);
+router.post('/scan', postLabScan);
 
 // Snapshot : fixtures fusionnés + liens de toutes les chaînes probeées
 router.get('/report', getLabReport);

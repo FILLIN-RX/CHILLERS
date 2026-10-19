@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getDisponible, AvailabilityEntry, mapTMDBToMovieOrShow, getMediaLogo } from "@/services/media";
+import { useMediaDetails } from "@/hooks/useMediaDetails";
 import { httpJson } from "@/services/http";
 import type { MovieOrShow, Episode } from "@/types/media";
 import { useLanguage } from "@/i18n/LanguageContext";
@@ -16,6 +17,7 @@ import AddToPlaylistModal from "@/components/AddToPlaylistModal";
 import Button from "@/components/Button";
 import CardImage from "@/components/CardImage";
 import MediaLogo from "@/components/MediaLogo";
+import { useBackdropAmbiance } from "@/hooks/useBackdropAmbiance";
 import { ArrowLeft, Play, Star, CalendarBlank, FilmSlate, ShareNetwork, BookmarkSimple, X, Check, LinkSimple, ListNumbers } from "@phosphor-icons/react";
 
 interface TvClientWrapperProps {
@@ -48,14 +50,13 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
     }
   }, [initialItem]);
 
-  const [item, setItem] = useState<MovieOrShow | null>(normalizedInitial);
+  const { data: itemData } = useMediaDetails(id, true, {
+    initialData: normalizedInitial ?? undefined,
+    staleTime: 5 * 60_000,
+  });
+  const item = itemData ?? null;
 
-  useEffect(() => {
-    if (normalizedInitial) {
-      setItem(normalizedInitial);
-    }
-  }, [normalizedInitial]);
-  const [similar, setSimilar] = useState<MovieOrShow[]>(initialSimilar);
+  const [similar] = useState<MovieOrShow[]>(initialSimilar);
   const [disponible, setDisponible] = useState<AvailabilityEntry | null>(null);
   const [trailerOpen, setTrailerOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
@@ -123,7 +124,7 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
         let attempts = 0;
         const pollTimer = setInterval(async () => {
           attempts++;
-          if (attempts > 4 || cancelled) {
+          if (attempts > 2 || cancelled) {
             clearInterval(pollTimer);
             return;
           }
@@ -132,7 +133,7 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
             setDisponible(updatedDispo);
             clearInterval(pollTimer);
           }
-        }, 3000);
+        }, 8000);
       }
     };
     checkDispo();
@@ -209,6 +210,8 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
     }, 2000);
   };
 
+  const ambiance = useBackdropAmbiance(item?.backdropOriginalUrl || item?.backdropUrl || undefined);
+
   if (!item) {
     return (
       <div className="min-h-screen bg-[#1F1F1F] text-white flex flex-col items-center justify-center p-4 text-center">
@@ -237,7 +240,7 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
         name: s.name || `Saison ${s.seasonNumber ?? s.season_number ?? 1}`,
         seasonNumber: Number(s.seasonNumber ?? s.season_number ?? 1),
         episodeCount: Number(s.episodeCount ?? s.episode_count ?? 0),
-        posterUrl: s.posterUrl || (s.poster_path ? `https://image.tmdb.org/t/p/w500${s.poster_path}` : item?.posterUrl || ""),
+        posterUrl: s.posterUrl || (s.poster_path ? `https://image.tmdb.org/t/p/original${s.poster_path}` : item?.posterUrl || ""),
       }))
       .filter((s) => s.seasonNumber > 0);
   }, [item]);
@@ -258,7 +261,7 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
             alt={displayTitle}
             fill
             priority
-            quality={75}
+            quality={85}
             className="object-cover object-top"
             sizes="100vw"
           />
@@ -266,11 +269,45 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
           <div className="w-full h-full bg-gradient-to-b from-zinc-800 to-[#09090B]" />
         )}
 
+        {/* Ambiance colorimétrique tirée du backdrop : teinte l'image, puis halo */}
+        {ambiance && (
+          <>
+            <div
+              aria-hidden
+              className="absolute inset-0 pointer-events-none mix-blend-soft-light animate-in fade-in duration-1000"
+              style={{
+                background: `linear-gradient(205deg, rgb(${ambiance.vivid} / 0.75) 0%, rgb(${ambiance.dominant} / 0.6) 55%, rgb(${ambiance.vivid} / 0.45) 100%)`,
+              }}
+            />
+            <div
+              aria-hidden
+              className="absolute inset-0 pointer-events-none animate-in fade-in duration-1000"
+              style={{
+                background: [
+                  `radial-gradient(90% 110% at 78% 10%, rgb(${ambiance.dominant} / 0.5), transparent 68%)`,
+                  `radial-gradient(55% 75% at 12% 92%, rgb(${ambiance.vivid} / 0.22), transparent 72%)`,
+                ].join(", "),
+              }}
+            />
+          </>
+        )}
+
         {/* Dégradé gauche à droite uniquement */}
         <div className="absolute inset-0 bg-gradient-to-r from-black via-black/60 to-transparent max-w-4xl" />
         
         {/* Dégradé du bas avec petite hauteur */}
         <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[#09090B] via-[#09090B]/40 to-transparent" />
+
+        {/* Fade bas teinté : prolonge l'ambiance jusqu'au contenu, sans couture */}
+        {ambiance && (
+          <div
+            aria-hidden
+            className="absolute bottom-0 left-0 right-0 h-32 pointer-events-none animate-in fade-in duration-1000"
+            style={{
+              background: `linear-gradient(to top, color-mix(in srgb, rgb(${ambiance.dominant}) 26%, black) 0%, color-mix(in srgb, rgb(${ambiance.dominant}) 12%, transparent) 55%, transparent 100%)`,
+            }}
+          />
+        )}
 
         <div className="fixed top-4 left-4 z-50">
           <button
@@ -608,7 +645,11 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
             <div className="relative group/cast">
               <div ref={castScrollRef} onScroll={checkCastScroll} className="flex items-start gap-4 sm:gap-6 overflow-x-auto no-scrollbar scroll-smooth py-2 px-1">
                 {item.castDetails.map((actor) => (
-                  <div key={actor.id} className="flex flex-col items-center text-center space-y-2 flex-shrink-0 w-20 sm:w-24 group cursor-pointer">
+                  <Link
+                    key={actor.id}
+                    href={`/person/${actor.id}`}
+                    className="flex flex-col items-center text-center space-y-2 flex-shrink-0 w-20 sm:w-24 group cursor-pointer"
+                  >
                     <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden bg-zinc-800 shadow-md ring-2 ring-white/5 group-hover:ring-brand-primary group-hover:scale-105 transition-all duration-300">
                       {actor.profileUrl ? (
                         <Image src={actor.profileUrl} alt={actor.name} fill className="object-cover object-top" sizes="80px" />
@@ -622,7 +663,7 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
                       <p className="text-[11px] sm:text-xs font-bold text-white truncate group-hover:text-brand-primary transition-colors" title={actor.name}>{actor.name}</p>
                       <p className="text-[10px] text-zinc-400 truncate" title={actor.character}>{actor.character}</p>
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             </div>

@@ -12,7 +12,9 @@ import {
   useReducedMotion,
   AnimatePresence,
 } from "motion/react";
+import { useQueryClient } from "@tanstack/react-query";
 import type { MovieOrShow } from "@/types/media";
+import { getMediaDetails } from "@/services/media";
 import {
   Play,
   Star,
@@ -70,6 +72,7 @@ function MovieCard({
   const { translate: _ } = useLanguage();
   const cardRef = useRef<HTMLDivElement>(null);
   const shouldReduceMotion = useReducedMotion();
+  const queryClient = useQueryClient();
 
   const isLoggedIn = useAuthStore((s) => Boolean(s.token));
   const isFavorite = useAuthStore((s) =>
@@ -138,8 +141,18 @@ function MovieCard({
         router.prefetch(watchUrl);
         router.prefetch(detailsUrl);
       } catch {}
+      // Préchauffe aussi le cache de données : au clic, la fiche s'affiche
+      // instantanément depuis react-query pendant que le RSC se rend.
+      const isTv = item.type === "series" || item.type === "anime";
+      queryClient
+        .prefetchQuery({
+          queryKey: ["media-details", item.id, isTv],
+          queryFn: () => getMediaDetails(item.id, isTv),
+          staleTime: 5 * 60_000,
+        })
+        .catch(() => {});
     },
-    [canHover, router, watchUrl, detailsUrl]
+    [canHover, router, watchUrl, detailsUrl, queryClient, item.id, item.type]
   );
 
   const handlePointerLeave = useCallback(() => {

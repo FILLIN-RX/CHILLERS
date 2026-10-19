@@ -8,7 +8,7 @@ import { useDownloadsStore } from "@/store/downloads";
 import type { DownloadStatus } from "@/types/download";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { getBackendOrigin } from "@/services/http";
-import { isDownloadableUrl } from "@/services/downloads";
+import { isDownloadableUrl, toIOSDownloadHref } from "@/services/downloads";
 import { isIOS } from "@/services/streamSaver";
 
 interface DownloadModalProps {
@@ -111,6 +111,17 @@ export default function DownloadModal({
         ? dl.task.resolvedUrl
         : `${getBackendOrigin()}${dl.task.resolvedUrl}`)
     : "#";
+
+  // Sur iOS, toute URL tierce est passée par le proxy /file (attachment garanti)
+  // et on navigue dans l'onglet courant (target="_blank" est jeté en PWA standalone).
+  const anchorHref = isIOS()
+    ? dl.task?.resolvedUrl
+      ? (() => {
+          const relative = toIOSDownloadHref(dl.task.resolvedUrl, dl.task?.filename || `${title}.mp4`);
+          return relative.startsWith("http") ? relative : `${getBackendOrigin()}${relative}`;
+        })()
+      : "#"
+    : readyHref;
 
   const canDownload = dl.status === "ready" && isDownloadableUrl(dl.task?.resolvedUrl);
   const noFileAvailable = dl.status === "ready" && !canDownload;
@@ -244,19 +255,11 @@ export default function DownloadModal({
 
         {canDownload && (
           <a
-            href={readyHref}
-            target="_blank"
+            href={anchorHref}
+            target={isIOS() ? undefined : "_blank"}
             rel="noopener noreferrer"
             download={dl.task?.filename || `${title}.mp4`}
-            onClick={(e) => {
-              // En PWA standalone, WebKit iOS jette silencieusement les clics target="_blank".
-              // Le geste utilisateur doit donc partir de l'onglet courant.
-              if (isIOS() && dl.task?.resolvedUrl) {
-                e.preventDefault();
-                window.location.href = readyHref;
-              }
-              onClose();
-            }}
+            onClick={() => onClose()}
             className="w-full px-8 py-3 rounded-[5px] bg-white text-black font-bold text-sm hover:bg-zinc-200 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-95 no-underline"
           >
             <DownloadSimple className="h-5 w-5" />

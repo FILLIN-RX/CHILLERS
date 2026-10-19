@@ -7,7 +7,10 @@
     "iptv": "../backend/node_modules/.bin/tsx src/iptv.ts",
     "probe": "../backend/node_modules/.bin/tsx src/probe.ts",
     "deep": "../backend/node_modules/.bin/tsx src/deep.ts",
+    "prune": "../backend/node_modules/.bin/tsx src/prune.ts",
     "report": "../backend/node_modules/.bin/tsx src/report.ts",
-    "all": "../backend/node_modules/.bin/tsx src/scan.ts && ../backend/node_modules/.bin/tsx src/probe.ts && ../backend/node_modules/.bin/tsx src/report.ts"
+    "all": "../backend/node_modules/.bin/tsx src/scan.ts && ../backend/node_modules/.bin/tsx src/probe.ts && ../backend/node_modules/.bin/tsx src/prune.ts && ../backend/node_modules/.bin/tsx src/report.ts",
+    "snapshot": "../backend/node_modules/.bin/tsx src/scan.ts && ../backend/node_modules/.bin/tsx src/probe.ts --refresh && ../backend/node_modules/.bin/tsx src/prune.ts && ../backend/node_modules/.bin/tsx src/report.ts",
+    "all:full": "npm run iptv && npm run snapshot"
   }
 }

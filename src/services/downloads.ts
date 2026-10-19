@@ -119,6 +119,27 @@ export function proxyDownloadHref(downloadUrl: string, filename: string): string
 }
 
 /**
+ * Normalise une URL de téléchargement pour iOS : WebKit ignore l'attribut
+ * `download` cross-origin et lit un MP4 inline tant que le serveur ne renvoie
+ * pas `Content-Disposition: attachment`. Toute URL tierce (http direct) est
+ * donc passée par le proxy /file (headers safari-safe). Les URLs /api/ déjà
+ * proxifiées sont retournées telles quelles.
+ *
+ * À utiliser sur TOUS les points de navigation iOS (window.location.href/assign,
+ * ancre…) pour garantir la boîte native de téléchargement.
+ */
+export function toIOSDownloadHref(downloadUrl: string, filename: string): string {
+  if (!downloadUrl) return downloadUrl;
+  if (downloadUrl.startsWith("/api/") || downloadUrl.startsWith(API_BASE_PATH)) {
+    return downloadUrl;
+  }
+  if (downloadUrl.startsWith("http://") || downloadUrl.startsWith("https://")) {
+    return `${API_BASE_PATH}/download/file?url=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(filename || "video.mp4")}`;
+  }
+  return downloadUrl;
+}
+
+/**
  * Detects whether a URL should be opened in a new tab (deprecated: all downloads now stream directly).
  */
 export function isHtmlPageDownload(_downloadUrl: string): boolean {

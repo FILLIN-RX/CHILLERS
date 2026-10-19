@@ -562,6 +562,116 @@ async function scrapeVidzyEmbed(embedUrl: string): Promise<DirectStreamResult | 
   return null;
 }
 
+// ─── Scraper générique (hôtes inconnus : VOE et ses clones /e/<code>) ────────
+//
+// DirectScraper ne connaissait que Doodstream/Uqload/Vidzy : tout le reste
+// (VOE, `johnfullwonder.com/e/…`, miroirs du même gabarit) tombait en
+// « URL non scrapable » et repartait en lecteur embed avec ses pubs. Ce
+// scraper tente, sans connaissance préalable de l'hôte, d'extraire l'URL
+// vidéo déclarée dans la page (HLS d'abord, MP4 ensuite).
+
+function normalizeUrl(raw: string, base: string): string | null {
+  try {
+    if (raw.startsWith('//')) return `https:${raw}`;
+    return new URL(raw, base).toString();
+  } catch {
+    return null;
+  }
+}
+
+function findVideoInHtml(html: string, baseUrl: string): { url: string; type: 'hls' | 'mp4' } | null {
+  // 1. HLS en clair (absolu ou protocole-relatif — les clones VOE utilisent `//`)
+  const hls = html.match(/(?:https?:)?\/\/[^\s"'<>\\)]+?\.m3u8(?:\?[^\s"'<>\\)]*)?/i);
+  if (hls?.[0]) {
+    const url = normalizeUrl(hls[0], baseUrl);
+    if (url && !isFakeOrPromoUrl(url)) return { url, type: 'hls' };
+  }
+  // 2. Patterns JS (file:, sources:, src:…)
+  const js = html.match(
+    /(?:file|fileSrc|videoSrc|sources|src)\s*[:=]\s*["']((?:https?:)?\/\/[^"']+?\.(?:m3u8|mp4)(?:\?[^"']*)?)["']/i
+  );
+  if (js?.[1]) {
+    const url = normalizeUrl(js[1], baseUrl);
+    if (url && !isFakeOrPromoUrl(url)) return { url, type: /\.m3u8/i.test(url) ? 'hls' : 'mp4' };
+  }
+  // 3. MP4 en clair
+  const mp4 = html.match(/(?:https?:)?\/\/[^\s"'<>\\)]+?\.mp4(?:\?[^\s"'<>\\)]*)?/i);
+  if (mp4?.[0]) {
+    const url = normalizeUrl(mp4[0], baseUrl);
+    if (url && !isFakeOrPromoUrl(url)) return { url, type: 'mp4' };
+  }
+  return null;
+}
+
+async function fetchEmbedHtml(embedUrl: string): Promise<{ html: string; finalUrl: string } | null> {
+  let origin = 'https://placeholder.invalid';
+  try {
+    origin = new URL(embedUrl).origin;
+  } catch {}
+  const res = await axios.get<string>(embedUrl, {
+    timeout: 12_000,
+    responseType: 'text',
+    httpsAgent: ipv4Agent,
+    maxRedirects: 5,
+    validateStatus: (s) => s >= 200 && s < 400,
+    headers: {
+      'User-Agent': UA,
+      Referer: `${origin}/`,
+      Accept: 'text/html,application/xhtml+xml,*/*;q=0.8',
+    },
+  });
+  if (typeof res.data !== 'string' || res.data.length < 100) return null;
+  const finalUrl = (res.request as { res?: { responseUrl?: string } })?.res?.responseUrl || embedUrl;
+  return { html: res.data, finalUrl };
+}
+
+export async function scrapeGenericEmbed(embedUrl: string, depth = 0): Promise<DirectStreamResult | null> {
+  console.log(`${TAG} Generic: résolution de "${embedUrl.slice(0, 100)}"`);
+  try {
+    const page = await fetchEmbedHtml(embedUrl);
+    if (!page) {
+      console.log(`${TAG} Generic: page vide ou injoignable`);
+      return null;
+    }
+
+    let found = findVideoInHtml(page.html, page.finalUrl);
+
+    if (!found) {
+      const decoded = decodePacker(page.html);
+      if (decoded) found = findVideoInHtml(decoded, page.finalUrl);
+      if (found) console.log(`${TAG} Generic: URL trouvée dans le script P.A.C.K.E.R`);
+    }
+
+    // Certains lecteurs emboîtent le vrai host : un saut d'iframe maximum.
+    if (!found && depth < 2) {
+      const iframe = page.html.match(/<iframe[^>]+src\s*=\s*["']([^"']+)["']/i)?.[1];
+      if (iframe && !iframe.startsWith('about:blank')) {
+        const next = normalizeUrl(iframe, page.finalUrl);
+        if (next && next !== embedUrl) {
+          console.log(`${TAG} Generic: saut d'iframe → ${next.slice(0, 100)}`);
+          return scrapeGenericEmbed(next, depth + 1);
+        }
+      }
+    }
+
+    if (!found) {
+      console.log(`${TAG} Generic: ❌ aucune URL vidéo déclarée dans la page`);
+      return null;
+    }
+
+    const reachable = await isUrlReachable(found.url, page.finalUrl).catch(() => false);
+    if (!reachable) {
+      console.log(`${TAG} Generic: URL trouvée mais injoignable (403/404) → ${found.url.slice(0, 100)}`);
+      return null;
+    }
+    console.log(`${TAG} Generic: ✅ ${found.type} → ${found.url.slice(0, 120)}`);
+    return { directUrl: found.url, type: found.type, referer: page.finalUrl };
+  } catch (err) {
+    console.log(`${TAG} Generic: erreur ${err instanceof Error ? err.message : String(err)}`);
+  }
+  return null;
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 export async function scrapeDirectStream(embedUrl: string, preferHls = false): Promise<DirectStreamResult | null> {
@@ -579,8 +689,8 @@ export async function scrapeDirectStream(embedUrl: string, preferHls = false): P
     console.log(`${TAG} → détecté comme Vidzy`);
     return scrapeVidzyEmbed(embedUrl);
   }
-  console.log(`${TAG} → URL non scrapable (ni Doodstream, ni Uqload, ni Vidzy)`);
-  return null;
+  console.log(`${TAG} → hôte non reconnu, tentative générique (VOE, clones…)`);
+  return scrapeGenericEmbed(embedUrl);
 }
 
 /**
@@ -684,6 +794,7 @@ export function isScrapableUrl(url: string): boolean {
 export const DirectScraper = {
   resolve: scrapeDirectStream,
   scrapeDirectStream,
+  scrapeGenericEmbed,
   scrapeUqloadEmbedDirect,
   scrapeVidzyEmbed,
   isScrapableUrl,

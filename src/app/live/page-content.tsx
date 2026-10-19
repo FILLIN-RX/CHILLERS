@@ -7,7 +7,6 @@ import {
   Television,
   MagnifyingGlass,
   Star,
-  Play,
   X,
   SquaresFour,
   FilmStrip,
@@ -21,47 +20,51 @@ import {
   CaretRight,
 } from "@phosphor-icons/react";
 import { getLiveChannels, FALLBACK_CHANNELS } from "@/services/live";
+import { getOhaChannels, resolveOhaStream } from "@/services/oha";
+import type { OhaChannel, OhaCategory } from "@/types/oha";
 import type { LiveChannel } from "@/types/live";
 import LivePlayer from "@/components/LivePlayer";
 import SportsMatchesRow from "@/components/SportsMatchesRow";
+import MosaicChannelCard from "@/components/live/MosaicChannelCard";
+import ChannelPosterCard from "@/components/live/ChannelPosterCard";
+import LivePlayerModal from "@/components/live/LivePlayerModal";
+import TvChannelsSection from "@/components/live/TvChannelsSection";
 
 const PAGE_SIZE = 50;
 
-export function ChannelLogo({ channel }: { channel: LiveChannel }) {
-  const [broken, setBroken] = useState(false);
+/** Catégorie oha → catégorie du live (null = uniquement « Toutes »/favoris). */
+const OHA_CAT_TO_LIVE: Record<OhaCategory, string | null> = {
+  general: null,
+  sport: "sports",
+  cine: "cinema",
+  kids: "kids",
+  musique: "music",
+};
 
-  useEffect(() => {
-    setBroken(false);
-  }, [channel.logo]);
-
-  const initials = channel.name
-    .replace(/^bein\s+sports/i, "beIN")
-    .split(/[\s-]+/)
-    .slice(0, 2)
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase();
-
-  if (!channel.logo || broken) {
-    return (
-      <span className="text-[11px] font-black text-white/90 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] tracking-wider">
-        {initials || "TV"}
-      </span>
-    );
-  }
-
-  return (
-    <img
-      src={channel.logo}
-      alt={channel.name}
-      className="h-6 w-auto max-w-[85px] object-contain drop-shadow-[0_2px_6px_rgba(0,0,0,0.95)] filter brightness-105"
-      onError={() => setBroken(true)}
-    />
-  );
+function ohaToLiveChannel(ch: OhaChannel): LiveChannel {
+  const cat = OHA_CAT_TO_LIVE[ch.category];
+  return {
+    _id: `oha-${ch.id}`,
+    name: ch.name,
+    slug: `oha-${ch.id}`,
+    logo: ch.logo ?? undefined,
+    categories: cat ? [cat] : [],
+    country: "FR",
+    language: "fra",
+    type: "hls",
+    streamUrl: "", // résolu au clic via /api/live/oha/resolve
+    enabled: true,
+    order: 0,
+    isOnline: true,
+    proxy: true,
+    epgNow: ch.epgNow,
+    epgNext: ch.epgNext,
+  };
 }
 
 const CATEGORIES = [
   { id: "all", label: "Toutes", icon: Television },
+  { id: "tvfr", label: "TV Française", icon: Television },
   { id: "sports", label: "Sport", icon: Trophy },
   { id: "cinema", label: "Cinéma", icon: FilmStrip },
   { id: "series", label: "Séries", icon: Popcorn },
@@ -71,58 +74,6 @@ const CATEGORIES = [
   { id: "music", label: "Musique", icon: MusicNotes },
   { id: "favorites", label: "Favoris", icon: Star },
 ];
-
-const UNIQUE_COVER_POOL = [
-  "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=700&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=700&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1517649763962-0c623266ddc0?w=700&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=700&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1511193311914-0346f16efe90?w=700&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=700&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=700&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?w=700&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1518091043644-c1d4457512c6?w=700&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1522778119026-d647f0596c20?w=700&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1580748141549-71748dbe0bdc?w=700&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1511919884226-fd3cad34687c?w=700&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=700&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=700&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=700&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=700&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1541872703-74c5e44368f9?w=700&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?w=700&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1526470608268-f674ce90ebd4?w=700&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=700&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1500485035595-cbe6f645feb1?w=700&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=700&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=700&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1518173946687-a4c8a383392e?w=700&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?w=700&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=700&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=700&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=700&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?w=700&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=700&auto=format&fit=crop&q=80",
-];
-
-function getChannelInfo(channel: LiveChannel) {
-  let hash = 0;
-  const str = channel.slug || channel.name || channel._id || "ch";
-  for (let i = 0; i < str.length; i++) {
-    hash = (hash * 31 + str.charCodeAt(i)) % UNIQUE_COVER_POOL.length;
-  }
-  const banner = channel.banner || UNIQUE_COVER_POOL[Math.abs(hash)];
-
-  const category = channel.categories?.[0]
-    ? channel.categories[0].charAt(0).toUpperCase() + channel.categories[0].slice(1)
-    : "Général";
-
-  return {
-    program: channel.name,
-    subtitle: category,
-    banner,
-  };
-}
 
 /* ── 5 THEMED HERO BANNERS (Exact replica of user's CAN & Sports broadcast graphics) ── */
 const HERO_SLIDES = [
@@ -478,158 +429,6 @@ function HeroBannerCarousel() {
   );
 }
 
-/** Composant Carte Mosaïque Canal+ (Aspect 4:3, bg: #242424, survol: transition bg gris #383838 sans animation) */
-export function CanalPlusLogoCard({
-  channel,
-  isFavorite,
-  onToggleFavorite,
-}: {
-  channel: LiveChannel;
-  isFavorite: boolean;
-  onToggleFavorite: (e: React.MouseEvent, slug: string) => void;
-}) {
-  const [logoError, setLogoError] = useState(false);
-
-  useEffect(() => {
-    setLogoError(false);
-  }, [channel.logo]);
-
-  const initials = channel.name
-    .replace(/^bein\s+sports/i, "beIN")
-    .replace(/^canal\+\s*/i, "C+")
-    .split(/[\s-]+/)
-    .slice(0, 2)
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase() || "TV";
-
-  return (
-    <Link
-      href={`/live/${channel.slug}`}
-      title={channel.name}
-      className="group relative flex items-center justify-center w-full aspect-[4/3] rounded-none bg-[#242424] hover:bg-[#383838] p-2.5 sm:p-3.5 select-none transition-colors duration-200 cursor-pointer overflow-hidden box-border"
-    >
-      {/* Favorite Button (Top Right) */}
-      <button
-        onClick={(e) => onToggleFavorite(e, channel.slug)}
-        className={`absolute top-1 right-1 p-1 rounded-none z-10 transition-all ${
-          isFavorite
-            ? "bg-amber-500 text-black shadow-md opacity-100"
-            : "opacity-0 group-hover:opacity-100 bg-black/70 hover:bg-black text-white"
-        }`}
-        title={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
-      >
-        <Star weight={isFavorite ? "fill" : "regular"} className="h-2.5 w-2.5" />
-      </button>
-
-      {/* Prominent Centered Logo */}
-      <div className="w-full h-full flex items-center justify-center pointer-events-none p-1 sm:p-2">
-        {channel.logo && !logoError ? (
-          <img
-            src={channel.logo}
-            alt={channel.name}
-            onError={() => setLogoError(true)}
-            className="w-full h-full max-h-full max-w-full object-contain filter brightness-110 contrast-105 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] box-border"
-            loading="lazy"
-          />
-        ) : (
-          <span className="text-[11px] sm:text-xs font-black text-zinc-200 tracking-wider">
-            {initials}
-          </span>
-        )}
-      </div>
-    </Link>
-  );
-}
-
-export function LiveChannelCard({
-  channel,
-  isFavorite,
-  onToggleFavorite,
-}: {
-  channel: LiveChannel;
-  isFavorite: boolean;
-  onToggleFavorite: (e: React.MouseEvent, slug: string) => void;
-}) {
-  const info = getChannelInfo(channel);
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const [imgSrc, setImgSrc] = useState<string>(info.banner);
-
-  return (
-    <Link
-      href={`/live/${channel.slug}`}
-      className="group relative flex flex-col justify-start rounded-2xl overflow-hidden bg-zinc-900/40 border border-white/10 hover:border-red-500/50 hover:bg-zinc-800/60 transition-all duration-300 hover:-translate-y-1 cursor-pointer"
-    >
-      {/* 1. Thumbnail Container 16:9 */}
-      <div className="relative w-full aspect-video rounded-t-2xl overflow-hidden bg-zinc-950">
-        <div
-          className={`absolute inset-0 skeleton-loading z-0 transition-opacity duration-500 ${
-            imageLoaded ? "opacity-0" : "opacity-100"
-          }`}
-        />
-
-        <img
-          src={imgSrc}
-          alt={info.program}
-          onLoad={() => setImageLoaded(true)}
-          onError={() => setImgSrc(UNIQUE_COVER_POOL[0])}
-          className={`w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 ${
-            imageLoaded ? "opacity-100" : "opacity-0"
-          }`}
-          loading="lazy"
-        />
-
-        {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent opacity-80 group-hover:opacity-60 transition-opacity" />
-
-        {/* Top Badges (Live + Favorite) */}
-        <div className="absolute top-2 inset-x-2 flex items-center justify-between z-10">
-          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-red-600/90 backdrop-blur-md text-[10px] font-black uppercase tracking-wider text-white shadow-md">
-            <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
-            DIRECT
-          </div>
-
-          <button
-            onClick={(e) => onToggleFavorite(e, channel.slug)}
-            className={`p-1.5 rounded-full backdrop-blur-md border transition-all ${
-              isFavorite
-                ? "bg-amber-500 border-amber-400 text-black shadow-lg"
-                : "bg-black/60 border-white/20 text-white hover:bg-black/80"
-            }`}
-            title={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
-          >
-            <Star weight={isFavorite ? "fill" : "regular"} className="h-3.5 w-3.5" />
-          </button>
-        </div>
-
-        {/* Libre Channel Logo */}
-        <div className="absolute bottom-2 left-2.5 z-10 flex items-center">
-          <ChannelLogo channel={channel} />
-        </div>
-
-        {/* Play Overlay Icon on Hover */}
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10">
-          <div className="w-12 h-12 rounded-full bg-red-600 text-white flex items-center justify-center shadow-xl shadow-red-600/50 scale-75 group-hover:scale-100 transition-transform duration-300">
-            <Play weight="fill" className="w-5 h-5 ml-0.5" />
-          </div>
-        </div>
-      </div>
-
-      {/* 2. Card Info */}
-      <div className="p-3 flex flex-col justify-between flex-1">
-        <div>
-          <h3 className="text-xs sm:text-sm font-bold text-white group-hover:text-red-400 transition-colors truncate">
-            {channel.name}
-          </h3>
-          <p className="text-[11px] text-zinc-400 font-medium truncate mt-0.5">
-            {info.subtitle}
-          </p>
-        </div>
-      </div>
-    </Link>
-  );
-}
-
 export default function LivePageContent() {
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"mosaic" | "cards">("mosaic");
@@ -638,6 +437,9 @@ export default function LivePageContent() {
   const [isMultiLiveOpen, setIsMultiLiveOpen] = useState(false);
   const [selectedMultiSlugs, setSelectedMultiSlugs] = useState<string[]>([]);
   const [visibleCount, setVisibleCount] = useState<number>(50);
+  const [playingChannel, setPlayingChannel] = useState<LiveChannel | null>(null);
+
+  const isTvTab = activeCategory === "tvfr";
 
   const observerTarget = useRef<HTMLDivElement>(null);
 
@@ -647,22 +449,65 @@ export default function LivePageContent() {
     staleTime: 60_000,
   });
 
-  useEffect(() => {
-    if (channels.length > 0 && selectedMultiSlugs.length === 0) {
-      setSelectedMultiSlugs([
-        channels[0]?.slug || "",
-        channels[1]?.slug || "",
-        channels[2]?.slug || "",
-        channels[3]?.slug || "",
-      ]);
+  // Catalogue FR curaté (oha.to) — même cache que l'onglet TV / la page /live/tv.
+  const { data: ohaChannels = [] } = useQuery({
+    queryKey: ["oha", "channels"],
+    queryFn: getOhaChannels,
+    staleTime: 10 * 60_000,
+  });
+
+  const ohaBySlug = useMemo(() => {
+    const m = new Map<string, OhaChannel>();
+    for (const c of ohaChannels) m.set(`oha-${c.id}`, c);
+    return m;
+  }, [ohaChannels]);
+
+  const [resolvingSlug, setResolvingSlug] = useState<string | null>(null);
+  const [playError, setPlayError] = useState<string | null>(null);
+
+  // Grille principale : chaînes FR d'abord, puis les chaînes backend restantes.
+  const baseChannels = useMemo(() => {
+    const ohaLive = ohaChannels.map(ohaToLiveChannel);
+    const seen = new Set(ohaLive.map((c) => c.slug));
+    const backend = channels.filter((c) => !seen.has(c.slug));
+    return [...ohaLive, ...backend];
+  }, [ohaChannels, channels]);
+
+  /** Clic sur une carte : direct si le flux existe déjà, sinon résolution oha. */
+  const openChannel = async (channel: LiveChannel) => {
+    if (channel.streamUrl) {
+      setPlayingChannel(channel);
+      return;
     }
-  }, [channels, selectedMultiSlugs.length]);
+    const oha = ohaBySlug.get(channel.slug);
+    if (!oha || resolvingSlug) return;
+    setPlayError(null);
+    setResolvingSlug(channel.slug);
+    try {
+      // Le serveur résout primary + replis en parallèle et vérifie les playlists.
+      const url = await resolveOhaStream(oha.id, oha.altIds ?? []);
+      setPlayingChannel({ ...channel, streamUrl: url });
+    } catch {
+      setPlayError(`Lien indisponible pour ${channel.name}. Réessayez plus tard.`);
+    } finally {
+      setResolvingSlug(null);
+    }
+  };
+
+  // Sélection multi-live : slots vides → repli sur les premières chaînes.
+  const displayMultiSlugs = [0, 1, 2, 3].map(
+    (i) => selectedMultiSlugs[i] || channels[i]?.slug || "",
+  );
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("chillers_live_favorites");
-      if (saved) setFavorites(JSON.parse(saved));
-    } catch {}
+    // localStorage n'existe pas côté serveur : lecture différée après hydration.
+    const t = setTimeout(() => {
+      try {
+        const saved = localStorage.getItem("chillers_live_favorites");
+        if (saved) setFavorites(JSON.parse(saved));
+      } catch {}
+    }, 0);
+    return () => clearTimeout(t);
   }, []);
 
   const toggleFavorite = (e: React.MouseEvent, slug: string) => {
@@ -677,13 +522,18 @@ export default function LivePageContent() {
     });
   };
 
-  // Reset pagination count on category or search change
-  useEffect(() => {
+  // Reset pagination on category/search change (« ajuster pendant le rendu »).
+  const [prevFilterKey, setPrevFilterKey] = useState(
+    `${activeCategory}|${search}`,
+  );
+  const filterKey = `${activeCategory}|${search}`;
+  if (filterKey !== prevFilterKey) {
+    setPrevFilterKey(filterKey);
     setVisibleCount(PAGE_SIZE);
-  }, [activeCategory, search]);
+  }
 
   const filteredChannels = useMemo(() => {
-    let list = channels;
+    let list = baseChannels;
 
     if (activeCategory === "favorites") {
       list = list.filter((c) => favorites.includes(c.slug));
@@ -713,7 +563,7 @@ export default function LivePageContent() {
     }
 
     return list;
-  }, [channels, activeCategory, search, favorites]);
+  }, [baseChannels, activeCategory, search, favorites]);
 
   // Infinite Scroll Trigger
   const paginatedChannels = useMemo(() => {
@@ -781,119 +631,165 @@ export default function LivePageContent() {
           </div>
 
           {/* Search Input, View Mode & Multi-Live Button */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            {/* View Mode Toggle (Mosaïque Logos Canal+ vs Affiches) */}
-            <div className="flex items-center bg-zinc-900/90 border border-white/10 rounded-xl p-0.5 shrink-0">
+          {isTvTab ? (
+            <Link
+              href="/live/tv"
+              className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-[5px] bg-zinc-900/80 hover:bg-zinc-800 border border-white/10 text-zinc-300 hover:text-white text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap w-fit"
+              title="Version complète TV Française"
+            >
+              <Television className="w-4 h-4 text-red-500" />
+              <span className="hidden sm:inline">Page TV dédiée</span>
+              <span className="sm:hidden">TV</span>
+            </Link>
+          ) : (
+            <div className="flex items-center gap-2 sm:gap-3">
+              {/* View Mode Toggle (Mosaïque Logos Canal+ vs Affiches) */}
+              <div className="flex items-center bg-zinc-900/90 border border-white/10 rounded-xl p-0.5 shrink-0">
+                <button
+                  onClick={() => setViewMode("mosaic")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[5px] text-xs font-bold transition-all ${
+                    viewMode === "mosaic"
+                      ? "bg-red-600 text-white shadow-md shadow-red-600/30"
+                      : "text-zinc-400 hover:text-white"
+                  }`}
+                  title="Mosaïque de logos Canal+"
+                >
+                  <SquaresFour className="w-4 h-4" />
+                  <span className="hidden sm:inline">Mosaïque Logos</span>
+                </button>
+                <button
+                  onClick={() => setViewMode("cards")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[5px] text-xs font-bold transition-all ${
+                    viewMode === "cards"
+                      ? "bg-red-600 text-white shadow-md shadow-red-600/30"
+                      : "text-zinc-400 hover:text-white"
+                  }`}
+                  title="Affiches et aperçus des programmes"
+                >
+                  <FilmStrip className="w-4 h-4" />
+                  <span className="hidden sm:inline">Affiches</span>
+                </button>
+              </div>
+
               <button
-                onClick={() => setViewMode("mosaic")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[5px] text-xs font-bold transition-all ${
-                  viewMode === "mosaic"
-                    ? "bg-red-600 text-white shadow-md shadow-red-600/30"
-                    : "text-zinc-400 hover:text-white"
-                }`}
-                title="Mosaïque de logos Canal+"
+                onClick={() => setIsMultiLiveOpen(true)}
+                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-[5px] bg-red-600/20 hover:bg-red-600 border border-red-500/40 text-red-400 hover:text-white text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap"
               >
                 <SquaresFour className="w-4 h-4" />
-                <span className="hidden sm:inline">Mosaïque Logos</span>
+                <span className="hidden sm:inline">Multi-View</span>
+                <span className="sm:hidden">4X</span>
               </button>
-              <button
-                onClick={() => setViewMode("cards")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[5px] text-xs font-bold transition-all ${
-                  viewMode === "cards"
-                    ? "bg-red-600 text-white shadow-md shadow-red-600/30"
-                    : "text-zinc-400 hover:text-white"
-                }`}
-                title="Affiches et aperçus des programmes"
-              >
-                <FilmStrip className="w-4 h-4" />
-                <span className="hidden sm:inline">Affiches</span>
-              </button>
-            </div>
 
-            <button
-              onClick={() => setIsMultiLiveOpen(true)}
-              className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-[5px] bg-red-600/20 hover:bg-red-600 border border-red-500/40 text-red-400 hover:text-white text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap"
-            >
-              <SquaresFour className="w-4 h-4" />
-              <span className="hidden sm:inline">Multi-View</span>
-              <span className="sm:hidden">4X</span>
-            </button>
-
-            <div className="relative flex-1 md:w-56">
-              <MagnifyingGlass className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-              <input
-                type="search"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Rechercher..."
-                className="w-full pl-10 pr-3 py-2 rounded-xl bg-zinc-900/90 border border-white/10 text-xs sm:text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-red-500 transition-colors shadow-inner"
-              />
+              <div className="relative flex-1 md:w-56">
+                <MagnifyingGlass className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Rechercher..."
+                  className="w-full pl-10 pr-3 py-2 rounded-xl bg-zinc-900/90 border border-white/10 text-xs sm:text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-red-500 transition-colors shadow-inner"
+                />
+              </div>
+              <span className="hidden lg:inline-block px-3 py-2 rounded-xl bg-zinc-900 border border-white/10 text-xs font-bold text-zinc-400 whitespace-nowrap">
+                {filteredChannels.length} chaînes
+              </span>
             </div>
-            <span className="hidden lg:inline-block px-3 py-2 rounded-xl bg-zinc-900 border border-white/10 text-xs font-bold text-zinc-400 whitespace-nowrap">
-              {filteredChannels.length} chaînes
-            </span>
-          </div>
+          )}
         </div>
       </div>
 
-      {/* ── 4. Live Channels Grid (Canal+ Mosaïque Logos ou Affiches) ── */}
-      {viewMode === "mosaic" ? (
-        <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-8 lg:grid-cols-10 gap-5">
-          {paginatedChannels.map((channel) => (
-            <CanalPlusLogoCard
-              key={channel.slug}
-              channel={channel}
-              isFavorite={favorites.includes(channel.slug)}
-              onToggleFavorite={toggleFavorite}
-            />
-          ))}
-        </div>
+      {/* ── 4. Onglet TV Française (grille partagée avec /live/tv) ───────── */}
+      {isTvTab ? (
+        <TvChannelsSection />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
-          {paginatedChannels.map((channel) => (
-            <LiveChannelCard
-              key={channel.slug}
-              channel={channel}
-              isFavorite={favorites.includes(channel.slug)}
-              onToggleFavorite={toggleFavorite}
-            />
-          ))}
-        </div>
+        <>
+          {/* ── Grille Live (Mosaïque Logos ou Affiches) ─────────────────── */}
+          {viewMode === "mosaic" ? (
+            <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-8 lg:grid-cols-10 gap-5">
+              {paginatedChannels.map((channel) => (
+                <MosaicChannelCard
+                  key={channel.slug}
+                  channel={channel}
+                  isFavorite={favorites.includes(channel.slug)}
+                  onToggleFavorite={toggleFavorite}
+                  onOpen={openChannel}
+                  isResolving={resolvingSlug === channel.slug}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
+              {paginatedChannels.map((channel) => (
+                <ChannelPosterCard
+                  key={channel.slug}
+                  channel={channel}
+                  isFavorite={favorites.includes(channel.slug)}
+                  onToggleFavorite={toggleFavorite}
+                  onOpen={openChannel}
+                  isResolving={resolvingSlug === channel.slug}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* ── Infinite Scroll Sentinel / Loading Indicator ───────────────── */}
+          {hasMore && (
+            <div ref={observerTarget} className="py-12 flex flex-col items-center justify-center gap-3">
+              <div className="h-8 w-8 border-3 border-red-500 border-t-transparent rounded-full animate-spin" />
+              <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
+                Chargement de plus de chaînes ({paginatedChannels.length} / {filteredChannels.length})...
+              </p>
+              <button
+                onClick={loadMore}
+                className="mt-2 px-5 py-2 rounded-[5px] bg-zinc-800 hover:bg-zinc-700 text-xs font-bold text-zinc-300 border border-white/10 transition-colors"
+              >
+                Afficher plus manuellement
+              </button>
+            </div>
+          )}
+
+          {/* ── Empty State ───────────────────────────────────────────────── */}
+          {!isLoading && filteredChannels.length === 0 && (
+            <div className="py-24 text-center space-y-4">
+              <div className="w-16 h-16 rounded-full bg-zinc-900 border border-white/10 flex items-center justify-center mx-auto text-zinc-500">
+                <Television className="h-8 w-8" />
+              </div>
+              <h3 className="text-lg font-bold text-white">
+                {activeCategory === "favorites"
+                  ? "Aucune chaîne dans vos favoris"
+                  : "Aucune chaîne trouvée"}
+              </h3>
+              <p className="text-xs text-zinc-400 max-w-sm mx-auto">
+                {activeCategory === "favorites"
+                  ? "Cliquez sur l'étoile sur une chaîne pour la retrouver rapidement ici."
+                  : "Essayez avec d'autres mots-clés ou sélectionnez une autre catégorie ci-dessus."}
+              </p>
+            </div>
+          )}
+        </>
       )}
 
-      {/* ── 5. Infinite Scroll Sentinel / Loading Indicator ────────────────── */}
-      {hasMore && (
-        <div ref={observerTarget} className="py-12 flex flex-col items-center justify-center gap-3">
-          <div className="h-8 w-8 border-3 border-red-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
-            Chargement de plus de chaînes ({paginatedChannels.length} / {filteredChannels.length})...
-          </p>
+      {/* ── Toast erreur de lecture ───────────────────────────────────────── */}
+      {playError && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-3 px-4 py-3 rounded-xl bg-zinc-900 border border-red-500/40 shadow-2xl shadow-red-900/30 animate-fade-in max-w-[92vw]">
+          <p className="text-xs font-bold text-white">{playError}</p>
           <button
-            onClick={loadMore}
-            className="mt-2 px-5 py-2 rounded-[5px] bg-zinc-800 hover:bg-zinc-700 text-xs font-bold text-zinc-300 border border-white/10 transition-colors"
+            onClick={() => setPlayError(null)}
+            className="p-1 rounded-full hover:bg-white/10 text-zinc-400 hover:text-white shrink-0"
           >
-            Afficher plus manuellement
+            <X className="h-3.5 w-3.5" />
           </button>
         </div>
       )}
 
-      {/* ── Empty State ───────────────────────────────────────────────────── */}
-      {!isLoading && filteredChannels.length === 0 && (
-        <div className="py-24 text-center space-y-4">
-          <div className="w-16 h-16 rounded-full bg-zinc-900 border border-white/10 flex items-center justify-center mx-auto text-zinc-500">
-            <Television className="h-8 w-8" />
-          </div>
-          <h3 className="text-lg font-bold text-white">
-            {activeCategory === "favorites"
-              ? "Aucune chaîne dans vos favoris"
-              : "Aucune chaîne trouvée"}
-          </h3>
-          <p className="text-xs text-zinc-400 max-w-sm mx-auto">
-            {activeCategory === "favorites"
-              ? "Cliquez sur l'étoile sur une chaîne pour la retrouver rapidement ici."
-              : "Essayez avec d'autres mots-clés ou sélectionnez une autre catégorie ci-dessus."}
-          </p>
-        </div>
+      {/* ── Lecteur modal plein écran (remplace l'ancienne page détail) ──── */}
+      {playingChannel && (
+        <LivePlayerModal
+          channel={playingChannel}
+          allChannels={filteredChannels}
+          onClose={() => setPlayingChannel(null)}
+          onSelectChannel={(ch) => setPlayingChannel(ch)}
+        />
       )}
 
       {/* ── 6. Multi-Live Modal Split View (4 Screens) ─────────────────────── */}
@@ -919,7 +815,7 @@ export default function LivePageContent() {
 
           <div className="flex-1 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-4 min-h-0 py-2">
             {[0, 1, 2, 3].map((idx) => {
-              const currentSlug = selectedMultiSlugs[idx] || channels[idx % channels.length]?.slug;
+              const currentSlug = displayMultiSlugs[idx];
               const ch = channels.find((c) => c.slug === currentSlug) || channels[idx % channels.length];
 
               return (
