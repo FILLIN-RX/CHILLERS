@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Television, X } from "@phosphor-icons/react";
 import LivePlayer from "@/components/LivePlayer";
 import CompetitionBadge from "@/components/CompetitionBadge";
+import MatchShareButton from "@/components/live/MatchShareButton";
 import { MatchBackdrop, TeamCrest } from "@/components/MatchCardBackdrop";
 import { getSportsChannels, getSportsMatches, getSportsStream } from "@/services/sports";
 import { getMatchChannels, resolveOhaStream } from "@/services/oha";
@@ -408,8 +409,9 @@ export default function SportsMatchContent() {
                     ? `${formatMatchDay(kickoff)} · ${formatMatchTime(kickoff)}`
                     : "À venir"}
               </span>
-              <div className="min-w-0 flex justify-end">
+              <div className="flex min-w-0 items-center justify-end gap-2">
                 <CompetitionBadge competition={affiche?.competition ?? null} logo={affiche?.competitionLogo} />
+                <MatchShareButton title={teamsLabel} iconOnly />
               </div>
             </div>
 
@@ -455,6 +457,7 @@ export default function SportsMatchContent() {
                 <X className="h-4 w-4" />
                 Retour
               </Link>
+              <MatchShareButton title={teamsLabel} />
             </div>
           </div>
         </div>
@@ -492,6 +495,7 @@ export default function SportsMatchContent() {
                 <X className="h-4 w-4" />
                 Retour
               </Link>
+              <MatchShareButton title={teamsLabel} />
             </div>
 
             <p className="text-[11px] text-zinc-400 flex items-center gap-2">
@@ -590,7 +594,7 @@ export default function SportsMatchContent() {
               )}
             </div>
 
-            <div className="w-9 shrink-0" />
+            <MatchShareButton title={teamsLabel} iconOnly />
           </div>
         </div>
       )}

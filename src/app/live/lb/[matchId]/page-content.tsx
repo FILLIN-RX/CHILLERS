@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Television, X } from "@phosphor-icons/react";
 import LivePlayer from "@/components/LivePlayer";
 import CompetitionBadge from "@/components/CompetitionBadge";
+import MatchShareButton from "@/components/live/MatchShareButton";
 import { MatchBackdrop, TeamCrest } from "@/components/MatchCardBackdrop";
 import { getLiveBallStream, getLiveBallMatches, getLiveBallChampionsLeague } from "@/services/liveball";
 import { buildAffiche, useMatchPosterIndex } from "@/hooks/useMatchPosterIndex";
@@ -139,6 +140,7 @@ export default function LiveBallMatchContent() {
               </span>
               <div className="min-w-0 flex justify-end">
                 <CompetitionBadge competition={affiche?.competition ?? null} logo={affiche?.competitionLogo} />
+                <MatchShareButton title={match ? `${match.home} vs ${match.away}` : "Match en direct"} iconOnly />
               </div>
             </div>
 
@@ -184,6 +186,7 @@ export default function LiveBallMatchContent() {
                 <X className="h-4 w-4" />
                 Retour
               </Link>
+              <MatchShareButton title={match ? `${match.home} vs ${match.away}` : "Match en direct"} />
             </div>
           </div>
         </div>
@@ -222,6 +225,7 @@ export default function LiveBallMatchContent() {
                 <X className="h-4 w-4" />
                 Retour
               </Link>
+              <MatchShareButton title={match ? `${match.home} vs ${match.away}` : "Match en direct"} />
             </div>
 
             <p className="text-[11px] text-zinc-400 flex items-center gap-2">
@@ -250,6 +254,11 @@ export default function LiveBallMatchContent() {
       {channel && !preMatch && (
         <div className="absolute inset-0">
           <LivePlayer channel={channel} fill onBack={() => (window.location.href = "/live")} />
+        </div>
+      )}
+      {!preMatch && (channel || embedUrl) && (
+        <div className="absolute right-3 top-[calc(0.75rem_+_env(safe-area-inset-top,0px))] z-50">
+          <MatchShareButton title={match ? `${match.home} vs ${match.away}` : "Match en direct"} iconOnly />
         </div>
       )}
     </div>
