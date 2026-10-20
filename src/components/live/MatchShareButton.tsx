@@ -36,7 +36,7 @@ export default function MatchShareButton({
       className={
         iconOnly
           ? "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md transition-colors hover:bg-white/20"
-          : "inline-flex items-center gap-2 rounded-full bg-white/10 px-6 py-2.5 text-xs font-black uppercase tracking-wider text-white transition-colors hover:bg-white/20"
+          : "inline-flex min-h-11 items-center gap-2 whitespace-nowrap rounded-full border border-white/20 bg-brand-primary px-6 py-2.5 text-xs font-black uppercase tracking-wider text-white shadow-lg shadow-brand-primary/30 transition-colors hover:bg-[#b5034f]"
       }
     >
       {copied ? <Check className="h-4 w-4 text-emerald-400" /> : <ShareNetwork className="h-4 w-4" />}

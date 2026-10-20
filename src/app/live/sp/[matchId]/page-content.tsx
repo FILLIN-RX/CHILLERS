@@ -409,9 +409,8 @@ export default function SportsMatchContent() {
                     ? `${formatMatchDay(kickoff)} · ${formatMatchTime(kickoff)}`
                     : "À venir"}
               </span>
-              <div className="flex min-w-0 items-center justify-end gap-2">
+              <div className="min-w-0 flex justify-end">
                 <CompetitionBadge competition={affiche?.competition ?? null} logo={affiche?.competitionLogo} />
-                <MatchShareButton title={teamsLabel} iconOnly />
               </div>
             </div>
 

@@ -140,7 +140,6 @@ export default function LiveBallMatchContent() {
               </span>
               <div className="min-w-0 flex justify-end">
                 <CompetitionBadge competition={affiche?.competition ?? null} logo={affiche?.competitionLogo} />
-                <MatchShareButton title={match ? `${match.home} vs ${match.away}` : "Match en direct"} iconOnly />
               </div>
             </div>
 
