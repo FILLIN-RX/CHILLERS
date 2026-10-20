@@ -83,7 +83,10 @@ function localMatchDay(timestamp?: number): string | null {
   return year && month && day ? `${year}-${month}-${day}` : null;
 }
 
-function shouldSkipCanalToday(fixture?: SportsMatch): boolean {
+function shouldSkipCanalToday(fixture?: SportsMatch, routeId?: string): boolean {
+  // Identifiant stable de PSG–Barcelone affiché en production aujourd'hui.
+  // Il couvre aussi les réponses provider qui omettent/altèrent le coup d'envoi.
+  if (routeId === "f1b9d7a258b") return true;
   if (!fixture || !/barcelona/i.test(`${fixture.home} ${fixture.away}`)) return false;
   const today = localMatchDay(Date.now() / 1000);
   return Boolean(today && localMatchDay(fixture.startTs) === today);
@@ -198,15 +201,15 @@ export default function SportsMatchContent() {
 
   const confirmedChannels = useMemo(
     () => channelStatuses
-      .filter((s) => s.confirmed && !(shouldSkipCanalToday(match) && isCanalChannel(s.channel.name)))
+      .filter((s) => s.confirmed && !(shouldSkipCanalToday(match, decodedId) && isCanalChannel(s.channel.name)))
       .map((s) => s.channel),
-    [channelStatuses, match],
+    [channelStatuses, match, decodedId],
   );
   const candidateChannels = useMemo(
     () => channelStatuses
-      .filter((s) => !s.confirmed && !(shouldSkipCanalToday(match) && isCanalChannel(s.channel.name)))
+      .filter((s) => !s.confirmed && !(shouldSkipCanalToday(match, decodedId) && isCanalChannel(s.channel.name)))
       .map((s) => s.channel),
-    [channelStatuses, match],
+    [channelStatuses, match, decodedId],
   );
   const hasChannels = confirmedChannels.length + candidateChannels.length > 0;
 
@@ -245,7 +248,7 @@ export default function SportsMatchContent() {
       const resolved = await getSportsStream(targetId);
       if (!resolved?.url) return null;
 
-      const skipCanal = shouldSkipCanalToday(match ?? resolved.match);
+      const skipCanal = shouldSkipCanalToday(match ?? resolved.match, decodedId);
       const availableServers = skipCanal
         ? (resolved.servers ?? []).filter((server) => !isCanalChannel(server.name))
         : resolved.servers ?? [];
@@ -303,11 +306,11 @@ export default function SportsMatchContent() {
         : [];
     // HLS direct d'abord (repli des anciens registres déjà en mémoire),
     // embed provider ensuite.
-    const available = shouldSkipCanalToday(match)
+    const available = shouldSkipCanalToday(match, decodedId)
       ? list.filter((server) => !isCanalChannel(server.name))
       : list;
     return [...available].sort((a, b) => (a.type === "hls" ? 0 : 1) - (b.type === "hls" ? 0 : 1));
-  }, [channels, stream, match]);
+  }, [channels, stream, match, decodedId]);
 
   const activeIdx = serverChoice?.id === decodedId ? serverChoice.idx : null;
   const activeServer = activeIdx !== null ? servers[activeIdx] ?? null : null;
