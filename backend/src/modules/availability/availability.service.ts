@@ -2,6 +2,7 @@ import axios from 'axios';
 import Movie from '../../models/Movie';
 import Serie from '../../models/Serie';
 import { detectAudioLanguage } from '../../utils/audio-language';
+import { providersForTmdbIds } from '../catalog/catalog.service';
 
 export interface ScanProgress {
   running: boolean;
@@ -242,9 +243,16 @@ export async function getBatchAvailability(
   type: 'movie' | 'tv',
   ids: number[],
   title?: string
-): Promise<Record<string, { disponible: boolean; streaming: boolean; download: boolean; langueAudio?: string; isFrenchAudio?: boolean }>> {
+): Promise<Record<string, { disponible: boolean; streaming: boolean; download: boolean; langueAudio?: string; isFrenchAudio?: boolean; providers?: string[] }>> {
   const result: Record<string, any> = {};
   if (ids.length === 0 && !title) return result;
+
+  // Source de vérité : l'index des catalogues providers (scrapé en batch).
+  // Un tmdbId présent dans l'index = disponible, même sans lien en base.
+  const catalogMap = await providersForTmdbIds(type, ids).catch(() => new Map());
+
+  const isFrench = (langue?: string) =>
+    langue === 'VF' || langue === 'VFF' || langue === 'VFQ' || langue === 'VF+VOSTFR';
 
   if (type === 'movie') {
     const query: any = ids.length > 0 ? { tmdbId: { $in: ids } } : {};
@@ -269,7 +277,8 @@ export async function getBatchAvailability(
     for (const m of movies) {
       const audio = detectAudioLanguage(m);
       const langueAudio = m.langueAudio && m.langueAudio !== 'UNKNOWN' ? m.langueAudio : audio.langueAudio;
-      const hasStream = !!(m.lien || m.uqloadLink || m.streamtapeLink || m.disponible);
+      const catalog = m.tmdbId ? catalogMap.get(m.tmdbId) : undefined;
+      const hasStream = catalog ? true : !!(m.lien || m.uqloadLink || m.streamtapeLink || m.disponible);
       const key = String(m.tmdbId || ids[0] || m._id);
 
       result[key] = {
@@ -277,7 +286,22 @@ export async function getBatchAvailability(
         streaming: hasStream,
         download: hasStream,
         langueAudio,
-        isFrenchAudio: langueAudio === 'VF' || langueAudio === 'VFF' || langueAudio === 'VFQ',
+        isFrenchAudio: isFrench(langueAudio),
+        ...(catalog ? { providers: catalog.providers } : {}),
+      };
+    }
+
+    // Présents dans l'index provider mais sans doc Movie en base.
+    for (const [tmdbId, catalog] of catalogMap) {
+      const key = String(tmdbId);
+      if (result[key]) continue;
+      result[key] = {
+        disponible: true,
+        streaming: true,
+        download: true,
+        langueAudio: catalog.language,
+        isFrenchAudio: isFrench(catalog.language),
+        providers: catalog.providers,
       };
     }
   } else {
@@ -303,7 +327,8 @@ export async function getBatchAvailability(
       const audio = detectAudioLanguage(s);
       const langueAudio = s.langueAudio && s.langueAudio !== 'UNKNOWN' ? s.langueAudio : audio.langueAudio;
       const hasEpisodesWithLink = Array.isArray(s.episodes) && s.episodes.some((e: any) => !!e.lien);
-      const hasStream = !!(s.disponible || hasEpisodesWithLink);
+      const catalog = s.tmdbId ? catalogMap.get(s.tmdbId) : undefined;
+      const hasStream = catalog ? true : !!(s.disponible || hasEpisodesWithLink);
       const key = String(s.tmdbId || ids[0] || s._id);
 
       result[key] = {
@@ -311,7 +336,22 @@ export async function getBatchAvailability(
         streaming: hasStream,
         download: hasStream,
         langueAudio,
-        isFrenchAudio: langueAudio === 'VF' || langueAudio === 'VFF' || langueAudio === 'VFQ',
+        isFrenchAudio: isFrench(langueAudio),
+        ...(catalog ? { providers: catalog.providers } : {}),
+      };
+    }
+
+    // Présents dans l'index provider mais sans doc Serie en base.
+    for (const [tmdbId, catalog] of catalogMap) {
+      const key = String(tmdbId);
+      if (result[key]) continue;
+      result[key] = {
+        disponible: true,
+        streaming: true,
+        download: true,
+        langueAudio: catalog.language,
+        isFrenchAudio: isFrench(catalog.language),
+        providers: catalog.providers,
       };
     }
   }

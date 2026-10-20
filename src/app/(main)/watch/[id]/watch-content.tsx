@@ -10,9 +10,11 @@ import {
   getMovieRecommendations,
   getPopularMovies,
   getPopularTV,
+  getMediaLogo,
 } from "@/services/media";
 import type { MovieOrShow, Episode } from "@/types/media";
 import VideoPlayer from "@/components/VideoPlayer";
+import MediaLogo from "@/components/MediaLogo";
 import NotificationModal from "@/components/NotificationModal";
 import AuthModal from "@/components/AuthModal";
 import SeriesDownloadModal from "@/features/downloads/SeriesDownloadModal";
@@ -53,6 +55,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
   const initialLangParam = (searchParams?.get("lang") === "vostfr" ? "vostfr" : "fr") as "fr" | "vostfr";
 
   const [item, setItem] = useState<MovieOrShow | null>(initialItem || null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [currentSeason, setCurrentSeason] = useState<number>(parseInt(initialSeasonParam) || 1);
   const [audioVersion, setAudioVersion] = useState<"fr" | "vostfr">(initialLangParam);
 
@@ -285,6 +288,23 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
       }
     }).catch(console.error);
   }, [token, item?.id, isTV, currentSeason, currentEpisode?.number, item?.title, item?.posterUrl, updateUser]);
+
+  // Load official logo — fetch uniquement si item.logoUrl est absent
+  // (le logo affiché est dérivé au rendu : item.logoUrl || logoUrl).
+  useEffect(() => {
+    if (!id || !item || item.logoUrl) return;
+    const controller = new AbortController();
+    let cancelled = false;
+    getMediaLogo(id, isTV, controller.signal)
+      .then((url) => {
+        if (!cancelled) setLogoUrl(url);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [id, isTV, item?.logoUrl]);
 
   // Load Similar Content
   useEffect(() => {
@@ -758,20 +778,13 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
           {/* Title Header */}
           {item ? (
             <div className="space-y-1">
-              {item.logoUrl ? (
-                <Image
-                  src={item.logoUrl}
-                  alt={item.title}
-                  width={280}
-                  height={80}
-                  className="h-7 sm:h-10 md:h-12 w-auto object-contain object-left"
-                  priority
-                />
-              ) : null}
-
-              <h1 className="text-lg sm:text-2xl md:text-3xl lg:text-4xl font-black text-white leading-tight break-words">
-                {item.title}
-              </h1>
+              {item.logoUrl || logoUrl ? (
+                <MediaLogo src={item.logoUrl || logoUrl || ""} alt={`Logo ${item.title}`} />
+              ) : (
+                <h1 className="text-lg sm:text-2xl md:text-3xl lg:text-4xl font-black text-white leading-tight break-words">
+                  {item.title}
+                </h1>
+              )}
 
               {currentEpisode && (
                 <p className="text-zinc-400 text-[11px] sm:text-sm font-medium flex items-center gap-1.5 flex-wrap">

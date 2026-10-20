@@ -5,22 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import {
-  getPopularMovies,
-  getPopularTV,
-  getTrendingMovies,
-  getTrendingTV,
-  getTopRatedMovies,
-  getTopRatedTV,
-  getUpcomingMovies,
-  getAnimeSeries,
-  getAllMoviesPage,
-  getPopularTVPage,
-  getAnimeSeriesPage,
-  getMoviesByGenrePage,
-  getTVByGenrePage,
-  getMoviesByGenre,
-  getAnimeByGenre,
-  getByGenreMultiple,
+  discoverMediaPage,
+  type DiscoverSort,
   getMovieGenres,
   getTVGenres,
   getDisponible,
@@ -28,7 +14,6 @@ import {
   getSimilarTitles,
 } from "@/services/media";
 import { useMediaDetails } from "@/hooks/useMediaDetails";
-import { useBackdropAmbiance } from "@/hooks/useBackdropAmbiance";
 import { httpJson } from "@/services/http";
 import type { Genre, MovieOrShow } from "@/types/media";
 import GenreFilterBar from "@/components/GenreFilterBar";
@@ -36,8 +21,6 @@ import NotificationModal from "@/components/NotificationModal";
 import AuthModal from "@/components/AuthModal";
 import DownloadModal from "@/features/downloads/DownloadModal";
 import UpgradeModal from "@/components/UpgradeModal";
-import ScrollRow from "@/components/ScrollRow";
-import Top10Row from "@/components/Top10Row";
 import MovieCard from "@/components/MovieCard";
 import MovieCardSkeleton from "@/components/MovieCardSkeleton";
 import AddToPlaylistModal from "@/components/AddToPlaylistModal";
@@ -45,17 +28,13 @@ import Button from "@/components/Button";
 import CardImage from "@/components/CardImage";
 import MediaLogo from "@/components/MediaLogo";
 import { useLanguage } from "@/i18n/LanguageContext";
-import { ArrowLeft, Play, Star, Clock, CalendarBlank, FilmSlate, CaretLeft, CaretRight, DownloadSimple, ShareNetwork, Sparkle, BookmarkSimple, ListNumbers } from '@phosphor-icons/react';
+import { ArrowLeft, Play, Star, Clock, CalendarBlank, FilmSlate, CaretDown, DownloadSimple, ShareNetwork, Sparkle, BookmarkSimple, ListNumbers } from '@phosphor-icons/react';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { userService } from '@/services/user';
 
-import CatalogSpotlightHero from "@/components/CatalogSpotlightHero";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 
 const LISTING_TYPES = ["movies", "series", "anime"];
-
-/** Taille d'un lot révélé à chaque déclenchement du scroll infini du catalogue. */
-const CATALOG_BATCH = 15;
 
 interface MediaPageProps {
   initialItem?: MovieOrShow | null;
@@ -83,7 +62,6 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
     staleTime: 5 * 60_000,
   });
   const item = itemData ?? null;
-  const ambiance = useBackdropAmbiance(item?.backdropOriginalUrl || item?.backdropUrl || undefined);
   const loading = itemLoading && !item;
   const [similar, setSimilar] = useState<MovieOrShow[]>(initialSimilar || []);
   const [trailerOpen, setTrailerOpen] = useState(false);
@@ -442,7 +420,21 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
   const isYouTube = trailerUrl?.includes("youtube.com") || trailerUrl?.includes("embed");
 
   return (
-    <div className="flex-1 flex flex-col bg-[#1F1F1F] text-white pb-20 sm:pb-0">
+    <div className="flex-1 flex flex-col text-white pb-20 sm:pb-0">
+      {/* Le backdrop continue sous le hero : image floutée, assombrie pour la lisibilité */}
+      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 hidden overflow-hidden bg-[#1F1F1F] sm:block">
+        {(item.backdropOriginalUrl || item.backdropUrl) && (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={item.backdropOriginalUrl || item.backdropUrl}
+              alt=""
+              className="h-full w-full scale-125 object-cover object-top opacity-70 blur-3xl saturate-150"
+            />
+            <div className="absolute inset-0 bg-[#1F1F1F]/40" />
+          </>
+        )}
+      </div>
 
       {/* Floating Back Button (Mobile & Desktop) */}
       <div className="fixed top-4 left-4 z-50">
@@ -463,66 +455,53 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
       )}
 
       {/* 1. HERO SECTION */}
-      <div className="relative w-full min-h-[65vh] sm:min-h-[70vh] lg:h-[78vh] max-h-[750px] overflow-hidden flex flex-col justify-end">
-        {item.backdropOriginalUrl || item.backdropUrl ? (
-          <Image
-            src={item.backdropOriginalUrl || item.backdropUrl}
-            alt={item.title}
-            fill
-            className="object-cover object-top"
-            sizes="100vw"
-            quality={85}
-            priority
-          />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-b from-zinc-800 to-black" />
-        )}
-
-        {/* Ambiance colorimétrique tirée du backdrop : teinte l'image, puis halo */}
-        {ambiance && (
+      <div className="relative flex w-full flex-col justify-end overflow-hidden sm:min-h-[70vh] sm:max-h-[750px] lg:h-[78vh]">
+        {item.posterUrl || item.backdropOriginalUrl || item.backdropUrl ? (
           <>
-            <div
-              aria-hidden
-              className="absolute inset-0 pointer-events-none mix-blend-soft-light animate-in fade-in duration-1000"
-              style={{
-                background: `linear-gradient(205deg, rgb(${ambiance.vivid} / 0.75) 0%, rgb(${ambiance.dominant} / 0.6) 55%, rgb(${ambiance.vivid} / 0.45) 100%)`,
-              }}
-            />
-            <div
-              aria-hidden
-              className="absolute inset-0 pointer-events-none animate-in fade-in duration-1000"
-              style={{
-                background: [
-                  `radial-gradient(90% 110% at 78% 10%, rgb(${ambiance.dominant} / 0.5), transparent 68%)`,
-                  `radial-gradient(55% 75% at 12% 92%, rgb(${ambiance.vivid} / 0.22), transparent 72%)`,
-                ].join(", "),
-              }}
-            />
+            {/* Mobile : affiche portrait (comme oha.to), non recadrée */}
+            <div className="relative aspect-[2/3] w-full shrink-0 overflow-hidden sm:hidden">
+              <Image
+                src={item.posterUrl || item.backdropOriginalUrl || item.backdropUrl}
+                alt={item.title}
+                fill
+                className="object-cover object-center"
+                sizes="100vw"
+                quality={85}
+                priority
+              />
+              <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-[#1F1F1F] to-transparent" />
+              <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black/60 to-transparent" />
+            </div>
+            {/* Desktop : backdrop plein écran */}
+            {(item.backdropOriginalUrl || item.backdropUrl) && (
+              <div className="relative hidden sm:absolute sm:inset-0 sm:block">
+                <Image
+                  src={item.backdropOriginalUrl || item.backdropUrl}
+                  alt={item.title}
+                  fill
+                  className="object-cover object-top"
+                  sizes="100vw"
+                  quality={85}
+                  priority
+                />
+              </div>
+            )}
           </>
+        ) : (
+          <div className="h-56 w-full bg-gradient-to-b from-zinc-800 to-black sm:absolute sm:inset-0 sm:h-full" />
         )}
 
-        {/* Dégradé gauche à droite uniquement */}
-        <div className="absolute inset-0 bg-gradient-to-r from-black via-black/60 to-transparent max-w-4xl" />
-        
-        {/* Dégradé du bas avec petite hauteur */}
-        <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[#09090B] via-[#09090B]/40 to-transparent" />
+        {/* Dégradé gauche à droite (desktop) */}
+        <div className="absolute inset-0 hidden max-w-4xl bg-gradient-to-r from-black via-black/60 to-transparent sm:block" />
 
-        {/* Fade bas teinté : prolonge l'ambiance jusqu'au contenu, sans couture */}
-        {ambiance && (
-          <div
-            aria-hidden
-            className="absolute bottom-0 left-0 right-0 h-32 pointer-events-none animate-in fade-in duration-1000"
-            style={{
-              background: `linear-gradient(to top, color-mix(in srgb, rgb(${ambiance.dominant}) 26%, black) 0%, color-mix(in srgb, rgb(${ambiance.dominant}) 12%, transparent) 55%, transparent 100%)`,
-            }}
-          />
-        )}
+        {/* Dégradé du bas avec petite hauteur (desktop) */}
+        <div className="absolute bottom-0 left-0 right-0 hidden h-16 bg-gradient-to-t from-[#1F1F1F] via-[#1F1F1F]/40 to-transparent sm:block sm:from-[#09090B] sm:via-[#09090B]/40" />
 
         {/* Contenu du Hero */}
-        <div className="relative z-20 w-full px-4 sm:px-8 md:px-12 lg:px-16 pt-24 pb-8 sm:pb-12">
-          <div className="flex flex-col sm:flex-row gap-5 sm:gap-8 items-start sm:items-end w-full">
-            {/* Poster vertical avec taille adaptative mobile / desktop */}
-            <div className="relative flex-none w-28 sm:w-44 md:w-52 lg:w-56 aspect-[2/3] rounded-xl sm:rounded-2xl overflow-hidden border border-white/10 ring-1 ring-white/5 bg-zinc-900 shrink-0">
+        <div className="relative z-20 w-full px-4 pb-8 pt-4 sm:px-8 sm:pb-12 sm:pt-24 md:px-12 lg:px-16">
+          <div className="flex w-full flex-col items-center gap-5 text-center sm:flex-row sm:items-end sm:gap-8 sm:text-left">
+            {/* Poster vertical (desktop) : masqué sur mobile pour un hero image simple */}
+            <div className="relative hidden aspect-[2/3] w-44 flex-none shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 ring-1 ring-white/5 sm:block md:w-52 lg:w-56">
               <CardImage
                 src={item.posterUrl}
                 alt={item.title}
@@ -537,14 +516,14 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
             {/* Informations textuelles */}
             <div className="flex-1 space-y-3 sm:space-y-4 min-w-0">
               {/* Badges : Disponibilité, Audio, Âge, Genres */}
-              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-xs font-bold">
+              <div className="flex flex-wrap items-center justify-center gap-1.5 text-xs font-bold sm:justify-start sm:gap-2">
                 {isUpcoming && releaseDateLabel ? (
-                  <span className="px-3 py-1 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wider bg-blue-500/20 text-blue-300 border-0 flex items-center shadow-none">
+                  <span className="max-sm:hidden px-3 py-1 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wider bg-blue-500/20 text-blue-300 border-0 flex items-center shadow-none">
                     <span>Sortie au cinéma le {releaseDateLabel}</span>
                   </span>
                 ) : disponible && (
                   <span
-                    className={`px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider border-0 ${disponible.disponible
+                    className={`max-sm:hidden px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider border-0 ${disponible.disponible
                         ? "text-brand-primary bg-brand-primary/10"
                         : "text-blue-300 bg-blue-500/15"
                       }`}
@@ -555,7 +534,7 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
 
                 {/* Badge Audio */}
                 {(disponible?.langueAudio || item.langueAudio) && (disponible?.langueAudio !== 'UNKNOWN') && (
-                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider border-0 shadow-none ${disponible?.isFrenchAudio || item.isFrenchAudio
+                  <span className={`max-sm:hidden px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider border-0 shadow-none ${disponible?.isFrenchAudio || item.isFrenchAudio
                       ? 'bg-brand-primary/90 text-white'
                       : 'bg-amber-600/90 text-white'
                     }`}>
@@ -579,14 +558,16 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
                 ))}
               </div>
 
-              {/* Logo officiel (principale), fallback titre */}
-              {(item.logoUrl || logoUrl) ? (
-                <MediaLogo src={item.logoUrl || logoUrl || ""} alt={`Logo ${item.title}`} />
-              ) : (
-                <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white leading-tight drop-shadow-xl">
-                  {item.title}
-                </h1>
-              )}
+              {/* Logo officiel (principale), fallback titre — masqué en mobile (l'affiche porte déjà le titre) */}
+              <div className="max-sm:hidden">
+                {(item.logoUrl || logoUrl) ? (
+                  <MediaLogo src={item.logoUrl || logoUrl || ""} alt={`Logo ${item.title}`} />
+                ) : (
+                  <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white leading-tight drop-shadow-xl">
+                    {item.title}
+                  </h1>
+                )}
+              </div>
 
               {/* Tagline */}
               {item.tagline && (
@@ -596,7 +577,7 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
               )}
 
               {/* Métadonnées : Note, Année / Date de sortie, Durée */}
-              <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-zinc-300 font-medium">
+              <div className="flex flex-wrap items-center justify-center gap-2 text-xs font-medium text-zinc-300 sm:justify-start sm:gap-4 sm:text-sm">
                 <div className="flex items-center gap-1 text-amber-400 font-bold">
                   <Star className="h-4 w-4 fill-amber-400" />
                   <span>{item.rating}</span>
@@ -617,12 +598,12 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
               </div>
 
               {/* Synopsis court */}
-              <p className="text-zinc-300 text-xs sm:text-sm leading-relaxed max-w-3xl line-clamp-3">
+              <p className="mx-auto max-w-3xl text-zinc-300 text-xs sm:text-sm leading-relaxed line-clamp-3 sm:mx-0">
                 {item.synopsis || item.description}
               </p>
 
-              {/* Actions avec le composant Button global */}
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-2">
+              {/* Actions : Regarder seul sur sa ligne, VF + icônes sur la suivante (sans bordure sur mobile) */}
+              <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-start sm:gap-3">
                 {isUpcoming ? (
                   <Button
                     disabled
@@ -630,22 +611,24 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
                     size="md"
                     text="Bientôt dispo"
                     ariaLabel={`Sortie prévue le ${releaseDateLabel}`}
-                    className="flex-1 sm:flex-initial opacity-90 cursor-not-allowed border-0 text-blue-200 font-bold bg-blue-600/20 shadow-none"
+                    className="w-full cursor-not-allowed border-0 bg-blue-600/20 font-bold text-blue-200 opacity-90 shadow-none sm:w-auto"
                   />
                 ) : (
-                  <>
-                    <Button
-                      onClick={handleWatch}
-                      disabled={!item || loading}
-                      variant="primary"
-                      size="md"
-                      text={_("media.watch")}
-                      leftIcon={<Play className="h-4 w-4 fill-white" />}
-                      ariaLabel={`Regarder le film ${item?.title || ""}`}
-                      className="flex-1 sm:flex-initial"
-                    />
+                  <Button
+                    onClick={handleWatch}
+                    disabled={!item || loading}
+                    variant="primary"
+                    size="md"
+                    text={_("media.watch")}
+                    leftIcon={<Play className="h-4 w-4 fill-current" />}
+                    ariaLabel={`Regarder le film ${item?.title || ""}`}
+                    className="w-full max-sm:!bg-white max-sm:!text-black max-sm:border-white max-sm:shadow-none sm:w-auto"
+                  />
+                )}
 
-                    <div className="flex items-center p-1 rounded-xl bg-white/5 border border-white/10 backdrop-blur-md">
+                <div className="flex flex-wrap items-center justify-center gap-2.5 sm:contents sm:justify-start sm:gap-3">
+                  {!isUpcoming && (
+                    <div className="flex items-center rounded-xl bg-white/5 p-1 backdrop-blur-md max-sm:border-0">
                       <button
                         type="button"
                         onClick={() => handleLangSelect("fr")}
@@ -669,51 +652,56 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
                         <span>VOSTFR</span>
                       </button>
                     </div>
-                  </>
-                )}
+                  )}
 
-                {!isUpcoming && (
-                  <Button
-                    onClick={handleDownload}
-                    disabled={!item || loading}
-                    variant="dark"
-                    size="md"
-                    text="Télécharger"
-                    leftIcon={<DownloadSimple className="h-4 w-4" />}
-                    ariaLabel={`Télécharger ${item.title}`}
-                  />
-                )}
+                  {!isUpcoming && (
+                    <Button
+                      onClick={handleDownload}
+                      disabled={!item || loading}
+                      variant="dark"
+                      size="md"
+                      leftIcon={<DownloadSimple className="h-4 w-4" />}
+                      ariaLabel={`Télécharger ${item.title}`}
+                      className="max-sm:!rounded-full max-sm:!border-0 max-sm:!bg-white/10 max-sm:px-3"
+                    >
+                      <span className="max-sm:hidden">Télécharger</span>
+                    </Button>
+                  )}
 
-                {user && (
-                  <Button
-                    onClick={() => setShowPlaylistModal(true)}
-                    variant="outline"
-                    size="icon"
-                    title={lang === "fr" ? "Enregistrer dans une playlist ou À regarder plus tard" : "Save to playlist or watch later"}
-                    ariaLabel={lang === "fr" ? "Enregistrer dans une playlist" : "Save to playlist"}
-                    icon={<ListNumbers className="h-4 w-4 text-cyan-400 opacity-75" />}
-                  />
-                )}
+                  {user && (
+                    <Button
+                      onClick={() => setShowPlaylistModal(true)}
+                      variant="outline"
+                      size="icon"
+                      title={lang === "fr" ? "Enregistrer dans une playlist ou À regarder plus tard" : "Save to playlist or watch later"}
+                      ariaLabel={lang === "fr" ? "Enregistrer dans une playlist" : "Save to playlist"}
+                      icon={<ListNumbers className="h-4 w-4 text-cyan-400 opacity-75" />}
+                      className="max-sm:!rounded-full max-sm:!border-0 max-sm:!bg-white/10"
+                    />
+                  )}
 
-                {user && (
-                  <Button
-                    onClick={toggleFavorite}
-                    disabled={favoriteLoading || !item}
-                    variant={isFavorite ? "primary" : "outline"}
-                    size="icon"
-                    ariaLabel={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
-                    icon={<BookmarkSimple className="w-4 h-4" />}
-                  />
-                )}
+                  {user && (
+                    <Button
+                      onClick={toggleFavorite}
+                      disabled={favoriteLoading || !item}
+                      variant={isFavorite ? "primary" : "outline"}
+                      size="icon"
+                      ariaLabel={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
+                      icon={<BookmarkSimple className="w-4 h-4" />}
+                      className={`max-sm:!rounded-full max-sm:!border-0 ${isFavorite ? "" : "max-sm:!bg-white/10"}`}
+                    />
+                  )}
 
-                <div className="relative" ref={shareBtnRef}>
-                  <Button
-                    onClick={handleShare}
-                    variant="outline"
-                    size="icon"
-                    ariaLabel="Partager le film"
-                    icon={<ShareNetwork className="h-4 w-4" />}
-                  />
+                  <div className="relative" ref={shareBtnRef}>
+                    <Button
+                      onClick={handleShare}
+                      variant="outline"
+                      size="icon"
+                      ariaLabel="Partager le film"
+                      icon={<ShareNetwork className="h-4 w-4" />}
+                      className="max-sm:!rounded-full max-sm:!border-0 max-sm:!bg-white/10"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -791,21 +779,19 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
                   {castCanScrollLeft && (
                     <button
                       onClick={() => castScrollRef.current?.scrollBy({ left: -200, behavior: "smooth" })}
-                      className="hidden md:flex absolute left-0 top-0 h-full w-12 z-20 items-center justify-start pl-1 bg-[#1F1F1F] cursor-pointer"
+                      className="hidden md:flex absolute left-1 top-1/2 -translate-y-1/2 z-20 items-center justify-center h-9 w-9 rounded-full bg-black/70 border border-white/20 hover:bg-black/90 cursor-pointer transition-all"
+                      aria-label="Défiler vers la gauche"
                     >
-                      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-black/70 border border-white/20">
-                        <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                      </span>
+                      <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                     </button>
                   )}
                   {castCanScrollRight && (
                     <button
                       onClick={() => castScrollRef.current?.scrollBy({ left: 200, behavior: "smooth" })}
-                      className="hidden md:flex absolute right-0 top-0 h-full w-12 z-20 items-center justify-end pr-1 bg-[#1F1F1F] cursor-pointer"
+                      className="hidden md:flex absolute right-1 top-1/2 -translate-y-1/2 z-20 items-center justify-center h-9 w-9 rounded-full bg-black/70 border border-white/20 hover:bg-black/90 cursor-pointer transition-all"
+                      aria-label="Défiler vers la droite"
                     >
-                      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-black/70 border border-white/20">
-                        <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                      </span>
+                      <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                     </button>
                   )}
                 </div>
@@ -965,61 +951,22 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
   );
 }
 
-const MOVIE_ROWS_CONFIG = [
-  { id: 'recent', title: 'Films récents & Nouveautés', variant: 'poster' as const },
-  { id: 'trending', title: 'Tendances actuelles', variant: 'poster' as const },
-  { id: '28', title: 'Action & Aventure - Films', genreId: '28', variant: 'poster' as const },
-  { id: '35', title: 'Comédies - Films', genreId: '35', variant: 'poster' as const },
-  { id: '878', title: 'Science-Fiction & Fantastique', genreId: '878', variant: 'poster' as const },
-  { id: '99', title: 'Documentaires - Films', genreId: '99', variant: 'poster' as const },
-  { id: '37', title: 'Western - Films', genreId: '37', variant: 'poster' as const },
-  { id: '27', title: 'Horreur & Épouvante', genreId: '27', variant: 'poster' as const },
-  { id: '16', title: 'Animation & Famille', genreId: '16', variant: 'poster' as const },
-  { id: '18', title: 'Drames - Films', genreId: '18', variant: 'poster' as const },
-  { id: '53', title: 'Mystère & Thrillers', genreId: '53', variant: 'poster' as const },
-  { id: '10749', title: 'Romance - Films', genreId: '10749', variant: 'poster' as const },
-  { id: '80', title: 'Films policiers & Crime', genreId: '80', variant: 'poster' as const },
-  { id: '36', title: 'Histoire & Guerre', genreId: '36', variant: 'poster' as const },
+/** Options de tri du catalogue — tendance du moment par défaut. */
+const SORT_OPTIONS: Array<{ id: DiscoverSort; label: string }> = [
+  { id: "trending", label: "Tendance" },
+  { id: "recent", label: "Date" },
+  { id: "rating", label: "Mieux notées" },
 ];
 
-const SERIES_ROWS_CONFIG = [
-  { id: 'recent', title: 'Séries récentes & Nouveautés', variant: 'poster' as const },
-  { id: 'trending', title: 'Séries populaires', variant: 'poster' as const },
-  { id: '10759', title: 'Action & Aventure - Séries', genreId: '10759', variant: 'poster' as const },
-  { id: '18', title: 'Drames - Séries', genreId: '18', variant: 'poster' as const },
-  { id: '35', title: 'Comédies - Séries', genreId: '35', variant: 'poster' as const },
-  { id: '10765', title: 'Sci-Fi & Fantastique', genreId: '10765', variant: 'poster' as const },
-  { id: '9648', title: 'Mystère & Enquêtes', genreId: '9648', variant: 'poster' as const },
-  { id: '80', title: 'Crime & Séries policières', genreId: '80', variant: 'poster' as const },
-  { id: '16', title: 'Animation - Séries', genreId: '16', variant: 'poster' as const },
-  { id: '99', title: 'Documentaires - Séries', genreId: '99', variant: 'poster' as const },
-];
+const SORT_IDS: DiscoverSort[] = ["trending", "rating", "recent", "oldest"];
 
-const ANIME_ROWS_CONFIG = [
-  { id: 'recent', title: 'Anime récents & Tendances', variant: 'poster' as const },
-  { id: 'trending', title: 'Classiques incontournables', variant: 'poster' as const },
-  { id: '10759', title: 'Shōnen & Action Aventure', genreId: '10759', variant: 'poster' as const },
-  { id: '10765', title: 'Sci-Fi & Isekai / Fantastique', genreId: '10765', variant: 'poster' as const },
-  { id: '16', title: 'Animation Japonaise', genreId: '16', variant: 'poster' as const },
-  { id: '35', title: 'Comédie & Slice of Life', genreId: '35', variant: 'poster' as const },
-];
-
-/** Retire les doublons entre les lignes de catégories : un film ne doit apparaître
- *  que dans la première ligne où on le rencontre. `seen` (ids déjà affichés,
- *  dont le hero) est muté au fil de l'eau pour propager la déduplication d'une
- *  ligne à l'autre et d'un lot à l'autre. */
-function dedupeRows<T extends { id: string; items: MovieOrShow[] }>(
-  rows: T[],
-  seen: Set<string>,
-): T[] {
-  return rows.map((row) => {
-    const unique = row.items.filter((it) => {
-      if (seen.has(it.id)) return false;
-      seen.add(it.id);
-      return true;
-    });
-    return { ...row, items: unique };
-  });
+/** URL du listing pilotée par l'URL : ?genre= et ?sort= (tendance = défaut, non sérialisé). */
+function buildListingQuery(type: string, genreId: string | null, sort: DiscoverSort) {
+  const qs = new URLSearchParams();
+  if (genreId) qs.set("genre", genreId);
+  if (sort !== "trending") qs.set("sort", sort);
+  const q = qs.toString();
+  return `/media/${type}${q ? `?${q}` : ""}`;
 }
 
 function MediaListingPage() {
@@ -1029,291 +976,100 @@ function MediaListingPage() {
   const searchParams = useSearchParams();
   const { translate: _ } = useLanguage();
 
-  const [heroItems, setHeroItems] = useState<MovieOrShow[]>([]);
-  const [top10Items, setTop10Items] = useState<MovieOrShow[]>([]);
-  const [categoryRows, setCategoryRows] = useState<Array<{ id: string; title: string; genreId?: string; variant: 'scroll' | 'poster'; items: MovieOrShow[] }>>([]);
-  const [isLoadingCatalog, setIsLoadingCatalog] = useState(true);
-
-  // Infinite scroll grid at the bottom of multi-category catalog mode
-  const [catalogGridItems, setCatalogGridItems] = useState<MovieOrShow[]>([]);
-  const [catalogGridPage, setCatalogGridPage] = useState(1);
-  const [catalogGridTotalPages, setCatalogGridTotalPages] = useState(1);
-  const [isLoadingCatalogMore, setIsLoadingCatalogMore] = useState(false);
-  // Nombre d'items du buffer effectivement affichés : on révèle par lots de
-  // CATALOG_BATCH pour un scroll infini fluide, sans jamais sauter d'items.
-  const [catalogVisible, setCatalogVisible] = useState(CATALOG_BATCH);
-
-  // Single Genre Infinite Scroll Grid state (YouTube-style)
-  const [gridItems, setGridItems] = useState<MovieOrShow[]>([]);
+  // Grille infinie : items === null ⇒ chargement initial en cours
+  const [items, setItems] = useState<MovieOrShow[] | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [isLoadingGrid, setIsLoadingGrid] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
+  // Genre et tri pilotés par l'URL (source de vérité, pas d'effet de synchro)
+  const activeGenreId = useMemo(() => searchParams?.get("genre") || null, [searchParams]);
+  const sort = useMemo<DiscoverSort>(() => {
+    const param = searchParams?.get("sort") as DiscoverSort | null;
+    return param && SORT_IDS.includes(param) ? param : "trending";
+  }, [searchParams]);
+
+  // Genres mis en cache par famille (movie / tv) — loading dérivé, sans setState dans l'effet
+  const [genresByFamily, setGenresByFamily] = useState<Record<string, Genre[] | undefined>>({});
+  const genreFamily = type === "movies" ? "movies" : "tv";
+  const genres = genresByFamily[genreFamily];
+  const genresLoading = genres === undefined;
+
+  useEffect(() => {
+    if (genresByFamily[genreFamily]) return;
+    let cancelled = false;
+    const fetcher = genreFamily === "movies" ? getMovieGenres : getTVGenres;
+    fetcher()
+      .then((g) => {
+        if (!cancelled) setGenresByFamily((prev) => ({ ...prev, [genreFamily]: g }));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [genreFamily, genresByFamily]);
+
+  // Ajustement pendant le rendu (pattern React officiel) : la nouvelle requête
+  // (type / genre / tri) remet la page 1 et vide la grille affichée.
+  const queryKey = `${type}|${activeGenreId}|${sort}`;
+  const [prevQueryKey, setPrevQueryKey] = useState(queryKey);
+  if (prevQueryKey !== queryKey) {
+    setPrevQueryKey(queryKey);
+    setPage(1);
+    setItems(null);
+    setIsLoadingMore(false);
+  }
+
+  // Catalogue : une seule grille infinie (découverte TMDB, tendance par défaut).
+  // Seuls des setState asynchrones (callbacks) sont appelés ici.
+  useEffect(() => {
+    let cancelled = false;
+    discoverMediaPage(type as "movies" | "series" | "anime", {
+      genreId: activeGenreId,
+      sort,
+      page,
+    })
+      .then((res) => {
+        if (cancelled) return;
+        setTotalPages(res.totalPages);
+        setItems((prev) =>
+          page === 1 || !prev ? res.results : [
+            ...prev,
+            ...res.results.filter((i) => !prev.some((p) => p.id === i.id)),
+          ],
+        );
+        setIsLoadingMore(false);
+      })
+      .catch((err) => {
+        console.error("Error loading catalog:", err);
+        if (!cancelled) {
+          setItems((prev) => prev ?? []);
+          setIsLoadingMore(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [type, activeGenreId, sort, page]);
+
+  const isLoading = items === null;
+  const visibleItems = items ?? [];
   const hasMore = page < totalPages;
 
   const loadMore = useCallback(() => {
-    if (!isLoadingGrid && !isLoadingMore && hasMore) {
+    if (!isLoading && !isLoadingMore && hasMore) {
+      setIsLoadingMore(true);
       setPage((prev) => prev + 1);
     }
-  }, [isLoadingGrid, isLoadingMore, hasMore]);
+  }, [isLoading, isLoadingMore, hasMore]);
 
   const { sentinelRef } = useInfiniteScroll({
     onLoadMore: loadMore,
     hasMore,
-    isLoading: isLoadingGrid || isLoadingMore,
-    rootMargin: "500px",
-  });
-
-  // Infinite scroll for the bottom grid in multi-category mode
-  const loadMoreCatalogGrid = useCallback(async () => {
-    if (isLoadingCatalogMore) return;
-
-    // Le buffer contient encore des items pas encore affichés : on révèle un
-    // lot de CATALOG_BATCH sans déclencher de requête (scroll plus fluide).
-    if (catalogVisible + CATALOG_BATCH <= catalogGridItems.length) {
-      setCatalogVisible((v) => v + CATALOG_BATCH);
-      return;
-    }
-
-    const nextPage = catalogGridPage + 1;
-    if (nextPage > catalogGridTotalPages) {
-      // Plus de pages à fetcher : on révèle simplement le reste du buffer.
-      if (catalogVisible < catalogGridItems.length) setCatalogVisible(catalogGridItems.length);
-      return;
-    }
-
-    setIsLoadingCatalogMore(true);
-    try {
-      let result: { results: MovieOrShow[]; totalPages: number } = { results: [], totalPages: 1 };
-      if (type === "movies") {
-        // Paginé avec le vrai total_pages pour que le scroll infini continue.
-        result = await getAllMoviesPage(nextPage);
-      } else if (type === "anime") {
-        result = await getAnimeSeriesPage(nextPage);
-      } else {
-        result = await getPopularTVPage(nextPage);
-      }
-
-      const prevLen = catalogGridItems.length;
-      const seen = new Set(catalogGridItems.map((i) => i.id));
-      const unique = result.results.filter((i) => !seen.has(i.id));
-      const newLen = prevLen + unique.length;
-
-      setCatalogGridItems((prev) => {
-        const s = new Set(prev.map((i) => i.id));
-        return [...prev, ...result.results.filter((i) => !s.has(i.id))];
-      });
-      setCatalogVisible((v) => Math.min(v + CATALOG_BATCH, newLen));
-      setCatalogGridPage(nextPage);
-      setCatalogGridTotalPages(result.totalPages);
-    } catch { }
-    setIsLoadingCatalogMore(false);
-  }, [type, catalogGridPage, catalogGridTotalPages, isLoadingCatalogMore, catalogVisible, catalogGridItems.length]);
-
-  const catalogHasMore = catalogGridPage < catalogGridTotalPages || catalogVisible < catalogGridItems.length;
-
-  const { sentinelRef: catalogSentinelRef } = useInfiniteScroll({
-    onLoadMore: loadMoreCatalogGrid,
-    hasMore: catalogHasMore,
-    isLoading: isLoadingCatalogMore,
+    isLoading: isLoading || isLoadingMore,
     rootMargin: "600px",
   });
-
-
-
-
-  // Genre filter state
-  const [genres, setGenres] = useState<Genre[]>([]);
-  const [genresLoading, setGenresLoading] = useState(true);
-  const [activeGenreId, setActiveGenreId] = useState<string | null>(null);
-
-  // Fetch genres depending on content type
-  useEffect(() => {
-    setGenresLoading(true);
-    const fetchGenres = type === "movies" ? getMovieGenres : getTVGenres;
-    fetchGenres()
-      .then(setGenres)
-      .finally(() => setGenresLoading(false));
-    setActiveGenreId(null);
-    setPage(1);
-    setCatalogGridItems([]);
-    setCatalogVisible(CATALOG_BATCH);
-    setCatalogGridPage(1);
-    setCatalogGridTotalPages(1);
-  }, [type]);
-
-  // Read ?genre= from URL on mount or change
-  useEffect(() => {
-    const genreParam = searchParams?.get("genre");
-    setActiveGenreId(genreParam || null);
-  }, [searchParams]);
-
-  // Reset page when genre changes
-  useEffect(() => {
-    setPage(1);
-  }, [activeGenreId]);
-
-  // ── 1. Fetch Multi-Category Catalog (when activeGenreId is null) ──
-  useEffect(() => {
-    if (activeGenreId) return; // Not in multi-category mode
-
-    let cancelled = false;
-    async function loadCatalog() {
-      setIsLoadingCatalog(true);
-      try {
-        const rowsConfig = type === "movies"
-          ? MOVIE_ROWS_CONFIG
-          : type === "series"
-            ? SERIES_ROWS_CONFIG
-            : ANIME_ROWS_CONFIG;
-
-        // Fetch top hero items + initial rows in parallel
-        let heroesPromise: Promise<MovieOrShow[]>;
-        if (type === "movies") heroesPromise = getTrendingMovies();
-        else if (type === "series") heroesPromise = getTrendingTV();
-        else heroesPromise = getAnimeSeries(1);
-
-        const heroes = await heroesPromise;
-        if (cancelled) return;
-        setHeroItems(heroes.slice(0, 6));
-        setTop10Items(heroes.slice(0, 10));
-
-        // Initial 4 rows for fast paint
-        const initialBatch = rowsConfig.slice(0, 4);
-        const initialResults = await Promise.all(
-          initialBatch.map(async (row) => {
-            let rowItems: MovieOrShow[] = [];
-            try {
-              if (row.id === 'recent') {
-                rowItems = type === "movies"
-                  ? await getPopularMovies(1)
-                  : type === "series"
-                    ? await getPopularTV(1)
-                    : await getAnimeSeries(1);
-              } else if (row.id === 'trending') {
-                rowItems = type === "movies"
-                  ? await getTrendingMovies()
-                  : type === "series"
-                    ? await getTrendingTV()
-                    : await getAnimeSeries(2);
-              } else if (row.genreId) {
-                if (type === "movies") {
-                  rowItems = await getMoviesByGenre(row.genreId, 1);
-                } else if (type === "anime") {
-                  rowItems = await getAnimeByGenre(row.genreId, 1);
-                } else {
-                  const tvRes = await getTVByGenrePage(row.genreId, 1);
-                  rowItems = tvRes.results;
-                }
-              }
-            } catch { }
-            return { ...row, items: rowItems };
-          })
-        );
-
-        if (cancelled) return;
-        // Les hero/top10 et les premières lignes ne doivent pas se répéter.
-        const seenIds = new Set(heroes.map((h) => h.id));
-        setCategoryRows(dedupeRows(initialResults, seenIds).filter(r => r.items.length > 0));
-        setIsLoadingCatalog(false);
-
-        // Progressively load remaining rows
-        const remainingBatch = rowsConfig.slice(4);
-        const remainingResults = await Promise.all(
-          remainingBatch.map(async (row) => {
-            let rowItems: MovieOrShow[] = [];
-            try {
-              if (row.genreId) {
-                if (type === "movies") {
-                  rowItems = await getMoviesByGenre(row.genreId, 1);
-                } else if (type === "anime") {
-                  rowItems = await getAnimeByGenre(row.genreId, 1);
-                } else {
-                  const tvRes = await getTVByGenrePage(row.genreId, 1);
-                  rowItems = tvRes.results;
-                }
-              }
-            } catch { }
-            return { ...row, items: rowItems };
-          })
-        );
-
-        if (cancelled) return;
-        // Dédupliqué contre le hero + les lignes déjà affichées (seenIds cumulé).
-        const dedupedRemaining = dedupeRows(remainingResults, seenIds);
-        setCategoryRows((prev) => {
-          const valid = dedupedRemaining.filter(r => r.items.length > 0);
-          return [...prev, ...valid];
-        });
-
-        // Initialize the bottom infinite-scroll grid with page 1 of the main list
-        const page1Data = await (async () => {
-          if (type === "movies") return getAllMoviesPage(1);
-          if (type === "anime") return getAnimeSeriesPage(1);
-          return getPopularTVPage(1);
-        })();
-        if (cancelled) return;
-        setCatalogGridItems(page1Data.results);
-        setCatalogVisible(Math.min(CATALOG_BATCH, page1Data.results.length));
-        setCatalogGridPage(1);
-        setCatalogGridTotalPages(page1Data.totalPages);
-      } catch (err) {
-        console.error("Error loading catalog:", err);
-      } finally {
-        if (!cancelled) setIsLoadingCatalog(false);
-      }
-    }
-
-    loadCatalog();
-    return () => { cancelled = true; };
-  }, [type, activeGenreId]);
-
-  // ── 2. Fetch Single Genre Infinite Scroll Grid (when activeGenreId is set) ──
-  useEffect(() => {
-    if (!activeGenreId) return;
-
-    let cancelled = false;
-    async function fetchGridPage() {
-      if (page === 1) {
-        setIsLoadingGrid(true);
-      } else {
-        setIsLoadingMore(true);
-      }
-
-      try {
-        let result: { results: MovieOrShow[]; totalPages: number } = { results: [], totalPages: 1 };
-        if (type === "movies") {
-          result = await getMoviesByGenrePage(activeGenreId!, page);
-        } else {
-          result = await getTVByGenrePage(activeGenreId!, page);
-        }
-
-        if (!cancelled) {
-          setTotalPages(result.totalPages);
-          if (page === 1) {
-            setGridItems(result.results);
-          } else {
-            setGridItems((prev) => {
-              const existingIds = new Set(prev.map((i) => i.id));
-              const newUnique = result.results.filter((i) => !existingIds.has(i.id));
-              return [...prev, ...newUnique];
-            });
-          }
-        }
-      } catch (err) {
-        console.error("Failed to load genre grid", err);
-      } finally {
-        if (!cancelled) {
-          setIsLoadingGrid(false);
-          setIsLoadingMore(false);
-        }
-      }
-    }
-
-    fetchGridPage();
-    return () => { cancelled = true; };
-  }, [type, page, activeGenreId]);
 
   const handleOpenDetails = (item: MovieOrShow) => {
     router.push(item.type === "series" || item.type === "anime" ? `/tv/${item.id}` : `/media/${item.id}`);
@@ -1323,240 +1079,127 @@ function MediaListingPage() {
     router.push(`/watch/${item.id}?type=${item.type === "series" || item.type === "anime" ? "tv" : "movie"}`);
   };
 
+  // Genre et tri pilotés par l'URL : liens partageables + Header synchronisé
   const handleSelectGenre = (id: string | null) => {
-    setActiveGenreId(id);
-    if (id) {
-      router.push(`/media/${type}?genre=${id}`);
-    } else {
-      router.push(`/media/${type}`);
-    }
+    router.push(buildListingQuery(type, id, sort));
   };
 
-  const goToPage = (p: number) => {
-    if (p >= 1 && p <= totalPages && p !== page) setPage(p);
+  const handleSelectSort = (id: DiscoverSort) => {
+    router.push(buildListingQuery(type, activeGenreId, id));
   };
 
-  const buildPages = () => {
-    const range: (number | "...")[] = [];
-    const delta = 2;
-    const left = Math.max(2, page - delta);
-    const right = Math.min(totalPages - 1, page + delta);
-    range.push(1);
-    if (left > 2) range.push("...");
-    for (let i = left; i <= right; i++) range.push(i);
-    if (right < totalPages - 1) range.push("...");
-    if (totalPages > 1) range.push(totalPages);
-    return range;
+  const titles: Record<string, string> = {
+    movies: _("home.blockbusterMovies"),
+    series: _("home.featuredSeries"),
+    anime: _("home.globalAnime"),
   };
-
-  const titles: Record<string, { title: string; subtitle: string }> = {
-    movies: { title: _("home.blockbusterMovies"), subtitle: _("home.blockbusterSubtitle") },
-    series: { title: _("home.featuredSeries"), subtitle: _("home.featuredSeriesSubtitle") },
-    anime: { title: _("home.globalAnime"), subtitle: _("search.animePoweredBy") },
-  };
-  const { title, subtitle } = titles[type] || { title: type, subtitle: "" };
-  const activeGenreName = genres.find(g => String(g.id) === activeGenreId)?.name;
+  const title = titles[type] || type;
+  const activeGenreName = genres?.find((g) => String(g.id) === activeGenreId)?.name;
 
   return (
     <main className="min-h-screen bg-brand-dark pt-24 sm:pt-28 lg:pt-24 pb-28">
+      {/* Bandeau Anime Powered */}
+      {type === "anime" && (
+        <div className="px-2 sm:px-6 md:px-12 lg:px-[3%] mb-4">
+          <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-brand-secondary/10 border border-brand-secondary/30">
+            <Sparkle className="h-4 w-4 text-brand-secondary" />
+            <p className="text-xs font-bold text-white">{_("search.animePoweredBy")}</p>
+          </div>
+        </div>
+      )}
 
-      {/* ── Desktop Category Header (En haut de page, au scroll le header prend le relais) ── */}
-      <div className="hidden lg:block px-6 md:px-12 lg:px-[3%] py-2 mb-2">
-        <div className="flex items-center gap-6">
-          <h1 className="text-2xl font-black text-white tracking-tight shrink-0">
+      {/* Titre + sélecteurs (tri : tendance par défaut / date / note, et genre) */}
+      <div className="px-2 sm:px-6 md:px-12 lg:px-[3%] py-2 mb-2">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+          <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight shrink-0">
             {type === "movies"
               ? _("nav.movies") || "Films"
               : type === "series"
-              ? _("nav.series") || "Séries"
-              : type === "anime"
-              ? _("nav.anime") || "Anime"
-              : title}
+                ? _("nav.series") || "Séries"
+                : type === "anime"
+                  ? _("nav.anime") || "Anime"
+                  : title}
           </h1>
-          <GenreFilterBar
-            genres={genres}
-            activeGenreId={activeGenreId}
-            onSelect={handleSelectGenre}
-            isLoading={genresLoading}
-          />
+
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Tri : Tendance (défaut) / Date / Mieux notées */}
+            <div className="relative inline-flex items-center">
+              <select
+                value={sort}
+                onChange={(e) => handleSelectSort(e.target.value as DiscoverSort)}
+                aria-label="Trier le catalogue"
+                className="appearance-none bg-zinc-900/95 hover:bg-zinc-800 text-white font-semibold cursor-pointer transition-all border border-zinc-700/80 hover:border-zinc-500 focus:outline-none focus:border-brand-primary shadow-md tracking-tight text-xs sm:text-sm py-1.5 sm:py-2 pl-3 pr-8 rounded-xl min-w-[130px] sm:min-w-[160px]"
+              >
+                {SORT_OPTIONS.map((opt) => (
+                  <option key={opt.id} value={opt.id} className="bg-zinc-900 text-white font-medium">
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              <CaretDown
+                className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400"
+                weight="bold"
+              />
+            </div>
+
+            <GenreFilterBar
+              genres={genres ?? []}
+              activeGenreId={activeGenreId}
+              onSelect={handleSelectGenre}
+              isLoading={genresLoading}
+            />
+          </div>
         </div>
+
+        {activeGenreName && (
+          <p className="mt-1 text-xs text-zinc-500">
+            {title} · {activeGenreName}
+          </p>
+        )}
       </div>
 
-      {/* ── MODE 1 : Multi-Category Carousel Catalog (Clean Prime Video Style) ── */}
-      {!activeGenreId && (
-        <div className="space-y-8 sm:space-y-10 pt-4 sm:pt-6">
-          {/* Anime Powered Notice */}
-          {type === "anime" && (
-            <div className="px-2 sm:px-6 md:px-12 lg:px-[3%]">
-              <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-brand-secondary/10 border border-brand-secondary/30">
-                <Sparkle className="h-4 w-4 text-brand-secondary" />
-                <p className="text-xs font-bold text-white">{_("search.animePoweredBy")}</p>
-              </div>
-            </div>
-          )}
-
-          {/* Category Carousel Rows */}
-          <div className="px-2 sm:px-6 md:px-12 lg:px-[3%] space-y-6 sm:space-y-8">
-            {/* TOP 10 */}
-            {top10Items.length > 0 && (
-              <div className="-mx-2 sm:-mx-6 md:-mx-12 lg:-mx-[3%]">
-                <Top10Row
-                  title={type === "movies" ? "Top 10 Films" : type === "series" ? "Top 10 Séries" : "Top 10 Animes"}
-                  items={top10Items}
-                  className="mb-8"
-                />
-              </div>
-            )}
-
-            {isLoadingCatalog && categoryRows.length === 0 ? (
-              Array.from({ length: 4 }).map((_, rIdx) => (
-                <div key={rIdx} className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <span className="h-3 w-1 bg-brand-primary rounded-full" />
-                    <div className="h-5 w-48 bg-zinc-800 rounded animate-pulse" />
-                  </div>
-                  <div className="flex gap-2 sm:gap-3 overflow-hidden pt-2 pb-5 px-1">
-                    {Array.from({ length: 7 }).map((_, cIdx) => (
-                      <MovieCardSkeleton key={cIdx} variant="poster" />
-                    ))}
-                  </div>
-                </div>
-              ))
-            ) : (
-              categoryRows.map((row) => (
-                <ScrollRow
-                  key={row.id}
-                  title={`${row.title} · ${type === 'movies' ? 'Films' : type === 'series' ? 'Séries' : 'Anime'}`}
-                  seeAllHref={row.genreId ? `/media/${type}?genre=${row.genreId}` : undefined}
-                  onSeeAll={row.genreId ? () => handleSelectGenre(row.genreId!) : undefined}
-                  seeAllText="Voir plus"
-                >
-                  {row.items.map((item) => (
-                    <MovieCard
-                      key={item.id}
-                      item={item}
-                      variant={row.variant}
-                      onPlay={handlePlay}
-                      onOpenDetails={handleOpenDetails}
-                    />
-                  ))}
-                </ScrollRow>
-              ))
-            )}
-          </div>
-          {/* Infinite Scroll "Explorer plus" grid */}
-          {catalogGridItems.length > 0 && (
-            <div className="px-2 sm:px-6 md:px-12 lg:px-[3%] space-y-4 pb-4">
-              <div className="mt-2">
-                <h2 className="text-xl sm:text-2xl font-extrabold text-white">
-                  Explorer plus
-                </h2>
-                <p className="text-zinc-500 text-xs sm:text-sm mt-0.5">
-                  {type === "movies" ? _("home.blockbusterSubtitle") : type === "series" ? _("home.featuredSeriesSubtitle") : _("search.animePoweredBy")}
-                </p>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
-                {catalogGridItems.slice(0, catalogVisible).map((item) => (
-                  <MovieCard
-                    key={item.id}
-                    item={item}
-                    variant="grid-poster"
-                    onPlay={handlePlay}
-                    onOpenDetails={handleOpenDetails}
-                  />
-                ))}
-                {isLoadingCatalogMore &&
-                  Array.from({ length: 10 }).map((_, i) => (
-                    <MovieCardSkeleton
-                      key={`catalog-skeleton-${i}`}
-                      variant="grid-poster"
-                    />
-                  ))}
-              </div>
-              {catalogHasMore && (
-                <div
-                  ref={catalogSentinelRef}
-                  className="w-full py-6 flex flex-col items-center justify-center gap-2"
-                >
-                  {isLoadingCatalogMore && (
-                    <div className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-zinc-900/80 border border-white/10 text-xs font-semibold text-zinc-400">
-                      <div className="w-4 h-4 rounded-full border-2 border-brand-primary border-t-transparent animate-spin" />
-                      <span>Chargement des vidéos suivantes…</span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── MODE 2 : Dedicated Filtered Genre Grid with Pagination ── */}
-      {activeGenreId && (
-        <div className="px-2 sm:px-6 md:px-12 lg:px-[3%] pt-4 space-y-5">
-          {/* Header */}
-          <div className="flex items-center justify-between px-1">
-            <div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handleSelectGenre(null)}
-                  className="text-xs font-semibold text-zinc-400 hover:text-white flex items-center gap-1 transition-colors cursor-pointer"
-                >
-                  <CaretLeft className="h-4 w-4" />
-                  <span>Tous les {type === 'movies' ? 'films' : type === 'series' ? 'séries' : 'animes'}</span>
-                </button>
-              </div>
-              <h1 className="text-xl sm:text-2xl font-extrabold text-white mt-1">
-                {activeGenreName ? `${title} · ${activeGenreName}` : title}
-              </h1>
-              <p className="text-zinc-500 text-xs mt-0.5">{subtitle}</p>
-            </div>
-            {!isLoadingGrid && (
-              <span className="text-xs text-zinc-500">
-                {_("common.page")} <span className="text-white font-bold">{page}</span>/{_("common.of")} {totalPages}
-              </span>
-            )}
-          </div>
-
-          {/* Infinite Responsive Grid (YouTube Style) */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
-            {gridItems.map((item) => (
-              <MovieCard
-                key={item.id}
-                item={item}
-                variant="grid-poster"
-                onPlay={handlePlay}
-                onOpenDetails={handleOpenDetails}
-              />
+      {/* Grille de cartes (scroll infini) */}
+      <div className="px-2 sm:px-6 md:px-12 lg:px-[3%] pt-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-3 md:gap-4">
+          {visibleItems.map((item) => (
+            <MovieCard
+              key={item.id}
+              item={item}
+              variant="grid-poster"
+              onPlay={handlePlay}
+              onOpenDetails={handleOpenDetails}
+            />
+          ))}
+          {(isLoading || isLoadingMore) &&
+            Array.from({ length: isLoading ? 15 : 10 }).map((_, i) => (
+              <MovieCardSkeleton key={`skeleton-${i}`} variant="grid-poster" />
             ))}
-            {(isLoadingGrid || isLoadingMore) &&
-              Array.from({ length: isLoadingGrid ? 15 : 10 }).map((_, i) => (
-                <MovieCardSkeleton
-                  key={`skeleton-${i}`}
-                  variant="grid-poster"
-                />
-              ))}
-          </div>
-
-          {/* YouTube-style sentinel observer */}
-          {hasMore && (
-            <div
-              ref={sentinelRef}
-              className="w-full py-8 flex flex-col items-center justify-center gap-2"
-            >
-              {isLoadingMore && (
-                <div className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-zinc-900/80 border border-white/10 text-xs font-semibold text-zinc-400">
-                  <div className="w-4 h-4 rounded-full border-2 border-brand-primary border-t-transparent animate-spin" />
-                  <span>Chargement des vidéos suivantes…</span>
-                </div>
-              )}
-            </div>
-          )}
         </div>
-      )}
 
+        {hasMore && (
+          <div
+            ref={sentinelRef}
+            className="w-full py-8 flex flex-col items-center justify-center gap-2"
+          >
+            {isLoadingMore && (
+              <div className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-zinc-900/80 border border-white/10 text-xs font-semibold text-zinc-400">
+                <div className="w-4 h-4 rounded-full border-2 border-brand-primary border-t-transparent animate-spin" />
+                <span>Chargement des vidéos suivantes…</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {!isLoading && !isLoadingMore && visibleItems.length === 0 && (
+          <p className="py-16 text-center text-sm text-zinc-500">
+            Aucun résultat pour ces filtres.
+          </p>
+        )}
+      </div>
     </main>
   );
 }
+
 
 function MediaListingPageFallback() {
   return <div className="min-h-screen bg-brand-dark" />;

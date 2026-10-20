@@ -3,12 +3,14 @@
 import React, { useState } from "react";
 import Image, { ImageProps } from "next/image";
 import { FilmSlate } from "@phosphor-icons/react";
+import { useImageTimeout } from "@/hooks/useImageTimeout";
 
 export interface CardImageProps extends Omit<ImageProps, "onLoad" | "onError"> {
   fallbackText?: string;
   fallbackGradient?: string;
   containerClassName?: string;
   showShimmer?: boolean;
+  timeoutMs?: number;
 }
 
 /**
@@ -23,10 +25,22 @@ export default function CardImage({
   fallbackText,
   fallbackGradient,
   showShimmer = true,
+  timeoutMs = 6000,
   ...props
 }: CardImageProps) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
+
+  const imgSrc = typeof src === "string" ? src : undefined;
+  useImageTimeout({
+    src: imgSrc,
+    isLoaded: isLoaded || hasError,
+    onTimeout: () => {
+      setHasError(true);
+      setIsLoaded(true);
+    },
+    timeoutMs,
+  });
 
   const isInvalidSrc = !src || hasError;
 

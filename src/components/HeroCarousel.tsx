@@ -4,11 +4,14 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import MediaLogo from "@/components/MediaLogo";
 import type { MovieOrShow } from "@/types/media";
-import { Play, Star } from "@phosphor-icons/react";
+import { Play, Star, BookmarkSimple } from "@phosphor-icons/react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useHydrated } from "@/hooks/useHydrated";
 import Button from "@/components/Button";
 import { getMediaTrailerUrl, getMediaLogo } from "@/app/api";
+import { useAuthStore } from "@/stores/useAuthStore";
+import { userService } from "@/services/user";
+import AuthModal from "@/components/AuthModal";
 
 interface HeroCarouselProps {
   slides: MovieOrShow[];
@@ -45,6 +48,33 @@ export default function HeroCarousel({
   const logoPendingRef = useRef<Set<string>>(new Set());
   const videoRef = useRef<HTMLVideoElement>(null);
   const { translate: _ } = useLanguage();
+  const { user, token, updateUser } = useAuthStore();
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [favoriteLoadingId, setFavoriteLoadingId] = useState<string | number | null>(null);
+
+  const handleToggleFavorite = async (slide: MovieOrShow) => {
+    if (!token || !user) {
+      setIsAuthModalOpen(true);
+      return;
+    }
+    setFavoriteLoadingId(slide.id);
+    try {
+      const isTV = slide.type === "series" || slide.type === "anime";
+      const res = await userService.toggleFavorite(token, {
+        mediaType: isTV ? "series" : "movie",
+        tmdbId: String(slide.id),
+        title: slide.title,
+        posterPath: slide.posterUrl,
+      });
+      if (res.success && res.favorites) {
+        updateUser({ favorites: res.favorites });
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setFavoriteLoadingId(null);
+    }
+  };
 
   useEffect(() => {
     setIsMobile(window.innerWidth < 768);
@@ -230,7 +260,7 @@ export default function HeroCarousel({
                     src={slide.backdropOriginalUrl || slide.backdropUrl}
                     alt={slide.title}
                     fill
-                    className="object-cover object-center transition-opacity duration-700"
+                    className="object-cover object-[center_30%] sm:object-center transition-opacity duration-700"
                     style={{ filter: "brightness(0.8) saturate(1.1)" }}
                     sizes="100vw"
                     quality={85}
@@ -274,7 +304,7 @@ export default function HeroCarousel({
               </div>
 
               {/* Play Hero Button (Center Right) */}
-              <div className="absolute top-1/2 right-[5%] sm:right-[10%] md:right-[15%] -translate-y-1/2 z-20">
+              <div className="absolute top-1/2 right-[5%] sm:right-[10%] md:right-[15%] -translate-y-1/2 z-20 hidden sm:block">
                 <button
                   onClick={() => onWatchNow(slide)}
                   aria-label={`${_("hero.watchNow")} ${slide.title}`}
@@ -286,10 +316,10 @@ export default function HeroCarousel({
                 </button>
               </div>
 
-              {/* Slide Content (Bottom Left) */}
-              <div className="absolute inset-0 z-10 flex flex-col justify-end px-4 sm:px-8 md:px-12 lg:px-[4%] pb-16 sm:pb-20 lg:pb-24">
-                <div className="space-y-3 md:space-y-5 max-w-3xl">
-                  <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs md:text-sm text-zinc-300 font-medium">
+              {/* Slide Content (Bottom Left / centered on mobile) */}
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-end px-4 pb-16 sm:items-stretch sm:px-8 sm:pb-20 md:px-12 lg:px-[4%] lg:pb-24">
+                <div className="max-w-3xl space-y-3 text-center sm:text-left md:space-y-5">
+                  <div className="flex flex-wrap items-center justify-center gap-2 text-xs font-medium text-zinc-300 sm:justify-start sm:gap-3 md:text-sm">
                     <span className="rounded bg-brand-primary/20 text-brand-primary font-extrabold border-0 uppercase tracking-wider text-[10px] px-2.5 py-0.5">
                       {_("hero.featured")}
                     </span>
@@ -311,11 +341,11 @@ export default function HeroCarousel({
                     )}
                   </div>
 
-                  {/* Logo officiel (principale), fallback titre */}
+                  {/* Logo officiel (principale), fallback titre — titre plus petit sur mobile */}
                   {(slideLogo) ? (
                     <MediaLogo src={slideLogo} alt={`Logo ${slide.title}`} />
                   ) : (
-                    <h1 className="text-2xl font-black tracking-tight text-white sm:text-4xl md:text-5xl lg:text-6xl font-sans drop-shadow-lg leading-tight line-clamp-2">
+                    <h1 className="text-xl font-black tracking-tight text-white sm:text-4xl md:text-5xl lg:text-6xl font-sans drop-shadow-lg leading-tight line-clamp-2">
                       {slide.title}
                     </h1>
                   )}
@@ -337,27 +367,40 @@ export default function HeroCarousel({
                     </div>
                   )}
 
-                  <div className="flex flex-wrap items-center gap-2.5 sm:gap-4 pt-1 sm:pt-2">
+                  <div className="flex flex-wrap items-center justify-center gap-2.5 pt-1 sm:justify-start sm:gap-4 sm:pt-2">
                     <Button
                       onClick={() => onWatchNow(slide)}
                       variant="primary"
                       size="lg"
                       leftIcon={<Play className="h-4 w-4 sm:h-5 sm:w-5 fill-current" />}
                       ariaLabel={`${_("hero.watchNow")} ${slide.title}`}
+                      className="max-sm:!border-white max-sm:!bg-white max-sm:!text-black max-sm:shadow-none max-sm:!text-sm max-sm:!px-4 max-sm:!py-2 max-sm:!min-h-[40px]"
                     >
                       {_("hero.watchNow")}
                     </Button>
 
-                    <Button
-                      onClick={() => onOpenDetails(slide)}
-                      variant="dark"
-                      size="lg"
-                      ariaLabel={`${_("hero.moreDetails")} ${slide.title}`}
-                      className="bg-black/50 border-white/15 text-zinc-100 hover:text-white hover:bg-black/70 backdrop-blur-md"
-                    >
-                      <span className="hidden sm:inline">{_("hero.moreDetails")}</span>
-                      <span className="sm:hidden">{_("hero.details")}</span>
-                    </Button>
+                    {(() => {
+                      const isFavorite = user?.favorites?.some((f) => f.tmdbId === String(slide.id));
+                      const isFavLoading = favoriteLoadingId === slide.id;
+                      return (
+                        <Button
+                          onClick={() => handleToggleFavorite(slide)}
+                          disabled={isFavLoading}
+                          variant="dark"
+                          size="lg"
+                          leftIcon={
+                            <BookmarkSimple
+                              weight={isFavorite ? "fill" : "regular"}
+                              className={`h-4 w-4 sm:h-5 sm:w-5 ${isFavorite ? "text-brand-primary" : "fill-current"}`}
+                            />
+                          }
+                          ariaLabel={isFavorite ? _("hero.inFavorites") : _("hero.addToFavorites")}
+                          className="bg-black/50 border-white/15 text-zinc-100 hover:text-white hover:bg-black/70 backdrop-blur-md max-sm:!border-white/20 max-sm:!bg-white/10 max-sm:!text-white max-sm:!text-sm max-sm:!px-4 max-sm:!py-2 max-sm:!min-h-[40px]"
+                        >
+                          <span>{isFavorite ? _("hero.inFavorites") : _("hero.addToFavorites")}</span>
+                        </Button>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
@@ -390,6 +433,11 @@ export default function HeroCarousel({
           </button>
         ))}
       </div>
+
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+      />
     </section>
   );
 }

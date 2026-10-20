@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowsClockwise, Television, X, ShareNetwork, Check } from "@phosphor-icons/react";
+import { ArrowsClockwise, Television, X } from "@phosphor-icons/react";
 import LivePlayer from "@/components/LivePlayer";
 import CompetitionBadge from "@/components/CompetitionBadge";
 import { MatchBackdrop, TeamCrest } from "@/components/MatchCardBackdrop";
@@ -18,29 +18,6 @@ import type { LiveBallMatch } from "@/types/liveball";
 export default function LiveBallMatchContent() {
   const { matchId } = useParams<{ matchId: string }>();
   const [reloadKey, setReloadKey] = useState(0);
-  const [shareCopied, setShareCopied] = useState(false);
-
-  const handleShare = async () => {
-    const title = match
-      ? `${match.home} - ${match.away} · ${affiche?.competition || "Football"} · En direct sur CHILLERS`
-      : "Match en direct sur CHILLERS";
-    const url = window.location.href;
-    try {
-      if (typeof navigator.share === "function") {
-        await navigator.share({ title, url });
-        return;
-      }
-      throw new Error("no-web-share");
-    } catch {
-      try {
-        await navigator.clipboard.writeText(url);
-        setShareCopied(true);
-        setTimeout(() => setShareCopied(false), 2000);
-      } catch {
-        // clipboard indisponible : on ne bloque pas l'UI
-      }
-    }
-  };
 
   // Verrouille le scroll de la page tant que la vue plein écran est ouverte.
   useEffect(() => {
@@ -206,26 +183,12 @@ export default function LiveBallMatchContent() {
 
             {/* Bas : actions */}
             <div className="flex flex-wrap items-center justify-center gap-3 px-6 pb-[calc(1.5rem_+_env(safe-area-inset-bottom,0px))]">
-              <button
-                onClick={retry}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-brand-primary hover:brightness-110 text-white text-xs font-black uppercase tracking-wider transition-all"
-              >
-                <ArrowsClockwise className="h-4 w-4" />
-                Actualiser
-              </button>
-              <button
-                onClick={handleShare}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-wider transition-all"
-              >
-                {shareCopied ? <Check className="h-4 w-4 text-brand-primary" /> : <ShareNetwork className="h-4 w-4" />}
-                {shareCopied ? "Lien copié" : "Partager"}
-              </button>
               <Link
                 href="/live"
                 className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-wider transition-all"
               >
                 <X className="h-4 w-4" />
-                Retour aux directs
+                Retour
               </Link>
             </div>
           </div>
@@ -265,19 +228,12 @@ export default function LiveBallMatchContent() {
                 <ArrowsClockwise className="h-4 w-4" />
                 Réessayer la connexion
               </button>
-              <button
-                onClick={handleShare}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-wider transition-all"
-              >
-                {shareCopied ? <Check className="h-4 w-4 text-brand-primary" /> : <ShareNetwork className="h-4 w-4" />}
-                {shareCopied ? "Lien copié" : "Partager"}
-              </button>
               <Link
                 href="/live"
                 className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-wider transition-all"
               >
                 <X className="h-4 w-4" />
-                Retour aux directs
+                Retour
               </Link>
             </div>
 

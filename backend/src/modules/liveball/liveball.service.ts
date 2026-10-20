@@ -1217,7 +1217,9 @@ export async function resolveLiveBallStream(matchId: string, forceRefresh = fals
     const regexStreamMatch = html.match(/(https?:\/\/[^"'\s<>]*(?:nhr|hayuhi|player|m3u8)[^"'\s<>]*)/i);
     if (regexStreamMatch && regexStreamMatch[1]) {
       const u = regexStreamMatch[1].trim();
-      if (!isForbiddenPageUrl(u)) {
+      // Rejeter les URLs d'images (photos de joueurs, logos, etc.)
+      const isImageUrl = /\.(png|jpg|jpeg|gif|webp|svg|ico|avif)(\?|$)/i.test(u);
+      if (!isImageUrl && !isForbiddenPageUrl(u)) {
         const type = /\.m3u8($|\?)/i.test(u) ? 'hls' : 'iframe';
         const stream: ResolvedStream = { url: u, type };
         STREAM_CACHE.set(matchId, stream);

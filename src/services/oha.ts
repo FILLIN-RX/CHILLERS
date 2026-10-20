@@ -37,3 +37,41 @@ export async function resolveOhaStream(
   }
   return res.data.url;
 }
+
+export interface MatchChannelStatus {
+  channel: OhaChannel;
+  /** L'EPG de la chaîne annonce bien la rencontre à l'heure du match. */
+  confirmed: boolean;
+  matchedTitle?: string;
+}
+
+/**
+ * Chaînes qui diffusent un match : le serveur croise les droits de la
+ * compétition avec l'EPG (programme au coup d'envoi) et renvoie les chaînes
+ * confirmées en premier.
+ */
+export async function getMatchChannels(
+  info: {
+    sport?: string;
+    league?: string;
+    home?: string;
+    away?: string;
+    /** ISO 8601 ou epoch (s/ms). */
+    start?: string | number;
+  },
+): Promise<MatchChannelStatus[]> {
+  const res = await httpJson<Envelope<MatchChannelStatus[]>>("/live/match-channels", {
+    query: {
+      sport: info.sport,
+      league: info.league,
+      home: info.home,
+      away: info.away,
+      start: info.start != null ? String(info.start) : undefined,
+    },
+    timeoutMs: 20_000,
+  });
+  if (!res?.success || !Array.isArray(res.data)) {
+    throw new Error(res?.message || "match channels unavailable");
+  }
+  return res.data;
+}

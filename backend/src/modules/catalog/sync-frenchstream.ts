@@ -21,10 +21,11 @@ import {
   splitSeasonTitle,
 } from './frenchstream-listing';
 import {
+  CatalogUpsertInput,
   logSyncStats,
   markMissingAfterRun,
   newSyncRun,
-  upsertCatalogItem,
+  upsertCatalogItems,
 } from './catalog-sync.service';
 
 const MODE = process.env.CATALOG_SYNC_MODE === 'full' ? 'full' : 'update';
@@ -73,6 +74,7 @@ async function syncCategory(category: string, type: 'movie' | 'tv'): Promise<voi
     }
 
     let pageHasNew = false;
+    const lot: CatalogUpsertInput[] = [];
     for (const card of cards) {
       let title = card.title;
       let season = card.season;
@@ -86,24 +88,24 @@ async function syncCategory(category: string, type: 'movie' | 'tv'): Promise<voi
         season = split.season;
       }
 
-      const before = stats.created;
-      await upsertCatalogItem(
-        {
-          provider: 'frenchstream',
-          sourceId: card.sourceId,
-          type,
-          title,
-          year: card.year,
-          season,
-          pageUrl: card.pageUrl,
-          posterUrl: card.posterUrl,
-          language: card.language,
-          quality: card.quality,
-        },
-        stats
-      );
-      if (stats.created > before) pageHasNew = true;
+      lot.push({
+        provider: 'frenchstream',
+        sourceId: card.sourceId,
+        type,
+        title,
+        year: card.year,
+        season,
+        pageUrl: card.pageUrl,
+        posterUrl: card.posterUrl,
+        language: card.language,
+        quality: card.quality,
+      });
     }
+
+    // Un seul aller-retour Atlas pour toute la page.
+    const createdBefore = stats.created;
+    await upsertCatalogItems(lot, stats);
+    if (stats.created > createdBefore) pageHasNew = true;
 
     if (MODE === 'update') {
       consecutiveSeenPages = pageHasNew ? 0 : consecutiveSeenPages + 1;
@@ -122,7 +124,7 @@ async function syncCategory(category: string, type: 'movie' | 'tv'): Promise<voi
     await sleep(DELAY_MS);
   }
 
-  const missing = archiveEpuisee ? await markMissingAfterRun(stats) : 0;
+  const missing = archiveEpuisee ? await markMissingAfterRun(stats, type) : 0;
   if (!archiveEpuisee) {
     console.log(`[FrenchStream] ${category} : pass interrompu avant la fin de l'archive — absents non comptés.`);
   }

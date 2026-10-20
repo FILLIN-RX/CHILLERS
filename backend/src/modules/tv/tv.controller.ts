@@ -6,6 +6,20 @@ function getLang(req: Request): string | undefined {
   return req.query.language as string | undefined;
 }
 
+export const getDiscover = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const page = Number(req.query.page) || 1;
+    const genre = typeof req.query.genre === 'string' ? req.query.genre : undefined;
+    const year = typeof req.query.year === 'string' ? req.query.year : undefined;
+    const sort = typeof req.query.sort === 'string' ? req.query.sort : undefined;
+    const anime = req.query.anime === '1' || req.query.anime === 'true';
+    const data = await tvService.discover({ page, genre, year, sort, anime }, getLang(req));
+    res.json({ success: true, data, message: null });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getPopular = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const page = Number(req.query.page) || 1;

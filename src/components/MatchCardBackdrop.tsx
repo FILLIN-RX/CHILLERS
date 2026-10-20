@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useImageTimeout } from "@/hooks/useImageTimeout";
 
 /**
  * Habillage « Apple TV » d'une rencontre, partagé par la carte des rangées et la
@@ -55,6 +56,15 @@ export function MatchBackdrop({
 export function TeamCrest({ src, alt, size = "sm" }: { src?: string; alt: string; size?: "sm" | "lg" }) {
   const [brokenSrc, setBrokenSrc] = useState<string | undefined>();
   const broken = brokenSrc === src;
+
+  useImageTimeout({
+    src,
+    isLoaded: broken,
+    onTimeout: () => {
+      setBrokenSrc(src);
+    },
+    timeoutMs: 5000,
+  });
 
   const box = size === "lg" ? "w-24 h-24 sm:w-32 sm:h-32" : "w-12 h-12 sm:w-14 sm:h-14";
   const img = size === "lg" ? "w-16 h-16 sm:w-24 sm:h-24" : "w-12 h-12 sm:w-14 sm:h-14";

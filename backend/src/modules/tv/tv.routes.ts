@@ -7,6 +7,7 @@ router.get('/popular', tvController.getPopular);
 router.get('/trending', tvController.getTrending);
 router.get('/top-rated', tvController.getTopRated);
 router.get('/anime', tvController.getAnime);
+router.get('/discover', tvController.getDiscover);
 router.get('/anime/genre/:genreId', tvController.getAnimeByGenre);
 router.get('/african', tvController.getAfrican);
 router.get('/genre/:genreId', tvController.getByGenre);

@@ -17,7 +17,7 @@ import { LAB_ENABLED, loadSnapshot } from './lab/lab-store';
 import { fixtureScore } from './utils/fixture-match';
 import { SPORTS_SOURCES, type SportsMatch, type SportsServer, type SportsSourceId } from './sports.types';
 
-const TTL_S = Number(process.env.SPORTS_LAB_FASTPATH_TTL_S ?? 2 * 3600);
+const TTL_S = Number(process.env.SPORTS_LAB_FASTPATH_TTL_S ?? 6 * 3600);
 const CLOSE_KICKOFF_S = 45 * 60;
 const MIN_FIXTURE_SCORE = 0.9;
 

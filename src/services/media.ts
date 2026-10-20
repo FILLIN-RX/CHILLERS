@@ -46,12 +46,13 @@ export function isSlowConnection(): boolean {
   return true; // Faible résolution par défaut
 }
 
-export function getTmdbImageUrl(path?: string | null): string {
+export function getTmdbImageUrl(
+  path?: string | null,
+  size: "original" | "w1280" | "w780" | "w500" | "w300" = "w780"
+): string {
   if (!path) return "";
-  // Toujours l'URL TMDB `original` : aucune dégradation selon le réseau.
-  // Le redimensionnement est confié à l'optimiseur Next (buckets 640→3840,
-  // q85) — jamais d'agrandissement, donc pas de flou sur retina/Safari/Firefox.
-  return `https://image.tmdb.org/t/p/original${path}`;
+  if (path.startsWith("http://") || path.startsWith("https://")) return path;
+  return `https://image.tmdb.org/t/p/${size}${path}`;
 }
 
 function clientLang(): string {
@@ -411,9 +412,9 @@ export function mapTMDBToMovieOrShow(
     similar = recs.slice(0, 10).map((r) => mapTMDBToMovieOrShow(r, type));
   }
 
-  const backdropUrl = getTmdbImageUrl(item.backdrop_path);
-  const backdropOriginalUrl = backdropUrl;
-  const posterUrl = getTmdbImageUrl(item.poster_path);
+  const backdropUrl = getTmdbImageUrl(item.backdrop_path, "w1280");
+  const backdropOriginalUrl = getTmdbImageUrl(item.backdrop_path, "original");
+  const posterUrl = getTmdbImageUrl(item.poster_path, "w780");
 
   return {
     id: String(item.id),
@@ -931,6 +932,42 @@ export async function getMadeInChina(page = 1, signal?: AbortSignal): Promise<Mo
     console.error("Error in getMadeInChina:", err);
   }
   return [];
+}
+
+export type DiscoverSort = "trending" | "rating" | "recent" | "oldest";
+
+/** Catalogue filtrable (année, genre, tri) — tendance par défaut. */
+export async function discoverMediaPage(
+  type: "movies" | "series" | "anime",
+  opts: { genreId?: string | null; year?: string | null; sort?: DiscoverSort; page?: number } = {},
+  signal?: AbortSignal,
+): Promise<{ results: MovieOrShow[]; totalPages: number }> {
+  const endpoint = type === "movies" ? "/movies/discover" : "/tv/discover";
+  try {
+    const env = await httpJson<ApiEnvelope<PaginatedRaw>>(endpoint, {
+      query: {
+        page: opts.page ?? 1,
+        language: clientLang(),
+        genre: opts.genreId || undefined,
+        year: opts.year || undefined,
+        sort: opts.sort || "trending",
+        ...(type === "anime" ? { anime: 1 } : {}),
+      },
+      signal,
+      timeoutMs: 12_000,
+    });
+    if (env.success && env.data?.results) {
+      return {
+        results: env.data.results.map((r) =>
+          mapTMDBToMovieOrShow(r, type === "movies" ? "movie" : undefined),
+        ),
+        totalPages: env.data.total_pages || 1,
+      };
+    }
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") throw err;
+  }
+  return { results: [], totalPages: 1 };
 }
 
 export function getAnimeSeriesPage(page = 1, signal?: AbortSignal) {

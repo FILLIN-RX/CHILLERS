@@ -5,6 +5,7 @@ import Image from "next/image";
 import { motion, useMotionValue, useSpring, useTransform, useReducedMotion } from "motion/react";
 import { Play, Star, Info, FilmSlate, ListNumbers, HourglassSimple } from "@phosphor-icons/react";
 import type { MovieOrShow } from "@/types/media";
+import { useImageTimeout } from "@/hooks/useImageTimeout";
 
 export interface AppleMovieCardProps {
   item: MovieOrShow;
@@ -97,6 +98,16 @@ export default function AppleMovieCard({
   const imageSrc = isPoster
     ? item.posterUrl || item.backdropUrl
     : item.backdropUrl || item.posterUrl;
+
+  useImageTimeout({
+    src: imageSrc,
+    isLoaded: imgLoaded || imgError,
+    onTimeout: () => {
+      setImgError(true);
+      setImgLoaded(true);
+    },
+    timeoutMs: 6000,
+  });
 
   const isUpcoming = React.useMemo(() => {
     if (!item.releaseDate) return false;

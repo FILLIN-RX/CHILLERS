@@ -1,14 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowsClockwise, Television, X, ShareNetwork, Check } from "@phosphor-icons/react";
+import { ArrowsClockwise, Television, X } from "@phosphor-icons/react";
 import LivePlayer from "@/components/LivePlayer";
 import CompetitionBadge from "@/components/CompetitionBadge";
 import { MatchBackdrop, TeamCrest } from "@/components/MatchCardBackdrop";
 import { getSportsChannels, getSportsMatches, getSportsStream } from "@/services/sports";
+import { getMatchChannels, resolveOhaStream } from "@/services/oha";
+import MatchChannelsRow from "@/components/live/MatchChannelsRow";
+import type { OhaChannel } from "@/types/oha";
 import { getLiveBallMatches, getLiveBallChampionsLeague } from "@/services/liveball";
 import { buildAffiche, useMatchPosterIndex } from "@/hooks/useMatchPosterIndex";
 import { useNow } from "@/hooks/useNow";
@@ -65,9 +68,13 @@ export default function SportsMatchContent() {
   const decodedId = decodeURIComponent(matchId || "");
 
   const [reloadKey, setReloadKey] = useState(0);
-  const [shareCopied, setShareCopied] = useState(false);
+
   /** Serveur choisi dans le sélecteur, indexé par match : changer de match remet le flux principal. */
   const [serverChoice, setServerChoice] = useState<{ id: string; idx: number } | null>(null);
+  /** Chaîne CHILLERS choisie : prioritaire sur les sources externes. */
+  const [ohaChoice, setOhaChoice] = useState<{ matchId: string; ch: OhaChannel; url: string } | null>(null);
+  const [ohaResolving, setOhaResolving] = useState<string | null>(null);
+  const [ohaError, setOhaError] = useState<string | null>(null);
 
   // Verrouille le scroll tant que le player est ouvert et active le pare-feu anti-pub
   useEffect(() => {
@@ -84,7 +91,7 @@ export default function SportsMatchContent() {
   }, []);
 
   const isLb = decodedId.startsWith("liveball:") || decodedId.startsWith("lb-");
-  const liveballId = isLb ? decodedId.replace(/^liveball:|^lb-/, "") : "";
+  const cleanId = decodedId.replace(/^liveball:|^lb-/, "");
 
   const { data: sportsMatches = [] } = useQuery({
     queryKey: ["live", "sports"],
@@ -106,19 +113,21 @@ export default function SportsMatchContent() {
 
   const allLbMatches = [...liveballMatches, ...clMatches];
 
-  // Identifie le match LiveBall ou Sports
-  const matchedLb = isLb
-    ? allLbMatches.find((m) => m.id === liveballId)
-    : allLbMatches.find((lb) => {
-        const sm = sportsMatches.find((s) => s.id === decodedId || s.slug === decodedId);
-        return sm ? areTeamsMatching(sm.home, sm.away, lb.home, lb.away) : false;
-      });
+  // Identifie le match de manière unifiée : LiveBall ou Sports
+  const directLb = allLbMatches.find((m) => m.id === cleanId || m.id === decodedId);
+  const directSports = sportsMatches.find(
+    (s) => s.id === decodedId || s.slug === decodedId || s.id === cleanId || s.slug === cleanId
+  );
 
-  const matchedSports = !isLb
-    ? sportsMatches.find((m) => m.id === decodedId || m.slug === decodedId)
-    : sportsMatches.find((sm) => {
-        return matchedLb ? areTeamsMatching(matchedLb.home, matchedLb.away, sm.home, sm.away) : false;
-      });
+  const matchedLb = directLb || allLbMatches.find((lb) => {
+    return directSports ? areTeamsMatching(directSports.home, directSports.away, lb.home, lb.away) : false;
+  });
+
+  const matchedSports = directSports || sportsMatches.find((sm) => {
+    return matchedLb ? areTeamsMatching(matchedLb.home, matchedLb.away, sm.home, sm.away) : false;
+  });
+
+  const targetId = matchedLb ? `liveball:${matchedLb.id}` : (matchedSports?.slug || matchedSports?.id || decodedId);
 
   // useMemo : l'objet est recréé à chaque render, et `playing` en dépend.
   const match = useMemo<SportsMatch | undefined>(() => (matchedLb
@@ -138,12 +147,72 @@ export default function SportsMatchContent() {
       }
     : matchedSports), [matchedLb, matchedSports]);
 
+  // Chaînes CHILLERS qui diffusent ce match — l'EPG est vérifié au coup d'envoi.
+  const { data: channelStatuses = [] } = useQuery({
+    queryKey: [
+      "oha",
+      "match-channels",
+      "football",
+      match?.league,
+      match?.home,
+      match?.away,
+      match?.startTs,
+    ],
+    queryFn: () =>
+      getMatchChannels({
+        sport: "football",
+        league: match?.league,
+        home: match?.home,
+        away: match?.away,
+        start: match?.startTs,
+      }),
+    enabled: Boolean(match),
+    staleTime: 60_000,
+    refetchInterval: 60_000,
+  });
+
+  const confirmedChannels = useMemo(
+    () => channelStatuses.filter((s) => s.confirmed).map((s) => s.channel),
+    [channelStatuses],
+  );
+  const candidateChannels = useMemo(
+    () => channelStatuses.filter((s) => !s.confirmed).map((s) => s.channel),
+    [channelStatuses],
+  );
+  const hasChannels = confirmedChannels.length + candidateChannels.length > 0;
+
+  const activeOha = ohaChoice?.matchId === decodedId ? ohaChoice : null;
+
+  const playOha = useCallback(
+    async (ch: OhaChannel, opts?: { silent?: boolean }): Promise<boolean> => {
+      if (ohaResolving) return false;
+      setOhaError(null);
+      setOhaResolving(ch.id);
+      try {
+        const url = await resolveOhaStream(ch.id, ch.altIds ?? []);
+        setOhaChoice({ matchId: decodedId, ch, url });
+        setServerChoice(null);
+        return true;
+      } catch {
+        if (!opts?.silent) setOhaError(`Lien ${ch.name} momentanément indisponible.`);
+        return false;
+      } finally {
+        setOhaResolving(null);
+      }
+    },
+    [decodedId, ohaResolving],
+  );
+
+  const confirmedIds = useMemo(
+    () => confirmedChannels.map((c) => c.id),
+    [confirmedChannels],
+  );
+
   // Le backend chaîne les providers (LiveBall, Kora, Kooorah, YallaPro, Streamiz)
   // et ne renvoie que celui qui diffuse réellement.
   const { data: stream, isLoading, refetch } = useQuery({
     queryKey: ["live", "unified", "stream", decodedId, reloadKey],
     queryFn: async (): Promise<(ResolvedSportsStream & { match?: SportsMatch }) | null> => {
-      const targetId = isLb ? `liveball:${liveballId}` : decodedId;
       const resolved = await getSportsStream(targetId);
       if (!resolved?.url) return null;
 
@@ -167,7 +236,7 @@ export default function SportsMatchContent() {
   // agrégation multi-providers) — le sélecteur apparaît dès qu'elle répond.
   const { data: channels } = useQuery({
     queryKey: ["live", "unified", "channels", decodedId, reloadKey],
-    queryFn: () => getSportsChannels(isLb ? `liveball:${liveballId}` : decodedId),
+    queryFn: () => getSportsChannels(targetId),
     enabled: Boolean(decodedId),
     staleTime: 60_000,
     retry: false,
@@ -245,6 +314,30 @@ export default function SportsMatchContent() {
   const preMatch = Boolean(kickoff && kickoff * 1000 > now);
   const isUpcoming = preMatch || match?.status === "upcoming";
   const isLive = resolvedMatch?.status === "live";
+
+  // Sélection automatique : première chaîne confirmée par l'EPG au coup d'envoi.
+  const autoTriedRef = useRef<string | null>(null);
+  useEffect(() => {
+    const first = confirmedChannels[0];
+    if (!first || preMatch || activeOha) return;
+    const key = `${decodedId}:${first.id}`;
+    if (autoTriedRef.current === key) return;
+
+    autoTriedRef.current = key;
+    let cancelled = false;
+    void (async () => {
+      for (const ch of confirmedChannels) {
+        if (cancelled) return;
+        if (await playOha(ch, { silent: true })) return;
+      }
+      if (!cancelled) {
+        setOhaError("Chaîne confirmée indisponible — autres sources conservées.");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [confirmedChannels, preMatch, activeOha, decodedId, playOha]);
   const selectedType = playing?.type;
   const rawEmbedUrl = selectedType === "iframe" ? playing?.url : null;
   // Les hôtes « domain protected » refusent notre origine : le proxy rejoue le
@@ -271,41 +364,34 @@ export default function SportsMatchContent() {
       }
     : null;
 
+  const ohaLiveChannel: LiveChannel | null = activeOha
+    ? {
+        _id: `oha-sp-${activeOha.ch.id}`,
+        name: activeOha.ch.name,
+        slug: `oha-${activeOha.ch.id}`,
+        logo: activeOha.ch.logo ?? undefined,
+        categories: ["sports"],
+        type: "hls",
+        streamUrl: activeOha.url,
+        enabled: true,
+        order: 0,
+        isOnline: true,
+        proxy: true,
+      }
+    : null;
+
   const retry = () => {
     setServerChoice(null);
     setReloadKey((k) => k + 1);
     refetch();
   };
 
-  const handleShare = async () => {
-    const title = resolvedMatch
-      ? `${resolvedMatch.home}${resolvedMatch.away ? ` - ${resolvedMatch.away}` : ""} · ${
-          affiche?.competition || "Football"
-        } · En direct sur CHILLERS`
-      : "Match en direct sur CHILLERS";
-    const url = window.location.href;
-    try {
-      if (typeof navigator.share === "function") {
-        await navigator.share({ title, url });
-        return;
-      }
-      throw new Error("no-web-share");
-    } catch {
-      try {
-        await navigator.clipboard.writeText(url);
-        setShareCopied(true);
-        setTimeout(() => setShareCopied(false), 2000);
-      } catch {
-        // clipboard indisponible
-      }
-    }
-  };
 
   const teamsLabel = resolvedMatch ? `${resolvedMatch.home}${resolvedMatch.away ? ` vs ${resolvedMatch.away}` : ""}` : "ce match";
 
   return (
     <div className="fixed inset-0 z-40 h-dvh w-screen bg-black overflow-hidden">
-      {isLoading && !channel && !embedUrl && (
+      {isLoading && !channel && !embedUrl && !activeOha && (
         <div className="w-full h-full flex flex-col items-center justify-center gap-3 bg-black">
           <div className="h-12 w-12 border-4 border-brand-primary border-t-transparent rounded-full animate-spin" />
           <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">Résolution du flux...</p>
@@ -313,7 +399,7 @@ export default function SportsMatchContent() {
       )}
 
       {/* ── Match à venir (habillage carte Apple TV) ───────────────── */}
-      {!isLoading && isUpcoming && (preMatch || !playing) && match && (
+      {!isLoading && isUpcoming && (preMatch || !playing) && !activeOha && match && (
         <div className="relative w-full h-full overflow-hidden bg-black">
           <MatchBackdrop home={match.home} away={match.away} />
 
@@ -370,26 +456,12 @@ export default function SportsMatchContent() {
 
             {/* Bas : actions */}
             <div className="flex flex-wrap items-center justify-center gap-3 px-6 pb-[calc(1.5rem_+_env(safe-area-inset-bottom,0px))]">
-              <button
-                onClick={retry}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-brand-primary hover:brightness-110 text-white text-xs font-black uppercase tracking-wider transition-all"
-              >
-                <ArrowsClockwise className="h-4 w-4" />
-                Actualiser
-              </button>
-              <button
-                onClick={handleShare}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-wider transition-all"
-              >
-                {shareCopied ? <Check className="h-4 w-4 text-brand-primary" /> : <ShareNetwork className="h-4 w-4" />}
-                {shareCopied ? "Lien copié" : "Partager"}
-              </button>
               <Link
                 href="/live"
                 className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-wider transition-all"
               >
                 <X className="h-4 w-4" />
-                Retour aux directs
+                Retour
               </Link>
             </div>
           </div>
@@ -397,7 +469,7 @@ export default function SportsMatchContent() {
       )}
 
       {/* ── Aucun flux détecté (habillage carte Apple TV) ──────────── */}
-      {!isLoading && !playing && !isUpcoming && (
+      {!isLoading && !playing && !isUpcoming && !activeOha && (
         <div className="relative w-full h-full overflow-hidden bg-black">
           <MatchBackdrop home={resolvedMatch?.home} away={resolvedMatch?.away} />
 
@@ -428,19 +500,12 @@ export default function SportsMatchContent() {
                 <ArrowsClockwise className="h-4 w-4" />
                 Réessayer la connexion
               </button>
-              <button
-                onClick={handleShare}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-wider transition-all"
-              >
-                {shareCopied ? <Check className="h-4 w-4 text-brand-primary" /> : <ShareNetwork className="h-4 w-4" />}
-                {shareCopied ? "Lien copié" : "Partager"}
-              </button>
               <Link
                 href="/live"
                 className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-wider transition-all"
               >
                 <X className="h-4 w-4" />
-                Retour aux directs
+                Retour
               </Link>
             </div>
 
@@ -448,12 +513,39 @@ export default function SportsMatchContent() {
               <span className="h-2 w-2 rounded-full bg-red-500 animate-ping" />
               Nouvelle tentative automatique de détection du signal toutes les 30s
             </p>
+
+            {hasChannels && (
+              <div className="w-full max-w-xl space-y-2 rounded-2xl bg-white/5 border border-white/10 p-3">
+                <MatchChannelsRow
+                  channels={[...confirmedChannels, ...candidateChannels]}
+                  confirmedIds={confirmedIds}
+                  selectedId={null}
+                  resolvingId={ohaResolving}
+                  onSelect={playOha}
+                  hint={confirmedChannels.length > 0 ? "Sélection automatique (EPG)" : "D'après les droits TV"}
+                />
+                {ohaError && <p className="px-1 text-[11px] text-red-300">{ohaError}</p>}
+              </div>
+            )}
           </div>
         </div>
       )}
 
+      {/* ── Chaîne CHILLERS (première option) ──────────────────────── */}
+      {ohaLiveChannel && !preMatch && (
+        <div className="absolute inset-0">
+          <LivePlayer
+            key={`oha-${activeOha?.ch.id}`}
+            channel={ohaLiveChannel}
+            fill
+            hideTopBar
+            onBack={() => (window.location.href = "/live")}
+          />
+        </div>
+      )}
+
       {/* ── Player embarqué (iframe) ───────────────────────────────── */}
-      {embedUrl && !preMatch && (
+      {embedUrl && !preMatch && !activeOha && (
         <div className="absolute inset-0 bg-black">
           <iframe
             key={embedUrl}
@@ -467,7 +559,7 @@ export default function SportsMatchContent() {
       )}
 
       {/* ── Flux HLS natif via notre relay ─────────────────────────── */}
-      {channel && !preMatch && (
+      {channel && !preMatch && !activeOha && (
         <div className="absolute inset-0">
           {/* key : un changement de serveur remonte le player sur le nouveau flux */}
           <LivePlayer
@@ -481,7 +573,7 @@ export default function SportsMatchContent() {
       )}
 
       {/* ── Barre de contrôle : retour, recharge, partage ──────────── */}
-      {playing && !preMatch && (
+      {(playing || activeOha) && !preMatch && (
         <div className="absolute top-0 inset-x-0 z-30 pt-[calc(0.75rem_+_env(safe-area-inset-top,0px))] pb-3 pl-[calc(0.75rem_+_env(safe-area-inset-left,0px))] pr-[calc(0.75rem_+_env(safe-area-inset-right,0px))] bg-gradient-to-b from-black/90 via-black/50 to-transparent">
           <div className="flex items-center justify-between gap-3">
             <Link
@@ -513,53 +605,65 @@ export default function SportsMatchContent() {
               )}
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={retry}
-                className="p-2 rounded-full bg-black/60 hover:bg-white/20 text-white backdrop-blur-md transition-colors"
-                aria-label="Recharger le flux"
-              >
-                <ArrowsClockwise className="h-4 w-4" />
-              </button>
-              <button
-                onClick={handleShare}
-                className="p-2 rounded-full bg-black/60 hover:bg-white/20 text-white backdrop-blur-md transition-colors"
-                aria-label="Partager"
-              >
-                {shareCopied ? <Check className="h-4 w-4 text-brand-primary" /> : <ShareNetwork className="h-4 w-4" />}
-              </button>
-            </div>
+            <div className="w-9 shrink-0" />
           </div>
         </div>
       )}
 
       {/* ── Sélecteur de serveurs (tous les liens du match) ─────────── */}
-      {playing && !preMatch && servers.length > 1 && (
+      {(playing || activeOha) && !preMatch && (hasChannels || servers.length > 1) && (
         <div className="absolute bottom-0 inset-x-0 z-30 pt-10 pb-[calc(0.75rem_+_env(safe-area-inset-bottom,0px))] bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none">
-          <div className="flex items-center gap-2 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden pointer-events-auto">
-            {servers.map((s, idx) => {
-              const isActive = (activeIdx ?? 0) === idx;
-              return (
-                <button
-                  key={`${s.provider ?? "srv"}-${s.sourceId ?? idx}-${idx}`}
-                  onClick={() => setServerChoice({ id: decodedId, idx })}
-                  className={`shrink-0 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide backdrop-blur-md transition-colors ${
-                    isActive
-                      ? "bg-brand-primary text-white"
-                      : "bg-black/60 text-zinc-300 border border-white/15 hover:bg-white/15"
-                  }`}
-                >
-                  <span className="truncate max-w-[9rem]">{s.name}</span>
-                  <span
-                    className={`text-[9px] font-black uppercase ${
-                      isActive ? "text-white/80" : "text-zinc-500"
-                    }`}
-                  >
-                    {s.type === "hls" ? "HD" : "Web"}
-                  </span>
-                </button>
-              );
-            })}
+          <div className="flex flex-col gap-2 px-4 pointer-events-auto">
+            {hasChannels && (
+              <MatchChannelsRow
+                channels={[...confirmedChannels, ...candidateChannels]}
+                confirmedIds={confirmedIds}
+                selectedId={activeOha?.ch.id ?? null}
+                resolvingId={ohaResolving}
+                onSelect={playOha}
+                onExternal={() => {
+                  setOhaChoice(null);
+                  setOhaError(null);
+                }}
+                externalActive={!activeOha}
+                hint={confirmedChannels.length > 0 ? "Sélection automatique (EPG)" : "D'après les droits TV"}
+              />
+            )}
+            {ohaError && <p className="px-1 text-[11px] text-red-300">{ohaError}</p>}
+
+            {servers.length > 1 && (
+              <div className="flex items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <span className="shrink-0 text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                  Sources
+                </span>
+                {servers.map((s, idx) => {
+                  const isActive = !activeOha && (activeIdx ?? 0) === idx;
+                  return (
+                    <button
+                      key={`${s.provider ?? "srv"}-${s.sourceId ?? idx}-${idx}`}
+                      onClick={() => {
+                        setOhaChoice(null);
+                        setServerChoice({ id: decodedId, idx });
+                      }}
+                      className={`shrink-0 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide backdrop-blur-md transition-colors ${
+                        isActive
+                          ? "bg-brand-primary text-white"
+                          : "bg-black/60 text-zinc-300 border border-white/15 hover:bg-white/15"
+                      }`}
+                    >
+                      <span className="truncate max-w-[9rem]">{s.name}</span>
+                      <span
+                        className={`text-[9px] font-black uppercase ${
+                          isActive ? "text-white/80" : "text-zinc-500"
+                        }`}
+                      >
+                        {s.type === "hls" ? "HD" : "Web"}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -211,11 +211,9 @@ export default function ScrollRow({
           <button
             onClick={() => scroll("left")}
             aria-label="Défiler vers la gauche"
-            className="sm:hidden absolute left-0 top-0 h-full min-w-[48px] z-20 flex items-center justify-start pl-1 bg-black/60 cursor-pointer"
+            className="sm:hidden absolute left-1 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center h-11 w-11 rounded-full bg-black/70 backdrop-blur-sm shadow-md cursor-pointer"
           >
-            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-black/70 backdrop-blur-sm shadow-md">
-              <CaretLeft className="h-5 w-5 text-white" />
-            </span>
+            <CaretLeft className="h-5 w-5 text-white" />
           </button>
         )}
 
@@ -223,11 +221,9 @@ export default function ScrollRow({
           <button
             onClick={() => scroll("right")}
             aria-label="Défiler vers la droite"
-            className="sm:hidden absolute right-0 top-0 h-full min-w-[48px] z-20 flex items-center justify-end pr-1 bg-black/60 cursor-pointer"
+            className="sm:hidden absolute right-1 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center h-11 w-11 rounded-full bg-black/70 backdrop-blur-sm shadow-md cursor-pointer"
           >
-            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-black/70 backdrop-blur-sm shadow-md">
-              <CaretRight className="h-5 w-5 text-white" />
-            </span>
+            <CaretRight className="h-5 w-5 text-white" />
           </button>
         )}
 

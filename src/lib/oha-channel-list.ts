@@ -50,6 +50,7 @@ export const OHA_ALLOWLIST: ReadonlyArray<{ label: string; category: OhaCategory
   { label: "CANAL+ SPORT 4", category: "sport" },
   { label: "CANAL+ SPORT 5", category: "sport" },
   { label: "CANAL+ SPORT 360", category: "sport" },
+  { label: "CANAL+ FOOT", category: "sport" },
   { label: "DAZN 1", category: "sport" },
   { label: "DAZN 2", category: "sport" },
   { label: "DAZN 2 LEAUGE 1", category: "sport" },

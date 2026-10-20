@@ -73,7 +73,7 @@ export default function MediaLogo({ src, alt }: MediaLogoProps) {
         width={500}
         height={150}
         className="w-auto h-auto max-w-[280px] sm:max-w-[350px] md:max-w-[450px] max-h-[100px] sm:max-h-[120px] md:max-h-[150px] object-contain"
-        style={{ filter, transition: "filter 300ms ease" }}
+        style={{ width: "auto", height: "auto", filter, transition: "filter 300ms ease" }}
         priority
       />
     </div>

@@ -77,7 +77,7 @@ export default function CatalogSpotlightHero({
               fill
               priority
               quality={85}
-              className={`object-cover object-right transition-all duration-700 ease-out ${
+              className={`object-cover object-center sm:object-right transition-all duration-700 ease-out ${
                 isFading ? "opacity-40 scale-105" : "opacity-100 scale-100"
               }`}
             />
@@ -87,7 +87,7 @@ export default function CatalogSpotlightHero({
               alt={current.title}
               fill
               priority
-              className={`object-cover object-right transition-all duration-700 ease-out ${
+              className={`object-cover object-center sm:object-right transition-all duration-700 ease-out ${
                 isFading ? "opacity-40 scale-105" : "opacity-100 scale-100"
               }`}
             />
@@ -98,12 +98,12 @@ export default function CatalogSpotlightHero({
         </div>
 
         {/* Content Body */}
-        <div className="relative z-10 p-5 sm:p-8 md:p-10 flex flex-col md:flex-row items-start md:items-end justify-between gap-6">
+        <div className="relative z-10 p-5 sm:p-8 md:p-10 flex flex-col items-center text-center md:flex-row md:items-end justify-between gap-6 md:text-left">
           
-          <div className="max-w-2xl space-y-3 sm:space-y-4">
+          <div className="mx-auto max-w-2xl space-y-3 sm:space-y-4 md:mx-0">
             
             {/* Category Tag & Rating */}
-            <div className="flex items-center gap-2.5 flex-wrap">
+            <div className="flex items-center justify-center gap-2.5 flex-wrap md:justify-start">
               <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border backdrop-blur-md ${categoryBadge.color}`}>
                 <span>{categoryBadge.icon}</span>
                 <span>{categoryBadge.label}</span>
@@ -130,19 +130,20 @@ export default function CatalogSpotlightHero({
 
             {/* Synopsis */}
             {current.description && (
-              <p className="text-xs sm:text-sm text-zinc-200 font-normal line-clamp-2 sm:line-clamp-3 leading-relaxed max-w-xl">
+              <p className="mx-auto max-w-xl text-xs sm:text-sm text-zinc-200 font-normal line-clamp-2 sm:line-clamp-3 leading-relaxed md:mx-0">
                 {current.description}
               </p>
             )}
 
             {/* Action Buttons */}
-            <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 pt-1">
+            <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3 pt-1 md:justify-start">
               <Button
                 onClick={() => onPlay(current)}
                 variant="primary"
                 size="md"
                 leftIcon={<Play className="h-4 w-4 fill-current" />}
                 ariaLabel={`Regarder ${current.title}`}
+                className="max-sm:!bg-white max-sm:!text-black max-sm:border-white max-sm:shadow-none"
               >
                 Regarder
               </Button>
@@ -153,7 +154,7 @@ export default function CatalogSpotlightHero({
                 size="md"
                 leftIcon={<Info className="h-4 w-4" />}
                 ariaLabel={`Détails de ${current.title}`}
-                className="bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border border-white/15"
+                className="bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border border-white/15 max-sm:!bg-white max-sm:!text-black max-sm:border-white"
               >
                 Détails
               </Button>
@@ -176,7 +177,7 @@ export default function CatalogSpotlightHero({
 
           {/* Navigation Controls & Slide Thumbnails */}
           {slides.length > 1 && (
-            <div className="flex items-center gap-2 self-end md:self-auto bg-black/40 backdrop-blur-md p-1.5 rounded-2xl border border-white/10">
+            <div className="flex items-center gap-2 self-center md:self-auto bg-black/40 backdrop-blur-md p-1.5 rounded-2xl border border-white/10">
               <button
                 onClick={handlePrev}
                 aria-label="Précédent"

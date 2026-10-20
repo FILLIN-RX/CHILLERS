@@ -83,6 +83,9 @@ export async function extractDirectStream(initialUrl: string, initialReferer?: s
           Origin: new URL(referer).origin,
           Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
           'Accept-Language': 'en-US,en;q=0.9',
+          'Sec-Fetch-Dest': 'iframe',
+          'Sec-Fetch-Mode': 'navigate',
+          'Sec-Fetch-Site': 'cross-site',
         },
         timeout: 10_000,
         responseType: 'text',
@@ -106,6 +109,26 @@ export async function extractDirectStream(initialUrl: string, initialReferer?: s
             };
           }
         }
+      }
+
+      // 1b. Détection token Clappr/Kora base64 url-safe (urlSafeBase64Decode(CONFIG.token) ou CONFIG = { token: '...' })
+      const koraTokenMatch =
+        html.match(/CONFIG\s*=\s*\{[\s\S]*?token\s*:\s*['"]([A-Za-z0-9_-]+)['"]/i) ||
+        html.match(/urlSafeBase64Decode\s*\(\s*['"]([A-Za-z0-9_-]+)['"]\s*\)/i);
+      if (koraTokenMatch && koraTokenMatch[1]) {
+        try {
+          let b64 = koraTokenMatch[1].replace(/-/g, '+').replace(/_/g, '/');
+          const pad = b64.length % 4;
+          if (pad) b64 += '='.repeat(4 - pad);
+          const decodedUrl = Buffer.from(b64, 'base64').toString('utf8');
+          if (decodedUrl && /\.m3u8/i.test(decodedUrl)) {
+            console.log(`[StreamExtractor] ✓ Flux HLS extrait depuis CONFIG.token (Kora): ${decodedUrl.slice(0, 70)}...`);
+            return {
+              m3u8Url: decodedUrl,
+              referer: currentUrl,
+            };
+          }
+        } catch {}
       }
 
       // 2. Détection directe d'une URL .m3u8 en clair (absolue, protocole-relative ou relative)

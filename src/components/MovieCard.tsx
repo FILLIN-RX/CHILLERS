@@ -3,7 +3,6 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import dynamic from "next/dynamic";
 import {
   motion,
   useMotionValue,
@@ -20,17 +19,10 @@ import {
   Star,
   Info,
   FilmSlate,
-  BookmarkSimple,
-  ListNumbers,
   HourglassSimple,
 } from "@phosphor-icons/react";
 import { useLanguage } from "@/i18n/LanguageContext";
-import { useAuthStore } from "@/stores/useAuthStore";
-import { userService } from "@/services/user";
-
-const AddToPlaylistModal = dynamic(() => import("@/components/AddToPlaylistModal"), {
-  ssr: false,
-});
+import { useImageTimeout } from "@/hooks/useImageTimeout";
 
 export interface MovieCardProps {
   item: MovieOrShow;
@@ -74,24 +66,11 @@ function MovieCard({
   const shouldReduceMotion = useReducedMotion();
   const queryClient = useQueryClient();
 
-  const isLoggedIn = useAuthStore((s) => Boolean(s.token));
-  const isFavorite = useAuthStore((s) =>
-    Boolean(
-      s.user?.favorites?.some(
-        (f) =>
-          f.tmdbId === String(item?.id) &&
-          f.mediaType === (item?.type === "series" ? "series" : item?.type === "anime" ? "anime" : "movie")
-      )
-    )
-  );
-
   const [imgLoaded, setImgLoaded] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [backdropFailed, setBackdropFailed] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [canHover, setCanHover] = useState(false);
-  const [favoriteLoading, setFavoriteLoading] = useState(false);
-  const [showPlaylistModal, setShowPlaylistModal] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -161,34 +140,26 @@ function MovieCard({
     mouseY.set(0.5);
   }, [mouseX, mouseY]);
 
-  const toggleFavorite = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const { token, user, updateUser } = useAuthStore.getState();
-    if (!token || !user || !item) return;
-    setFavoriteLoading(true);
-    try {
-      const res = await userService.toggleFavorite(token, {
-        mediaType: item.type === "series" ? "series" : item.type === "anime" ? "anime" : "movie",
-        tmdbId: String(item.id),
-        title: item.title,
-        posterPath: item.posterUrl,
-      });
-      if (res.success) {
-        updateUser({ favorites: res.favorites });
-      }
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setFavoriteLoading(false);
-    }
-  };
-
   const isPoster = variant === "poster" || variant === "grid-poster";
   const isGridPoster = variant === "grid-poster";
 
   const posterSrc = item.posterUrl || item.backdropUrl;
   const backdropSrc = !backdropFailed && (item.backdropOriginalUrl || item.backdropUrl) ? (item.backdropOriginalUrl || item.backdropUrl) : item.posterUrl;
   const primarySrc = isPoster ? posterSrc : backdropSrc;
+
+  useImageTimeout({
+    src: primarySrc,
+    isLoaded: imgLoaded || imgError,
+    onTimeout: () => {
+      if (!isPoster && !backdropFailed && item.posterUrl && primarySrc !== item.posterUrl) {
+        setBackdropFailed(true);
+      } else {
+        setImgError(true);
+        setImgLoaded(true);
+      }
+    },
+    timeoutMs: 6000,
+  });
 
   const gradients = [
     "from-zinc-800 via-zinc-900 to-zinc-950",
@@ -284,7 +255,7 @@ function MovieCard({
         {appleFrame && (
           <div className="pointer-events-none absolute inset-0 rounded-2xl border border-white/15 border-t-white/30 z-30" />
         )}
-        <div className={appleFrame ? "relative w-full h-full rounded-2xl overflow-hidden bg-zinc-950" : "contents"}>
+        <div className={appleFrame ? "relative w-full h-full rounded-2xl overflow-hidden bg-zinc-950" : "relative w-full h-full"}>
         {/* Shimmer Placeholder */}
         {(!imgLoaded || !primarySrc) && !imgError && (
           <div
@@ -337,25 +308,33 @@ function MovieCard({
           />
         )}
 
-        {/* Top Status Chips (Apple Translucent Materials without Hard Borders) */}
+        {/* Top Status Chips — note + type (Film/Série) révélés au hover */}
         <div className="absolute top-2.5 inset-x-2.5 z-20 flex items-start justify-between pointer-events-none">
-          {/* Left: Rating Badge */}
+          {/* Left: Rating Badge (hover only) */}
           <div className="flex items-center gap-1.5">
             {badge ? (
               <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-brand-primary text-white">
                 {badge}
               </span>
             ) : item.rating ? (
-              <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-xl text-amber-400 text-[10px] font-bold">
+              <div
+                className={`flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-xl text-amber-400 text-[10px] font-bold transition-opacity duration-300 ${
+                  canHover ? "opacity-0 group-hover:opacity-100" : "opacity-100"
+                }`}
+              >
                 <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
                 <span>{item.rating}</span>
               </div>
             ) : null}
           </div>
 
-          {/* Right: Audio & Type Badges + Action Buttons */}
-          <div className="flex flex-col items-end gap-1.5 pointer-events-auto">
-            <div className="flex items-center gap-1">
+          {/* Right: Audio & Type Badges (hover only) */}
+          <div className="flex flex-col items-end gap-1.5">
+            <div
+              className={`flex items-center gap-1 transition-opacity duration-300 ${
+                canHover ? "opacity-0 group-hover:opacity-100" : "opacity-100"
+              }`}
+            >
               {audioBadge && (
                 <span
                   className={`rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider backdrop-blur-md ${
@@ -383,56 +362,10 @@ function MovieCard({
                   : "FILM"}
               </span>
             </div>
-
-            {isLoggedIn && (
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowPlaylistModal(true);
-                  }}
-                  title="Enregistrer dans une playlist"
-                  aria-label="Enregistrer dans une playlist"
-                  className="rounded-full p-2 shadow-md backdrop-blur-xl bg-black/60 text-cyan-400 hover:bg-black/80 hover:text-white hover:scale-105 active:scale-95 transition-all cursor-pointer min-h-[34px] min-w-[34px] flex items-center justify-center"
-                >
-                  <ListNumbers className="w-3.5 h-3.5" />
-                </button>
-
-                <button
-                  onClick={toggleFavorite}
-                  disabled={favoriteLoading}
-                  title={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
-                  aria-label={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
-                  className={`rounded-full p-2 shadow-md backdrop-blur-xl transition-all cursor-pointer min-h-[34px] min-w-[34px] flex items-center justify-center active:scale-95 ${
-                    isFavorite
-                      ? "bg-brand-primary text-white"
-                      : "bg-black/60 text-white hover:bg-black/80 hover:scale-105"
-                  }`}
-                >
-                  <BookmarkSimple
-                    className={`w-3.5 h-3.5 ${isFavorite ? "fill-white text-white" : ""}`}
-                  />
-                </button>
-              </div>
-            )}
           </div>
         </div>
 
         </div>
-
-        {showPlaylistModal && (
-          <AddToPlaylistModal
-            isOpen={showPlaylistModal}
-            onClose={() => setShowPlaylistModal(false)}
-            media={{
-              tmdbId: String(item.id),
-              mediaType: item.type === "series" ? "series" : item.type === "anime" ? "anime" : "movie",
-              title: item.title,
-              posterPath: item.posterUrl,
-              backdropPath: item.backdropUrl,
-            }}
-          />
-        )}
       </motion.div>
     );
   }
@@ -544,16 +477,24 @@ function MovieCard({
           />
         )}
 
-        {/* Top-left Rating Badge */}
+        {/* Top-left Rating Badge (hover only) */}
         {Boolean(item.rating) && (
-          <div className="absolute top-2.5 left-2.5 z-20 flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-xl text-amber-400 text-[10px] font-bold">
+          <div
+            className={`absolute top-2.5 left-2.5 z-20 flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-xl text-amber-400 text-[10px] font-bold transition-opacity duration-300 ${
+              canHover ? "opacity-0 group-hover:opacity-100" : "opacity-100"
+            }`}
+          >
             <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
             <span>{item.rating}</span>
           </div>
         )}
 
-        {/* Top-right Type & Audio Badges */}
-        <div className="absolute top-2.5 right-2.5 z-20 flex items-center gap-1">
+        {/* Top-right Type & Audio Badges (hover only) */}
+        <div
+          className={`absolute top-2.5 right-2.5 z-20 flex items-center gap-1 transition-opacity duration-300 ${
+            canHover ? "opacity-0 group-hover:opacity-100" : "opacity-100"
+          }`}
+        >
           {audioBadge && (
             <span
               className={`rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider backdrop-blur-md ${
@@ -612,20 +553,6 @@ function MovieCard({
                   {item.title}
                 </h3>
                 <div className="flex items-center gap-1.5 shrink-0 pointer-events-auto">
-                  {isLoggedIn && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowPlaylistModal(true);
-                      }}
-                      title="Enregistrer dans une playlist"
-                      aria-label="Enregistrer dans une playlist"
-                      className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-cyan-400 hover:text-white cursor-pointer active:scale-95 transition-all"
-                    >
-                      <ListNumbers className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -670,20 +597,6 @@ function MovieCard({
           </motion.div>
         )}
       </AnimatePresence>
-
-      {showPlaylistModal && (
-        <AddToPlaylistModal
-          isOpen={showPlaylistModal}
-          onClose={() => setShowPlaylistModal(false)}
-          media={{
-            tmdbId: String(item.id),
-            mediaType: item.type === "series" ? "series" : item.type === "anime" ? "anime" : "movie",
-            title: item.title,
-            posterPath: item.posterUrl,
-            backdropPath: item.backdropUrl,
-          }}
-        />
-      )}
     </motion.div>
   );
 }

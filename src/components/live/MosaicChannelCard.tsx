@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
-import { Star, CircleNotch } from "@phosphor-icons/react";
+import { CircleNotch } from "@phosphor-icons/react";
 import type { LiveChannel } from "@/types/live";
+import { useImageTimeout } from "@/hooks/useImageTimeout";
 
 /**
  * Carte mosaïque (aspect 4:3, logo centré, fond #242424 → #383838 au survol).
@@ -10,14 +11,10 @@ import type { LiveChannel } from "@/types/live";
  */
 export default function MosaicChannelCard({
   channel,
-  isFavorite,
-  onToggleFavorite,
   onOpen,
   isResolving = false,
 }: {
   channel: LiveChannel;
-  isFavorite: boolean;
-  onToggleFavorite: (e: React.MouseEvent, slug: string) => void;
   onOpen: (channel: LiveChannel) => void;
   isResolving?: boolean;
 }) {
@@ -28,6 +25,15 @@ export default function MosaicChannelCard({
     setPrevLogo(channel.logo);
     setLogoError(false);
   }
+
+  useImageTimeout({
+    src: channel.logo,
+    isLoaded: logoError,
+    onTimeout: () => {
+      setLogoError(true);
+    },
+    timeoutMs: 5000,
+  });
 
   const initials =
     channel.name
@@ -53,19 +59,6 @@ export default function MosaicChannelCard({
       title={channel.name}
       className="group relative flex items-center justify-center w-full aspect-[4/3] rounded-none bg-[#242424] hover:bg-[#383838] p-2.5 sm:p-3.5 select-none transition-colors duration-200 cursor-pointer overflow-hidden box-border"
     >
-      {/* Bouton favori (haut droite) */}
-      <button
-        onClick={(e) => onToggleFavorite(e, channel.slug)}
-        className={`absolute top-1 right-1 p-1 rounded-none z-10 transition-all ${
-          isFavorite
-            ? "bg-amber-500 text-black shadow-md opacity-100"
-            : "opacity-0 group-hover:opacity-100 bg-black/70 hover:bg-black text-white"
-        }`}
-        title={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
-      >
-        <Star weight={isFavorite ? "fill" : "regular"} className="h-2.5 w-2.5" />
-      </button>
-
       {/* Logo centré */}
       <div className="w-full h-full flex items-center justify-center pointer-events-none p-1 sm:p-2 pb-5">
         {channel.logo && !logoError ? (

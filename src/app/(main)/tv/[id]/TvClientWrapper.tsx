@@ -17,7 +17,6 @@ import AddToPlaylistModal from "@/components/AddToPlaylistModal";
 import Button from "@/components/Button";
 import CardImage from "@/components/CardImage";
 import MediaLogo from "@/components/MediaLogo";
-import { useBackdropAmbiance } from "@/hooks/useBackdropAmbiance";
 import { ArrowLeft, Play, Star, CalendarBlank, FilmSlate, ShareNetwork, BookmarkSimple, X, Check, LinkSimple, ListNumbers } from "@phosphor-icons/react";
 
 interface TvClientWrapperProps {
@@ -210,8 +209,6 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
     }, 2000);
   };
 
-  const ambiance = useBackdropAmbiance(item?.backdropOriginalUrl || item?.backdropUrl || undefined);
-
   if (!item) {
     return (
       <div className="min-h-screen bg-[#1F1F1F] text-white flex flex-col items-center justify-center p-4 text-center">
@@ -253,61 +250,62 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
   const displayBackdrop = item.backdropOriginalUrl || item.backdropUrl || (rawItem.backdrop_path ? `https://image.tmdb.org/t/p/original${rawItem.backdrop_path}` : "");
 
   return (
-    <div className="min-h-screen bg-[#1F1F1F] text-white select-none pb-20">
-      <div className="relative w-full min-h-[65vh] sm:min-h-[75vh] lg:min-h-[82vh] overflow-hidden flex flex-col justify-end">
-        {displayBackdrop ? (
-          <Image
-            src={displayBackdrop}
-            alt={displayTitle}
-            fill
-            priority
-            quality={85}
-            className="object-cover object-top"
-            sizes="100vw"
-          />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-b from-zinc-800 to-[#09090B]" />
-        )}
-
-        {/* Ambiance colorimétrique tirée du backdrop : teinte l'image, puis halo */}
-        {ambiance && (
+    <div className="min-h-screen text-white select-none pb-20">
+      {/* Ambiance du reste de la page : backdrop flouté, assombri pour la lisibilité */}
+      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 hidden overflow-hidden bg-[#1F1F1F] sm:block">
+        {displayBackdrop && (
           <>
-            <div
-              aria-hidden
-              className="absolute inset-0 pointer-events-none mix-blend-soft-light animate-in fade-in duration-1000"
-              style={{
-                background: `linear-gradient(205deg, rgb(${ambiance.vivid} / 0.75) 0%, rgb(${ambiance.dominant} / 0.6) 55%, rgb(${ambiance.vivid} / 0.45) 100%)`,
-              }}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={displayBackdrop}
+              alt=""
+              className="h-full w-full scale-125 object-cover object-top opacity-70 blur-3xl saturate-150"
             />
-            <div
-              aria-hidden
-              className="absolute inset-0 pointer-events-none animate-in fade-in duration-1000"
-              style={{
-                background: [
-                  `radial-gradient(90% 110% at 78% 10%, rgb(${ambiance.dominant} / 0.5), transparent 68%)`,
-                  `radial-gradient(55% 75% at 12% 92%, rgb(${ambiance.vivid} / 0.22), transparent 72%)`,
-                ].join(", "),
-              }}
-            />
+            <div className="absolute inset-0 bg-[#1F1F1F]/40" />
           </>
         )}
-
-        {/* Dégradé gauche à droite uniquement */}
-        <div className="absolute inset-0 bg-gradient-to-r from-black via-black/60 to-transparent max-w-4xl" />
-        
-        {/* Dégradé du bas avec petite hauteur */}
-        <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[#09090B] via-[#09090B]/40 to-transparent" />
-
-        {/* Fade bas teinté : prolonge l'ambiance jusqu'au contenu, sans couture */}
-        {ambiance && (
-          <div
-            aria-hidden
-            className="absolute bottom-0 left-0 right-0 h-32 pointer-events-none animate-in fade-in duration-1000"
-            style={{
-              background: `linear-gradient(to top, color-mix(in srgb, rgb(${ambiance.dominant}) 26%, black) 0%, color-mix(in srgb, rgb(${ambiance.dominant}) 12%, transparent) 55%, transparent 100%)`,
-            }}
-          />
+      </div>
+      <div className="relative flex w-full flex-col justify-end overflow-hidden sm:min-h-[75vh] lg:min-h-[82vh]">
+        {displayPoster || displayBackdrop ? (
+          <>
+            {/* Mobile : affiche portrait (comme oha.to), non recadrée */}
+            <div className="relative aspect-[2/3] w-full shrink-0 overflow-hidden sm:hidden">
+              <Image
+                src={displayPoster || displayBackdrop}
+                alt={displayTitle}
+                fill
+                priority
+                quality={85}
+                className="object-cover object-center"
+                sizes="100vw"
+              />
+              <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-[#1F1F1F] to-transparent" />
+              <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black/60 to-transparent" />
+            </div>
+            {/* Desktop : backdrop plein écran */}
+            {displayBackdrop && (
+              <div className="relative hidden sm:absolute sm:inset-0 sm:block">
+                <Image
+                  src={displayBackdrop}
+                  alt={displayTitle}
+                  fill
+                  priority
+                  quality={85}
+                  className="object-cover object-top"
+                  sizes="100vw"
+                />
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="h-56 w-full bg-gradient-to-b from-zinc-800 to-[#09090B] sm:absolute sm:inset-0 sm:h-full" />
         )}
+
+        {/* Dégradé gauche à droite (desktop) */}
+        <div className="absolute inset-0 hidden max-w-4xl bg-gradient-to-r from-black via-black/60 to-transparent sm:block" />
+
+        {/* Dégradé du bas avec petite hauteur (desktop) */}
+        <div className="absolute bottom-0 left-0 right-0 hidden h-16 bg-gradient-to-t from-[#1F1F1F] via-[#1F1F1F]/40 to-transparent sm:block sm:from-[#09090B] sm:via-[#09090B]/40" />
 
         <div className="fixed top-4 left-4 z-50">
           <button
@@ -320,10 +318,10 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
         </div>
 
         {/* Contenu du Hero - grille 7 colonnes : 2 vides, poster, texte collé sur 4 */}
-        <div className="relative z-20 w-full px-4 sm:px-8 md:px-12 lg:px-16 pb-8 sm:pb-12 pt-24">
-          <div className="mx-auto flex w-full max-w-[1600px] flex-col items-start gap-4 sm:grid sm:grid-cols-7 sm:items-end sm:gap-0">
-            {/* Poster vertical, collé à la boîte de texte */}
-            <div className="relative w-[160px] sm:w-full aspect-[2/3] rounded-2xl overflow-hidden bg-zinc-900 border border-white/10 shrink-0">
+        <div className="relative z-20 w-full px-4 pb-8 pt-4 sm:px-8 sm:pb-12 sm:pt-24 md:px-12 lg:px-16">
+          <div className="mx-auto flex w-full max-w-[1600px] flex-col items-center gap-4 text-center sm:grid sm:grid-cols-7 sm:items-end sm:gap-0 sm:text-left">
+            {/* Poster vertical (desktop) : masqué sur mobile pour un hero image simple */}
+            <div className="relative hidden aspect-[2/3] w-full shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 sm:block">
               <CardImage
                 src={displayPoster}
                 alt={displayTitle}
@@ -338,7 +336,7 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
             {/* Boîte de texte en bas à gauche - style Prime Video */}
             <div className="w-full min-w-0 sm:col-span-6">
             <div className="p-4 sm:p-6 lg:p-8 space-y-3.5 w-full">
-              <div className="flex flex-wrap items-center gap-2 text-xs font-bold">
+              <div className="flex flex-wrap items-center justify-center gap-2 text-xs font-bold sm:justify-start">
               {item.networks && item.networks.length > 0 && item.networks[0].logoUrl && (
                 <div className="bg-white/90 px-2 py-0.5 rounded-md flex items-center h-6">
                   <Image
@@ -352,12 +350,12 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
               )}
 
               {isUpcoming && releaseDateLabel ? (
-                <span className="px-3 py-1 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wider bg-blue-500/20 text-blue-300 border-0 flex items-center shadow-none">
+                <span className="max-sm:hidden px-3 py-1 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wider bg-blue-500/20 text-blue-300 border-0 flex items-center shadow-none">
                   <span>Sortie le {releaseDateLabel}</span>
                 </span>
               ) : item.statusLabel && (
                 <span
-                  className={`px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider border-0 ${
+                  className={`max-sm:hidden px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider border-0 ${
                     item.statusLabel === "En cours"
                       ? "bg-brand-primary/20 text-brand-primary"
                       : "bg-white/10 text-zinc-300"
@@ -369,7 +367,7 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
 
               {audioTag && audioTag !== "UNKNOWN" && (
                 <span
-                  className={`px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider border-0 shadow-none ${
+                  className={`max-sm:hidden px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider border-0 shadow-none ${
                     isFrench
                       ? "bg-brand-primary/90 text-white"
                       : "bg-amber-600/90 text-white"
@@ -386,14 +384,16 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
               )}
             </div>
 
-            {/* Logo officiel (principale), fallback titre */}
-            {(item.logoUrl || logoUrl) ? (
-              <MediaLogo src={item.logoUrl || logoUrl || ""} alt={`Logo ${displayTitle}`} />
-            ) : (
-              <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight drop-shadow-2xl leading-tight">
-                {displayTitle}
-              </h1>
-            )}
+            {/* Logo officiel (principale), fallback titre — masqué en mobile (l'affiche porte déjà le titre) */}
+            <div className="max-sm:hidden">
+              {(item.logoUrl || logoUrl) ? (
+                <MediaLogo src={item.logoUrl || logoUrl || ""} alt={`Logo ${displayTitle}`} />
+              ) : (
+                <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight drop-shadow-2xl leading-tight">
+                  {displayTitle}
+                </h1>
+              )}
+            </div>
 
             {item.tagline && (
               <p className="text-zinc-300 italic text-xs sm:text-sm font-medium line-clamp-1">
@@ -401,7 +401,7 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
               </p>
             )}
 
-            <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm text-zinc-300 font-medium">
+            <div className="flex flex-wrap items-center justify-center gap-3 text-xs font-medium text-zinc-300 sm:justify-start sm:text-sm">
               <div className="flex items-center gap-1.5 text-amber-400 font-bold bg-amber-400/10 px-2.5 py-0.5 rounded-full border-0">
                 <Star className="h-3.5 w-3.5 fill-amber-400" />
                 <span>{displayRating}</span>
@@ -430,11 +430,11 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
               )}
             </div>
 
-            <p className="text-zinc-300 text-xs sm:text-sm leading-relaxed line-clamp-2 max-w-2xl font-normal">
+            <p className="mx-auto max-w-2xl text-zinc-300 text-xs sm:text-sm leading-relaxed line-clamp-2 font-normal sm:mx-0">
               {item.synopsis || item.description}
             </p>
 
-            <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 pt-2">
+            <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-start sm:gap-3">
               {isUpcoming ? (
                 <Button
                   disabled
@@ -442,21 +442,24 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
                   size="md"
                   text="Bientôt dispo"
                   ariaLabel={`Sortie prévue le ${releaseDateLabel}`}
-                  className="opacity-90 cursor-not-allowed border-0 text-blue-200 font-bold bg-blue-600/20 shadow-none"
+                  className="w-full cursor-not-allowed border-0 bg-blue-600/20 font-bold text-blue-200 opacity-90 shadow-none sm:w-auto"
                 />
               ) : (
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Link href={`/tv/${id}/season/${firstSeasonNumber}?lang=${selectedLang}`}>
-                    <Button
-                      variant="primary"
-                      size="md"
-                      text={`Regarder Saison ${firstSeasonNumber}`}
-                      leftIcon={<Play className="h-4 w-4 fill-white" />}
-                      ariaLabel={`Regarder la saison ${firstSeasonNumber} de ${item.title}`}
-                    />
-                  </Link>
+                <Link href={`/tv/${id}/season/${firstSeasonNumber}?lang=${selectedLang}`} className="w-full sm:w-auto">
+                  <Button
+                    variant="primary"
+                    size="md"
+                    text={`Regarder Saison ${firstSeasonNumber}`}
+                    leftIcon={<Play className="h-4 w-4 fill-current" />}
+                    ariaLabel={`Regarder la saison ${firstSeasonNumber} de ${item.title}`}
+                    className="w-full max-sm:!bg-white max-sm:!text-black max-sm:border-white max-sm:shadow-none sm:w-auto"
+                  />
+                </Link>
+              )}
 
-                  <div className="flex items-center p-1 rounded-xl bg-white/5 border border-white/10 backdrop-blur-md">
+              <div className="flex flex-wrap items-center justify-center gap-2.5 sm:contents sm:justify-start sm:gap-3">
+                {!isUpcoming && (
+                  <div className="flex items-center gap-2 flex-wrap rounded-xl bg-white/5 p-1 backdrop-blur-md max-sm:border-0">
                     <button
                       type="button"
                       onClick={() => setSelectedLang("fr")}
@@ -480,59 +483,62 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
                       <span>VOSTFR</span>
                     </button>
                   </div>
-                </div>
-              )}
-
-              {user && (
-                <Button
-                  onClick={() => setShowPlaylistModal(true)}
-                  variant="outline"
-                  size="icon"
-                  title="Enregistrer dans une playlist ou À regarder plus tard"
-                  ariaLabel="Enregistrer dans une playlist"
-                  icon={<ListNumbers className="w-4 h-4 text-cyan-400" />}
-                />
-              )}
-
-              {user && (
-                <Button
-                  onClick={toggleFavorite}
-                  disabled={favoriteLoading}
-                  variant={isFavorite ? "primary" : "outline"}
-                  size="icon"
-                  ariaLabel={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
-                  icon={<BookmarkSimple className="w-4 h-4" />}
-                />
-              )}
-
-              <div className="relative">
-                <Button
-                  onClick={handleShare}
-                  variant="outline"
-                  size="icon"
-                  ariaLabel="Partager la série"
-                  icon={<ShareNetwork className="w-4 h-4" />}
-                />
-
-                {shareOpen && (
-                  <div className="absolute left-0 bottom-full mb-2 w-48 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl p-1 z-50 overflow-hidden">
-                    <a
-                      href={`https://wa.me/?text=${encodeURIComponent((item.title || "Chillers") + " " + window.location.href)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2.5 px-3 py-2 text-xs text-white hover:bg-zinc-800 rounded-[5px] transition-colors"
-                    >
-                      <span>WhatsApp</span>
-                    </a>
-                    <button
-                      onClick={copyToClipboard}
-                      className="w-full text-left flex items-center justify-between px-3 py-2 text-xs text-white hover:bg-zinc-800 rounded-[5px] transition-colors"
-                    >
-                      <span>{copiedLink ? "Lien copié !" : "Copier le lien"}</span>
-                      {copiedLink && <Check className="w-3.5 h-3.5 text-brand-primary" />}
-                    </button>
-                  </div>
                 )}
+
+                {user && (
+                  <Button
+                    onClick={() => setShowPlaylistModal(true)}
+                    variant="outline"
+                    size="icon"
+                    title="Enregistrer dans une playlist ou À regarder plus tard"
+                    ariaLabel="Enregistrer dans une playlist"
+                    icon={<ListNumbers className="w-4 h-4 text-cyan-400" />}
+                    className="max-sm:!rounded-full max-sm:!border-0 max-sm:!bg-white/10"
+                  />
+                )}
+
+                {user && (
+                  <Button
+                    onClick={toggleFavorite}
+                    disabled={favoriteLoading}
+                    variant={isFavorite ? "primary" : "outline"}
+                    size="icon"
+                    ariaLabel={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
+                    icon={<BookmarkSimple className="w-4 h-4" />}
+                    className={`max-sm:!rounded-full max-sm:!border-0 ${isFavorite ? "" : "max-sm:!bg-white/10"}`}
+                  />
+                )}
+
+                <div className="relative">
+                  <Button
+                    onClick={handleShare}
+                    variant="outline"
+                    size="icon"
+                    ariaLabel="Partager la série"
+                    icon={<ShareNetwork className="w-4 h-4" />}
+                    className="max-sm:!rounded-full max-sm:!border-0 max-sm:!bg-white/10"
+                  />
+
+                  {shareOpen && (
+                    <div className="absolute left-0 bottom-full mb-2 w-48 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl p-1 z-50 overflow-hidden">
+                      <a
+                        href={`https://wa.me/?text=${encodeURIComponent((item.title || "Chillers") + " " + window.location.href)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2.5 px-3 py-2 text-xs text-white hover:bg-zinc-800 rounded-[5px] transition-colors"
+                      >
+                        <span>WhatsApp</span>
+                      </a>
+                      <button
+                        onClick={copyToClipboard}
+                        className="w-full text-left flex items-center justify-between px-3 py-2 text-xs text-white hover:bg-zinc-800 rounded-[5px] transition-colors"
+                      >
+                        <span>{copiedLink ? "Lien copié !" : "Copier le lien"}</span>
+                        {copiedLink && <Check className="w-3.5 h-3.5 text-brand-primary" />}
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
             </div>

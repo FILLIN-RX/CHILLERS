@@ -27,11 +27,13 @@ export function teamTokens(name?: string): string[] {
     .filter((t) => t.length > 1 && !STOPWORDS.has(t));
 }
 
-/** Deux jetons désignent le même mot si l'un est une abréviation de l'autre. */
+/** Deux jetons désignent le même mot si l'un est une abréviation/variante de l'autre. */
 function compatible(a: string, b: string): boolean {
   if (a === b) return true;
-  if (a.length <= 4 && (b.startsWith(a) || b.endsWith(a))) return true;
-  if (b.length <= 4 && (a.startsWith(b) || a.endsWith(b))) return true;
+  // Tolérance d'abréviation : un jeton court est le début/fin de l'autre.
+  // Seuil ≤7 pour couvrir "riyad"/"riyadh", "diriya"/"diriyah", "madrid"/"madridista"…
+  if (a.length <= 7 && (b.startsWith(a) || b.endsWith(a))) return true;
+  if (b.length <= 7 && (a.startsWith(b) || a.endsWith(b))) return true;
   return false;
 }
 
@@ -67,14 +69,20 @@ export function fixtureScore(a: Pick<SportsMatch, 'home' | 'away'>, b: Pick<Spor
 export const CLOSE_KICKOFF_S = 45 * 60;
 
 /**
- * Deux entrées désignent la même rencontre. Un score parfait passe sans autre
- * formalité ; un score partiel n'est retenu que si les coups d'envoi collent,
- * sinon on risquerait de servir le match du voisin de 20h30.
+ * Deux entrées désignent la même rencontre.
+ *
+ * • Score ≥ 0.99 → match parfait, on accepte même sans timestamp.
+ * • Score ≥ 0.75 → très haute confiance ; on accepte si l'un des deux n'a pas
+ *   de timestamp (fréquent pour liveball dont les matchs live n'ont pas de startTs).
+ * • Score ≥ 0.5  → confiance partielle ; les deux timestamps doivent être proches.
+ * • Score < 0.5  → rejeté.
  */
 export function isSameFixture(a: SportsMatch, b: SportsMatch): boolean {
   const score = fixtureScore(a, b);
   if (score >= 0.99) return true;
   if (score < 0.5) return false;
+  // Haute confiance : on accepte même si un seul côté a un timestamp.
+  if (score >= 0.75 && (a.startTs === undefined || b.startTs === undefined)) return true;
   if (a.startTs === undefined || b.startTs === undefined) return false;
   return Math.abs(a.startTs - b.startTs) <= CLOSE_KICKOFF_S;
 }

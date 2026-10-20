@@ -144,34 +144,26 @@ export default function Top10Row({ title, items, className = "" }: Top10RowProps
           })}
         </div>
 
-        {/* Mobile / Hover Floating Scroll Buttons */}
-        <div
-          className={`absolute top-0 bottom-0 left-0 w-12 bg-gradient-to-r from-brand-dark to-transparent flex items-center justify-start transition-opacity duration-300 ${
-            canScrollLeft && isHovered ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-          } z-30`}
-        >
+        {/* Floating Scroll Buttons — juste le chevron, sans indicateur */}
+        {canScrollLeft && isHovered && (
           <button
             onClick={() => scrollBy(-350)}
-            className="w-9 h-9 rounded-full bg-black/70 hover:bg-black/90 text-white flex items-center justify-center backdrop-blur shadow-lg border border-white/10 transition-transform active:scale-95 cursor-pointer ml-1"
+            className="absolute left-1 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/70 hover:bg-black/90 text-white flex items-center justify-center backdrop-blur shadow-lg border border-white/10 transition-transform active:scale-95 cursor-pointer z-30"
             aria-label="Défiler à gauche"
           >
             <CaretLeft weight="bold" className="h-5 w-5" />
           </button>
-        </div>
+        )}
 
-        <div
-          className={`absolute top-0 bottom-0 right-0 w-12 bg-gradient-to-l from-brand-dark to-transparent flex items-center justify-end transition-opacity duration-300 ${
-            canScrollRight && isHovered ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-          } z-30`}
-        >
+        {canScrollRight && isHovered && (
           <button
             onClick={() => scrollBy(350)}
-            className="w-9 h-9 rounded-full bg-black/70 hover:bg-black/90 text-white flex items-center justify-center backdrop-blur shadow-lg border border-white/10 transition-transform active:scale-95 cursor-pointer mr-1"
+            className="absolute right-1 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/70 hover:bg-black/90 text-white flex items-center justify-center backdrop-blur shadow-lg border border-white/10 transition-transform active:scale-95 cursor-pointer z-30"
             aria-label="Défiler à droite"
           >
             <CaretRight weight="bold" className="h-5 w-5" />
           </button>
-        </div>
+        )}
       </div>
     </section>
   );

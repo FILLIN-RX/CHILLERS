@@ -20,6 +20,7 @@ function BottomNavComponent({ onSearchClick }: BottomNavProps) {
   const router = useRouter();
   const { translate: _, lang } = useLanguage();
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isLiveModalOpen, setIsLiveModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const hydrated = useHydrated();
 
@@ -50,10 +51,27 @@ function BottomNavComponent({ onSearchClick }: BottomNavProps) {
     return () => document.removeEventListener("fullscreenchange", update);
   }, []);
 
+  useEffect(() => {
+    const onOpen = () => setIsLiveModalOpen(true);
+    const onClose = () => setIsLiveModalOpen(false);
+    const onModalChange = (e: Event) => {
+      const customEvent = e as CustomEvent<{ locked: boolean }>;
+      setIsLiveModalOpen(Boolean(customEvent?.detail?.locked));
+    };
+    window.addEventListener("live-modal-open", onOpen);
+    window.addEventListener("live-modal-close", onClose);
+    window.addEventListener("modal-scroll-lock-change", onModalChange);
+    return () => {
+      window.removeEventListener("live-modal-open", onOpen);
+      window.removeEventListener("live-modal-close", onClose);
+      window.removeEventListener("modal-scroll-lock-change", onModalChange);
+    };
+  }, []);
+
   const activeTab = getActiveNavTab(pathname);
 
   if (!hydrated) return null;
-  if (isFullscreen || pathname?.startsWith("/watch")) return null;
+  if (isFullscreen || isLiveModalOpen || pathname?.startsWith("/watch")) return null;
 
   return (
     <>

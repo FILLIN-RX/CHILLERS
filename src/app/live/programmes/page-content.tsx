@@ -23,6 +23,7 @@ import {
   type OhaChannel,
 } from "@/types/oha";
 import type { LiveChannel } from "@/types/live";
+import { competitionsForChannel } from "@/lib/match-channels";
 import LivePlayerModal from "@/components/live/LivePlayerModal";
 
 type CatFilter = "all" | OhaCategory;
@@ -244,6 +245,15 @@ export default function ProgramGuideContent() {
                       <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
                         {OHA_CATEGORY_LABELS[ch.category]?.fr ?? ch.category}
                       </span>
+                      {competitionsForChannel(ch.name).length > 0 && (
+                        <p
+                          className="text-[10px] text-zinc-500 truncate max-w-[190px]"
+                          title={`Diffuse : ${competitionsForChannel(ch.name).join(", ")}`}
+                        >
+                          <span className="text-zinc-600">Diffuse : </span>
+                          {competitionsForChannel(ch.name).slice(0, 2).join(", ")}
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -253,7 +263,7 @@ export default function ProgramGuideContent() {
                     <div className="p-2.5 rounded-lg bg-zinc-950/60 border border-white/5 flex flex-col justify-center">
                       <span className="text-[10px] font-bold text-red-500 uppercase tracking-wider flex items-center gap-1 mb-1">
                         <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
-                        À l'antenne
+                        À l&apos;antenne
                         {ch.epgNow?.start && ch.epgNow?.end && (
                           <span className="text-zinc-500 font-normal">
                             ({fmtTime(ch.epgNow.start)} - {fmtTime(ch.epgNow.end)})

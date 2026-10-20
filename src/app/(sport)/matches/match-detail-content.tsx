@@ -202,6 +202,9 @@ export default function MatchDetailContent() {
               awayName={match.awayTeam.name}
               isLive={isLive}
               minute={match.minute}
+              league={match.league.name}
+              sport={match.sport}
+              startTime={match.startTime}
             />
           </aside>
 

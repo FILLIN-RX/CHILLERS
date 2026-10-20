@@ -10,9 +10,12 @@ import {
   Television,
 } from "@phosphor-icons/react";
 import LivePlayer from "@/components/LivePlayer";
+import MatchChannelsRow from "@/components/live/MatchChannelsRow";
 import { getMatchStream } from "@/services/matches";
 import { getSportsStream } from "@/services/sports";
+import { getMatchChannels, resolveOhaStream } from "@/services/oha";
 import type { LiveChannel } from "@/types/live";
+import type { OhaChannel } from "@/types/oha";
 import { PopupFirewall } from "@/lib/PopupFirewall";
 
 const PRIMARY = "#FF6A00";
@@ -33,6 +36,10 @@ export interface MatchStreamPlayerProps {
   awayName: string;
   isLive?: boolean;
   minute?: string;
+  /** Compétition, sport et coup d'envoi : vérifie l'EPG des chaînes. */
+  league?: string;
+  sport?: string;
+  startTime?: string;
 }
 
 export function MatchStreamPlayer({
@@ -41,8 +48,14 @@ export function MatchStreamPlayer({
   awayName,
   isLive,
   minute,
+  league,
+  sport,
+  startTime,
 }: MatchStreamPlayerProps) {
   const [reloadKey, setReloadKey] = useState(0);
+  const [ohaChoice, setOhaChoice] = useState<{ ch: OhaChannel; url: string } | null>(null);
+  const [ohaResolving, setOhaResolving] = useState<string | null>(null);
+  const [ohaError, setOhaError] = useState<string | null>(null);
 
   // Active le pare-feu anti-pub pour sécuriser les iframes de flux
   useEffect(() => {
@@ -120,6 +133,101 @@ export function MatchStreamPlayer({
     refetch();
   }, [refetch]);
 
+  // Chaînes CHILLERS qui diffusent ce match : proposées avant les sources
+  // externes (droits TV France 2026-2027).
+  const { data: matchChannelStatuses = [] } = useQuery({
+    queryKey: ["oha", "match-channels", sport, league, homeName, awayName, startTime],
+    queryFn: () =>
+      getMatchChannels({
+        sport: sport ?? "football",
+        league,
+        home: homeName,
+        away: awayName,
+        start: startTime,
+      }),
+    staleTime: 60_000,
+    refetchInterval: 60_000,
+  });
+
+  const confirmedChannels = React.useMemo(
+    () => matchChannelStatuses.filter((s) => s.confirmed).map((s) => s.channel),
+    [matchChannelStatuses],
+  );
+  const candidateChannels = React.useMemo(
+    () => matchChannelStatuses.filter((s) => !s.confirmed).map((s) => s.channel),
+    [matchChannelStatuses],
+  );
+
+  const playOha = React.useCallback(
+    async (ch: OhaChannel, opts?: { silent?: boolean }): Promise<boolean> => {
+      if (ohaResolving) return false;
+      setOhaError(null);
+      setOhaResolving(ch.id);
+      try {
+        const url = await resolveOhaStream(ch.id, ch.altIds ?? []);
+        setOhaChoice({ ch, url });
+        return true;
+      } catch {
+        if (!opts?.silent) setOhaError(`Lien ${ch.name} momentanément indisponible.`);
+        return false;
+      } finally {
+        setOhaResolving(null);
+      }
+    },
+    [ohaResolving],
+  );
+
+  const confirmedIds = React.useMemo(
+    () => confirmedChannels.map((c) => c.id),
+    [confirmedChannels],
+  );
+
+  // Sélection automatique : la première chaîne confirmée par l'EPG prend la main
+  // dès le coup d'envoi (repli sur les autres chaînes confirmées, puis sources).
+  const autoTriedRef = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    const first = confirmedChannels[0];
+    if (!first || ohaChoice) return;
+    const key = `${matchId}:${first.id}`;
+    if (autoTriedRef.current === key) return;
+
+    const startMs = startTime ? Date.parse(startTime) : Number.NaN;
+    const reached =
+      isLive || (Number.isFinite(startMs) && Date.now() >= startMs - 5 * 60_000);
+    if (!reached) return;
+
+    autoTriedRef.current = key;
+    let cancelled = false;
+    void (async () => {
+      for (const ch of confirmedChannels) {
+        if (cancelled) return;
+        if (await playOha(ch, { silent: true })) return;
+      }
+      if (!cancelled) {
+        setOhaError("Chaîne confirmée indisponible — autres sources conservées.");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [confirmedChannels, ohaChoice, isLive, startTime, matchId, playOha]);
+
+  const ohaChannel: LiveChannel | null = ohaChoice
+    ? {
+        _id: `oha-match-${ohaChoice.ch.id}`,
+        name: ohaChoice.ch.name,
+        slug: `oha-${ohaChoice.ch.id}`,
+        logo: ohaChoice.ch.logo ?? undefined,
+        categories: ["sports"],
+        type: "hls",
+        streamUrl: ohaChoice.url,
+        enabled: true,
+        order: 0,
+        isOnline: true,
+        proxy: true,
+      }
+    : null;
+
   const containerRef = React.useRef<HTMLDivElement>(null);
 
   const toggleFullscreen = () => {
@@ -132,7 +240,28 @@ export function MatchStreamPlayer({
   };
 
   return (
-    <div id="stream-player" className="w-full">
+    <div id="stream-player" className="w-full space-y-3">
+      {/* Sélecteur unique : chaînes (confirmées d'abord) puis sources externes */}
+      {(confirmedChannels.length > 0 || candidateChannels.length > 0) && (
+        <div className="space-y-2 rounded-xl bg-[#161616] border border-white/10 p-3">
+          <MatchChannelsRow
+            channels={[...confirmedChannels, ...candidateChannels]}
+            confirmedIds={confirmedIds}
+            selectedId={ohaChoice?.ch.id ?? null}
+            resolvingId={ohaResolving}
+            onSelect={playOha}
+            onExternal={() => {
+              setOhaChoice(null);
+              setOhaError(null);
+            }}
+            externalActive={!ohaChoice}
+            hint={confirmedChannels.length > 0 ? "Sélection automatique (EPG)" : "D'après les droits TV"}
+            variant="light"
+          />
+          {ohaError && <p className="px-1 text-[11px] text-red-300">{ohaError}</p>}
+        </div>
+      )}
+
       {/* Conteneur principal du Lecteur vidéo 16:9 */}
       <div
         ref={containerRef}
@@ -177,7 +306,7 @@ export function MatchStreamPlayer({
         </div>
 
         {/* 1. Écran de chargement */}
-        {isLoading && !channel && !embedUrl && (
+        {isLoading && !channel && !embedUrl && !ohaChannel && (
           <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-[#0d0d0d] text-center px-4">
             <div
               className="h-10 w-10 animate-spin rounded-full border-3 border-t-transparent"
@@ -188,15 +317,22 @@ export function MatchStreamPlayer({
           </div>
         )}
 
-        {/* 2. Flux HLS actif */}
-        {!isLoading && channel && (
+        {/* 2. Chaîne CHILLERS sélectionnée */}
+        {!isLoading && ohaChannel && (
+          <div className="h-full w-full">
+            <LivePlayer key={`oha-${ohaChoice?.ch.id}`} channel={ohaChannel} onBack={() => {}} fill hideTopBar />
+          </div>
+        )}
+
+        {/* 2b. Flux HLS actif */}
+        {!isLoading && channel && !ohaChannel && (
           <div className="h-full w-full">
             <LivePlayer channel={channel} onBack={() => {}} fill hideTopBar />
           </div>
         )}
 
         {/* 3. Flux Iframe (Player embarqué sécurisé) */}
-        {!isLoading && !channel && embedUrl && (
+        {!isLoading && !channel && embedUrl && !ohaChannel && (
           <div className="h-full w-full">
             <iframe
               key={`${embedUrl}-${reloadKey}`}
@@ -210,7 +346,7 @@ export function MatchStreamPlayer({
         )}
 
         {/* 4. Aucun flux détecté ou match non commencé */}
-        {!isLoading && !channel && !embedUrl && (
+        {!isLoading && !channel && !embedUrl && !ohaChannel && (
           <div className="flex h-full w-full flex-col items-center justify-center gap-3.5 bg-[#121212] px-6 text-center">
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#1c1c1c] border border-white/10 text-zinc-400">
               <Television className="h-7 w-7" style={{ color: PRIMARY }} />
@@ -226,6 +362,30 @@ export function MatchStreamPlayer({
                   : "Le lecteur vidéo démarrera automatiquement dès le coup d'envoi de la rencontre."}
               </p>
             </div>
+
+            {(confirmedChannels.length > 0 || candidateChannels.length > 0) && (
+              <div className="w-full max-w-sm space-y-2 rounded-xl bg-white/5 border border-white/10 p-2.5">
+                {confirmedChannels.length > 0 && (
+                  <MatchChannelsRow
+                    channels={confirmedChannels}
+                    selectedId={null}
+                    resolvingId={ohaResolving}
+                    onSelect={playOha}
+                    label="En direct sur nos chaînes"
+                  />
+                )}
+                {candidateChannels.length > 0 && (
+                  <MatchChannelsRow
+                    channels={candidateChannels}
+                    selectedId={null}
+                    resolvingId={ohaResolving}
+                    onSelect={playOha}
+                    label={confirmedChannels.length > 0 ? "Autres chaînes possibles" : "Regarder sur nos chaînes"}
+                  />
+                )}
+                {ohaError && <p className="px-1 text-[11px] text-red-300">{ohaError}</p>}
+              </div>
+            )}
 
             <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
               <button

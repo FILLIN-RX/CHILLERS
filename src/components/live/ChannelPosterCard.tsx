@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
-import { Star, Play, CircleNotch } from "@phosphor-icons/react";
+import { Play, CircleNotch } from "@phosphor-icons/react";
 import type { LiveChannel } from "@/types/live";
+import { useImageTimeout } from "@/hooks/useImageTimeout";
 
 const UNIQUE_COVER_POOL = [
   "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=700&auto=format&fit=crop&q=80",
@@ -59,14 +60,10 @@ function getChannelInfo(channel: LiveChannel) {
 /** Carte « affiche » 16:9 sans logo — clic → lecteur modal. */
 export default function ChannelPosterCard({
   channel,
-  isFavorite,
-  onToggleFavorite,
   onOpen,
   isResolving = false,
 }: {
   channel: LiveChannel;
-  isFavorite: boolean;
-  onToggleFavorite: (e: React.MouseEvent, slug: string) => void;
   onOpen: (channel: LiveChannel) => void;
   isResolving?: boolean;
 }) {
@@ -74,6 +71,25 @@ export default function ChannelPosterCard({
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imgSrc, setImgSrc] = useState<string>(info.banner);
   const [logoError, setLogoError] = useState(false);
+
+  useImageTimeout({
+    src: imgSrc,
+    isLoaded: imageLoaded,
+    onTimeout: () => {
+      setImgSrc(UNIQUE_COVER_POOL[0]);
+      setImageLoaded(true);
+    },
+    timeoutMs: 5000,
+  });
+
+  useImageTimeout({
+    src: channel.logo,
+    isLoaded: logoError,
+    onTimeout: () => {
+      setLogoError(true);
+    },
+    timeoutMs: 5000,
+  });
 
   const initials =
     channel.name
@@ -120,24 +136,10 @@ export default function ChannelPosterCard({
         {/* Dégradé */}
         <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent opacity-80 group-hover:opacity-60 transition-opacity" />
 
-        {/* Badges haut (Direct + Favori) */}
-        <div className="absolute top-2 inset-x-2 flex items-center justify-between z-10">
-          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-red-600/90 backdrop-blur-md text-[10px] font-black uppercase tracking-wider text-white shadow-md">
-            <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
-            DIRECT
-          </div>
-
-          <button
-            onClick={(e) => onToggleFavorite(e, channel.slug)}
-            className={`p-1.5 rounded-full backdrop-blur-md border transition-all ${
-              isFavorite
-                ? "bg-amber-500 border-amber-400 text-black shadow-lg"
-                : "bg-black/60 border-white/20 text-white hover:bg-black/80"
-            }`}
-            title={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
-          >
-            <Star weight={isFavorite ? "fill" : "regular"} className="h-3.5 w-3.5" />
-          </button>
+        {/* Badge Direct */}
+        <div className="absolute top-2 left-2 z-10 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-red-600/90 backdrop-blur-md text-[10px] font-black uppercase tracking-wider text-white shadow-md">
+          <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
+          DIRECT
         </div>
 
         {/* Badge logo chaîne (bas gauche vignette) */}

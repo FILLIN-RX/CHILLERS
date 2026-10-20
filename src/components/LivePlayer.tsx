@@ -234,9 +234,9 @@ export default function LivePlayer({
       levelLoadingMaxRetry: 6,
       startLevel: -1,
       abrEwmaDefaultEstimate: 1_200_000,
-      liveSyncDurationCount: lowLatency ? 2 : 3,
-      liveMaxLatencyDurationCount: lowLatency ? 5 : 8,
-      maxLiveSyncPlaybackRate: 1.08,
+      liveSyncDurationCount: lowLatency ? 1 : 3,
+      liveMaxLatencyDurationCount: lowLatency ? 3 : 6,
+      maxLiveSyncPlaybackRate: 1.12,
     };
     const isCorsRestricted = Boolean(
       (channel as any).proxy ||
@@ -255,6 +255,12 @@ export default function LivePlayer({
       el.play().catch(() => {});
       setIsPlaying(true);
       setIsLive(true);
+      if (el.seekable && el.seekable.length > 0) {
+        const liveEdge = el.seekable.end(el.seekable.length - 1);
+        if (liveEdge > 0) {
+          el.currentTime = Math.max(0, liveEdge - (lowLatency ? 1 : 2));
+        }
+      }
     };
 
     let cancelled = false;

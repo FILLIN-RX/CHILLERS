@@ -444,3 +444,12 @@ textarea:focus-visible,
     transform: none !important;
   }
 }
+
+/* ====== TYPOGRAPHIE MOBILE ====== */
+/* Réduire légèrement la taille de base sur petits écrans pour aérer l'UI
+   (tout ce qui est en rem/units racine en hérite). */
+@media (max-width: 640px) {
+  html {
+    font-size: 15px;
+  }
+}

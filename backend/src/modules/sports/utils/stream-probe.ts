@@ -105,6 +105,9 @@ export async function probeIframe(
       headers: {
         'User-Agent': USER_AGENT,
         Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Sec-Fetch-Dest': 'iframe',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'cross-site',
         ...(referer ? { Referer: referer, Origin: originOf(referer) } : {}),
       },
     });

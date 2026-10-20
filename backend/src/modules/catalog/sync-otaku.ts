@@ -21,7 +21,8 @@ import {
   logSyncStats,
   markMissingAfterRun,
   newSyncRun,
-  upsertCatalogItem,
+  CatalogUpsertInput,
+  upsertCatalogItems,
 } from './catalog-sync.service';
 
 const OO_BASE = 'https://www.open-otaku.me';
@@ -97,25 +98,24 @@ async function main() {
       }
       emptyPages = 0;
 
+      const lot: CatalogUpsertInput[] = [];
       for (const item of results) {
         if (!item?.newsId || !item?.title) continue;
         // Un anime apparaît dans plusieurs genres : upsert uniquement la 1re fois.
         if (seenThisRun.has(item.newsId)) continue;
         seenThisRun.add(item.newsId);
 
-        await upsertCatalogItem(
-          {
-            provider: 'otaku',
-            sourceId: String(item.newsId),
-            type: 'anime',
-            title: item.title.trim(),
-            pageUrl: item.url || `${OO_BASE}/?watch_anime=${item.newsId}`,
-            posterUrl: item.poster,
-            language: mapFsVersion(item.version),
-          },
-          stats
-        );
+        lot.push({
+          provider: 'otaku',
+          sourceId: String(item.newsId),
+          type: 'anime',
+          title: item.title.trim(),
+          pageUrl: item.url || `${OO_BASE}/?watch_anime=${item.newsId}`,
+          posterUrl: item.poster,
+          language: mapFsVersion(item.version),
+        });
       }
+      await upsertCatalogItems(lot, stats);
 
       page++;
       await sleep(DELAY_MS);
@@ -126,7 +126,7 @@ async function main() {
     await sleep(DELAY_MS);
   }
 
-  const missing = parcoursComplet ? await markMissingAfterRun(stats) : 0;
+  const missing = parcoursComplet ? await markMissingAfterRun(stats, 'anime') : 0;
   if (!parcoursComplet) {
     console.log('[Otaku] Pass interrompu avant la fin du site — absents non comptés.');
   }

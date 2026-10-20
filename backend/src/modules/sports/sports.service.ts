@@ -21,6 +21,7 @@ import { pickPlayableServer, pickPlayableServers } from './utils/stream-probe';
 import { labFastPathServers } from './lab-fast-path';
 import { SPORTS_SOURCES, type ResolvedSportsStream, type SportsMatch, type SportsServer, type SportsSourceId } from './sports.types';
 import { getRegisteredChannels, rememberChannels } from './match-channels.registry';
+import { mapTvChannelsToMatch } from './utils/channel-mapping';
 
 export * from './sports.types';
 
@@ -176,9 +177,20 @@ export async function getSportsMatches(source?: string): Promise<SportsMatch[]> 
     if (!merged) groups.push(m);
   }
 
+  // Expiry filter: drop matches that have likely ended.
+  //   • 'upcoming' with startTs > 3 h ago → missed, definitely over
+  //   • any status with startTs > 4 h ago  → safety net for stale 'live' markers
+  const nowSec = Math.floor(Date.now() / 1000);
+  const active = groups.filter((m) => {
+    if (m.startTs === undefined) return true; // no timestamp → always keep
+    const ageSec = nowSec - m.startTs;
+    if (m.status === 'upcoming') return ageSec < 3 * 3600; // drop upcoming older than 3h
+    return ageSec < 4 * 3600;                              // drop live/unknown older than 4h
+  });
+
   // Slug neutle : `sourceId` lisible si personne d'autre ne le porte déjà,
   // sinon hash stable de la rencontre (pas de collision, pas de provider).
-  const based = groups.map((m) => ({ ...m, slug: readableSlug(m) ?? fixtureHash(m) }));
+  const based = active.map((m) => ({ ...m, slug: readableSlug(m) ?? fixtureHash(m) }));
   const slugCounts = new Map<string, number>();
   for (const m of based) slugCounts.set(m.slug as string, (slugCounts.get(m.slug as string) ?? 0) + 1);
   const sorted = based
@@ -210,11 +222,20 @@ export async function resolveSportsStream(
 export async function findSportsMatch(matchId: string): Promise<SportsMatch | null> {
   const separator = matchId.indexOf(':');
   if (separator === -1) {
-    // URL neutle (`/live/sp/478`, `/live/sp/f3a9c2…`) : pas de provider dans
-    // l'identifiant, on cherche le slug dans la liste fusionnée.
+    // URL neutle (`/live/sp/478`, `/live/sp/499`, `/live/sp/f3a9c2…`) : pas de provider dans
+    // l'identifiant, on cherche le slug, le sourceId ou l'identifiant dans la liste.
     if (!matchId) return null;
     const matches = await getSportsMatches();
-    return matches.find((m) => m.slug === matchId) ?? null;
+    const found = matches.find((m) => m.slug === matchId || m.sourceId === matchId || m.id === matchId || m.id.endsWith(`:${matchId}`));
+    if (found) return found;
+
+    // Si pas trouvé dans la liste dédupliquée, chercher dans chaque source individuellement
+    for (const src of SPORTS_SOURCES) {
+      const srcMatches = await getSportsMatches(src).catch(() => []);
+      const match = srcMatches.find((m) => m.sourceId === matchId || m.id === `${src}:${matchId}` || m.slug === matchId);
+      if (match) return match;
+    }
+    return null;
   }
 
   const source = matchId.slice(0, separator);
@@ -265,19 +286,41 @@ function withBudget<T>(promise: Promise<T>, budgetMs: number): Promise<T | null>
   return Promise.race([promise, new Promise<null>((resolve) => setTimeout(() => resolve(null), budgetMs))]);
 }
 
-/** Le match demandé d'abord, puis ses jumeaux découverts chez les autres sources — kora en tout dernier : c'est un repli, pas la source primaire. */
+/**
+ * Le match demandé d'abord, puis ses jumeaux découverts chez les autres sources
+ * — kora en tout dernier : c'est un repli, pas la source primaire.
+ *
+ * ⚠ On interroge chaque source SÉPARÉMENT (liste brute non dédupliquée) afin
+ * de retrouver tous les providers qui couvrent ce même match. La liste globale
+ * `getSportsMatches()` collapse en effet tous les providers en une seule entrée
+ * (le gagnant de la priorité) : les jumeaux kora/kooorah y seraient invisibles.
+ */
 async function chainCandidates(target: SportsMatch): Promise<SportsMatch[]> {
-  const all = await getSportsMatches();
-  const own = all.find((m) => m.id === target.id) ?? target;
+  // Récupère la liste brute de chaque source en parallèle (cache 30 s individuel).
+  const perSource = await Promise.allSettled(SPORTS_SOURCES.map((s) => getSportsMatches(s)));
+  const rawAll: SportsMatch[] = [];
+  for (const r of perSource) {
+    if (r.status === 'fulfilled') rawAll.push(...r.value);
+  }
 
-  const twins = all
+  const own = rawAll.find((m) => m.id === target.id) ?? target;
+
+  const twins = rawAll
     .filter((m) => m.id !== own.id && isSameFixture(own, m))
     .map((m) => ({ m, score: fixtureScore(own, m), gap: Math.abs((m.startTs ?? 0) - (own.startTs ?? 0)) }))
     .sort((a, b) => b.score - a.score || a.gap - b.gap)
     .map((x) => x.m);
 
-  const chain = [own, ...twins];
-  return [...chain.filter((m) => m.source !== 'kora'), ...chain.filter((m) => m.source === 'kora')];
+  // Le match demandé doit TOUJOURS être testé en premier.
+  // Ses jumeaux ne sont tentés qu'en cas d'échec du flux principal,
+  // en privilégiant les sources HLS directes (liveball, kooorah...) avant kora.
+  const otherTwins = twins.filter((m) => m.id !== own.id);
+  const sortedTwins = [
+    ...otherTwins.filter((m) => m.source !== 'kora'),
+    ...otherTwins.filter((m) => m.source === 'kora'),
+  ];
+
+  return [own, ...sortedTwins];
 }
 
 /**
@@ -388,21 +431,39 @@ export async function resolveSportsFlux(
     exhausted = true;
   }
 
+  // Mapping diffuseurs TV : si le match est diffusé sur une chaîne TV disponible
+  // (beIN Sports, Canal+, SSC, Eurosport, etc.), on l'ajoute aux serveurs.
+  const mappedServers = mapTvChannelsToMatch(target, servers);
+
   if (!primary) {
-    console.warn(`[sports] aucun provider jouable pour ${target.id}: ${attempts.join(', ') || 'aucun candidat'}`);
-    FLUX_CACHE.set(target.id, { ts: Date.now(), data: null, complete: exhausted && collectAll });
-    return null;
+    // Si aucun provider web ne diffuse mais qu'une chaîne TV correspondante existe,
+    // on l'utilise directement comme flux principal au lieu d'échouer en 404 !
+    const tvFallback = mappedServers.find((s) => s.type === 'hls');
+    if (tvFallback) {
+      primary = {
+        stream: { url: tvFallback.url, type: 'hls', servers: mappedServers },
+        source: target.source,
+        sourceId: target.sourceId,
+      };
+      console.log(`[sports] flux TV direct servi pour ${target.id} via ${tvFallback.name}`);
+    } else {
+      console.warn(`[sports] aucun provider jouable pour ${target.id}: ${attempts.join(', ') || 'aucun candidat'}`);
+      FLUX_CACHE.set(target.id, { ts: Date.now(), data: null, complete: exhausted && collectAll });
+      return null;
+    }
   }
 
+  const finalServers = mappedServers.length > 0 ? mappedServers : servers;
+
   const flux: SportsFlux = {
-    stream: { ...primary.stream, servers },
+    stream: { ...primary.stream, servers: finalServers },
     source: primary.source,
     sourceId: primary.sourceId,
   };
 
   if (collectAll) {
     console.log(
-      `[sports] agrégation pour ${target.id} : ${servers.length} serveur(s)${exhausted ? '' : ' (chaîne incomplète : budget)'}`
+      `[sports] agrégation pour ${target.id} : ${finalServers.length} serveur(s)${exhausted ? '' : ' (chaîne incomplète : budget)'}`
     );
   }
 
@@ -410,7 +471,7 @@ export async function resolveSportsFlux(
   FLUX_CACHE.set(target.id, { ts: Date.now(), data: flux, complete });
   // Registre mémoire (24 h) : le prochain appel /channels part de ce point de
   // départ sans repeindre toute la chaîne.
-  rememberChannels(target.id, { source: flux.source, sourceId: flux.sourceId, servers, complete });
+  rememberChannels(target.id, { source: flux.source, sourceId: flux.sourceId, servers: finalServers, complete });
   return flux;
 }
 
