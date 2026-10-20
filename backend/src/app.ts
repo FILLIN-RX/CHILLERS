@@ -21,6 +21,7 @@ import freemoviesplusRoutes from './modules/freemoviesplus/freemoviesplus.routes
 import plexRoutes from './modules/plex/plex.routes';
 import adminRoutes from './modules/admin/admin.routes';
 import availabilityRoutes from './modules/availability/availability.routes';
+import catalogRoutes from './modules/catalog/catalog.routes';
 import affichesRoutes from './modules/affiches/affiches.routes';
 import liveRoutes from './modules/live/live.routes';
 import liveballRoutes from './modules/liveball/liveball.routes';
@@ -210,6 +211,7 @@ app.use('/api/plex', plexRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/admin/ai', aiRoutes);
 app.use('/api/availability', availabilityRoutes);
+app.use('/api/catalog', catalogRoutes);
 app.use('/api/affiches', affichesRoutes);
 app.use('/api/live', liveRoutes);
 app.use('/api/liveball', liveballRoutes);

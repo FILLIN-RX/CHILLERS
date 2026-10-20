@@ -1,15 +1,16 @@
 import tmdbClient from '../../config/tmdb';
 import { toTMDBLanguage } from '../../config/language';
 import Movie from '../../models/Movie';
+import { applyCatalogFilterToPage } from '../catalog/catalog.service';
 
 export const getPopular = async (page: number = 1, language?: string) => {
   const { data } = await tmdbClient.get('/movie/popular', { params: { page, language: toTMDBLanguage(language) } });
-  return data;
+  return applyCatalogFilterToPage('movie', data);
 };
 
 export const getTrending = async (language?: string) => {
   const { data } = await tmdbClient.get('/trending/movie/week', { params: { language: toTMDBLanguage(language) } });
-  return data;
+  return applyCatalogFilterToPage('movie', data);
 };
 
 export const getUpcoming = async (page: number = 1, language?: string) => {
@@ -23,12 +24,12 @@ export const getUpcoming = async (page: number = 1, language?: string) => {
       include_adult: false,
     },
   });
-  return data;
+  return applyCatalogFilterToPage('movie', data);
 };
 
 export const getTopRated = async (page: number = 1, language?: string) => {
   const { data } = await tmdbClient.get('/movie/top_rated', { params: { page, language: toTMDBLanguage(language) } });
-  return data;
+  return applyCatalogFilterToPage('movie', data);
 };
 
 export const getDetails = async (id: string, language?: string) => {
@@ -114,7 +115,53 @@ export const getByGenre = async (genreId: string, page: number = 1, language?: s
   const { data } = await tmdbClient.get('/discover/movie', {
     params: { with_genres: genreId, sort_by: 'popularity.desc', page, language: toTMDBLanguage(language) },
   });
-  return data;
+  return applyCatalogFilterToPage('movie', data);
+};
+
+export type DiscoverSort = 'trending' | 'rating' | 'recent' | 'oldest';
+
+const MOVIE_SORT_BY: Record<DiscoverSort, string> = {
+  trending: 'popularity.desc',
+  rating: 'vote_average.desc',
+  recent: 'primary_release_date.desc',
+  oldest: 'primary_release_date.asc',
+};
+
+function normalizeSort(sort?: string): DiscoverSort {
+  return sort === 'rating' || sort === 'recent' || sort === 'oldest' ? sort : 'trending';
+}
+
+/** Découverte filtrable : tendance par défaut, filtres genre / année / tri. */
+export const discover = async (
+  opts: { page?: number; genre?: string; year?: string; sort?: string } = {},
+  language?: string,
+) => {
+  const page = Math.max(1, Number(opts.page) || 1);
+  const sort = normalizeSort(opts.sort?.trim());
+  const genre = opts.genre?.trim() || undefined;
+  const year = opts.year?.trim() || undefined;
+  const lang = toTMDBLanguage(language);
+
+  // Tendance réelle TMDB tant qu'aucun filtre n'est appliqué.
+  if (sort === 'trending' && !genre && !year) {
+    const { data } = await tmdbClient.get('/trending/movie/week', {
+      params: { page, language: lang },
+    });
+    return applyCatalogFilterToPage('movie', data);
+  }
+
+  const params: Record<string, unknown> = {
+    page,
+    language: lang,
+    sort_by: MOVIE_SORT_BY[sort],
+    include_adult: false,
+  };
+  if (genre) params.with_genres = genre;
+  if (year) params.primary_release_year = year;
+  if (sort === 'rating') params['vote_count.gte'] = 200;
+
+  const { data } = await tmdbClient.get('/discover/movie', { params });
+  return applyCatalogFilterToPage('movie', data);
 };
 
 export const getAfrican = async (page: number = 1, language?: string, country?: string) => {
@@ -127,7 +174,7 @@ export const getAfrican = async (page: number = 1, language?: string, country?: 
       language: toTMDBLanguage(language) 
     },
   });
-  return data;
+  return applyCatalogFilterToPage('movie', data);
 };
 
 export const getDiscoverSmart = async (page: number = 1, language?: string) => {
@@ -168,8 +215,8 @@ export const getDiscoverSmart = async (page: number = 1, language?: string) => {
   // Sort by composite score descending
   scored.sort((a: any, b: any) => b._score - a._score);
 
-  return {
+  return applyCatalogFilterToPage('movie', {
     ...data,
     results: scored,
-  };
+  });
 };

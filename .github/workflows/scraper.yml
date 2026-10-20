@@ -23,6 +23,9 @@ on:
           - 'realign'
           - 'keepalive'
           - 'deploy-migration'
+          - 'catalog'
+          - 'catalog-full'
+          - 'catalog-match'
       apply:
         description: 'realign : écrire les tmdbId corrigés en base (sinon dry-run, lecture seule)'
         required: false
@@ -77,7 +80,10 @@ jobs:
             src/modules/scraping/maintenance/realign-tmdb-links.ts \
             scripts/backfill-uqload-links.ts \
             src/scripts/migrate-dood-to-uqload.ts \
-            src/scripts/upload-uqload.ts
+            src/scripts/upload-uqload.ts \
+            src/modules/catalog/sync-frenchstream.ts \
+            src/modules/catalog/sync-otaku.ts \
+            src/modules/catalog/match-tmdb.ts
           do
             test -f "$f" || { echo "::error::script manquant : $f"; exit 1; }
           done
@@ -95,6 +101,8 @@ jobs:
           STREAMTAPE_KEY: ${{ secrets.STREAMTAPE_KEY }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           REALIGN_APPLY: ${{ github.event.inputs.apply == 'true' && '1' || '0' }}
+          MATCH_BATCH_SIZE: '2000'
+          MATCH_MAX_MINUTES: '45'
         run: |
           cd backend
           TASK="${{ github.event.inputs.task || 'all' }}"
@@ -143,29 +151,52 @@ jobs:
               npx tsx src/scripts/migrate-dood-to-uqload.ts || true
               npx tsx src/scripts/upload-uqload.ts --verify || true
               ;;
+            "catalog")
+              # Index provider incrémental : nouvelles fiches côté FrenchStream
+              # (les premières pages de l'archive = les ajouts récents) +
+              # OpenOtaku, puis liage TMDB des nouveaux items.
+              CATALOG_SYNC_MODE=update npx tsx src/modules/catalog/sync-frenchstream.ts
+              npx tsx src/modules/catalog/sync-otaku.ts
+              npx tsx src/modules/catalog/match-tmdb.ts
+              ;;
+            "catalog-full")
+              # Parcours entier de l'archive (21 151 films + les séries). À ne
+              # lancer qu'une fois, puis en update quotidien.
+              CATALOG_SYNC_MODE=full npx tsx src/modules/catalog/sync-frenchstream.ts
+              npx tsx src/modules/catalog/sync-otaku.ts
+              npx tsx src/modules/catalog/match-tmdb.ts
+              ;;
+            "catalog-match")
+              npx tsx src/modules/catalog/match-tmdb.ts
+              ;;
             "all")
-              echo "=== 1/8 Scraping Films ==="
+              echo "=== 1/10 Scraping Films ==="
               npx tsx src/modules/scraping/core/scrape-films.js
-              echo "=== 2/8 Scraping Séries ==="
+              echo "=== 2/10 Scraping Séries ==="
               npx tsx src/modules/scraping/core/scrape-series.ts
-              echo "=== 3/8 Scraping Animes ==="
+              echo "=== 3/10 Scraping Animes ==="
               npx tsx src/modules/scraping/core/scrape-animes.ts
-              echo "=== 4/8 Linking TMDB ==="
+              echo "=== 4/10 Linking TMDB ==="
               npx tsx src/modules/scraping/maintenance/link-movies-tmdb.ts || true
               npx tsx src/modules/scraping/maintenance/link-series-tmdb.ts || true
-              echo "=== 5/8 Réalignement des fiches (lecture seule) ==="
+              echo "=== 5/10 Réalignement des fiches (lecture seule) ==="
               if [ "$REALIGN_APPLY" = "1" ]; then
                 npx tsx src/modules/scraping/maintenance/realign-tmdb-links.ts --apply || true
               else
                 npx tsx src/modules/scraping/maintenance/realign-tmdb-links.ts || true
               fi
-              echo "=== 6/8 Vérification liens morts ==="
+              echo "=== 6/10 Vérification liens morts ==="
               npx tsx src/modules/scraping/maintenance/check-all-links.ts || true
-              echo "=== 7/8 Maintenance liens séries ==="
+              echo "=== 7/10 Maintenance liens séries ==="
               npx tsx src/modules/scraping/maintenance/maintainer.ts || true
-              echo "=== 8/8 Organize + Sync séries ==="
+              echo "=== 8/10 Organize + Sync séries ==="
               npx tsx src/modules/scraping/maintenance/organize-series.ts || true
               npx tsx src/modules/scraping/maintenance/sync-series-to-mongo.ts || true
+              echo "=== 9/10 Index catalogue providers (incrémental) ==="
+              CATALOG_SYNC_MODE=update npx tsx src/modules/catalog/sync-frenchstream.ts
+              npx tsx src/modules/catalog/sync-otaku.ts
+              echo "=== 10/10 Liage catalogue → TMDB ==="
+              npx tsx src/modules/catalog/match-tmdb.ts
               ;;
             *)
               echo "Tâche inconnue : $TASK"

@@ -2,6 +2,7 @@ import tmdbClient from '../../config/tmdb';
 import { toTMDBLanguage } from '../../config/language';
 import Movie from '../../models/Movie';
 import Serie from '../../models/Serie';
+import { applyCatalogFilterToPage } from '../catalog/catalog.service';
 
 // Petit limiteur de concurrence maison (équivalent p-limit avec une cap à 4).
 const queue: Array<() => void> = [];
@@ -159,19 +160,29 @@ export const searchMulti = async (query: string, page: number = 1, language?: st
   const movieTop = ((moviesResp.results || []) as any[]).slice(0, 20); // Augmenté pour meilleur filtrage
   const tvTop = ((tvResp.results || []) as any[]).slice(0, 20);
 
+  // On ne remonte que ce que les providers ont réellement. Filtrer avant
+  // l'hydratation : sinon chaque recherche paie 40 appels TMDB de détail pour
+  // des résultats qui seront jetés juste après.
+  const [filmGardes, serieGardee] = await Promise.all([
+    applyCatalogFilterToPage('movie', { results: movieTop }),
+    applyCatalogFilterToPage('tv', { results: tvTop }),
+  ]);
+  const films = (filmGardes.results || []) as any[];
+  const series = (serieGardee.results || []) as any[];
+
   const [movieDetails, tvDetails] = await Promise.all([
-    Promise.all(movieTop.map(m => fetchDetails('movie', m.id, language))),
-    Promise.all(tvTop.map(t => fetchDetails('tv', t.id, language))),
+    Promise.all(films.map(m => fetchDetails('movie', m.id, language))),
+    Promise.all(series.map(t => fetchDetails('tv', t.id, language))),
   ]);
 
   // Merge les résultats
   const allResults = [
-    ...movieTop.map((m, i) => ({
+    ...films.map((m, i) => ({
       ...(movieDetails[i] || {}),
       ...m,
       media_type: 'movie' as const,
     })),
-    ...tvTop.map((t, i) => ({
+    ...series.map((t, i) => ({
       ...(tvDetails[i] || {}),
       ...t,
       media_type: 'tv' as const,
