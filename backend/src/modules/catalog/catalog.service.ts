@@ -1,4 +1,6 @@
+import tmdbClient from '../../config/tmdb';
 import ProviderCatalogItem, {
+  CatalogCard,
   CatalogItemType,
   CatalogProvider,
   normalizeCatalogTitle,
@@ -133,7 +135,7 @@ export async function filterIdsByCatalog(
   ids: number[]
 ): Promise<number[] | null> {
   if (!ids.length) return [];
-  const types: CatalogItemType[] = type === 'movie' ? ['movie'] : ['tv', 'anime'];
+  const types = typesFor(type);
   const rows = await ProviderCatalogItem.find({
     tmdbId: { $in: ids },
     active: true,
@@ -189,6 +191,92 @@ export async function applyCatalogFilterToPage<T extends { results?: any[] }>(
   }
 }
 
+export type CatalogSort = 'popular' | 'rating' | 'recent';
+
+const ROW_SIZE = 20;
+
+function typesFor(type: 'movie' | 'tv'): CatalogItemType[] {
+  return type === 'movie' ? ['movie'] : ['tv', 'anime'];
+}
+
+/**
+ * Rangée prise dans l'index catalogue plutôt que dans une page TMDB filtrée :
+ * 20 titres qu'on a vraiment, triés sur les champs TMDB stockés. Une page TMDB
+ * de 20 candidats ne rend que ~30 % de cartes — les rangées tombent à 6, et à 0
+ * pour l'animation (le top popularité TMDB est plein de séries qu'on n'héberge
+ * pas). null = gate éteint ou index muet sur ce filtre : l'appelant TMDB reprend.
+ */
+export async function catalogPage(
+  type: 'movie' | 'tv',
+  opts: { page?: number; sort?: CatalogSort; genreId?: string } = {}
+): Promise<{
+  page: number;
+  results: CatalogCard[];
+  total_pages: number;
+  total_results: number;
+} | null> {
+  if (!(await isCatalogFilterActive())) return null;
+
+  const page = Math.max(1, Number(opts.page) || 1);
+  const genre = Number(opts.genreId);
+  const sortBy: Record<string, 1 | -1> =
+    opts.sort === 'rating'
+      ? { 'card.vote_average': -1, 'card.vote_count': -1 }
+      : opts.sort === 'recent'
+        ? { _release: -1, 'card.popularity': -1 }
+        : { 'card.popularity': -1 };
+
+  const pipeline: any[] = [
+    {
+      $match: {
+        active: true,
+        matchStatus: 'matched',
+        type: { $in: typesFor(type) },
+        'card.id': { $exists: true },
+        ...(Number.isFinite(genre) ? { 'card.genre_ids': genre } : {}),
+      },
+    },
+    { $sort: { 'card.popularity': -1 } },
+    { $group: { _id: '$tmdbId', card: { $first: '$card' } } },
+    { $addFields: { _release: { $ifNull: ['$card.release_date', '$card.first_air_date'] } } },
+    { $sort: sortBy },
+    {
+      $facet: {
+        items: [{ $skip: (page - 1) * ROW_SIZE }, { $limit: ROW_SIZE }],
+        total: [{ $count: 'n' }],
+      },
+    },
+  ];
+
+  const [res] = await ProviderCatalogItem.aggregate(pipeline, { allowDiskUse: true });
+  const items: any[] = res?.items || [];
+  if (items.length === 0) return null;
+  const total: number = res?.total?.[0]?.n || 0;
+
+  return {
+    page,
+    results: items.map((d) => d.card),
+    total_pages: Math.max(1, Math.ceil(total / ROW_SIZE)),
+    total_results: total,
+  };
+}
+
+/**
+ * Listing de browsing : rangée catalogue quand l'index la remplit, sinon la
+ * page TMDB telle quelle (ou filtrée dès que le gate est actif).
+ */
+export async function tmdbCatalogList(
+  type: 'movie' | 'tv',
+  path: string,
+  params: Record<string, any> = {},
+  opts: { sort?: CatalogSort; genreId?: string } = {}
+): Promise<any> {
+  const fromCatalog = await catalogPage(type, { page: params.page, ...opts }).catch(() => null);
+  if (fromCatalog) return fromCatalog;
+  const { data } = await tmdbClient.get(path, { params });
+  return applyCatalogFilterToPage(type, data);
+}
+
 /** Providers qui couvrent un tmdbId (pour le badge de la fiche média). */
 export async function providersForTmdbIds(
   type: 'movie' | 'tv',
@@ -196,7 +284,7 @@ export async function providersForTmdbIds(
 ): Promise<Map<number, { providers: CatalogProvider[]; language?: string }>> {
   const map = new Map<number, { providers: CatalogProvider[]; language?: string }>();
   if (!tmdbIds.length) return map;
-  const types: CatalogItemType[] = type === 'movie' ? ['movie'] : ['tv', 'anime'];
+  const types = typesFor(type);
   const rows = await ProviderCatalogItem.find({
     tmdbId: { $in: tmdbIds },
     active: true,

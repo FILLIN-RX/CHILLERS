@@ -5,6 +5,27 @@ export type CatalogProvider = 'frenchstream' | 'otaku';
 export type CatalogItemType = 'movie' | 'tv' | 'anime';
 export type CatalogMatchStatus = 'pending' | 'matched' | 'unmatched';
 
+/** Réponse brute d'un listing TMDB — même formes de champs, même côté client. */
+export interface CatalogCard {
+  id: number;
+  media_type?: 'movie' | 'tv';
+  title?: string;
+  name?: string;
+  original_title?: string;
+  original_name?: string;
+  poster_path?: string;
+  backdrop_path?: string;
+  overview?: string;
+  vote_average?: number;
+  vote_count?: number;
+  popularity?: number;
+  release_date?: string;
+  first_air_date?: string;
+  original_language?: string;
+  genre_ids?: number[];
+  [key: string]: unknown;
+}
+
 /**
  * Index de catalogue provider : ce que les sites proposent RÉELLEMENT,
  * scrapé en batch (cron GitHub Actions) et stocké en base.
@@ -24,6 +45,11 @@ export interface IProviderCatalogItem extends Document {
   quality?: string;
   imdbId?: string;
   tmdbId?: number;
+  /**
+   * Carte TMDB telle quelle (résultat de search/find, ou détail complet quand
+   * le match vient de l'IMDb) : sert les rangées du catalogue sans TMDB.
+   */
+  card?: CatalogCard;
   matchStatus: CatalogMatchStatus;
   matchMethod?: 'search' | 'imdb' | 'manual';
   active: boolean;
@@ -47,6 +73,24 @@ const ProviderCatalogItemSchema: Schema = new Schema(
     quality: { type: String },
     imdbId: { type: String },
     tmdbId: { type: Number },
+  card: {
+    id: Number,
+    media_type: String,
+    title: String,
+    name: String,
+    original_title: String,
+    original_name: String,
+    poster_path: String,
+    backdrop_path: String,
+    overview: String,
+    vote_average: Number,
+    vote_count: Number,
+    popularity: Number,
+    release_date: String,
+    first_air_date: String,
+    original_language: String,
+    genre_ids: [Number],
+  },
     matchStatus: { type: String, enum: ['pending', 'matched', 'unmatched'], default: 'pending', index: true },
     matchMethod: { type: String, enum: ['search', 'imdb', 'manual'] },
     active: { type: Boolean, default: true },

@@ -21,6 +21,7 @@ import mongoose, { AnyBulkWriteOperation } from 'mongoose';
 import tmdbClient from '../../config/tmdb';
 import { connectDB } from '../../config/db';
 import ProviderCatalogItem, {
+  CatalogCard,
   IProviderCatalogItem,
   normalizeCatalogTitle,
 } from '../../models/ProviderCatalogItem';
@@ -37,6 +38,12 @@ const IMDB_DELAY_MS = Number(process.env.MATCH_IMDB_DELAY_MS || 800);
  */
 const CONCURRENCY = Number(process.env.MATCH_CONCURRENCY || 4);
 const FLUSH_EVERY = Number(process.env.MATCH_FLUSH_EVERY || 50);
+/**
+ * Les cartes stockées servent les rangées sans rappeler TMDB : elles doivent
+ * donc être en français, comme le reste de l'app. Le gate y gagne aussi —
+ * il compare des titres localisés à des titres localisés.
+ */
+const CARD_LANGUAGE = process.env.CATALOG_CARD_LANGUAGE || 'fr-FR';
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -88,7 +95,7 @@ function evaluateCandidate(
 }
 
 async function searchTmdb(kind: 'movie' | 'tv', query: string, year?: number): Promise<any[]> {
-  const params: Record<string, any> = { query, page: 1 };
+  const params: Record<string, any> = { query, page: 1, language: CARD_LANGUAGE };
   if (kind === 'movie' && year) params.year = year;
   if (kind === 'tv' && year) params.first_air_date_year = year;
   const endpoint = kind === 'movie' ? '/search/movie' : '/search/tv';
@@ -97,7 +104,9 @@ async function searchTmdb(kind: 'movie' | 'tv', query: string, year?: number): P
 }
 
 /** Étape 1 : match par titre+année avec gate dur. */
-async function matchBySearch(item: any): Promise<{ tmdbId: number; method: 'search' } | null> {
+async function matchBySearch(
+  item: any
+): Promise<{ tmdbId: number; method: 'search'; card: CatalogCard } | null> {
   const kinds: ('movie' | 'tv')[] = item.type === 'movie' ? ['movie'] : ['tv', 'movie'];
   for (const kind of kinds) {
     const results = await searchTmdb(kind, item.title, item.year);
@@ -105,16 +114,26 @@ async function matchBySearch(item: any): Promise<{ tmdbId: number; method: 'sear
     for (const candidate of results.slice(0, 5)) {
       const candidateTitle = candidate.title || candidate.name || '';
       const gate = evaluateCandidate(item.title, item.year, candidateTitle, candidateYearOf(candidate, kind));
-      if (gate.ok) return { tmdbId: candidate.id, method: 'search' };
+      if (gate.ok) return { tmdbId: candidate.id, method: 'search', card: { ...candidate, media_type: kind } };
     }
   }
   return null;
 }
 
+/**
+ * /find et /search ne rendent pas les mêmes champs (aucun backdrop ni popularité
+ * côté /find). Une carte incomplète donnerait une carte cassée dans l'app.
+ */
+async function fullCard(id: number, kind: 'movie' | 'tv'): Promise<CatalogCard> {
+  const { data } = await tmdbClient.get(`/${kind}/${id}`, { params: { language: CARD_LANGUAGE } });
+  await sleep(TMDB_DELAY_MS);
+  return { ...data, media_type: kind };
+}
+
 /** Étape 2 : IMDB id sur la page provider → TMDB /find (match exact). */
 async function matchByImdb(
   item: any
-): Promise<{ tmdbId: number; method: 'imdb'; imdbId: string } | null> {
+): Promise<{ tmdbId: number; method: 'imdb'; imdbId: string; card: CatalogCard } | null> {
   const html = await fetchFsPageHtml(item.pageUrl);
   if (!html) return null;
   await sleep(IMDB_DELAY_MS);
@@ -127,15 +146,13 @@ async function matchByImdb(
   });
   await sleep(TMDB_DELAY_MS);
 
-  const candidates =
-    item.type === 'movie'
-      ? data.movie_results || []
-      : [...(data.tv_results || []), ...(data.movie_results || [])];
-  const best = candidates[0];
+  const movieHit = (data.movie_results || [])[0];
+  const tvHit = (data.tv_results || [])[0];
+  const best = item.type === 'movie' ? movieHit || tvHit : tvHit || movieHit;
   if (!best) return null;
 
-  // L'IMDB id reste en preuve du match.
-  return { tmdbId: best.id, method: 'imdb', imdbId };
+  const kind: 'movie' | 'tv' = best.first_air_date !== undefined && !best.release_date ? 'tv' : 'movie';
+  return { tmdbId: best.id, method: 'imdb', imdbId, card: await fullCard(best.id, kind) };
 }
 
 async function main() {
@@ -190,6 +207,7 @@ async function main() {
               update: {
                 $set: {
                   tmdbId: result.tmdbId,
+                  card: result.card,
                   matchStatus: 'matched',
                   matchMethod: result.method,
                   ...(result.method === 'imdb' ? { imdbId: result.imdbId } : {}),
