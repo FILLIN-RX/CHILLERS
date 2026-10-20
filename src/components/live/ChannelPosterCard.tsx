@@ -3,7 +3,6 @@
 import React, { useState } from "react";
 import { Play, CircleNotch } from "@phosphor-icons/react";
 import type { LiveChannel } from "@/types/live";
-import { useImageTimeout } from "@/hooks/useImageTimeout";
 
 const UNIQUE_COVER_POOL = [
   "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=700&auto=format&fit=crop&q=80",
@@ -70,26 +69,9 @@ export default function ChannelPosterCard({
   const info = getChannelInfo(channel);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imgSrc, setImgSrc] = useState<string>(info.banner);
-  const [logoError, setLogoError] = useState(false);
-
-  useImageTimeout({
-    src: imgSrc,
-    isLoaded: imageLoaded,
-    onTimeout: () => {
-      setImgSrc(UNIQUE_COVER_POOL[0]);
-      setImageLoaded(true);
-    },
-    timeoutMs: 5000,
-  });
-
-  useImageTimeout({
-    src: channel.logo,
-    isLoaded: logoError,
-    onTimeout: () => {
-      setLogoError(true);
-    },
-    timeoutMs: 5000,
-  });
+  const [brokenLogoSrc, setBrokenLogoSrc] = useState<string | undefined>();
+  const logoBroken = brokenLogoSrc === channel.logo;
+  const [bannerBroken, setBannerBroken] = useState(false);
 
   const initials =
     channel.name
@@ -126,12 +108,21 @@ export default function ChannelPosterCard({
           src={imgSrc}
           alt={info.program}
           onLoad={() => setImageLoaded(true)}
-          onError={() => setImgSrc(UNIQUE_COVER_POOL[0])}
+          onError={() => {
+            if (imgSrc !== UNIQUE_COVER_POOL[0]) {
+              setImgSrc(UNIQUE_COVER_POOL[0]);
+              setImageLoaded(false);
+            } else {
+              setBannerBroken(true);
+              setImageLoaded(true);
+            }
+          }}
           className={`w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 ${
             imageLoaded ? "opacity-100" : "opacity-0"
           }`}
           loading="lazy"
         />
+        {bannerBroken && <div className="absolute inset-0 bg-gradient-to-br from-zinc-800 to-zinc-950" />}
 
         {/* Dégradé */}
         <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent opacity-80 group-hover:opacity-60 transition-opacity" />
@@ -144,11 +135,11 @@ export default function ChannelPosterCard({
 
         {/* Badge logo chaîne (bas gauche vignette) */}
         <div className="absolute bottom-2 left-2 z-10 flex items-center justify-center h-7 px-2 max-w-[50%] bg-black/80 backdrop-blur-md rounded border border-white/10 shadow-md">
-          {channel.logo && !logoError ? (
+          {channel.logo && !logoBroken ? (
             <img
               src={channel.logo}
               alt={channel.name}
-              onError={() => setLogoError(true)}
+              onError={() => setBrokenLogoSrc(channel.logo)}
               className="h-5 max-w-full object-contain filter brightness-110"
               loading="lazy"
             />

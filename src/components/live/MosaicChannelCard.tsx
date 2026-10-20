@@ -3,7 +3,6 @@
 import React, { useState } from "react";
 import { CircleNotch } from "@phosphor-icons/react";
 import type { LiveChannel } from "@/types/live";
-import { useImageTimeout } from "@/hooks/useImageTimeout";
 
 /**
  * Carte mosaïque (aspect 4:3, logo centré, fond #242424 → #383838 au survol).
@@ -18,22 +17,8 @@ export default function MosaicChannelCard({
   onOpen: (channel: LiveChannel) => void;
   isResolving?: boolean;
 }) {
-  const [logoError, setLogoError] = useState(false);
-  // Reset du fallback lorsque le logo change (pattern « ajuster pendant le rendu »).
-  const [prevLogo, setPrevLogo] = useState(channel.logo);
-  if (prevLogo !== channel.logo) {
-    setPrevLogo(channel.logo);
-    setLogoError(false);
-  }
-
-  useImageTimeout({
-    src: channel.logo,
-    isLoaded: logoError,
-    onTimeout: () => {
-      setLogoError(true);
-    },
-    timeoutMs: 5000,
-  });
+  const [brokenLogoSrc, setBrokenLogoSrc] = useState<string | undefined>();
+  const logoBroken = brokenLogoSrc === channel.logo;
 
   const initials =
     channel.name
@@ -61,11 +46,11 @@ export default function MosaicChannelCard({
     >
       {/* Logo centré */}
       <div className="w-full h-full flex items-center justify-center pointer-events-none p-1 sm:p-2 pb-5">
-        {channel.logo && !logoError ? (
+        {channel.logo && !logoBroken ? (
           <img
             src={channel.logo}
             alt={channel.name}
-            onError={() => setLogoError(true)}
+            onError={() => setBrokenLogoSrc(channel.logo)}
             className="w-full h-full max-h-full max-w-full object-contain filter brightness-110 contrast-105 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] box-border"
             loading="lazy"
           />
