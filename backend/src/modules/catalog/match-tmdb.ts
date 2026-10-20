@@ -17,16 +17,26 @@ import dotenv from 'dotenv';
 import path from 'path';
 dotenv.config({ path: path.join(__dirname, '../../../.env') });
 
-import mongoose from 'mongoose';
+import mongoose, { AnyBulkWriteOperation } from 'mongoose';
 import tmdbClient from '../../config/tmdb';
 import { connectDB } from '../../config/db';
-import ProviderCatalogItem, { normalizeCatalogTitle } from '../../models/ProviderCatalogItem';
+import ProviderCatalogItem, {
+  IProviderCatalogItem,
+  normalizeCatalogTitle,
+} from '../../models/ProviderCatalogItem';
 import { extractImdbId, fetchFsPageHtml } from './frenchstream-listing';
 
 const BATCH_SIZE = Number(process.env.MATCH_BATCH_SIZE || 500);
 const TIME_BUDGET_MIN = Number(process.env.MATCH_MAX_MINUTES || 30);
 const TMDB_DELAY_MS = Number(process.env.MATCH_TMDB_DELAY_MS || 150);
 const IMDB_DELAY_MS = Number(process.env.MATCH_IMDB_DELAY_MS || 800);
+/**
+ * TMDB est le goulot (~0,5 s par appel) pendant qu'Atlas coûte ~2,3 s par
+ * écriture : on fait tourner quelques recherches de front et on groupe les
+ * écritures, sinon 21 000 items = 12 h.
+ */
+const CONCURRENCY = Number(process.env.MATCH_CONCURRENCY || 4);
+const FLUSH_EVERY = Number(process.env.MATCH_FLUSH_EVERY || 50);
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -102,7 +112,9 @@ async function matchBySearch(item: any): Promise<{ tmdbId: number; method: 'sear
 }
 
 /** Étape 2 : IMDB id sur la page provider → TMDB /find (match exact). */
-async function matchByImdb(item: any): Promise<{ tmdbId: number; method: 'imdb' } | null> {
+async function matchByImdb(
+  item: any
+): Promise<{ tmdbId: number; method: 'imdb'; imdbId: string } | null> {
   const html = await fetchFsPageHtml(item.pageUrl);
   if (!html) return null;
   await sleep(IMDB_DELAY_MS);
@@ -122,9 +134,8 @@ async function matchByImdb(item: any): Promise<{ tmdbId: number; method: 'imdb' 
   const best = candidates[0];
   if (!best) return null;
 
-  // Conserve l'IMDB id en preuve du match.
-  await ProviderCatalogItem.updateOne({ _id: item._id }, { $set: { imdbId } });
-  return { tmdbId: best.id, method: 'imdb' };
+  // L'IMDB id reste en preuve du match.
+  return { tmdbId: best.id, method: 'imdb', imdbId };
 }
 
 async function main() {
@@ -135,7 +146,10 @@ async function main() {
   let unmatched = 0;
   let processed = 0;
 
-  console.log(`[CatalogMatch] Batch de ${BATCH_SIZE} items pending (budget ${TIME_BUDGET_MIN} min)`);
+  console.log(
+    `[CatalogMatch] Batch de ${BATCH_SIZE} items pending (budget ${TIME_BUDGET_MIN} min, ` +
+      `concurrence ${CONCURRENCY}, flush ${FLUSH_EVERY})`
+  );
 
   const pending = await ProviderCatalogItem.find({ matchStatus: 'pending', active: true })
     .sort({ firstSeenAt: 1 })
@@ -144,39 +158,75 @@ async function main() {
 
   console.log(`[CatalogMatch] ${pending.length} items à traiter`);
 
-  for (const item of pending) {
-    if (Date.now() > deadline) {
-      console.log('[CatalogMatch] Budget de temps atteint — arrêt propre.');
-      break;
-    }
-    processed++;
+  const queue: AnyBulkWriteOperation<IProviderCatalogItem>[] = [];
+  let arret = false;
 
+  async function flush() {
+    if (queue.length === 0) return;
+    const ops = queue.splice(0, queue.length);
     try {
-      const bySearch = await matchBySearch(item);
-      const result = bySearch || (await matchByImdb(item));
-
-      if (result) {
-        await ProviderCatalogItem.updateOne(
-          { _id: item._id },
-          { $set: { tmdbId: result.tmdbId, matchStatus: 'matched', matchMethod: result.method } }
-        );
-        matched++;
-        if (matched % 50 === 0) {
-          console.log(`[CatalogMatch] ${processed}/${pending.length} — ${matched} liés`);
-        }
-      } else {
-        await ProviderCatalogItem.updateOne(
-          { _id: item._id },
-          { $set: { matchStatus: 'unmatched' } }
-        );
-        unmatched++;
-      }
+      await ProviderCatalogItem.bulkWrite(ops, { ordered: false });
     } catch (err: any) {
-      console.error(`[CatalogMatch] "${item.title}" en erreur : ${err.message}`);
-      await sleep(1000);
+      console.error(`[CatalogMatch] Flush de ${ops.length} écritures en erreur : ${err.message}`);
     }
   }
 
+  async function worker(items: any[]) {
+    for (const item of items) {
+      if (Date.now() > deadline) {
+        arret = true;
+        break;
+      }
+      processed++;
+
+      try {
+        const bySearch = await matchBySearch(item);
+        const result = bySearch || (await matchByImdb(item));
+
+        if (result) {
+          queue.push({
+            updateOne: {
+              filter: { _id: item._id },
+              update: {
+                $set: {
+                  tmdbId: result.tmdbId,
+                  matchStatus: 'matched',
+                  matchMethod: result.method,
+                  ...(result.method === 'imdb' ? { imdbId: result.imdbId } : {}),
+                },
+              },
+            },
+          });
+          matched++;
+          if (matched % 200 === 0) {
+            console.log(`[CatalogMatch] ${processed}/${pending.length} — ${matched} liés`);
+          }
+        } else {
+          queue.push({
+            updateOne: {
+              filter: { _id: item._id },
+              update: { $set: { matchStatus: 'unmatched' } },
+            },
+          });
+          unmatched++;
+        }
+
+        if (queue.length >= FLUSH_EVERY) await flush();
+      } catch (err: any) {
+        console.error(`[CatalogMatch] "${item.title}" en erreur : ${err.message}`);
+        await sleep(1000);
+      }
+    }
+  }
+
+  // Répartition round-robin : chaque worker prend un item sur CONCURRENCY.
+  const parts: any[][] = Array.from({ length: CONCURRENCY }, () => []);
+  pending.forEach((item, i) => parts[i % CONCURRENCY].push(item));
+
+  await Promise.all(parts.map(worker));
+  await flush();
+
+  if (arret) console.log('[CatalogMatch] Budget de temps atteint — les restants restent pending.');
   console.log(`\n[CatalogMatch] Terminé : traités=${processed} liés=${matched} non liés=${unmatched}`);
   await mongoose.disconnect();
 }

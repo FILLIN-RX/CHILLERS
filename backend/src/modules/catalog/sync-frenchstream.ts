@@ -48,6 +48,11 @@ async function syncCategory(category: string, type: 'movie' | 'tv'): Promise<voi
   // profonds seraient comptés manquants — et désactivés au 3e run nocturne.
   let archiveEpuisee = false;
 
+  // Une écriture Atlas coûte ~2,3 s contre ~1,3 s de fetch : on garde le lot
+  // précédent en vol pendant le fetch suivant au lieu d'attendre les deux bout
+  // à bout. (Au-delà de 2 en vol, on ne fait que saturer la connexion.)
+  let ecritureEnVol: Promise<void> | null = null;
+
   while (page <= MAX_PAGES) {
     // Un incident réseau sur une page ne doit pas avorter les ~2 000 pages qui
     // restent : trois essais, espacés, avant de renoncer sur cette page.
@@ -102,10 +107,19 @@ async function syncCategory(category: string, type: 'movie' | 'tv'): Promise<voi
       });
     }
 
-    // Un seul aller-retour Atlas pour toute la page.
-    const createdBefore = stats.created;
-    await upsertCatalogItems(lot, stats);
-    if (stats.created > createdBefore) pageHasNew = true;
+    // Un seul aller-retour Atlas pour toute la page. En mode full, l'écriture
+    // part en vol pendant le fetch suivant ; en mode update on l'attend, parce
+    // que l'arrêt anticipé se décide sur ce que cette page a réellement créé.
+    if (MODE === 'full') {
+      if (ecritureEnVol) await ecritureEnVol;
+      ecritureEnVol = upsertCatalogItems(lot, stats).catch((err: any) => {
+        console.error(`[FrenchStream] Lot de la page ${page} en erreur : ${err.message}`);
+      });
+    } else {
+      const createdBefore = stats.created;
+      await upsertCatalogItems(lot, stats);
+      if (stats.created > createdBefore) pageHasNew = true;
+    }
 
     if (MODE === 'update') {
       consecutiveSeenPages = pageHasNew ? 0 : consecutiveSeenPages + 1;
@@ -123,6 +137,8 @@ async function syncCategory(category: string, type: 'movie' | 'tv'): Promise<voi
     page++;
     await sleep(DELAY_MS);
   }
+
+  if (ecritureEnVol) await ecritureEnVol;
 
   const missing = archiveEpuisee ? await markMissingAfterRun(stats, type) : 0;
   if (!archiveEpuisee) {
