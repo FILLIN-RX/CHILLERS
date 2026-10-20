@@ -252,14 +252,14 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
   return (
     <div className="min-h-screen text-white select-none pb-20">
       {/* Ambiance du reste de la page : backdrop flouté, assombri pour la lisibilité */}
-      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 hidden overflow-hidden bg-[#1F1F1F] sm:block">
+      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-[#1F1F1F]">
         {displayBackdrop && (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={displayBackdrop}
               alt=""
-              className="h-full w-full scale-125 object-cover object-top opacity-70 blur-3xl saturate-150"
+              className="h-full w-full scale-110 object-cover object-top opacity-50 blur-2xl saturate-150 sm:scale-125 sm:opacity-70 sm:blur-3xl"
             />
             <div className="absolute inset-0 bg-[#1F1F1F]/40" />
           </>

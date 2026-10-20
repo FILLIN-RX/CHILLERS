@@ -417,19 +417,21 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
     );
   }
 
+  const heroImageUrl = item.posterUrl || item.backdropUrl || item.backdropOriginalUrl;
+  const desktopBackdropUrl = item.backdropUrl || item.backdropOriginalUrl;
   const isYouTube = trailerUrl?.includes("youtube.com") || trailerUrl?.includes("embed");
 
   return (
     <div className="flex-1 flex flex-col text-white pb-20 sm:pb-0">
       {/* Le backdrop continue sous le hero : image floutée, assombrie pour la lisibilité */}
-      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 hidden overflow-hidden bg-[#1F1F1F] sm:block">
+      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-[#1F1F1F]">
         {(item.backdropUrl || item.backdropOriginalUrl) && (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={item.backdropUrl || item.backdropOriginalUrl}
               alt=""
-              className="h-full w-full scale-125 object-cover object-top opacity-70 blur-3xl saturate-150"
+              className="h-full w-full scale-110 object-cover object-top opacity-50 blur-2xl saturate-150 sm:scale-125 sm:opacity-70 sm:blur-3xl"
             />
             <div className="absolute inset-0 bg-[#1F1F1F]/40" />
           </>
@@ -456,12 +458,12 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
 
       {/* 1. HERO SECTION */}
       <div className="relative flex w-full flex-col justify-end overflow-hidden sm:min-h-[70vh] sm:max-h-[750px] lg:h-[78vh]">
-        {item.posterUrl || item.backdropUrl || item.backdropOriginalUrl ? (
+        {heroImageUrl ? (
           <>
             {/* Mobile : affiche portrait (comme oha.to), non recadrée */}
             <div className="relative aspect-[2/3] w-full shrink-0 overflow-hidden sm:hidden">
               <Image
-                src={item.posterUrl || item.backdropUrl || item.backdropOriginalUrl}
+                src={heroImageUrl}
                 alt={item.title}
                 fill
                 className="object-cover object-center"
@@ -473,10 +475,10 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
               <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black/60 to-transparent" />
             </div>
             {/* Desktop : backdrop plein écran */}
-            {(item.backdropUrl || item.backdropOriginalUrl) && (
+            {desktopBackdropUrl && (
               <div className="relative hidden sm:absolute sm:inset-0 sm:block">
                 <Image
-                  src={item.backdropUrl || item.backdropOriginalUrl}
+                  src={desktopBackdropUrl}
                   alt={item.title}
                   fill
                   className="object-cover object-top"
