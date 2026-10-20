@@ -247,6 +247,7 @@ export default function HeroCarousel({
           // Ne rendre l'image que pour les slides proches (courante ±1) :
           // évite de charger/décoder 10 backdrops full-bleed dès le premier rendu.
           const isNear = Math.abs(index - currentIndex) <= 1;
+          const slideBackdropUrl = slide.backdropUrl || slide.backdropOriginalUrl;
           const activeTrailer = slide.videoUrl || trailerMap[slide.id];
           const slideLogo = slide.logoUrl || logoMap[String(slide.id)];
           const ytKey = getYouTubeKey(activeTrailer);
@@ -255,9 +256,9 @@ export default function HeroCarousel({
             <div key={slide.id} className="w-full h-full flex-shrink-0 relative">
               <div className="absolute inset-0 w-full h-full bg-black">
                 {/* Backdrop Image (uniquement slides proches) */}
-                {isNear && (
+                {isNear && slideBackdropUrl && (
                   <Image
-                    src={slide.backdropUrl || slide.backdropOriginalUrl}
+                    src={slideBackdropUrl}
                     alt={slide.title}
                     fill
                     className="object-cover object-[center_30%] sm:object-center transition-opacity duration-700"
