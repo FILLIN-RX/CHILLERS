@@ -64,6 +64,31 @@ function areTeamsMatching(h1?: string, a1?: string, h2?: string, a2?: string): b
   );
 }
 
+function isCanalChannel(name?: string): boolean {
+  return /canal/i.test(name || "");
+}
+
+function localMatchDay(timestamp?: number): string | null {
+  if (!timestamp || !Number.isFinite(timestamp)) return null;
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Africa/Douala",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(timestamp * 1000));
+  const part = (type: string) => parts.find((item) => item.type === type)?.value;
+  const year = part("year");
+  const month = part("month");
+  const day = part("day");
+  return year && month && day ? `${year}-${month}-${day}` : null;
+}
+
+function shouldSkipCanalToday(fixture?: SportsMatch): boolean {
+  if (!fixture || !/barcelona/i.test(`${fixture.home} ${fixture.away}`)) return false;
+  const today = localMatchDay(Date.now() / 1000);
+  return Boolean(today && localMatchDay(fixture.startTs) === today);
+}
+
 export default function SportsMatchContent() {
   const { matchId } = useParams<{ matchId: string }>();
   const decodedId = decodeURIComponent(matchId || "");
@@ -172,12 +197,16 @@ export default function SportsMatchContent() {
   });
 
   const confirmedChannels = useMemo(
-    () => channelStatuses.filter((s) => s.confirmed).map((s) => s.channel),
-    [channelStatuses],
+    () => channelStatuses
+      .filter((s) => s.confirmed && !(shouldSkipCanalToday(match) && isCanalChannel(s.channel.name)))
+      .map((s) => s.channel),
+    [channelStatuses, match],
   );
   const candidateChannels = useMemo(
-    () => channelStatuses.filter((s) => !s.confirmed).map((s) => s.channel),
-    [channelStatuses],
+    () => channelStatuses
+      .filter((s) => !s.confirmed && !(shouldSkipCanalToday(match) && isCanalChannel(s.channel.name)))
+      .map((s) => s.channel),
+    [channelStatuses, match],
   );
   const hasChannels = confirmedChannels.length + candidateChannels.length > 0;
 
@@ -216,14 +245,20 @@ export default function SportsMatchContent() {
       const resolved = await getSportsStream(targetId);
       if (!resolved?.url) return null;
 
-      const server = resolved.servers?.[0];
+      const skipCanal = shouldSkipCanalToday(match ?? resolved.match);
+      const availableServers = skipCanal
+        ? (resolved.servers ?? []).filter((server) => !isCanalChannel(server.name))
+        : resolved.servers ?? [];
+      if (skipCanal && resolved.servers?.length && !availableServers.length) return null;
+
+      const server = availableServers[0];
       return {
-        url: resolved.url,
+        url: server?.relayUrl || server?.url || resolved.url,
         type: server?.type ?? resolved.type,
         relayUrl: server?.relayUrl ?? resolved.relayUrl,
         referer: server?.referer ?? resolved.referer,
         provider: resolved.provider,
-        match,
+        match: resolved.match ?? match,
       };
     },
     staleTime: 0,
@@ -268,8 +303,11 @@ export default function SportsMatchContent() {
         : [];
     // HLS direct d'abord (repli des anciens registres déjà en mémoire),
     // embed provider ensuite.
-    return [...list].sort((a, b) => (a.type === "hls" ? 0 : 1) - (b.type === "hls" ? 0 : 1));
-  }, [channels, stream]);
+    const available = shouldSkipCanalToday(match)
+      ? list.filter((server) => !isCanalChannel(server.name))
+      : list;
+    return [...available].sort((a, b) => (a.type === "hls" ? 0 : 1) - (b.type === "hls" ? 0 : 1));
+  }, [channels, stream, match]);
 
   const activeIdx = serverChoice?.id === decodedId ? serverChoice.idx : null;
   const activeServer = activeIdx !== null ? servers[activeIdx] ?? null : null;
