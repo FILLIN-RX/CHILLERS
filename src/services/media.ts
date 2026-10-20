@@ -162,6 +162,15 @@ export interface TmdbRawItem {
   similar?: { results?: TmdbRawItem[] };
 }
 
+/** Entrée de `combined_credits` : rôle joué ou poste technique. */
+export type PersonCredit = TmdbRawItem & {
+  media_type?: string;
+  popularity?: number;
+  character?: string;
+  job?: string;
+  department?: string;
+};
+
 /** Raw shape of TMDB /person/{id} (append_to_response=combined_credits). */
 export interface TmdbPersonRaw {
   id: number;
@@ -176,14 +185,14 @@ export interface TmdbPersonRaw {
   gender?: number;
   popularity?: number;
   combined_credits?: {
-    cast?: Array<TmdbRawItem & { character?: string; media_type?: string; popularity?: number }>;
-    crew?: Array<TmdbRawItem & { job?: string; department?: string; media_type?: string; popularity?: number }>;
+    cast?: PersonCredit[];
+    crew?: PersonCredit[];
   };
   movie_credits?: {
-    cast?: Array<TmdbRawItem & { character?: string; popularity?: number }>;
+    cast?: PersonCredit[];
   };
   tv_credits?: {
-    cast?: Array<TmdbRawItem & { character?: string; popularity?: number }>;
+    cast?: PersonCredit[];
   };
 }
 
@@ -202,39 +211,38 @@ function computeAge(birthday?: string | null, deathday?: string | null): number 
 /** Mappe TMDB /person/{id} (+ combined_credits) vers PersonDetails. */
 export function mapTMDBToPersonDetails(raw: TmdbPersonRaw): PersonDetails {
   const combined = raw.combined_credits;
-  const movieCast = combined?.cast ?? raw.movie_credits?.cast ?? [];
-  const tvCast = combined?.cast ?? raw.tv_credits?.cast ?? [];
+  const cast: PersonCredit[] = combined?.cast ?? [
+    ...(raw.movie_credits?.cast ?? []),
+    ...(raw.tv_credits?.cast ?? []),
+  ];
+  const crew: PersonCredit[] = combined?.crew ?? [];
 
-  const mapCredit = (c: TmdbRawItem & { media_type?: string; popularity?: number }, mediaType: "movie" | "tv") => {
-    const mapped = mapTMDBToMovieOrShow(c, mediaType === "tv" ? "series" : "movie");
-    return { item: mapped, popularity: c.popularity ?? 0 };
+  // Une page « Réalisation / Production » ne joue presque jamais devant la
+  // caméra : sans les crédits crew, sa filmographie serait vide.
+  const played = new Set(cast.map((c) => String(c.id)));
+  const credits = [...cast, ...crew.filter((c) => !played.has(String(c.id)))];
+
+  const toList = (mediaType: "movie" | "tv") => {
+    const seen = new Set<string>();
+    return credits
+      .filter((c) => (c.media_type ?? (c.title ? "movie" : "tv")) === mediaType)
+      .map((c) => ({
+        item: mapTMDBToMovieOrShow(c, mediaType === "tv" ? "series" : "movie"),
+        popularity: c.popularity ?? 0,
+      }))
+      .filter(({ item }) => {
+        if (!item.id || seen.has(item.id)) return false;
+        seen.add(item.id);
+        return true;
+      })
+      .sort((a, b) => b.popularity - a.popularity)
+      .map(({ item }) => item);
   };
 
-  const seenMovies = new Set<string>();
-  const movies = movieCast
-    .filter((c) => (c.media_type ?? (c.title ? "movie" : "tv")) === "movie")
-    .map((c) => mapCredit(c, "movie"))
-    .filter(({ item }) => {
-      if (!item.id || seenMovies.has(item.id)) return false;
-      seenMovies.add(item.id);
-      return true;
-    })
-    .sort((a, b) => b.popularity - a.popularity)
-    .map(({ item }) => item);
+  const movies = toList("movie");
+  const tvShows = toList("tv");
 
-  const seenTv = new Set<string>();
-  const tvShows = tvCast
-    .filter((c) => (c.media_type ?? (c.name ? "tv" : "movie")) === "tv")
-    .map((c) => mapCredit(c, "tv"))
-    .filter(({ item }) => {
-      if (!item.id || seenTv.has(item.id)) return false;
-      seenTv.add(item.id);
-      return true;
-    })
-    .sort((a, b) => b.popularity - a.popularity)
-    .map(({ item }) => item);
-
-  const creditsCount = (combined?.cast?.length ?? 0) + (combined?.crew?.length ?? 0);
+  const creditsCount = cast.length + crew.length;
 
   return {
     id: String(raw.id),
@@ -465,22 +473,37 @@ async function fetchDirectTMDB<T>(
     process.env.TMDB_TOKEN ||
     DEFAULT_TMDB_TOKEN;
 
-  try {
-    const res = await fetch(url.toString(), {
-      signal,
-      next: { revalidate: 3600 },
-      headers: {
-        Accept: "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    if (!res.ok) return null;
-    return (await res.json()) as T;
-  } catch (err) {
-    if (err instanceof DOMException && err.name === "AbortError") throw err;
-    console.warn(`[TMDB Direct Fallback] Failed for ${tmdbPath}:`, err);
-    return null;
+  const debut = Date.now();
+  let dernierEchec: unknown = null;
+  // Deux essais : cet hôte tombe régulièrement en ETIMEDOUT sur
+  // api.themoviedb.org, et sans reprise la fiche — titre, canonical et JSON-LD
+  // côté /person compris — disparaît du HTML servi.
+  for (let tentative = 0; tentative < 2; tentative++) {
+    try {
+      const res = await fetch(url.toString(), {
+        signal,
+        next: { revalidate: 3600 },
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (res.ok) return (await res.json()) as T;
+      // 404 = la ressource n'existe pas : la retester ne sert à rien.
+      if (res.status !== 404 && res.status < 500 && res.status !== 429) return null;
+      dernierEchec = new Error(`HTTP ${res.status}`);
+    } catch (err) {
+      if (signal?.aborted || (err instanceof DOMException && err.name === "AbortError")) {
+        throw err;
+      }
+      dernierEchec = err;
+    }
+    if (tentative === 0) {
+      await new Promise((r) => setTimeout(r, 350));
+    }
   }
+  console.warn(`[TMDB Direct Fallback] Failed for ${tmdbPath} (${Date.now() - debut} ms):`, dernierEchec);
+  return null;
 }
 
 async function fetchFallbackPage(
