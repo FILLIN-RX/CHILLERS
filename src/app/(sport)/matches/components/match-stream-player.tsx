@@ -1,10 +1,9 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import {
-  ArrowsClockwise,
   ArrowsOutSimple,
   Broadcast,
   Television,
@@ -52,7 +51,6 @@ export function MatchStreamPlayer({
   sport,
   startTime,
 }: MatchStreamPlayerProps) {
-  const [reloadKey, setReloadKey] = useState(0);
   const [ohaChoice, setOhaChoice] = useState<{ ch: OhaChannel; url: string } | null>(null);
   const [ohaResolving, setOhaResolving] = useState<string | null>(null);
   const [ohaError, setOhaError] = useState<string | null>(null);
@@ -70,9 +68,8 @@ export function MatchStreamPlayer({
   const {
     data: stream,
     isLoading,
-    refetch,
   } = useQuery({
-    queryKey: ["live", "match-stream", matchId, reloadKey],
+    queryKey: ["live", "match-stream", matchId],
     queryFn: async (): Promise<ResolvedMatchStream | null> => {
       const unified = await getMatchStream(matchId).catch(() => null);
       if (unified?.url) {
@@ -127,11 +124,6 @@ export function MatchStreamPlayer({
           isOnline: true,
         }
       : null;
-
-  const handleRetry = useCallback(() => {
-    setReloadKey((k) => k + 1);
-    refetch();
-  }, [refetch]);
 
   // Chaînes CHILLERS qui diffusent ce match : proposées avant les sources
   // externes (droits TV France 2026-2027).
@@ -285,16 +277,8 @@ export function MatchStreamPlayer({
           )}
         </div>
 
-        {/* Boutons de contrôle (Actualiser + Plein écran) */}
+        {/* Bouton plein écran */}
         <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 pt-[env(safe-area-inset-top,0px)] pr-[env(safe-area-inset-right,0px)]">
-          <button
-            onClick={handleRetry}
-            title="Actualiser le flux"
-            aria-label="Actualiser le flux"
-            className="flex h-11 w-11 items-center justify-center rounded-full bg-black/60 text-zinc-300 backdrop-blur-md border border-white/10 transition-colors hover:bg-black/90 hover:text-white"
-          >
-            <ArrowsClockwise className={`h-5 w-5 ${isLoading ? "animate-spin" : ""}`} />
-          </button>
           <button
             onClick={toggleFullscreen}
             title="Plein écran"
@@ -335,7 +319,7 @@ export function MatchStreamPlayer({
         {!isLoading && !channel && embedUrl && !ohaChannel && (
           <div className="h-full w-full">
             <iframe
-              key={`${embedUrl}-${reloadKey}`}
+              key={embedUrl}
               src={embedUrl}
               title={`${homeName} vs ${awayName}`}
               className="h-full w-full border-0"
@@ -388,15 +372,6 @@ export function MatchStreamPlayer({
             )}
 
             <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
-              <button
-                onClick={handleRetry}
-                className="flex items-center gap-1.5 rounded-full px-4 py-2 text-[12px] font-semibold text-white transition-all shadow-md"
-                style={{ background: PRIMARY }}
-              >
-                <ArrowsClockwise className="h-3.5 w-3.5" />
-                <span>Vérifier le signal</span>
-              </button>
-
               <Link
                 href="/live"
                 className="flex items-center gap-1.5 rounded-full bg-[#222222] hover:bg-[#2b2b2b] px-4 py-2 text-[12px] font-semibold text-zinc-300 hover:text-white transition-all border border-white/5"

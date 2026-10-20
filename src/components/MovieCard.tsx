@@ -144,7 +144,7 @@ function MovieCard({
   const isGridPoster = variant === "grid-poster";
 
   const posterSrc = item.posterUrl || item.backdropUrl;
-  const backdropSrc = !backdropFailed && (item.backdropOriginalUrl || item.backdropUrl) ? (item.backdropOriginalUrl || item.backdropUrl) : item.posterUrl;
+  const backdropSrc = !backdropFailed && (item.backdropUrl || item.backdropOriginalUrl) ? (item.backdropUrl || item.backdropOriginalUrl) : item.posterUrl;
   const primarySrc = isPoster ? posterSrc : backdropSrc;
 
   useImageTimeout({
@@ -158,7 +158,7 @@ function MovieCard({
         setImgLoaded(true);
       }
     },
-    timeoutMs: 6000,
+    timeoutMs: 15000,
   });
 
   const gradients = [

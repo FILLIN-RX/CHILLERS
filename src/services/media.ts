@@ -48,7 +48,7 @@ export function isSlowConnection(): boolean {
 
 export function getTmdbImageUrl(
   path?: string | null,
-  size: "original" | "w1280" | "w780" | "w500" | "w300" = "w780"
+  size: "original" | "w1280" | "w780" | "w500" | "w300" = "w500"
 ): string {
   if (!path) return "";
   if (path.startsWith("http://") || path.startsWith("https://")) return path;
@@ -115,6 +115,7 @@ export interface TmdbRawItem {
   backdrop_path?: string | null;
   vote_average?: number;
   vote_count?: number;
+  popularity?: number;
   genre_ids?: number[];
   genres?: { id: number; name: string }[];
   origin_country?: string[];
@@ -414,7 +415,7 @@ export function mapTMDBToMovieOrShow(
 
   const backdropUrl = getTmdbImageUrl(item.backdrop_path, "w1280");
   const backdropOriginalUrl = getTmdbImageUrl(item.backdrop_path, "original");
-  const posterUrl = getTmdbImageUrl(item.poster_path, "w780");
+  const posterUrl = getTmdbImageUrl(item.poster_path, "w500");
 
   return {
     id: String(item.id),
@@ -943,20 +944,22 @@ export async function discoverMediaPage(
   signal?: AbortSignal,
 ): Promise<{ results: MovieOrShow[]; totalPages: number }> {
   const endpoint = type === "movies" ? "/movies/discover" : "/tv/discover";
+  const page = Math.max(1, opts.page ?? 1);
+  const sort = opts.sort || "trending";
   try {
     const env = await httpJson<ApiEnvelope<PaginatedRaw>>(endpoint, {
       query: {
-        page: opts.page ?? 1,
+        page,
         language: clientLang(),
         genre: opts.genreId || undefined,
         year: opts.year || undefined,
-        sort: opts.sort || "trending",
+        sort,
         ...(type === "anime" ? { anime: 1 } : {}),
       },
       signal,
       timeoutMs: 12_000,
     });
-    if (env.success && env.data?.results) {
+    if (env.success && env.data?.results?.length) {
       return {
         results: env.data.results.map((r) =>
           mapTMDBToMovieOrShow(r, type === "movies" ? "movie" : undefined),
@@ -966,6 +969,79 @@ export async function discoverMediaPage(
     }
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") throw err;
+  }
+
+  // Production backend can be temporarily unavailable (or return an empty
+  // catalog). Keep Films/Séries usable by falling back directly to TMDB.
+  const language = clientLang() === "fr" ? "fr-FR" : "en-US";
+  const movieSort: Record<DiscoverSort, string> = {
+    trending: "popularity.desc",
+    rating: "vote_average.desc",
+    recent: "primary_release_date.desc",
+    oldest: "primary_release_date.asc",
+  };
+  const tvSort: Record<DiscoverSort, string> = {
+    trending: "popularity.desc",
+    rating: "vote_average.desc",
+    recent: "first_air_date.desc",
+    oldest: "first_air_date.asc",
+  };
+
+  if (type === "anime") {
+    const genres = opts.genreId ? `${opts.genreId},16` : "16";
+    const common: Record<string, string | number | null | undefined> = {
+      page,
+      language,
+      with_genres: genres,
+      with_original_language: "ja",
+      include_adult: "false",
+    };
+    const movieParams: Record<string, string | number | null | undefined> = {
+      ...common,
+      sort_by: movieSort[sort],
+    };
+    const tvParams: Record<string, string | number | null | undefined> = {
+      ...common,
+      sort_by: tvSort[sort],
+    };
+    if (opts.year) movieParams["primary_release_year"] = opts.year;
+    if (sort === "rating") {
+      movieParams["vote_count.gte"] = 100;
+      tvParams["vote_count.gte"] = 100;
+    }
+    const [tvData, movieData] = await Promise.all([
+      fetchDirectTMDB<PaginatedRaw>("/discover/tv", tvParams, signal),
+      fetchDirectTMDB<PaginatedRaw>("/discover/movie", movieParams, signal),
+    ]);
+    const results = [
+      ...(tvData?.results ?? []).map((raw) => ({ raw, item: mapTMDBToMovieOrShow(raw, "series") })),
+      ...(movieData?.results ?? []).map((raw) => ({ raw, item: mapTMDBToMovieOrShow(raw, "movie") })),
+    ]
+      .sort((a, b) => (b.raw.popularity ?? 0) - (a.raw.popularity ?? 0))
+      .slice(0, 20)
+      .map(({ item }) => item);
+    return { results, totalPages: Math.max(tvData?.total_pages ?? 1, movieData?.total_pages ?? 1) };
+  }
+
+  const isMovie = type === "movies";
+  const useTrending = sort === "trending" && !opts.genreId && !opts.year;
+  const directPath = useTrending
+    ? `/trending/${isMovie ? "movie" : "tv"}/week`
+    : `/discover/${isMovie ? "movie" : "tv"}`;
+  const params: Record<string, string | number | null | undefined> = {
+    page,
+    language,
+    ...(useTrending ? {} : { sort_by: isMovie ? movieSort[sort] : tvSort[sort], include_adult: "false" }),
+    ...(opts.genreId ? { with_genres: opts.genreId } : {}),
+    ...(opts.year ? { [isMovie ? "primary_release_year" : "first_air_date_year"]: opts.year } : {}),
+    ...(sort === "rating" ? { "vote_count.gte": isMovie ? 200 : 100 } : {}),
+  };
+  const directData = await fetchDirectTMDB<PaginatedRaw>(directPath, params, signal);
+  if (directData?.results?.length) {
+    return {
+      results: directData.results.map((raw) => mapTMDBToMovieOrShow(raw, isMovie ? "movie" : "series")),
+      totalPages: directData.total_pages || 1,
+    };
   }
   return { results: [], totalPages: 1 };
 }

@@ -3,10 +3,10 @@
 import React, { useState } from "react";
 import { Broadcast, CircleNotch, Television } from "@phosphor-icons/react";
 import type { OhaChannel } from "@/types/oha";
+import { getFastSportsImage } from "@/lib/sports-image";
 
 /**
- * Sélecteur de source du direct : chaînes CHILLERS (confirmées en premier,
- * sélectionnées automatiquement par l'EPG) puis sources externes.
+ * Sélecteur des chaînes CHILLERS confirmées par l'EPG ou proposées pour le match.
  */
 export default function MatchChannelsRow({
   channels,
@@ -24,7 +24,7 @@ export default function MatchChannelsRow({
   selectedId?: string | null;
   resolvingId?: string | null;
   onSelect: (ch: OhaChannel) => void;
-  /** Affiche une puce « Autres sources » (retour au flux externe). */
+  /** Retour au flux externe lorsqu'une chaîne CHILLERS est sélectionnée. */
   onExternal?: () => void;
   externalActive?: boolean;
   label?: string;
@@ -54,6 +54,7 @@ export default function MatchChannelsRow({
           const isActive = selectedId === ch.id;
           const isResolving = resolvingId === ch.id;
           const isConfirmed = confirmed.has(ch.id);
+          const logo = getFastSportsImage(ch.logo);
           return (
             <button
               key={ch.id}
@@ -73,14 +74,17 @@ export default function MatchChannelsRow({
                   isActive ? "bg-black/25" : "bg-black/45"
                 }`}
               >
-                {ch.logo && !broken[ch.id] ? (
+                {logo && !broken[ch.id] ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={ch.logo}
+                    src={logo}
                     alt=""
+                    width={72}
+                    height={40}
                     onError={() => setBroken((prev) => ({ ...prev, [ch.id]: true }))}
                     className="h-5 w-9 object-contain"
                     loading="lazy"
+                    decoding="async"
                   />
                 ) : (
                   <Television className="h-4 w-4 text-zinc-400" />
@@ -144,6 +148,7 @@ export default function MatchChannelsRow({
             </span>
           </button>
         )}
+
       </div>
     </div>
   );

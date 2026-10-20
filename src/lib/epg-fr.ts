@@ -57,11 +57,15 @@ function decodeEntities(value: string): string {
 }
 
 export function parseXmltv(xml: string): EpgIndex {
-  const displayById = new Map<string, string>();
-  const channelRe = /<channel\s+id="([^"]+)"\s*>([\s\S]*?)<\/channel>/gu;
+  const displayById = new Map<string, string[]>();
+  const channelRe = /<channel\b([^>]*)>([\s\S]*?)<\/channel>/gu;
   for (const m of xml.matchAll(channelRe)) {
-    const name = /<display-name[^>]*>([^<]*)<\/display-name>/u.exec(m[2]);
-    if (name) displayById.set(m[1], decodeEntities(name[1]).trim());
+    const id = /\bid="([^"]+)"/u.exec(m[1])?.[1];
+    if (!id) continue;
+    const names = [...m[2].matchAll(/<display-name\b[^>]*>([\s\S]*?)<\/display-name>/gu)]
+      .map((name) => decodeEntities(name[1].replace(/<!\[CDATA\[|\]\]>/gu, "")).trim())
+      .filter(Boolean);
+    displayById.set(id, names);
   }
 
   const byId = new Map<string, EpgProgram[]>();
@@ -87,12 +91,27 @@ export function parseXmltv(xml: string): EpgIndex {
   }
 
   const index: EpgIndex = new Map();
+  const idsByDisplayKey = new Map<string, Set<string>>();
   for (const [id, list] of byId) {
     list.sort((a, b) => a.start - b.start);
-    const keys = new Set([epgKey(id), epgKey(displayById.get(id) ?? "")]);
-    for (const key of keys) {
-      if (key) index.set(key, list);
+    const idKey = epgKey(id);
+    if (idKey) index.set(idKey, list);
+    for (const displayName of displayById.get(id) ?? []) {
+      const key = epgKey(displayName);
+      if (!key) continue;
+      const ids = idsByDisplayKey.get(key) ?? new Set<string>();
+      ids.add(id);
+      idsByDisplayKey.set(key, ids);
     }
+  }
+
+  // Les noms affichés ne sont pas toujours uniques (« Canal+ Sport », par
+  // exemple). On ne les utilise comme clé que si un seul ID XMLTV les porte.
+  for (const [key, ids] of idsByDisplayKey) {
+    if (ids.size !== 1 || index.has(key)) continue;
+    const id = ids.values().next().value;
+    const list = id ? byId.get(id) : undefined;
+    if (list) index.set(key, list);
   }
   return index;
 }
@@ -134,18 +153,21 @@ export async function getEpgIndex(): Promise<EpgIndex | null> {
   }
 }
 
-/** Programmes d'une chaîne autour du coup d'envoi (2 h avant → 3 h après). */
+/** Programmes autour du coup d'envoi, y compris une légère dérive d'horaire. */
 export function programsAround(
   index: EpgIndex,
   channel: Pick<OhaChannel, "name" | "tvg">,
   startMs: number,
 ): EpgProgram[] {
-  const keys = [epgKey(channel.name), channel.tvg ? epgKey(channel.tvg) : ""].filter(Boolean);
-  for (const key of keys) {
-    const list = index.get(key);
-    if (!list?.length) continue;
-    // Le programme qui est à l'antenne au coup d'envoi (pas les émissions voisines).
-    return list.filter((p) => p.start <= startMs && p.end > startMs);
-  }
-  return [];
+  // TVG-ID est l'identifiant précis ; le nom affiché n'est qu'un repli unique.
+  const tvgKey = channel.tvg ? epgKey(channel.tvg) : "";
+  const nameKey = epgKey(channel.name);
+  const key = tvgKey && index.has(tvgKey) ? tvgKey : nameKey;
+  const list = index.get(key);
+  if (!list?.length) return [];
+  return list.filter(
+    (program) =>
+      program.end >= startMs - 30 * 60_000 &&
+      program.start <= startMs + 30 * 60_000,
+  );
 }

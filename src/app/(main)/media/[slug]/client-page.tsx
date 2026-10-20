@@ -423,11 +423,11 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
     <div className="flex-1 flex flex-col text-white pb-20 sm:pb-0">
       {/* Le backdrop continue sous le hero : image floutée, assombrie pour la lisibilité */}
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 hidden overflow-hidden bg-[#1F1F1F] sm:block">
-        {(item.backdropOriginalUrl || item.backdropUrl) && (
+        {(item.backdropUrl || item.backdropOriginalUrl) && (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={item.backdropOriginalUrl || item.backdropUrl}
+              src={item.backdropUrl || item.backdropOriginalUrl}
               alt=""
               className="h-full w-full scale-125 object-cover object-top opacity-70 blur-3xl saturate-150"
             />
@@ -456,12 +456,12 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
 
       {/* 1. HERO SECTION */}
       <div className="relative flex w-full flex-col justify-end overflow-hidden sm:min-h-[70vh] sm:max-h-[750px] lg:h-[78vh]">
-        {item.posterUrl || item.backdropOriginalUrl || item.backdropUrl ? (
+        {item.posterUrl || item.backdropUrl || item.backdropOriginalUrl ? (
           <>
             {/* Mobile : affiche portrait (comme oha.to), non recadrée */}
             <div className="relative aspect-[2/3] w-full shrink-0 overflow-hidden sm:hidden">
               <Image
-                src={item.posterUrl || item.backdropOriginalUrl || item.backdropUrl}
+                src={item.posterUrl || item.backdropUrl || item.backdropOriginalUrl}
                 alt={item.title}
                 fill
                 className="object-cover object-center"
@@ -473,10 +473,10 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
               <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black/60 to-transparent" />
             </div>
             {/* Desktop : backdrop plein écran */}
-            {(item.backdropOriginalUrl || item.backdropUrl) && (
+            {(item.backdropUrl || item.backdropOriginalUrl) && (
               <div className="relative hidden sm:absolute sm:inset-0 sm:block">
                 <Image
-                  src={item.backdropOriginalUrl || item.backdropUrl}
+                  src={item.backdropUrl || item.backdropOriginalUrl}
                   alt={item.title}
                   fill
                   className="object-cover object-top"

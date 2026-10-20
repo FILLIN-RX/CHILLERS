@@ -307,6 +307,8 @@ const TEAM_ALIASES: Record<string, string[]> = {
   inter: ["inter milan"],
   bayern: ["bayern munich", "bayern munchen"],
   bvb: ["dortmund", "borussia dortmund"],
+  fenerbahce: ["fenerbahce istanbul", "fenerbahce sk"],
+  slavia: ["slavia prague", "slavia praha"],
 };
 
 function escapeRe(value: string): string {
@@ -316,9 +318,24 @@ function escapeRe(value: string): string {
 /** Clés de recherche d'une équipe : tokens + alias (dans les deux sens). */
 function teamKeys(name?: string): string[] {
   const keys = new Set<string>(tokens(name));
+  const phrase = (name ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/gu, "")
+    .replace(/[^a-z0-9]+/gu, " ")
+    .trim();
+  if (phrase) keys.add(phrase);
   for (const [abbr, aliases] of Object.entries(TEAM_ALIASES)) {
     const all = [abbr, ...aliases];
-    if (all.some((a) => keys.has(a))) {
+    if (all.some((alias) => {
+      const normalized = alias
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/gu, "")
+        .replace(/[^a-z0-9]+/gu, " ")
+        .trim();
+      return phrase === normalized || Boolean(phrase && containsWord(phrase, normalized));
+    })) {
       all.forEach((a) => keys.add(a));
     }
   }
@@ -342,7 +359,17 @@ function toMs(value?: string | number): number | null {
   return Number.isFinite(ms) ? ms : null;
 }
 
-/** Le titre d'un programme désigne-t-il ce match (équipes ou compétition) ? */
+function programMatchesCompetition(
+  title: string,
+  info: MatchChannelInfo,
+): boolean {
+  const haystack = `${info.league ?? ""} ${info.title ?? ""}`;
+  return COMPETITION_KEYWORDS.some(
+    (rule) => rule.test.test(haystack) && rule.keywords.test(title),
+  );
+}
+
+/** Le titre désigne-t-il précisément ce match ? */
 export function programMatchesMatch(
   title: string,
   info: MatchChannelInfo & { home?: string; away?: string },
@@ -350,33 +377,26 @@ export function programMatchesMatch(
   if (!title) return false;
   const normalized = title.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/gu, "");
 
-  // 1. Un nom d'équipe (ou son abréviation) apparaît dans le titre.
-  const teamHit = [...teamKeys(info.home), ...teamKeys(info.away)].some((key) =>
-    containsWord(normalized, key),
-  );
-  if (teamHit) return true;
-
   // Les émissions d'avant/après-match ne confirment pas la diffusion du match.
   if (/plateau|avant[- ]?match|apr[eè]s[- ]?match|d[eé]brief|magazine/iu.test(normalized)) {
     return false;
   }
 
-  // 2. Le titre nomme la compétition.
-  const haystack = `${info.league ?? ""} ${info.title ?? ""}`;
-  for (const rule of COMPETITION_KEYWORDS) {
-    if (rule.test.test(haystack) && rule.keywords.test(title)) return true;
-  }
+  // Si les deux équipes sont connues, les deux doivent apparaître. Un titre
+  // « Ligue des Champions » seul ne permet pas de distinguer le match du rugby
+  // ou d'un autre match diffusé au même moment sur une chaîne homonyme.
+  const homeKeys = teamKeys(info.home);
+  const awayKeys = teamKeys(info.away);
+  const homeHit = homeKeys.some((key) => containsWord(normalized, key));
+  const awayHit = awayKeys.some((key) => containsWord(normalized, key));
+  if (homeKeys.length > 0 && awayKeys.length > 0) return homeHit && awayHit;
+  if (homeKeys.length > 0 || awayKeys.length > 0) return homeHit || awayHit;
 
-  return false;
+  // Si on n'a pas les noms des équipes, la compétition reste un signal utile.
+  return programMatchesCompetition(title, info);
 }
 
-function epgMatchesEntry(
-  entry: EpgLikeEntry | undefined,
-  info: MatchChannelInfo & { home?: string; away?: string },
-  matchStartMs?: number,
-): boolean {
-  if (!entry?.title) return false;
-
+function epgEntryAtMatchTime(entry: EpgLikeEntry, matchStartMs?: number): boolean {
   // Fenêtre : le programme doit couvrir le coup d'envoi (± 30 min de tolérance).
   if (matchStartMs && entry.start != null && entry.end != null) {
     const s = toMs(entry.start);
@@ -386,6 +406,15 @@ function epgMatchesEntry(
       if (matchStartMs < s - margin || matchStartMs > e + margin) return false;
     }
   }
+  return true;
+}
+
+function epgMatchesEntry(
+  entry: EpgLikeEntry | undefined,
+  info: MatchChannelInfo & { home?: string; away?: string },
+  matchStartMs?: number,
+): boolean {
+  if (!entry?.title || !epgEntryAtMatchTime(entry, matchStartMs)) return false;
 
   return programMatchesMatch(entry.title, info);
 }
@@ -401,8 +430,66 @@ export function rankChannelsForMatch(
   /** EPG externe (journée complète) : remplace le now/next d'oha quand disponible. */
   lookup?: (channel: OhaChannel) => EpgLikeEntry[],
 ): MatchChannelStatus[] {
-  const candidates = pickMatchChannels(channels, info);
-  const statuses = candidates.map((channel) => {
+  const preferred = pickMatchChannels(channels, info);
+  const evaluate = (channel: OhaChannel): MatchChannelStatus | null => {
+    const variants = channel.sourceVariants ?? [];
+    const variantsWithSchedule = variants
+      .map((variant) => ({
+        variant,
+        entries: [variant.epgNow, variant.epgNext].filter(
+          (entry): entry is NonNullable<typeof entry> => Boolean(entry),
+        ),
+      }))
+      .filter(({ entries }) => entries.length > 0);
+
+    // Quand les doublons ont un EPG propre, ne pas réutiliser les autres
+    // variantes comme fallback : l'une peut programmer du rugby à cette heure.
+    if (variantsWithSchedule.length > 0) {
+      const matching: { variant: (typeof variants)[number]; entry: EpgLikeEntry }[] = [];
+      const competitionOnly: { variant: (typeof variants)[number]; entry: EpgLikeEntry }[] = [];
+      for (const { variant, entries } of variantsWithSchedule) {
+        const entry = entries.find((item) => epgMatchesEntry(item, info, matchStartMs));
+        if (entry) matching.push({ variant, entry });
+        else {
+          const broadEntry = entries.find(
+            (item) => epgEntryAtMatchTime(item, matchStartMs) && programMatchesCompetition(item.title, info),
+          );
+          if (broadEntry) competitionOnly.push({ variant, entry: broadEntry });
+        }
+      }
+      // Un EPG qui annonce seulement la compétition donne une piste, pas une
+      // confirmation : garder la chaîne visible sans la démarrer par défaut.
+      if (matching.length === 0 && competitionOnly.length > 0) {
+        const possible = competitionOnly[0];
+        return {
+          channel: {
+            ...channel,
+            id: possible.variant.id,
+            altIds: undefined,
+            epgNow: possible.variant.epgNow,
+            epgNext: possible.variant.epgNext,
+            sourceVariants: [possible.variant],
+          },
+          confirmed: false,
+          matchedTitle: possible.entry.title,
+        };
+      }
+      if (matching.length === 0) return null;
+
+      const selected = matching[0];
+      const matchingIds = matching.map(({ variant }) => variant.id);
+      const altIds = matchingIds.filter((id) => id !== selected.variant.id);
+      const selectedChannel: OhaChannel = {
+        ...channel,
+        id: selected.variant.id,
+        altIds: altIds.length > 0 ? altIds : undefined,
+        epgNow: selected.variant.epgNow,
+        epgNext: selected.variant.epgNext,
+        sourceVariants: matching.map(({ variant }) => variant),
+      };
+      return { channel: selectedChannel, confirmed: true, matchedTitle: selected.entry.title };
+    }
+
     const external = lookup?.(channel) ?? [];
     const entries: EpgLikeEntry[] =
       external.length > 0 ? external : [channel.epgNow, channel.epgNext].filter((e): e is NonNullable<typeof e> => Boolean(e));
@@ -411,8 +498,31 @@ export function rankChannelsForMatch(
         return { channel, confirmed: true, matchedTitle: entry?.title };
       }
     }
+    const competitionEntry = entries.find(
+      (entry) => epgEntryAtMatchTime(entry, matchStartMs) && programMatchesCompetition(entry.title, info),
+    );
+    if (competitionEntry) {
+      return { channel, confirmed: false, matchedTitle: competitionEntry.title };
+    }
+    // Un programme connu qui ne correspond pas au match est une vraie
+    // exclusion, pas une simple absence d'information.
+    if (entries.length > 0) return null;
     return { channel, confirmed: false };
-  });
+  };
+
+  const preferredIds = new Set(preferred.map((channel) => channel.id));
+  const statuses = preferred
+    .map(evaluate)
+    .filter((status): status is MatchChannelStatus => Boolean(status));
+
+  // Les droits TV servent de première piste, mais ne couvrent pas toujours
+  // les matchs décalés ou les canaux événementiels. L'EPG peut alors faire
+  // remonter une autre chaîne sport qui annonce réellement la rencontre.
+  for (const channel of channels) {
+    if (channel.category !== "sport" || preferredIds.has(channel.id)) continue;
+    const status = evaluate(channel);
+    if (status?.confirmed) statuses.push(status);
+  }
 
   // Confirmées d'abord, puis dans l'ordre de préférence.
   return [...statuses].sort((a, b) => Number(b.confirmed) - Number(a.confirmed));

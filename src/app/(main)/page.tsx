@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import { unstable_cache } from "next/cache";
 import { Suspense } from "react";
 import {
   getTrendingMovies,
@@ -20,13 +21,42 @@ export const metadata: Metadata = {
   alternates: { canonical: "/" },
 };
 
-export default async function HomePage() {
+const getCachedTrendingMovies = unstable_cache(
+  () => getTrendingMovies(),
+  ["home-trending-movies"],
+  { revalidate: 300, tags: ["home"] },
+);
+const getCachedTrendingTV = unstable_cache(
+  () => getTrendingTV(),
+  ["home-trending-tv"],
+  { revalidate: 300, tags: ["home"] },
+);
+const getCachedAnimeSeries = unstable_cache(
+  () => getAnimeSeriesPage(1),
+  ["home-anime"],
+  { revalidate: 300, tags: ["home"] },
+);
+const getCachedUpcomingMovies = unstable_cache(
+  () => getUpcomingMovies(1),
+  ["home-upcoming-movies"],
+  { revalidate: 300, tags: ["home"] },
+);
+
+export default function HomePage() {
+  return <Suspense fallback={<HomeSkeleton />}><HomeCriticalContent /></Suspense>;
+}
+
+async function HomeCriticalContent() {
   // Tier 1 (Critical, above-the-fold): Only hero-critical calls
   // Trending films + séries, et animes phares (pas d'endpoint "trending anime" sur TMDb).
+  const trendingMoviesPromise = getCachedTrendingMovies().catch(() => []);
+  const trendingTVPromise = getCachedTrendingTV().catch(() => []);
+  const animeSeriesPromise = getCachedAnimeSeries().catch(() => ({ results: [], totalPages: 1 }));
+  const upcomingMoviesPromise = getCachedUpcomingMovies().catch(() => []);
   const [trendingMovies, trendingTV, animeSeriesPage] = await Promise.all([
-    getTrendingMovies().catch(() => []),
-    getTrendingTV().catch(() => []),
-    getAnimeSeriesPage(1).catch(() => ({ results: [], totalPages: 1 })),
+    trendingMoviesPromise,
+    trendingTVPromise,
+    animeSeriesPromise,
   ]);
 
   const animeCollection = animeSeriesPage.results || [];
@@ -45,27 +75,18 @@ export default async function HomePage() {
 
   const heroSlides = heroBase.slice(0, 10);
 
-  // Tier 2 (Deferred, non-critical): Start these promises but do NOT await them in critical path
-  // These will be streamed to HomeClientWrapper as promises
-  const trendingMoviesPromise = getTrendingMovies().catch(() => []);
-  const trendingTVPromise = getTrendingTV().catch(() => []);
-  const upcomingMoviesPromise = getUpcomingMovies(1).catch(() => []);
-
   return (
-    <Suspense fallback={<HomeSkeleton />}>
-      <HomeClientWrapper
-        heroSlides={trimShowcaseItems(heroSlides)}
-        trendingMoviesPromise={trendingMoviesPromise}
-        trendingTVPromise={trendingTVPromise}
-        upcomingMoviesPromise={upcomingMoviesPromise}
-        popularSeries={trimRowItems(trendingTV)}
-        animeCollection={trimRowItems(animeCollection)}
-      >
-        {/* Tier 2 (Below-the-fold) : Streamé progressivement en arrière-plan sans bloquer le TTFB */}
-        <Suspense fallback={<HomeSecondarySkeleton />}>
-          <HomeSecondaryStream />
-        </Suspense>
-      </HomeClientWrapper>
-    </Suspense>
+    <HomeClientWrapper
+      heroSlides={trimShowcaseItems(heroSlides)}
+      trendingMoviesPromise={trendingMoviesPromise}
+      trendingTVPromise={trendingTVPromise}
+      upcomingMoviesPromise={upcomingMoviesPromise}
+      popularSeries={trimRowItems(trendingTV)}
+      animeCollection={trimRowItems(animeCollection)}
+    >
+      <Suspense fallback={<HomeSecondarySkeleton />}>
+        <HomeSecondaryStream />
+      </Suspense>
+    </HomeClientWrapper>
   );
 }

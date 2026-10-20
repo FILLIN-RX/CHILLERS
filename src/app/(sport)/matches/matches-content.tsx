@@ -9,6 +9,7 @@ import { getLeagues, getMatches } from "@/services/matches";
 import type { SportMatch, MatchLeague } from "@/types/matches";
 import { CalendarBlank, CaretDown, CaretLeft, CaretRight, CaretUp, MagnifyingGlass, X } from "@phosphor-icons/react";
 import { FONT_STACK, cacheMatch, formatTime, localDateStr, matchHref } from "./match-utils";
+import { getFastSportsImage } from "@/lib/sports-image";
 
 /** Couleur principale de l'application. */
 const PRIMARY = "#FF6A00";
@@ -22,12 +23,13 @@ const FOCUS =
 export function TeamLogo({ src, name, className = "h-8 w-8" }: { src?: string; name: string; className?: string }) {
   const [hasError, setHasError] = useState(false);
   const [lastSrc, setLastSrc] = useState(src);
+  const imageSrc = getFastSportsImage(src);
   if (src !== lastSrc) {
     setLastSrc(src);
     setHasError(false);
   }
 
-  if (!src || hasError) {
+  if (!imageSrc || hasError) {
     return (
       <span className={`flex shrink-0 items-center justify-center text-[13px] font-bold uppercase text-[#8A8A8A] ${className}`}>
         {name ? name[0] : "?"}
@@ -35,7 +37,7 @@ export function TeamLogo({ src, name, className = "h-8 w-8" }: { src?: string; n
     );
   }
 
-  return <img src={src} alt={name} onError={() => setHasError(true)} className={`shrink-0 object-contain ${className}`} />;
+  return <img src={imageSrc} alt={name} width={96} height={96} loading="lazy" decoding="async" onError={() => setHasError(true)} className={`shrink-0 object-contain ${className}`} />;
 }
 
 // ─── Championnats majeurs (football uniquement) : liste de repli, remplacée
@@ -408,4 +410,3 @@ export default function MatchesContent() {
 export function MatchRow({ match, date, active }: { match: SportMatch; date: string; active?: boolean }) {
   return <MatchCard match={match} date={date} active={active} />;
 }
-

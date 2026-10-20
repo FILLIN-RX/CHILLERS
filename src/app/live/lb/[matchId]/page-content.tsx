@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowsClockwise, Television, X } from "@phosphor-icons/react";
+import { Television, X } from "@phosphor-icons/react";
 import LivePlayer from "@/components/LivePlayer";
 import CompetitionBadge from "@/components/CompetitionBadge";
 import { MatchBackdrop, TeamCrest } from "@/components/MatchCardBackdrop";
@@ -17,7 +17,6 @@ import type { LiveBallMatch } from "@/types/liveball";
 
 export default function LiveBallMatchContent() {
   const { matchId } = useParams<{ matchId: string }>();
-  const [reloadKey, setReloadKey] = useState(0);
 
   // Verrouille le scroll de la page tant que la vue plein écran est ouverte.
   useEffect(() => {
@@ -63,8 +62,8 @@ export default function LiveBallMatchContent() {
   const isUpcoming = preMatch || match?.status === "upcoming";
   const isLive = match?.status === "live";
 
-  const { data: stream, isLoading, refetch } = useQuery({
-    queryKey: ["live", "liveball", "stream", matchId, reloadKey],
+  const { data: stream, isLoading } = useQuery({
+    queryKey: ["live", "liveball", "stream", matchId],
     queryFn: () => getLiveBallStream(matchId),
     staleTime: 0,
     retry: false,
@@ -108,11 +107,6 @@ export default function LiveBallMatchContent() {
         isOnline: true,
       }
     : null;
-
-  const retry = () => {
-    setReloadKey((k) => k + 1);
-    refetch();
-  };
 
   return (
     <div className="fixed inset-0 z-40 h-dvh w-screen bg-black overflow-hidden">
@@ -221,13 +215,6 @@ export default function LiveBallMatchContent() {
             </div>
 
             <div className="flex flex-wrap items-center justify-center gap-3">
-              <button
-                onClick={retry}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-brand-primary hover:brightness-110 text-white text-xs font-black uppercase tracking-wider transition-all shadow-lg shadow-red-600/20"
-              >
-                <ArrowsClockwise className="h-4 w-4" />
-                Réessayer la connexion
-              </button>
               <Link
                 href="/live"
                 className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-wider transition-all"

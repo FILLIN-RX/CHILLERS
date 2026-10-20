@@ -5,6 +5,7 @@ import Link from "next/link";
 import { getMatches } from "@/services/matches";
 import type { SportMatch } from "@/types/matches";
 import { cacheMatch, formatTime, localDateStr, matchHref } from "../match-utils";
+import { getFastSportsImage } from "@/lib/sports-image";
 
 const PRIMARY = "#FF6A00";
 const DIVIDER = "#262626";
@@ -33,14 +34,15 @@ const DAYS_BACK = 7;
 function Logo({ src, name, className }: { src?: string | null; name: string; className: string }) {
   const [err, setErr] = useState(false);
   useEffect(() => setErr(false), [src]);
-  if (!src || err) {
+  const imageSrc = getFastSportsImage(src);
+  if (!imageSrc || err) {
     return (
       <span className={`flex shrink-0 items-center justify-center text-[13px] font-bold uppercase ${className}`} style={{ color: MUTED }}>
         {name[0] ?? "?"}
       </span>
     );
   }
-  return <img src={src} alt={name} onError={() => setErr(true)} className={`shrink-0 object-contain ${className}`} />;
+  return <img src={imageSrc} alt={name} width={96} height={96} loading="lazy" decoding="async" onError={() => setErr(true)} className={`shrink-0 object-contain ${className}`} />;
 }
 
 function dayLabel(dateStr: string, today: string) {

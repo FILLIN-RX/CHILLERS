@@ -106,7 +106,7 @@ export default function AppleMovieCard({
       setImgError(true);
       setImgLoaded(true);
     },
-    timeoutMs: 6000,
+    timeoutMs: 15000,
   });
 
   const isUpcoming = React.useMemo(() => {

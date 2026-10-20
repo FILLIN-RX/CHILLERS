@@ -6,7 +6,7 @@ import type Hls from "hls.js";
 import { useLanguage } from "@/i18n/LanguageContext";
 import type { LiveChannel } from "@/types/live";
 import { PopupFirewall } from "@/lib/PopupFirewall";
-import { ArrowLeft, X, Play, Pause, ArrowsClockwise, SpeakerSimpleHigh, SpeakerSimpleSlash, ArrowsOutSimple, ArrowsInSimple, Television, DotsThreeVertical, PictureInPicture, ShareNetwork, Check } from "@phosphor-icons/react";
+import { ArrowLeft, X, Play, Pause, ArrowsClockwise, SpeakerSimpleHigh, SpeakerSimpleSlash, ArrowsOutSimple, ArrowsInSimple, Television, PictureInPicture, ShareNetwork, Check } from "@phosphor-icons/react";
 
 interface LivePlayerProps {
   channel: LiveChannel;
@@ -121,14 +121,10 @@ export default function LivePlayer({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [showChannelDrawer, setShowChannelDrawer] = useState(false);
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
   const [proxyMode, setProxyMode] = useState(false);
-  const [reloadKey, setReloadKey] = useState(0);
   const [shareCopied, setShareCopied] = useState(false);
-  const [latencyMode, setLatencyMode] = useState<"low" | "stable">("low");
-  const [liveLatency, setLiveLatency] = useState<number | null>(null);
 
   const isHls = channel.type === "hls";
 
@@ -138,15 +134,6 @@ export default function LivePlayer({
       : channel.type === "dailymotion" && channel.ytVideoId
         ? `https://www.dailymotion.com/embed/video/${channel.ytVideoId}?autoplay=1&muted=0`
         : null;
-
-  const retry = useCallback(() => {
-    setError(null);
-    setProxyMode(false);
-    setIsLoading(true);
-    setIsLive(true);
-    setLiveProgress(100);
-    setReloadKey((k) => k + 1);
-  }, []);
 
   // Détection dynamique de l'état LIVE (en direct vs différé/pause)
   const updateLiveState = useCallback(() => {
@@ -163,7 +150,6 @@ export default function LivePlayer({
       const start = el.seekable.start(0);
       const current = el.currentTime;
       const delay = end - current;
-      setLiveLatency(delay);
 
       // Si le retard sur le flux direct est inférieur à 6 secondes, on est en LIVE
       const atLiveEdge = delay <= 6;
@@ -188,7 +174,7 @@ export default function LivePlayer({
     setShowControls(true);
     if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
     controlsTimeoutRef.current = setTimeout(() => {
-      if (!showChannelDrawer && !showSettingsModal) {
+      if (!showChannelDrawer) {
         setShowControls(false);
       }
     }, 4000);
@@ -217,7 +203,7 @@ export default function LivePlayer({
     setIsLive(true);
     setLiveProgress(100);
 
-    const lowLatency = latencyMode === "low";
+    const lowLatency = true;
     const config: any = {
       enableWorker: true,
       lowLatencyMode: lowLatency,
@@ -323,7 +309,7 @@ export default function LivePlayer({
       cancelled = true;
       if (hls) hls.destroy();
     };
-  }, [isHls, channel.streamUrl, proxyMode, reloadKey, isMuted, updateLiveState, latencyMode]);
+  }, [isHls, channel.streamUrl, proxyMode, isMuted, updateLiveState]);
 
   // Fullscreen change listener
   useEffect(() => {
@@ -384,12 +370,6 @@ export default function LivePlayer({
     }
   };
 
-  const toggleLatencyMode = () => {
-    const next = latencyMode === "low" ? "stable" : "low";
-    setLatencyMode(next);
-    window.setTimeout(() => setReloadKey((k) => k + 1), 0);
-  };
-
   const seekRelative = (seconds: number) => {
     const el = videoRef.current;
     if (!el) return;
@@ -447,7 +427,7 @@ export default function LivePlayer({
         setShowControls(true);
         if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
         controlsTimeoutRef.current = setTimeout(() => {
-          if (!showChannelDrawer && !showSettingsModal) {
+          if (!showChannelDrawer) {
             setShowControls(false);
           }
         }, 4000);
@@ -458,6 +438,22 @@ export default function LivePlayer({
           : "min-h-[200px] sm:min-h-[340px] aspect-video max-h-[75dvh]"
       }`}
     >
+      {/* Marque permanente : indépendante de l'apparition des commandes. */}
+      <div className="pointer-events-none absolute right-[calc(env(safe-area-inset-right,0px)+0.75rem)] top-[calc(env(safe-area-inset-top,0px)+0.75rem)] z-50 flex items-center rounded-full border border-white/10 bg-black/55 px-2.5 py-1 backdrop-blur-md shadow-lg">
+        <img
+          src="/favicon-32x32.png"
+          alt="CHILLERS"
+          width={28}
+          height={28}
+          loading="eager"
+          decoding="async"
+          className="h-6 w-6 shrink-0 object-contain drop-shadow-[0_0_10px_rgba(215,4,102,0.5)]"
+        />
+        <span className="-ml-1.5 text-sm font-isometra tracking-tight text-white">
+          HILL<span className="text-brand-primary">ERS</span>
+        </span>
+      </div>
+
       {/* ── Main Video Layer ────────────────────────────────────── */}
       {iframeSrc ? (
         <iframe
@@ -509,13 +505,6 @@ export default function LivePlayer({
           <p className="text-sm text-zinc-400 max-w-md">
             La chaîne {channel.name} est en cours d'actualisation ou le signal source est interrompu.
           </p>
-          <button
-            onClick={retry}
-            className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-red-600 hover:bg-red-500 text-white text-xs font-black uppercase tracking-wider transition-all"
-          >
-            <ArrowsClockwise className="h-4 w-4" />
-            Réessayer
-          </button>
         </div>
       )}
 
@@ -536,18 +525,6 @@ export default function LivePlayer({
               <ArrowLeft className="h-5 w-5" />
             </button>
 
-            {/* Marque CHILLERS (logo + nom) */}
-            <div className="flex items-center gap-1.5 shrink-0">
-              <img
-                src="/favicon-32x32.png"
-                alt="CHILLERS"
-                className="h-6 sm:h-7 w-auto object-contain drop-shadow-[0_0_10px_rgba(215,4,102,0.5)]"
-              />
-              <span className="hidden sm:flex text-sm sm:text-base font-isometra tracking-tight text-white">
-                HILL<span className="text-brand-primary">ERS</span>
-              </span>
-            </div>
-
             <div className="min-w-0">
               <h1 className="text-sm sm:text-base font-semibold text-white truncate">
                 {channel.name}
@@ -564,7 +541,7 @@ export default function LivePlayer({
           </div>
 
           {/* Droite : Logo chaîne + Volume + PiP + Partager */}
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <div className="mr-28 flex shrink-0 items-center gap-2 sm:gap-3">
             <ChannelLogoBadge
               logo={channel.logo}
               name={channel.name}
@@ -682,7 +659,7 @@ export default function LivePlayer({
             </button>
           </div>
 
-          {/* Droite : Chaînes, Options, Plein écran */}
+          {/* Droite : Chaînes, Plein écran */}
           <div className="flex items-center gap-2 sm:gap-3">
             {allChannels.length > 0 && (
               <button
@@ -693,14 +670,6 @@ export default function LivePlayer({
                 <span className="hidden sm:inline">Chaînes</span>
               </button>
             )}
-
-            <button
-              onClick={() => setShowSettingsModal(!showSettingsModal)}
-              className={`${GLASS_BTN} w-11 h-11`}
-              aria-label="Options"
-            >
-              <DotsThreeVertical className="h-5 w-5" />
-            </button>
 
             <button
               onClick={toggleFullscreen}
@@ -773,88 +742,6 @@ export default function LivePlayer({
         </div>
       )}
 
-      {/* ── SETTINGS OVERLAY (OPTIONS) ─────────────────────────────── */}
-      {showSettingsModal && (
-        <div className="absolute inset-y-0 right-0 z-40 w-80 sm:w-96 bg-black/95 backdrop-blur-xl border-l border-white/10 flex flex-col p-4 pb-[calc(1rem_+_env(safe-area-inset-bottom,0px))] animate-fade-in">
-          <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
-            <h3 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
-              <DotsThreeVertical className="h-4 w-4 text-red-500" />
-              Options
-            </h3>
-            <button
-              onClick={() => setShowSettingsModal(false)}
-              className="p-1.5 rounded-full hover:bg-white/10 text-zinc-400 hover:text-white"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-
-          {/* Latence en direct */}
-          <div className="mb-4 rounded-xl bg-zinc-900/60 border border-white/10 p-3 flex items-center justify-between">
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
-                Latence actuelle
-              </p>
-              <p className="text-lg font-black text-white mt-0.5 tabular-nums">
-                {liveLatency != null ? `${liveLatency.toFixed(1)}s` : "—"}
-              </p>
-            </div>
-            {isLive && (
-              <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-red-500 bg-red-500/10 px-2 py-1 rounded-md border border-red-500/20">
-                <span className="relative flex h-1.5 w-1.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-500" />
-                </span>
-                Direct
-              </span>
-            )}
-          </div>
-
-          {/* Toggle basse latence */}
-          <button
-            onClick={toggleLatencyMode}
-            className="flex items-center justify-between gap-3 w-full rounded-lg bg-white/5 border border-white/10 p-3 text-left hover:bg-white/10 transition-colors"
-          >
-            <div>
-              <p className="text-sm font-bold text-white flex items-center gap-1.5">
-                Basse latence
-                {liveLatency != null && latencyMode === "low" && (
-                  <span className="text-[10px] font-black uppercase tracking-wider text-brand-primary bg-brand-primary/10 px-1.5 py-0.5 rounded-md">
-                    ~{Math.min(6, Math.round(liveLatency))}s
-                  </span>
-                )}
-                {liveLatency != null && latencyMode === "stable" && (
-                  <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded-md">
-                    ~{Math.max(6, Math.round(liveLatency))}s
-                  </span>
-                )}
-              </p>
-              <p className="text-[11px] text-zinc-400 mt-1 leading-snug">
-                {latencyMode === "low"
-                  ? "~4-6s de retard, proche du direct (recommandé)."
-                  : "~15s de retard, plus tolérant aux coupures réseau."}
-              </p>
-            </div>
-            <span
-              className={`relative shrink-0 w-11 h-6 rounded-full transition-colors ${
-                latencyMode === "low" ? "bg-brand-primary" : "bg-zinc-700"
-              }`}
-            >
-              <span
-                className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
-                  latencyMode === "low" ? "translate-x-[22px]" : "translate-x-0.5"
-                }`}
-              />
-            </span>
-          </button>
-
-          <p className="mt-4 text-[11px] text-zinc-600 leading-relaxed">
-            Le mode basse latence colle le lecteur au direct (comme YouTube/TikTok). Le mode
-            stable garde un buffer plus large, idéal si le flux tremble sur une connexion lente.
-            Changer de mode relance le flux à la live edge.
-          </p>
-        </div>
-      )}
     </div>
   );
 }

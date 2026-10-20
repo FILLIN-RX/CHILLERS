@@ -257,7 +257,7 @@ export default function HeroCarousel({
                 {/* Backdrop Image (uniquement slides proches) */}
                 {isNear && (
                   <Image
-                    src={slide.backdropOriginalUrl || slide.backdropUrl}
+                    src={slide.backdropUrl || slide.backdropOriginalUrl}
                     alt={slide.title}
                     fill
                     className="object-cover object-[center_30%] sm:object-center transition-opacity duration-700"

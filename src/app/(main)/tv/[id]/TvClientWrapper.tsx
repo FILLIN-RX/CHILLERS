@@ -237,7 +237,7 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
         name: s.name || `Saison ${s.seasonNumber ?? s.season_number ?? 1}`,
         seasonNumber: Number(s.seasonNumber ?? s.season_number ?? 1),
         episodeCount: Number(s.episodeCount ?? s.episode_count ?? 0),
-        posterUrl: s.posterUrl || (s.poster_path ? `https://image.tmdb.org/t/p/original${s.poster_path}` : item?.posterUrl || ""),
+        posterUrl: s.posterUrl || (s.poster_path ? `https://image.tmdb.org/t/p/w500${s.poster_path}` : item?.posterUrl || ""),
       }))
       .filter((s) => s.seasonNumber > 0);
   }, [item]);
@@ -246,8 +246,8 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
   const displayTitle = item.title || rawItem.name || "Série";
   const displayRating = item.rating || (rawItem.vote_average ? Number(rawItem.vote_average).toFixed(1) : "8.0");
   const displayYear = item.year || (rawItem.first_air_date ? new Date(rawItem.first_air_date).getFullYear() : "");
-  const displayPoster = item.posterUrl || (rawItem.poster_path ? `https://image.tmdb.org/t/p/original${rawItem.poster_path}` : "");
-  const displayBackdrop = item.backdropOriginalUrl || item.backdropUrl || (rawItem.backdrop_path ? `https://image.tmdb.org/t/p/original${rawItem.backdrop_path}` : "");
+  const displayPoster = item.posterUrl || (rawItem.poster_path ? `https://image.tmdb.org/t/p/w500${rawItem.poster_path}` : "");
+  const displayBackdrop = item.backdropUrl || item.backdropOriginalUrl || (rawItem.backdrop_path ? `https://image.tmdb.org/t/p/w1280${rawItem.backdrop_path}` : "");
 
   return (
     <div className="min-h-screen text-white select-none pb-20">

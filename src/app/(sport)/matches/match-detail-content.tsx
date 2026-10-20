@@ -19,6 +19,7 @@ import { SummaryTab } from "./components/summary-tab";
 import { StatsTab } from "./components/stats-tab";
 import { LineupsTab } from "./components/lineups-tab";
 import { MatchStreamPlayer } from "./components/match-stream-player";
+import { getFastSportsImage } from "@/lib/sports-image";
 
 const FOCUS =
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white";
@@ -297,7 +298,7 @@ function TopBar({
         <span>Matchs</span>
       </button>
       <div className="flex min-w-0 items-center justify-center gap-2 px-2">
-        {logo && <img src={logo} alt="" className="h-5 w-5 shrink-0 object-contain" />}
+        {logo && <img src={getFastSportsImage(logo) ?? logo} alt="" width={40} height={40} decoding="async" className="h-5 w-5 shrink-0 object-contain" />}
         {title && <span className="truncate text-[14px] font-semibold">{title}</span>}
       </div>
       <div className="flex items-center justify-end">{right}</div>
@@ -309,7 +310,7 @@ function TeamBlock({ name, logo }: { name: string; logo?: string | null }) {
   return (
     <div className="flex flex-col items-center gap-3 text-center">
       {logo ? (
-        <img src={logo} alt="" className="h-14 w-14 object-contain" />
+        <img src={getFastSportsImage(logo) ?? logo} alt="" width={112} height={112} decoding="async" className="h-14 w-14 object-contain" />
       ) : (
         <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#262626] text-[20px] text-[#B0B0B0]">
           {name[0]}

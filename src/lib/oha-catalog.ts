@@ -221,6 +221,13 @@ async function buildChannels(): Promise<OhaChannel[]> {
       .slice(1, 3)
       .map((v) => v.id)
       .filter((v): v is string => Boolean(v));
+    const sourceVariants = ranked
+      .slice(0, 3)
+      .flatMap((variant) => {
+        if (!variant.id) return [];
+        const epg = pickEpg(variant);
+        return [{ id: variant.id, epgNow: epg.now, epgNext: epg.next }];
+      });
 
     const logo = tvg
       ? logoMaps.exact.get(tvg) ??
@@ -233,6 +240,7 @@ async function buildChannels(): Promise<OhaChannel[]> {
     channels.push({
       id: best.id!,
       altIds: altIds.length > 0 ? altIds : undefined,
+      sourceVariants: sourceVariants.length > 1 ? sourceVariants : undefined,
       name: entry.label,
       category: entry.category,
       tvg,

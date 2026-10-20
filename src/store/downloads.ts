@@ -66,9 +66,6 @@ const partialize = (state: DownloadsState) => ({
   })),
 });
 
-// Liens DoodStream/StreamTape/Upstream expirent en moyenne en 6 à 12 heures
-const RESOLVED_URL_TTL_MS = 6 * 60 * 60 * 1000;
-
 export const useDownloadsStore = create<DownloadsState>()(
   persist(
     (set, get) => ({
@@ -182,41 +179,18 @@ export const useDownloadsStore = create<DownloadsState>()(
     {
       name: STORAGE_KEY,
       partialize,
-      // Restore: drop any "downloading" rows since they can't survive a reload,
-      // and zero out the partial byte counter that has no file backing it.
+      // À la réouverture, seule la fin de tâche survit : une file « queued », un flux
+      // interrompu ou une pause n'ont plus de controller ni de fichier d'appui, ils
+      // repartiraient de zéro. Les ressusciter ne faisait qu'encombrer la liste.
       onRehydrateStorage: () => (state) => {
         if (!state) return;
-        const now = Date.now();
-        state.tasks = state.tasks.map((t) => {
-          const isUrlExpired =
-            t.resolvedUrl &&
-            t.resolvedUrlAt &&
-            now - t.resolvedUrlAt > RESOLVED_URL_TTL_MS;
-
-          const base = {
-            ...t,
-            resolvedUrl: isUrlExpired ? null : t.resolvedUrl,
-            resolvedUrlAt: isUrlExpired ? undefined : t.resolvedUrlAt,
-          };
-
-          if (t.status === "downloading" || t.status === "resolving") {
-            return {
-              ...base,
-              status: "paused" as DownloadStatus,
-              bytesDownloaded: t.bytesDownloaded || 0,
-              error: isUrlExpired
-                ? "Lien expiré, nouvelle résolution nécessaire"
-                : (t.error ?? "Reprise après actualisation"),
-            };
-          }
-          if (t.status === "ready" && isUrlExpired) {
-            return {
-              ...base,
-              status: "queued" as DownloadStatus,
-            };
-          }
-          return { ...base, bytesDownloaded: t.bytesDownloaded || 0 };
-        });
+        const finished = state.tasks
+          .filter((t) => t.status === "done")
+          .map((t) => ({ ...t, resolvedUrl: null, resolvedUrlAt: undefined }));
+        // clear + addMany plutôt qu'une affectation : l'écriture qui en résulte
+        // sort les lignes périmées du localStorage au lieu d'y rester couchées.
+        state.clear();
+        state.addMany(finished);
       },
     },
   ),

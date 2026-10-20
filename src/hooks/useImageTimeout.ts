@@ -9,7 +9,7 @@ interface UseImageTimeoutOptions {
   isLoaded: boolean;
   /** Déclenché si le délai est dépassé avant le chargement complet. */
   onTimeout: () => void;
-  /** Délai en millisecondes avant abandon (défaut : 6000ms). */
+  /** Délai en millisecondes avant abandon (défaut : 15000ms). */
   timeoutMs?: number;
 }
 
@@ -21,7 +21,7 @@ export function useImageTimeout({
   src,
   isLoaded,
   onTimeout,
-  timeoutMs = 6000,
+  timeoutMs = 15000,
 }: UseImageTimeoutOptions) {
   useEffect(() => {
     if (!src || isLoaded) return;

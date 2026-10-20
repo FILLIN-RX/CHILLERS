@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Star } from "@phosphor-icons/react";
 import type { SportMatch } from "@/types/matches";
 import { cacheMatch, formatTime, matchHref } from "../match-utils";
+import { getFastSportsImage } from "@/lib/sports-image";
 
 const PRIMARY = "#FF6A00";
 
@@ -19,12 +20,13 @@ export function TeamLogo({
   className?: string;
 }) {
   const [hasError, setHasError] = useState(false);
+  const imageSrc = getFastSportsImage(src);
 
   useEffect(() => {
     setHasError(false);
   }, [src]);
 
-  if (!src || hasError) {
+  if (!imageSrc || hasError) {
     return (
       <span
         className={`flex shrink-0 items-center justify-center rounded-full bg-white/10 text-[10px] font-bold uppercase text-[#EBEBF5]/60 ${className}`}
@@ -36,8 +38,12 @@ export function TeamLogo({
 
   return (
     <img
-      src={src}
+      src={imageSrc}
       alt={name}
+      width={64}
+      height={64}
+      loading="lazy"
+      decoding="async"
       onError={() => setHasError(true)}
       className={`shrink-0 object-contain ${className}`}
     />

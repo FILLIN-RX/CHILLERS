@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowsClockwise, Television, X } from "@phosphor-icons/react";
+import { Television, X } from "@phosphor-icons/react";
 import LivePlayer from "@/components/LivePlayer";
 import CompetitionBadge from "@/components/CompetitionBadge";
 import { MatchBackdrop, TeamCrest } from "@/components/MatchCardBackdrop";
@@ -67,7 +67,6 @@ export default function SportsMatchContent() {
   const { matchId } = useParams<{ matchId: string }>();
   const decodedId = decodeURIComponent(matchId || "");
 
-  const [reloadKey, setReloadKey] = useState(0);
 
   /** Serveur choisi dans le sélecteur, indexé par match : changer de match remet le flux principal. */
   const [serverChoice, setServerChoice] = useState<{ id: string; idx: number } | null>(null);
@@ -210,8 +209,8 @@ export default function SportsMatchContent() {
 
   // Le backend chaîne les providers (LiveBall, Kora, Kooorah, YallaPro, Streamiz)
   // et ne renvoie que celui qui diffuse réellement.
-  const { data: stream, isLoading, refetch } = useQuery({
-    queryKey: ["live", "unified", "stream", decodedId, reloadKey],
+  const { data: stream, isLoading } = useQuery({
+    queryKey: ["live", "unified", "stream", decodedId],
     queryFn: async (): Promise<(ResolvedSportsStream & { match?: SportsMatch }) | null> => {
       const resolved = await getSportsStream(targetId);
       if (!resolved?.url) return null;
@@ -235,7 +234,7 @@ export default function SportsMatchContent() {
   // /channels complète la liste en arrière-plan (registre 24 h côté backend,
   // agrégation multi-providers) — le sélecteur apparaît dès qu'elle répond.
   const { data: channels } = useQuery({
-    queryKey: ["live", "unified", "channels", decodedId, reloadKey],
+    queryKey: ["live", "unified", "channels", decodedId],
     queryFn: () => getSportsChannels(targetId),
     enabled: Boolean(decodedId),
     staleTime: 60_000,
@@ -380,13 +379,6 @@ export default function SportsMatchContent() {
       }
     : null;
 
-  const retry = () => {
-    setServerChoice(null);
-    setReloadKey((k) => k + 1);
-    refetch();
-  };
-
-
   const teamsLabel = resolvedMatch ? `${resolvedMatch.home}${resolvedMatch.away ? ` vs ${resolvedMatch.away}` : ""}` : "ce match";
 
   return (
@@ -493,13 +485,6 @@ export default function SportsMatchContent() {
             </div>
 
             <div className="flex flex-wrap items-center justify-center gap-3">
-              <button
-                onClick={retry}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-brand-primary hover:brightness-110 text-white text-xs font-black uppercase tracking-wider transition-all shadow-lg shadow-red-600/20"
-              >
-                <ArrowsClockwise className="h-4 w-4" />
-                Réessayer la connexion
-              </button>
               <Link
                 href="/live"
                 className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-wider transition-all"
@@ -610,63 +595,6 @@ export default function SportsMatchContent() {
         </div>
       )}
 
-      {/* ── Sélecteur de serveurs (tous les liens du match) ─────────── */}
-      {(playing || activeOha) && !preMatch && (hasChannels || servers.length > 1) && (
-        <div className="absolute bottom-0 inset-x-0 z-30 pt-10 pb-[calc(0.75rem_+_env(safe-area-inset-bottom,0px))] bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none">
-          <div className="flex flex-col gap-2 px-4 pointer-events-auto">
-            {hasChannels && (
-              <MatchChannelsRow
-                channels={[...confirmedChannels, ...candidateChannels]}
-                confirmedIds={confirmedIds}
-                selectedId={activeOha?.ch.id ?? null}
-                resolvingId={ohaResolving}
-                onSelect={playOha}
-                onExternal={() => {
-                  setOhaChoice(null);
-                  setOhaError(null);
-                }}
-                externalActive={!activeOha}
-                hint={confirmedChannels.length > 0 ? "Sélection automatique (EPG)" : "D'après les droits TV"}
-              />
-            )}
-            {ohaError && <p className="px-1 text-[11px] text-red-300">{ohaError}</p>}
-
-            {servers.length > 1 && (
-              <div className="flex items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                <span className="shrink-0 text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                  Sources
-                </span>
-                {servers.map((s, idx) => {
-                  const isActive = !activeOha && (activeIdx ?? 0) === idx;
-                  return (
-                    <button
-                      key={`${s.provider ?? "srv"}-${s.sourceId ?? idx}-${idx}`}
-                      onClick={() => {
-                        setOhaChoice(null);
-                        setServerChoice({ id: decodedId, idx });
-                      }}
-                      className={`shrink-0 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide backdrop-blur-md transition-colors ${
-                        isActive
-                          ? "bg-brand-primary text-white"
-                          : "bg-black/60 text-zinc-300 border border-white/15 hover:bg-white/15"
-                      }`}
-                    >
-                      <span className="truncate max-w-[9rem]">{s.name}</span>
-                      <span
-                        className={`text-[9px] font-black uppercase ${
-                          isActive ? "text-white/80" : "text-zinc-500"
-                        }`}
-                      >
-                        {s.type === "hls" ? "HD" : "Web"}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

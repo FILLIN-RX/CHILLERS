@@ -8,11 +8,20 @@ export interface OhaEpgEntry {
   end: string;
 }
 
+/** Flux distincts regroupés sous le même nom de chaîne, avec leur EPG propre. */
+export interface OhaSourceVariant {
+  id: string;
+  epgNow?: OhaEpgEntry;
+  epgNext?: OhaEpgEntry;
+}
+
 export interface OhaChannel {
   /** Identifiant oha.to de la chaîne (utilisable avec /api/live/oha/resolve) */
   id: string;
   /** Autres identifiants (sources alternatives de la même chaîne) : repli si le primary 404/403 */
   altIds?: string[];
+  /** Variantes regroupées sous ce nom ; permet de choisir le flux qui annonce le match. */
+  sourceVariants?: OhaSourceVariant[];
   /** Nom d'affichage curaté */
   name: string;
   category: OhaCategory;

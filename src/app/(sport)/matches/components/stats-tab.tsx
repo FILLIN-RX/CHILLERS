@@ -3,6 +3,7 @@
 import React, { useMemo } from "react";
 import type { MatchSummary, SportMatch } from "@/types/matches";
 import { CARD, DIVIDER, EmptyCard, MUTED } from "./match-tabs";
+import { getFastSportsImage } from "@/lib/sports-image";
 
 const STAT_LABELS: Array<{ name: string; label: string }> = [
   { name: "possessionPct", label: "Possession" },
@@ -49,7 +50,7 @@ function StatRow({ label, home, away }: { label: string; home: string; away: str
 function TeamChip({ name, logo, reverse }: { name: string; logo?: string | null; reverse?: boolean }) {
   return (
     <div className={`flex min-w-0 items-center gap-2 ${reverse ? "flex-row-reverse" : ""}`}>
-      {logo && <img src={logo} alt="" className="h-5 w-5 shrink-0 object-contain" />}
+      {logo && <img src={getFastSportsImage(logo) ?? logo} alt="" width={40} height={40} loading="lazy" decoding="async" className="h-5 w-5 shrink-0 object-contain" />}
       <span className="truncate text-[13px] text-[#B0B0B0]">{name}</span>
     </div>
   );

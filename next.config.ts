@@ -10,13 +10,8 @@ const nextConfig: NextConfig = {
     ],
   },
   images: {
-    // WebP uniquement : l'encodage AVIF (CPU-lourd) provoquait des timeouts de
-    // l'optimiseur sous charge → images cassées sur mobile. WebP est fiable et rapide.
-    formats: ['image/webp'],
-    minimumCacheTTL: 86400,
-    // Deux qualités seulement : q75 pour les vignettes, q85 pour les gros
-    // formats (hero/backdrops) — évite le double encodage trop visible.
-    qualities: [75, 85],
+    loader: 'custom',
+    loaderFile: './src/lib/image-loader.ts',
     remotePatterns: [
       { protocol: "https", hostname: "image.tmdb.org" },
       { protocol: "https", hostname: "images.unsplash.com" },
