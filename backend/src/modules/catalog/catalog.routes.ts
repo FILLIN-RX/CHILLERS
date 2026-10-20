@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { catalogStatus, filterIdsByCatalog, listCatalog, CatalogListQuery } from './catalog.service';
+import { catalogStatus, filterIdsByCatalog, isCatalogFilterActive, listCatalog, CatalogListQuery } from './catalog.service';
 import { CatalogItemType, CatalogProvider } from '../../models/ProviderCatalogItem';
 
 const router = Router();
@@ -39,8 +39,10 @@ router.post('/filter', async (req: Request, res: Response) => {
     const ids: number[] = Array.isArray(req.body?.ids)
       ? req.body.ids.map((n: any) => parseInt(String(n), 10)).filter((n: number) => !isNaN(n))
       : [];
-    const kept = await filterIdsByCatalog(type, ids);
-    res.json({ success: true, data: { ids: kept, filtered: kept !== null }, message: null });
+    // Même gate que les grilles : tant que l'index est partiel, répondre « tout
+    // est disponible » — sinon cet appel casserait ce que l'app affiche ailleurs.
+    const kept = (await isCatalogFilterActive()) ? await filterIdsByCatalog(type, ids) : ids;
+    res.json({ success: true, data: { ids: kept }, message: null });
   } catch (err: any) {
     res.status(500).json({ success: false, data: null, message: err.message });
   }
