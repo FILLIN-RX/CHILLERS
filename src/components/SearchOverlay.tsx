@@ -131,11 +131,11 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
       <div className="shrink-0 z-10 border-b border-white/10 bg-[#1F1F1F]/80 backdrop-blur-2xl">
         <div className="mx-auto max-w-8xl h-16 sm:h-20 px-4 sm:px-8 lg:px-16 xl:px-20 flex items-center gap-2.5 sm:gap-4">
           {/* Gauche : retour mobile / logo desktop */}
-          <div className="flex-1 flex items-center gap-2 min-w-0">
+          <div className="flex-none sm:flex-1 flex items-center gap-2 min-w-0">
             <button
               onClick={onClose}
               aria-label="Fermer la recherche"
-              className="sm:hidden flex items-center justify-center w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-white/80 hover:text-white hover:bg-white/20 active:scale-95 transition-all cursor-pointer"
+              className="sm:hidden flex shrink-0 items-center justify-center w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-white/80 hover:text-white hover:bg-white/20 active:scale-95 transition-all cursor-pointer"
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
@@ -157,7 +157,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
           </div>
 
           {/* Centre : champ de recherche en pastille de verre */}
-          <div className="flex-none w-full max-w-2xl min-w-0">
+          <div className="flex-1 sm:flex-none w-auto sm:w-full max-w-2xl min-w-0">
             <div
               onClick={() => inputRef.current?.focus()}
               className="relative w-full bg-white/10 backdrop-blur-md border border-white/15 focus-within:border-white/40 focus-within:bg-white/15 rounded-2xl px-4 py-2.5 sm:py-3 flex items-center gap-3 transition-all cursor-text"
