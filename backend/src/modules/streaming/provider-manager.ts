@@ -8,6 +8,7 @@ import { DirectProvider } from './providers/direct.provider';
 import { FrenchStreamProvider } from './providers/frenchstream.provider';
 import { AfrolandProvider } from './providers/afroland.provider';
 import { OtakuProvider } from './providers/otaku.provider';
+import { FrenchAnimeProvider } from './providers/frenchanime.provider';
 import { StreamtapeProvider } from './providers/streamtape.provider';
 import { FawesomeProvider } from './providers/fawesome.provider';
 import { VidLinkProvider } from './providers/vidlink.provider';
@@ -90,6 +91,7 @@ export class ProviderManager {
       //    préserver la priorité VF.
       new AfrolandProvider(),
       new DoodStreamProvider(),
+      new FrenchAnimeProvider(), // Épisodes VF/VOSTFR du catalogue French Anime (W16).
       new OtakuProvider(),
       // 5. Fawesome TV : API mp4/hls directe (Cachefly), match de titre strict.
       //    Catalogue films uniquement.

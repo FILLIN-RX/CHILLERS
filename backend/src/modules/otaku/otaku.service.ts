@@ -281,17 +281,31 @@ export async function searchOtaku(
         version = Object.keys(vfMap).length > 0 ? vfMap : vostfrMap;
       }
       
-      // Chercher la clé de l'épisode correspondant (ex: "5", ou "05", ou premier disponible)
+      // Chercher l'épisode demandé dans la langue préférée puis dans l'autre.
+      // Ne jamais retomber sur le premier épisode : cela servirait un mauvais épisode.
+      const episodeMaps = language.toLowerCase() === 'vostfr'
+        ? [vostfrMap, vfMap]
+        : [vfMap, vostfrMap];
       const epKey = String(targetEpisode);
       const epPadded = String(targetEpisode).padStart(2, '0');
-      const matchedKey = Object.keys(version).find(k => k === epKey || k === epPadded || k.replace(/\D/g, '') === epKey) || Object.keys(version)[0];
+      let matchedKey: string | undefined;
+      let players: any;
+      for (const episodeMap of episodeMaps) {
+        matchedKey = Object.keys(episodeMap).find((key) => {
+          const normalizedKey = key.trim();
+          return normalizedKey === epKey || normalizedKey === epPadded || (/^\d+$/.test(normalizedKey) && Number(normalizedKey) === targetEpisode);
+        });
+        if (matchedKey) {
+          players = episodeMap[matchedKey] || {};
+          break;
+        }
+      }
 
       if (!matchedKey) {
         console.log(`[Otaku] Aucun épisode trouvé dans la liste pour "${title}" S${targetSeason}E${targetEpisode}`);
         return null;
       }
 
-      const players = version[matchedKey] || {};
       const embedUrl = players.vidzy || players.luluvid || (Object.values(players)[0] as string) || '';
       
       if (embedUrl) {
@@ -439,4 +453,3 @@ export async function searchAndCache(
     scrapeInProgress = false;
   }
 }
-
