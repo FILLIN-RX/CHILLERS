@@ -270,7 +270,7 @@ export default function DownloadsView({
     if (typeParam === "tv") {
       router.push(`/tv/${task.tmdbId || task.id}`);
     } else {
-      router.push(`/media/${task.tmdbId || task.id}?type=movie`);
+      router.push(`/media/${task.tmdbId || task.id}`);
     }
   };
 

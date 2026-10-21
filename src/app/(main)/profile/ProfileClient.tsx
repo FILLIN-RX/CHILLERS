@@ -14,6 +14,12 @@ import DownloadsView from "@/features/downloads/DownloadsView";
 import { useDownloadsStore } from "@/store/downloads";
 import ProfileSidebar from "@/features/profile/ProfileSidebar";
 
+function mediaDetailsHref(id: string | number, type?: string): string {
+  return ["tv", "series", "anime"].includes((type || "").toLowerCase())
+    ? `/tv/${id}`
+    : `/media/${id}`;
+}
+
 export default function ProfileClient() {
   const { user, token, updateUser, logout } = useAuthStore();
   const { lang, translate: _ } = useLanguage();
@@ -412,7 +418,7 @@ export default function ProfileClient() {
                       return (
                         <Link
                           key={i}
-                          href={`/media/${h.tmdbId}?type=${h.mediaType}`}
+                          href={mediaDetailsHref(h.tmdbId, h.mediaType)}
                           className="flex-shrink-0 w-64 sm:w-72 group rounded-2xl overflow-hidden bg-zinc-900/40 border border-white/5 hover:border-white/15 transition-all flex flex-col"
                         >
                           <div className="relative aspect-video w-full bg-zinc-950 overflow-hidden">
@@ -590,7 +596,7 @@ export default function ProfileClient() {
                       return (
                         <Link
                           key={i}
-                          href={`/media/${wl.tmdbId}?type=${wl.mediaType}`}
+                          href={mediaDetailsHref(wl.tmdbId, wl.mediaType)}
                           className="flex-shrink-0 w-64 sm:w-72 group rounded-2xl overflow-hidden bg-zinc-900/40 border border-white/5 hover:border-white/15 transition-all flex flex-col"
                         >
                           <div className="relative aspect-video w-full bg-zinc-950 overflow-hidden">
@@ -668,7 +674,7 @@ export default function ProfileClient() {
                       return (
                         <Link
                           key={fav.tmdbId}
-                          href={`/media/${fav.tmdbId}?type=${fav.mediaType}`}
+                          href={mediaDetailsHref(fav.tmdbId, fav.mediaType)}
                           className="flex-shrink-0 w-64 sm:w-72 group rounded-2xl overflow-hidden bg-zinc-900/40 border border-white/5 hover:border-white/15 transition-all flex flex-col"
                         >
                           <div className="relative aspect-video w-full bg-zinc-950 overflow-hidden">
@@ -889,7 +895,7 @@ export default function ProfileClient() {
                             </span>
                           </div>
                           <Link
-                            href={`/media/${wl.tmdbId}?type=${wl.mediaType}`}
+                            href={mediaDetailsHref(wl.tmdbId, wl.mediaType)}
                             className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40"
                           >
                             <div className="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center shadow-2xl">
@@ -900,7 +906,7 @@ export default function ProfileClient() {
                         <div className="p-4 flex items-center justify-between gap-3">
                           <div className="min-w-0 flex-1">
                             <Link
-                              href={`/media/${wl.tmdbId}?type=${wl.mediaType}`}
+                              href={mediaDetailsHref(wl.tmdbId, wl.mediaType)}
                               className="text-sm font-bold text-white line-clamp-1 group-hover:text-brand-primary transition-colors"
                             >
                               {wl.title}
@@ -950,7 +956,7 @@ export default function ProfileClient() {
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
                   {user.favorites.map((fav: any) => (
-                    <Link href={`/media/${fav.tmdbId}?type=${fav.mediaType}`} key={fav.tmdbId} className="group relative rounded-2xl overflow-hidden aspect-[2/3] bg-zinc-800 border border-white/5">
+                    <Link href={mediaDetailsHref(fav.tmdbId, fav.mediaType)} key={fav.tmdbId} className="group relative rounded-2xl overflow-hidden aspect-[2/3] bg-zinc-800 border border-white/5">
                       {fav.posterPath ? (
                         <img src={`https://image.tmdb.org/t/p/original${fav.posterPath}`} alt={fav.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
                       ) : (
@@ -1011,7 +1017,7 @@ export default function ProfileClient() {
                         </p>
                       </div>
                       <Link 
-                        href={`/media/${h.tmdbId}?type=${h.mediaType}`}
+                        href={mediaDetailsHref(h.tmdbId, h.mediaType)}
                         className="hidden sm:flex w-10 h-10 items-center justify-center rounded-full bg-white/5 hover:bg-white/20 text-white transition-colors"
                       >
                         <Play className="w-4 h-4 ml-0.5" />

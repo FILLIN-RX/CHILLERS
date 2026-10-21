@@ -725,9 +725,9 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
                   onBack={() => router.back()}
                   onOpenDetails={(it) =>
                     router.push(
-                      `/media/${it.id}?type=${
-                        it.type === "series" || it.type === "anime" ? "tv" : "movie"
-                      }`
+                      it.type === "series" || it.type === "anime"
+                        ? `/tv/${it.id}`
+                        : `/media/${it.id}`
                     )
                   }
                 />
@@ -954,9 +954,9 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
                   }
                   onOpenDetails={(i) =>
                     router.push(
-                      `/media/${i.id}?type=${
-                        i.type === "series" || i.type === "anime" ? "tv" : "movie"
-                      }`
+                      i.type === "series" || i.type === "anime"
+                        ? `/tv/${i.id}`
+                        : `/media/${i.id}`
                     )
                   }
                 />
@@ -978,9 +978,9 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
                     }
                     onOpenDetails={(i) =>
                       router.push(
-                        `/media/${i.id}?type=${
-                          i.type === "series" || i.type === "anime" ? "tv" : "movie"
-                        }`
+                        i.type === "series" || i.type === "anime"
+                          ? `/tv/${i.id}`
+                          : `/media/${i.id}`
                       )
                     }
                   />

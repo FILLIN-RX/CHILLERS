@@ -47,11 +47,11 @@ function smartTruncate(text: string, max: number): string {
 const DESCRIPTION_MAX = 175; // méta description SEO recommandée par Google (150-180 caractères)
 const TITLE_MAX = 52; // + " · CHILLERS" => 63 caractères max
 
-function buildPageTitle(title: string, year?: number | string): string {
+function buildPageTitle(title: string, year: number | string | undefined, type: "movie" | "tv"): string {
   const t = title.trim().replace(/\s+/g, " ");
   const yearLabel = year ? ` (${year})` : "";
   const tWithYear = yearLabel && !t.endsWith(yearLabel) ? `${t}${yearLabel}` : t;
-  const full = `${tWithYear} en streaming VF/VOSTFR`;
+  const full = `${type === "tv" ? "Série" : "Film"} ${tWithYear} : résumé et casting`;
   if (full.length <= TITLE_MAX) return full;
   const cut = full.slice(0, TITLE_MAX);
   const i = cut.lastIndexOf(" ");
@@ -98,22 +98,22 @@ export function buildMediaMetadata(input: MediaMetaInput): Metadata {
   const isTV = type === "tv";
   const yearLabel = year ? ` (${year})` : "";
 
-  // 1. Accroche textuelle conforme ("Ce film est disponible sur CHILLERS...")
+  // Ne pas déclarer le média disponible sans confirmation du catalogue de lecture.
   const prefix = isTV
     ? context === "season"
-      ? `Cette saison de ${title} est disponible sur CHILLERS.`
-      : `Cette série est disponible sur CHILLERS.`
-    : `Ce film est disponible sur CHILLERS.`;
+      ? `Découvrez la fiche de la saison ${seasonLabel?.replace(/^la saison /, "") || ""} de ${title} sur CHILLERS.`
+      : `Découvrez la fiche de la série ${title} sur CHILLERS.`
+    : `Découvrez la fiche du film ${title} sur CHILLERS.`;
 
   let description: string;
   if (overview && overview.trim().length > 0) {
     const cleanOverview = overview.trim().replace(/\s+/g, " ");
     description = smartTruncate(`${prefix} ${cleanOverview}`, DESCRIPTION_MAX);
   } else {
-    description = `${prefix} Regardez ${title}${yearLabel} en streaming VF et VOSTFR gratuit.`;
+    description = `${prefix} Consultez le résumé, le casting et les informations de sortie${yearLabel}.`;
   }
 
-  const pageTitle = buildPageTitle(title, year);
+  const pageTitle = buildPageTitle(title, year, type);
   const ogTitle = `${pageTitle} · CHILLERS`;
   const canonical = `${SITE_URL}${path}`;
 
@@ -201,7 +201,7 @@ export function buildMediaMetadata(input: MediaMetaInput): Metadata {
  * Génère l'objet de données structurées Schema.org JSON-LD pour Google Search (Rich Snippets)
  */
 export function buildMediaJsonLd(input: MediaMetaInput) {
-  const { id, title, type, overview, posterPath, backdropPath, year, rating, path } = input;
+  const { id, title, type, overview, posterPath, backdropPath, year, path } = input;
   const isTV = type === "tv";
   const canonical = `${SITE_URL}${path}`;
   const poster = tmdbImg(posterPath, "w780") ?? `${SITE_URL}/og-image.png`;
@@ -211,28 +211,10 @@ export function buildMediaJsonLd(input: MediaMetaInput) {
     "@context": "https://schema.org",
     "@type": isTV ? "TVSeries" : "Movie",
     name: title,
-    description: overview || `${title} est disponible sur CHILLERS en streaming gratuit.`,
+    description: overview || `Découvrez la fiche de ${title} sur CHILLERS.`,
     url: canonical,
     image: [backdrop, poster],
     ...(year ? { dateCreated: year.toString() } : {}),
     inLanguage: "fr",
-    ...(rating
-      ? {
-          aggregateRating: {
-            "@type": "AggregateRating",
-            ratingValue: rating,
-            bestRating: "10",
-            worstRating: "1",
-            ratingCount: 100,
-          },
-        }
-      : {}),
-    offers: {
-      "@type": "Offer",
-      price: "0",
-      priceCurrency: "EUR",
-      availability: "https://schema.org/InStock",
-    },
   };
 }
-

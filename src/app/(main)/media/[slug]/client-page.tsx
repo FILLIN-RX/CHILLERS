@@ -277,28 +277,6 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
     }
   };
 
-  const jsonLd = !loading && item ? (() => {
-    const isMovie = !isTV;
-    const schemaType = isMovie ? "Movie" : "TVSeries";
-    return {
-      "@context": "https://schema.org",
-      "@type": schemaType,
-      name: item.title,
-      description: item.synopsis || item.description,
-      image: item.posterUrl,
-      datePublished: item.year ? `${item.year}` : undefined,
-      aggregateRating: item.rating ? {
-        "@type": "AggregateRating",
-        ratingValue: item.rating,
-        bestRating: 10,
-        worstRating: 0,
-        itemReviewed: item.title,
-      } : undefined,
-      genre: item.genres,
-      ...(isMovie ? {} : { numberOfSeasons: item.seasons?.filter(s => s.seasonNumber > 0).length }),
-    };
-  })() : null;
-
   if (loading) {
     return (
       <div className="flex-1 flex flex-col bg-[#1F1F1F] text-white pb-20">
@@ -448,13 +426,6 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
           <ArrowLeft className="w-5 h-5" />
         </button>
       </div>
-
-      {jsonLd && (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-        />
-      )}
 
       {/* 1. HERO SECTION */}
       <div className="relative flex w-full flex-col justify-end overflow-hidden sm:min-h-[70vh] sm:max-h-[750px] lg:h-[78vh]">

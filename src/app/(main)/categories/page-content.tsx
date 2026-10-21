@@ -109,9 +109,7 @@ export default function CategoriesPage() {
   });
 
   const openDetails = (item: MovieOrShow) => {
-    router.push(item.id.startsWith("afroland-")
-      ? `/media/${item.id}?type=movie`
-      : `/media/${item.id}`);
+    router.push(`/media/${item.id}`);
   };
   const play = (item: MovieOrShow) => {
     router.push(`/watch/${item.id}?type=movie`);
