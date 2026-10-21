@@ -79,6 +79,9 @@ export interface MovieOrShow {
   releaseDate?: string;
   /** Logo officiel TMDb (PNG transparent) pour hero banners style Netflix */
   logoUrl?: string;
+  /** Fiche non liée à TMDB : la carte ouvre directement la page source. */
+  sourceUrl?: string;
+  sourceProvider?: string;
 }
 
 export interface Genre {
@@ -140,7 +143,7 @@ export interface SeasonDetails {
   air_date?: string;
   vote_average?: number;
   episodes?: Array<{
-    id: number;
+    id: string | number;
     name: string;
     episode_number: number;
     runtime?: number;

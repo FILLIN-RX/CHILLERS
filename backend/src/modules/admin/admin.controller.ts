@@ -1159,18 +1159,37 @@ export async function tmdbSearch(req: AuthRequest, res: Response) {
     }
     try {
         const params: Record<string, any> = { query, page: 1 };
-        if (year) params.year = year;
-        const { data } = await tmdbClient.get(`/search/${type}`, { params });
-        const results = (data.results || []).slice(0, 6).map((r: any) => ({
-            id: r.id,
-            title: r.title || r.name || '',
-            year: r.release_date
-                ? new Date(r.release_date).getFullYear()
-                : r.first_air_date
-                    ? new Date(r.first_air_date).getFullYear()
-                    : null,
-            poster: r.poster_path ? `https://image.tmdb.org/t/p/w200${r.poster_path}` : null,
-        }));
+        if (year) params[type === 'tv' ? 'first_air_date_year' : 'year'] = year;
+        // Les fournisseurs ont souvent un titre français. Chercher d'abord
+        // avec les traductions françaises, puis compléter en anglais si TMDB
+        // ne renvoie pas cette œuvre dans sa réponse localisée.
+        const [frenchResponse, englishResponse] = await Promise.all([
+            tmdbClient.get(`/search/${type}`, { params: { ...params, language: 'fr-FR' } }),
+            tmdbClient.get(`/search/${type}`, { params: { ...params, language: 'en-US' } }),
+        ]);
+        const seenIds = new Set<number>();
+        const results = [...(frenchResponse.data.results || []), ...(englishResponse.data.results || [])]
+            .filter((r: any) => {
+                if (seenIds.has(r.id)) return false;
+                seenIds.add(r.id);
+                return true;
+            })
+            .slice(0, 6)
+            .map((r: any) => ({
+                id: r.id,
+                title: r.title || r.name || '',
+                original_title: r.original_title || r.original_name || '',
+                media_type: type,
+                original_language: r.original_language || '',
+                genre_ids: r.genre_ids || [],
+                overview: r.overview || '',
+                year: r.release_date
+                    ? new Date(r.release_date).getFullYear()
+                    : r.first_air_date
+                        ? new Date(r.first_air_date).getFullYear()
+                        : null,
+                poster: r.poster_path ? `https://image.tmdb.org/t/p/w200${r.poster_path}` : null,
+            }));
         res.json({ success: true, data: results, message: null });
     } catch (e: any) {
         res.status(500).json({ success: false, data: null, message: e.message });

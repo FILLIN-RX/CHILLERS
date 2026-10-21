@@ -57,14 +57,26 @@ async function syncCategory(category: string, type: 'movie' | 'tv'): Promise<voi
     // Un incident réseau sur une page ne doit pas avorter les ~2 000 pages qui
     // restent : trois essais, espacés, avant de renoncer sur cette page.
     let cards: FSCard[] | null = null;
+    let pageIntrouvable = false;
     for (let essai = 1; essai <= 3 && cards === null; essai++) {
       try {
         cards = await fetchFsListingPage(page, category);
       } catch (err: any) {
+        // Un 404 n'est pas un incident réseau : c'est la page suivant la dernière
+        // de l'archive. Sans cette distinction le parcours se croyait interrompu.
+        if (err?.response?.status === 404) {
+          pageIntrouvable = true;
+          break;
+        }
         console.warn(`[FrenchStream] Page ${page} en erreur (essai ${essai}/3) : ${err.message}`);
         cards = null;
         if (essai < 3) await sleep(1500 * essai);
       }
+    }
+    if (pageIntrouvable) {
+      console.log(`[FrenchStream] Page ${page} introuvable (404) — fin de l'archive ${category}.`);
+      archiveEpuisee = true;
+      break;
     }
     if (cards === null) {
       console.error(`[FrenchStream] Page ${page} abandonnée après 3 essais — arrêt du parcours.`);

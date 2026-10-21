@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowsOutSimple,
+  ArrowsInSimple,
   Broadcast,
   Television,
 } from "@phosphor-icons/react";
@@ -16,6 +17,7 @@ import { getMatchChannels, resolveOhaStream } from "@/services/oha";
 import type { LiveChannel } from "@/types/live";
 import type { OhaChannel } from "@/types/oha";
 import { PopupFirewall } from "@/lib/PopupFirewall";
+import { enterFullscreen, exitFullscreen, isFullscreenActive } from "@/lib/fullscreen";
 
 const PRIMARY = "#FF6A00";
 
@@ -221,13 +223,31 @@ export function MatchStreamPlayer({
     : null;
 
   const containerRef = React.useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
-  const toggleFullscreen = () => {
+  useEffect(() => {
+    const syncFullscreen = () => setIsFullscreen(isFullscreenActive());
+    document.addEventListener("fullscreenchange", syncFullscreen);
+    document.addEventListener("webkitfullscreenchange", syncFullscreen);
+    const video = containerRef.current?.querySelector("video");
+    video?.addEventListener("webkitbeginfullscreen", syncFullscreen);
+    video?.addEventListener("webkitendfullscreen", syncFullscreen);
+    return () => {
+      document.removeEventListener("fullscreenchange", syncFullscreen);
+      document.removeEventListener("webkitfullscreenchange", syncFullscreen);
+      video?.removeEventListener("webkitbeginfullscreen", syncFullscreen);
+      video?.removeEventListener("webkitendfullscreen", syncFullscreen);
+    };
+  }, [stream?.url, ohaChoice?.ch.id]);
+
+  const toggleFullscreen = async () => {
     if (!containerRef.current) return;
-    if (!document.fullscreenElement) {
-      containerRef.current.requestFullscreen().catch(() => {});
+    if (isFullscreen || isFullscreenActive()) {
+      await exitFullscreen(containerRef.current.querySelector("video")).catch(() => {});
     } else {
-      document.exitFullscreen().catch(() => {});
+      const video = containerRef.current.querySelector("video");
+      const entered = await enterFullscreen(containerRef.current, video);
+      setIsFullscreen(entered);
     }
   };
 
@@ -257,7 +277,7 @@ export function MatchStreamPlayer({
       {/* Conteneur principal du Lecteur vidéo 16:9 */}
       <div
         ref={containerRef}
-        className="relative aspect-video w-full overflow-hidden rounded-2xl bg-[#0e0e0e] border border-[#222222]"
+        className={`relative aspect-video w-full overflow-hidden rounded-2xl bg-[#0e0e0e] border border-[#222222] ${isFullscreen ? "fixed inset-0 z-[9999] h-dvh w-screen aspect-auto rounded-none border-0" : ""}`}
       >
         {/* Badge Live / Statut en superposition */}
         <div className="absolute top-3 left-3 z-20 flex items-center gap-2 pointer-events-none">
@@ -281,11 +301,11 @@ export function MatchStreamPlayer({
         <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 pt-[env(safe-area-inset-top,0px)] pr-[env(safe-area-inset-right,0px)]">
           <button
             onClick={toggleFullscreen}
-            title="Plein écran"
-            aria-label="Plein écran"
+            title={isFullscreen ? "Quitter le plein écran" : "Plein écran"}
+            aria-label={isFullscreen ? "Quitter le plein écran" : "Plein écran"}
             className="flex h-11 w-11 items-center justify-center rounded-full bg-black/60 text-zinc-300 backdrop-blur-md border border-white/10 transition-colors hover:bg-black/90 hover:text-white"
           >
-            <ArrowsOutSimple className="h-5 w-5" />
+            {isFullscreen ? <ArrowsInSimple className="h-5 w-5" /> : <ArrowsOutSimple className="h-5 w-5" />}
           </button>
         </div>
 

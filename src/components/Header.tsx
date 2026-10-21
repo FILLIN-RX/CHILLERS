@@ -119,6 +119,7 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
                   width={32}
                   height={32}
                   sizes="32px"
+                  unoptimized
                   className="h-7 sm:h-8 w-auto object-contain transition-transform duration-300 group-hover:scale-105 drop-shadow-[0_0_12px_rgba(215,4,102,0.4)]"
                   priority
                 />
@@ -296,4 +297,3 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
 
 const Header = React.memo(HeaderComponent);
 export default Header;
-

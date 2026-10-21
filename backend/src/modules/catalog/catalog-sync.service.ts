@@ -11,10 +11,12 @@ export interface CatalogUpsertInput {
   type: CatalogItemType;
   title: string;
   year?: number;
+  description?: string;
   season?: number;
   pageUrl: string;
   posterUrl?: string;
   language?: string;
+  country?: string;
   quality?: string;
 }
 
@@ -51,9 +53,11 @@ export async function upsertCatalogItems(
       normalizedTitle: normalizeCatalogTitle(input.title),
       pageUrl: input.pageUrl,
       ...(input.year ? { year: input.year } : {}),
+      ...(input.description ? { description: input.description } : {}),
       ...(input.season ? { season: input.season } : {}),
       ...(input.posterUrl ? { posterUrl: input.posterUrl } : {}),
       ...(input.language ? { language: input.language } : {}),
+      ...(input.country ? { country: input.country } : {}),
       ...(input.quality ? { quality: input.quality } : {}),
     };
     return {

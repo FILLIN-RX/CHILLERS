@@ -29,9 +29,69 @@ export interface AfrolandObjectMetadata {
   country?: string;
 }
 
+export interface AfrolandCatalogShow {
+  id: string;
+  name: string;
+  description?: string;
+  posterUrl?: string;
+  year?: string;
+  country?: string;
+  source: "AfroLandTV";
+}
+
 const AUTH_TOKEN = "s8B8CYQrUKMFsHFhMU";
 const KALTURA_PARTNER_ID = "513551";
 const OTTERA_API_BASE = "https://api-ott.afrolandtv.com";
+
+function metadataFromObject(obj: any): AfrolandCatalogShow | null {
+  if (!obj || typeof obj !== "object" || !obj.id || typeof obj.name !== "string" || !obj.name.trim()) return null;
+  return {
+    id: String(obj.id),
+    name: obj.name.trim(),
+    description: typeof obj.short_description === "string" ? obj.short_description : undefined,
+    posterUrl: obj.screencap_widescreen || obj.img_info?.thumb_poster?.url || undefined,
+    year: obj.year ? String(obj.year) : undefined,
+    country: obj.country || obj.country_name || undefined,
+    source: "AfroLandTV",
+  };
+}
+
+/** Search only the provider's own show index; this is not a complete catalog dump. */
+export async function searchAfrolandCatalogShows(query: string): Promise<AfrolandCatalogShow[]> {
+  const key = query.trim();
+  if (key.length < 2 || key.length > 100) return [];
+
+  try {
+    const params = new URLSearchParams({
+      auth_token: AUTH_TOKEN,
+      language: "en",
+      platform: "html5",
+      partner: "html5",
+      object_type: "show",
+      key,
+    });
+    const response = await fetch(`${OTTERA_API_BASE}/search?${params}`, {
+      headers: { "User-Agent": "Mozilla/5.0", Referer: "https://www.afrolandtv.com/" },
+      signal: AbortSignal.timeout(10000),
+      next: { revalidate: 1800 },
+    });
+    if (!response.ok) return [];
+    const data = await response.json();
+    const objects = Array.isArray(data?.objects) ? data.objects : [];
+    const seen = new Set<string>();
+    return objects
+      .map(metadataFromObject)
+      .filter((item: AfrolandCatalogShow | null): item is AfrolandCatalogShow => {
+        if (!item || seen.has(item.id)) return false;
+        seen.add(item.id);
+        return true;
+      })
+      .slice(0, 30);
+  } catch (error) {
+    console.error("[AfrolandProvider] Catalog search failed:", error);
+    return [];
+  }
+}
 
 export class AfrolandProvider {
   /**

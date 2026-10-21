@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef, useCallback, useSyncExternalStore } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
@@ -50,6 +50,15 @@ const TAP_SPRING = {
   duration: 0.15,
 };
 
+const HOVER_QUERY = "(hover: hover) and (pointer: fine)";
+const subscribeHoverCapability = (onChange: () => void) => {
+  const mediaQuery = window.matchMedia(HOVER_QUERY);
+  mediaQuery.addEventListener("change", onChange);
+  return () => mediaQuery.removeEventListener("change", onChange);
+};
+const getHoverCapability = () => window.matchMedia(HOVER_QUERY).matches;
+const getServerHoverCapability = () => false;
+
 function MovieCard({
   item,
   onPlay,
@@ -70,18 +79,23 @@ function MovieCard({
   const [imgError, setImgError] = useState(false);
   const [backdropFailed, setBackdropFailed] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
-  const [canHover, setCanHover] = useState(false);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setCanHover(window.matchMedia("(hover: hover) and (pointer: fine)").matches);
-    }
-  }, []);
+  const canHover = useSyncExternalStore(
+    subscribeHoverCapability,
+    getHoverCapability,
+    getServerHoverCapability,
+  );
 
   // ── Pre-calculated URLs for Instant Prefetching (Vercel bundle-preload rule) ──
   const typeParam = item.type === "series" || item.type === "anime" ? "tv" : "movie";
   const watchUrl = `/watch/${item.id}?type=${typeParam}`;
   const detailsUrl = item.type === "series" || item.type === "anime" ? `/tv/${item.id}` : `/media/${item.id}`;
+  const openSource = useCallback(() => {
+    if (item.sourceUrl && typeof window !== "undefined") {
+      window.open(item.sourceUrl, "_blank", "noopener,noreferrer");
+      return true;
+    }
+    return false;
+  }, [item.sourceUrl]);
 
   // ── Apple TV 3D Tilt & Light Physics (§2 Direct manipulation & §4 Springs) ──
   const mouseX = useMotionValue(0.5);
@@ -117,6 +131,7 @@ function MovieCard({
       setIsHovered(true);
       // Instant Next.js route prefetching on hover for 0ms navigation latency
       try {
+        if (item.sourceUrl) return;
         router.prefetch(watchUrl);
         router.prefetch(detailsUrl);
       } catch {}
@@ -131,7 +146,7 @@ function MovieCard({
         })
         .catch(() => {});
     },
-    [canHover, router, watchUrl, detailsUrl, queryClient, item.id, item.type]
+    [canHover, router, watchUrl, detailsUrl, queryClient, item.id, item.type, item.sourceUrl]
   );
 
   const handlePointerLeave = useCallback(() => {
@@ -224,7 +239,7 @@ function MovieCard({
         onPointerMove={handlePointerMove}
         onPointerEnter={handlePointerEnter}
         onPointerLeave={handlePointerLeave}
-        onClick={() => onOpenDetails(item)}
+        onClick={() => { if (!openSource()) onOpenDetails(item); }}
         whileHover={
           !canHover || shouldReduceMotion
             ? undefined
@@ -312,9 +327,9 @@ function MovieCard({
         <div className="absolute top-2.5 inset-x-2.5 z-20 flex items-start justify-between pointer-events-none">
           {/* Left: Rating Badge (hover only) */}
           <div className="flex items-center gap-1.5">
-            {badge ? (
+            {badge || item.sourceProvider ? (
               <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-brand-primary text-white">
-                {badge}
+                {badge || item.sourceProvider}
               </span>
             ) : item.rating ? (
               <div
@@ -385,7 +400,7 @@ function MovieCard({
       onPointerMove={handlePointerMove}
       onPointerEnter={handlePointerEnter}
       onPointerLeave={handlePointerLeave}
-      onClick={() => onOpenDetails(item)}
+      onClick={() => { if (!openSource()) onOpenDetails(item); }}
       whileHover={
         !canHover || shouldReduceMotion
           ? undefined
@@ -553,7 +568,7 @@ function MovieCard({
                   {item.title}
                 </h3>
                 <div className="flex items-center gap-1.5 shrink-0 pointer-events-auto">
-                  <button
+                  {!item.sourceUrl && <button
                     onClick={(e) => {
                       e.stopPropagation();
                       onPlay(item);
@@ -562,12 +577,12 @@ function MovieCard({
                     aria-label={_("media.watch")}
                   >
                     <Play className="h-3.5 w-3.5 fill-black translate-x-[0.5px]" />
-                  </button>
+                  </button>}
 
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      onOpenDetails(item);
+                      if (!openSource()) onOpenDetails(item);
                     }}
                     className="flex h-7 w-7 items-center justify-center rounded-full bg-white/15 hover:bg-white/25 text-white hover:scale-105 active:scale-95 cursor-pointer transition-all"
                     aria-label={_("media.details")}

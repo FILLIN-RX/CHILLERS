@@ -6,6 +6,7 @@ import {
   searchAfrolandShows,
   searchAfrolandVideos,
 } from '../../afroland/afroland.service';
+import ProviderCatalogItem from '../../../models/ProviderCatalogItem';
 import tmdbClient from '../../../config/tmdb';
 
 /**
@@ -43,6 +44,7 @@ export class AfrolandProvider implements StreamingProvider {
     if (titles.length === 0) return null;
 
     try {
+      console.log(`[AfroLand] Recherche film ${JSON.stringify(titles)} (tmdb=${query.tmdbId || 'inconnu'})`);
       for (const title of titles) {
         const candidates = await searchAfrolandVideos(title);
         const match = pickBestMatch(candidates, title);
@@ -62,6 +64,7 @@ export class AfrolandProvider implements StreamingProvider {
           }
         }
       }
+      console.log(`[AfroLand] Aucun film correspondant pour ${JSON.stringify(titles)}`);
       return null;
     } catch (error: any) {
       console.error(`[Afroland] Erreur film [${titles.join(', ')}]:`, error.message);
@@ -77,6 +80,44 @@ export class AfrolandProvider implements StreamingProvider {
     const episode = query.episode || 1;
 
     try {
+      console.log(`[AfroLand] Recherche série ${JSON.stringify(titles)} S${season}E${episode} (tmdb=${query.tmdbId || 'inconnu'})`);
+      const catalogShow = query.tmdbId
+        ? await ProviderCatalogItem.findOne({
+            provider: 'afroland',
+            type: 'tv',
+            tmdbId: query.tmdbId,
+            matchStatus: 'matched',
+            active: true,
+          }).select('sourceId title').lean()
+        : null;
+
+      if (catalogShow?.sourceId) {
+        const episodes = await getAfrolandEpisodes(catalogShow.sourceId);
+        const target =
+          episodes.find((e) => e.season === season && e.episode === episode) ||
+          (episodes.length >= episode && season === 1 ? episodes[episode - 1] : undefined);
+        if (target) {
+          const stream = await resolveAfrolandStream(target);
+          if (stream) {
+            console.log(
+              `[Afroland] Source catalogue exacte ${catalogShow.sourceId}: S${season}E${episode} → ${stream.directType.toUpperCase()}`
+            );
+            return {
+              provider: this.name,
+              embedUrl: stream.url,
+              directUrl: stream.url,
+              directType: stream.directType,
+              type: 'episode',
+              language: 'en',
+            };
+          }
+        }
+        console.log(`[AfroLand] Fiche liée ${catalogShow.sourceId}, mais aucun flux pour S${season}E${episode}`);
+        // Une fiche catalogue associée à ce TMDB est une résolution plus fiable
+        // qu'une nouvelle recherche textuelle susceptible de viser un homonyme.
+        return null;
+      }
+
       for (const title of titles) {
         const shows = await searchAfrolandShows(title);
         const show = pickBestMatch(shows, title);
@@ -104,6 +145,7 @@ export class AfrolandProvider implements StreamingProvider {
           }
         }
       }
+      console.log(`[AfroLand] Aucun épisode trouvé pour ${JSON.stringify(titles)} S${season}E${episode}`);
       return null;
     } catch (error: any) {
       console.error(`[Afroland] Erreur épisode [${titles.join(', ')}] S${season}E${episode}:`, error.message);

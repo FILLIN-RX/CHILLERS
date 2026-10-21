@@ -49,6 +49,8 @@ export interface HttpJsonOptions {
   timeoutMs?: number;
   /** Override the default 12-000ms timeout. Set to 0 to disable. */
   method?: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
+  /** Skip the anti-bot header for endpoints authenticated by another mechanism. */
+  antiBot?: boolean;
   body?: unknown;
   headers?: Record<string, string>;
 }
@@ -115,7 +117,7 @@ export async function httpJson<T>(path: string, options: HttpJsonOptions = {}): 
       method: options.method ?? "GET",
       headers: {
         Accept: "application/json",
-        ...getAntiBotHeaders(),
+        ...(options.antiBot === false ? {} : getAntiBotHeaders()),
         ...authHeader,
         ...(options.body !== undefined ? { "Content-Type": "application/json" } : {}),
         ...options.headers,

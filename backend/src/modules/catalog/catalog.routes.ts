@@ -1,8 +1,48 @@
 import { Router, Request, Response } from 'express';
 import { catalogStatus, filterIdsByCatalog, isCatalogFilterActive, listCatalog, CatalogListQuery } from './catalog.service';
 import { CatalogItemType, CatalogProvider } from '../../models/ProviderCatalogItem';
+import ProviderCatalogItem from '../../models/ProviderCatalogItem';
+import mongoose from 'mongoose';
+import { getAfrolandEpisodes } from '../afroland/afroland.service';
 
 const router = Router();
+
+/** GET /api/catalog/afroland/:sourceId — détails d'une fiche AfroLand non liée à TMDB. */
+router.get('/afroland/:sourceId', async (req: Request, res: Response) => {
+  try {
+    const id = String(req.params.sourceId);
+    const identity = mongoose.isValidObjectId(id) ? { _id: id } : { sourceId: id };
+    const item = await ProviderCatalogItem.findOne({
+      ...identity, provider: 'afroland', active: true,
+    }).select('sourceId type title year description posterUrl language country tmdbId card matchStatus').lean();
+    if (!item) return res.status(404).json({ success: false, data: null, message: 'Fiche AfroLand introuvable.' });
+    const episodes = item.type === 'tv' ? await getAfrolandEpisodes(item.sourceId) : [];
+    const bySeason = new Map<number, typeof episodes>();
+    for (const episode of episodes) {
+      const seasonNumber = episode.season || 1;
+      bySeason.set(seasonNumber, [...(bySeason.get(seasonNumber) || []), episode]);
+    }
+    const seasons = [...bySeason.entries()].sort(([a], [b]) => a - b).map(([seasonNumber, rows]) => ({
+      id: seasonNumber,
+      name: `Saison ${seasonNumber}`,
+      season_number: seasonNumber,
+      episode_count: rows.length,
+      episodes: rows
+        .sort((a, b) => (a.episode || 0) - (b.episode || 0))
+        .map((episode, index) => ({
+          id: episode.id,
+          name: episode.name,
+          episode_number: episode.episode || index + 1,
+          runtime: undefined,
+          still_path: episode.posterUrl,
+          overview: episode.description || '',
+        })),
+    }));
+    res.json({ success: true, data: { ...item, seasons }, message: null });
+  } catch (err: any) {
+    res.status(500).json({ success: false, data: null, message: err.message });
+  }
+});
 
 /** GET /api/catalog/list?provider=&type=&page=&limit=&q=&matched= — JSON du catalogue scrapé. */
 router.get('/list', async (req: Request, res: Response) => {

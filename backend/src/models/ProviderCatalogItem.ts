@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 import { normalizeTitle } from '../utils/title-match';
 
-export type CatalogProvider = 'frenchstream' | 'otaku';
+export type CatalogProvider = 'frenchstream' | 'otaku' | 'afroland';
 export type CatalogItemType = 'movie' | 'tv' | 'anime';
 export type CatalogMatchStatus = 'pending' | 'matched' | 'unmatched';
 
@@ -38,10 +38,12 @@ export interface IProviderCatalogItem extends Document {
   title: string;
   normalizedTitle: string;
   year?: number;
+  description?: string;
   season?: number;
   pageUrl: string;
   posterUrl?: string;
   language?: string;
+  country?: string;
   quality?: string;
   imdbId?: string;
   tmdbId?: number;
@@ -52,6 +54,8 @@ export interface IProviderCatalogItem extends Document {
   card?: CatalogCard;
   matchStatus: CatalogMatchStatus;
   matchMethod?: 'search' | 'imdb' | 'manual';
+  manualMatchBy?: string;
+  manualMatchAt?: Date;
   active: boolean;
   firstSeenAt: Date;
   lastSeenAt: Date;
@@ -60,16 +64,18 @@ export interface IProviderCatalogItem extends Document {
 
 const ProviderCatalogItemSchema: Schema = new Schema(
   {
-    provider: { type: String, required: true, enum: ['frenchstream', 'otaku'], index: true },
+    provider: { type: String, required: true, enum: ['frenchstream', 'otaku', 'afroland'], index: true },
     sourceId: { type: String, required: true },
     type: { type: String, required: true, enum: ['movie', 'tv', 'anime'], index: true },
     title: { type: String, required: true },
     normalizedTitle: { type: String, required: true, index: true },
     year: { type: Number },
+    description: { type: String },
     season: { type: Number },
     pageUrl: { type: String, required: true },
     posterUrl: { type: String },
     language: { type: String },
+    country: { type: String, index: true },
     quality: { type: String },
     imdbId: { type: String },
     tmdbId: { type: Number },
@@ -93,6 +99,8 @@ const ProviderCatalogItemSchema: Schema = new Schema(
   },
     matchStatus: { type: String, enum: ['pending', 'matched', 'unmatched'], default: 'pending', index: true },
     matchMethod: { type: String, enum: ['search', 'imdb', 'manual'] },
+    manualMatchBy: { type: String },
+    manualMatchAt: { type: Date },
     active: { type: Boolean, default: true },
     firstSeenAt: { type: Date, default: Date.now },
     lastSeenAt: { type: Date, default: Date.now },

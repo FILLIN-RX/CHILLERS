@@ -2,7 +2,8 @@ import tmdbClient from '../../config/tmdb';
 import { toTMDBLanguage } from '../../config/language';
 import Movie from '../../models/Movie';
 import Serie from '../../models/Serie';
-import { applyCatalogFilterToPage } from '../catalog/catalog.service';
+import ProviderCatalogItem from '../../models/ProviderCatalogItem';
+import { filterIdsByCatalog } from '../catalog/catalog.service';
 
 // Petit limiteur de concurrence maison (équivalent p-limit avec une cap à 4).
 const queue: Array<() => void> = [];
@@ -144,7 +145,7 @@ function deduplicateResults(results: any[], query: string): any[] {
 export const searchMulti = async (query: string, page: number = 1, language?: string) => {
   const regex = new RegExp(escapeRegExp(query), 'i');
 
-  const [localMovies, localSeries, moviesResp, tvResp] = await Promise.all([
+  const [localMovies, localSeries, moviesResp, tvResp, sourceCatalogRows] = await Promise.all([
     Movie.find({ titre: regex }).limit(5).lean().catch(() => []),
     Serie.find({ titre: regex }).limit(5).lean().catch(() => []),
     tmdbClient
@@ -155,20 +156,61 @@ export const searchMulti = async (query: string, page: number = 1, language?: st
       .get('/search/tv', { params: { query, page, language: toTMDBLanguage(language) } })
       .then(r => r.data)
       .catch(() => ({ results: [] })),
+    ProviderCatalogItem.find({
+      active: true,
+      $or: [
+        { provider: { $in: ['otaku', 'afroland'] }, matchStatus: 'matched' },
+        { provider: 'afroland', matchStatus: 'unmatched' },
+      ],
+      $and: [{
+        $or: [
+          { title: regex },
+          { 'card.title': regex },
+          { 'card.name': regex },
+          { 'card.original_title': regex },
+          { 'card.original_name': regex },
+        ],
+      }],
+    })
+      .select('provider type sourceId title year description posterUrl pageUrl card tmdbId matchStatus')
+      .limit(20)
+      .lean()
+      .catch(() => []),
   ]);
 
-  const movieTop = ((moviesResp.results || []) as any[]).slice(0, 20); // Augmenté pour meilleur filtrage
-  const tvTop = ((tvResp.results || []) as any[]).slice(0, 20);
+  const sourceOnly = sourceCatalogRows
+    .filter((row: any) => row.provider === 'afroland' && row.matchStatus === 'unmatched')
+    .map((row: any) => ({
+      id: `afroland-${row.sourceId}`,
+      media_type: row.type === 'movie' ? 'movie' : 'tv',
+      title: row.type === 'movie' ? row.title : undefined,
+      name: row.type === 'movie' ? undefined : row.title,
+      overview: row.description || '',
+      posterUrl: row.posterUrl,
+      release_date: row.type === 'movie' && row.year ? `${row.year}-01-01` : undefined,
+      first_air_date: row.type !== 'movie' && row.year ? `${row.year}-01-01` : undefined,
+      sourceProvider: 'Black',
+    }));
+  const sourceCatalog = sourceCatalogRows
+    .filter((row: any) => row.matchStatus === 'matched')
+    .map((row: any) => row.card && { ...row.card, media_type: row.card.media_type || 'tv', id: row.tmdbId })
+    .filter(Boolean) as any[];
+  const movieTop = [...(moviesResp.results || []), ...sourceCatalog.filter((item) => item.media_type === 'movie')]
+    .slice(0, 40) as any[];
+  const tvTop = [...(tvResp.results || []), ...sourceCatalog.filter((item) => item.media_type === 'tv')]
+    .slice(0, 40) as any[];
 
-  // On ne remonte que ce que les providers ont réellement. Filtrer avant
-  // l'hydratation : sinon chaque recherche paie 40 appels TMDB de détail pour
-  // des résultats qui seront jetés juste après.
+  // Fail closed: TMDB fournit les métadonnées, mais seul l'index des providers
+  // prouve qu'un titre est réellement disponible. Cette recherche reste stricte
+  // même si l'index est incomplet ou temporairement indisponible.
   const [filmGardes, serieGardee] = await Promise.all([
-    applyCatalogFilterToPage('movie', { results: movieTop }),
-    applyCatalogFilterToPage('tv', { results: tvTop }),
+    filterIdsByCatalog('movie', movieTop.map((item) => item.id)),
+    filterIdsByCatalog('tv', tvTop.map((item) => item.id)),
   ]);
-  const films = (filmGardes.results || []) as any[];
-  const series = (serieGardee.results || []) as any[];
+  const movieIds = new Set(filmGardes || []);
+  const tvIds = new Set(serieGardee || []);
+  const films = movieTop.filter((item) => movieIds.has(item.id));
+  const series = tvTop.filter((item) => tvIds.has(item.id));
 
   const [movieDetails, tvDetails] = await Promise.all([
     Promise.all(films.map(m => fetchDetails('movie', m.id, language))),
@@ -187,6 +229,7 @@ export const searchMulti = async (query: string, page: number = 1, language?: st
       ...t,
       media_type: 'tv' as const,
     })),
+    ...sourceOnly,
   ];
 
   // Déduplique et trie par pertinence

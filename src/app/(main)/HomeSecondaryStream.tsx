@@ -57,7 +57,8 @@ export default async function HomeSecondaryStream() {
   ]);
 
   return (
-    <HomeSecondaryClientRows
+    <div className="space-y-5">
+      <HomeSecondaryClientRows
       africanMovies={trimRowItems(africanM || [])}
       africanSeries={trimRowItems(africanS || [])}
       topRatedMovies={trimRowItems(topRatedMovies)}
@@ -75,6 +76,7 @@ export default async function HomeSecondaryStream() {
       barbieMovies={trimRowItems(barbieMovies)}
       realityShows={trimRowItems(realityShows)}
       allTimeFavorites={trimRowItems(allTimeFavorites)}
-    />
+      />
+    </div>
   );
 }

@@ -72,7 +72,7 @@ export default function AdminDashboard() {
       <Spin /> Chargement du tableau de bord...
     </div>
   );
-  if (!data) return <Alert type="error" showIcon message="Erreur de chargement" />;
+  if (!data) return <Alert type="error" showIcon title="Erreur de chargement" />;
 
   const uptime = (seconds: number) => {
     const d = Math.floor(seconds / 86400);
@@ -219,7 +219,7 @@ const animeColumns = [
             <Statistic
               title={<span style={{ textTransform: 'uppercase', letterSpacing: '0.06em' }}>Liens morts</span>}
               value={data.deadLinks}
-              valueStyle={{ color: data.deadLinks > 0 ? '#f87171' : '#34d399' }}
+              styles={{ content: { color: data.deadLinks > 0 ? '#f87171' : '#34d399' } }}
               prefix={<WarningOutlined style={{ color: data.deadLinks > 0 ? '#f87171' : '#34d399', marginRight: 8 }} />}
             />
             <Text type="secondary" style={{ fontSize: 12 }}>Uptime: {uptime(data.uptime)}</Text>
@@ -231,7 +231,7 @@ const animeColumns = [
               <Statistic
                 title={<span style={{ textTransform: 'uppercase', letterSpacing: '0.06em' }}>Uqload</span>}
                 value={`${formatBytes(uqload.account?.storageUsed)} / ${formatBytes(uqload.account?.storageLeft)}`}
-                valueStyle={{ fontSize: 18 }}
+                styles={{ content: { fontSize: 18 } }}
                 prefix={<CloudUploadOutlined style={{ color: '#fbbf24', marginRight: 8 }} />}
               />
               <Text type="warning" style={{ fontSize: 12 }}>
@@ -330,7 +330,7 @@ const animeColumns = [
           <Card size="small" title="Scraping animes">
             <Statistic
               value={scraper?.animes ? `Page ${scraper.animes.lastPage}` : '—'}
-              valueStyle={{ fontSize: 22 }}
+              styles={{ content: { fontSize: 22 } }}
             />
             <Text type="secondary" style={{ fontSize: 12 }}>
               {scraper?.animes ? new Date(scraper.animes.updatedAt).toLocaleString() : 'Aucun scraping'}
@@ -345,7 +345,7 @@ const animeColumns = [
           <Card size="small" title="Scraping films">
             <Statistic
               value={scraper?.films ? `Page ${scraper.films.lastPage}` : '—'}
-              valueStyle={{ fontSize: 22 }}
+              styles={{ content: { fontSize: 22 } }}
             />
             <Text type="secondary" style={{ fontSize: 12 }}>
               {scraper?.films ? new Date(scraper.films.updatedAt).toLocaleString() : 'Aucun scraping'}
@@ -356,7 +356,7 @@ const animeColumns = [
           <Card size="small" title="Scraping séries">
             <Statistic
               value={scraper?.series ? `Page ${scraper.series.lastPage}` : '—'}
-              valueStyle={{ fontSize: 22 }}
+              styles={{ content: { fontSize: 22 } }}
             />
             <Text type="secondary" style={{ fontSize: 12 }}>
               {scraper?.series ? new Date(scraper.series.updatedAt).toLocaleString() : 'Aucun scraping'}
@@ -380,7 +380,7 @@ const animeColumns = [
       </Space>
       {configMsg && (
         <div style={{ marginTop: '0.75rem' }}>
-          <Alert type="success" showIcon message={configMsg} style={{ maxWidth: 400 }} />
+          <Alert type="success" showIcon title={configMsg} style={{ maxWidth: 400 }} />
         </div>
       )}
     </div>

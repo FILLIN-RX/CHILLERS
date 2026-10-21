@@ -14,6 +14,7 @@ interface RequestModalProps {
   year?: number;
   initialSeason?: number;
   initialEpisode?: number;
+  tmdbVerified?: boolean;
   onSuccess?: () => void;
 }
 
@@ -27,6 +28,7 @@ export default function RequestModal({
   year,
   initialSeason = 1,
   initialEpisode = 1,
+  tmdbVerified = false,
   onSuccess,
 }: RequestModalProps) {
   const [title, setTitle] = useState(initialTitle);
@@ -110,7 +112,9 @@ export default function RequestModal({
               <CheckCircle size={48} className="text-emerald-400 mx-auto animate-bounce" weight="fill" />
               <h4 className="text-lg font-medium text-white">Demande enregistrée !</h4>
               <p className="text-sm text-white/60 max-w-xs mx-auto">
-                Notre robot de recherche multi-sources en Go explore le web en ce moment même. Vous serez notifié dès qu'il sera disponible.
+                {tmdbVerified
+                  ? "Titre identifié sur TMDB. Nous lançons sa recherche auprès de nos sources et faisons le nécessaire pour le rendre disponible très bientôt."
+                  : "Nous allons rechercher ce titre auprès de nos sources. S&apos;il devient disponible, il apparaîtra dans le catalogue."}
               </p>
             </div>
           ) : (
@@ -189,7 +193,9 @@ export default function RequestModal({
 
               {/* Info Note */}
               <div className="p-3 bg-white/[0.02] border border-white/5 text-xs text-white/50 leading-relaxed rounded-[4px]" style={{ borderRadius: "4px" }}>
-                💡 Dès la soumission, notre microservice autonome lance une recherche parallèle sur les serveurs partenaires et prépare les flux streaming.
+                {tmdbVerified
+                  ? "💡 TMDB confirme l’existence du titre. Nous vérifions maintenant s’il est possible de le trouver chez nos sources."
+                  : "💡 Nous allons rechercher ce titre auprès de nos sources. La demande ne garantit pas qu&apos;il soit disponible."}
               </div>
 
               {/* Error Alert */}

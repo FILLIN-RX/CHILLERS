@@ -138,7 +138,9 @@ export default function SeasonContent() {
             number: ep.episode_number,
             season: currentSeasonNum,
             thumbnail: ep.still_path
-              ? `https://image.tmdb.org/t/p/original${ep.still_path}`
+              ? (String(ep.still_path).startsWith("http")
+                ? ep.still_path
+                : `https://image.tmdb.org/t/p/original${ep.still_path}`)
               : detail?.backdropUrl || "",
             synopsis: ep.overview || "",
           }));

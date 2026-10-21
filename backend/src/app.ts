@@ -82,6 +82,7 @@ const corsOptions: cors.CorsOptions = {
     'Origin',
     'Range',
     'X-Session-ID',
+    'X-Client-Token',
     'X-Forwarded-For',
     'x-csrf-token',
     'X-CSRF-Token',

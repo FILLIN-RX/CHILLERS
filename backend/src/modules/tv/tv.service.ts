@@ -1,31 +1,40 @@
 import tmdbClient from '../../config/tmdb';
 import { toTMDBLanguage } from '../../config/language';
 import Serie from '../../models/Serie';
-import { applyCatalogFilterToPage } from '../catalog/catalog.service';
+import { applyCatalogFilterToPage, catalogPage, tmdbCatalogList, CatalogSort } from '../catalog/catalog.service';
 
-export const getPopular = async (page: number = 1, language?: string) => {
-  const { data } = await tmdbClient.get('/tv/popular', { params: { page, language: toTMDBLanguage(language) } });
-  return applyCatalogFilterToPage('tv', data);
-};
+/** Genre TMDB « Animation » — sert à borner les rangées anime côté catalogue. */
+const ANIME_GENRE = '16';
 
+export const getPopular = async (page: number = 1, language?: string) =>
+  tmdbCatalogList('tv', '/tv/popular', { page, language: toTMDBLanguage(language) }, { sort: 'popular' });
+
+/** Tendance = signal TMDB (vues de la semaine) : l'index ne peut pas le reproduire. */
 export const getTrending = async (language?: string) => {
   const { data } = await tmdbClient.get('/trending/tv/week', { params: { language: toTMDBLanguage(language) } });
   return applyCatalogFilterToPage('tv', data);
 };
 
-export const getTopRated = async (page: number = 1, language?: string) => {
-  const { data } = await tmdbClient.get('/tv/top_rated', { params: { page, language: toTMDBLanguage(language) } });
-  return applyCatalogFilterToPage('tv', data);
-};
+export const getTopRated = async (page: number = 1, language?: string) =>
+  tmdbCatalogList('tv', '/tv/top_rated', { page, language: toTMDBLanguage(language) }, { sort: 'rating' });
 
-export const getByGenre = async (genreId: string, page: number = 1, language?: string) => {
-  const { data } = await tmdbClient.get('/discover/tv', {
-    params: { with_genres: genreId, sort_by: 'popularity.desc', page, language: toTMDBLanguage(language) },
-  });
-  return applyCatalogFilterToPage('tv', data);
-};
+export const getByGenre = async (genreId: string, page: number = 1, language?: string) =>
+  tmdbCatalogList(
+    'tv',
+    '/discover/tv',
+    { with_genres: genreId, sort_by: 'popularity.desc', page, language: toTMDBLanguage(language) },
+    { sort: 'popular', genres: [genreId] }
+  );
 
 export const getAnimeByGenre = async (genreId: string, page: number = 1, language?: string) => {
+  const fromCatalog = await catalogPage('tv', {
+    page,
+    sort: 'popular',
+    genres: [genreId, ANIME_GENRE],
+    types: ['anime'],
+  }).catch(() => null);
+  if (fromCatalog) return fromCatalog;
+
   const params = {
     with_genres: genreId,
     sort_by: 'popularity.desc',
@@ -33,8 +42,11 @@ export const getAnimeByGenre = async (genreId: string, page: number = 1, languag
     with_original_language: 'ja',
     language: toTMDBLanguage(language),
   };
-  const { data } = await tmdbClient.get('/discover/tv', { params });
-  return applyCatalogFilterToPage('tv', data);
+  return tmdbCatalogList('tv', '/discover/tv', params, {
+    sort: 'popular',
+    genres: [genreId, ANIME_GENRE],
+    originalLanguage: 'ja',
+  });
 };
 
 export type DiscoverSort = 'trending' | 'rating' | 'recent' | 'oldest';
@@ -56,6 +68,14 @@ const MOVIE_SORT_BY: Record<DiscoverSort, string> = {
 function normalizeSort(sort?: string): DiscoverSort {
   return sort === 'rating' || sort === 'recent' || sort === 'oldest' ? sort : 'trending';
 }
+
+/** Même tri, côté index catalogue (les champs sont stockés, pas re-demandés). */
+const CATALOG_SORT_OF: Record<DiscoverSort, CatalogSort> = {
+  trending: 'popular',
+  rating: 'rating',
+  recent: 'recent',
+  oldest: 'oldest',
+};
 
 /** Découverte filtrable : tendance par défaut, filtres genre / année / tri. */
 export const discover = async (
@@ -94,6 +114,17 @@ export const discover = async (
       movieParams['vote_count.gte'] = 100;
     }
 
+    // L'anime est le cas où trier TMDB puis filtrer ne rend rien : le top
+    // popularité TMDB est plein de séries que le provider n'héberge pas.
+    const fromCatalog = await catalogPage('tv', {
+      page,
+      sort: CATALOG_SORT_OF[sort],
+      genres: genre ? [genre, ANIME_GENRE] : [ANIME_GENRE],
+      year,
+      types: ['anime'],
+    }).catch(() => null);
+    if (fromCatalog) return fromCatalog;
+
     const [tvRes, movieRes] = await Promise.all([
       tmdbClient.get('/discover/tv', { params: tvParams }),
       tmdbClient.get('/discover/movie', { params: movieParams }),
@@ -111,10 +142,7 @@ export const discover = async (
 
   // Tendance réelle TMDB tant qu'aucun filtre n'est appliqué.
   if (sort === 'trending' && !genre && !year) {
-    const { data } = await tmdbClient.get('/trending/tv/week', {
-      params: { page, language: lang },
-    });
-    return applyCatalogFilterToPage('tv', data);
+    return tmdbCatalogList('tv', '/trending/tv/week', { page, language: lang }, { sort: 'popular' });
   }
 
   const params: Record<string, unknown> = {
@@ -127,11 +155,21 @@ export const discover = async (
   if (year) params.first_air_date_year = year;
   if (sort === 'rating') params['vote_count.gte'] = 200;
 
-  const { data } = await tmdbClient.get('/discover/tv', { params });
-  return applyCatalogFilterToPage('tv', data);
+  return tmdbCatalogList('tv', '/discover/tv', params, {
+    sort: CATALOG_SORT_OF[sort],
+    genres: genre ? [genre] : undefined,
+    year,
+  });
 };
 
 export const getAnime = async (page: number = 1, language?: string) => {
+  const fromCatalog = await catalogPage('tv', {
+    page,
+    genres: [ANIME_GENRE],
+    types: ['anime'],
+  }).catch(() => null);
+  if (fromCatalog) return fromCatalog;
+
   const params = {
     with_genres: '16',
     sort_by: 'popularity.desc',

@@ -71,6 +71,7 @@ jobs:
             src/modules/scraping/core/scrape-films.js \
             src/modules/scraping/core/scrape-series.ts \
             src/modules/scraping/core/scrape-animes.ts \
+            src/modules/scraping/core/scrape-w16-animes.ts \
             src/modules/scraping/maintenance/link-movies-tmdb.ts \
             src/modules/scraping/maintenance/link-series-tmdb.ts \
             src/modules/scraping/maintenance/check-all-links.ts \
@@ -83,6 +84,7 @@ jobs:
             src/scripts/upload-uqload.ts \
             src/modules/catalog/sync-frenchstream.ts \
             src/modules/catalog/sync-otaku.ts \
+            src/modules/catalog/sync-afroland.ts \
             src/modules/catalog/match-tmdb.ts
           do
             test -f "$f" || { echo "::error::script manquant : $f"; exit 1; }
@@ -117,6 +119,7 @@ jobs:
               ;;
             "animes")
               npx tsx src/modules/scraping/core/scrape-animes.ts
+              npx tsx src/modules/scraping/core/scrape-w16-animes.ts
               ;;
             "maintenance")
               echo "1/4 Vérification des liens morts..."
@@ -154,17 +157,21 @@ jobs:
             "catalog")
               # Index provider incrémental : nouvelles fiches côté FrenchStream
               # (les premières pages de l'archive = les ajouts récents) +
-              # OpenOtaku, puis liage TMDB des nouveaux items.
+              # French-Manga, puis liage TMDB et épisodes W16 confirmés.
               CATALOG_SYNC_MODE=update npx tsx src/modules/catalog/sync-frenchstream.ts
               npx tsx src/modules/catalog/sync-otaku.ts
+              npx tsx src/modules/catalog/sync-afroland.ts
               npx tsx src/modules/catalog/match-tmdb.ts
+              npx tsx src/modules/scraping/core/scrape-w16-animes.ts
               ;;
             "catalog-full")
               # Parcours entier de l'archive (21 151 films + les séries). À ne
               # lancer qu'une fois, puis en update quotidien.
               CATALOG_SYNC_MODE=full npx tsx src/modules/catalog/sync-frenchstream.ts
               npx tsx src/modules/catalog/sync-otaku.ts
+              npx tsx src/modules/catalog/sync-afroland.ts
               npx tsx src/modules/catalog/match-tmdb.ts
+              npx tsx src/modules/scraping/core/scrape-w16-animes.ts
               ;;
             "catalog-match")
               npx tsx src/modules/catalog/match-tmdb.ts
@@ -176,6 +183,7 @@ jobs:
               npx tsx src/modules/scraping/core/scrape-series.ts
               echo "=== 3/10 Scraping Animes ==="
               npx tsx src/modules/scraping/core/scrape-animes.ts
+              npx tsx src/modules/scraping/core/scrape-w16-animes.ts
               echo "=== 4/10 Linking TMDB ==="
               npx tsx src/modules/scraping/maintenance/link-movies-tmdb.ts || true
               npx tsx src/modules/scraping/maintenance/link-series-tmdb.ts || true
@@ -195,6 +203,7 @@ jobs:
               echo "=== 9/10 Index catalogue providers (incrémental) ==="
               CATALOG_SYNC_MODE=update npx tsx src/modules/catalog/sync-frenchstream.ts
               npx tsx src/modules/catalog/sync-otaku.ts
+              npx tsx src/modules/catalog/sync-afroland.ts
               echo "=== 10/10 Liage catalogue → TMDB ==="
               npx tsx src/modules/catalog/match-tmdb.ts
               ;;

@@ -3,6 +3,7 @@ import { adminMiddleware, adminSseMiddleware } from './admin.middleware';
 import * as adminController from './admin.controller';
 import * as subController from './subscription.controller';
 import { mediaUpload } from './utils/media.upload';
+import * as catalogAdminController from '../catalog/catalog-admin.controller';
 
 const router = Router();
 
@@ -53,6 +54,8 @@ router.get('/uqload/file-info/:code', adminMiddleware, adminController.uqloadFil
 router.get('/media/tmdb-search', adminMiddleware, adminController.tmdbSearch);
 router.post('/media/manual', adminMiddleware, adminController.createManualMedia);
 router.post('/media/manual/upload', adminMiddleware, mediaUpload.array('files', 200), adminController.createManualMediaUpload);
+router.get('/catalog/unmatched', adminMiddleware, catalogAdminController.listUnmatched);
+router.post('/catalog/unmatched/:id/link', adminMiddleware, catalogAdminController.linkUnmatched);
 
 // Scrapper distant proxy routes
 router.get('/scrapper/{*path}', adminMiddleware, adminController.scrapperProxyGet);

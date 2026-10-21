@@ -6,6 +6,7 @@ import type Hls from "hls.js";
 import { useLanguage } from "@/i18n/LanguageContext";
 import type { LiveChannel } from "@/types/live";
 import { PopupFirewall } from "@/lib/PopupFirewall";
+import { enterFullscreen, exitFullscreen, isFullscreenActive } from "@/lib/fullscreen";
 import { ArrowLeft, X, Play, Pause, ArrowsClockwise, SpeakerSimpleHigh, SpeakerSimpleSlash, ArrowsOutSimple, ArrowsInSimple, Television, PictureInPicture, ShareNetwork, Check } from "@phosphor-icons/react";
 
 interface LivePlayerProps {
@@ -314,11 +315,20 @@ export default function LivePlayer({
   // Fullscreen change listener
   useEffect(() => {
     const handleFsChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
+      setIsFullscreen(isFullscreenActive());
     };
     document.addEventListener("fullscreenchange", handleFsChange);
-    return () => document.removeEventListener("fullscreenchange", handleFsChange);
-  }, []);
+    document.addEventListener("webkitfullscreenchange", handleFsChange);
+    const video = videoRef.current;
+    video?.addEventListener("webkitbeginfullscreen", handleFsChange);
+    video?.addEventListener("webkitendfullscreen", handleFsChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFsChange);
+      document.removeEventListener("webkitfullscreenchange", handleFsChange);
+      video?.removeEventListener("webkitbeginfullscreen", handleFsChange);
+      video?.removeEventListener("webkitendfullscreen", handleFsChange);
+    };
+  }, [iframeSrc]);
 
   const togglePlay = () => {
     const el = videoRef.current;
@@ -361,12 +371,13 @@ export default function LivePlayer({
     }
   };
 
-  const toggleFullscreen = () => {
+  const toggleFullscreen = async () => {
     if (!containerRef.current) return;
-    if (document.fullscreenElement) {
-      document.exitFullscreen().catch(() => {});
+    if (isFullscreen || isFullscreenActive()) {
+      await exitFullscreen(videoRef.current).catch(() => {});
     } else {
-      containerRef.current.requestFullscreen().catch(() => {});
+      const entered = await enterFullscreen(containerRef.current, videoRef.current);
+      setIsFullscreen(entered);
     }
   };
 
@@ -433,9 +444,11 @@ export default function LivePlayer({
         }, 4000);
       }}
       className={`relative w-full bg-black overflow-hidden select-none group font-sans text-white ${
-        fill
-          ? "h-full w-full"
-          : "min-h-[200px] sm:min-h-[340px] aspect-video max-h-[75dvh]"
+        isFullscreen
+          ? "fixed inset-0 z-[9999] h-dvh w-screen max-h-none"
+          : fill
+            ? "h-full w-full"
+            : "min-h-[200px] sm:min-h-[340px] aspect-video max-h-[75dvh]"
       }`}
     >
       {/* Marque permanente : indépendante de l'apparition des commandes. */}
@@ -674,7 +687,8 @@ export default function LivePlayer({
             <button
               onClick={toggleFullscreen}
               className={`${GLASS_BTN} w-11 h-11`}
-              aria-label="Plein écran"
+              aria-label={isFullscreen ? "Quitter le plein écran" : "Plein écran"}
+              title={isFullscreen ? "Quitter le plein écran" : "Plein écran"}
             >
               {isFullscreen ? (
                 <ArrowsInSimple className="h-5 w-5" />

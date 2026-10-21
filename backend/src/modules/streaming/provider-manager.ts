@@ -135,6 +135,7 @@ export class ProviderManager {
     for (const provider of activeProviders) {
       const attempt = await this.tryProvider(provider, 'movie', query);
       attempts.push(attempt);
+      console.log(`[Stream] Movie provider "${provider.name}" → ${attempt.status}${attempt.status === 'error' && attempt.reason ? ` (${attempt.reason})` : ''}`);
       if (attempt.status === 'success') {
         console.log(
           `[Stream] Movie stream found via "${provider.name}" after ${attempts.length} attempt(s)`
@@ -188,6 +189,7 @@ export class ProviderManager {
     for (const provider of activeProviders) {
       const attempt = await this.tryProvider(provider, 'episode', query);
       attempts.push(attempt);
+      console.log(`[Stream] Episode provider "${provider.name}" → ${attempt.status}${attempt.status === 'error' && attempt.reason ? ` (${attempt.reason})` : ''}`);
       if (attempt.status === 'success') {
         console.log(
           `[Stream] Episode stream found via "${provider.name}" after ${attempts.length} attempt(s)`
@@ -303,6 +305,7 @@ export class ProviderManager {
     query: StreamQuery
   ): Promise<ProviderAttempt> {
     if (this.isCircuitBroken(provider.name)) {
+      console.warn(`[Stream] Provider "${provider.name}" ignoré: circuit breaker actif`);
       return {
         provider: provider.name,
         status: 'skip',
@@ -492,6 +495,7 @@ export class ProviderManager {
     if (!url) return false;
     return (
       url.includes('vidzy.') ||
+      url.includes('luluvid') ||
       url.includes('open-otaku') ||
       url.includes('french-stream') ||
       url.includes('vidlink.pro') ||

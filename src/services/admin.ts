@@ -1,9 +1,16 @@
 // Admin endpoints. Same call shape as the legacy api.ts adminFetch wrapper but
 // routed through services/http.ts so timeouts/abort/errors are uniform.
 
-import { httpJson, API_BASE_PATH } from "./http";
-import { getAntiBotHeaders } from "@/lib/antibot";
+import { httpJson } from "./http";
+import { API_BASE_URL } from "@/lib/api-base";
 import type { LiveChannel, LiveChannelInput } from "@/types/live";
+
+const ADMIN_API_URL = `${API_BASE_URL.replace(/\/+$/, "")}/admin`;
+const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, "");
+
+function adminApiUrl(path: string): string {
+  return `${ADMIN_API_URL}${path.startsWith("/") ? path : `/${path}`}`;
+}
 
 function getAdminToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -17,7 +24,6 @@ function getAdminToken(): string | null {
 function authHeaders(): Record<string, string> {
   const token = getAdminToken();
   return {
-    ...getAntiBotHeaders(),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 }
@@ -38,11 +44,12 @@ async function adminRequest<T>(
   }
   const headers = { Accept: "application/json", ...authHeaders() };
   try {
-    return await httpJson<T>(`/admin${path}`, {
+    return await httpJson<T>(adminApiUrl(path), {
       method: options.method ?? "GET",
       body: options.body,
       headers,
       timeoutMs: options.timeoutMs,
+      antiBot: false,
     });
   } catch (err: any) {
     if (err?.status === 401 || err?.message?.includes("401")) {
@@ -60,10 +67,11 @@ async function adminRequest<T>(
 export async function adminLogin(username: string, password: string): Promise<AdminEnvelope<{ token: string }>> {
   try {
     // Login has its own unauth path and stores the token on success.
-    const res = await httpJson<AdminEnvelope<{ token: string }>>("/admin/auth/login", {
+    const res = await httpJson<AdminEnvelope<{ token: string }>>(adminApiUrl("/auth/login"), {
       method: "POST",
       body: { username, password },
       timeoutMs: 15_000,
+      antiBot: false,
     });
     if (res.success && res.data?.token) {
       try {
@@ -189,7 +197,7 @@ export const adminGetSystemCron = () => adminRequest<AdminEnvelope<unknown>>("/c
 
 export function adminGetLogsStreamUrl(): string {
   const token = getAdminToken();
-  return `${API_BASE_PATH}/admin/logs/stream?token=${token ?? ""}`;
+  return `${adminApiUrl("/logs/stream")}?token=${token ?? ""}`;
 }
 
 /* Uqload */
@@ -258,6 +266,48 @@ export const adminTmdbSearch = (query: string, type: "movie" | "tv", year?: numb
   return adminRequest<AdminEnvelope<TmdbSearchResult[]>>(`/media/tmdb-search?${params.toString()}`);
 };
 
+export interface AdminUnmatchedCatalogItem {
+  id: string;
+  provider: "frenchstream" | "otaku" | "afroland";
+  type: "movie" | "tv" | "anime";
+  title: string;
+  year?: number;
+  description?: string;
+  season?: number;
+  pageUrl: string;
+  posterUrl?: string;
+  language?: string;
+  quality?: string;
+}
+
+export const adminGetUnmatchedCatalog = (params: {
+  type?: "movie" | "tv" | "anime";
+  provider?: "frenchstream" | "otaku" | "afroland";
+  page?: number;
+  q?: string;
+}) => {
+  const query = new URLSearchParams();
+  if (params.type) query.set("type", params.type);
+  if (params.provider) query.set("provider", params.provider);
+  if (params.page) query.set("page", String(params.page));
+  if (params.q) query.set("q", params.q);
+  return adminRequest<AdminEnvelope<{
+    items: AdminUnmatchedCatalogItem[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }>>(`/catalog/unmatched?${query.toString()}`);
+};
+
+export const adminLinkUnmatchedCatalog = (
+  id: string,
+  payload: { tmdbId: number; mediaType: "movie" | "tv"; confirmYearMismatch?: boolean },
+) => adminRequest<AdminEnvelope<{ id: string; tmdbId: number; mediaType: "movie" | "tv"; tmdbYear?: number; linkedCount: number }>>(
+  `/catalog/unmatched/${encodeURIComponent(id)}/link`,
+  { method: "POST", body: payload },
+);
+
 export const adminCreateManualMedia = (payload: {
   type: "movie" | "serie";
   titre: string;
@@ -272,13 +322,12 @@ export async function adminCreateManualMediaUpload(formData: FormData): Promise<
   // Bypass JSON content-type; use FormData multipart with the admin token manually.
   const token = getAdminToken();
   const headers: Record<string, string> = {
-    ...getAntiBotHeaders(),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 10 * 60_000);
   try {
-    const res = await fetch(`${API_BASE_PATH}/admin/media/manual/upload`, {
+    const res = await fetch(adminApiUrl("/media/manual/upload"), {
       method: "POST",
       body: formData,
       headers,
@@ -313,7 +362,7 @@ export const adminScrapperState = () =>
 
 export function adminScrapperLogsStreamUrl(): string {
   const token = getAdminToken();
-  return `${API_BASE_PATH}/admin/scrapper/logs/stream?token=${token ?? ""}`;
+  return `${adminApiUrl("/scrapper/logs/stream")}?token=${token ?? ""}`;
 }
 
 export const adminScrapperTriggerScrape = (type: string) =>
@@ -376,10 +425,10 @@ export const adminAvailabilityScan = (type: "all" | "movie" | "series") =>
 export const adminAvailabilityStatus = () => adminRequest<AdminEnvelope<unknown>>("/availability/status");
 
 export function adminAffichesPosterUrl(id: string, type: "movie" | "series"): string {
-  return `${API_BASE_PATH}/affiches/${id}/poster?type=${type}`;
+  return `${API_BASE_URL}/affiches/${id}/poster?type=${type}`;
 }
 export function adminAffichesCardUrl(id: string, type: "movie" | "series"): string {
-  return `${API_BASE_PATH}/affiches/${id}/card?type=${type}`;
+  return `${API_BASE_URL}/affiches/${id}/card?type=${type}`;
 }
 
 /* Live TV (module isolé — routes sous /api/live, JWT admin) */
@@ -389,11 +438,12 @@ async function liveAdminRequest<T>(
   options: { method?: "GET" | "POST" | "PUT" | "DELETE"; body?: unknown; timeoutMs?: number } = {},
 ): Promise<T> {
   const headers = { Accept: "application/json", ...authHeaders() };
-  return httpJson<T>(`/live${path}`, {
+  return httpJson<T>(`${API_ORIGIN}/api/live${path}`, {
     method: options.method ?? "GET",
     body: options.body,
     headers,
     timeoutMs: options.timeoutMs ?? 120_000,
+    antiBot: false,
   });
 }
 

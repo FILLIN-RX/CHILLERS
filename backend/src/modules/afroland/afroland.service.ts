@@ -29,6 +29,11 @@ export interface AfrolandVideo {
   showName?: string;
   season?: number;
   episode?: number;
+  year?: number;
+  country?: string;
+  description?: string;
+  posterUrl?: string;
+  pageUrl?: string;
   /** HLS (playManifest applehttp) déjà construit par l'API */
   hlsUrl?: string;
   /** MP4 progressif déjà construit par l'API */
@@ -55,6 +60,30 @@ async function apiGet(endpoint: string, params: Record<string, string>, timeout 
 function mapVideo(raw: any): AfrolandVideo | null {
   if (!raw || typeof raw !== 'object' || !raw.id) return null;
   const showInfo = raw.show_info || {};
+  const rawPageUrl = raw.page_url || raw.url || raw.web_url || raw.link;
+  let pageUrl: string | undefined;
+  if (typeof rawPageUrl === 'string') {
+    try {
+      const parsed = new URL(rawPageUrl, 'https://www.afrolandtv.com');
+      if (parsed.hostname === 'www.afrolandtv.com' || parsed.hostname === 'afrolandtv.com') {
+        pageUrl = parsed.toString();
+      }
+    } catch {}
+  }
+  const slug = String(raw.slug || raw.url_slug || raw.name || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+  const rawPoster =
+    raw.img_info?.thumb_poster?.url ||
+    raw.img_info?.poster?.url ||
+    raw.thumb_poster_alt ||
+    raw.thumbnail_url ||
+    raw.screencap_widescreen ||
+    raw.image_url;
+  const rawDescription = raw.short_description || raw.description || raw.long_description;
   return {
     id: String(raw.id),
     name: String(raw.name || ''),
@@ -62,6 +91,13 @@ function mapVideo(raw: any): AfrolandVideo | null {
     showName: showInfo.show_name || undefined,
     season: showInfo.season_num ? Number(showInfo.season_num) : undefined,
     episode: showInfo.episode_num ? Number(showInfo.episode_num) : undefined,
+    year: Number.parseInt(String(raw.year || raw.release_year || showInfo.year || ''), 10) || undefined,
+    country: raw.country_name || raw.country || showInfo.country_name || showInfo.country || undefined,
+    description: typeof rawDescription === 'string'
+      ? rawDescription
+      : undefined,
+    posterUrl: typeof rawPoster === 'string' ? rawPoster : rawPoster?.url,
+    pageUrl: pageUrl || (slug ? `https://www.afrolandtv.com/shows/${encodeURIComponent(slug)}` : undefined),
     hlsUrl: typeof raw.video_url === 'string' && raw.video_url.includes('applehttp') ? raw.video_url : undefined,
     mp4Url: typeof raw.progressive_url === 'string' && raw.progressive_url ? raw.progressive_url : undefined,
   };
@@ -102,11 +138,63 @@ export async function searchAfrolandVideos(title: string): Promise<AfrolandVideo
 }
 
 /** Séries (shows) — première étape pour résoudre un épisode. */
+export interface AfrolandShowSearchOptions {
+  startIndex?: number;
+}
+
+export interface AfrolandShowSearchPage {
+  shows: AfrolandVideo[];
+  totalCount?: number;
+}
+
+/** Recherche paginée de séries (une clé vide demande le catalogue complet si l'API l'autorise). */
+export async function discoverAfrolandShowPage(
+  title: string,
+  options: AfrolandShowSearchOptions = {},
+): Promise<AfrolandShowSearchPage> {
+  const params: Record<string, string> = { object_type: 'show', image_format: 'poster', image_width: '500' };
+  if (title) params.key = title;
+  // L'API AfroLand utilise `start` (et non start_index/max_results).
+  if (options.startIndex !== undefined) params.start = String(options.startIndex);
+  const data = await apiGet('search', params);
+  const objects = Array.isArray(data?.objects) ? data.objects : [];
+  const total = Number(data?.total_results ?? data?.total_count ?? data?.totalCount ?? data?.pager?.total_count);
+  return {
+    shows: objects.map(mapVideo).filter((v: AfrolandVideo | null): v is AfrolandVideo => v !== null),
+    totalCount: Number.isFinite(total) && total >= 0 ? total : undefined,
+  };
+}
+
+export async function discoverAfrolandShows(
+  title: string,
+  options: AfrolandShowSearchOptions = {},
+): Promise<AfrolandVideo[]> {
+  return (await discoverAfrolandShowPage(title, options)).shows;
+}
+
+/** Listing paginé des longs métrages AfroLandTV (video_type=feature). */
+export async function discoverAfrolandFeaturePage(
+  options: AfrolandShowSearchOptions = {},
+): Promise<AfrolandShowSearchPage> {
+  const params: Record<string, string> = {
+    object_type: 'video',
+    video_type: 'feature',
+    image_format: 'poster',
+    image_width: '500',
+  };
+  if (options.startIndex !== undefined) params.start = String(options.startIndex);
+  const data = await apiGet('search', params);
+  const objects = Array.isArray(data?.objects) ? data.objects : [];
+  const total = Number(data?.total_results ?? data?.total_count ?? data?.totalCount ?? data?.pager?.total_count);
+  return {
+    shows: objects.map(mapVideo).filter((v: AfrolandVideo | null): v is AfrolandVideo => v !== null),
+    totalCount: Number.isFinite(total) && total >= 0 ? total : undefined,
+  };
+}
+
 export async function searchAfrolandShows(title: string): Promise<AfrolandVideo[]> {
   try {
-    const data = await apiGet('search', { object_type: 'show', key: title });
-    const objects = Array.isArray(data?.objects) ? data.objects : [];
-    return objects.map(mapVideo).filter((v: AfrolandVideo | null): v is AfrolandVideo => v !== null);
+    return await discoverAfrolandShows(title);
   } catch (error: any) {
     console.error(`[Afroland] Erreur recherche série "${title}":`, error.message);
     return [];

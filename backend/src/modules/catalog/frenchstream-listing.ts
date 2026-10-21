@@ -65,7 +65,11 @@ export function parseFsListingHtml(html: string): FSCard[] {
     const newsIdMatch = href.match(/newsid=(\d+)/);
     if (!newsIdMatch) continue;
 
-    const yearMatch = block.match(/class="short-year"><a[^>]*xf=\d{4}">(\d{4})<\/a>/);
+    // La structure de l'ancre varie selon les pages (attribut xf, href ou
+    // attributs absents). Lire l'année affichée dans le conteneur plutôt que
+    // dépendre de l'ordre exact des attributs HTML.
+    const yearBlock = block.match(/class=["']short-year[^"']*["'][^>]*>([\s\S]*?)<\/div>/i);
+    const yearMatch = yearBlock?.[1].match(/\b((?:19|20)\d{2})\b/);
     const posterMatch = block.match(/<img src="(https:\/\/image\.tmdb\.org[^"]+)"/);
     const versionMatch = block.match(/class="film-version"><a[^>]*>([^<]+)<\/a>/);
     const qualityMatch = block.match(/class="film-quality"><a[^>]*>([^<]+)<\/a>/);
@@ -110,6 +114,14 @@ export async function fetchFsListingPage(cstart: number, category: string): Prom
 export function extractImdbId(html: string): string | undefined {
   const m = html.match(/imdb\.com\/title\/(tt\d{7,10})/i);
   return m ? m[1] : undefined;
+}
+
+/** Titre original exposé par OpenOtaku dans la fiche détaillée. */
+export function extractSourceOriginalTitle(html: string): string | undefined {
+  const m = html.match(/<li[^>]*>\s*<span>\s*(?:Titre Original|Original Title)\s*:\s*<\/span>\s*([\s\S]*?)<\/li>/i);
+  if (!m) return undefined;
+  const title = decodeHtml(m[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim());
+  return title || undefined;
 }
 
 export async function fetchFsPageHtml(pageUrl: string): Promise<string | null> {

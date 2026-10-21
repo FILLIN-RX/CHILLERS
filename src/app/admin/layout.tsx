@@ -18,6 +18,7 @@ import {
   RobotOutlined,
   UserOutlined,
   ThunderboltOutlined,
+  LinkOutlined,
 } from '@ant-design/icons';
 import Link from 'next/link';
 import { adminTheme } from './theme';
@@ -34,6 +35,7 @@ const NAV_ITEMS: MenuProps['items'] = [
   { key: '/admin/animes', icon: <VideoCameraOutlined />, label: <Link href="/admin/animes">Animes</Link> },
   { key: '/admin/affiches', icon: <RobotOutlined />, label: <Link href="/admin/affiches">Assistant IA</Link> },
   { key: '/admin/tmdb', icon: <AppstoreOutlined />, label: <Link href="/admin/tmdb">TMDB</Link> },
+  { key: '/admin/catalogue', icon: <LinkOutlined />, label: <Link href="/admin/catalogue">Catalogue à lier</Link> },
   { key: '/admin/requests', icon: <ThunderboltOutlined />, label: <Link href="/admin/requests">Demandes de Contenu</Link> },
   { key: '/admin/scrapper', icon: <BugOutlined />, label: <Link href="/admin/scrapper">Scrapper</Link> },
   { key: '/admin/logs', icon: <UnorderedListOutlined />, label: <Link href="/admin/logs">Logs</Link> },
@@ -218,7 +220,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           placement="left"
           open={mobileOpen}
           onClose={() => setMobileOpen(false)}
-          width={SIDER_W}
+          size={SIDER_W}
           styles={{ body: { padding: 0, background: '#0f1219' }, header: { display: 'none' } }}
           zIndex={200}
           closable={false}

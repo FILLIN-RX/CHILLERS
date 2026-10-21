@@ -14,6 +14,8 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import { acquireModalScrollLock, releaseModalScrollLock } from "@/lib/modalScrollLock";
 import MovieCard from "./MovieCard";
 import UserAvatar from "./UserAvatar";
+import RequestModal from "@/features/requests/RequestModal";
+import { searchTMDBForRequest } from "@/services/media";
 
 const SESSION_KEY = "chillers_search_query";
 
@@ -30,6 +32,10 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [initialized, setInitialized] = useState(false);
+  const [requestOpen, setRequestOpen] = useState(false);
+  const [deepSearchState, setDeepSearchState] = useState<"idle" | "loading" | "done" | "error">("idle");
+  const [deepSearchResults, setDeepSearchResults] = useState<MovieOrShow[]>([]);
+  const [requestCandidate, setRequestCandidate] = useState<MovieOrShow | null>(null);
   const search = useSearchSuggestions("");
   const trendingQuery = useTrendingMovies({ enabled: isOpen });
   const genresQuery = useMovieGenres({ enabled: isOpen });
@@ -49,6 +55,12 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
     if (search.query.trim()) sessionStorage.setItem(SESSION_KEY, search.query);
     else sessionStorage.removeItem(SESSION_KEY);
   }, [search.query, isOpen]);
+
+  useEffect(() => {
+    setDeepSearchState("idle");
+    setDeepSearchResults([]);
+    setRequestCandidate(null);
+  }, [search.query]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -87,10 +99,34 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
   const genres = genresQuery.data ?? [];
   const results = useMemo(() => dedup(search.results), [search.results]);
 
+  const deepenSearch = async () => {
+    const query = search.query.trim();
+    if (!query || deepSearchState === "loading") return;
+    setDeepSearchState("loading");
+    setDeepSearchResults([]);
+    try {
+      setDeepSearchResults(await searchTMDBForRequest(query));
+      setDeepSearchState("done");
+    } catch {
+      setDeepSearchState("error");
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-[100] flex flex-col bg-[#1F1F1F] text-white animate-fade-in select-none h-dvh overflow-hidden">
+      <RequestModal
+        key={`${requestCandidate?.id ?? search.query.trim()}-${requestOpen ? "open" : "closed"}`}
+        isOpen={requestOpen}
+        onClose={() => { setRequestOpen(false); setRequestCandidate(null); }}
+        initialTitle={requestCandidate?.title ?? search.query.trim()}
+        initialType={requestCandidate?.type === "series" || requestCandidate?.type === "anime" ? "series" : "movie"}
+        tmdbId={requestCandidate ? Number(requestCandidate.id) : undefined}
+        posterUrl={requestCandidate?.posterUrl}
+        year={requestCandidate?.year}
+        tmdbVerified={Boolean(requestCandidate)}
+      />
       {/* ── Barre de recherche (verre Apple TV) ───────────────────── */}
       <div className="shrink-0 z-10 border-b border-white/10 bg-[#1F1F1F]/80 backdrop-blur-2xl">
         <div className="mx-auto max-w-8xl h-16 sm:h-20 px-4 sm:px-8 lg:px-16 xl:px-20 flex items-center gap-2.5 sm:gap-4">
@@ -257,10 +293,67 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
         ) : (
           <div className="flex flex-col items-center justify-center py-24 text-center space-y-3">
             <FilmSlate className="h-12 w-12 text-white/20" />
-            <h3 className="text-base sm:text-lg font-bold text-white">Aucun résultat trouvé</h3>
+            <h3 className="text-base sm:text-lg font-bold text-white">Ce titre n&apos;est pas disponible pour le moment</h3>
             <p className="text-xs text-white/40 max-w-sm">
-              Nous n&apos;avons trouvé aucun média correspondant à &quot;{search.query}&quot;. Essayez un autre mot-clé.
+              Nous ne l&apos;avons pas trouvé chez nos sources. Vous pouvez approfondir la recherche pour vérifier son titre sur TMDB.
             </p>
+            <button
+              type="button"
+              onClick={deepenSearch}
+              disabled={deepSearchState === "loading"}
+              className="mt-3 inline-flex items-center gap-2 rounded-full bg-brand-primary px-5 py-2.5 text-sm font-semibold text-white transition hover:brightness-110 active:scale-[0.98] disabled:opacity-60"
+            >
+              {deepSearchState === "loading" ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" /> : <MagnifyingGlass className="h-4 w-4" />}
+              {deepSearchState === "loading" ? "Vérification sur TMDB…" : "Approfondir la recherche"}
+            </button>
+            {deepSearchState === "error" && <p className="text-xs text-red-300">La vérification TMDB a échoué. Réessayez dans un instant.</p>}
+            {deepSearchState === "done" && deepSearchResults.length === 0 && (
+              <p className="max-w-sm text-xs text-white/50">TMDB n&apos;a pas trouvé de titre correspondant. Vérifiez l&apos;orthographe ou essayez le titre original.</p>
+            )}
+            {deepSearchResults.length > 0 && (
+              <div className="mt-3 w-full max-w-5xl space-y-3 text-left">
+                <p className="text-center text-xs text-white/50">Titres trouvés sur TMDB — choisis le bon pour lancer une recherche chez nos sources :</p>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+                  {deepSearchResults.map((candidate) => (
+                    <button
+                      key={`${candidate.type}-${candidate.id}`}
+                      type="button"
+                      onClick={() => { setRequestCandidate(candidate); setRequestOpen(true); }}
+                      className="group overflow-hidden rounded-xl border border-white/10 bg-white/[0.04] text-left transition hover:-translate-y-0.5 hover:border-brand-primary/70 hover:bg-white/[0.08]"
+                    >
+                      <span className="relative block aspect-[2/3] overflow-hidden bg-zinc-900">
+                        {candidate.posterUrl ? (
+                          <Image
+                            src={candidate.posterUrl}
+                            alt={`Affiche de ${candidate.title}`}
+                            fill
+                            sizes="(max-width: 640px) 45vw, (max-width: 1024px) 28vw, 220px"
+                            className="object-cover transition-transform duration-300 group-hover:scale-[1.04]"
+                          />
+                        ) : (
+                          <span className="flex h-full items-center justify-center text-white/25"><FilmSlate className="h-8 w-8" /></span>
+                        )}
+                        <span className="absolute left-2 top-2 rounded-full bg-black/75 px-2 py-1 text-[10px] font-semibold text-white backdrop-blur">
+                          À rechercher
+                        </span>
+                      </span>
+                      <span className="block p-3">
+                        <span className="block line-clamp-2 min-h-10 text-sm font-semibold text-white">{candidate.title}</span>
+                        <span className="mt-1 block text-xs text-white/45">{candidate.type === "series" || candidate.type === "anime" ? "Série" : "Film"}{candidate.year ? ` · ${candidate.year}` : ""}</span>
+                        <span className="mt-2 block text-xs font-semibold text-brand-primary">Lancer la recherche</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => inputRef.current?.focus()}
+                  className="mx-auto block rounded-full border border-white/15 px-4 py-2 text-xs font-medium text-white/70 transition hover:border-white/30 hover:text-white"
+                >
+                  Aucun de ces titres ? Modifier ma recherche
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

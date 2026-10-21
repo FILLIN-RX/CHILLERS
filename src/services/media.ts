@@ -9,7 +9,7 @@
 import { cache } from "react";
 import { httpJson, HttpError, API_BASE_PATH } from "./http";
 import { getAntiBotHeaders } from "@/lib/antibot";
-import type { MovieOrShow, Genre, MediaType, CastMember, Network, PersonDetails } from "@/types/media";
+import type { MovieOrShow, Genre, MediaType, CastMember, Network, PersonDetails, SeasonDetails } from "@/types/media";
 
 /* ─── in-memory client cache (5 min TTL) ─────────────────────────────────── */
 const clientCache = new Map<string, { data: any; expiry: number }>();
@@ -136,6 +136,14 @@ export interface TmdbRawItem {
     episode_count?: number;
     air_date?: string | null;
     overview?: string;
+    episodes?: Array<{
+      id: string | number;
+      name?: string;
+      episode_number: number;
+      runtime?: number;
+      still_path?: string | null;
+      overview?: string;
+    }>;
   }>;
   credits?: {
     cast?: Array<{
@@ -162,6 +170,10 @@ export interface TmdbRawItem {
   videos?: { results?: Array<{ site?: string; type?: string; key?: string; official?: boolean }> };
   recommendations?: { results?: TmdbRawItem[] };
   similar?: { results?: TmdbRawItem[] };
+  sourceUrl?: string;
+  sourceProvider?: string;
+  posterUrl?: string;
+  year?: number;
 }
 
 /** Entrée de `combined_credits` : rôle joué ou poste technique. */
@@ -291,7 +303,7 @@ export function mapTMDBToMovieOrShow(
   }
 
   const releaseDate = item.release_date || item.first_air_date || "";
-  const year = releaseDate ? new Date(releaseDate).getFullYear() : 2026;
+  const year = releaseDate ? new Date(releaseDate).getFullYear() : item.year ?? 2026;
 
   let genres: string[] = [];
   if (Array.isArray(item.genre_ids)) {
@@ -415,7 +427,9 @@ export function mapTMDBToMovieOrShow(
 
   const backdropUrl = getTmdbImageUrl(item.backdrop_path, "w1280");
   const backdropOriginalUrl = getTmdbImageUrl(item.backdrop_path, "original");
-  const posterUrl = getTmdbImageUrl(item.poster_path, "w500");
+  const posterUrl = item.poster_path
+    ? getTmdbImageUrl(item.poster_path, "w500")
+    : item.posterUrl || "";
 
   return {
     id: String(item.id),
@@ -451,6 +465,8 @@ export function mapTMDBToMovieOrShow(
     seasons: seasons.length > 0 ? seasons : undefined,
     similar: similar.length > 0 ? similar : undefined,
     releaseDate: releaseDate || undefined,
+    sourceUrl: item.sourceUrl,
+    sourceProvider: item.sourceProvider,
   };
 }
 
@@ -937,6 +953,65 @@ export async function getMadeInChina(page = 1, signal?: AbortSignal): Promise<Mo
 
 export type DiscoverSort = "trending" | "rating" | "recent" | "oldest";
 
+async function mixAfrolandSourceCards(
+  tmdbItems: MovieOrShow[],
+  type: "movies" | "series" | "anime",
+  page: number,
+  enabled: boolean,
+  signal?: AbortSignal,
+): Promise<MovieOrShow[]> {
+  if (!enabled || type === "anime") return tmdbItems;
+  try {
+    const response = await httpJson<ApiEnvelope<{
+      items: Array<{ id: string; title: string; year?: number; description?: string; posterUrl?: string; pageUrl: string; tmdbId?: number; matched: boolean; language?: string; card?: TmdbRawItem }>;
+    }>>("/catalog/list", {
+      query: { provider: "afroland", type: type === "movies" ? "movie" : "tv", matched: "all", page, limit: 5 },
+      signal,
+      timeoutMs: 8_000,
+    });
+    const sourceItems = (response.success ? response.data?.items : []) || [];
+    const sourceCards = sourceItems.filter((entry) => entry.pageUrl && (entry.posterUrl || entry.card?.poster_path)).map((entry) => {
+      const sourceOnlyId = `afroland-${entry.id}`;
+      const releaseDate = entry.year ? `${entry.year}-01-01` : undefined;
+      const raw: TmdbRawItem = entry.matched && entry.card
+        ? { ...entry.card, id: entry.tmdbId || entry.card.id }
+        : {
+            id: 0,
+            title: type === "movies" ? entry.title : undefined,
+            name: type === "series" ? entry.title : undefined,
+            overview: entry.description,
+            posterUrl: entry.posterUrl,
+            year: entry.year,
+            release_date: type === "movies" ? releaseDate : undefined,
+            first_air_date: type === "series" ? releaseDate : undefined,
+            media_type: type === "movies" ? "movie" : "tv",
+            sourceProvider: "Black",
+          };
+      const item = mapTMDBToMovieOrShow(raw, type === "movies" ? "movie" : "series");
+      return {
+        ...item,
+        id: entry.matched ? item.id : sourceOnlyId,
+        sourceProvider: "Black",
+        langueAudio: entry.language || "UNKNOWN",
+        isFrenchAudio: entry.language === "VF" || entry.language === "VFF" || entry.language === "VFQ",
+      };
+    });
+
+    // Stable random-looking positions: cards stay put while scrolling and reshuffle daily.
+    const day = new Date().toISOString().slice(0, 10);
+    const sourceIds = new Set(sourceCards.filter((item) => !item.sourceUrl).map((item) => item.id));
+    const mixed = [...tmdbItems.filter((item) => !sourceIds.has(item.id)), ...sourceCards];
+    const key = (item: MovieOrShow) => {
+      let hash = 2166136261;
+      for (const char of `${day}:${page}:${item.id}`) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
+      return hash >>> 0;
+    };
+    return mixed.sort((a, b) => key(a) - key(b));
+  } catch {
+    return tmdbItems;
+  }
+}
+
 /** Catalogue filtrable (année, genre, tri) — tendance par défaut. */
 export async function discoverMediaPage(
   type: "movies" | "series" | "anime",
@@ -960,10 +1035,11 @@ export async function discoverMediaPage(
       timeoutMs: 12_000,
     });
     if (env.success && env.data?.results?.length) {
+      const mapped = env.data.results.map((r) =>
+        mapTMDBToMovieOrShow(r, type === "movies" ? "movie" : undefined),
+      );
       return {
-        results: env.data.results.map((r) =>
-          mapTMDBToMovieOrShow(r, type === "movies" ? "movie" : undefined),
-        ),
+        results: await mixAfrolandSourceCards(mapped, type, page, !opts.genreId && !opts.year, signal),
         totalPages: env.data.total_pages || 1,
       };
     }
@@ -1020,7 +1096,10 @@ export async function discoverMediaPage(
       .sort((a, b) => (b.raw.popularity ?? 0) - (a.raw.popularity ?? 0))
       .slice(0, 20)
       .map(({ item }) => item);
-    return { results, totalPages: Math.max(tvData?.total_pages ?? 1, movieData?.total_pages ?? 1) };
+    return {
+      results: await mixAfrolandSourceCards(results, type, page, !opts.genreId && !opts.year, signal),
+      totalPages: Math.max(tvData?.total_pages ?? 1, movieData?.total_pages ?? 1),
+    };
   }
 
   const isMovie = type === "movies";
@@ -1038,8 +1117,9 @@ export async function discoverMediaPage(
   };
   const directData = await fetchDirectTMDB<PaginatedRaw>(directPath, params, signal);
   if (directData?.results?.length) {
+    const mapped = directData.results.map((raw) => mapTMDBToMovieOrShow(raw, isMovie ? "movie" : "series"));
     return {
-      results: directData.results.map((raw) => mapTMDBToMovieOrShow(raw, isMovie ? "movie" : "series")),
+      results: await mixAfrolandSourceCards(mapped, type, page, !opts.genreId && !opts.year, signal),
       totalPages: directData.total_pages || 1,
     };
   }
@@ -1251,6 +1331,60 @@ export const getMediaDetails = cache(async function getMediaDetails(
   isTV = false,
   signal?: AbortSignal,
 ): Promise<MovieOrShow | null> {
+  // Les identifiants AfroLand non liés à TMDB ont leur propre fiche interne.
+  const afrolandId = id.match(/^afroland-(.+)$/)?.[1];
+  if (afrolandId) {
+    const cacheKey = `media_details:afroland:${afrolandId}:${clientLang()}`;
+    const cached = getCached<MovieOrShow>(cacheKey);
+    if (cached) return cached;
+    try {
+      const env = await httpJson<ApiEnvelope<{
+        sourceId: string; type: string; title: string; year?: number; description?: string;
+        posterUrl?: string; language?: string; country?: string; card?: TmdbRawItem; seasons?: TmdbRawItem["seasons"];
+      }>>(`/catalog/afroland/${encodeURIComponent(afrolandId)}`, { signal, timeoutMs: 20_000 });
+      if (!env.success || !env.data) return null;
+      const raw: TmdbRawItem = env.data.card || {
+        id: 0,
+        media_type: env.data.type === "movie" ? "movie" : "tv",
+        title: env.data.type === "movie" ? env.data.title : undefined,
+        name: env.data.type === "movie" ? undefined : env.data.title,
+        overview: env.data.description || "",
+        posterUrl: env.data.posterUrl,
+        release_date: env.data.type === "movie" && env.data.year ? `${env.data.year}-01-01` : undefined,
+        first_air_date: env.data.type !== "movie" && env.data.year ? `${env.data.year}-01-01` : undefined,
+      };
+      const mapped = mapTMDBToMovieOrShow(raw, env.data.type === "movie" ? "movie" : "series");
+      mapped.id = id;
+      mapped.sourceProvider = "Black";
+      mapped.langueAudio = env.data.language || "UNKNOWN";
+      mapped.isFrenchAudio = ["VF", "VFF", "VFQ"].includes(mapped.langueAudio);
+      if (env.data.seasons?.length) {
+        mapped.seasons = env.data.seasons.map((season) => ({
+          id: String(season.id),
+          name: season.name || `Saison ${season.season_number}`,
+          seasonNumber: season.season_number,
+          posterUrl: season.poster_path || mapped.posterUrl,
+          episodeCount: season.episode_count || season.episodes?.length || 0,
+          episodes: (season.episodes || []).map((episode, index) => ({
+            id: String(episode.id),
+            title: episode.name || `Épisode ${episode.episode_number || index + 1}`,
+            duration: episode.runtime ? `${episode.runtime}m` : "24m",
+            number: episode.episode_number || index + 1,
+            season: season.season_number,
+            thumbnail: episode.still_path || mapped.backdropUrl || mapped.posterUrl,
+            synopsis: episode.overview || "",
+          })),
+        }));
+        mapped.numberOfSeasons = mapped.seasons.length;
+        mapped.numberOfEpisodes = mapped.seasons.reduce((total, season) => total + season.episodes.length, 0);
+      }
+      setCached(cacheKey, mapped, 10 * 60 * 1000);
+      return mapped;
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") throw err;
+      return null;
+    }
+  }
   const cacheKey = `media_details:${isTV ? 'tv' : 'movie'}:${id}:${clientLang()}`;
   const cached = getCached<MovieOrShow>(cacheKey);
   if (cached) return cached;
@@ -1318,23 +1452,6 @@ export const getPersonDetails = cache(async function getPersonDetails(
   return null;
 });
 
-export interface SeasonDetails {
-  id: number;
-  name: string;
-  season_number: number;
-  poster_path?: string | null;
-  overview?: string;
-  episodes?: Array<{
-    id: number;
-    name: string;
-    episode_number: number;
-    runtime?: number;
-    still_path?: string | null;
-    overview?: string;
-    air_date?: string | null;
-  }>;
-}
-
 export const getSeasonDetails = cache(async function getSeasonDetails(
   id: string,
   seasonNumber: string,
@@ -1343,6 +1460,33 @@ export const getSeasonDetails = cache(async function getSeasonDetails(
   const cacheKey = `season_details:${id}:${seasonNumber}:${clientLang()}`;
   const cached = getCached<SeasonDetails>(cacheKey);
   if (cached) return cached;
+
+  const afrolandId = id.match(/^afroland-(.+)$/)?.[1];
+  if (afrolandId) {
+    try {
+      const env = await httpJson<ApiEnvelope<{ seasons?: TmdbRawItem["seasons"] }>>(
+        `/catalog/afroland/${encodeURIComponent(afrolandId)}`, { signal, timeoutMs: 20_000 },
+      );
+      const season = env.data?.seasons?.find((entry) => entry.season_number === Number(seasonNumber));
+      if (!env.success || !season) return null;
+      const result: SeasonDetails = {
+        id: Number(season.id),
+        name: season.name || `Saison ${season.season_number}`,
+        season_number: season.season_number,
+        poster_path: season.poster_path,
+        overview: season.overview,
+        episodes: (season.episodes || []).map((episode, index) => ({
+          ...episode,
+          name: episode.name || `Épisode ${episode.episode_number || index + 1}`,
+        })),
+      };
+      setCached(cacheKey, result, 10 * 60 * 1000);
+      return result;
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") throw err;
+      return null;
+    }
+  }
 
   try {
     const env = await httpJson<ApiEnvelope<SeasonDetails>>(
@@ -1535,19 +1679,37 @@ export async function searchMedia(
     if (err instanceof DOMException && err.name === "AbortError") throw err;
   }
 
-  // Direct TMDB fallback
-  const lang = clientLang() === "fr" ? "fr-FR" : "en-US";
-  const directData = await fetchDirectTMDB<PaginatedRaw>(
-    "/search/multi",
-    { query, page, language: lang },
-    signal,
-  );
-  if (directData?.results) {
-    return directData.results
-      .filter((r) => r.media_type === "movie" || r.media_type === "tv" || !r.media_type)
-      .map((r) => mapTMDBToMovieOrShow(r, r.media_type === "tv" ? "series" : "movie"));
-  }
+  // Never fall back to raw TMDB search results here: they include titles that
+  // are not present at any provider and would misrepresent availability.
   return [];
+}
+
+/** Recherche TMDB réservée au parcours « approfondir la recherche » d'un titre absent.
+ * Ces résultats servent à identifier l'œuvre pour une demande; ils ne signifient
+ * jamais qu'elle est déjà disponible chez un fournisseur.
+ */
+export async function searchTMDBForRequest(
+  query: string,
+  signal?: AbortSignal,
+): Promise<MovieOrShow[]> {
+  const lang = clientLang() === "fr" ? "fr-FR" : "en-US";
+  const [movies, series] = await Promise.all([
+    fetchDirectTMDB<PaginatedRaw>("/search/movie", { query, language: lang }, signal),
+    fetchDirectTMDB<PaginatedRaw>("/search/tv", { query, language: lang }, signal),
+  ]);
+  if (!movies && !series) throw new Error("TMDB search unavailable");
+  const candidates = [
+    ...(movies?.results ?? []).map((raw) => mapTMDBToMovieOrShow(raw, "movie")),
+    ...(series?.results ?? []).map((raw) => mapTMDBToMovieOrShow(raw, "series")),
+  ];
+  const normalizedQuery = query.toLocaleLowerCase().trim();
+  return candidates
+    .sort((a, b) => {
+      const aExact = a.title.toLocaleLowerCase().trim() === normalizedQuery ? 1 : 0;
+      const bExact = b.title.toLocaleLowerCase().trim() === normalizedQuery ? 1 : 0;
+      return bExact - aExact || b.rating - a.rating;
+    })
+    .slice(0, 8);
 }
 
 /* Stream resolution. */
@@ -1632,9 +1794,14 @@ export async function getStreamUrl(
   language?: string,
 ): Promise<{ embedUrl: string; provider: string; downloadUrl?: string | null; directType?: "mp4" | "hls" | null; directUrl?: string | null; referer?: string | null; unreleased?: boolean; releaseDate?: string | null } | null> {
   const isTv = type === "series" || type === "anime";
-  const endpoint = isTv
-    ? `/stream/tv/${id}/${season ?? 1}/${episode ?? 1}`
-    : `/stream/movie/${id}`;
+  const afrolandCatalogId = id.match(/^afroland-(.+)$/)?.[1];
+  const endpoint = afrolandCatalogId
+    ? (isTv
+      ? `/stream/afroland/${encodeURIComponent(afrolandCatalogId)}/${season ?? 1}/${episode ?? 1}`
+      : `/stream/afroland/${encodeURIComponent(afrolandCatalogId)}/movie`)
+    : isTv
+      ? `/stream/tv/${id}/${season ?? 1}/${episode ?? 1}`
+      : `/stream/movie/${id}`;
   const payload = await getStreamOnce(endpoint, type, title, signal, 45_000, originalTitle, releaseDate, year, language);
   if (payload) {
     return {
@@ -1674,6 +1841,9 @@ export async function getNexStreamResolution(
   episode?: number,
   title?: string,
 ): Promise<StreamPayload | null> {
+  // Les fiches AfroLand utilisent un identifiant de catalogue, pas un ID TMDB.
+  // Le flux secondaire n'a pas de résolution AfroLand et ne doit pas appeler les routes numériques.
+  if (id.startsWith("afroland-")) return null;
   const isTv = type === "series" || type === "anime";
   const endpoint = isTv
     ? `/nexstream/tv/${id}/${season ?? 1}/${episode ?? 1}`

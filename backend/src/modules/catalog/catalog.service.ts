@@ -23,13 +23,16 @@ export interface CatalogListItem {
   type: CatalogItemType;
   title: string;
   year?: number;
+  description?: string;
   season?: number;
   posterUrl?: string;
   language?: string;
+  country?: string;
   quality?: string;
   pageUrl: string;
   tmdbId?: number;
   matched: boolean;
+  card?: CatalogCard;
 }
 
 function escapeRegex(value: string): string {
@@ -44,7 +47,14 @@ export async function listCatalog(query: CatalogListQuery) {
   const filter: any = { active: true };
   if (query.provider) filter.provider = query.provider;
   if (query.type) filter.type = query.type;
-  if (query.matched === 'only') filter.matchStatus = 'matched';
+  if (query.matched === 'only') {
+    filter.matchStatus = 'matched';
+    filter.$or = [
+      { type: 'movie', 'card.media_type': 'movie' },
+      { type: 'tv', 'card.media_type': 'tv' },
+      { type: 'anime', 'card.media_type': { $in: ['movie', 'tv'] }, 'card.genre_ids': 16 },
+    ];
+  }
   if (query.matched === 'unmatched') filter.matchStatus = 'unmatched';
   if (query.q?.trim()) {
     const needle = escapeRegex(normalizeCatalogTitle(query.q));
@@ -56,7 +66,7 @@ export async function listCatalog(query: CatalogListQuery) {
   const [items, total] = await Promise.all([
     ProviderCatalogItem.find(filter)
       .select(
-        'provider type title year season posterUrl language quality pageUrl tmdbId matchStatus'
+        'provider type title year description season posterUrl language country quality pageUrl tmdbId matchStatus card'
       )
       .sort({ lastSeenAt: -1, _id: -1 })
       .skip((page - 1) * limit)
@@ -65,20 +75,30 @@ export async function listCatalog(query: CatalogListQuery) {
     ProviderCatalogItem.countDocuments(filter),
   ]);
 
-  const mapped: CatalogListItem[] = items.map((it: any) => ({
-    id: String(it._id),
-    provider: it.provider,
-    type: it.type,
-    title: it.title,
-    year: it.year,
-    season: it.season,
-    posterUrl: it.posterUrl,
-    language: it.language,
-    quality: it.quality,
-    pageUrl: it.pageUrl,
-    tmdbId: it.tmdbId,
-    matched: it.matchStatus === 'matched',
-  }));
+  const mapped: CatalogListItem[] = items.map((it: any) => {
+    const correctTmdbType = it.type === 'anime'
+      ? (it.card?.media_type === 'movie' || it.card?.media_type === 'tv') &&
+        (it.card?.genre_ids || []).includes(16)
+      : it.card?.media_type === it.type;
+    const matched = it.matchStatus === 'matched' && correctTmdbType;
+    return {
+      id: String(it._id),
+      provider: it.provider,
+      type: it.type,
+      title: it.title,
+      year: it.year,
+      description: it.description,
+      season: it.season,
+      posterUrl: it.posterUrl,
+      language: it.language,
+      country: it.country,
+      quality: it.quality,
+      pageUrl: it.pageUrl,
+      tmdbId: matched ? it.tmdbId : undefined,
+      matched,
+      card: matched ? it.card : undefined,
+    };
+  });
 
   return {
     items: mapped,
@@ -135,12 +155,11 @@ export async function filterIdsByCatalog(
   ids: number[]
 ): Promise<number[] | null> {
   if (!ids.length) return [];
-  const types = typesFor(type);
   const rows = await ProviderCatalogItem.find({
     tmdbId: { $in: ids },
     active: true,
     matchStatus: 'matched',
-    type: { $in: types },
+    ...safeSourceTypeFilter(type),
   })
     .select('tmdbId')
     .lean();
@@ -191,12 +210,30 @@ export async function applyCatalogFilterToPage<T extends { results?: any[] }>(
   }
 }
 
-export type CatalogSort = 'popular' | 'rating' | 'recent';
+export type CatalogSort = 'popular' | 'rating' | 'recent' | 'oldest';
 
 const ROW_SIZE = 20;
+const RATING_MIN_VOTES = Number(process.env.CATALOG_RATING_MIN_VOTES || 50);
+/** Note bayésienne (formule du Top 250) : sinon un live de BTS à 9,6/60 votes coiffe le catalogue. */
+const RATING_PRIOR_MEAN = Number(process.env.CATALOG_RATING_PRIOR_MEAN || 6);
+const RATING_PRIOR_WEIGHT = Number(process.env.CATALOG_RATING_PRIOR_WEIGHT || 250);
 
-function typesFor(type: 'movie' | 'tv'): CatalogItemType[] {
-  return type === 'movie' ? ['movie'] : ['tv', 'anime'];
+/** Un type source ne suffit pas : l'ID TMDB doit rester dans son espace. */
+function safeSourceTypeFilter(type: 'movie' | 'tv'): Record<string, any> {
+  if (type === 'movie') {
+    return {
+      $or: [
+        { type: 'movie', 'card.media_type': 'movie' },
+        { type: 'anime', 'card.media_type': 'movie', 'card.genre_ids': 16 },
+      ],
+    };
+  }
+  return {
+    $or: [
+      { type: 'tv', 'card.media_type': 'tv' },
+      { type: 'anime', 'card.media_type': { $in: ['movie', 'tv'] }, 'card.genre_ids': 16 },
+    ],
+  };
 }
 
 /**
@@ -208,7 +245,15 @@ function typesFor(type: 'movie' | 'tv'): CatalogItemType[] {
  */
 export async function catalogPage(
   type: 'movie' | 'tv',
-  opts: { page?: number; sort?: CatalogSort; genreId?: string } = {}
+  opts: {
+    page?: number;
+    sort?: CatalogSort;
+    genres?: string[];
+    year?: string;
+    types?: CatalogItemType[];
+    /** Langue d'origine TMDB — « ja » borne une rangée anime bien chargée. */
+    originalLanguage?: string;
+  } = {}
 ): Promise<{
   page: number;
   results: CatalogCard[];
@@ -218,27 +263,60 @@ export async function catalogPage(
   if (!(await isCatalogFilterActive())) return null;
 
   const page = Math.max(1, Number(opts.page) || 1);
-  const genre = Number(opts.genreId);
+  const genres = (opts.genres || []).map(Number).filter(Number.isFinite);
+  const year = /^\d{4}$/.test(String(opts.year || '')) ? String(opts.year) : undefined;
+  // Les pages anime demandent volontairement movie + tv; les autres pages
+  // doivent respecter l'espace TMDB correspondant à leur route.
+  const mediaTypes = type === 'tv' && (opts.types?.includes('movie') || opts.types?.includes('anime')) ? ['movie', 'tv'] : [type];
   const sortBy: Record<string, 1 | -1> =
     opts.sort === 'rating'
-      ? { 'card.vote_average': -1, 'card.vote_count': -1 }
+      ? { _wr: -1, 'card.vote_count': -1 }
       : opts.sort === 'recent'
         ? { _release: -1, 'card.popularity': -1 }
-        : { 'card.popularity': -1 };
+        : opts.sort === 'oldest'
+          ? { _release: 1, 'card.popularity': -1 }
+          : { 'card.popularity': -1 };
 
   const pipeline: any[] = [
     {
       $match: {
         active: true,
         matchStatus: 'matched',
-        type: { $in: typesFor(type) },
+        ...(opts.types ? { type: { $in: opts.types } } : safeSourceTypeFilter(type)),
         'card.id': { $exists: true },
-        ...(Number.isFinite(genre) ? { 'card.genre_ids': genre } : {}),
+        'card.media_type': { $in: mediaTypes },
+        ...(opts.originalLanguage ? { 'card.original_language': opts.originalLanguage } : {}),
+        // Tri « notes » : sinon une fiche à 1 vote coiffait tout le catalogue.
+        ...(opts.sort === 'rating' ? { 'card.vote_count': { $gte: RATING_MIN_VOTES } } : {}),
+        ...(genres.length ? { $and: genres.map((g) => ({ 'card.genre_ids': g })) } : {}),
       },
     },
     { $sort: { 'card.popularity': -1 } },
-    { $group: { _id: '$tmdbId', card: { $first: '$card' } } },
+    // TMDB sépare les espaces movie et tv : un ID numérique peut exister dans
+    // les deux. Les regrouper sur tmdbId seul ferait disparaître un autre titre.
+    { $group: { _id: { tmdbId: '$tmdbId', mediaType: '$card.media_type' }, card: { $first: '$card' } } },
     { $addFields: { _release: { $ifNull: ['$card.release_date', '$card.first_air_date'] } } },
+    {
+      $addFields: {
+        _wr: {
+          $add: [
+            RATING_PRIOR_MEAN,
+            {
+              $multiply: [
+                {
+                  $divide: [
+                    { $ifNull: ['$card.vote_count', 0] },
+                    { $add: [{ $ifNull: ['$card.vote_count', 0] }, RATING_PRIOR_WEIGHT] },
+                  ]
+                },
+                { $subtract: [{ $ifNull: ['$card.vote_average', RATING_PRIOR_MEAN] }, RATING_PRIOR_MEAN] },
+              ],
+            },
+          ],
+        },
+      },
+    },
+    ...(year ? [{ $match: { _release: { $regex: `^${year}` } } }] : []),
     { $sort: sortBy },
     {
       $facet: {
@@ -269,9 +347,22 @@ export async function tmdbCatalogList(
   type: 'movie' | 'tv',
   path: string,
   params: Record<string, any> = {},
-  opts: { sort?: CatalogSort; genreId?: string } = {}
+  opts: {
+    sort?: CatalogSort;
+    genres?: string[];
+    year?: string;
+    types?: CatalogItemType[];
+    originalLanguage?: string;
+  } = {}
 ): Promise<any> {
-  const fromCatalog = await catalogPage(type, { page: params.page, ...opts }).catch(() => null);
+  const fromCatalog = await catalogPage(type, {
+    page: params.page,
+    sort: opts.sort,
+    genres: opts.genres,
+    year: opts.year,
+    types: opts.types,
+    originalLanguage: opts.originalLanguage,
+  }).catch(() => null);
   if (fromCatalog) return fromCatalog;
   const { data } = await tmdbClient.get(path, { params });
   return applyCatalogFilterToPage(type, data);
@@ -284,12 +375,11 @@ export async function providersForTmdbIds(
 ): Promise<Map<number, { providers: CatalogProvider[]; language?: string }>> {
   const map = new Map<number, { providers: CatalogProvider[]; language?: string }>();
   if (!tmdbIds.length) return map;
-  const types = typesFor(type);
   const rows = await ProviderCatalogItem.find({
     tmdbId: { $in: tmdbIds },
     active: true,
     matchStatus: 'matched',
-    type: { $in: types },
+    ...safeSourceTypeFilter(type),
   })
     .select('tmdbId provider language')
     .lean();
