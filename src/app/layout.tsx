@@ -13,7 +13,7 @@ import AdSense from "@/components/AdSense";
 import SessionSyncProvider from "@/components/providers/SessionSyncProvider";
 import QueryProvider from "@/components/QueryProvider";
 import "./globals.css";
-import Script from "next/script";
+import AnalyticsConsent from "@/components/AnalyticsConsent";
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
@@ -152,32 +152,7 @@ export default function RootLayout({
         `}} />
       </head>
       <body suppressHydrationWarning className="min-h-screen flex flex-col bg-brand-dark text-foreground selection:bg-brand-primary selection:text-white">
-        {/* Google Tag (gtag.js) avec Consent Mode */}
-        <Script
-          strategy="afterInteractive"
-          src="https://www.googletagmanager.com/gtag/js?id=G-07EF63R64Y"
-        />
-        <Script
-          id="google-analytics"
-          strategy="afterInteractive"
-          dangerouslySetInnerHTML={{
-            __html: `
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              
-              // Configuration par défaut du Mode Consentement (EEE)
-              gtag('consent', 'default', {
-                'ad_storage': 'denied',
-                'ad_user_data': 'denied',
-                'ad_personalization': 'denied',
-                'analytics_storage': 'denied'
-              });
-              
-              gtag('js', new Date());
-              gtag('config', 'G-07EF63R64Y');
-            `,
-          }}
-        />
+        <AnalyticsConsent />
         {/* Splash pré-React — retiré par SplashScreen.tsx une fois les données chargées */}
         {/* dangerouslySetInnerHTML : React ne touche JAMAIS aux enfants → zéro erreur insertBefore/removeChild */}
         <div

@@ -77,9 +77,18 @@ export default function PrivacyPage() {
             ne contiennent aucune information personnelle et ne sont jamais partagés avec des tiers.
           </p>
           <p className="text-zinc-400 text-sm leading-relaxed">
-            Nous n&apos;utilisons aucun cookie de tracking, aucune balise pixel, et aucun outil de 
-            surveillance comportementale.
+            Avec votre accord, Google Analytics mesure la fréquentation du site (pages consultées et
+            interactions générales). La balise et les cookies analytiques ne sont activés qu&apos;après
+            votre acceptation. Si vous refusez, Google Analytics n&apos;est pas chargé. Votre choix est
+            enregistré dans votre navigateur et peut être modifié ci-dessous.
           </p>
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new Event("chillers:manage-analytics-consent"))}
+            className="rounded-full border border-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
+          >
+            Modifier mon choix pour les statistiques
+          </button>
         </section>
 
         {/* Services tiers */}
