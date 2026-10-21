@@ -241,7 +241,7 @@ router.get('/resolve', async (req: Request, res: Response) => {
     // 2. ProviderManager (FrenchStream, AfroLandTV, Otaku, etc.)
     if (!downloadUrl || isEmbedOrHtml(downloadUrl)) {
       const providerOpts = isIOS && iosFallbackUqload
-        ? { only: ['frenchstream', 'afroland', 'otaku', 'fawesome'] }
+        ? { only: ['frenchstream', 'afroland', 'frenchanime', 'otaku', 'fawesome'] }
         : undefined;
 
       const streamResult = isTv
