@@ -13,7 +13,8 @@ import AdSense from "@/components/AdSense";
 import SessionSyncProvider from "@/components/providers/SessionSyncProvider";
 import QueryProvider from "@/components/QueryProvider";
 import "./globals.css";
-import AnalyticsConsent from "@/components/AnalyticsConsent";
+import GoogleAnalytics from "@/components/GoogleAnalytics";
+import CookieNotice from "@/components/CookieNotice";
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
@@ -152,7 +153,8 @@ export default function RootLayout({
         `}} />
       </head>
       <body suppressHydrationWarning className="min-h-screen flex flex-col bg-brand-dark text-foreground selection:bg-brand-primary selection:text-white">
-        <AnalyticsConsent />
+        <GoogleAnalytics />
+        <CookieNotice />
         {/* Splash pré-React — retiré par SplashScreen.tsx une fois les données chargées */}
         {/* dangerouslySetInnerHTML : React ne touche JAMAIS aux enfants → zéro erreur insertBefore/removeChild */}
         <div
