@@ -2,10 +2,10 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { adminGetLogsStreamUrl, adminRunMaintenance } from '@/services/admin';
-import { Typography, Button, Space, Card, Badge } from 'antd';
+import { Typography, Button, Space, Card, Badge } from '@/components/admin/ui';
 import {
   SearchOutlined, ToolOutlined, VideoCameraOutlined, ClearOutlined,
-} from '@ant-design/icons';
+} from '@/components/admin/icons';
 
 const { Title, Text } = Typography;
 
@@ -66,10 +66,10 @@ export default function AdminMaintenanceLiens() {
   };
 
   const lineColor = (line: string) => {
-    if (line.includes('✅') || line.includes('Succès') || line.includes('OK')) return '#34d399';
-    if (line.includes('❌') || line.includes('Erreur') || line.includes('FAIL') || line.includes('FATAL')) return '#f87171';
-    if (line.includes('🔍') || line.includes('Détecté') || line.includes('mort') || line.includes('Dead link')) return '#fbbf24';
-    return '#a5adc0';
+    if (line.includes('✅') || line.includes('Succès') || line.includes('OK')) return '#18794e';
+    if (line.includes('❌') || line.includes('Erreur') || line.includes('FAIL') || line.includes('FATAL')) return '#c2413b';
+    if (line.includes('🔍') || line.includes('Détecté') || line.includes('mort') || line.includes('Dead link')) return '#916400';
+    return '#475467';
   };
 
   return (
@@ -99,7 +99,7 @@ export default function AdminMaintenanceLiens() {
           loading={running === 'dead-links'}
           disabled={!!running}
           onClick={() => launch('dead-links')}
-          style={{ background: '#0d2b1a', borderColor: '#14532d', color: '#34d399' }}
+          style={{ background: '#effaf4', borderColor: '#b7e4c8', color: '#18794e' }}
         >
           Réparer les séries
         </Button>
@@ -108,7 +108,7 @@ export default function AdminMaintenanceLiens() {
           loading={running === 'repair-movies'}
           disabled={!!running}
           onClick={() => launch('repair-movies')}
-          style={{ background: '#2b1d0a', borderColor: '#53350d', color: '#fbbf24' }}
+          style={{ background: '#fff8e8', borderColor: '#f1e3bd', color: '#8a6311' }}
         >
           Réparer les films
         </Button>
@@ -128,7 +128,7 @@ export default function AdminMaintenanceLiens() {
           fontFamily: 'monospace', fontSize: 13, lineHeight: 1.6,
         }}>
           {logs.length === 0 ? (
-            <p style={{ color: '#6b7488', textAlign: 'center', marginTop: '5rem', fontSize: 13 }}>
+            <p style={{ color: '#667085', textAlign: 'center', marginTop: '5rem', fontSize: 13 }}>
               Lance une détection ou une réparation pour voir les résultats en temps réel
             </p>
           ) : (

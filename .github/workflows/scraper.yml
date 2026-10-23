@@ -26,6 +26,8 @@ on:
           - 'catalog'
           - 'catalog-full'
           - 'catalog-match'
+          - 'catalog-unmatched'
+          - 'catalog-oha'
       apply:
         description: 'realign : écrire les tmdbId corrigés en base (sinon dry-run, lecture seule)'
         required: false
@@ -85,7 +87,8 @@ jobs:
             src/modules/catalog/sync-frenchstream.ts \
             src/modules/catalog/sync-otaku.ts \
             src/modules/catalog/sync-afroland.ts \
-            src/modules/catalog/match-tmdb.ts
+            src/modules/catalog/match-tmdb.ts \
+            src/modules/live/sync-oha-catalog.ts
           do
             test -f "$f" || { echo "::error::script manquant : $f"; exit 1; }
           done
@@ -176,6 +179,12 @@ jobs:
             "catalog-match")
               npx tsx src/modules/catalog/match-tmdb.ts
               ;;
+            "catalog-unmatched")
+              MATCH_UNMATCHED=1 MATCH_PROVIDER=frenchstream MATCH_CATALOG_TYPE=tv MATCH_BATCH_SIZE=3000 MATCH_MAX_MINUTES=45 MATCH_RETRY_DAYS=30 npx tsx src/modules/catalog/match-tmdb.ts
+              ;;
+            "catalog-oha")
+              npx tsx src/modules/live/sync-oha-catalog.ts
+              ;;
             "all")
               echo "=== 1/10 Scraping Films ==="
               npx tsx src/modules/scraping/core/scrape-films.js
@@ -206,6 +215,8 @@ jobs:
               npx tsx src/modules/catalog/sync-afroland.ts
               echo "=== 10/10 Liage catalogue → TMDB ==="
               npx tsx src/modules/catalog/match-tmdb.ts
+              echo "=== 11/11 Reprise des séries FrenchStream non liées ==="
+              MATCH_UNMATCHED=1 MATCH_PROVIDER=frenchstream MATCH_CATALOG_TYPE=tv MATCH_BATCH_SIZE=3000 MATCH_MAX_MINUTES=45 MATCH_RETRY_DAYS=30 npx tsx src/modules/catalog/match-tmdb.ts
               ;;
             *)
               echo "Tâche inconnue : $TASK"

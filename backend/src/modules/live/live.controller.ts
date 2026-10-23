@@ -1,5 +1,6 @@
 // @ts-nocheck
 import * as liveService from "./live.service";
+import { listOhaCatalogChannels, syncOhaCatalogChannels } from './oha-catalog.service';
 export const getChannels = async (req, res, next) => {
     try {
         const category = req.query.category;
@@ -82,6 +83,27 @@ export const syncChannels = async (req, res, next) => {
             data: result,
             message: `Seed synchronisé : ${result.added} ajoutée(s), ${result.updated} mise(s) à jour`,
         });
+    }
+    catch (error) {
+        next(error);
+    }
+};
+
+export const getOhaChannels = async (_req, res, next) => {
+    try {
+        const channels = await listOhaCatalogChannels();
+        res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=1800');
+        res.json({ success: true, data: channels, message: null });
+    }
+    catch (error) {
+        next(error);
+    }
+};
+
+export const syncOhaChannels = async (_req, res, next) => {
+    try {
+        const result = await syncOhaCatalogChannels();
+        res.json({ success: true, data: result, message: `Catalogue OHA synchronisé : ${result.synced} chaîne(s)` });
     }
     catch (error) {
         next(error);

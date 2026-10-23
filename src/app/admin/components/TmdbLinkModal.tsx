@@ -3,9 +3,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { searchMedia } from '@/services/media';
 import { adminLinkTmdb } from '@/services/admin';
-import { Modal, Input, Spin, Empty, Tag, Typography, Button } from 'antd';
-import type { InputRef } from 'antd';
-import { SearchOutlined, LinkOutlined } from '@ant-design/icons';
+import { Modal, Input, Spin, Empty, Tag, Typography, Button } from '@/components/admin/ui';
+import type { InputRef } from '@/components/admin/ui';
+import { SearchOutlined, LinkOutlined } from '@/components/admin/icons';
 
 const { Text } = Typography;
 
@@ -79,7 +79,7 @@ export default function TmdbLinkModal({ type, docId, currentTmdbId, onClose, onL
         placeholder="Rechercher sur TMDB..."
         value={query}
         onChange={e => setQuery(e.target.value)}
-        prefix={<SearchOutlined style={{ color: '#6b7488' }} />}
+        prefix={<SearchOutlined style={{ color: '#667085' }} />}
         allowClear
         style={{ marginBottom: '1rem' }}
       />
@@ -106,13 +106,13 @@ export default function TmdbLinkModal({ type, docId, currentTmdbId, onClose, onL
                   borderRadius: 10, cursor: 'pointer', transition: 'background 0.15s',
                   background: isCurrent ? 'rgba(52,211,153,0.12)' : 'transparent',
                 }}
-                onMouseEnter={e => { if (!isCurrent) e.currentTarget.style.background = '#0f1219'; }}
+                onMouseEnter={e => { if (!isCurrent) e.currentTarget.style.background = '#f2efeb'; }}
                 onMouseLeave={e => { if (!isCurrent) e.currentTarget.style.background = 'transparent'; }}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={r.posterUrl} alt="" style={{ width: 40, height: 60, borderRadius: 6, objectFit: 'cover', background: '#1a1f2b' }} />
+                <img src={r.posterUrl} alt="" style={{ width: 40, height: 60, borderRadius: 6, objectFit: 'cover', background: '#f2f4f7' }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ color: '#e6e9f0', fontSize: 14, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <div style={{ color: '#172033', fontSize: 14, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {r.title}
                   </div>
                   <Text type="secondary" style={{ fontSize: 12 }}>

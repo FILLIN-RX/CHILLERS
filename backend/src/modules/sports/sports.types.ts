@@ -54,6 +54,8 @@ export interface SportsServer {
    */
   source?: SportsSourceId;
   sourceId?: string;
+  /** Flux TV indépendant du provider du match (ex. chaîne issue du snapshot IPTV). */
+  external?: boolean;
   /**
    * Relay HLS déjà construit (fast path lab) : surcharge le relay générique
    * `source/sourceId` quand le lien vient du snapshot et non de la chaîne.

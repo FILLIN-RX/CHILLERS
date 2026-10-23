@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import { adminGetSettings, adminUpdateSettings } from '@/services/admin';
 import {
   Card, Typography, Form, Input, Button, Descriptions, Spin, Alert, Space,
-} from 'antd';
-import { SaveOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
+} from '@/components/admin/ui';
+import { SaveOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@/components/admin/icons';
 
 const { Title } = Typography;
 
@@ -39,7 +39,7 @@ export default function AdminSettings() {
   };
 
   if (loading) return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#6b7488', padding: '2rem' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#667085', padding: '2rem' }}>
       <Spin /> Chargement...
     </div>
   );
@@ -56,7 +56,7 @@ export default function AdminSettings() {
       <Title level={3} style={{ marginTop: 0, marginBottom: '1.25rem' }}>Paramètres</Title>
 
       <Card title="Configuration actuelle" size="small" style={{ marginBottom: '1.5rem' }}>
-        <Descriptions column={1} size="small" labelStyle={{ color: '#8b93a7' }}>
+        <Descriptions column={1} size="small" labelStyle={{ color: '#667085' }}>
           {Object.entries(settings).map(([key, value]) => (
             <Descriptions.Item key={key} label={key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}>
               <span style={{

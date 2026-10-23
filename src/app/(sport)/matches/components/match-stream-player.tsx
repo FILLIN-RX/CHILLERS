@@ -12,12 +12,13 @@ import {
 import LivePlayer from "@/components/LivePlayer";
 import MatchChannelsRow from "@/components/live/MatchChannelsRow";
 import { getMatchStream } from "@/services/matches";
-import { getSportsStream } from "@/services/sports";
+import { getSportsChannels, getSportsStream } from "@/services/sports";
 import { getMatchChannels, resolveOhaStream } from "@/services/oha";
 import type { LiveChannel } from "@/types/live";
 import type { OhaChannel } from "@/types/oha";
 import { PopupFirewall } from "@/lib/PopupFirewall";
 import { enterFullscreen, exitFullscreen, isFullscreenActive } from "@/lib/fullscreen";
+import type { SportsServer } from "@/types/sports";
 
 const PRIMARY = "#FF6A00";
 
@@ -29,6 +30,8 @@ interface ResolvedMatchStream {
   /** Referer à reconstituer côté proxy d'embarquement (hôtes « domain protected »). */
   referer?: string;
   provider?: string;
+  name?: string;
+  candidates?: ResolvedMatchStream[];
 }
 
 export interface MatchStreamPlayerProps {
@@ -56,6 +59,9 @@ export function MatchStreamPlayer({
   const [ohaChoice, setOhaChoice] = useState<{ ch: OhaChannel; url: string } | null>(null);
   const [ohaResolving, setOhaResolving] = useState<string | null>(null);
   const [ohaError, setOhaError] = useState<string | null>(null);
+  const [candidateChoice, setCandidateChoice] = useState<{ matchId: string; index: number } | null>(null);
+  const [playbackNotice, setPlaybackNotice] = useState<{ matchId: string; text: string } | null>(null);
+  const failedCandidatesRef = React.useRef(new Set<string>());
 
   // Active le pare-feu anti-pub pour sécuriser les iframes de flux
   useEffect(() => {
@@ -74,53 +80,97 @@ export function MatchStreamPlayer({
     queryKey: ["live", "match-stream", matchId],
     queryFn: async (): Promise<ResolvedMatchStream | null> => {
       const unified = await getMatchStream(matchId).catch(() => null);
-      if (unified?.url) {
-        return {
-          url: unified.url,
-          type: unified.type || "iframe",
-          relayUrl: unified.relayUrl,
-          referer: unified.referer ?? unified.servers?.[0]?.referer,
-          provider: unified.source,
-        };
-      }
+      const sports = unified?.url ? null : await getSportsStream(matchId).catch(() => null);
+      const primary = unified?.url ? unified : sports;
+      if (!primary?.url) return null;
 
-      const sports = await getSportsStream(matchId).catch(() => null);
-      if (!sports?.url) return null;
-
-      const server = sports.servers?.[0];
-      return {
-        url: sports.url,
-        type: server?.type ?? sports.type ?? "iframe",
-        relayUrl: server?.relayUrl ?? sports.relayUrl,
-        referer: server?.referer ?? sports.referer,
-        provider: sports.provider,
-      };
+      const rawServers: SportsServer[] = Array.isArray(primary.servers) ? primary.servers : [];
+      const candidates: ResolvedMatchStream[] = rawServers.length
+        ? rawServers.map((server) => ({
+            url: server.type === "hls" && server.relayUrl ? server.relayUrl : server.url,
+            type: server.type ?? primary.type ?? "iframe",
+            relayUrl: server.relayUrl,
+            referer: server.referer,
+            provider: server.external ? undefined : server.provider ?? primary.source ?? primary.provider,
+            name: server.name,
+          }))
+        : [{
+            url: primary.url,
+            type: primary.type || "iframe",
+            relayUrl: primary.relayUrl,
+            referer: primary.referer,
+            provider: primary.source ?? primary.provider,
+          }];
+      return { ...candidates[0], candidates };
     },
     staleTime: 30_000,
   });
 
-  const selectedType = stream?.type;
+  // Charge les autres serveurs en parallèle : l'affichage du premier flux ne
+  // doit pas attendre la collecte complète des providers.
+  const { data: backupChannels } = useQuery({
+    queryKey: ["live", "match-stream-channels", matchId],
+    queryFn: () => getSportsChannels(matchId),
+    enabled: Boolean(stream?.url),
+    staleTime: 60_000,
+    retry: false,
+  });
 
-  const rawEmbedUrl = selectedType === "iframe" ? stream?.url : null;
+  const candidates = React.useMemo(() => {
+    const list = [...(stream?.candidates ?? (stream ? [stream] : []))];
+    for (const server of backupChannels?.servers ?? []) {
+      const url = server.type === "hls" && server.relayUrl ? server.relayUrl : server.url;
+      if (!url || list.some((item) => item.url === url || (item.relayUrl && item.relayUrl === server.relayUrl))) continue;
+      list.push({
+        url,
+        type: server.type ?? "iframe",
+        relayUrl: server.relayUrl,
+        referer: server.referer,
+        provider: server.provider,
+        name: server.name,
+      });
+    }
+    return list.sort((a, b) => (a.type === "hls" ? 0 : 1) - (b.type === "hls" ? 0 : 1));
+  }, [backupChannels?.servers, stream]);
+  const candidateIndex = candidateChoice?.matchId === matchId ? candidateChoice.index : 0;
+  const activeStream = candidates[candidateIndex] ?? stream;
+  const advanceCandidate = React.useCallback((reason: string) => {
+    if (activeStream?.url) failedCandidatesRef.current.add(`${matchId}:${activeStream.url}`);
+    if (activeStream?.provider) failedCandidatesRef.current.add(`${matchId}:provider:${activeStream.provider}`);
+    const next = candidates.findIndex((candidate, index) =>
+      index > candidateIndex && !failedCandidatesRef.current.has(`${matchId}:${candidate.url}`) &&
+      (!candidate.provider || !failedCandidatesRef.current.has(`${matchId}:provider:${candidate.provider}`)),
+    );
+    if (next >= 0) {
+      setCandidateChoice({ matchId, index: next });
+      setPlaybackNotice({ matchId, text: `Source indisponible, passage à ${candidates[next].name || candidates[next].provider || "la source suivante"}.` });
+    } else {
+      setPlaybackNotice({ matchId, text: `${reason}. Aucune autre source testée n’est disponible pour ce match.` });
+    }
+  }, [activeStream, candidateIndex, candidates, matchId]);
+
+  const selectedType = activeStream?.type;
+
+  const rawEmbedUrl = selectedType === "iframe" ? activeStream?.url : null;
   // Les hôtes « domain protected » refusent notre origine : le proxy rejoue le
   // Referer de la page qui embarque normalement le lecteur.
   const embedUrl = rawEmbedUrl
     ? /youtube\.com|youtu\.be/i.test(rawEmbedUrl)
       ? rawEmbedUrl
       : `/api/live/embed-proxy?url=${encodeURIComponent(rawEmbedUrl)}${
-          stream?.referer ? `&referer=${encodeURIComponent(stream.referer)}` : ""
+          activeStream?.referer ? `&referer=${encodeURIComponent(activeStream.referer)}` : ""
         }`
     : null;
 
   const channel: LiveChannel | null =
-    selectedType === "hls" && stream
+    selectedType === "hls" && activeStream
       ? {
           _id: `match-${matchId}`,
           name: `${homeName} vs ${awayName}`,
           slug: `match-${matchId}`,
           categories: ["sports"],
           type: "hls",
-          streamUrl: stream.relayUrl || stream.url,
+          streamUrl: activeStream.relayUrl || activeStream.url,
           enabled: true,
           order: 0,
           isOnline: true,
@@ -238,7 +288,7 @@ export function MatchStreamPlayer({
       video?.removeEventListener("webkitbeginfullscreen", syncFullscreen);
       video?.removeEventListener("webkitendfullscreen", syncFullscreen);
     };
-  }, [stream?.url, ohaChoice?.ch.id]);
+  }, [activeStream?.url, ohaChoice?.ch.id]);
 
   const toggleFullscreen = async () => {
     if (!containerRef.current) return;
@@ -331,7 +381,7 @@ export function MatchStreamPlayer({
         {/* 2b. Flux HLS actif */}
         {!isLoading && channel && !ohaChannel && (
           <div className="h-full w-full">
-            <LivePlayer channel={channel} onBack={() => {}} fill hideTopBar />
+            <LivePlayer channel={channel} onBack={() => {}} fill hideTopBar onPlaybackError={advanceCandidate} />
           </div>
         )}
 
@@ -345,7 +395,34 @@ export function MatchStreamPlayer({
               className="h-full w-full border-0"
               allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
               referrerPolicy="no-referrer"
+              onError={() => advanceCandidate("Le player intégré n’a pas pu charger la source.")}
+              onLoad={(event) => {
+                try {
+                  const doc = event.currentTarget.contentDocument;
+                  const title = doc?.title ?? "";
+                  const body = doc?.body?.innerText ?? "";
+                  if (/stream is offline|channel is offline|no stream|access denied|error 404/i.test(title) ||
+                      (body.length < 1200 && /stream is offline|channel is offline|no stream|access denied|error 404/i.test(body))) {
+                    advanceCandidate("La page du player signale un flux indisponible.");
+                  }
+                } catch {
+                  // Le contenu imbriqué peut être cross-origin et invisible au navigateur.
+                }
+              }}
             />
+          </div>
+        )}
+
+        {!isLoading && !ohaChannel && candidates.length > 1 && (
+          <div className="absolute bottom-3 inset-x-0 z-30 flex flex-col items-center gap-2 px-3">
+            {playbackNotice?.matchId === matchId && <p role="status" className="rounded-full bg-black/75 px-3 py-1.5 text-xs text-amber-200">{playbackNotice.text}</p>}
+            <button
+              type="button"
+              onClick={() => advanceCandidate("Changement de source demandé.")}
+              className="rounded-full border border-white/20 bg-black/70 px-4 py-2 text-xs font-semibold text-white backdrop-blur hover:bg-white/15"
+            >
+              Le flux ne démarre pas ? Essayer la source suivante
+            </button>
           </div>
         )}
 

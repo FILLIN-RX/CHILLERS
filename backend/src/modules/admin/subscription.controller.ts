@@ -2,6 +2,9 @@ import { Request, Response } from 'express';
 import { SubscriptionPlan } from '../../models/SubscriptionPlan';
 import { User } from '../../models/User';
 import { globalSubscriptionService } from '../../services/global-subscription.service';
+import { sendToUser } from '../notifications/push.service';
+import { PaymentTransaction } from '../../models/PaymentTransaction';
+import { PaymentProof } from '../../models/PaymentProof';
 
 export const getPlans = async (req: Request, res: Response) => {
   try {
@@ -27,7 +30,7 @@ export const createPlan = async (req: Request, res: Response) => {
 export const updatePlan = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const plan = await SubscriptionPlan.findByIdAndUpdate(id, req.body, { new: true });
+    const plan = await SubscriptionPlan.findByIdAndUpdate(id, req.body, { returnDocument: 'after' });
     if (!plan) return res.status(404).json({ success: false, message: 'Plan not found' });
     res.json({ success: true, plan });
   } catch (error) {
@@ -64,13 +67,42 @@ export const getUsers = async (req: Request, res: Response) => {
     const skip = ((parseInt(page, 10) || 1) - 1) * lim;
 
     const [users, total] = await Promise.all([
-      User.find(query, '-passwordHash')
+      User.find(query, 'username email role avatarUrl subscription createdAt favorites watchHistory continueWatching activeSessions')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(lim)
         .lean(),
       User.countDocuments(query)
     ]);
+
+    const userIds = users.map((user: any) => user._id);
+    if (userIds.length) {
+      const [transactions, proofs] = await Promise.all([
+        PaymentTransaction.find({ userId: { $in: userIds }, status: 'SUCCESS', planCode: { $ne: 'don' } }).select('userId planCode activatedAt createdAt').lean(),
+        PaymentProof.find({ userId: { $in: userIds }, status: 'approved' }).select('userId planCode reviewedAt createdAt').lean(),
+      ]);
+      const starts = new Map<string, Array<{ plan: string; date: Date }>>();
+      for (const txn of transactions) {
+        if (!txn.userId) continue;
+        const key = String(txn.userId);
+        const list = starts.get(key) || [];
+        list.push({ plan: txn.planCode, date: txn.activatedAt || txn.createdAt });
+        starts.set(key, list);
+      }
+      for (const proof of proofs) {
+        const key = String(proof.userId);
+        const list = starts.get(key) || [];
+        list.push({ plan: proof.planCode === 'premium' ? 'premium' : 'standard', date: proof.reviewedAt || proof.createdAt });
+        starts.set(key, list);
+      }
+      for (const user of users) {
+        if (user.subscription?.startedAt) continue;
+        const history = starts.get(String(user._id)) || [];
+        const matching = history.filter((entry) => entry.plan === user.subscription?.plan).sort((a, b) => b.date.getTime() - a.date.getTime());
+        const latest = matching[0] || history.sort((a, b) => b.date.getTime() - a.date.getTime())[0];
+        if (latest) user.subscription.startedAt = latest.date;
+      }
+    }
 
     res.json({ success: true, users, total, page: parseInt(page, 10) || 1 });
   } catch (error: any) {
@@ -85,12 +117,19 @@ export const updateUserSubscription = async (req: Request, res: Response) => {
     const { plan, status, expiresAt, role } = req.body;
 
     const updateFields: any = {};
+    const currentUser = await User.findById(id).select('subscription').lean();
 
     if (plan || status !== undefined || expiresAt !== undefined) {
       if (plan) updateFields['subscription.plan'] = plan;
       if (status) updateFields['subscription.status'] = status;
       if (expiresAt !== undefined) {
         updateFields['subscription.expiresAt'] = expiresAt ? new Date(expiresAt) : null;
+      }
+      const nextPlan = plan || currentUser?.subscription?.plan;
+      const nextStatus = status || currentUser?.subscription?.status;
+      const wasPaidActive = currentUser?.subscription?.plan !== 'free' && currentUser?.subscription?.status === 'active';
+      if (nextPlan && nextPlan !== 'free' && nextStatus === 'active' && (!wasPaidActive || nextPlan !== currentUser?.subscription?.plan)) {
+        updateFields['subscription.startedAt'] = new Date();
       }
     }
     if (role) {
@@ -105,6 +144,14 @@ export const updateUserSubscription = async (req: Request, res: Response) => {
 
     if (!updatedUser) {
       return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+    }
+
+    if (plan || status !== undefined || expiresAt !== undefined || role) {
+      void sendToUser(String(updatedUser._id), {
+        title: 'Votre compte CHILLERS a été mis à jour',
+        body: 'Un administrateur a modifié votre formule ou les paramètres de votre compte.',
+        url: '/profile?tab=subscription',
+      }, 'subscriptions').catch((error) => console.warn('[WebPush] Admin subscription notice failed:', error?.message || error));
     }
 
     res.json({ success: true, user: updatedUser, message: 'Abonnement utilisateur mis à jour avec succès' });
@@ -129,7 +176,6 @@ export const submitPaymentProof = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: 'Données de paiement incomplètes' });
     }
 
-    const { PaymentProof } = await import('../../models/PaymentProof');
     const proof = new PaymentProof({
       userId: user._id || user.id,
       userEmail: user.email,
@@ -153,7 +199,6 @@ export const submitPaymentProof = async (req: Request, res: Response) => {
 
 export const getPaymentProofs = async (req: Request, res: Response) => {
   try {
-    const { PaymentProof } = await import('../../models/PaymentProof');
     const proofs = await PaymentProof.find().sort({ createdAt: -1 }).limit(100).lean();
     res.json({ success: true, proofs });
   } catch (error: any) {
@@ -167,7 +212,6 @@ export const reviewPaymentProof = async (req: Request, res: Response) => {
     const { id } = req.params;
     const { status, adminNotes } = req.body; // 'approved' | 'rejected'
 
-    const { PaymentProof } = await import('../../models/PaymentProof');
     const proof = await PaymentProof.findById(id);
     if (!proof) {
       return res.status(404).json({ success: false, message: 'Preuve introuvable' });
@@ -188,9 +232,15 @@ export const reviewPaymentProof = async (req: Request, res: Response) => {
         $set: {
           'subscription.plan': proof.planCode === 'premium' ? 'premium' : 'standard',
           'subscription.status': 'active',
+          'subscription.startedAt': new Date(),
           'subscription.expiresAt': expiresAt,
         }
       });
+      void sendToUser(String(proof.userId), {
+        title: 'Votre abonnement est activé',
+        body: `Votre formule ${proof.planCode} est maintenant active.`,
+        url: '/profile?tab=subscription',
+      }, 'subscriptions').catch((error) => console.warn('[WebPush] Payment activation notice failed:', error?.message || error));
       console.log(`[PaymentProof] ✅ Abonnement activé pour ${proof.userEmail} (Plan: ${proof.planCode})`);
     }
 

@@ -1,14 +1,15 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
+import Link from 'next/link';
 import { adminGetDeadLinks, adminAppealDeadLink, adminRescrapeDeadLink, adminGetLogsStreamUrl, adminRunMaintenance, adminUpdateDeadLink } from '@/services/admin';
 import {
   Table, Button, Modal, Switch, Input, Space, Typography, Tag, Spin, Alert,
-} from 'antd';
+} from '@/components/admin/ui';
 import {
-  SearchOutlined, EditOutlined, SyncOutlined, CheckOutlined, CloudUploadOutlined,
-} from '@ant-design/icons';
-import type { ColumnsType } from 'antd/es/table';
+  SearchOutlined, EditOutlined, SyncOutlined, CheckOutlined, CloudUploadOutlined, ArrowRightOutlined,
+} from '@/components/admin/icons';
+import type { ColumnsType } from '@/components/admin/ui';
 
 const { Title, Text } = Typography;
 
@@ -35,7 +36,7 @@ function LogBox({ lines, height }: { lines: string[]; height: number | string })
   }, [lines]);
   return (
     <div style={{
-      background: '#0f1219', border: '1px solid #1c2230', borderRadius: 10,
+      background: '#f9f7f4', border: '1px solid #e9edf3', borderRadius: 10,
       padding: '0.75rem', fontFamily: 'monospace', fontSize: 12, lineHeight: 1.5,
       maxHeight: height, overflowY: 'auto', textAlign: 'left', marginBottom: '1rem',
     }}>
@@ -169,7 +170,7 @@ export default function AdminDeadLinks() {
       title: 'Titre',
       dataIndex: 'titre',
       key: 'titre',
-      render: (t: string) => <span style={{ fontWeight: 500, color: '#e6e9f0' }}>{t}</span>,
+      render: (t: string) => <span style={{ fontWeight: 500, color: '#172033' }}>{t}</span>,
     },
     {
       title: 'Épisode',
@@ -199,7 +200,7 @@ export default function AdminDeadLinks() {
             size="small"
             loading={modal?.link._id === link._id}
             disabled={modal?.link._id === link._id}
-            style={{ background: '#0d2b1a', borderColor: '#14532d', color: '#34d399' }}
+            style={{ background: '#effaf4', borderColor: '#b7e4c8', color: '#18794e' }}
             onClick={() => handleRescrape(link)}
           >
             Rescrape
@@ -218,9 +219,12 @@ export default function AdminDeadLinks() {
             {links.filter(l => l.type === 'series').length} séries · {links.filter(l => l.type !== 'series').length} films
           </Text>
         </Title>
-        <Button type="primary" danger icon={<SearchOutlined />} loading={detecting} onClick={handleDetect}>
-          {detecting ? 'Détection en cours...' : 'Détecter'}
-        </Button>
+        <Space wrap>
+          <Link href="/admin/maintenance-liens"><Button icon={<ArrowRightOutlined />}>Contrôle complet</Button></Link>
+          <Button type="primary" danger icon={<SearchOutlined />} loading={detecting} onClick={handleDetect}>
+            {detecting ? 'Détection en cours...' : 'Détecter'}
+          </Button>
+        </Space>
       </div>
 
       <Space wrap style={{ marginBottom: '1rem' }}>
@@ -229,10 +233,10 @@ export default function AdminDeadLinks() {
           <Switch checked={headless} onChange={setHeadless} />
         </Space>
         <Text type="secondary">Upload DoodStream :</Text>
-        <Button size="small" icon={<CloudUploadOutlined />} onClick={() => adminRunMaintenance('upload-movies')} style={{ background: '#0d2b1a', borderColor: '#14532d', color: '#34d399' }}>
+        <Button size="small" icon={<CloudUploadOutlined />} onClick={() => adminRunMaintenance('upload-movies')} style={{ background: '#effaf4', borderColor: '#b7e4c8', color: '#18794e' }}>
           Films
         </Button>
-        <Button size="small" icon={<CloudUploadOutlined />} onClick={() => adminRunMaintenance('upload-series')} style={{ background: '#0d2b1a', borderColor: '#14532d', color: '#34d399' }}>
+        <Button size="small" icon={<CloudUploadOutlined />} onClick={() => adminRunMaintenance('upload-series')} style={{ background: '#effaf4', borderColor: '#b7e4c8', color: '#18794e' }}>
           Séries
         </Button>
       </Space>
@@ -306,7 +310,7 @@ export default function AdminDeadLinks() {
             <div style={{ color: '#34d399', fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.5rem' }}>
               Lien récupéré avec succès
             </div>
-            <div style={{ color: '#8b93a7', fontSize: 13, wordBreak: 'break-all', marginBottom: '1.5rem' }}>
+            <div style={{ color: '#667085', fontSize: 13, wordBreak: 'break-all', marginBottom: '1.5rem' }}>
               {modal.logs.find(l => l.includes('Nouveau lien'))?.replace(/.*✅ Nouveau lien: /, '')}
             </div>
             <Button type="primary" onClick={closeModal}>Fermer</Button>

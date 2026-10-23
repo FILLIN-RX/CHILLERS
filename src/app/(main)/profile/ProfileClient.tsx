@@ -13,6 +13,7 @@ import UserAvatar from "@/components/UserAvatar";
 import DownloadsView from "@/features/downloads/DownloadsView";
 import { useDownloadsStore } from "@/store/downloads";
 import ProfileSidebar from "@/features/profile/ProfileSidebar";
+import PushNotificationSettings from "@/components/pwa/PushNotificationSettings";
 
 function mediaDetailsHref(id: string | number, type?: string): string {
   return ["tv", "series", "anime"].includes((type || "").toLowerCase())
@@ -1038,6 +1039,7 @@ export default function ProfileClient() {
                 {lang === 'fr' ? 'Paramètres' : 'Settings'}
               </h2>
               <div className="max-w-xl space-y-8">
+                <PushNotificationSettings />
                 
                 <div className="bg-zinc-900/50 backdrop-blur-md border border-white/5 rounded-3xl p-6 sm:p-8 shadow-xl">
                   <div className="flex items-center gap-4 mb-6">

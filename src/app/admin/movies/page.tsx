@@ -1,231 +1,67 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import Image from 'next/image';
 import { adminGetCollection } from '@/services/admin';
-import { resolveDownloadUrl } from '@/services/downloads';
-import { streamDownloadToDisk } from '@/services/streamSaver';
-import { buildEpisodeFilename } from '@/lib/format';
+import { resolveImageUrl } from '@/services/http';
 import TmdbLinkModal from '../components/TmdbLinkModal';
-import {
-  Typography, Table, Input, Button, Space, Tag, Spin, Empty, Modal, Tooltip,
-} from 'antd';
-import { SearchOutlined, PlayCircleOutlined, DownloadOutlined, CloseOutlined, LoadingOutlined } from '@ant-design/icons';
-import type { ColumnsType } from 'antd/es/table';
+import { Alert, Button, Empty, Modal, Typography, message } from '@/components/admin/ui';
+import { ArrowRightOutlined, CheckCircleOutlined, CloseCircleOutlined, PlayCircleOutlined, ReloadOutlined, SearchOutlined, VideoCameraOutlined } from '@/components/admin/icons';
 
-const { Title, Text } = Typography;
-
-interface Movie {
-  _id: string;
-  titre: string;
-  pageUrl: string;
-  lien: string;
-  tmdbId?: number;
-  createdAt: string;
-  uqloadCode?: string;
-  uqloadLink?: string;
-  fileCode?: string;
-}
+const { Text } = Typography;
+type Movie = { _id: string; titre: string; pageUrl?: string; lien?: string; tmdbId?: number; createdAt?: string; year?: number; posterUrl?: string; disponible?: boolean; uqloadCode?: string; uqloadLink?: string; fileCode?: string };
+const PAGE_SIZE = 24;
 
 export default function AdminMovies() {
   const [items, setItems] = useState<Movie[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [q, setQ] = useState('');
+  const [query, setQuery] = useState('');
+  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
-  const [downloadingId, setDownloadingId] = useState<string | null>(null);
-  const [linkModal, setLinkModal] = useState<{ docId: string; tmdbId?: number } | null>(null);
+  const [error, setError] = useState('');
+  const [linkModal, setLinkModal] = useState<Movie | null>(null);
   const [playerUrl, setPlayerUrl] = useState<string | null>(null);
-  const limit = 50;
 
-  const fetch = useCallback(async (search: string, p: number) => {
-    setLoading(true);
+  useEffect(() => { const timer = window.setTimeout(() => { setPage(1); setSearch(query.trim()); }, 250); return () => window.clearTimeout(timer); }, [query]);
+  const load = useCallback(async () => {
+    setLoading(true); setError('');
     try {
-      const res = await adminGetCollection('movies', search, p, limit);
-      if (res.success && res.data) {
-        const d = res.data as { items: Movie[]; total: number; totalPages: number; page: number };
-        setItems(d.items);
-        setTotal(d.total);
-        setTotalPages(d.totalPages);
-        setPage(d.page);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      const res = await adminGetCollection('movies', search, page, PAGE_SIZE);
+      if (!res.success || !res.data) throw new Error(res.message || 'Le catalogue films n’a pas répondu.');
+      const data = res.data as { items?: Movie[]; total?: number; page?: number };
+      setItems(data.items || []); setTotal(data.total || 0);
+    } catch (cause) { const text = cause instanceof Error ? cause.message : 'Chargement des films impossible.'; setError(text); message.error(text); }
+    finally { setLoading(false); }
+  }, [page, search]);
+  useEffect(() => { const timer = window.setTimeout(() => { void load(); }, 0); return () => window.clearTimeout(timer); }, [load]);
 
-  useEffect(() => { fetch(q, page); }, [fetch, q, page]);
+  const stats = useMemo(() => ({ linked: items.filter(item => item.tmdbId).length, ready: items.filter(item => item.uqloadCode || item.uqloadLink || item.fileCode).length }), [items]);
 
-  const columns: ColumnsType<Movie> = [
-    {
-      title: 'Titre',
-      dataIndex: 'titre',
-      key: 'titre',
-      render: (t: string, m: Movie) => (
-        <Space size={4} wrap>
-          <span style={{ color: '#e6e9f0', fontWeight: 500, whiteSpace: 'nowrap' }}>{t}</span>
-          {!m.uqloadCode && !m.fileCode && (!m.lien || m.lien === '#') && (
-            <Tag color="warning" style={{ fontSize: 11 }}>Bientôt disponible</Tag>
-          )}
-        </Space>
-      ),
-    },
-    {
-      title: 'TMDB',
-      dataIndex: 'tmdbId',
-      key: 'tmdbId',
-      render: (id: number | undefined, m: Movie) => (
-        <Button
-          type="link"
-          size="small"
-          style={{ padding: 0, color: id ? '#34d399' : '#f87171', fontSize: 12 }}
-          onClick={() => setLinkModal({ docId: m._id, tmdbId: m.tmdbId })}
-        >
-          {id ? `✓ ${id}` : '✗ Lier'}
-        </Button>
-      ),
-    },
-    {
-      title: 'Uqload',
-      dataIndex: 'uqloadCode',
-      key: 'uqloadCode',
-      align: 'center' as const,
-      render: (c: string) => c ? <Tag color="success">✓</Tag> : <Text type="secondary">—</Text>,
-    },
-    {
-      title: 'DoodStream',
-      dataIndex: 'fileCode',
-      key: 'fileCode',
-      align: 'center' as const,
-      render: (c: string) => c ? <Tag color="success">✓</Tag> : <Text type="secondary">—</Text>,
-    },
-    {
-      title: 'Lien',
-      dataIndex: 'lien',
-      key: 'lien',
-      render: (l: string) => l ? (
-        <a href={l} target="_blank" rel="noopener noreferrer" style={{ color: '#a99bf0', fontSize: 12, wordBreak: 'break-all' }}>
-          {l.substring(0, 60)}...
-        </a>
-      ) : <Text type="secondary">—</Text>,
-    },
-    {
-      title: 'Ajouté',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      render: (d: string) => <Text type="secondary" style={{ fontSize: 12 }}>{new Date(d).toLocaleDateString()}</Text>,
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      align: 'center' as const,
-      width: 110,
-      render: (_, m) => (
-        <Space size={4}>
-          <Tooltip title="Lire">
-            <Button
-              size="small"
-              type="text"
-              icon={<PlayCircleOutlined style={{ color: '#a99bf0' }} />}
-              onClick={() => setPlayerUrl(`/watch/${m.tmdbId || m._id}?type=movie`)}
-            />
-          </Tooltip>
-          <Tooltip title="Télécharger">
-            <Button
-              size="small"
-              type="text"
-              loading={downloadingId === m._id}
-              icon={<DownloadOutlined style={{ color: downloadingId === m._id ? undefined : '#34d399' }} />}
-              onClick={async () => {
-                setDownloadingId(m._id);
-                try {
-                  const tmdbId = m.tmdbId ? String(m.tmdbId) : null;
-                  const result = await resolveDownloadUrl(tmdbId ?? m._id, 'movie', m.titre);
-                  if (result?.downloadUrl) {
-                    const filename = buildEpisodeFilename({
-                      title: m.titre,
-                      extension: 'mp4',
-                    });
-                    try {
-                      await streamDownloadToDisk(result.downloadUrl, {
-                        filename,
-                        signal: new AbortController().signal,
-                      });
-                    } catch {
-                      /* user can retry */
-                    }
-                  }
-                } catch { } finally { setDownloadingId(null); }
-              }}
-            />
-          </Tooltip>
-        </Space>
-      ),
-    },
-  ];
-
-  return (
-    <div>
-      <Title level={3} style={{ marginTop: 0, marginBottom: '1.25rem' }}>
-        Films <Text type="secondary" style={{ fontWeight: 400, fontSize: '1rem' }}>({total})</Text>
-      </Title>
-
-      <Input
-        placeholder="Rechercher un film..."
-        value={q}
-        onChange={e => setQ(e.target.value)}
-        onPressEnter={() => { setPage(1); fetch(q, 1); }}
-        allowClear
-        prefix={<SearchOutlined style={{ color: '#6b7488' }} />}
-        style={{ maxWidth: 420, marginBottom: '1.25rem' }}
-      />
-
-      <Table<Movie>
-        rowKey="_id"
-        size="middle"
-        loading={loading}
-        dataSource={items}
-        columns={columns}
-        scroll={{ x: 900 }}
-        locale={{ emptyText: loading ? <Spin /> : <Empty description="Aucun film trouvé" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
-        pagination={{
-          current: page,
-          pageSize: limit,
-          total,
-          showSizeChanger: false,
-          onChange: (p) => setPage(p),
-        }}
-      />
-
-      {linkModal && (
-        <TmdbLinkModal
-          type="movies"
-          docId={linkModal.docId}
-          currentTmdbId={linkModal.tmdbId}
-          onClose={() => setLinkModal(null)}
-          onLinked={(tmdbId) => {
-            setItems(prev => prev.map(it => it._id === linkModal.docId ? { ...it, tmdbId } : it));
-            setLinkModal(null);
-          }}
-        />
-      )}
-
-      <Modal
-        open={!!playerUrl}
-        onCancel={() => setPlayerUrl(null)}
-        footer={null}
-        width="80vw"
-        styles={{ body: { padding: 0, height: '75vh' } }}
-        destroyOnClose
-      >
-        {playerUrl && (
-          <iframe
-            src={playerUrl}
-            style={{ width: '100%', height: '100%', border: 'none' }}
-            allowFullScreen
-          />
-        )}
-      </Modal>
-    </div>
-  );
+  return <main className="catalog-page">
+    <header className="catalog-heading">
+      <div><Text className="catalog-eyebrow">BIBLIOTHÈQUE · CINÉMA</Text><h1>Films</h1><p>Un espace clair pour maintenir vos fiches prêtes à être découvertes.</p></div>
+      <div className="catalog-count"><VideoCameraOutlined /><div><strong>{total.toLocaleString('fr-FR')}</strong><span>films au catalogue</span></div></div>
+    </header>
+    <section className="catalog-toolbar">
+      <label className="catalog-search-wrap"><SearchOutlined /><input aria-label="Rechercher un film" placeholder="Rechercher un titre…" value={query} onChange={event => setQuery(event.target.value)} /><button type="button" aria-label="Effacer la recherche" onClick={() => setQuery('')} hidden={!query}>×</button></label>
+      <div className="catalog-toolbar-meta"><span><CheckCircleOutlined /> {stats.linked} liés à TMDB sur cette page</span><span><PlayCircleOutlined /> {stats.ready} avec une source</span><Button icon={<ReloadOutlined />} onClick={() => void load()} loading={loading}>Actualiser</Button></div>
+    </section>
+    {error && <Alert type="error" showIcon message="Le catalogue n’a pas pu être chargé"><div className="catalog-alert-details">{error}<Button size="small" onClick={() => void load()}>Réessayer</Button></div></Alert>}
+    {loading && !items.length ? <div className="catalog-loading"><span className="ad-spinner" /> Récupération du catalogue…</div> : !items.length ? <div className="catalog-empty"><Empty description={search ? 'Aucun film ne correspond à cette recherche.' : 'Aucun film dans le catalogue.'} /></div> : <>
+      <section className="movie-grid" aria-label="Films du catalogue">{items.map(movie => {
+        const hasSource = Boolean(movie.uqloadCode || movie.uqloadLink || movie.fileCode);
+        return <article className="movie-card" key={movie._id}>
+          <div className="movie-artwork">{movie.posterUrl ? <Image src={resolveImageUrl(movie.posterUrl)} alt="" fill sizes="(max-width: 580px) 45vw, (max-width: 950px) 30vw, 20vw" style={{ objectFit: 'cover' }} /> : <div className="movie-artwork-fallback"><VideoCameraOutlined /><span>CHILLERS</span></div>}<div className="movie-artwork-shade" />{movie.year && <span className="movie-year">{movie.year}</span>}<button type="button" className="movie-play" aria-label={`Lire ${movie.titre}`} onClick={() => setPlayerUrl(`/watch/${movie.tmdbId || movie._id}?type=movie`)}><PlayCircleOutlined /></button></div>
+          <div className="movie-card-content"><div className="movie-card-title-row"><h2 title={movie.titre}>{movie.titre}</h2><span className={`catalog-dot ${hasSource ? 'is-ready' : ''}`} title={hasSource ? 'Source vidéo renseignée' : 'Source vidéo absente'} /></div>
+            <div className="movie-card-meta"><span>{movie.tmdbId ? <><CheckCircleOutlined /> TMDB lié</> : <><CloseCircleOutlined /> TMDB manquant</>}</span><span>{hasSource ? 'Disponible' : 'Source à ajouter'}</span></div>
+            <div className="movie-card-actions"><Button size="small" onClick={() => setLinkModal(movie)}>{movie.tmdbId ? 'Modifier TMDB' : 'Lier à TMDB'}</Button><Button size="small" type="text" aria-label={`Ouvrir la fiche de ${movie.titre}`} onClick={() => setPlayerUrl(`/watch/${movie.tmdbId || movie._id}?type=movie`)} icon={<ArrowRightOutlined />} /></div>
+          </div>
+        </article>;
+      })}</section>
+      {total > PAGE_SIZE && <div className="catalog-pagination"><span>{((page - 1) * PAGE_SIZE + 1).toLocaleString('fr-FR')}–{Math.min(page * PAGE_SIZE, total).toLocaleString('fr-FR')} sur {total.toLocaleString('fr-FR')}</span><div className="catalog-page-controls"><button type="button" disabled={page <= 1} onClick={() => setPage(current => Math.max(1, current - 1))}>Précédent</button><span>{page} / {Math.ceil(total / PAGE_SIZE)}</span><button type="button" disabled={page >= Math.ceil(total / PAGE_SIZE)} onClick={() => setPage(current => Math.min(Math.ceil(total / PAGE_SIZE), current + 1))}>Suivant</button></div></div>}
+    </>}
+    {linkModal && <TmdbLinkModal type="movies" docId={linkModal._id} currentTmdbId={linkModal.tmdbId} onClose={() => setLinkModal(null)} onLinked={tmdbId => { setItems(prev => prev.map(item => item._id === linkModal._id ? { ...item, tmdbId } : item)); setLinkModal(null); }} />}
+    <Modal open={!!playerUrl} onCancel={() => setPlayerUrl(null)} footer={null} width="min(900px, 94vw)" styles={{ body: { padding: 0, height: 'min(70vh, 620px)' } }} destroyOnClose>{playerUrl && <iframe title="Aperçu du film" src={playerUrl} style={{ width: '100%', height: '100%', border: 0 }} allowFullScreen />}</Modal>
+  </main>;
 }

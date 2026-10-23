@@ -415,3 +415,40 @@ self.addEventListener('backgroundfetchabort', event => {
 self.addEventListener('backgroundfetchclick', event => {
   event.waitUntil(self.clients.openWindow('/downloads'));
 });
+
+// Web Push: keep notification handling alongside the existing offline handlers.
+self.addEventListener('push', event => {
+  let payload = {};
+  try { payload = event.data ? event.data.json() : {}; } catch { payload = { body: event.data?.text() || '' }; }
+  const title = typeof payload.title === 'string' ? payload.title.slice(0, 55) : 'CHILLERS';
+  const body = typeof payload.body === 'string' ? payload.body.slice(0, 180) : 'Une nouveauté vous attend.';
+  const path = typeof payload.url === 'string' && payload.url.startsWith('/') && !payload.url.startsWith('//') ? payload.url : '/';
+  event.waitUntil(self.registration.showNotification(title, {
+    body,
+    icon: '/android-chrome-192x192.png',
+    badge: '/favicon-32x32.png',
+    data: { path },
+    tag: typeof payload.tag === 'string' ? payload.tag.slice(0, 100) : undefined,
+  }).then(() => {
+    console.info('[Push] Notification affichée par le service worker.', { category: payload.category || 'unknown' });
+  }).catch(error => {
+    console.error('[Push] Échec de l’affichage par le service worker.', { name: error?.name || 'unknown' });
+    throw error;
+  }));
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  console.info('[Push] Notification cliquée.');
+  const path = event.notification.data?.path;
+  const target = new URL(typeof path === 'string' && path.startsWith('/') && !path.startsWith('//') ? path : '/', self.location.origin).href;
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const existing = windows.find(client => new URL(client.url).origin === self.location.origin);
+    if (existing) {
+      if ('navigate' in existing) await existing.navigate(target);
+      return existing.focus();
+    }
+    return self.clients.openWindow(target);
+  })());
+});

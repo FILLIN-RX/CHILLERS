@@ -47,10 +47,10 @@ export async function getSportsStream(matchId: string): Promise<SportsStream | n
  * premier appel peut être lent (la chaîne complète est épuisée une fois, puis
  * le registre 24 h du backend répond instantanément).
  */
-export async function getSportsChannels(matchId: string): Promise<SportsStream | null> {
+export async function getSportsChannels(matchId: string, refresh = false): Promise<SportsStream | null> {
   try {
     const res = await httpJson<Envelope<SportsStream>>(
-      `/sports/match/${encodeURIComponent(matchId)}/channels`,
+      `/sports/match/${encodeURIComponent(matchId)}/channels${refresh ? "?refresh=true" : ""}`,
       { timeoutMs: 60_000 }
     );
     if (res?.success && res.data?.servers?.length) return res.data;

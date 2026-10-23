@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { adminGetConvertedLinks } from '@/services/admin';
-import { Typography, Table, Input, Button, Tag, Spin, Empty } from 'antd';
-import { ReloadOutlined, SearchOutlined, LinkOutlined } from '@ant-design/icons';
+import { Typography, Table, Input, Button, Tag, Spin, Empty } from '@/components/admin/ui';
+import { ReloadOutlined, SearchOutlined, LinkOutlined } from '@/components/admin/icons';
 
 const { Title, Text } = Typography;
 
@@ -48,7 +48,7 @@ export default function AdminLiens() {
       title: 'Titre',
       dataIndex: 'titre',
       key: 'titre',
-      render: (t: string) => <span style={{ color: '#e6e9f0', fontWeight: 500 }}>{t}</span>,
+      render: (t: string) => <span style={{ color: '#172033', fontWeight: 500 }}>{t}</span>,
     },
     {
       title: 'Ancien lien',
@@ -115,7 +115,7 @@ export default function AdminLiens() {
         onChange={e => setQ(e.target.value)}
         onPressEnter={() => { setPage(1); fetch(q, 1); }}
         allowClear
-        prefix={<SearchOutlined style={{ color: '#6b7488' }} />}
+        prefix={<SearchOutlined style={{ color: '#667085' }} />}
         style={{ maxWidth: 420, marginBottom: '1.25rem' }}
       />
 

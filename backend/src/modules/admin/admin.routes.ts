@@ -4,12 +4,14 @@ import * as adminController from './admin.controller';
 import * as subController from './subscription.controller';
 import { mediaUpload } from './utils/media.upload';
 import * as catalogAdminController from '../catalog/catalog-admin.controller';
+import { listAdminTransactions } from '../payments/payments.admin.controller';
 
 const router = Router();
 
 router.post('/auth/login', adminController.login);
 router.get('/auth/verify', adminMiddleware, adminController.verify);
 router.get('/dashboard', adminMiddleware, adminController.dashboard);
+router.get('/transactions', adminMiddleware, listAdminTransactions);
 router.get('/logs', adminMiddleware, adminController.logs);
 router.get('/dead-links', adminMiddleware, adminController.deadLinks);
 router.post('/dead-links/appeal/:id', adminMiddleware, adminController.appealDeadLink);
@@ -53,7 +55,11 @@ router.get('/uqload/file-info/:code', adminMiddleware, adminController.uqloadFil
 
 router.get('/media/tmdb-search', adminMiddleware, adminController.tmdbSearch);
 router.post('/media/manual', adminMiddleware, adminController.createManualMedia);
-router.post('/media/manual/upload', adminMiddleware, mediaUpload.array('files', 200), adminController.createManualMediaUpload);
+router.post('/media/manual/upload', adminMiddleware, mediaUpload.fields([
+    { name: 'files', maxCount: 200 },
+    { name: 'poster', maxCount: 1 },
+    { name: 'backdrop', maxCount: 1 },
+]), adminController.createManualMediaUpload);
 router.get('/catalog/unmatched', adminMiddleware, catalogAdminController.listUnmatched);
 router.post('/catalog/unmatched/:id/link', adminMiddleware, catalogAdminController.linkUnmatched);
 

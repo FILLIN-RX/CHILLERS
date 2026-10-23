@@ -268,6 +268,8 @@ const CHAIN_DEADLINE_MS = 18_000;
 /** Agrégation de tous les providers : on parcourt toute la chaîne, pas seulement le premier qui joue. */
 const MULTI_CHAIN_DEADLINE_MS = 30_000;
 const ATTEMPT_BUDGET_MS = 7_000;
+/** Un seul lien de secours par provider : évite d'exposer plusieurs miroirs du même provider. */
+const MAX_SERVERS_PER_PROVIDER = 1;
 const FLUX_OK_TTL = 3 * 60_000;
 const FLUX_KO_TTL = 30_000;
 const FLUX_CACHE = new Map<string, { ts: number; data: SportsFlux | null; complete: boolean }>();
@@ -279,6 +281,20 @@ export interface ResolveSportsOptions {
    * premier, aucun changement de comportement par défaut).
    */
   collectAll?: boolean;
+}
+
+function limitServersPerProvider(servers: SportsServer[]): SportsServer[] {
+  const seenProviders = new Set<string>();
+  const seenUrls = new Set<string>();
+  const limited: SportsServer[] = [];
+  for (const server of servers) {
+    const provider = server.source ?? (server.external ? `external:${server.name}` : `unknown:${server.name || server.url}`);
+    if (!server.url || seenProviders.has(provider) || seenUrls.has(server.url)) continue;
+    seenProviders.add(provider);
+    seenUrls.add(server.url);
+    limited.push(server);
+  }
+  return limited;
 }
 
 function withBudget<T>(promise: Promise<T>, budgetMs: number): Promise<T | null> {
@@ -351,7 +367,7 @@ export async function resolveSportsFlux(
   const attempts: string[] = [];
   const servers: SportsServer[] = [];
   let primary: SportsFlux | null = null;
-  let exhausted = false;
+  let exhausted = true;
 
   // Fast path lab : les HLS du snapshot frais, probeés à la volée, partent en
   // premier — inutile de re-scrappe le provider quand le lab les a déjà.
@@ -384,6 +400,7 @@ export async function resolveSportsFlux(
     const budget = Math.min(ATTEMPT_BUDGET_MS, deadline - Date.now());
     if (budget <= 0) {
       attempts.push(`${candidate.source}=budget épuisé`);
+      exhausted = false;
       break;
     }
 
@@ -428,20 +445,25 @@ export async function resolveSportsFlux(
       // Mode normal : le premier qui joue suffit, on laisse la suite pour plus tard.
       break;
     }
-    exhausted = true;
   }
+  if (collectAll && Date.now() >= deadline) exhausted = false;
 
   // Mapping diffuseurs TV : si le match est diffusé sur une chaîne TV disponible
   // (beIN Sports, Canal+, SSC, Eurosport, etc.), on l'ajoute aux serveurs.
-  const mappedServers = mapTvChannelsToMatch(target, servers);
+  // Une source peut retourner plusieurs miroirs, mais ceux-ci ne sont pas
+  // autant de providers indépendants. On conserve le meilleur lien testé par
+  // provider (HLS d'abord, l'ordre de pickPlayableServers le garantit).
+  const providerServers = collectAll ? limitServersPerProvider(servers) : servers;
+  const mappedServers = mapTvChannelsToMatch(target, providerServers);
+  const boundedServers = limitServersPerProvider(mappedServers);
 
   if (!primary) {
     // Si aucun provider web ne diffuse mais qu'une chaîne TV correspondante existe,
     // on l'utilise directement comme flux principal au lieu d'échouer en 404 !
-    const tvFallback = mappedServers.find((s) => s.type === 'hls');
+    const tvFallback = boundedServers.find((s) => s.type === 'hls');
     if (tvFallback) {
       primary = {
-        stream: { url: tvFallback.url, type: 'hls', servers: mappedServers },
+        stream: { url: tvFallback.url, type: 'hls', servers: boundedServers },
         source: target.source,
         sourceId: target.sourceId,
       };
@@ -453,7 +475,7 @@ export async function resolveSportsFlux(
     }
   }
 
-  const finalServers = mappedServers.length > 0 ? mappedServers : servers;
+  const finalServers = boundedServers.length > 0 ? boundedServers : providerServers;
 
   const flux: SportsFlux = {
     stream: { ...primary.stream, servers: finalServers },

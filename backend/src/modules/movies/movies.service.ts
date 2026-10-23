@@ -43,10 +43,13 @@ export const getDetails = async (id: string, language?: string) => {
     const tmdbIdNum = parseInt(id, 10);
     if (!isNaN(tmdbIdNum)) {
       try {
-        const dbMovie = await Movie.findOne({ tmdbId: tmdbIdNum }).lean().exec();
+        const dbMovie = await Movie.findOne({ tmdbId: tmdbIdNum }).select('uqloadLink uqloadCode lien synopsis posterUrl backdropUrl').lean().exec();
         if (dbMovie) {
           data.downloadUrl = dbMovie.uqloadLink || (dbMovie.uqloadCode ? `/api/download/uqload/${dbMovie.uqloadCode}` : null) || dbMovie.lien || null;
           data.uqloadCode = dbMovie.uqloadCode;
+          if (dbMovie.synopsis) { data.overview = dbMovie.synopsis; data.synopsis = dbMovie.synopsis; }
+          if (dbMovie.posterUrl) data.posterUrl = dbMovie.posterUrl;
+          if (dbMovie.backdropUrl) data.backdropUrl = dbMovie.backdropUrl;
         }
       } catch {}
     }

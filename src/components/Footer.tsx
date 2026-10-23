@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { Heart, Camera, Info, Envelope, ShieldCheckered, Play } from '@phosphor-icons/react';
+import { Heart, Camera, Info, Envelope, ShieldCheckered, Play, Bell } from '@phosphor-icons/react';
 import DownloadApkButton from "./DownloadApkButton";
 
 export default function Footer() {
@@ -68,6 +68,12 @@ export default function Footer() {
                 <Link href="/privacy" className="flex items-center gap-2 hover:text-brand-primary transition-colors">
                   <ShieldCheckered className="h-3.5 w-3.5" />
                   Politique de confidentialité
+                </Link>
+              </li>
+              <li>
+                <Link href="/notifications" className="flex items-center gap-2 hover:text-brand-primary transition-colors">
+                  <Bell className="h-3.5 w-3.5" />
+                  Notifications
                 </Link>
               </li>
             </ul>

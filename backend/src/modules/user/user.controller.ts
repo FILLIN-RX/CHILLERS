@@ -24,7 +24,7 @@ export const toggleFavorite = async (req: Request, res: Response): Promise<void>
     if (index > -1) {
       user.favorites.splice(index, 1);
     } else {
-      user.favorites.push({ mediaType, tmdbId: String(tmdbId), title, posterPath });
+      user.favorites.push({ mediaType, tmdbId: String(tmdbId), title, posterPath, addedAt: new Date() });
     }
 
     await user.save();

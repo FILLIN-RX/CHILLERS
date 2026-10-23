@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import {
   adminAiSocialSuggestions,
   adminAiContentGap,
@@ -22,7 +22,7 @@ import {
   Segmented,
   Tooltip,
   message,
-} from 'antd';
+} from '@/components/admin/ui';
 import {
   RobotOutlined,
   CopyOutlined,
@@ -34,7 +34,7 @@ import {
   ShareAltOutlined,
   LinkOutlined,
   ThunderboltOutlined,
-} from '@ant-design/icons';
+} from '@/components/admin/icons';
 import Link from 'next/link';
 
 const { Title, Text, Paragraph } = Typography;
@@ -69,8 +69,8 @@ export default function AdminAffiches() {
       } else {
         message.error(res.message || 'Erreur lors de la génération des suggestions');
       }
-    } catch (err: any) {
-      message.error(err.message || 'Erreur lors de la génération des suggestions');
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : 'Erreur lors de la génération des suggestions');
     } finally {
       setLoadingSuggestions(false);
     }
@@ -87,35 +87,27 @@ export default function AdminAffiches() {
       } else {
         message.error(res.message || 'Erreur lors de l\'analyse des tendances web');
       }
-    } catch (err: any) {
-      message.error(err.message || 'Erreur lors de l\'analyse');
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : 'Erreur lors de l\'analyse');
     } finally {
       setLoadingContentGap(false);
     }
   }, []);
 
-  useEffect(() => {
-    loadSuggestions();
-  }, [loadSuggestions]);
-
-  useEffect(() => {
-    if (activeTab === 'gap' && contentGap.length === 0 && !loadingContentGap) {
-      loadContentGap();
-    }
-  }, [activeTab, contentGap.length, loadingContentGap, loadContentGap]);
-
   const handleCopyText = (text: string, index: number) => {
-    navigator.clipboard.writeText(text);
-    setCopiedCaptionIndex(index);
-    message.success('Texte du post copié dans le presse-papier !');
-    setTimeout(() => setCopiedCaptionIndex(null), 2000);
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedCaptionIndex(index);
+      message.success('Texte du post copié.');
+      setTimeout(() => setCopiedCaptionIndex(null), 2000);
+    }).catch(() => message.error('Le presse-papier est inaccessible dans ce navigateur.'));
   };
 
   const handleCopyLink = (link: string, index: number) => {
-    navigator.clipboard.writeText(link);
-    setCopiedLinkIndex(index);
-    message.success('Lien du média copié !');
-    setTimeout(() => setCopiedLinkIndex(null), 2000);
+    navigator.clipboard.writeText(link).then(() => {
+      setCopiedLinkIndex(index);
+      message.success('Lien copié.');
+      setTimeout(() => setCopiedLinkIndex(null), 2000);
+    }).catch(() => message.error('Le presse-papier est inaccessible dans ce navigateur.'));
   };
 
   const filteredSuggestions = suggestions.filter((item) => {
@@ -124,16 +116,15 @@ export default function AdminAffiches() {
   });
 
   return (
-    <div style={{ padding: 24, maxWidth: 1400, margin: '0 auto' }}>
+    <div className="editorial-page" style={{ maxWidth: 1400, margin: '0 auto' }}>
       {/* En-tête */}
       <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
-        <div>
-          <Title level={2} style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
-            <RobotOutlined style={{ color: '#e50914' }} /> Assistant IA Marketing & Contenu
+        <div style={{ flex: 1, padding: '24px 28px', border: '1px solid #e5ddd7', borderLeft: '3px solid #bd3f70', borderRadius: 15, color: '#30272c', background: '#f9f7f4' }}>
+          <Text style={{ color: '#9b315d', letterSpacing: '.13em', fontSize: 10 }}>CHILLERS · STUDIO ÉDITORIAL</Text>
+          <Title level={2} style={{ color: '#30272c', margin: '8px 0 5px', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <RobotOutlined /> Des idées pour faire parler du prochain film.
           </Title>
-          <Text type="secondary">
-            Générez vos posts réseaux sociaux quotidiens et découvrez les films/séries très demandés manquants sur CHILLERS.
-          </Text>
+          <Text style={{ color: '#81777b' }}>Trouvez l’angle, adaptez-le à vos réseaux et partagez votre sélection.</Text>
         </div>
 
         {/* Badge Provider IA */}
@@ -144,10 +135,10 @@ export default function AdminAffiches() {
                 ? 'purple'
                 : 'volcano'
             }
-            style={{ fontSize: 13, padding: '6px 14px', borderRadius: 20, display: 'flex', alignItems: 'center', gap: 6 }}
+            style={{ fontSize: 12, padding: '6px 14px', borderRadius: 20, display: 'flex', alignItems: 'center', gap: 6, alignSelf: 'flex-start' }}
           >
             <ThunderboltOutlined />
-            IA active :{' '}
+            Rédaction assistée ·{' '}
             <strong>
               {(activeTab === 'suggestions' ? suggestionsProvider : contentGapProvider) === 'gemini'
                 ? 'Google Gemini ✦'
@@ -160,14 +151,14 @@ export default function AdminAffiches() {
       {/* Onglets principaux */}
       <Tabs
         activeKey={activeTab}
-        onChange={setActiveTab}
+        onChange={(key: unknown) => setActiveTab(key as string)}
         type="card"
         items={[
           {
             key: 'suggestions',
             label: (
               <span>
-                <ShareAltOutlined /> Suggestions de Posts Sociaux
+                <ShareAltOutlined /> Idées de publication
               </span>
             ),
             children: (
@@ -175,11 +166,11 @@ export default function AdminAffiches() {
                 {/* Barre d'outils du haut */}
                 <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
                   <Space wrap>
-                    <Text strong>Filtrer par réseau :</Text>
+                    <Text strong>Choisir un réseau</Text>
                     <Segmented
                       options={['Tous', 'Instagram', 'TikTok', 'Facebook', 'Telegram']}
                       value={platformFilter}
-                      onChange={(v) => setPlatformFilter(v as string)}
+                      onChange={(v: unknown) => setPlatformFilter(v as string)}
                     />
                   </Space>
 
@@ -188,9 +179,9 @@ export default function AdminAffiches() {
                     icon={<ReloadOutlined />}
                     loading={loadingSuggestions}
                     onClick={loadSuggestions}
-                    style={{ backgroundColor: '#e50914', borderColor: '#e50914' }}
+                    style={{ backgroundColor: '#d63379', borderColor: '#d63379' }}
                   >
-                    Régénérer les suggestions IA
+                    Voir d’autres idées
                   </Button>
                 </div>
 
@@ -198,13 +189,13 @@ export default function AdminAffiches() {
                 <Alert
                   type="info"
                   showIcon
-                  message="Vos suggestions de publication pour aujourd'hui"
-                  description="Ces suggestions combinent vos films/séries disponibles avec les sujets tendances actuels du web. Cliquez sur 'Copier le post' pour le coller directement sur votre page."
+                  message="Une sélection prête à raconter"
+                  description="Chaque proposition part d’un titre disponible sur CHILLERS. Relisez-la, ajustez le ton à votre communauté, puis copiez-la pour votre réseau."
                   style={{
                     marginBottom: 24,
-                    backgroundColor: '#161b26',
-                    borderColor: '#242e42',
-                    color: '#e6e9f0',
+                    backgroundColor: '#f5f7fc',
+                    borderColor: '#e5eaf4',
+                    color: '#344054',
                   }}
                 />
 
@@ -212,8 +203,8 @@ export default function AdminAffiches() {
                   <div style={{ textAlign: 'center', padding: 80 }}>
                     <Spin size="large" />
                     <div style={{ marginTop: 16 }}>
-                      <Text type="secondary">
-                        L'IA analyse votre catalogue et les tendances du web pour rédiger vos posts quotidiens...
+                        <Text type="secondary">
+                        Nous préparons des idées à partir de votre catalogue et des sujets suivis...
                       </Text>
                     </div>
                   </div>
@@ -230,15 +221,16 @@ export default function AdminAffiches() {
                             display: 'flex',
                             flexDirection: 'column',
                             justifyContent: 'space-between',
-                            borderColor: '#27272a',
-                            background: '#121215',
+                            borderColor: '#edf0f4',
+                            background: '#f9f7f4',
+                            boxShadow: '0 10px 28px rgba(20,32,55,.06)',
                           }}
                         >
                           <div>
                             {/* Badges d'en-tête de la carte */}
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12, alignItems: 'center' }}>
-                              <Tag color="cyan" style={{ fontWeight: 600 }}>
-                                📱 {item.platform}
+                              <Tag color="purple" style={{ fontWeight: 600 }}>
+                                {item.platform}
                               </Tag>
                               <Tag color={item.mediaType === 'movie' ? 'blue' : 'magenta'}>
                                 {item.mediaType === 'movie' ? 'FILM' : 'SÉRIE'}
@@ -246,36 +238,36 @@ export default function AdminAffiches() {
                             </div>
 
                             {/* Titre du Média */}
-                            <Title level={4} style={{ margin: '0 0 8px 0', color: '#fff' }}>
+                            <Title level={4} style={{ margin: '0 0 8px 0', color: '#172033' }}>
                               {item.mediaTitle}
                             </Title>
 
                             {/* Accroche / Hook */}
                             <div
                               style={{
-                                background: '#1c1c21',
+                                background: '#fff4f8',
                                 padding: '8px 12px',
                                 borderRadius: 8,
-                                borderLeft: '4px solid #e50914',
+                                borderLeft: '4px solid #d63379',
                                 marginBottom: 12,
                               }}
                             >
-                              <Text strong style={{ color: '#f43f5e' }}>
-                                ⚡ Hook : {item.hook}
+                              <Text strong style={{ color: '#a12762' }}>
+                                L’accroche · {item.hook}
                               </Text>
                             </div>
 
                             {/* Légende du post */}
                             <Paragraph
                               style={{
-                                color: '#d4d4d8',
+                                color: '#475467',
                                 whiteSpace: 'pre-wrap',
                                 fontSize: 14,
                                 lineHeight: 1.5,
-                                background: '#09090b',
+                                background: '#f8f9fb',
                                 padding: 14,
                                 borderRadius: 8,
-                                border: '1px solid #27272a',
+                                border: '1px solid #edf0f4',
                                 maxHeight: 220,
                                 overflowY: 'auto',
                               }}
@@ -285,12 +277,12 @@ export default function AdminAffiches() {
                           </div>
 
                           {/* Actions bas de carte */}
-                          <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid #27272a', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                          <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid #edf0f4', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
                             <Button
                               type="primary"
                               icon={copiedCaptionIndex === index ? <CheckOutlined /> : <CopyOutlined />}
                               onClick={() => handleCopyText(item.caption, index)}
-                              style={{ flex: 1, backgroundColor: copiedCaptionIndex === index ? '#22c55e' : '#e50914', borderColor: 'transparent' }}
+                              style={{ flex: 1, backgroundColor: copiedCaptionIndex === index ? '#16865d' : '#d63379', borderColor: 'transparent' }}
                             >
                               {copiedCaptionIndex === index ? 'Copié !' : 'Copier le post'}
                             </Button>
@@ -316,14 +308,14 @@ export default function AdminAffiches() {
             key: 'gap',
             label: (
               <span>
-                <FireOutlined /> Contenus Très Demandés (Manquants)
+                <FireOutlined /> Tendances à ajouter au catalogue
               </span>
             ),
             children: (
               <div>
                 <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Text strong style={{ fontSize: 16 }}>
-                    Films et séries très populaires sur le web qui ne sont pas encore sur CHILLERS
+                    Des titres qui intéressent le public et ne sont pas encore au catalogue
                   </Text>
                   <Button
                     type="primary"
@@ -331,20 +323,20 @@ export default function AdminAffiches() {
                     loading={loadingContentGap}
                     onClick={loadContentGap}
                   >
-                    Actualiser les tendances web
+                    Actualiser la sélection
                   </Button>
                 </div>
 
                 <Alert
                   type="warning"
                   showIcon
-                  message="Recommandations d'ajout par l'IA"
-                  description="Ces contenus rencontrent une forte demande actuellement en France et sur les réseaux sociaux. Les ajouter sur CHILLERS vous permettra d'attirer un maximum de trafic."
+                  message="Une piste éditoriale, à valider"
+                  description="Ces suggestions croisent la popularité observée avec les titres déjà disponibles. Vérifiez les droits et les sources avant d’ajouter un contenu."
                   style={{
                     marginBottom: 24,
-                    backgroundColor: '#261c14',
-                    borderColor: '#422f1d',
-                    color: '#e6e9f0',
+                    backgroundColor: '#fff8e8',
+                    borderColor: '#f1e3bd',
+                    color: '#5f4b1f',
                   }}
                 />
 
@@ -377,14 +369,14 @@ export default function AdminAffiches() {
                               <div
                                 style={{
                                   height: 300,
-                                  background: '#18181b',
+                                  background: '#f2f4f7',
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
-                                  color: '#71717a',
+                                  color: '#98a2b3',
                                 }}
                               >
-                                Pas d'affiche
+                                Pas d&apos;affiche
                               </div>
                             )
                           }
@@ -393,8 +385,9 @@ export default function AdminAffiches() {
                             display: 'flex',
                             flexDirection: 'column',
                             justifyContent: 'space-between',
-                            background: '#121215',
-                            borderColor: '#27272a',
+                            background: '#f9f7f4',
+                            borderColor: '#edf0f4',
+                            boxShadow: '0 10px 28px rgba(20,32,55,.06)',
                           }}
                         >
                           <div>
@@ -409,7 +402,7 @@ export default function AdminAffiches() {
                               )}
                             </div>
 
-                            <Title level={4} style={{ margin: '0 0 4px 0', color: '#fff' }}>
+                            <Title level={4} style={{ margin: '0 0 4px 0', color: '#172033' }}>
                               {item.title}
                             </Title>
 
@@ -422,20 +415,20 @@ export default function AdminAffiches() {
                             {/* Raison de recommandation par l'IA */}
                             <div
                               style={{
-                                background: '#1c1917',
-                                border: '1px solid #44403c',
+                                background: '#fff8e8',
+                                border: '1px solid #f1e3bd',
                                 padding: '10px 12px',
                                 borderRadius: 8,
                                 marginBottom: 12,
                               }}
                             >
-                              <Text style={{ fontSize: 13, color: '#f59e0b', fontWeight: 600 }}>
-                                💡 Pourquoi l'ajouter :
+                                <Text style={{ fontSize: 13, color: '#8a6311', fontWeight: 600 }}>
+                                Pourquoi ce titre ressort :
                               </Text>
                               <Paragraph
                                 style={{
                                   fontSize: 13,
-                                  color: '#d6d3d1',
+                                  color: '#675a3a',
                                   margin: '4px 0 0 0',
                                   lineHeight: 1.4,
                                 }}
@@ -453,7 +446,7 @@ export default function AdminAffiches() {
                               type="primary"
                               icon={<PlusOutlined />}
                               block
-                              style={{ backgroundColor: '#22c55e', borderColor: '#22c55e' }}
+                              style={{ backgroundColor: '#3478f6', borderColor: '#3478f6' }}
                             >
                               Ajouter sur CHILLERS
                             </Button>

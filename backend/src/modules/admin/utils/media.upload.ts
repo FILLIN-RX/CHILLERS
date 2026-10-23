@@ -12,17 +12,27 @@ if (!fs.existsSync(UPLOADS_DIR)) {
 const VIDEO_EXTENSIONS = new Set([
   '.mp4', '.mkv', '.avi', '.mov', '.webm', '.m4v', '.mpg', '.mpeg', '.wmv', '.flv', '.ts', '.ogv',
 ]);
+const IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.avif']);
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
   filename: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    const safeExt = VIDEO_EXTENSIONS.has(ext) ? ext : '.mp4';
+    const allowedExtensions = file.fieldname === 'poster' || file.fieldname === 'backdrop' ? IMAGE_EXTENSIONS : VIDEO_EXTENSIONS;
+    const safeExt = allowedExtensions.has(ext) ? ext : file.fieldname === 'poster' || file.fieldname === 'backdrop' ? '.jpg' : '.mp4';
     cb(null, `manual-${Date.now()}-${Math.random().toString(36).slice(2, 10)}${safeExt}`);
   },
 });
 
 const fileFilter = (_req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  if (file.fieldname === 'poster' || file.fieldname === 'backdrop') {
+    if (file.mimetype.startsWith('image/') && IMAGE_EXTENSIONS.has(path.extname(file.originalname).toLowerCase())) {
+      cb(null, true);
+      return;
+    }
+    cb(new Error(`Fichier image non supporté: ${file.originalname}`));
+    return;
+  }
   if (file.mimetype.startsWith('video/') || VIDEO_EXTENSIONS.has(path.extname(file.originalname).toLowerCase())) {
     cb(null, true);
     return;

@@ -6,11 +6,11 @@ import { adminGetSerie } from '@/services/admin';
 import { resolveDownloadUrl } from '@/services/downloads';
 import { streamDownloadToDisk } from '@/services/streamSaver';
 import { buildEpisodeFilename } from '@/lib/format';
-import { Typography, Button, Space, Tag, Table, Modal, Spin, Alert, Tooltip } from 'antd';
+import { Typography, Button, Space, Tag, Table, Modal, Spin, Alert, Tooltip } from '@/components/admin/ui';
 import {
   ArrowLeftOutlined, PlayCircleOutlined, DownloadOutlined, LinkOutlined, FolderOpenOutlined,
-} from '@ant-design/icons';
-import type { ColumnsType } from 'antd/es/table';
+} from '@/components/admin/icons';
+import type { ColumnsType } from '@/components/admin/ui';
 import TmdbLinkModal from '../../components/TmdbLinkModal';
 
 const { Title, Text } = Typography;
@@ -54,7 +54,7 @@ export default function AdminSerieDetail() {
   }, [id]);
 
   if (loading) return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#6b7488' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#667085' }}>
       <Spin /> Chargement...
     </div>
   );
@@ -89,7 +89,7 @@ export default function AdminSerieDetail() {
         const isDead = !ep.lien || ep.lien === '#';
         return isDead
           ? <Text style={{ color: '#f87171', fontSize: 12 }}>✗ Mort</Text>
-          : <a href={ep.lien} target="_blank" rel="noopener noreferrer" style={{ color: '#a99bf0', fontSize: 12, textDecoration: 'none' }}>Voir le lien</a>;
+          : <a href={ep.lien} target="_blank" rel="noopener noreferrer" style={{ color: '#6554c0', fontSize: 12, textDecoration: 'none' }}>Voir le lien</a>;
       },
     },
     {
@@ -124,7 +124,7 @@ export default function AdminSerieDetail() {
                 size="small"
                 type="text"
                 disabled={!canPlay}
-                icon={<PlayCircleOutlined style={{ color: canPlay ? '#a99bf0' : undefined }} />}
+                icon={<PlayCircleOutlined style={{ color: canPlay ? '#6554c0' : undefined }} />}
                 onClick={() => {
                   const tmdbId = ep.tmdbId || serie.tmdbId;
                   if (tmdbId) setPlayerUrl(`/watch/${tmdbId}?type=tv&season=${ep.season}&episode=${ep.episodeNumber}`);
@@ -186,7 +186,7 @@ export default function AdminSerieDetail() {
       </Button>
 
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem', marginBottom: '1.5rem' }}>
-        <FolderOpenOutlined style={{ fontSize: 28, color: '#a99bf0', marginTop: 4 }} />
+        <FolderOpenOutlined style={{ fontSize: 28, color: '#6554c0', marginTop: 4 }} />
         <div style={{ flex: 1 }}>
           <Title level={3} style={{ margin: 0 }}>{serie.titre}</Title>
           <Space size="large" wrap style={{ marginTop: '0.5rem', fontSize: 13 }}>
@@ -203,7 +203,7 @@ export default function AdminSerieDetail() {
             >
               {serie.tmdbId ? `✓ Lié TMDB (#${serie.tmdbId})` : '✗ Lier TMDB'}
             </Button>
-            <a href={serie.pageUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#a99bf0', fontSize: 13, textDecoration: 'none' }}>
+            <a href={serie.pageUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#6554c0', fontSize: 13, textDecoration: 'none' }}>
               Voir sur open-otaku.me →
             </a>
           </Space>

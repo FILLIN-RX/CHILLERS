@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist_Mono } from "next/font/google";
+import { Geist_Mono, Poppins } from "next/font/google";
 import { LanguageProvider } from "@/i18n/LanguageContext";
 import { defaultLanguage } from "@/i18n";
 import AdminShortcut from "@/components/AdminShortcut";
@@ -15,6 +15,7 @@ import QueryProvider from "@/components/QueryProvider";
 import "./globals.css";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
 import CookieNotice from "@/components/CookieNotice";
+import SiteVisitTracker from "@/components/SiteVisitTracker";
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
@@ -22,6 +23,7 @@ const geistMono = Geist_Mono({
   display: "swap",
   preload: false,
 });
+const poppins = Poppins({ variable: "--font-poppins", subsets: ["latin"], weight: ["400", "500", "600", "700"], display: "swap", preload: false });
 
 const siteUrl = SITE_URL;
 
@@ -125,7 +127,7 @@ export default function RootLayout({
   return (
     <html
       lang={defaultLanguage}
-      className={`${geistMono.variable} dark h-full antialiased`}
+      className={`${geistMono.variable} ${poppins.variable} dark h-full antialiased`}
     >
       <head>
         {/*
@@ -154,6 +156,7 @@ export default function RootLayout({
       </head>
       <body suppressHydrationWarning className="min-h-screen flex flex-col bg-brand-dark text-foreground selection:bg-brand-primary selection:text-white">
         <GoogleAnalytics />
+        <SiteVisitTracker />
         <CookieNotice />
         {/* Splash pré-React — retiré par SplashScreen.tsx une fois les données chargées */}
         {/* dangerouslySetInnerHTML : React ne touche JAMAIS aux enfants → zéro erreur insertBefore/removeChild */}

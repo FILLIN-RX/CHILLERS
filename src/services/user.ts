@@ -1,4 +1,15 @@
 import { httpJson } from './http';
+import { API_BASE_URL } from '@/lib/api-base';
+
+export type PushCategory = 'announcements' | 'favorites' | 'matches' | 'subscriptions' | 'reminders';
+export interface PushPreferences { announcements: boolean; favorites: boolean; matches: boolean; subscriptions: boolean; reminders: boolean; }
+
+async function notificationRequest<T>(path: string, token?: string, options: { method?: 'GET' | 'POST' | 'PUT' | 'DELETE'; body?: unknown } = {}) {
+  return httpJson<T>(`${API_BASE_URL}/notifications${path}`, {
+    method: options.method || 'GET', body: options.body,
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
+}
 
 interface FavoriteData {
   mediaType: 'movie' | 'series' | 'anime';
@@ -29,6 +40,25 @@ interface HistoryData {
 }
 
 export const userService = {
+  getPushConfig() {
+    return notificationRequest<{ success: boolean; data: { enabled: boolean; publicKey: string | null } }>('/config');
+  },
+  getPushPreferences(token?: string, endpoint?: string) {
+    const query = endpoint ? `?endpoint=${encodeURIComponent(endpoint)}` : '';
+    return notificationRequest<{ success: boolean; data: Array<{ preferences: PushPreferences; followedTeams: string[] }> }>(`/preferences${query}`, token);
+  },
+  subscribePush(subscription: PushSubscriptionJSON, token?: string) {
+    return notificationRequest<{ success: boolean; data: { linkedToAccount: boolean } }>('/subscriptions', token, { method: 'POST', body: { subscription } });
+  },
+  unsubscribePush(endpoint: string) {
+    return notificationRequest<{ success: boolean }>('/subscriptions', undefined, { method: 'DELETE', body: { endpoint } });
+  },
+  updatePushPreferences(payload: { endpoint?: string; preferences?: Partial<PushPreferences>; followedTeams?: string[] }, token?: string) {
+    return notificationRequest<{ success: boolean; data: { preferences: PushPreferences; followedTeams: string[] } | null }>('/preferences', token, { method: 'PUT', body: payload });
+  },
+  sendPushTest(endpoint?: string, token?: string) {
+    return notificationRequest<{ success: boolean; data: { delivered: number } }>('/test', token, { method: 'POST', body: { endpoint } });
+  },
   async getProfile(token: string) {
     return await httpJson<{ success: boolean; user: any }>('/auth/me', {
       headers: { Authorization: `Bearer ${token}` }

@@ -159,7 +159,7 @@ export interface AICompletionResult {
 
 /**
  * Moteur d'IA unifié avec tentative multi-modèles :
- * Tente les modèles Gemini (ex: gemini-3.6-flash, gemini-2.5-flash),
+ * Tente les modèles Gemini (ex: gemini-3.6-flash, gemini-3.8-flash),
  * et bascule automatiquement sur Groq (ex: openai/gpt-oss-20b, qwen/qwen3.6-27b) en secours.
  */
 export async function generateAICompletion(options: AICompletionOptions): Promise<AICompletionResult> {
@@ -171,7 +171,7 @@ export async function generateAICompletion(options: AICompletionOptions): Promis
   const geminiModels = [
     process.env.AI_GEMINI_MODEL,
     'gemini-3.6-flash',
-    'gemini-2.5-flash',
+    'gemini-3.8-flash',
   ].filter((m, i, self): m is string => Boolean(m) && self.indexOf(m) === i);
 
   const groqModels = [
@@ -272,4 +272,3 @@ async function saveGeneratedImage(base64: string, filename: string): Promise<str
     return null;
   }
 }
-

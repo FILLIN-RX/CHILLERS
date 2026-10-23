@@ -1,15 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { adminCreateManualMedia, adminCreateManualMediaUpload, adminTmdbSearch } from '@/services/admin';
 import {
-  Card, Input, InputNumber, Button, Space, Typography, Alert, Segmented, Upload, Spin, Tag, Divider,
-} from 'antd';
+  Card, Input, Button, Space, Typography, Alert, Segmented, Upload, Tag, Divider,
+} from '@/components/admin/ui';
 import {
   SearchOutlined, PlusOutlined, DeleteOutlined, CloseOutlined,
   VideoCameraOutlined, PlaySquareOutlined,   UploadOutlined, FileOutlined,
-} from '@ant-design/icons';
-import type { UploadFile } from 'antd';
+} from '@/components/admin/icons';
+import type { UploadFile } from '@/components/admin/ui';
 
 const { Title, Text } = Typography;
 
@@ -23,6 +23,7 @@ interface TmdbCandidate {
   title: string;
   year: number | null;
   poster: string | null;
+  overview?: string;
 }
 
 function newSeason(season = ''): SeasonGroup {
@@ -42,7 +43,7 @@ function FilePicker({ file, onSelect, labelText = 'Choisir un fichier' }: {
       accept="video/*"
       maxCount={1}
       fileList={fileList}
-      beforeUpload={(f) => { onSelect(f); return false; }}
+      beforeUpload={(f: File) => { onSelect(f); return false; }}
       onRemove={() => onSelect(null)}
     >
       <Button icon={<UploadOutlined />} block>
@@ -53,8 +54,8 @@ function FilePicker({ file, onSelect, labelText = 'Choisir un fichier' }: {
 }
 
 const SectionTitle = ({ children }: { children: React.ReactNode }) => (
-  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, marginBottom: '1rem', color: '#e6e9f0' }}>
-    <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#6c5ce7', flexShrink: 0 }} />
+  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, marginBottom: '1rem', color: '#f1edf0' }}>
+    <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#F42A7C', flexShrink: 0 }} />
     {children}
   </div>
 );
@@ -66,6 +67,16 @@ export default function AdminAddMedia() {
   const [movieFile, setMovieFile] = useState<File | null>(null);
   const [tmdbId, setTmdbId] = useState('');
   const [year, setYear] = useState('');
+  const [synopsis, setSynopsis] = useState('');
+  const [posterUrl, setPosterUrl] = useState('');
+  const [backdropUrl, setBackdropUrl] = useState('');
+  const [posterFile, setPosterFile] = useState<File | null>(null);
+  const [backdropFile, setBackdropFile] = useState<File | null>(null);
+  const [step, setStep] = useState(0);
+  const [audioLanguage, setAudioLanguage] = useState('VF');
+  const [quality, setQuality] = useState('HD');
+  const [sourceName, setSourceName] = useState('Direct');
+  const [isPremium, setIsPremium] = useState(false);
   const [selectedTmdb, setSelectedTmdb] = useState<TmdbCandidate | null>(null);
   const [seasons, setSeasons] = useState<SeasonGroup[]>([newSeason('1')]);
 
@@ -76,7 +87,14 @@ export default function AdminAddMedia() {
   const [searched, setSearched] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
-  const [result, setResult] = useState<{ success: boolean; message: string; upload?: string } | null>(null);
+  const [result, setResult] = useState<{ success: boolean; message: string; upload?: string; catalogUrl?: string } | null>(null);
+
+  useEffect(() => {
+    const suggestedTitle = new URLSearchParams(window.location.search).get('q');
+    if (!suggestedTitle) return;
+    const timer = window.setTimeout(() => { setTitre(suggestedTitle); setTmdbQuery(suggestedTitle); }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const switchType = (t: 'movie' | 'serie') => {
     setType(t);
@@ -85,6 +103,8 @@ export default function AdminAddMedia() {
     setSearchMsg('');
     setSelectedTmdb(null);
     setTmdbId('');
+    setSynopsis(''); setPosterUrl(''); setBackdropUrl('');
+    setPosterFile(null); setBackdropFile(null); setStep(0);
   };
 
   const searchTmdb = async () => {
@@ -103,6 +123,7 @@ export default function AdminAddMedia() {
             ? parseInt((r.release_date || r.first_air_date || '').slice(0, 4), 10)
             : null,
           poster: r.poster_path ? `https://image.tmdb.org/t/p/w200${r.poster_path}` : null,
+          overview: r.overview || '',
         }));
         setTmdbResults(candidates);
         if (candidates.length === 0) setSearchMsg('Aucun résultat sur TMDB');
@@ -119,8 +140,10 @@ export default function AdminAddMedia() {
   const pickTmdb = (c: TmdbCandidate) => {
     setTmdbId(String(c.id));
     setSelectedTmdb(c);
-    setTitre(prev => prev || c.title);
-    if (c.year && !year) setYear(String(c.year));
+    setTitre(c.title);
+    setYear(c.year ? String(c.year) : '');
+    setSynopsis(c.overview || '');
+    setPosterUrl(c.poster ? c.poster.replace('/w200', '/w500') : '');
     setTmdbResults([]);
     setSearched(false);
     setSearchMsg('');
@@ -163,16 +186,17 @@ export default function AdminAddMedia() {
     if (err) { setResult({ success: false, message: err }); return; }
 
     const common: { type: 'movie' | 'serie'; titre: string; tmdbId: number; year?: number } = { type, titre: titre.trim(), tmdbId: parseInt(tmdbId, 10) };
+    const metadata = { synopsis, posterUrl, backdropUrl, langueAudio: audioLanguage, quality, source: sourceName, isPremium };
     if (year && !isNaN(parseInt(year, 10))) common.year = parseInt(year, 10);
 
     if (type === 'movie') {
       if (!lien.trim() && !movieFile) { setResult({ success: false, message: 'Ajoute un lien direct ou sélectionne un fichier vidéo' }); return; }
       setSubmitting(true);
       try {
-        const res = movieFile
-          ? await adminCreateManualMediaUpload(movieFormData(common))
-          : await adminCreateManualMedia({ ...common, lien: lien.trim() });
-        handleResult(res);
+        const res = movieFile || posterFile || backdropFile
+          ? await adminCreateManualMediaUpload(movieFormData(common, metadata))
+          : await adminCreateManualMedia({ ...common, ...metadata, lien: lien.trim() });
+        handleResult(res, type === 'movie' ? `/media/${tmdbId}` : `/tv/${tmdbId}`);
       } catch {
         setResult({ success: false, message: 'Erreur réseau lors de la création' });
       } finally {
@@ -186,16 +210,17 @@ export default function AdminAddMedia() {
     if (valid.length === 0) { setResult({ success: false, message: 'Ajoute au moins un épisode (numéro + lien ou fichier)' }); return; }
     if (valid.some(ep => !ep.season)) { setResult({ success: false, message: 'Chaque saison doit avoir un numéro' }); return; }
 
-    const hasFiles = valid.some(ep => ep.file);
+    const hasFiles = valid.some(ep => ep.file) || !!posterFile || !!backdropFile;
     setSubmitting(true);
     try {
       const res = hasFiles
-        ? await adminCreateManualMediaUpload(serieFormData(common, valid))
+        ? await adminCreateManualMediaUpload(serieFormData(common, valid, metadata))
         : await adminCreateManualMedia({
           ...common,
-          episodes: valid.map(ep => ({ season: parseInt(ep.season, 10), episodeNumber: parseInt(ep.episodeNumber, 10), lien: ep.lien.trim() })),
+          ...metadata,
+          episodes: valid.map(ep => ({ season: parseInt(ep.season, 10), episodeNumber: parseInt(ep.episodeNumber, 10), lien: ep.lien.trim(), langueAudio: audioLanguage, quality, source: sourceName, isPremium })),
         });
-      handleResult(res);
+      handleResult(res, `/tv/${tmdbId}`);
     } catch {
       setResult({ success: false, message: 'Erreur réseau lors de la création' });
     } finally {
@@ -203,38 +228,46 @@ export default function AdminAddMedia() {
     }
   };
 
-  const movieFormData = (common: { type: 'movie' | 'serie'; titre: string; tmdbId: number; year?: number }) => {
+  const movieFormData = (common: { type: 'movie' | 'serie'; titre: string; tmdbId: number; year?: number }, metadata: { synopsis: string; posterUrl: string; backdropUrl: string; langueAudio: string; quality: string; source: string; isPremium: boolean }) => {
     const fd = new FormData();
     fd.append('type', common.type);
     fd.append('titre', common.titre);
     fd.append('tmdbId', String(common.tmdbId));
     if (common.year) fd.append('year', String(common.year));
-    fd.append('files', movieFile as File);
+    Object.entries(metadata).forEach(([key, value]) => fd.append(key, String(value)));
+    if (lien.trim()) fd.append('lien', lien.trim());
+    if (movieFile) fd.append('files', movieFile);
+    if (posterFile) fd.append('poster', posterFile);
+    if (backdropFile) fd.append('backdrop', backdropFile);
     return fd;
   };
 
-  const serieFormData = (common: { type: 'movie' | 'serie'; titre: string; tmdbId: number; year?: number }, episodes: { episodeNumber: string; lien: string; file: File | null; season: string }[]) => {
+  const serieFormData = (common: { type: 'movie' | 'serie'; titre: string; tmdbId: number; year?: number }, episodes: { episodeNumber: string; lien: string; file: File | null; season: string }[], metadata: { synopsis: string; posterUrl: string; backdropUrl: string; langueAudio: string; quality: string; source: string; isPremium: boolean }) => {
     const fd = new FormData();
     fd.append('type', common.type);
     fd.append('titre', common.titre);
     fd.append('tmdbId', String(common.tmdbId));
     if (common.year) fd.append('year', String(common.year));
+    Object.entries(metadata).forEach(([key, value]) => fd.append(key, String(value)));
     fd.append('episodesMeta', JSON.stringify(episodes.map(ep => ({
       season: parseInt(ep.season, 10),
       episodeNumber: parseInt(ep.episodeNumber, 10),
-      ...(ep.lien.trim() ? { lien: ep.lien.trim() } : {}),
+      ...(!ep.file && ep.lien.trim() ? { lien: ep.lien.trim() } : {}),
+      langueAudio: audioLanguage, quality, source: sourceName, isPremium,
     }))));
     episodes.forEach(ep => { if (ep.file) fd.append('files', ep.file); });
+    if (posterFile) fd.append('poster', posterFile);
+    if (backdropFile) fd.append('backdrop', backdropFile);
     return fd;
   };
 
-  const handleResult = (res: { success: boolean; message?: string; data?: unknown }) => {
+  const handleResult = (res: { success: boolean; message?: string; data?: unknown }, catalogUrl: string) => {
     if (res.success) {
       const uploadInfo = (res.data && typeof res.data === "object" && "upload" in res.data
         ? (res.data as { upload?: { message?: string } }).upload?.message
         : undefined) as string | undefined;
-      setResult({ success: true, message: res.message || 'Créé avec succès', upload: uploadInfo });
-      setTitre(''); setLien(''); setTmdbId(''); setYear(''); setMovieFile(null); setSelectedTmdb(null);
+      setResult({ success: true, message: res.message || 'Créé avec succès', upload: uploadInfo, catalogUrl });
+      setTitre(''); setLien(''); setTmdbId(''); setYear(''); setSynopsis(''); setPosterUrl(''); setBackdropUrl(''); setPosterFile(null); setBackdropFile(null); setMovieFile(null); setSelectedTmdb(null); setIsPremium(false); setStep(0);
       setSeasons([newSeason('1')]);
     } else {
       setResult({ success: false, message: res.message || 'Erreur lors de la création' });
@@ -244,7 +277,7 @@ export default function AdminAddMedia() {
   const episodeCount = seasons.reduce((acc, s) => acc + s.episodes.length, 0);
 
   return (
-    <div style={{ maxWidth: 1000 }}>
+    <div className="publish-page" style={{ maxWidth: 1180 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
         <div>
           <Title level={3} style={{ margin: 0 }}>Ajouter un média</Title>
@@ -252,7 +285,7 @@ export default function AdminAddMedia() {
         </div>
         <Segmented
           value={type}
-          onChange={(v) => switchType(v as 'movie' | 'serie')}
+          onChange={(v) => switchType(v as unknown as 'movie' | 'serie')}
           options={[
             { label: <Space size={4}><VideoCameraOutlined /> Film</Space>, value: 'movie' },
             { label: <Space size={4}><PlaySquareOutlined /> Série</Space>, value: 'serie' },
@@ -260,54 +293,86 @@ export default function AdminAddMedia() {
         />
       </div>
 
+      <nav className="publish-steps" aria-label="Étapes de publication">
+        {['Fiche', 'Vidéo', 'Vérification'].map((label, index) => (
+          <button type="button" key={label} className={step === index ? 'is-current' : step > index ? 'is-done' : ''} onClick={() => index <= step && setStep(index)}>
+            <span>{step > index ? '✓' : `0${index + 1}`}</span><b>{label}</b>
+          </button>
+        ))}
+      </nav>
       <Space orientation="vertical" size="large" style={{ width: '100%', marginBottom: '1.25rem' }}>
+        {step === 0 && <>
         <Card size="small">
           <SectionTitle>Informations</SectionTitle>
           <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0.75rem' }}>
               <div>
                 <Text type="secondary" style={{ display: 'block', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.35rem' }}>Titre</Text>
-                <Input value={titre} onChange={e => setTitre(e.target.value)} placeholder="Titre du film / de la série" />
+                <Input value={titre} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTitre(e.target.value)} placeholder="Titre du film / de la série" />
               </div>
               <div>
                 <Text type="secondary" style={{ display: 'block', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.35rem' }}>Année</Text>
-                <Input value={year} onChange={e => setYear(e.target.value)} placeholder="2024" inputMode="numeric" />
+                <Input value={year} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setYear(e.target.value)} placeholder="2024" inputMode="numeric" />
               </div>
               <div>
                 <Text type="secondary" style={{ display: 'block', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.35rem' }}>TMDB ID</Text>
-                <Input value={tmdbId} onChange={e => setTmdbId(e.target.value)} placeholder="ex: 12345" inputMode="numeric" />
+                <Input value={tmdbId} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTmdbId(e.target.value)} placeholder="ex: 12345" inputMode="numeric" />
+              </div>
+            </div>
+            <div className="publish-metadata-grid">
+              <label className="publish-field publish-field-wide">Résumé catalogue
+                <textarea value={synopsis} onChange={e => setSynopsis(e.target.value)} maxLength={1500} rows={4} placeholder="Le résumé TMDB se remplit après la sélection. Modifie-le si besoin." />
+              </label>
+              <label className="publish-field">Affiche
+                <input type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={e => setPosterFile(e.target.files?.[0] || null)} />
+                <small>{posterFile?.name || (posterUrl ? 'Affiche TMDB sélectionnée · choisissez un fichier pour la remplacer' : 'Image JPEG, PNG, WebP ou AVIF')}</small>
+              </label>
+              <label className="publish-field">Image de couverture
+                <input type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={e => setBackdropFile(e.target.files?.[0] || null)} />
+                <small>{backdropFile?.name || 'Optionnelle · image large'}</small>
+              </label>
+              <label className="publish-field">Langue audio
+                <select value={audioLanguage} onChange={e => setAudioLanguage(e.target.value)}><option>VF</option><option>VFF</option><option>VFQ</option><option>VO</option><option>VOSTFR</option></select>
+              </label>
+              <label className="publish-field">Qualité
+                <select value={quality} onChange={e => setQuality(e.target.value)}><option>HD</option><option>4K</option><option>1080p</option><option>720p</option><option>SD</option></select>
+              </label>
+              <label className="publish-field">Source
+                <input value={sourceName} onChange={e => setSourceName(e.target.value)} placeholder="Direct, Uqload…" />
+              </label>
+              <label className="publish-premium"><input type="checkbox" checked={isPremium} onChange={e => setIsPremium(e.target.checked)} /> Contenu réservé aux abonnés premium</label>
+            </div>
+            <div className="publish-preview" aria-live="polite">
+              {posterUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={posterUrl} alt={`Affiche de ${titre || 'votre média'}`} />
+              ) : <div className="publish-preview-poster">CHILLERS</div>}
+              <div className="publish-preview-copy">
+                <span className="publish-preview-kicker">APERÇU CATALOGUE · {type === 'movie' ? 'FILM' : 'SÉRIE'}</span>
+                <strong>{titre || 'Le titre apparaîtra ici'}</strong>
+                <div className="publish-preview-tags"><span>{year || 'Année TMDB'}</span><span>{audioLanguage}</span><span>{quality}</span>{isPremium && <span>PREMIUM</span>}</div>
+                <p>{synopsis || 'Le résumé du média sera affiché sur sa fiche catalogue.'}</p>
+                {type === 'serie' && <small>{seasons.length} saison(s) · {episodeCount} épisode(s) renseigné(s)</small>}
               </div>
             </div>
             {selectedTmdb && (
               <div style={{
                 display: 'flex', alignItems: 'center', gap: '0.75rem',
-                background: '#0f1219', border: '1px solid rgba(52,211,153,0.35)', borderRadius: 8, padding: '0.5rem 0.75rem',
+                background: '#f9f7f4', border: '1px solid rgba(52,211,153,0.35)', borderRadius: 8, padding: '0.5rem 0.75rem',
               }}>
                 {selectedTmdb.poster ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={selectedTmdb.poster} alt="" style={{ width: 32, height: 48, objectFit: 'cover', borderRadius: 4 }} />
                 ) : (
-                  <div style={{ width: 32, height: 48, background: '#1a1f2b', borderRadius: 4 }} />
+                  <div style={{ width: 32, height: 48, background: '#f2f4f7', borderRadius: 4 }} />
                 )}
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#34d399' }}>✓ {selectedTmdb.title}{selectedTmdb.year ? ` (${selectedTmdb.year})` : ''}</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#34d399' }}>✓ {selectedTmdb.title}{selectedTmdb.year ? ` (${selectedTmdb.year})` : ''}</div>
                   <Text type="secondary" style={{ fontSize: 12 }}>TMDB ID: {selectedTmdb.id}</Text>
                 </div>
                 <Button size="small" style={{ marginLeft: 'auto' }} icon={<CloseOutlined />} onClick={() => { setSelectedTmdb(null); setTmdbId(''); }}>
                   Retirer
                 </Button>
-              </div>
-            )}
-            {type === 'movie' && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', alignItems: 'end' }}>
-                <div>
-                  <Text type="secondary" style={{ display: 'block', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.35rem' }}>Lien direct (vidéo)</Text>
-                  <Input value={lien} onChange={e => setLien(e.target.value)} placeholder="https://... mp4 ou lien direct" />
-                </div>
-                <div>
-                  <Text type="secondary" style={{ display: 'block', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.35rem' }}>Ou fichier vidéo (prioritaire)</Text>
-                  <FilePicker file={movieFile} onSelect={setMovieFile} labelText="Choisir un fichier vidéo..." />
-                </div>
               </div>
             )}
           </Space>
@@ -318,7 +383,7 @@ export default function AdminAddMedia() {
           <Space.Compact style={{ width: '100%', maxWidth: 600 }}>
             <Input
               value={tmdbQuery}
-              onChange={e => setTmdbQuery(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTmdbQuery(e.target.value)}
               onPressEnter={searchTmdb}
               placeholder={`Chercher un ${type === 'movie' ? 'film' : 'série'} sur TMDB...`}
             />
@@ -337,15 +402,15 @@ export default function AdminAddMedia() {
                   onClick={() => pickTmdb(c)}
                   style={{
                     display: 'flex', alignItems: 'center', gap: '0.75rem', height: 'auto',
-                    background: '#0f1219', border: '1px solid #242a38', borderRadius: 10,
-                    padding: '0.5rem 0.75rem', color: '#e6e9f0', textAlign: 'left',
+                    background: '#f9f7f4', border: '1px solid #e3e8ef', borderRadius: 10,
+                    padding: '0.5rem 0.75rem', color: '#172033', textAlign: 'left',
                   }}
                 >
                   {c.poster ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={c.poster} alt="" style={{ width: 44, height: 66, objectFit: 'cover', borderRadius: 6 }} />
                   ) : (
-                    <div style={{ width: 44, height: 66, background: '#1a1f2b', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4b5466', fontSize: '1.2rem' }}>?</div>
+                    <div style={{ width: 44, height: 66, background: '#f2f4f7', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4b5466', fontSize: '1.2rem' }}>?</div>
                   )}
                   <span style={{ minWidth: 0 }}>
                     <span style={{ display: 'block', fontWeight: 600, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.title}</span>
@@ -356,8 +421,22 @@ export default function AdminAddMedia() {
             </div>
           )}
         </Card>
+        </>}
 
-        {type === 'serie' && (
+        {step === 1 && type === 'movie' && <Card size="small">
+          <SectionTitle>Source vidéo</SectionTitle>
+          <div className="publish-video-grid">
+            <label className="publish-field">Lien direct
+              <input value={lien} onChange={e => setLien(e.target.value)} placeholder="https://…" />
+            </label>
+            <label className="publish-field">Fichier vidéo · prioritaire sur le lien
+              <FilePicker file={movieFile} onSelect={setMovieFile} labelText="Choisir une vidéo…" />
+            </label>
+          </div>
+          <p className="publish-help">Renseigne un lien ou sélectionne un fichier vidéo.</p>
+        </Card>}
+
+        {step === 1 && type === 'serie' && (
           <Card size="small">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
               <SectionTitle>
@@ -369,14 +448,14 @@ export default function AdminAddMedia() {
 
             <Space orientation="vertical" size="large" style={{ width: '100%' }}>
               {seasons.map((s, sIdx) => (
-                <div key={sIdx} style={{ background: '#0f1219', border: '1px solid #242a38', borderRadius: 10, padding: '1rem' }}>
+                <div key={sIdx} style={{ background: '#f9f7f4', border: '1px solid #e3e8ef', borderRadius: 10, padding: '1rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                     <Space size="middle">
                       <Tag color="primary" style={{ fontWeight: 700, fontSize: 13 }}>S{s.season || '?'}</Tag>
                       <Input
                         style={{ width: 60 }}
                         value={s.season}
-                        onChange={e => updateSeason(sIdx, e.target.value)}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateSeason(sIdx, e.target.value)}
                         placeholder="N°"
                         inputMode="numeric"
                         title="Numéro de saison"
@@ -410,13 +489,13 @@ export default function AdminAddMedia() {
                           style={{ textAlign: 'center' }}
                           placeholder="1"
                           value={ep.episodeNumber}
-                          onChange={e => updateEpisode(sIdx, eIdx, { episodeNumber: e.target.value })}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateEpisode(sIdx, eIdx, { episodeNumber: e.target.value })}
                           inputMode="numeric"
                         />
                         <Input
                           placeholder="https://... lien direct"
                           value={ep.lien}
-                          onChange={e => updateEpisode(sIdx, eIdx, { lien: e.target.value })}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateEpisode(sIdx, eIdx, { lien: e.target.value })}
                         />
                         <FilePicker
                           file={ep.file}
@@ -443,20 +522,38 @@ export default function AdminAddMedia() {
             </Text>
           </Card>
         )}
+
+        {step === 2 && <Card size="small">
+          <SectionTitle>Vérifier avant publication</SectionTitle>
+          <div className="publish-preview" aria-live="polite">
+            {posterUrl ? <img src={posterUrl} alt={`Affiche de ${titre || 'votre média'}`} /> : <div className="publish-preview-poster">{posterFile ? 'IMAGE CHOISIE' : 'CHILLERS'}</div>}
+            <div className="publish-preview-copy"><span className="publish-preview-kicker">APERÇU CATALOGUE · {type === 'movie' ? 'FILM' : 'SÉRIE'}</span><strong>{titre || 'Le titre apparaîtra ici'}</strong>
+              <div className="publish-preview-tags"><span>{year || 'Année non renseignée'}</span><span>{audioLanguage}</span><span>{quality}</span>{isPremium && <span>PREMIUM</span>}</div>
+              <p>{synopsis || 'Aucun résumé ajouté.'}</p>{type === 'serie' && <small>{seasons.length} saison(s) · {episodeCount} épisode(s)</small>}
+            </div>
+          </div>
+          <p className="publish-help">{posterFile ? `Affiche : ${posterFile.name}` : posterUrl ? 'Affiche TMDB conservée' : 'Aucune affiche sélectionnée'}{backdropFile ? ` · Couverture : ${backdropFile.name}` : ''}</p>
+          {type === 'movie' && <p className="publish-help">Source : {movieFile?.name || lien || 'Non renseignée'}</p>}
+        </Card>}
       </Space>
 
       <Space align="start" size="middle" wrap>
-        <Button type="primary" size="large" icon={<PlusOutlined />} loading={submitting} onClick={submit}>
-          {submitting ? 'Création en cours...' : type === 'movie' ? 'Ajouter le film' : 'Ajouter la série'}
-        </Button>
+        {step > 0 && <Button size="large" onClick={() => { setStep(step - 1); setResult(null); }}>Retour</Button>}
+        {step < 2 ? <Button type="primary" size="large" onClick={() => {
+          setResult(null);
+          const commonError = validateCommon();
+          if (commonError) { setResult({ success: false, message: commonError }); return; }
+          if (step === 1 && type === 'movie' && !lien.trim() && !movieFile) { setResult({ success: false, message: 'Ajoute un lien direct ou sélectionne un fichier vidéo' }); return; }
+          if (step === 1 && type === 'serie' && !seasons.some(s => s.season && s.episodes.some(ep => ep.episodeNumber && (ep.lien.trim() || ep.file)))) { setResult({ success: false, message: 'Ajoute une saison et au moins un épisode avec un numéro et une source' }); return; }
+          setStep(step + 1);
+        }}>Suivant</Button> : <Button type="primary" size="large" icon={<PlusOutlined />} loading={submitting} onClick={submit}>
+          {submitting ? 'Publication en cours...' : 'Publier dans le catalogue'}
+        </Button>}
         {result && (
-          <Alert
-            type={result.success ? 'success' : 'error'}
-            showIcon
-            message={result.message}
-            description={result.upload}
-            style={{ flex: 1, minWidth: 300 }}
-          />
+          <div className="publish-result">
+            <Alert type={result.success ? 'success' : 'error'} showIcon message={result.message} description={result.upload} />
+            {result.success && result.catalogUrl && <a href={result.catalogUrl} target="_blank" rel="noreferrer">Ouvrir la fiche publiée ↗</a>}
+          </div>
         )}
       </Space>
     </div>

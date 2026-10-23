@@ -17,12 +17,12 @@ import {
 } from '@/services/admin';
 import {
   Card, Button, Badge, Tag, Alert, Table, Space, Typography,
-} from 'antd';
+} from '@/components/admin/ui';
 import {
   PlayCircleOutlined, StopOutlined, ReloadOutlined, ThunderboltOutlined,
   BugOutlined, ArrowRightOutlined, CloseOutlined,
-} from '@ant-design/icons';
-import type { ColumnsType } from 'antd/es/table';
+} from '@/components/admin/icons';
+import type { ColumnsType } from '@/components/admin/ui';
 
 const { Title, Text } = Typography;
 
@@ -174,13 +174,13 @@ export default function AdminCron() {
             <Space orientation="vertical" size={8} style={{ width: '100%' }}>
               <Text>Une crontab lance des scripts toutes les minutes sans passer par cette interface. Supprimez-la pour garder le contrôle :</Text>
               <pre style={{
-                background: '#0f1219', color: '#fbbf24', padding: '0.5rem 0.75rem',
+                background: '#f8f9fb', color: '#475467', padding: '0.5rem 0.75rem',
                 borderRadius: 6, fontSize: 12, margin: 0, overflow: 'auto',
               }}>
                 {systemCron.lines.join('\n')}
               </pre>
               <Text type="secondary" style={{ fontSize: 12 }}>
-                → Sur le serveur : <code style={{ background: '#0f1219', padding: '0.1rem 0.3rem', borderRadius: 4 }}>crontab -e</code> puis supprimer les lignes, ou <code style={{ background: '#0f1219', padding: '0.1rem 0.3rem', borderRadius: 4 }}>crontab -r</code> pour tout vider.
+                → Sur le serveur : <code style={{ background: '#f9f7f4', padding: '0.1rem 0.3rem', borderRadius: 4 }}>crontab -e</code> puis supprimer les lignes, ou <code style={{ background: '#f9f7f4', padding: '0.1rem 0.3rem', borderRadius: 4 }}>crontab -r</code> pour tout vider.
               </Text>
             </Space>
           }
@@ -198,9 +198,9 @@ export default function AdminCron() {
               {orphanProcesses.map(p => (
                 <div key={p.pid} style={{
                   display: 'flex', alignItems: 'center', gap: '0.5rem',
-                  background: '#0f1219', padding: '0.4rem 0.6rem', borderRadius: 6,
+                  background: '#f9f7f4', padding: '0.4rem 0.6rem', borderRadius: 6,
                 }}>
-                  <span style={{ color: '#fbbf24', fontSize: 13, fontWeight: 600, flex: 1 }}>
+                  <span style={{ color: '#916400', fontSize: 13, fontWeight: 600, flex: 1 }}>
                     {p.label} <Text type="secondary">(PID {p.pid})</Text>
                   </span>
                   <Text type="secondary" style={{ fontFamily: 'monospace', fontSize: 11, maxWidth: '40%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -250,8 +250,8 @@ export default function AdminCron() {
             Récupère les nouveaux films et séries depuis open-otaku.me.
           </Text>
           <Space wrap>
-            {renderTaskButton("Scraping Films", () => adminTriggerScrape('films'), "#818cf8")}
-            {renderTaskButton("Scraping Séries", () => adminTriggerScrape('series'), "#818cf8")}
+            {renderTaskButton("Scraping Films", () => adminTriggerScrape('films'), "#6554c0")}
+            {renderTaskButton("Scraping Séries", () => adminTriggerScrape('series'), "#6554c0")}
             <Button
               icon={<ThunderboltOutlined />}
               disabled={isRunning('Scraping Films') || isRunning('Scraping Séries')}
@@ -267,11 +267,11 @@ export default function AdminCron() {
             Vérification des liens, liaison TMDB, synchronisation.
           </Text>
           <Space wrap>
-            {renderTaskButton("Maintenance Liens", () => adminRunMaintenance('dead-links'), "#34d399")}
-            {renderTaskButton("Linking TMDB Films", () => adminRunMaintenance('tmdb-movies'), "#34d399")}
-            {renderTaskButton("Linking TMDB Séries", () => adminRunMaintenance('tmdb-series'), "#34d399")}
-            {renderTaskButton("Organize Séries Doodstream", () => adminRunMaintenance('organize'), "#34d399")}
-            {renderTaskButton("Sync Séries → MongoDB", () => adminRunMaintenance('sync'), "#34d399")}
+            {renderTaskButton("Maintenance Liens", () => adminRunMaintenance('dead-links'), "#18794e")}
+            {renderTaskButton("Linking TMDB Films", () => adminRunMaintenance('tmdb-movies'), "#18794e")}
+            {renderTaskButton("Linking TMDB Séries", () => adminRunMaintenance('tmdb-series'), "#18794e")}
+            {renderTaskButton("Organize Séries Doodstream", () => adminRunMaintenance('organize'), "#18794e")}
+            {renderTaskButton("Sync Séries → MongoDB", () => adminRunMaintenance('sync'), "#18794e")}
             <Button
               type="primary"
               disabled={ALL_TASK_NAMES.some(n => runningTasks.includes(n))}

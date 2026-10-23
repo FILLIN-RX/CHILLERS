@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert, Button, Card, Checkbox, Col, Empty, Input, Modal, Pagination, Row,
   Select, Space, Spin, Tag, Typography, message,
-} from 'antd';
+} from '@/components/admin/ui';
 import { MagnifyingGlass, LinkSimple, ArrowsClockwise } from '@phosphor-icons/react';
 import {
   adminGetUnmatchedCatalog,
@@ -43,7 +43,6 @@ export default function AdminCataloguePage() {
   const [confirmYearMismatch, setConfirmYearMismatch] = useState(false);
   const [linking, setLinking] = useState(false);
   const [error, setError] = useState('');
-  const [notice, contextHolder] = message.useMessage();
 
   const loadItems = useCallback(async () => {
     setLoading(true);
@@ -104,7 +103,7 @@ export default function AdminCataloguePage() {
       });
       if (!result.success) throw new Error(result.message || 'La liaison a échoué.');
       const linkedCount = result.data?.linkedCount || 1;
-      notice.success(type === 'tv' && linkedCount > 1
+      message.success(type === 'tv' && linkedCount > 1
         ? `« ${selected.title} » : ${linkedCount} saisons liées à TMDB ${pendingCandidate.id}.`
         : `« ${selected.title} » est lié à TMDB ${pendingCandidate.id}.`);
       setPendingCandidate(null);
@@ -123,31 +122,28 @@ export default function AdminCataloguePage() {
   const startSearch = () => { setPage(1); setSubmittedQuery(query.trim()); };
 
   return (
-    <div style={{ maxWidth: 1440, margin: '0 auto' }}>
-      {contextHolder}
-      <Space orientation="vertical" size={4} style={{ marginBottom: 20 }}>
-        <Title level={3} style={{ margin: 0 }}>Catalogue à lier</Title>
-        <Text type="secondary">Examine les fiches présentes chez les fournisseurs, cherche leur fiche TMDB, puis confirme chaque lien.</Text>
-      </Space>
+    <div className="catalog-page catalog-linking-page">
+      <header className="catalog-linking-heading">
+        <div>
+          <span className="catalog-linking-kicker">CHILLERS · CATALOGUE</span>
+          <Title level={2}>Liaisons catalogue</Title>
+          <p>Rapproche les fiches fournisseurs de leur référence TMDB, puis vérifie le lien avant de l’enregistrer.</p>
+        </div>
+        <div className="catalog-linking-total"><strong>{total.toLocaleString('fr-FR')}</strong><span>fiches à examiner</span></div>
+      </header>
 
-      <Alert
-        type="info"
-        showIcon
-        style={{ marginBottom: 16 }}
-        title={`${total.toLocaleString('fr-FR')} fiche(s) non liée(s) restante(s) dans ce filtre`}
-        description="Le compteur est recalculé après chaque liaison, y compris pour les saisons associées ensemble. La liste est triée par année décroissante; les fiches sans année viennent ensuite."
-      />
+      <p className="catalog-linking-summary-note">La liste commence par les fiches les plus récentes. Les saisons d’une même série peuvent être liées ensemble.</p>
       {error && <Alert type="error" showIcon closable title={error} style={{ marginBottom: 16 }} onClose={() => setError('')} />}
 
-      <Card size="small" style={{ marginBottom: 16 }}>
+      <Card className="catalog-linking-filters" size="small" style={{ marginBottom: 16 }}>
         <Row gutter={[12, 12]} align="middle">
           <Col xs={24} sm={8} lg={5}>
-            <Select<CatalogType> value={type} onChange={changeType} style={{ width: '100%' }} options={Object.entries(typeLabels).map(([value, label]) => ({ value, label }))} aria-label="Type de catalogue" />
+            <Select value={type} onChange={(next: unknown) => changeType(next as CatalogType)} style={{ width: '100%' }} options={Object.entries(typeLabels).map(([value, label]) => ({ value, label }))} aria-label="Type de catalogue" />
           </Col>
           <Col xs={24} sm={8} lg={5}>
-            <Select<Provider | undefined>
+            <Select
               value={provider}
-              onChange={changeProvider}
+              onChange={(next: unknown) => changeProvider(next as Provider | undefined)}
               allowClear
               placeholder="Tous les fournisseurs"
               style={{ width: '100%' }}
@@ -158,7 +154,7 @@ export default function AdminCataloguePage() {
           <Col xs={24} sm={8} lg={14}>
             <Input.Search
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event: React.ChangeEvent<HTMLInputElement>) => setQuery(event.target.value)}
               onSearch={startSearch}
               placeholder="Filtrer les titres du fournisseur"
               enterButton="Filtrer"
@@ -168,11 +164,12 @@ export default function AdminCataloguePage() {
         </Row>
       </Card>
 
-      <Row gutter={[16, 16]} align="top">
+      <Row className="catalog-linking-workspace" gutter={[16, 16]} align="top">
         <Col xs={24} lg={10}>
           <Card
+            className="catalog-linking-panel"
             size="small"
-            title={<Space><span>Fiches fournisseurs</span><Tag>{total.toLocaleString('fr-FR')}</Tag></Space>}
+            title={<Space><span>Fiches fournisseurs</span><Tag>{total.toLocaleString('fr-FR')}</Tag></Space> as unknown as string}
             extra={<Button type="text" icon={<ArrowsClockwise size={18} />} onClick={() => void loadItems()} aria-label="Actualiser" />}
           >
             {loading ? <div style={{ padding: 36, textAlign: 'center' }}><Spin /></div> : items.length ? (
@@ -182,12 +179,7 @@ export default function AdminCataloguePage() {
                     key={item.id}
                     type="button"
                     onClick={() => { setSelected(item); setSearchText(item.title); setCandidates([]); }}
-                    style={{
-                      display: 'block', width: '100%', textAlign: 'left', cursor: 'pointer',
-                      border: selected?.id === item.id ? '1px solid #6c5ce7' : '1px solid #242a38',
-                      background: selected?.id === item.id ? 'rgba(108,92,231,.12)' : '#10141c',
-                      borderRadius: 10, padding: 12, color: '#e6e9f0',
-                    }}
+                    className={`catalog-source-item${selected?.id === item.id ? ' is-selected' : ''}`}
                   >
                     <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                       {item.posterUrl && (
@@ -197,23 +189,18 @@ export default function AdminCataloguePage() {
                           width={52}
                           height={76}
                           loading="lazy"
-                          style={{ flex: 'none', objectFit: 'cover', borderRadius: 6, background: '#0b0e13' }}
+                          className="catalog-source-poster"
                         />
                       )}
                       <Space orientation="vertical" size={4} style={{ width: '100%', minWidth: 0 }}>
-                        <Space wrap>
-                          <Text strong style={{ color: 'inherit' }}>{item.title}</Text>
-                          <Tag title={item.year ? `Année fournie : ${item.year}` : 'Année non fournie par le fournisseur'}>
-                            {item.year || 'Année inconnue'}
-                          </Tag>
-                        </Space>
+                        <span className="catalog-source-title">{item.title}</span>
+                        <span className="catalog-source-year">{item.year || 'Année inconnue'}{item.season ? ` · Saison ${item.season}` : ''}</span>
                         <Space wrap size={6}>
-                          <Tag color="purple">{providerLabels[item.provider]}</Tag>
-                          {item.season && <Tag>Saison {item.season}</Tag>}
+                          <Tag>{providerLabels[item.provider]}</Tag>
                           {item.language && <Tag>{item.language}</Tag>}
                         </Space>
                         {item.description && (
-                          <Text type="secondary" style={{ fontSize: 12 }}>{item.description}</Text>
+                          <span className="catalog-source-description">{item.description}</span>
                         )}
                       </Space>
                     </div>
@@ -225,7 +212,7 @@ export default function AdminCataloguePage() {
                   pageSize={30}
                   total={total}
                   showSizeChanger={false}
-                  onChange={(next) => setPage(next)}
+                  onChange={(next: unknown) => setPage(Number(next))}
                   style={{ paddingTop: 8, textAlign: 'center' }}
                 />
               </Space>
@@ -234,17 +221,14 @@ export default function AdminCataloguePage() {
         </Col>
 
         <Col xs={24} lg={14}>
-          <Card title="Recherche TMDB" size="small">
+          <Card className="catalog-linking-panel catalog-match-panel" title="Référence TMDB" size="small">
             {selected ? (
               <>
-                <Paragraph style={{ marginBottom: 12 }}>
-                  <Text type="secondary">Fiche choisie : </Text><Text strong>{selected.title}</Text>
-                  <Text type="secondary"> · {selected.year || 'année inconnue côté fournisseur'}</Text>
-                </Paragraph>
+                <div className="catalog-selected-source"><span>FICHE FOURNISSEUR SÉLECTIONNÉE</span><strong>{selected.title}</strong><small>{providerLabels[selected.provider]} · {selected.year || 'année inconnue'}{selected.season ? ` · Saison ${selected.season}` : ''}</small></div>
                 <Space.Compact style={{ width: '100%', marginBottom: 16 }}>
                   <Input
                     value={searchText}
-                    onChange={(event) => setSearchText(event.target.value)}
+                    onChange={(event: React.ChangeEvent<HTMLInputElement>) => setSearchText(event.target.value)}
                     onPressEnter={() => void runTmdbSearch()}
                     placeholder="Titre à rechercher dans TMDB"
                   />
@@ -253,10 +237,10 @@ export default function AdminCataloguePage() {
                 {candidates.length ? (
                   <Space orientation="vertical" size={10} style={{ width: '100%' }}>
                     {candidates.map((candidate) => (
-                      <Card key={`${candidate.media_type}:${candidate.id}`} size="small" styles={{ body: { padding: 12 } }}>
+                      <Card className="catalog-match-candidate" key={`${candidate.media_type}:${candidate.id}`} size="small" styles={{ body: { padding: 12 } }}>
                         <Row gutter={12} align="middle" wrap={false}>
                           <Col flex="none">
-                            {candidate.poster ? <img src={candidate.poster} alt="" width={54} height={80} style={{ objectFit: 'cover', borderRadius: 6, background: '#0b0e13' }} /> : <div style={{ width: 54, height: 80, background: '#0b0e13', borderRadius: 6 }} />}
+                            {candidate.poster ? <img src={candidate.poster} alt="" width={54} height={80} className="catalog-match-poster" /> : <div className="catalog-match-poster-placeholder" />}
                           </Col>
                           <Col flex="auto" style={{ minWidth: 0 }}>
                             <Space wrap size={6}>
@@ -297,7 +281,7 @@ export default function AdminCataloguePage() {
             <div><Text type="secondary">Fournisseur : </Text><Text strong>{selected.title}</Text>{selected.year ? ` (${selected.year})` : ''}</div>
             <div><Text type="secondary">TMDB : </Text><Text strong>{pendingCandidate.title || pendingCandidate.name}</Text>{pendingCandidate.year ? ` (${pendingCandidate.year})` : ''}<Tag style={{ marginLeft: 8 }}>{pendingCandidate.media_type === 'movie' ? 'Film' : 'Série'}</Tag></div>
             {yearMismatch && (
-              <Alert type="warning" showIcon title="Les années ne correspondent pas" description={<Checkbox checked={confirmYearMismatch} onChange={(event) => setConfirmYearMismatch(event.target.checked)}>J’ai vérifié qu’il s’agit bien de la même œuvre malgré cet écart.</Checkbox>} />
+              <Alert type="warning" showIcon title="Les années ne correspondent pas" description={<Checkbox checked={confirmYearMismatch} onChange={(event: React.ChangeEvent<HTMLElement>) => setConfirmYearMismatch((event.target as HTMLInputElement).checked)}>J’ai vérifié qu’il s’agit bien de la même œuvre malgré cet écart.</Checkbox>} />
             )}
             <Text type="secondary">
               {selected.type === 'tv'

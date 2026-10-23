@@ -215,6 +215,13 @@ export const getDetails = async (id: string, language?: string) => {
         language: toTMDBLanguage(language) 
       },
     });
+    const tmdbIdNum = parseInt(id, 10);
+    if (!isNaN(tmdbIdNum)) {
+      const local = await Serie.findOne({ tmdbId: tmdbIdNum }).select('synopsis posterUrl backdropUrl').lean().exec();
+      if (local?.synopsis) { data.overview = local.synopsis; data.synopsis = local.synopsis; }
+      if (local?.posterUrl) data.posterUrl = local.posterUrl;
+      if (local?.backdropUrl) data.backdropUrl = local.backdropUrl;
+    }
     return data;
   } catch (err: any) {
     if (err?.response?.status === 404) {

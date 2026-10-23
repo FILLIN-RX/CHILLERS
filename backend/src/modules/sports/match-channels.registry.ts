@@ -10,17 +10,18 @@
  * garde donc les serveurs déjà sondés jouables, à revalider à la volée — et la
  * résolution complète reste possible si le cache est froid.
  *
- * Pas de MongoDB : cache mémoire, comme `utils/stream-cache.ts` (pattern
- * maison, zéro purge). 500 entrées / 24 h couvrent une soirée de matchs.
+ * Pas de MongoDB : cache mémoire. Les liens peuvent contenir des jetons courts,
+ * donc le registre reste bref et la chaîne renouvelle les sources ensuite.
  */
 import { LRUCache } from 'lru-cache';
 import type { SportsServer, SportsSourceId } from './sports.types';
 
-/** Hors test : l'agrégation multi-serveurs reste désactivée par défaut. */
-export const MULTI_SERVER_ENABLED =
-  process.env.SPORTS_MULTI_SERVER === '1' || process.env.SPORTS_MULTI_SERVER === 'true';
+/** Agrégation de secours active par défaut ; SPORTS_MULTI_SERVER=0 la désactive. */
+export const MULTI_SERVER_ENABLED = !['0', 'false'].includes(
+  (process.env.SPORTS_MULTI_SERVER || '').trim().toLowerCase(),
+);
 
-const CHANNELS_TTL = 24 * 60 * 60 * 1000; // 24 heures
+const CHANNELS_TTL = 2 * 60 * 1000; // 2 minutes (liens signés / lecteurs temporaires)
 
 export interface RegisteredChannels {
   /** Source ayant servi le premier serveur (le flux principal du match). */

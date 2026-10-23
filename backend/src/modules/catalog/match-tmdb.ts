@@ -43,6 +43,7 @@ const FLUSH_EVERY = Number(process.env.MATCH_FLUSH_EVERY || 50);
 const REPAIR_TYPE_MISMATCHES = process.env.MATCH_REPAIR_TYPE_MISMATCHES === '1';
 const MATCH_UNMATCHED = process.env.MATCH_UNMATCHED === '1';
 const MATCH_SKIP_IMDB = MATCH_UNMATCHED && process.env.MATCH_SKIP_IMDB === '1';
+const MATCH_RETRY_DAYS = Math.max(1, Number(process.env.MATCH_RETRY_DAYS || 30));
 const MATCH_PROVIDER = process.env.MATCH_PROVIDER?.trim();
 const MATCH_CATALOG_TYPE = process.env.MATCH_CATALOG_TYPE?.trim();
 /**
@@ -327,7 +328,7 @@ async function main() {
   let processed = 0;
 
   console.log(
-    `[CatalogMatch] Batch de ${BATCH_SIZE} items pending (budget ${TIME_BUDGET_MIN} min, ` +
+    `[CatalogMatch] Batch de ${BATCH_SIZE} items à traiter (budget ${TIME_BUDGET_MIN} min, ` +
       `concurrence ${CONCURRENCY}, flush ${FLUSH_EVERY})`
   );
 
@@ -341,7 +342,14 @@ async function main() {
         ],
       }
         : MATCH_UNMATCHED
-          ? { matchStatus: 'unmatched', active: true }
+          ? {
+              matchStatus: 'unmatched',
+              active: true,
+              $or: [
+                { lastMatchAttemptAt: { $exists: false } },
+                { lastMatchAttemptAt: { $lte: new Date(Date.now() - MATCH_RETRY_DAYS * 24 * 60 * 60 * 1000) } },
+              ],
+            }
           : { matchStatus: 'pending', active: true };
   const matchFilter: Record<string, any> = {
     ...baseMatchFilter,
@@ -349,7 +357,7 @@ async function main() {
     ...(MATCH_CATALOG_TYPE ? { type: MATCH_CATALOG_TYPE } : {}),
   };
   const pending = await ProviderCatalogItem.find(matchFilter)
-    .sort(MATCH_UNMATCHED ? { year: -1, lastSeenAt: -1, _id: -1 } : { firstSeenAt: 1 })
+    .sort(MATCH_UNMATCHED ? { lastMatchAttemptAt: 1, year: -1, lastSeenAt: -1, _id: -1 } : { firstSeenAt: 1 })
     .limit(BATCH_SIZE)
     .lean();
 
@@ -380,6 +388,7 @@ async function main() {
         break;
       }
       processed++;
+      const attemptAt = new Date();
 
       try {
         const seasonBaseTitle = item.type === 'anime' ? splitSeasonTitle(item.title).base : item.title;
@@ -417,6 +426,7 @@ async function main() {
                   card: result.card,
                   matchStatus: 'matched',
                   matchMethod: result.method,
+                  ...(MATCH_UNMATCHED ? { lastMatchAttemptAt: attemptAt } : {}),
                   ...(result.method === 'imdb' ? { imdbId: result.imdbId } : {}),
                 },
               },
@@ -433,7 +443,10 @@ async function main() {
                 ? { _id: item._id, active: true, matchStatus: 'unmatched' }
                 : { _id: item._id },
               update: {
-                $set: { matchStatus: 'unmatched' },
+                $set: {
+                  matchStatus: 'unmatched',
+                  ...(MATCH_UNMATCHED ? { lastMatchAttemptAt: attemptAt } : {}),
+                },
                 $unset: { tmdbId: '', card: '', matchMethod: '', imdbId: '' },
               },
             },
@@ -444,6 +457,14 @@ async function main() {
         if (queue.length >= FLUSH_EVERY) await flush();
       } catch (err: any) {
         console.error(`[CatalogMatch] "${item.title}" en erreur : ${err.message}`);
+        if (MATCH_UNMATCHED) {
+          queue.push({
+            updateOne: {
+              filter: { _id: item._id, active: true, matchStatus: 'unmatched' },
+              update: { $set: { lastMatchAttemptAt: attemptAt } },
+            },
+          });
+        }
         if (REPAIR_TYPE_MISMATCHES) {
           queue.push({
             updateOne: {

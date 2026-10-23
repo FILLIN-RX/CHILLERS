@@ -140,6 +140,7 @@ export function mapTvChannelsToMatch(
           name: `📺 ${tv.name}`,
           url: tv.url,
           type: 'hls',
+          external: true,
         });
       }
     }

@@ -6,11 +6,11 @@ import {
 } from '@/services/admin';
 import {
   Typography, Table, Button, Space, Tag, Switch, Input, Select, Modal, Form, Popconfirm, Alert,
-} from 'antd';
+} from '@/components/admin/ui';
 import {
   ReloadOutlined, PlusOutlined, SyncOutlined, PlayCircleOutlined, EditOutlined, DeleteOutlined,
-} from '@ant-design/icons';
-import type { ColumnsType } from 'antd/es/table';
+} from '@/components/admin/icons';
+import type { ColumnsType } from '@/components/admin/ui';
 import type { LiveChannel, LiveChannelInput, LiveChannelType } from '@/types/live';
 
 const { Title, Text } = Typography;
@@ -124,12 +124,12 @@ export default function AdminLive() {
       render: (_, ch) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {ch.logo ? (
-            <img src={ch.logo} alt={ch.name} style={{ width: 34, height: 34, objectFit: 'contain', borderRadius: 8, background: '#0a0d14', padding: 2 }} />
+            <img src={ch.logo} alt={ch.name} style={{ width: 34, height: 34, objectFit: 'contain', borderRadius: 8, background: '#f7f8fa', padding: 2 }} />
           ) : (
-            <div style={{ width: 34, height: 34, borderRadius: 8, background: '#1c2230' }} />
+            <div style={{ width: 34, height: 34, borderRadius: 8, background: '#e9edf3' }} />
           )}
           <div>
-            <div style={{ color: '#e6e9f0', fontWeight: 600 }}>{ch.name}</div>
+            <div style={{ color: '#172033', fontWeight: 600 }}>{ch.name}</div>
             <Text type="secondary" style={{ fontSize: 11 }}>/{ch.slug}</Text>
           </div>
         </div>

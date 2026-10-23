@@ -1,7 +1,7 @@
 // Admin endpoints. Same call shape as the legacy api.ts adminFetch wrapper but
 // routed through services/http.ts so timeouts/abort/errors are uniform.
 
-import { httpJson } from "./http";
+import { HttpError, httpJson } from "./http";
 import { API_BASE_URL } from "@/lib/api-base";
 import type { LiveChannel, LiveChannelInput } from "@/types/live";
 
@@ -51,8 +51,8 @@ async function adminRequest<T>(
       timeoutMs: options.timeoutMs,
       antiBot: false,
     });
-  } catch (err: any) {
-    if (err?.status === 401 || err?.message?.includes("401")) {
+  } catch (err: unknown) {
+    if (err instanceof HttpError && err.status === 401) {
       if (typeof window !== "undefined") {
         try { localStorage.removeItem("admin-token"); } catch {}
       }
@@ -81,14 +81,14 @@ export async function adminLogin(username: string, password: string): Promise<Ad
       }
     }
     return res;
-  } catch (err: any) {
+  } catch (err: unknown) {
     let message = "Erreur de connexion";
-    if (err?.body) {
+    if (err instanceof HttpError && err.body) {
       try {
         const parsed = JSON.parse(err.body);
         if (parsed?.message) message = parsed.message;
       } catch {}
-    } else if (err?.message) {
+    } else if (err instanceof Error) {
       message = err.message;
     }
     return {
@@ -101,8 +101,8 @@ export async function adminLogin(username: string, password: string): Promise<Ad
 export async function adminVerify(): Promise<AdminEnvelope<unknown>> {
   try {
     return await adminRequest<AdminEnvelope<unknown>>("/auth/verify");
-  } catch (err: any) {
-    if (err?.status === 401 || err?.message?.includes("401")) {
+  } catch (err: unknown) {
+    if (err instanceof HttpError && err.status === 401) {
       return { success: false, message: "Non authentifié" };
     }
     throw err;
@@ -120,6 +120,44 @@ export function adminLogout(): void {
 /* Dashboard / logs / settings */
 
 export const adminGetDashboard = () => adminRequest<AdminEnvelope<unknown>>("/dashboard");
+export interface AdminTransaction {
+  _id: string;
+  userId: string | { _id: string; username?: string; email?: string } | null;
+  planCode: string;
+  planName?: string;
+  amount: number;
+  currency: string;
+  country: string;
+  network: string;
+  saspayPaymentId?: string;
+  reference?: string;
+  status: "PENDING" | "SUCCESS" | "FAILED" | "CANCELLED";
+  createdAt: string;
+  updatedAt: string;
+}
+export interface AdminTransactionsReport {
+  items: AdminTransaction[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  summary: {
+    totalsByCurrency: Array<{ _id: string; amount: number; count: number }>;
+    statusCounts: Record<AdminTransaction["status"], number>;
+  };
+  daily: Array<{ day: string; currency: string; amount: number }>;
+}
+export const adminGetTransactions = (params: {
+  from?: string; to?: string; status?: AdminTransaction["status"] | "ALL"; page?: number; limit?: number;
+} = {}) => {
+  const query = new URLSearchParams();
+  if (params.from) query.set("from", params.from);
+  if (params.to) query.set("to", params.to);
+  if (params.status) query.set("status", params.status);
+  if (params.page) query.set("page", String(params.page));
+  if (params.limit) query.set("limit", String(params.limit));
+  return adminRequest<AdminEnvelope<AdminTransactionsReport>>(`/transactions?${query.toString()}`);
+};
 export const adminGetLogs = (type = "all", lines = 100) =>
   adminRequest<AdminEnvelope<unknown>>(`/logs?type=${type}&lines=${lines}`);
 
@@ -314,7 +352,14 @@ export const adminCreateManualMedia = (payload: {
   lien?: string;
   tmdbId: number;
   year?: number;
-  episodes?: { season: number; episodeNumber: number; lien: string; episode?: string }[];
+  synopsis?: string;
+  posterUrl?: string;
+  backdropUrl?: string;
+  langueAudio?: string;
+  quality?: string;
+  source?: string;
+  isPremium?: boolean;
+  episodes?: { season: number; episodeNumber: number; lien: string; episode?: string; langueAudio?: string; quality?: string; source?: string; isPremium?: boolean }[];
 }) =>
   adminRequest<AdminEnvelope<unknown>>("/media/manual", { method: "POST", body: payload });
 
@@ -509,7 +554,12 @@ export interface AdminUser {
     plan: "free" | "standard" | "premium";
     status: "active" | "inactive" | "cancelled";
     expiresAt?: string;
+    startedAt?: string;
   };
+  favorites?: unknown[];
+  watchHistory?: unknown[];
+  continueWatching?: unknown[];
+  activeSessions?: Array<{ deviceId: string; lastLogin: string; deviceName?: string }>;
   createdAt: string;
 }
 
@@ -537,41 +587,6 @@ export async function adminUpdateUserSubscription(
     {
       method: "PUT",
       body: payload,
-    }
-  );
-}
-
-export interface AdminPaymentProof {
-  _id: string;
-  userId: string;
-  userEmail: string;
-  planCode: string;
-  planName: string;
-  amount: number;
-  paymentMethod: "orange" | "mtn";
-  senderPhone?: string;
-  transactionRef?: string;
-  screenshotUrl: string;
-  status: "pending" | "approved" | "rejected";
-  adminNotes?: string;
-  reviewedAt?: string;
-  createdAt: string;
-}
-
-export async function adminGetPaymentProofs() {
-  return adminRequest<{ success: boolean; proofs: AdminPaymentProof[] }>("/payment-proofs");
-}
-
-export async function adminReviewPaymentProof(
-  proofId: string,
-  status: "approved" | "rejected",
-  adminNotes?: string
-) {
-  return adminRequest<{ success: boolean; proof: AdminPaymentProof; message: string }>(
-    `/payment-proofs/${proofId}/review`,
-    {
-      method: "PUT",
-      body: { status, adminNotes },
     }
   );
 }
@@ -616,3 +631,56 @@ export async function adminRetryRequest(id: string) {
     method: "POST",
   });
 }
+
+export interface AdminTrafficReport {
+  days: number;
+  daily: Array<{ day: string; pageViews: number; visitors: number; sessions: number }>;
+  pages: Array<{ pagePath: string; pageViews: number }>;
+  campaigns: Array<{ source: string; medium: string; campaign: string; pageViews: number; visitors: number; sessions: number }>;
+}
+
+export const adminGetTrafficReport = (days: 7 | 30 | 90 = 30) =>
+  httpJson<{ success: boolean; data: AdminTrafficReport; message?: string }>(`${API_BASE_URL.replace(/\/+$/, "")}/analytics/admin/report?days=${days}`, {
+    headers: authHeaders(), antiBot: false,
+  });
+
+export const adminGetSubscriptionPlans = () =>
+  adminRequest<{ success: boolean; plans: AdminSubscriptionPlan[]; message?: string }>("/subscriptions");
+export const adminUpdateSubscriptionPlan = (id: string, body: unknown) =>
+  adminRequest<{ success: boolean; plan?: unknown; message?: string }>(`/subscriptions/${encodeURIComponent(id)}`, { method: "PUT", body });
+export const adminGetSubscriptionAuditHistory = (limit = 20) =>
+  adminRequest<{ success: boolean; auditLogs: Array<{ id: string; adminEmail: string; previousState: boolean; newState: boolean; timestamp: string; httpStatusCode: number; requestIpAddress: string }>; message?: string }>(`/subscriptions/audit-history?limit=${limit}`);
+export const adminGetGlobalSubscriptionState = () =>
+  adminRequest<{ success: boolean; globalSubscriptionEnabled: boolean; cachedAt?: string; message?: string }>("/subscriptions/global-state");
+export const adminSetGlobalSubscriptionState = (enabled: boolean) =>
+  adminRequest<{ success: boolean; globalSubscriptionEnabled: boolean; previousState: boolean; message: string; updatedAt: string }>("/subscriptions/global-state", { method: "POST", body: { enabled } });
+
+export interface AdminSubscriptionPlan {
+  _id: string;
+  name: string;
+  code: string;
+  price: number;
+  durationMonths: number;
+  isActive: boolean;
+  features?: { maxResolution?: string; maxDevices?: number; hasContinueWatching?: boolean; hasWatchHistory?: boolean };
+}
+
+export interface AdminPushCampaign {
+  _id: string; theme: string; audience: 'all' | 'free'; title: string; message: string;
+  url: string; scheduledAt: string; status: 'scheduled' | 'sending' | 'sent' | 'cancelled' | 'failed';
+  grantPremiumDays: number; sentAt?: string; deliveryCount?: number; error?: string;
+}
+export const adminGeneratePushCampaignDraft = (payload: { theme: string; audience: 'all' | 'free'; grantPremiumDays?: number }) =>
+  adminPushRequest<{ success: boolean; data?: { title: string; message: string; usedProvider: 'gemini' | 'groq' }; message?: string }>('/admin/campaigns/draft', 'POST', payload);
+async function adminPushRequest<T>(path: string, method: 'GET' | 'POST' = 'GET', body?: unknown) {
+  const token = getAdminToken();
+  if (!token) return { success: false, message: 'Non authentifié' } as T;
+  return httpJson<T>(`${API_BASE_URL.replace(/\/+$/, '')}/notifications${path}`, {
+    method, body, headers: { Authorization: `Bearer ${token}` }, antiBot: false,
+  });
+}
+export const adminGetPushCampaigns = () => adminPushRequest<{ success: boolean; data: AdminPushCampaign[] }>('/admin/campaigns');
+export const adminCreatePushCampaign = (payload: { theme: string; audience: 'all' | 'free'; title?: string; message?: string; scheduledAt?: string; sendNow?: boolean; url?: string; grantPremiumDays?: number }) =>
+  adminPushRequest<{ success: boolean; data?: AdminPushCampaign; message?: string }>('/admin/campaigns', 'POST', payload);
+export const adminCancelPushCampaign = (id: string) =>
+  adminPushRequest<{ success: boolean; message?: string }>(`/admin/campaigns/${id}/cancel`, 'POST');

@@ -6,7 +6,7 @@ export interface IUser extends Document {
   passwordHash: string;
   avatarUrl?: string;
   role: 'user' | 'admin';
-  favorites: { mediaType: 'movie' | 'series' | 'anime' | 'tv'; tmdbId: string; title: string; posterPath?: string }[];
+  favorites: { mediaType: 'movie' | 'series' | 'anime' | 'tv'; tmdbId: string; title: string; posterPath?: string; addedAt?: Date }[];
   continueWatching: { tmdbId: string; mediaType: 'movie' | 'series' | 'anime' | 'tv'; season?: number; episode?: number; progress: number; duration: number; updatedAt: Date; title: string; posterPath?: string; backdropPath?: string }[];
   watchHistory: { tmdbId: string; mediaType: 'movie' | 'series' | 'anime' | 'tv'; season?: number; episode?: number; title: string; watchedAt: Date; posterPath?: string }[];
   watchLater?: { mediaType: 'movie' | 'series' | 'anime' | 'tv'; tmdbId: string; title: string; posterPath?: string; addedAt: Date }[];
@@ -26,6 +26,7 @@ export interface IUser extends Document {
   subscription: {
     plan: 'free' | 'standard' | 'premium';
     status: 'active' | 'inactive' | 'cancelled';
+    startedAt?: Date;
     expiresAt?: Date;
   };
   promo?: {
@@ -73,6 +74,7 @@ const UserSchema: Schema = new Schema(
         tmdbId: { type: String, required: true },
         title: { type: String, required: true },
         posterPath: { type: String },
+        addedAt: { type: Date, default: Date.now },
       },
     ],
     continueWatching: [
@@ -144,6 +146,7 @@ const UserSchema: Schema = new Schema(
         enum: ['active', 'inactive', 'cancelled'],
         default: 'inactive',
       },
+      startedAt: { type: Date },
       expiresAt: {
         type: Date,
       },

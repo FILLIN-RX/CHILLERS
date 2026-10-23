@@ -14,7 +14,7 @@ workspace "CHILLERS" "Streaming/OTT platform - current-state containers" {
 
             web = container "CHILLERS Web" "Next.js 16 / React 19, Vercel" {
                 uiPublic = container "Public UI" "Tailwind v4 + custom primitives. 76 'use client' files" "React"
-                uiAdmin = container "Admin console" "22 pages, antd v6 isolated to src/app/admin/**" "React"
+                uiAdmin = container "Admin console" "Native CHILLERS admin primitives, Phosphor icons, warm neutral design system" "React"
                 routeHandlers = container "Next.js API routes" "src/app/api/* : afroland, live/proxy, requests, nextauth x2, og x2" "TypeScript"
                 afrolandResolver = container "AfrolandProvider" "src/lib/providers/afroland.ts - server-side resolve + M3U8 parse of a 3rd-party OTT host. Implements NEITHER StreamingProvider NOR IFRAME_PROVIDERS" "TypeScript"
                 clientAuth = container "Client auth + entitlement state" "useAuthStore persisted to localStorage: subscription.plan is browser-editable" "zustand"

@@ -17,11 +17,11 @@ import {
 } from '@/services/admin';
 import {
   Card, Button, Badge, Tag, Alert, Space, Typography, Descriptions, Spin, Statistic,
-} from 'antd';
+} from '@/components/admin/ui';
 import {
   PlayCircleOutlined, StopOutlined, ReloadOutlined, CloseOutlined,
   ThunderboltOutlined, CloudServerOutlined,
-} from '@ant-design/icons';
+} from '@/components/admin/icons';
 
 const { Title, Text } = Typography;
 
@@ -201,7 +201,7 @@ export default function AdminScrapper() {
 
         {settings && (
           <Card size="small" title="Configuration distante">
-            <Descriptions column={1} size="small" labelStyle={{ color: '#8b93a7' }}>
+            <Descriptions column={1} size="small" labelStyle={{ color: '#667085' }}>
               <Descriptions.Item label="Port">{settings.port}</Descriptions.Item>
               <Descriptions.Item label="MongoDB">
                 <Text style={{ color: settings.mongoUri.includes('✓') ? '#34d399' : '#f87171' }}>{settings.mongoUri}</Text>
@@ -257,12 +257,12 @@ export default function AdminScrapper() {
 
         <Card size="small" title="Logs en direct (SSE)">
           <pre ref={preRef} style={{
-            background: '#0f1219', color: '#c5cad6', padding: '0.75rem', borderRadius: 8,
+            background: '#f9f7f4', color: '#475467', padding: '0.75rem', borderRadius: 8,
             fontSize: 12, lineHeight: 1.5, maxHeight: 400, overflow: 'auto',
             margin: 0, fontFamily: 'monospace', whiteSpace: 'pre-wrap',
           }}>
             {streamLines.length === 0
-              ? <span style={{ color: '#6b7488' }}>En attente de logs...</span>
+              ? <span style={{ color: '#667085' }}>En attente de logs...</span>
               : streamLines.map((l, i) => <div key={i}>{l}</div>)
             }
           </pre>

@@ -1,5 +1,6 @@
 import { User } from '../models/User';
 import { SubscriptionPlan } from '../models/SubscriptionPlan';
+import { sendToUser } from '../modules/notifications/push.service';
 
 /**
  * Activation d'abonnement — helper partagé (paiement SasPay, validation admin…).
@@ -48,9 +49,16 @@ export async function activateSubscription(
   user.subscription = {
     plan: code as 'free' | 'standard' | 'premium',
     status: 'active',
+    startedAt: now,
     expiresAt,
   } as typeof user.subscription;
   await user.save();
+
+  void sendToUser(String(user._id), {
+    title: 'Votre abonnement est activé',
+    body: `Votre formule ${plan?.name || code} est maintenant active.`,
+    url: '/profile?tab=subscription',
+  }, 'subscriptions').catch((error) => console.warn('[WebPush] Subscription activation notice failed:', error?.message || error));
 
   return { activated: true, alreadyActive: false, plan: code, expiresAt };
 }

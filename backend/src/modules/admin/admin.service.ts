@@ -120,8 +120,8 @@ export async function searchCollection(type: string, q: string, page: number, li
     if (regex) filter.titre = regex;
 
     const projection = type === 'series'
-      ? 'titre pageUrl lien tmdbId createdAt episodes.uqloadCode episodes.fileCode episodes.episode episodes.season episodes.episodeNumber episodes.lien'
-      : 'titre pageUrl lien tmdbId createdAt uqloadCode uqloadLink fileCode uqloadQualities';
+      ? 'titre pageUrl lien tmdbId createdAt updatedAt posterUrl year episodes.uqloadCode episodes.uqloadLink episodes.fileCode episodes.streamtapeCode episodes.streamtapeLink episodes.episode episodes.season episodes.episodeNumber episodes.lien'
+      : 'titre pageUrl lien tmdbId createdAt posterUrl year disponible uqloadCode uqloadLink fileCode uqloadQualities';
     const [items, total] = await Promise.all([
         Model.find(filter, projection).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
         Model.countDocuments(filter),

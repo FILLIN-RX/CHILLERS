@@ -35,6 +35,8 @@ import userRoutes from './modules/user/user.routes';
 import omnisaveRoutes from './modules/omnisave/omnisave.routes';
 import requestsRoutes from './modules/requests/requests.routes';
 import paymentsRoutes from './modules/payments/payments.routes';
+import analyticsRoutes from './modules/analytics/analytics.routes';
+import notificationsRoutes from './modules/notifications/notifications.routes';
 
 import compression from 'compression';
 
@@ -227,6 +229,8 @@ app.use('/api/requests', requestsRoutes);
 app.use('/api/admin/requests', requestsRoutes);
 app.use('/api/internal/requests', requestsRoutes);
 app.use('/api/payments', paymentsRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/notifications', notificationsRoutes);
 
 app.use((_req, res) => {
   res.status(404).json({

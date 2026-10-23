@@ -1197,8 +1197,9 @@ export async function tmdbSearch(req: AuthRequest, res: Response) {
 }
 
 export async function createManualMedia(req: AuthRequest, res: Response) {
-    const { type, titre, lien, tmdbId, year, episodes } = req.body || {};
+    const { type, titre, lien, tmdbId, year, episodes, synopsis, posterUrl, backdropUrl, langueAudio, quality, source, isPremium } = req.body || {};
     const mediaType = type === 'serie' ? 'serie' : 'movie';
+    const metadata = { synopsis, posterUrl, backdropUrl, langueAudio, quality, source, isPremium: isPremium === true || isPremium === 'true' };
 
     if (!titre || typeof titre !== 'string' || !titre.trim()) {
         res.status(400).json({ success: false, data: null, message: 'Le titre est requis' });
@@ -1216,18 +1217,18 @@ export async function createManualMedia(req: AuthRequest, res: Response) {
                 res.status(400).json({ success: false, data: null, message: 'Le lien est requis pour un film' });
                 return;
             }
-            result = await createMovieRecord({ titre: titre.trim(), lien: lien.trim(), tmdbId: parseInt(tmdbId, 10), year });
+            result = await createMovieRecord({ titre: titre.trim(), lien: lien.trim(), tmdbId: parseInt(tmdbId, 10), year, metadata });
         } else {
             if (!Array.isArray(episodes) || episodes.length === 0) {
                 res.status(400).json({ success: false, data: null, message: 'Au moins un épisode est requis pour une série' });
                 return;
             }
-            const parsed = parseEpisodes(episodes, parseInt(tmdbId, 10));
+            const parsed = parseEpisodes(episodes, parseInt(tmdbId, 10), metadata);
             if (typeof parsed === 'string') {
                 res.status(400).json({ success: false, data: null, message: parsed });
                 return;
             }
-            result = await createSerieRecord({ titre: titre.trim(), episodes: parsed, tmdbId: parseInt(tmdbId, 10), year });
+            result = await createSerieRecord({ titre: titre.trim(), episodes: parsed, tmdbId: parseInt(tmdbId, 10), year, metadata });
         }
         launchManualUpload(result._id.toString(), mediaType);
         res.status(201).json({ success: true, data: { created: result, upload: uploadStatus() }, message: mediaType === 'movie' ? 'Film créé' : 'Série créée' });
@@ -1241,9 +1242,19 @@ export async function createManualMedia(req: AuthRequest, res: Response) {
 }
 
 export async function createManualMediaUpload(req: AuthRequest, res: Response) {
-    const { type, titre, tmdbId, year, episodesMeta } = req.body || {};
-    const files: Express.Multer.File[] = (req as any).files || [];
+    const { type, titre, tmdbId, year, episodesMeta, synopsis, posterUrl, backdropUrl, langueAudio, quality, source, isPremium } = req.body || {};
+    const uploaded = req.files as Record<string, Express.Multer.File[]> | undefined;
+    const files: Express.Multer.File[] = uploaded?.files || [];
+    const posterFile = uploaded?.poster?.[0];
+    const backdropFile = uploaded?.backdrop?.[0];
     const mediaType = type === 'serie' ? 'serie' : 'movie';
+    const metadata = {
+        synopsis,
+        posterUrl: posterFile ? publicFileUrl(posterFile.filename) : posterUrl,
+        posterSource: posterFile ? 'admin-upload' : 'tmdb',
+        backdropUrl: backdropFile ? publicFileUrl(backdropFile.filename) : backdropUrl,
+        langueAudio, quality, source, isPremium: isPremium === true || isPremium === 'true',
+    };
 
     if (!titre || typeof titre !== 'string' || !titre.trim()) {
         res.status(400).json({ success: false, data: null, message: 'Le titre est requis' });
@@ -1258,11 +1269,12 @@ export async function createManualMediaUpload(req: AuthRequest, res: Response) {
         let result;
         if (mediaType === 'movie') {
             const file = files[0];
-            if (!file) {
-                res.status(400).json({ success: false, data: null, message: 'Aucun fichier vidéo reçu pour le film' });
+            const movieLink = file ? publicFileUrl(file.filename) : String(req.body.lien || '').trim();
+            if (!movieLink) {
+                res.status(400).json({ success: false, data: null, message: 'Ajoute un lien direct ou un fichier vidéo pour le film' });
                 return;
             }
-            result = await createMovieRecord({ titre: titre.trim(), lien: publicFileUrl(file.filename), tmdbId: parseInt(tmdbId, 10), year });
+            result = await createMovieRecord({ titre: titre.trim(), lien: movieLink, tmdbId: parseInt(tmdbId, 10), year, metadata });
         } else {
             let metas: any[] = [];
             try {
@@ -1288,12 +1300,12 @@ export async function createManualMediaUpload(req: AuthRequest, res: Response) {
                 res.status(400).json({ success: false, data: null, message: `Il manque ${files.length - fileIdx + 1} fichier(s) pour les épisodes renseignés` });
                 return;
             }
-            const parsed = parseEpisodes(withLinks, parseInt(tmdbId, 10));
+            const parsed = parseEpisodes(withLinks, parseInt(tmdbId, 10), metadata);
             if (typeof parsed === 'string') {
                 res.status(400).json({ success: false, data: null, message: parsed });
                 return;
             }
-            result = await createSerieRecord({ titre: titre.trim(), episodes: parsed, tmdbId: parseInt(tmdbId, 10), year });
+            result = await createSerieRecord({ titre: titre.trim(), episodes: parsed, tmdbId: parseInt(tmdbId, 10), year, metadata });
         }
         launchManualUpload(result._id.toString(), mediaType);
         res.status(201).json({ success: true, data: { created: result, upload: uploadStatus() }, message: mediaType === 'movie' ? 'Film créé' : 'Série créée' });
@@ -1306,7 +1318,7 @@ export async function createManualMediaUpload(req: AuthRequest, res: Response) {
     }
 }
 
-async function createMovieRecord({ titre, lien, tmdbId, year }: { titre: string; lien: string; tmdbId: number; year?: any }) {
+async function createMovieRecord({ titre, lien, tmdbId, year, metadata = {} }: { titre: string; lien: string; tmdbId: number; year?: any; metadata?: any }) {
     const existing = await Movie.findOne({ titre });
     if (existing) {
         const err: any = new Error(`Un film nommé "${titre}" existe déjà`);
@@ -1318,6 +1330,13 @@ async function createMovieRecord({ titre, lien, tmdbId, year }: { titre: string;
         pageUrl: lien,
         lien,
         tmdbId,
+        ...(metadata.synopsis ? { synopsis: String(metadata.synopsis).trim() } : {}),
+        ...(metadata.posterUrl ? { posterUrl: String(metadata.posterUrl).trim(), posterSource: metadata.posterSource || 'tmdb' } : {}),
+        ...(metadata.backdropUrl ? { backdropUrl: String(metadata.backdropUrl).trim() } : {}),
+        ...(metadata.langueAudio ? { langueAudio: String(metadata.langueAudio) } : {}),
+        ...(metadata.quality ? { quality: String(metadata.quality) } : {}),
+        ...(metadata.source ? { source: String(metadata.source).trim() } : {}),
+        ...(metadata.isPremium ? { isPremium: true } : {}),
         ...(year && !isNaN(parseInt(year, 10)) ? { year: parseInt(year, 10) } : {}),
     });
     // En arrière-plan : re-valide le TMDB et enrichit les métadonnées.
@@ -1325,7 +1344,7 @@ async function createMovieRecord({ titre, lien, tmdbId, year }: { titre: string;
     return created;
 }
 
-async function createSerieRecord({ titre, episodes, tmdbId, year }: { titre: string; episodes: any[]; tmdbId: number; year?: any }) {
+async function createSerieRecord({ titre, episodes, tmdbId, year, metadata = {} }: { titre: string; episodes: any[]; tmdbId: number; year?: any; metadata?: any }) {
     const existing = await Serie.findOne({ titre });
     if (existing) {
         const err: any = new Error(`Une série nommée "${titre}" existe déjà`);
@@ -1337,6 +1356,11 @@ async function createSerieRecord({ titre, episodes, tmdbId, year }: { titre: str
         pageUrl: episodes[0].lien,
         episodes,
         tmdbId,
+        ...(metadata.synopsis ? { synopsis: String(metadata.synopsis).trim() } : {}),
+        ...(metadata.posterUrl ? { posterUrl: String(metadata.posterUrl).trim(), posterSource: metadata.posterSource || 'tmdb' } : {}),
+        ...(metadata.backdropUrl ? { backdropUrl: String(metadata.backdropUrl).trim() } : {}),
+        ...(metadata.langueAudio ? { langueAudio: String(metadata.langueAudio) } : {}),
+        ...(metadata.isPremium ? { isPremium: true } : {}),
         ...(year && !isNaN(parseInt(year, 10)) ? { year: parseInt(year, 10) } : {}),
     });
     // En arrière-plan : re-valide le TMDB et enrichit les métadonnées.
@@ -1344,7 +1368,7 @@ async function createSerieRecord({ titre, episodes, tmdbId, year }: { titre: str
     return created;
 }
 
-function parseEpisodes(episodes: any[], tmdbId: number): any[] | string {
+function parseEpisodes(episodes: any[], tmdbId: number, defaults: any = {}): any[] | string {
     const parsed: any[] = [];
     for (let i = 0; i < episodes.length; i++) {
         const ep = episodes[i] || {};
@@ -1363,6 +1387,10 @@ function parseEpisodes(episodes: any[], tmdbId: number): any[] | string {
             episodeNumber,
             lien: epLien,
             tmdbId,
+            ...(ep.langueAudio || defaults.langueAudio ? { langueAudio: ep.langueAudio || defaults.langueAudio } : {}),
+            ...(ep.quality || defaults.quality ? { quality: ep.quality || defaults.quality } : {}),
+            ...(ep.source || defaults.source ? { source: ep.source || defaults.source } : {}),
+            ...(ep.isPremium === true || ep.isPremium === 'true' || defaults.isPremium ? { isPremium: true } : {}),
         });
     }
     return parsed;

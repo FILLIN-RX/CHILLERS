@@ -27,6 +27,8 @@ export interface IMovie extends Document {
   posterUrl?: string;
   posterSource?: string;
   speech?: string;
+  synopsis?: string;
+  backdropUrl?: string;
   disponible?: boolean;
   disponibleCheckedAt?: Date;
   langueAudio?: string;
@@ -61,8 +63,10 @@ const MovieSchema: Schema = new Schema({
   streamtapeCode: { type: String },
   streamtapeLink: { type: String },
   posterUrl: { type: String },
-  posterSource: { type: String, enum: ['tmdb', 'web', 'ai', 'none'], default: undefined },
+  posterSource: { type: String, enum: ['tmdb', 'web', 'ai', 'none', 'admin-upload'], default: undefined },
   speech: { type: String },
+  synopsis: { type: String },
+  backdropUrl: { type: String },
   disponible: { type: Boolean },
   disponibleCheckedAt: { type: Date },
   langueAudio: { type: String, index: true },

@@ -6,11 +6,11 @@ import { adminGetMovie, adminGetSerie } from '@/services/admin';
 import { resolveDownloadUrl } from '@/services/downloads';
 import { streamDownloadToDisk } from '@/services/streamSaver';
 import { buildEpisodeFilename } from '@/lib/format';
-import { Typography, Button, Space, Tag, Table, Modal, Spin, Alert, Tooltip } from 'antd';
+import { Typography, Button, Space, Tag, Table, Modal, Spin, Alert, Tooltip } from '@/components/admin/ui';
 import {
   ArrowLeftOutlined, PlayCircleOutlined, DownloadOutlined, LinkOutlined, FolderOpenOutlined, VideoCameraOutlined,
-} from '@ant-design/icons';
-import type { ColumnsType } from 'antd/es/table';
+} from '@/components/admin/icons';
+import type { ColumnsType } from '@/components/admin/ui';
 import TmdbLinkModal from '../../components/TmdbLinkModal';
 
 const { Title, Text } = Typography;
@@ -99,7 +99,7 @@ export default function AdminAnimeDetail() {
   }, [movie]);
 
   if (loading) return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#6b7488' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#667085' }}>
       <Spin /> Chargement...
     </div>
   );
@@ -132,7 +132,7 @@ export default function AdminAnimeDetail() {
         const isDead = !ep.lien || ep.lien === '#';
         return isDead
           ? <Text style={{ color: '#f87171', fontSize: 12 }}>✗ Mort</Text>
-          : <a href={ep.lien} target="_blank" rel="noopener noreferrer" style={{ color: '#a99bf0', fontSize: 12, textDecoration: 'none' }}>Voir le lien</a>;
+          : <a href={ep.lien} target="_blank" rel="noopener noreferrer" style={{ color: '#6554c0', fontSize: 12, textDecoration: 'none' }}>Voir le lien</a>;
       },
     },
     {
@@ -167,7 +167,7 @@ export default function AdminAnimeDetail() {
                 size="small"
                 type="text"
                 disabled={!canPlay}
-                icon={<PlayCircleOutlined style={{ color: canPlay ? '#a99bf0' : undefined }} />}
+                icon={<PlayCircleOutlined style={{ color: canPlay ? '#6554c0' : undefined }} />}
                 onClick={() => {
                   const t = ep.tmdbId || serie?.tmdbId;
                   if (t) setPlayerUrl(`/watch/${t}?type=tv&season=${ep.season}&episode=${ep.episodeNumber}`);
@@ -240,8 +240,8 @@ export default function AdminAnimeDetail() {
 
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem', marginBottom: '1.5rem' }}>
         {kind === 'movie'
-          ? <VideoCameraOutlined style={{ fontSize: 28, color: '#a99bf0', marginTop: 4 }} />
-          : <FolderOpenOutlined style={{ fontSize: 28, color: '#a99bf0', marginTop: 4 }} />}
+          ? <VideoCameraOutlined style={{ fontSize: 28, color: '#6554c0', marginTop: 4 }} />
+          : <FolderOpenOutlined style={{ fontSize: 28, color: '#6554c0', marginTop: 4 }} />}
         <div style={{ flex: 1 }}>
           <Space size={8} align="center" style={{ flexWrap: 'wrap', rowGap: 4 }}>
             <Title level={3} style={{ margin: 0 }}>{title}</Title>
@@ -270,13 +270,13 @@ export default function AdminAnimeDetail() {
             >
               {tmdbId ? `✓ Lié TMDB (#${tmdbId})` : '✗ Lier TMDB'}
             </Button>
-            <a href={pageUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#a99bf0', fontSize: 13, textDecoration: 'none' }}>
+            <a href={pageUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#6554c0', fontSize: 13, textDecoration: 'none' }}>
               Voir sur open-otaku.me →
             </a>
             {kind === 'movie' && movie && !movieDead && (
               <>
                 <Tooltip title="Lire">
-                  <Button size="small" type="text" icon={<PlayCircleOutlined style={{ color: '#a99bf0' }} />} onClick={playMovie} />
+                  <Button size="small" type="text" icon={<PlayCircleOutlined style={{ color: '#6554c0' }} />} onClick={playMovie} />
                 </Tooltip>
                 <Tooltip title="Télécharger">
                   <Button
@@ -337,7 +337,7 @@ export default function AdminAnimeDetail() {
             <div>
               <Text type="secondary" style={{ display: 'block', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Lien</Text>
               {movie.lien ? (
-                <a href={movie.lien} target="_blank" rel="noopener noreferrer" style={{ color: '#a99bf0', fontSize: 13, textDecoration: 'none', wordBreak: 'break-all' }}>
+                <a href={movie.lien} target="_blank" rel="noopener noreferrer" style={{ color: '#6554c0', fontSize: 13, textDecoration: 'none', wordBreak: 'break-all' }}>
                   {movie.lien.substring(0, 80)}...
                 </a>
               ) : <Text style={{ color: '#f87171' }}>✗ Mort</Text>}

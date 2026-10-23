@@ -9,12 +9,13 @@ import {
 import {
   Card, Statistic, Row, Col, Button, Space, Typography, Alert, Spin,
   Tag, Segmented, Input, Select, Table, Tooltip, Badge, Modal, Descriptions, Image,
-} from 'antd';
+  message,
+} from '@/components/admin/ui';
 import {
   CloudUploadOutlined, StopOutlined, ReloadOutlined,
   CheckCircleOutlined, SearchOutlined, LinkOutlined,
   PlayCircleOutlined, FileTextOutlined, InfoCircleOutlined, EyeOutlined,
-} from '@ant-design/icons';
+} from '@/components/admin/icons';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -74,7 +75,7 @@ function FileInfoModal({ code, title, onClose }: { code: string; title: string; 
   return (
     <Modal
       open
-      title={<><InfoCircleOutlined style={{ marginRight: 8, color: '#60a5fa' }} />{title}</>}
+      title={<><InfoCircleOutlined style={{ marginRight: 8, color: '#60a5fa' }} />{title}</> as unknown as string}
       onCancel={onClose}
       footer={<Button onClick={onClose}>Fermer</Button>}
       width={560}
@@ -147,7 +148,7 @@ function FilesTab() {
       title: 'Titre', dataIndex: 'titre', key: 'titre',
       render: (v: string, r: any) => (
         <span>
-          <span style={{ fontWeight: 600, color: '#e6e9f0' }}>{v}</span>
+          <span style={{ fontWeight: 600, color: '#172033' }}>{v}</span>
           {r.year && <Text type="secondary" style={{ fontSize: 11, marginLeft: 6 }}>({r.year})</Text>}
         </span>
       ),
@@ -196,7 +197,7 @@ function FilesTab() {
     {
       title: 'Série', key: 'serie',
       render: (_: any, r: any) => (
-        <span style={{ fontWeight: 600, color: '#e6e9f0' }}>{r._serieTitre}</span>
+        <span style={{ fontWeight: 600, color: '#172033' }}>{r._serieTitre}</span>
       ),
     },
     {
@@ -246,7 +247,7 @@ function FilesTab() {
       <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1rem', alignItems: 'center' }}>
         <Select
           value={type}
-          onChange={(v) => { setType(v); setPage(1); }}
+          onChange={(v: unknown) => { setType(v as 'all' | 'movies' | 'series'); setPage(1); }}
           style={{ width: 160 }}
           options={[
             { value: 'all',    label: 'Films + Séries' },
@@ -258,8 +259,8 @@ function FilesTab() {
           placeholder="Rechercher un titre…"
           allowClear
           style={{ width: 280 }}
-          onSearch={(v) => { setSearch(v); setPage(1); }}
-          prefix={<SearchOutlined />}
+          onSearch={(v: string) => { setSearch(v); setPage(1); }}
+          prefix={<SearchOutlined /> as unknown as string}
         />
         <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>Actualiser</Button>
         {data && (
@@ -275,7 +276,7 @@ function FilesTab() {
         {(type === 'all' || type === 'movies') && (
           <Card
             size="small"
-            title={<><PlayCircleOutlined style={{ marginRight: 6 }} />Films ({data?.movies?.total ?? 0} total)</>}
+            title={<><PlayCircleOutlined style={{ marginRight: 6 }} />Films ({data?.movies?.total ?? 0} total)</> as unknown as string}
             style={{ marginBottom: '1.5rem' }}
           >
             <Table
@@ -289,8 +290,8 @@ function FilesTab() {
                 pageSize: limit,
                 total: data?.movies?.total ?? 0,
                 showSizeChanger: false,
-                onChange: (p) => setPage(p),
-                showTotal: (t) => `${t} films`,
+                onChange: (p: unknown) => setPage(Number(p)),
+                showTotal: (t: number) => `${t} films`,
               }}
             />
           </Card>
@@ -300,7 +301,7 @@ function FilesTab() {
         {(type === 'all' || type === 'series') && (
           <Card
             size="small"
-            title={<><FileTextOutlined style={{ marginRight: 6 }} />Épisodes de séries ({data?.series?.total ?? 0} séries)</>}
+            title={<><FileTextOutlined style={{ marginRight: 6 }} />Épisodes de séries ({data?.series?.total ?? 0} séries)</> as unknown as string}
           >
             <Table
               dataSource={episodeRows}
@@ -313,8 +314,8 @@ function FilesTab() {
                 pageSize: limit,
                 total: episodeRows.length,
                 showSizeChanger: false,
-                onChange: (p) => setPage(p),
-                showTotal: (t) => `${t} épisodes affichés`,
+                onChange: (p: unknown) => setPage(Number(p)),
+                showTotal: (t: number) => `${t} épisodes affichés`,
               }}
             />
           </Card>
@@ -333,14 +334,18 @@ export default function AdminUqload() {
   const [loading, setLoading]       = useState(true);
   const [uploading, setUploading]   = useState(false);
   const [tab, setTab]               = useState<Tab>('status');
+  const [loadError, setLoadError]   = useState('');
 
-  const fetchData = () => {
+  const fetchData = async () => {
     setLoading(true);
-    Promise.all([
-      adminUqloadStatus().then((d: any) => setStatus(d.data)),
-      adminUqloadPending().then((d: any) => setPending(d.data)),
-      adminUqloadPendingBoth().then((d: any) => setPendingBoth(d.data)),
-    ]).finally(() => setLoading(false));
+    setLoadError('');
+    try {
+      const [s, p, b]: any[] = await Promise.all([adminUqloadStatus(), adminUqloadPending(), adminUqloadPendingBoth()]);
+      for (const response of [s, p, b]) if (response && response.success === false) throw new Error(response.message || 'Une réponse du serveur est invalide.');
+      setStatus(s?.data); setPending(p?.data); setPendingBoth(b?.data);
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : 'Impossible de charger les données Uqload.');
+    } finally { setLoading(false); }
   };
 
   useEffect(() => { fetchData(); }, []);
@@ -348,16 +353,19 @@ export default function AdminUqload() {
   const handleUpload = async (type: 'movies' | 'series') => {
     setUploading(true);
     try {
-      if (type === 'movies') await adminUqloadUploadMovies();
-      else await adminUqloadUploadSeries();
+      const response = type === 'movies' ? await adminUqloadUploadMovies() : await adminUqloadUploadSeries();
+      if (!response.success) throw new Error(response.message || 'Le serveur a refusé le lancement de l’upload.');
+      message.success(`Lot d’upload ${type === 'movies' ? 'films' : 'séries'} lancé.`);
       setTimeout(fetchData, 2000);
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : 'Impossible de lancer l’upload.');
     } finally {
       setUploading(false);
     }
   };
 
   if (loading && !status) return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#6b7488', padding: '2rem' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#667085', padding: '2rem' }}>
       <Spin /> Chargement...
     </div>
   );
@@ -372,10 +380,10 @@ export default function AdminUqload() {
         <Alert type="success" showIcon icon={<CheckCircleOutlined />} message={empty} />
       ) : items.slice(0, 50).map((m, i) => (
         <div key={i} style={{
-          background: '#141821', border: '1px solid #1c2230', borderRadius: 8,
+          background: '#f9f7f4', border: '1px solid #e9edf3', borderRadius: 8,
           padding: '0.5rem 0.75rem', fontSize: 13, display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         }}>
-          <span style={{ color: '#e6e9f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, marginRight: '0.5rem' }}>
+          <span style={{ color: '#172033', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, marginRight: '0.5rem' }}>
             {m.titre || `${m.serieTitre} — ${m.episode || `S${m.season}E${m.episodeNumber}`}`}
           </span>
           <span style={{ flexShrink: 0 }}>
@@ -387,7 +395,7 @@ export default function AdminUqload() {
   );
 
   return (
-    <div style={{ maxWidth: 1200 }}>
+    <div className="uqload-page" style={{ maxWidth: 1200 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.25rem' }}>
         <div>
           <Title level={3} style={{ margin: 0 }}>Uqload</Title>
@@ -396,7 +404,7 @@ export default function AdminUqload() {
         <Space>
           <Segmented
             value={tab}
-            onChange={(v) => setTab(v as Tab)}
+            onChange={(v: unknown) => setTab(v as Tab)}
             options={[
               { label: 'Statut',   value: 'status'  },
               { label: 'En attente', value: 'pending' },
@@ -408,6 +416,8 @@ export default function AdminUqload() {
         </Space>
       </div>
 
+      {loadError && <Alert type="error" showIcon message={loadError} action={<Button size="small" onClick={() => void fetchData()}>Réessayer</Button>} style={{ marginBottom: 16 }} />}
+
       {status?.isUploading && (
         <Alert type="warning" showIcon message="Upload en cours sur le serveur" style={{ marginBottom: '1rem' }} />
       )}
@@ -416,8 +426,8 @@ export default function AdminUqload() {
       {tab === 'status' && status && (
         <>
           <Row gutter={[16, 16]} style={{ marginBottom: '1.5rem' }}>
-            <Col xs={12} md={6}><Card size="small"><Statistic title="Stockage utilisé" value={formatBytes(status.account?.storageUsed)} prefix={<CloudUploadOutlined />} /></Card></Col>
-            <Col xs={12} md={6}><Card size="small"><Statistic title="Stockage restant" value={formatBytes(status.account?.storageLeft)} prefix={<CloudUploadOutlined />} /></Card></Col>
+            <Col xs={12} md={6}><Card size="small"><Statistic title="Stockage utilisé" value={formatBytes(status.account?.storageUsed)} prefix={<CloudUploadOutlined /> as unknown as string} /></Card></Col>
+            <Col xs={12} md={6}><Card size="small"><Statistic title="Stockage restant" value={formatBytes(status.account?.storageLeft)} prefix={<CloudUploadOutlined /> as unknown as string} /></Card></Col>
             <Col xs={12} md={6}><Card size="small"><Statistic title="Compte" value={status.account?.login ?? '—'} /></Card></Col>
             <Col xs={12} md={6}>
               <Card size="small">
@@ -448,7 +458,7 @@ export default function AdminUqload() {
             <Button type="primary" icon={<CloudUploadOutlined />} loading={uploading} disabled={uploading || status.isUploading} onClick={() => handleUpload('series')}>
               Upload séries (lot de 100)
             </Button>
-            <Button danger icon={<StopOutlined />} disabled={!status.isUploading} onClick={async () => { await adminUqloadStop(); setTimeout(fetchData, 1000); }}>
+            <Button danger icon={<StopOutlined />} disabled={!status.isUploading} onClick={async () => { try { const response = await adminUqloadStop(); if (!response.success) throw new Error(response.message || 'Le serveur a refusé l’arrêt.'); message.success('Arrêt demandé.'); setTimeout(fetchData, 1000); } catch (err) { message.error(err instanceof Error ? err.message : 'Impossible d’arrêter l’upload.'); } }}>
               Arrêter l&apos;upload
             </Button>
           </Space>

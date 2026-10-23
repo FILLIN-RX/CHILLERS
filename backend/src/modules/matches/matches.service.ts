@@ -1132,8 +1132,9 @@ export class MatchesService {
 
       // Relay HLS same-origin : le player consomme notre backend (referer et IP
       // côté serveur), pas le CDN distant. Disponible pour toutes les sources.
+      const primaryIsExternal = flux.stream.servers[0]?.external === true;
       const relayUrl =
-        flux.stream.type === 'hls'
+        flux.stream.type === 'hls' && !primaryIsExternal
           ? `/api/sports/match/${flux.source}/${encodeURIComponent(flux.sourceId)}/hls/playlist.m3u8`
           : undefined;
 
@@ -1152,10 +1153,13 @@ export class MatchesService {
           url: s.url,
           type: (s.type || flux.stream.type) as 'hls' | 'iframe',
           relayUrl:
-            (s.type || flux.stream.type) === 'hls'
+            !s.external && (s.type || flux.stream.type) === 'hls' && s.source && s.sourceId
               ? `/api/sports/match/${s.source ?? flux.source}/${encodeURIComponent(s.sourceId ?? flux.sourceId)}/hls/playlist.m3u8`
               : undefined,
           referer: s.referer,
+          provider: s.external ? undefined : s.source ?? flux.source,
+          sourceId: s.external ? undefined : s.sourceId ?? flux.sourceId,
+          external: s.external,
         })),
       };
 

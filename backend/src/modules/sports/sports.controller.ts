@@ -71,7 +71,9 @@ function serializeStream(req: Request, source: string, sourceId: string, stream:
     const type = (s.type ?? stream.type) as 'hls' | 'iframe';
     const relayUrl =
       s.relayUrl ??
-      (type === 'hls' ? `${relayBase(req)}/${provider}/${encodeURIComponent(sid)}/hls/playlist.m3u8` : undefined);
+      (!s.external && s.source && s.sourceId && type === 'hls'
+        ? `${relayBase(req)}/${provider}/${encodeURIComponent(sid)}/hls/playlist.m3u8`
+        : undefined);
     return {
       // Le nom du canal (« BeIN Sport 1 », « TNT 5 ») rend le sélecteur lisible ;
       // à défaut on retombe sur le nom de la source.
@@ -83,8 +85,9 @@ function serializeStream(req: Request, source: string, sourceId: string, stream:
       /** Referer attendu par le lecteur (beaucoup d'hôtes sont « domain protected »). */
       referer: s.referer,
       /** Source qui sert effectivement ce serveur — pas forcément celle du match affiché. */
-      provider,
-      sourceId: sid,
+      provider: s.external ? undefined : provider,
+      sourceId: s.external ? undefined : sid,
+      external: s.external,
     };
   });
 
@@ -177,8 +180,8 @@ export const getMatchStreamById = async (req: Request, res: Response, next: Next
 /**
  * Tous les serveurs connus du match : le registre 24 h répond s'il est déjà
  * peuplé, sinon la chaîne complète est épuisée (une fois — ensuite tout est
- * servi depuis le registre). Le flag `SPORTS_MULTI_SERVER=1` est requis : hors
- * test, on sert toujours le seul flux qui joue.
+ * servi depuis le registre). L'agrégation est active par défaut ; définir
+ * `SPORTS_MULTI_SERVER=0` pour la désactiver explicitement.
  */
 export const getChannels = async (req: Request, res: Response, next: NextFunction) => {
   try {

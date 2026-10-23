@@ -1,16 +1,11 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { httpJson } from '@/app/api';
-import { FloppyDisk, PencilSimple, Check, X } from '@phosphor-icons/react';
-import { message } from 'antd';
-import { useAuthStore } from '@/stores/useAuthStore';
+import { FloppyDisk, PencilSimple, Check, X, Crown, UsersThree } from '@phosphor-icons/react';
 import GlobalSubscriptionToggle from '@/components/admin/GlobalSubscriptionToggle';
+import { adminGetSubscriptionPlans, adminGetSubscriptionAuditHistory, adminUpdateSubscriptionPlan, type AdminSubscriptionPlan } from '@/services/admin';
 
-const toast = {
-  error: (msg: string) => console.error('[Toast Error]', msg),
-  success: (msg: string) => console.log('[Toast Success]', msg),
-};
+const toast = { error: (msg: string) => window.dispatchEvent(new CustomEvent('chillers-admin-toast', { detail: { kind: 'error', text: msg } })), success: (msg: string) => window.dispatchEvent(new CustomEvent('chillers-admin-toast', { detail: { kind: 'success', text: msg } })) };
 
 interface AuditLog {
   id: string;
@@ -22,48 +17,33 @@ interface AuditLog {
   requestIpAddress: string;
 }
 
-interface AuditHistoryResponse {
-  success: boolean;
-  auditLogs: AuditLog[];
-}
-
 export default function AdminSubscriptionsPage() {
-  const [plans, setPlans] = useState<any[]>([]);
+  const [plans, setPlans] = useState<AdminSubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<any>(null);
+  const [editForm, setEditForm] = useState<AdminSubscriptionPlan | null>(null);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [loadingAudit, setLoadingAudit] = useState(false);
-  const { token } = useAuthStore();
-
   const fetchPlans = async () => {
-    if (!token) {
-      setLoading(false);
-      return;
-    }
     try {
-      const res = await httpJson<{ success: boolean; plans: any[] }>('/admin/subscriptions', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await adminGetSubscriptionPlans();
       if (res?.success) {
-        setPlans(res.plans);
-      }
+        setPlans(res.plans || []);
+      } else toast.error(res.message || 'Impossible de charger les formules.');
     } catch (err) {
-      console.warn('Erreur ou non autorisé pour la récupération des abonnements:', err);
+      console.warn('Erreur de récupération des abonnements:', err);
+      toast.error('Impossible de charger les formules. Vérifiez la connexion au serveur.');
     } finally {
       setLoading(false);
     }
   };
 
   const fetchAuditHistory = async () => {
-    if (!token) return;
     setLoadingAudit(true);
     try {
-      const res = await httpJson<AuditHistoryResponse>('/admin/subscriptions/audit-history?limit=20', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await adminGetSubscriptionAuditHistory(20);
       if (res?.success) {
-        setAuditLogs(res.auditLogs);
+        setAuditLogs(res.auditLogs || []);
       }
     } catch (err) {
       console.warn('Erreur ou non autorisé pour l\'historique d\'audit:', err);
@@ -73,29 +53,24 @@ export default function AdminSubscriptionsPage() {
   };
 
   useEffect(() => {
-    fetchPlans();
-    fetchAuditHistory();
-  }, [token]);
+    const timer = window.setTimeout(() => { void fetchPlans(); void fetchAuditHistory(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
-  const handleEdit = (plan: any) => {
+  const handleEdit = (plan: AdminSubscriptionPlan) => {
     setEditingId(plan._id);
     setEditForm({ ...plan });
   };
 
   const handleSave = async () => {
-    if (!token) return;
     try {
-      const res = await httpJson<{ success: boolean }>(`/admin/subscriptions/${editingId}`, {
-        method: 'PUT',
-        headers: { Authorization: `Bearer ${token}` },
-        body: editForm
-      });
+      const res = await adminUpdateSubscriptionPlan(editingId!, editForm);
       if (res?.success) {
         toast.success('Abonnement mis à jour');
         setEditingId(null);
         fetchPlans();
-      }
-    } catch (err) {
+      } else toast.error(res?.message || 'La formule n’a pas pu être enregistrée.');
+    } catch {
       toast.error('Erreur lors de la mise à jour');
     }
   };
@@ -104,172 +79,79 @@ export default function AdminSubscriptionsPage() {
     const { name, value, type } = e.target;
     if (type === 'checkbox') {
       const checked = (e.target as HTMLInputElement).checked;
-      if (name.startsWith('features.')) {
-        const featureName = name.split('.')[1];
-        setEditForm({ ...editForm, features: { ...editForm.features, [featureName]: checked } });
-      } else {
-        setEditForm({ ...editForm, [name]: checked });
-      }
+      setEditForm(current => {
+        if (!current) return current;
+        if (name.startsWith('features.')) {
+          const featureName = name.split('.')[1] as keyof NonNullable<AdminSubscriptionPlan['features']>;
+          return { ...current, features: { ...current.features, [featureName]: checked } };
+        }
+        return { ...current, [name]: checked };
+      });
     } else {
-      if (name.startsWith('features.')) {
-        const featureName = name.split('.')[1];
-        setEditForm({ ...editForm, features: { ...editForm.features, [featureName]: type === 'number' ? Number(value) : value } });
-      } else {
-        setEditForm({ ...editForm, [name]: type === 'number' ? Number(value) : value });
-      }
+      setEditForm(current => {
+        if (!current) return current;
+        const parsed = type === 'number' ? Number(value) : value;
+        if (name.startsWith('features.')) {
+          const featureName = name.split('.')[1] as keyof NonNullable<AdminSubscriptionPlan['features']>;
+          return { ...current, features: { ...current.features, [featureName]: parsed as never } };
+        }
+        return { ...current, [name]: parsed };
+      });
     }
   };
 
-  if (loading) return <div className="p-8 text-white">Chargement...</div>;
+  if (loading) return <div className="admin-subscriptions-page"><div className="admin-subscription-loading">Chargement des formules…</div></div>;
 
   return (
-    <div className="p-8 space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-white mb-2">Gestion des Abonnements</h1>
-        <p className="text-gray-400">Gérez les plans d'abonnement, basculez l'état global des abonnements et consultez l'historique des modifications.</p>
-      </div>
+    <div className="admin-subscriptions-page">
+      <header className="admin-list-heading">
+        <div><span className="admin-list-eyebrow">OFFRES & ACCÈS</span><h1>Abonnements</h1><p>Gérez vos formules et contrôlez l’accès Premium.</p></div>
+      </header>
 
-      {/* Global Subscription Toggle Section */}
-      <div>
-        <h2 className="text-2xl font-bold text-white mb-4">Contrôle Global</h2>
+      <section className="subscription-control-section">
+        <div><span className="admin-list-eyebrow">RÈGLE GÉNÉRALE</span><h2>Contrôle des abonnements</h2><p>Activez ou suspendez globalement le système d’abonnement.</p></div>
         <GlobalSubscriptionToggle onToggle={() => fetchAuditHistory()} />
-      </div>
+      </section>
 
-      {/* Audit History Section */}
-      {auditLogs.length > 0 && (
-        <div>
-          <h2 className="text-2xl font-bold text-white mb-4">Historique des modifications</h2>
-          <div className="bg-dark-paper border border-dark-border rounded-xl overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-dark-border bg-dark-bg">
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-300">Admin</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-300">État Précédent</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-300">Nouvel État</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-300">Date/Heure</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-300">IP</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {auditLogs.map((log, idx) => (
-                    <tr key={log.id || idx} className="border-b border-dark-border hover:bg-dark-bg/50 transition-colors">
-                      <td className="px-6 py-4 text-sm text-gray-300">{log.adminEmail}</td>
-                      <td className="px-6 py-4 text-sm">
-                        <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${
-                          log.previousState
-                            ? 'bg-green-500/20 text-green-400'
-                            : 'bg-red-500/20 text-red-400'
-                        }`}>
-                          {log.previousState ? 'ACTIVÉ' : 'DÉSACTIVÉ'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm">
-                        <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${
-                          log.newState
-                            ? 'bg-green-500/20 text-green-400'
-                            : 'bg-red-500/20 text-red-400'
-                        }`}>
-                          {log.newState ? 'ACTIVÉ' : 'DÉSACTIVÉ'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-300">
-                        {new Date(log.timestamp).toLocaleString('fr-FR')}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">{log.requestIpAddress}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
+      <section className="subscription-plans-section">
+        <div className="subscription-section-heading"><div><span className="admin-list-eyebrow">CONFIGURATION</span><h2>Formules disponibles</h2></div><span>{plans.length} formule{plans.length > 1 ? 's' : ''}</span></div>
+        {plans.length ? <div className="subscription-plan-grid">{plans.map(plan => (
+          <article className={`subscription-plan-card ${plan.isActive ? '' : 'is-disabled'}`} key={plan._id}>
+            {editingId === plan._id && editForm ? <form className="subscription-edit-form" onSubmit={event => { event.preventDefault(); void handleSave(); }}>
+              <label>Nom de la formule<input type="text" name="name" value={editForm.name || ''} onChange={handleChange} /></label>
+              <div className="subscription-edit-pair"><label>Prix<input type="number" name="price" value={editForm.price ?? 0} onChange={handleChange} /></label><label>Durée (mois)<input type="number" name="durationMonths" value={editForm.durationMonths ?? 0} onChange={handleChange} /></label></div>
+              <label>Résolution maximale<select name="features.maxResolution" value={editForm.features?.maxResolution || '720p'} onChange={handleChange}><option value="720p">720p</option><option value="1080p">1080p</option><option value="4K">4K</option></select></label>
+              <label>Écrans simultanés<input type="number" name="features.maxDevices" value={editForm.features?.maxDevices ?? 1} onChange={handleChange} /></label>
+              <div className="subscription-checks">
+                <label><input type="checkbox" name="features.hasContinueWatching" checked={!!editForm.features?.hasContinueWatching} onChange={handleChange} /> Reprise de lecture</label>
+                <label><input type="checkbox" name="features.hasWatchHistory" checked={!!editForm.features?.hasWatchHistory} onChange={handleChange} /> Historique complet</label>
+                <label><input type="checkbox" name="isActive" checked={!!editForm.isActive} onChange={handleChange} /> Formule active</label>
+              </div>
+              <div className="subscription-edit-actions"><button type="submit" className="subscription-save"><FloppyDisk size={17} /> Enregistrer</button><button type="button" className="subscription-cancel" onClick={() => setEditingId(null)}>Annuler</button></div>
+            </form> : <>
+              <div className="subscription-plan-top"><span className="subscription-plan-icon"><Crown size={18} /></span><button type="button" className="subscription-edit-button" onClick={() => handleEdit(plan)} aria-label={`Modifier la formule ${plan.name}`}><PencilSimple size={17} /></button></div>
+              <div className="subscription-plan-name">{plan.name}</div><div className="subscription-plan-code">{plan.code}</div>
+              <div className="subscription-plan-price">{plan.price}<span> €</span><small> / {plan.durationMonths} mois</small></div>
+              <div className="subscription-plan-status"><i className={plan.isActive ? 'is-active' : ''} />{plan.isActive ? 'Disponible' : 'Désactivée'}</div>
+              <ul className="subscription-feature-list">
+                <li><Check size={16} /> Résolution jusqu’à {plan.features?.maxResolution || '720p'}</li>
+                <li><UsersThree size={16} /> {plan.features?.maxDevices || 1} écran{(plan.features?.maxDevices ?? 1) > 1 ? 's' : ''} simultané{(plan.features?.maxDevices ?? 1) > 1 ? 's' : ''}</li>
+                <li>{plan.features?.hasContinueWatching ? <Check size={16} /> : <X size={16} />} Reprise de lecture</li>
+                <li>{plan.features?.hasWatchHistory ? <Check size={16} /> : <X size={16} />} Historique de visionnage</li>
+              </ul>
+            </>}
+          </article>
+        ))}</div> : <div className="subscription-empty">Aucune formule disponible.</div>}
+      </section>
 
-      {/* Subscription Plans Section */}
-      <div>
-        <h2 className="text-2xl font-bold text-white mb-4">Plans d'abonnement</h2>
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          {plans.map(plan => (
-            <div key={plan._id} className="bg-dark-paper border border-dark-border rounded-xl p-6 relative">
-              {editingId === plan._id ? (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm text-gray-400 mb-1">Nom du plan</label>
-                    <input type="text" name="name" value={editForm.name} onChange={handleChange} className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-white" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm text-gray-400 mb-1">Prix (€)</label>
-                      <input type="number" name="price" value={editForm.price} onChange={handleChange} className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-white" />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-gray-400 mb-1">Durée (Mois)</label>
-                      <input type="number" name="durationMonths" value={editForm.durationMonths} onChange={handleChange} className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-white" />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-400 mb-1">Résolution Max</label>
-                    <select name="features.maxResolution" value={editForm.features.maxResolution} onChange={handleChange} className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-white">
-                      <option value="720p">720p</option>
-                      <option value="1080p">1080p</option>
-                      <option value="4K">4K</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-400 mb-1">Écrans simultanés</label>
-                    <input type="number" name="features.maxDevices" value={editForm.features.maxDevices} onChange={handleChange} className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-white" />
-                  </div>
-                  <div className="space-y-2 pt-2">
-                    <label className="flex items-center gap-2 text-sm text-white">
-                      <input type="checkbox" name="features.hasContinueWatching" checked={editForm.features.hasContinueWatching} onChange={handleChange} />
-                      Reprise de lecture (Continue Watching)
-                    </label>
-                    <label className="flex items-center gap-2 text-sm text-white">
-                      <input type="checkbox" name="features.hasWatchHistory" checked={editForm.features.hasWatchHistory} onChange={handleChange} />
-                      Historique de visionnage
-                    </label>
-                    <label className="flex items-center gap-2 text-sm text-white">
-                      <input type="checkbox" name="isActive" checked={editForm.isActive} onChange={handleChange} />
-                      Plan actif
-                    </label>
-                  </div>
-                  <div className="flex gap-3 pt-4">
-                    <button onClick={handleSave} className="flex-1 bg-primary hover:bg-primary/90 text-white py-2 rounded font-medium flex items-center justify-center gap-2">
-                      <FloppyDisk className="w-4 h-4" /> Enregistrer
-                    </button>
-                    <button onClick={() => setEditingId(null)} className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded font-medium">
-                      Annuler
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div>
-                  <button onClick={() => handleEdit(plan)} className="absolute top-4 right-4 text-gray-400 hover:text-white bg-dark-bg p-2 rounded-full">
-                    <PencilSimple className="w-4 h-4" />
-                  </button>
-                  <h3 className="text-2xl font-bold text-white mb-2">{plan.name} <span className="text-sm font-normal text-gray-400 ml-2">({plan.code})</span></h3>
-                  <div className="text-3xl font-extrabold text-primary mb-6">{plan.price}€ <span className="text-lg text-gray-400 font-normal">/ {plan.durationMonths} mois</span></div>
-                  
-                  <ul className="space-y-3 text-gray-300">
-                    <li className="flex items-center gap-3"><Check className="w-5 h-5 text-primary" /> Résolution: {plan.features.maxResolution}</li>
-                    <li className="flex items-center gap-3"><Check className="w-5 h-5 text-primary" /> Appareils: {plan.features.maxDevices}</li>
-                    <li className="flex items-center gap-3">
-                      {plan.features.hasContinueWatching ? <Check className="w-5 h-5 text-primary" /> : <X className="w-5 h-5 text-red-500" />} 
-                      Reprise de lecture
-                    </li>
-                    <li className="flex items-center gap-3">
-                      {plan.features.hasWatchHistory ? <Check className="w-5 h-5 text-primary" /> : <X className="w-5 h-5 text-red-500" />} 
-                      Historique complet
-                    </li>
-                  </ul>
-                  {!plan.isActive && <div className="mt-4 text-red-500 text-sm font-bold">Désactivé</div>}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
+      {(loadingAudit || auditLogs.length > 0) && <section className="subscription-audit-section">
+        <div className="subscription-section-heading"><div><span className="admin-list-eyebrow">SUIVI</span><h2>Historique des changements</h2></div><span>{loadingAudit ? 'Chargement…' : `${auditLogs.length} entrées`}</span></div>
+        <div className="subscription-audit-list">{auditLogs.map((log, index) => <article className="subscription-audit-item" key={log.id || index}>
+          <div className="subscription-audit-admin"><strong>{log.adminEmail}</strong><span>{new Date(log.timestamp).toLocaleString('fr-FR')}</span></div>
+          <div className="subscription-audit-change"><span className={log.previousState ? 'is-enabled' : 'is-disabled'}>{log.previousState ? 'Activés' : 'Désactivés'}</span><span aria-hidden="true">→</span><span className={log.newState ? 'is-enabled' : 'is-disabled'}>{log.newState ? 'Activés' : 'Désactivés'}</span></div>
+          <small>{log.requestIpAddress}</small>
+        </article>)}</div>
+      </section>}
     </div>
   );
 }

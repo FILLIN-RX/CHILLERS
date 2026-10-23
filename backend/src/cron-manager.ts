@@ -22,6 +22,7 @@ export const ALL_TASKS: Record<string, { label: string; path: string; command: '
     'scraping-animes':          { label: 'Scraping Animes',           path: 'modules/scraping/core/scrape-animes.ts',                command: 'tsx' },
     'scraping-w16-animes':      { label: 'Scraping Animes French-Manga', path: 'modules/scraping/core/scrape-w16-animes.ts',           command: 'tsx' },
     'catalog-afroland':         { label: 'Catalogue AfroLandTV',       path: 'modules/catalog/sync-afroland.ts',                    command: 'tsx' },
+    'catalog-oha-live':         { label: 'Catalogue OHA Live TV',      path: 'modules/live/sync-oha-catalog.ts',                   command: 'tsx' },
     'maintenance-liens':        { label: 'Maintenance Liens',         path: 'modules/scraping/maintenance/maintainer.ts',           command: 'tsx' },
     'reparation-films':         { label: 'Réparation Films',          path: 'modules/scraping/maintenance/maintainer-movies.ts',    command: 'tsx' },
     'check-all-links':          { label: 'Vérification Liens Morts',  path: 'modules/scraping/maintenance/check-all-links.ts',      command: 'tsx' },

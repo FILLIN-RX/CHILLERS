@@ -54,6 +54,7 @@ export interface IProviderCatalogItem extends Document {
   card?: CatalogCard;
   matchStatus: CatalogMatchStatus;
   matchMethod?: 'search' | 'imdb' | 'manual';
+  lastMatchAttemptAt?: Date;
   manualMatchBy?: string;
   manualMatchAt?: Date;
   active: boolean;
@@ -99,6 +100,7 @@ const ProviderCatalogItemSchema: Schema = new Schema(
   },
     matchStatus: { type: String, enum: ['pending', 'matched', 'unmatched'], default: 'pending', index: true },
     matchMethod: { type: String, enum: ['search', 'imdb', 'manual'] },
+    lastMatchAttemptAt: { type: Date, index: true },
     manualMatchBy: { type: String },
     manualMatchAt: { type: Date },
     active: { type: Boolean, default: true },

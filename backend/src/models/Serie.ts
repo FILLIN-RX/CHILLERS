@@ -51,6 +51,8 @@ export interface ISerie extends Document {
     posterUrl?: string;
     posterSource?: string;
     speech?: string;
+    synopsis?: string;
+    backdropUrl?: string;
     disponible?: boolean;
     disponibleCheckedAt?: Date;
     langueAudio?: string;
@@ -113,8 +115,10 @@ const SerieSchema: Schema = new Schema({
     tmdbId: { type: Number, index: true },
     year: { type: Number },
     posterUrl: { type: String },
-    posterSource: { type: String, enum: ['tmdb', 'web', 'ai', 'none'], default: undefined },
+    posterSource: { type: String, enum: ['tmdb', 'web', 'ai', 'none', 'admin-upload'], default: undefined },
     speech: { type: String },
+    synopsis: { type: String },
+    backdropUrl: { type: String },
     disponible: { type: Boolean },
     disponibleCheckedAt: { type: Date },
     langueAudio: { type: String, index: true },

@@ -14,10 +14,8 @@ router.get('/sources', getSources);
 router.get('/match/:source/:matchId/stream', matchLogger, getMatchStream);
 router.get('/match/:matchId/stream', matchLogger, getMatchStreamById);
 
-// Tous les serveurs du match (agrégation multi-providers, registre 24 h)
-if (MULTI_SERVER_ENABLED) {
-  router.get('/match/:matchId/channels', matchLogger, getChannels);
-}
+// Tous les serveurs secours du match (agrégation multi-providers, registre 24 h).
+if (MULTI_SERVER_ENABLED) router.get('/match/:matchId/channels', matchLogger, getChannels);
 
 // Relay HLS (lecture via notre backend pour contourner les jetons liés à l'IP + CORS)
 router.get('/match/:source/:matchId/hls/playlist.m3u8', matchLogger, getHlsMasterPlaylist);

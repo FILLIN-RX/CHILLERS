@@ -35,6 +35,8 @@ export interface SportsServer {
   provider?: SportsSourceId;
   /** Identifiant du match chez cette source : reconstruit le relay HLS du miroir. */
   sourceId?: string;
+  /** Flux TV indépendant d'un des providers de match. */
+  external?: boolean;
 }
 
 export interface SportsStream {

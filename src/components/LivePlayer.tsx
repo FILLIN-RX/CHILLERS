@@ -18,6 +18,8 @@ interface LivePlayerProps {
   fill?: boolean;
   // La page hôte affiche déjà sa propre barre du haut : ne pas empiler deux chromes
   hideTopBar?: boolean;
+  /** Called after the active HLS source exhausted its recovery attempts. */
+  onPlaybackError?: (reason: string) => void;
 }
 
 const PROXY_BASE = "/api/live/proxy";
@@ -108,6 +110,7 @@ export default function LivePlayer({
   onSelectChannel,
   fill = false,
   hideTopBar = false,
+  onPlaybackError,
 }: LivePlayerProps) {
   const { translate: _ } = useLanguage();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -122,12 +125,17 @@ export default function LivePlayer({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [showChannelDrawer, setShowChannelDrawer] = useState(false);
+  const onPlaybackErrorRef = useRef(onPlaybackError);
 
   const [error, setError] = useState<string | null>(null);
   const [proxyMode, setProxyMode] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
 
   const isHls = channel.type === "hls";
+
+  useEffect(() => {
+    onPlaybackErrorRef.current = onPlaybackError;
+  }, [onPlaybackError]);
 
   const iframeSrc =
     channel.type === "youtube" && channel.ytVideoId
@@ -252,6 +260,21 @@ export default function LivePlayer({
 
     let cancelled = false;
     let hls: Hls | null = null;
+    let failureReported = false;
+    const reportFailure = (reason: string) => {
+      if (failureReported) return;
+      failureReported = true;
+      onPlaybackErrorRef.current?.(reason);
+    };
+    let playbackTimer: ReturnType<typeof setTimeout> | null = null;
+    const schedulePlaybackWatchdog = () => {
+      if (playbackTimer) clearTimeout(playbackTimer);
+      playbackTimer = setTimeout(() => {
+        setError("stream");
+        reportFailure("Aucun nouveau segment vidéo reçu depuis 20 secondes");
+      }, 20_000);
+    };
+    schedulePlaybackWatchdog();
 
     // Import à la demande de hls.js (~530 Ko) : jamais dans le bundle initial.
     void (async () => {
@@ -272,6 +295,7 @@ export default function LivePlayer({
         hls.attachMedia(el);
         hls.on(Hls.Events.MANIFEST_PARSED, startPlayback);
         hls.on(Hls.Events.FRAG_LOADED, () => {
+          schedulePlaybackWatchdog();
           setIsLoading(false);
           updateLiveState();
         });
@@ -290,24 +314,34 @@ export default function LivePlayer({
             return;
           }
           setError("stream");
+          reportFailure("Le flux HLS ne répond plus");
         });
       } else if (el.canPlayType("application/vnd.apple.mpegurl")) {
         el.src = effectiveUrl;
-        el.addEventListener("loadedmetadata", startPlayback);
+        el.addEventListener("loadedmetadata", () => {
+          schedulePlaybackWatchdog();
+          startPlayback();
+        });
+        el.addEventListener("timeupdate", schedulePlaybackWatchdog);
         el.addEventListener("error", () => {
           if (!proxyMode) {
             setProxyMode(true);
           } else {
             setError("stream");
+            reportFailure("Le flux HLS ne répond plus");
           }
         });
       } else {
         setError("unsupported");
+        if (playbackTimer) clearTimeout(playbackTimer);
+        reportFailure("HLS non supporté par ce navigateur");
       }
     })();
 
     return () => {
       cancelled = true;
+      if (playbackTimer) clearTimeout(playbackTimer);
+      el.removeEventListener("timeupdate", schedulePlaybackWatchdog);
       if (hls) hls.destroy();
     };
   }, [isHls, channel.streamUrl, proxyMode, isMuted, updateLiveState]);
