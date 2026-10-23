@@ -23,7 +23,7 @@ import DownloadModal from "@/features/downloads/DownloadModal";
 import UpgradeModal from "@/components/UpgradeModal";
 import MovieCard from "@/components/MovieCard";
 import MovieCardSkeleton from "@/components/MovieCardSkeleton";
-import HilltopAd from "@/components/HilltopAd";
+import HilltopAd, { getHilltopZoneForSlot } from "@/components/HilltopAd";
 import AddToPlaylistModal from "@/components/AddToPlaylistModal";
 import Button from "@/components/Button";
 import CardImage from "@/components/CardImage";
@@ -1146,16 +1146,16 @@ function MediaListingPage() {
               {type === "movies" || type === "series" || type === "anime" ? (
                 <>
                   {(index + 1) % 20 === 0 && (
-                    <HilltopAd className="col-span-full flex w-full items-center justify-center overflow-hidden rounded-xl bg-white/[0.02] sm:hidden" />
+                    <HilltopAd zone={getHilltopZoneForSlot((index + 1) / 20)} className="col-span-full flex w-full items-center justify-center overflow-hidden rounded-xl bg-white/[0.02] sm:hidden" />
                   )}
                   {(index + 1) % 30 === 0 && (
-                    <HilltopAd className="col-span-full hidden w-full items-center justify-center overflow-hidden rounded-xl bg-white/[0.02] sm:flex md:hidden" />
+                    <HilltopAd zone={getHilltopZoneForSlot((index + 1) / 30)} className="col-span-full hidden w-full items-center justify-center overflow-hidden rounded-xl bg-white/[0.02] sm:flex md:hidden" />
                   )}
                   {(index + 1) % 40 === 0 && (
-                    <HilltopAd className="col-span-full hidden w-full items-center justify-center overflow-hidden rounded-xl bg-white/[0.02] md:flex lg:hidden" />
+                    <HilltopAd zone={getHilltopZoneForSlot((index + 1) / 40)} className="col-span-full hidden w-full items-center justify-center overflow-hidden rounded-xl bg-white/[0.02] md:flex lg:hidden" />
                   )}
                   {(index + 1) % 80 === 0 && (
-                    <HilltopAd className="col-span-full hidden w-full items-center justify-center overflow-hidden rounded-xl bg-white/[0.02] lg:flex" />
+                    <HilltopAd zone={getHilltopZoneForSlot((index + 1) / 80)} className="col-span-full hidden w-full items-center justify-center overflow-hidden rounded-xl bg-white/[0.02] lg:flex" />
                   )}
                 </>
               ) : null}

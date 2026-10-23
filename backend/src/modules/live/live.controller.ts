@@ -103,7 +103,11 @@ export const getOhaChannels = async (_req, res, next) => {
 export const syncOhaChannels = async (_req, res, next) => {
     try {
         const result = await syncOhaCatalogChannels();
-        res.json({ success: true, data: result, message: `Catalogue OHA synchronisé : ${result.synced} chaîne(s)` });
+        res.json({
+            success: true,
+            data: result,
+            message: `Catalogue OHA synchronisé : ${result.synced} chaîne(s), ${result.resolved} lien(s) vidéo enregistré(s)`,
+        });
     }
     catch (error) {
         next(error);

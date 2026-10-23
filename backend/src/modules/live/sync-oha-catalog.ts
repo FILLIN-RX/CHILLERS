@@ -4,7 +4,7 @@ import { getLiveDb } from './live.db';
 
 async function main() {
   const result = await syncOhaCatalogChannels();
-  console.log(`[OHA] ${result.synced} chaîne(s) enregistrée(s) dans Mongo à ${result.syncedAt}`);
+  console.log(`[OHA] ${result.synced} chaîne(s), ${result.resolved} lien(s) vidéo résolu(s) et enregistré(s) dans Mongo à ${result.syncedAt}`);
   const conn = await getLiveDb();
   await conn.close();
 }

@@ -1,6 +1,7 @@
 import { getOhaCatalogChannelModel } from './oha-catalog.model';
 import { discoverOhaChannels } from './utils/oha-catalog-source';
 import { ohaNormalizeKey } from './utils/oha-channel-list';
+import { resolveOhaChannelStream } from './utils/oha-stream-resolver';
 
 export async function listOhaCatalogChannels() {
   const OhaChannel = await getOhaCatalogChannelModel();
@@ -17,20 +18,47 @@ export async function syncOhaCatalogChannels() {
 
   const OhaChannel = await getOhaCatalogChannelModel();
   const syncedAt = new Date();
-  const writes = channels.map((channel) => ({
+  let nextIndex = 0;
+  let resolvedCount = 0;
+  const resolvedByKey = new Map<string, { id: string; url: string }>();
+  const workers = Array.from({ length: Math.min(6, channels.length) }, async () => {
+    while (nextIndex < channels.length) {
+      const channel = channels[nextIndex++];
+      const key = ohaNormalizeKey(channel.name.toUpperCase());
+      const ids = channel.sourceVariants?.map((source) => source.id) ?? [channel.id, ...(channel.altIds ?? [])];
+      const stream = await resolveOhaChannelStream(ids);
+      if (stream) {
+        resolvedByKey.set(key, stream);
+        resolvedCount++;
+      }
+    }
+  });
+  await Promise.all(workers);
+
+  const writes = channels.map((channel) => {
+    const channelKey = ohaNormalizeKey(channel.name.toUpperCase());
+    const stream = resolvedByKey.get(channelKey);
+    return {
     updateOne: {
-      filter: { channelKey: ohaNormalizeKey(channel.name.toUpperCase()) },
+      filter: { channelKey },
       update: {
-        $set: { ...channel, active: true, lastSyncedAt: syncedAt },
+        $set: {
+          ...channel,
+          ...(stream ? { streamUrl: stream.url, streamSourceId: stream.id, streamResolvedAt: syncedAt } : {}),
+          active: true,
+          lastSyncedAt: syncedAt,
+        },
       },
       upsert: true,
     },
-  }));
+    };
+  });
 
   await OhaChannel.bulkWrite(writes, { ordered: false });
 
   return {
     synced: channels.length,
+    resolved: resolvedCount,
     syncedAt: syncedAt.toISOString(),
   };
 }

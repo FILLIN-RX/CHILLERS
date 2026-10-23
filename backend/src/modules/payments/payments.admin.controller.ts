@@ -26,14 +26,16 @@ export async function listAdminTransactions(req: Request, res: Response) {
     return res.status(400).json({ success: false, message: 'Statut de paiement invalide.' });
   }
 
-  const period: Record<string, Date> = {};
+  const period: { $gte?: Date; $lte?: Date } = {};
   if (from) period.$gte = from;
   if (to) period.$lte = to;
   const periodMatch = Object.keys(period).length ? { createdAt: period } : {};
-  const query = {
-    ...periodMatch,
-    ...(status !== 'ALL' ? { status } : {}),
-  };
+  const query: {
+    createdAt?: { $gte?: Date; $lte?: Date };
+    status?: PaymentStatus;
+  } = {};
+  if (from || to) query.createdAt = period;
+  if (status !== 'ALL') query.status = status as PaymentStatus;
 
   try {
     const [items, total, summary] = await Promise.all([

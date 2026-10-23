@@ -3,6 +3,7 @@
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import MovieCard from "@/components/MovieCard";
 import ScrollRow from "@/components/ScrollRow";
+import HilltopAd from "@/components/HilltopAd";
 import { useHomeActions } from "./HomeActionContext";
 import type { MovieOrShow } from "@/types/media";
 
@@ -183,21 +184,29 @@ export default function HomeSecondaryClientRows({
 
   return (
     <div className="space-y-8">
-      {secondaryRows.map((row) => (
-        <LazyRow key={row.title} title={row.title}>
-          <ScrollRow title={row.title} accentColor={row.accent}>
-            {row.items.map((item) => (
-              <MovieCard
-                key={item.id}
-                item={item}
-                variant={row.variant}
-                appleFrame
-                onPlay={onWatchNow}
-                onOpenDetails={onOpenDetails}
-              />
-            ))}
-          </ScrollRow>
-        </LazyRow>
+      {secondaryRows.map((row, index) => (
+        <React.Fragment key={row.title}>
+          <LazyRow title={row.title}>
+            <ScrollRow title={row.title} accentColor={row.accent}>
+              {row.items.map((item) => (
+                <MovieCard
+                  key={item.id}
+                  item={item}
+                  variant={row.variant}
+                  appleFrame
+                  onPlay={onWatchNow}
+                  onOpenDetails={onOpenDetails}
+                />
+              ))}
+            </ScrollRow>
+          </LazyRow>
+          {(index + 1) % 5 === 0 && index < 15 && (
+            <HilltopAd
+              zone={index === 4 ? "primary" : index === 9 ? "secondary" : "tertiary"}
+              className="mx-auto flex w-full max-w-5xl items-center justify-center overflow-hidden rounded-xl bg-white/[0.02]"
+            />
+          )}
+        </React.Fragment>
       ))}
     </div>
   );

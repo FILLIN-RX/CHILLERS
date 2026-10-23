@@ -10,7 +10,6 @@ import ScrollRow from "@/components/ScrollRow";
 import SpotlightGrid from "@/components/SpotlightGrid";
 import MostViewedMovie from "@/components/MostViewedMovie";
 import Top10Row from "@/components/Top10Row";
-import HilltopAd from "@/components/HilltopAd";
 import SportsMatchesRow from "@/components/SportsMatchesRow";
 import { useLanguage } from "@/i18n/LanguageContext";
 import type { MovieOrShow } from "@/types/media";
@@ -322,8 +321,6 @@ export default function HomeClientWrapper({
                 </LazyMount>
               ))}
 
-              <HilltopAd className="mx-auto flex w-full max-w-5xl items-center justify-center overflow-hidden rounded-xl bg-white/[0.02]" />
-
               {(upcomingList.length > 0 || trendingAll.length > 0) && (
                 <LazyMount minHeight={320}>
                   <MostViewedMovie
@@ -340,8 +337,6 @@ export default function HomeClientWrapper({
                   items={trendingAll}
                 />
               </LazyMount>
-
-              <HilltopAd className="mx-auto flex w-full max-w-5xl items-center justify-center overflow-hidden rounded-xl bg-white/[0.02]" />
 
               {primaryRows.slice(2).map((row) => (
                 <LazyMount key={row.title} minHeight={400}>
@@ -362,8 +357,6 @@ export default function HomeClientWrapper({
                   </ScrollRow>
                 </LazyMount>
               ))}
-
-              <HilltopAd className="mx-auto flex w-full max-w-5xl items-center justify-center overflow-hidden rounded-xl bg-white/[0.02]" />
 
               {trendingAll.length >= 6 && (
                 <LazyMount minHeight={200}>

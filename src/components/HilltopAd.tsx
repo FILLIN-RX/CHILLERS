@@ -2,13 +2,31 @@
 
 import { useEffect, useRef } from 'react';
 
-const HILLTOP_SCRIPT_URL =
-  'https://massivesalad.com/bSX_VrsLd.GFlW0vYsWDcU/tegmW9ruuZyUQlskmPFThcG1-NqDEQw2YO/TkMqtRNoz/Uq0rNtDfYb5XNpwN';
+const HILLTOP_ZONES = {
+  primary:
+    'https://massivesalad.com/bSX_VrsLd.GFlW0vYsWDcU/tegmW9ruuZyUQlskmPFThcG1-NqDEQw2YO/TkMqtRNoz/Uq0rNtDfYb5XNpwN',
+  secondary:
+    'https://massivesalad.com/b.XMVdszd/GklF0/Y_WZcu/mevmd9quDZjUQlkkQPoT/cE1ANTDiQZ3NOZTDcotuNbzHUy0KNtD/gzwdMvQQ',
+  tertiary:
+    'https://massivesalad.com/bDXGVHs.d/Gnls0qYiWEcw/feVmQ9BuTZnUrlIkbPbT/cn1/NtDEQX4/MvjaUatbNJzHUi0WNyD_gLyUOEQF',
+} as const;
+
+export type HilltopZone = keyof typeof HILLTOP_ZONES;
+export const HILLTOP_ZONE_ORDER: readonly HilltopZone[] = [
+  'primary',
+  'secondary',
+  'tertiary',
+];
+
+export function getHilltopZoneForSlot(slot: number): HilltopZone {
+  return HILLTOP_ZONE_ORDER[(Math.max(1, slot) - 1) % HILLTOP_ZONE_ORDER.length];
+}
 
 type HilltopAdProps = {
   className?: string;
   label?: string;
   settings?: Record<string, unknown>;
+  zone?: HilltopZone;
 };
 
 /** Client-side HilltopAds slot. Place one instance at each intended ad position. */
@@ -16,6 +34,7 @@ export default function HilltopAd({
   className,
   label = 'Publicité',
   settings,
+  zone = 'primary',
 }: HilltopAdProps) {
   const slotRef = useRef<HTMLDivElement>(null);
   const startedRef = useRef(false);
@@ -32,7 +51,7 @@ export default function HilltopAd({
         settings?: Record<string, unknown>;
       };
       script.settings = settings ?? {};
-      script.src = HILLTOP_SCRIPT_URL;
+      script.src = HILLTOP_ZONES[zone];
       script.async = true;
       script.referrerPolicy = 'no-referrer-when-downgrade';
       slotRef.current.appendChild(script);
@@ -55,7 +74,7 @@ export default function HilltopAd({
 
     observer.observe(slot);
     return () => observer.disconnect();
-  }, [settings]);
+  }, [settings, zone]);
 
   return (
     <div
