@@ -1,6 +1,6 @@
 /* global self ReadableStream Response Headers fetch caches IDBKeyRange */
 
-const CACHE_NAME = 'chillers-cache-v9';
+const CACHE_NAME = 'chillers-cache-v10';
 
 // ── StreamSaver map pour le streaming de téléchargement ────────
 const map = new Map();
@@ -175,6 +175,12 @@ self.addEventListener('fetch', event => {
 
     event.respondWith(new Response(stream, { headers: responseHeaders }));
     if (port) port.postMessage({ debug: 'Download started' });
+    return;
+  }
+
+  // Do not serve stale Next.js chunks or pages while developing locally.
+  // A cache-first response can pair old client code with fresh server HTML.
+  if (self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1') {
     return;
   }
 

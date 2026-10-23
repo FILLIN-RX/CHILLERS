@@ -23,6 +23,7 @@ import DownloadModal from "@/features/downloads/DownloadModal";
 import UpgradeModal from "@/components/UpgradeModal";
 import MovieCard from "@/components/MovieCard";
 import MovieCardSkeleton from "@/components/MovieCardSkeleton";
+import HilltopAd from "@/components/HilltopAd";
 import AddToPlaylistModal from "@/components/AddToPlaylistModal";
 import Button from "@/components/Button";
 import CardImage from "@/components/CardImage";
@@ -1134,14 +1135,31 @@ function MediaListingPage() {
       {/* Grille de cartes (scroll infini) */}
       <div className="px-2 sm:px-6 md:px-12 lg:px-[3%] pt-2">
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-3 md:gap-4">
-          {visibleItems.map((item) => (
-            <MovieCard
-              key={item.id}
-              item={item}
-              variant="grid-poster"
-              onPlay={handlePlay}
-              onOpenDetails={handleOpenDetails}
-            />
+          {visibleItems.map((item, index) => (
+            <React.Fragment key={item.id}>
+              <MovieCard
+                item={item}
+                variant="grid-poster"
+                onPlay={handlePlay}
+                onOpenDetails={handleOpenDetails}
+              />
+              {type === "movies" || type === "series" || type === "anime" ? (
+                <>
+                  {(index + 1) % 20 === 0 && (
+                    <HilltopAd className="col-span-full flex w-full items-center justify-center overflow-hidden rounded-xl bg-white/[0.02] sm:hidden" />
+                  )}
+                  {(index + 1) % 30 === 0 && (
+                    <HilltopAd className="col-span-full hidden w-full items-center justify-center overflow-hidden rounded-xl bg-white/[0.02] sm:flex md:hidden" />
+                  )}
+                  {(index + 1) % 40 === 0 && (
+                    <HilltopAd className="col-span-full hidden w-full items-center justify-center overflow-hidden rounded-xl bg-white/[0.02] md:flex lg:hidden" />
+                  )}
+                  {(index + 1) % 80 === 0 && (
+                    <HilltopAd className="col-span-full hidden w-full items-center justify-center overflow-hidden rounded-xl bg-white/[0.02] lg:flex" />
+                  )}
+                </>
+              ) : null}
+            </React.Fragment>
           ))}
           {(isLoading || isLoadingMore) &&
             Array.from({ length: isLoading ? 15 : 10 }).map((_, i) => (

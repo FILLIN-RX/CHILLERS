@@ -8,6 +8,7 @@ import { getQueryClient } from "@/services/queryClient";
 import type { ReactNode } from "react";
 
 const PERSIST_KEY = "chillers-query-cache";
+const PERSIST_BUSTER = "media-person-cache-v2";
 const PERSIST_MAX_AGE = 24 * 60 * 60 * 1000; // 24h
 
 // Ne persister QUE les fiches stables (détail média + personne) :
@@ -41,6 +42,7 @@ export default function QueryProvider({ children }: { children: ReactNode }) {
       client={client}
       persistOptions={{
         persister,
+        buster: PERSIST_BUSTER,
         maxAge: PERSIST_MAX_AGE,
         dehydrateOptions: { shouldDehydrateQuery },
       }}
