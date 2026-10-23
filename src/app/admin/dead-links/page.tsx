@@ -276,7 +276,7 @@ export default function AdminDeadLinks() {
         <Text type="secondary" style={{ display: 'block', marginBottom: '0.375rem', fontSize: 12 }}>Nouveau lien</Text>
         <Input
           value={editValue}
-          onChange={e => setEditValue(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditValue(e.target.value)}
           placeholder="https://..."
           style={{ fontFamily: 'monospace', marginBottom: '1rem' }}
         />

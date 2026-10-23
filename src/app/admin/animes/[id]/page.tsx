@@ -311,7 +311,7 @@ export default function AdminAnimeDetail() {
                   <Text type="secondary" style={{ fontWeight: 400, fontSize: 13 }}>({eps.length} épisodes)</Text>
                 </Title>
                 <Table<Episode>
-                  rowKey={(_, i) => `${season}-${i}`}
+                  rowKey={(_episode: Episode, index: number) => `${season}-${index}`}
                   size="middle"
                   dataSource={[...eps].sort((a, b) => a.episodeNumber - b.episodeNumber)}
                   columns={columns}

@@ -60,7 +60,7 @@ export default function AdminAnimes() {
       <Input
         placeholder="Rechercher un anime..."
         value={q}
-        onChange={e => setQ(e.target.value)}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQ(e.target.value)}
         onPressEnter={() => { setPage(1); fetch(q, 1); }}
         allowClear
         prefix={<SearchOutlined style={{ color: '#667085' }} />}

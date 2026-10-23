@@ -69,8 +69,8 @@ export default function AdminTransactionsPage() {
     <header className="admin-transactions-heading">
       <div><Text type="secondary">FINANCES</Text><Title level={2} style={{ margin: '4px 0' }}>Transactions</Title><Text type="secondary">Suivez les paiements et les montants réellement confirmés.</Text></div>
       <div className="admin-transaction-filters">
-        <div className="admin-date-range"><Input type="date" aria-label="Date de début" value={from} onChange={e => { setFrom(e.target.value); setPage(1); }} /><span>au</span><Input type="date" aria-label="Date de fin" value={to} onChange={e => { setTo(e.target.value); setPage(1); }} /></div>
-        <Select value={status} onChange={value => { setStatus(value); setPage(1); }} style={{ width: 155 }} options={[
+        <div className="admin-date-range"><Input type="date" aria-label="Date de début" value={from} onChange={(e: React.ChangeEvent<HTMLInputElement>) => { setFrom(e.target.value); setPage(1); }} /><span>au</span><Input type="date" aria-label="Date de fin" value={to} onChange={(e: React.ChangeEvent<HTMLInputElement>) => { setTo(e.target.value); setPage(1); }} /></div>
+        <Select value={status} onChange={value => { setStatus((value as typeof status) || 'ALL'); setPage(1); }} style={{ width: 155 }} options={[
           { value: 'ALL', label: 'Tous les statuts' }, { value: 'SUCCESS', label: 'Réussis' }, { value: 'PENDING', label: 'En attente' }, { value: 'FAILED', label: 'Échoués' }, { value: 'CANCELLED', label: 'Annulés' },
         ]} />
       </div>
@@ -92,7 +92,7 @@ export default function AdminTransactionsPage() {
         dataSource={report?.items || []}
         loading={loading}
         scroll={{ x: 900 }}
-        pagination={{ current: page, pageSize: report?.limit || 20, total: report?.total || 0, showSizeChanger: false, onChange: setPage, showTotal: count => `${count} transaction(s)` }}
+        pagination={{ current: page, pageSize: report?.limit || 20, total: report?.total || 0, showSizeChanger: false, onChange: setPage, showTotal: (count: number) => `${count} transaction(s)` }}
         locale={{ emptyText: 'Aucune transaction sur cette période.' }}
       />}
     </Card>

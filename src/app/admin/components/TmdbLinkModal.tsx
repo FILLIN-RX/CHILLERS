@@ -78,7 +78,7 @@ export default function TmdbLinkModal({ type, docId, currentTmdbId, onClose, onL
         ref={inputRef}
         placeholder="Rechercher sur TMDB..."
         value={query}
-        onChange={e => setQuery(e.target.value)}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value)}
         prefix={<SearchOutlined style={{ color: '#667085' }} />}
         allowClear
         style={{ marginBottom: '1rem' }}
