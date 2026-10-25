@@ -17,7 +17,7 @@ const ROMAN: Record<string, string> = { ii: '2', iii: '3', iv: '4', v: '5' };
 
 export function teamTokens(name?: string): string[] {
   if (!name) return [];
-  return name
+  const tokens = name
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
@@ -25,6 +25,39 @@ export function teamTokens(name?: string): string[] {
     .split(' ')
     .map((t) => ROMAN[t] ?? t)
     .filter((t) => t.length > 1 && !STOPWORDS.has(t));
+
+  // Sigle de club accolé au libellé (« Real Madrid RM », « Raja CA ») : ce n'est
+  // pas un mot supplémentaire, c'est l'initiale des autres jetons. Le compter
+  // ferait chuter le score et empêcherait la reprise d'un provider à l'autre.
+  return tokens.filter((t, i) => {
+    if (t.length > 3) return true;
+    const others = tokens.filter((_, j) => j !== i);
+    if (!others.length) return true;
+    return t !== others.map((x) => x[0]).join('');
+  });
+}
+
+/** Distance d'édition ≤ 1 (une insertion, suppression ou substitution). */
+function withinOneEdit(a: string, b: string): boolean {
+  if (Math.abs(a.length - b.length) > 1) return false;
+  let i = 0;
+  let j = 0;
+  let edits = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) {
+      i++;
+      j++;
+      continue;
+    }
+    if (++edits > 1) return false;
+    if (a.length > b.length) i++;
+    else if (b.length > a.length) j++;
+    else {
+      i++;
+      j++;
+    }
+  }
+  return edits + (a.length - i) + (b.length - j) <= 1;
 }
 
 /** Deux jetons désignent le même mot si l'un est une abréviation/variante de l'autre. */
@@ -34,6 +67,9 @@ function compatible(a: string, b: string): boolean {
   // Seuil ≤7 pour couvrir "riyad"/"riyadh", "diriya"/"diriyah", "madrid"/"madridista"…
   if (a.length <= 7 && (b.startsWith(a) || b.endsWith(a))) return true;
   if (b.length <= 7 && (a.startsWith(b) || a.endsWith(b))) return true;
+  // Variantes orthographiques d'une langue à l'autre (« Barcelone » / « Barcelona »,
+  // « Munich » / « Munchen ») : un seul caractère d'écart sur un mot assez long.
+  if (a.length >= 5 && b.length >= 5 && withinOneEdit(a, b)) return true;
   return false;
 }
 
