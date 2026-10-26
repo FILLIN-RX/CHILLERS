@@ -189,14 +189,14 @@ export default function LivePageContent() {
   }, [hasMore, loadMore]);
 
   return (
-    <div className="min-h-screen bg-[#1F1F1F] text-white pt-[72px] pb-28 px-3 sm:px-6 md:px-10 lg:px-[5%] select-none">
+    <div className="min-h-screen bg-[#1F1F1F] text-white pt-[72px] pb-28 px-2 sm:px-6 md:px-12 lg:px-[3%] select-none">
       {/* ── 1. Football Matches Row (Live Scores) ─────────────────────────── */}
       <div className="mb-10">
         <SportsMatchesRow />
       </div>
 
       {/* ── 3. Controls Bar (recherche, vue, multi-view) ───────────────────── */}
-      <div className="sticky top-[calc(var(--network-banner-height,0px)+48px)] sm:top-[calc(var(--network-banner-height,0px)+52px)] z-30 bg-[#1F1F1F]/95 backdrop-blur-xl py-3 -mx-3 px-3 sm:-mx-6 sm:px-6 md:-mx-10 md:px-10 lg:-mx-[5%] lg:px-[5%] border-b border-white/10 mb-8">
+      <div className="sticky top-[calc(var(--network-banner-height,0px)+48px)] sm:top-[calc(var(--network-banner-height,0px)+52px)] z-30 bg-[#1F1F1F]/95 backdrop-blur-xl py-3 -mx-2 px-2 sm:-mx-6 sm:px-6 md:-mx-12 md:px-12 lg:-mx-[3%] lg:px-[3%] border-b border-white/10 mb-8">
         <div className="flex items-center gap-2 sm:gap-3 justify-end">
           {/* Bouton Partager */}
           <button
@@ -263,7 +263,7 @@ export default function LivePageContent() {
 
       {/* ── 4. Grille Live (Mosaïque Logos ou Affiches) ──────────────────── */}
       {viewMode === "mosaic" ? (
-        <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-8 lg:grid-cols-10 gap-5">
+        <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-8 gap-3 md:gap-4">
           {paginatedChannels.map((channel) => (
             <MosaicChannelCard
               key={channel.slug}
@@ -274,7 +274,7 @@ export default function LivePageContent() {
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-3 md:gap-4">
           {paginatedChannels.map((channel) => (
             <ChannelPosterCard
               key={channel.slug}
