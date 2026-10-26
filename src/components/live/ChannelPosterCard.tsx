@@ -94,9 +94,9 @@ export default function ChannelPosterCard({
           onOpen(channel);
         }
       }}
-      className="group relative flex flex-col justify-start rounded-2xl overflow-hidden bg-zinc-900/40 border border-white/10 hover:border-red-500/50 hover:bg-zinc-800/60 transition-all duration-300 hover:-translate-y-1 cursor-pointer"
+      className="group relative flex flex-col rounded-2xl overflow-hidden bg-zinc-900/40 border border-white/10 hover:border-red-500/50 hover:bg-zinc-800/60 transition-all duration-300 hover:-translate-y-1 cursor-pointer"
     >
-      {/* 1. Vignette 16:9 */}
+      {/* ── 1. Section image : vignette 16:9 (rien n'est superposé dessus) ── */}
       <div className="relative w-full aspect-video rounded-t-2xl overflow-hidden bg-zinc-950">
         <div
           className={`absolute inset-0 skeleton-loading z-0 transition-opacity duration-500 ${
@@ -124,33 +124,7 @@ export default function ChannelPosterCard({
         />
         {bannerBroken && <div className="absolute inset-0 bg-gradient-to-br from-zinc-800 to-zinc-950" />}
 
-        {/* Dégradé */}
-        <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent opacity-80 group-hover:opacity-60 transition-opacity" />
-
-        {/* Badge Direct */}
-        <div className="absolute top-2 left-2 z-10 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-red-600/90 backdrop-blur-md text-[10px] font-black uppercase tracking-wider text-white shadow-md">
-          <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
-          DIRECT
-        </div>
-
-        {/* Badge logo chaîne (bas gauche vignette) */}
-        <div className="absolute bottom-2 left-2 z-10 flex items-center justify-center h-7 px-2 max-w-[50%] bg-black/80 backdrop-blur-md rounded border border-white/10 shadow-md">
-          {channel.logo && !logoBroken ? (
-            <img
-              src={channel.logo}
-              alt={channel.name}
-              onError={() => setBrokenLogoSrc(channel.logo)}
-              className="h-5 max-w-full object-contain filter brightness-110"
-              loading="lazy"
-            />
-          ) : (
-            <span className="text-[10px] font-black text-white tracking-wider truncate">
-              {initials}
-            </span>
-          )}
-        </div>
-
-        {/* Overlay lecture au survol */}
+        {/* Overlay lecture au survol (seul élément autorisé sur l'image) */}
         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10">
           <div className="w-12 h-12 rounded-full bg-red-600 text-white flex items-center justify-center shadow-xl shadow-red-600/50 scale-75 group-hover:scale-100 transition-transform duration-300">
             <Play weight="fill" className="w-5 h-5 ml-0.5" />
@@ -165,24 +139,48 @@ export default function ChannelPosterCard({
         )}
       </div>
 
-      {/* 2. Infos */}
-      <div className="p-3 flex flex-col justify-between flex-1">
-        <div>
-          <h3 className="text-xs sm:text-sm font-bold text-white group-hover:text-red-400 transition-colors truncate">
+      {/* ── 2. Section pied de page : badge DIRECT + nom + programme (non superposé) ── */}
+      <div className="flex flex-col gap-0.5 bg-zinc-900 border-t border-white/10 px-2 py-1.5">
+        <div className="flex items-center gap-1.5 min-w-0">
+          {/* Badge Direct (déplacé depuis l'image) */}
+          <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-red-600 text-[9px] font-black uppercase tracking-wider text-white shrink-0 shadow-md">
+            <span className="h-1 w-1 rounded-full bg-white animate-pulse" />
+            DIRECT
+          </span>
+          {/* Nom de la chaîne */}
+          <h3 className="text-xs font-bold text-white group-hover:text-red-400 transition-colors truncate">
             {channel.name}
           </h3>
+        </div>
+
+        <div className="flex items-center gap-1.5 min-w-0">
+          {/* Logo chaîne (déplacé depuis l'image) */}
+          {channel.logo && !logoBroken ? (
+            <img
+              src={channel.logo}
+              alt=""
+              onError={() => setBrokenLogoSrc(channel.logo)}
+              className="h-3.5 max-w-[24%] object-contain filter brightness-110 shrink-0"
+              loading="lazy"
+            />
+          ) : (
+            <span className="text-[9px] font-black text-zinc-400 tracking-wider shrink-0">
+              {initials}
+            </span>
+          )}
+          {/* Programme en cours ou catégorie */}
           {channel.epgNow ? (
             <p
-              className="text-[11px] text-zinc-300 font-medium truncate mt-0.5 flex items-center gap-1"
+              className="text-[10px] text-zinc-300 font-medium truncate flex items-center gap-1 min-w-0"
               title={`En ce moment : ${channel.epgNow.title}${
                 channel.epgNext ? ` | Ensuite : ${channel.epgNext.title}` : ""
               }`}
             >
-              <span className="text-red-500 font-bold shrink-0 text-[9px]">▶</span>
+              <span className="text-red-500 font-bold shrink-0 text-[8px]">▶</span>
               <span className="truncate">{channel.epgNow.title}</span>
             </p>
           ) : (
-            <p className="text-[11px] text-zinc-400 font-medium truncate mt-0.5">
+            <p className="text-[10px] text-zinc-400 font-medium truncate">
               {info.subtitle}
             </p>
           )}
