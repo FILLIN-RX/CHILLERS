@@ -1,0 +1,37 @@
+name: Importer la grille EPGShare FR1
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: sync-fr-epg
+  cancel-in-progress: false
+
+jobs:
+  sync-fr-epg:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v4
+
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Installer les dépendances backend
+        working-directory: backend
+        run: npm ci
+
+      - name: Importer EPGShare FR1
+        working-directory: backend
+        env:
+          NODE_ENV: production
+          MONGO_URI: ${{ secrets.MONGO_URI }}
+        run: npx tsx src/modules/live/sync-fr-epg.ts

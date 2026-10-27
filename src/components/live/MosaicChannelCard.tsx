@@ -53,7 +53,7 @@ export default function MosaicChannelCard({
             src={channel.logo}
             alt={channel.name}
             onError={() => setBrokenLogoSrc(channel.logo)}
-            className="w-full h-full max-h-full max-w-full object-contain filter brightness-110 contrast-105 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] box-border"
+            className="max-w-[82%] max-h-[82%] w-auto h-auto object-contain filter brightness-110 contrast-105 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] box-border"
             loading="lazy"
           />
         ) : (
@@ -74,7 +74,7 @@ export default function MosaicChannelCard({
             <span className="truncate">{channel.epgNow.title}</span>
           </p>
         )}
-        <p className="text-xs font-bold text-white truncate leading-tight text-center">
+        <p className="text-xs font-bold text-white truncate leading-tight text-left">
           {channel.name}
         </p>
       </div>

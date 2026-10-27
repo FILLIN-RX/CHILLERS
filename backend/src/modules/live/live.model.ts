@@ -17,4 +17,11 @@ exports.liveChannelSchema = new mongoose_1.Schema({
     lastChecked: { type: Date },
     isOnline: { type: Boolean, default: false },
     source: { type: String, default: '' },
+    ohaId: { type: String, default: '' },
+    ohaAltIds: { type: [String], default: [] },
+    streamResolvedAt: { type: Date },
+    epgNow: { type: mongoose_1.Schema.Types.Mixed },
+    epgNext: { type: mongoose_1.Schema.Types.Mixed },
+    epgUpdatedAt: { type: Date },
+    epgSource: { type: String },
 }, { timestamps: true });

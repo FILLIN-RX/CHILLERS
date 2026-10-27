@@ -16,7 +16,10 @@
     "lint": "eslint",
     "test": "jest",
     "test:e2e": "npx playwright test",
-    "test:e2e:ui": "npx playwright test --ui"
+    "test:e2e:ui": "npx playwright test --ui",
+    "matches:install": "npm --prefix matches-app/backend ci && npm --prefix matches-app/frontend ci",
+    "matches:backend": "npm --prefix matches-app/backend run dev",
+    "matches:frontend": "npm --prefix matches-app/frontend run dev"
   },
   "dependencies": {
     "@next/swc-linux-x64-gnu": "^16.3.8",

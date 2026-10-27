@@ -202,13 +202,23 @@ export async function searchOtaku(
 
       // Pour les séries, cibler la saison demandée
       if (type === 'series' && matchingItems.length > 1) {
+        const qLower = (title || '').toLowerCase();
+        const nonBonus = matchingItems.filter((it) => {
+          const t = (it.title || '').toLowerCase();
+          if (!qLower.includes('bonus') && t.includes('bonus')) return false;
+          if (!qLower.includes('special') && !qLower.includes('spécial') && (t.includes('special') || t.includes('spécial'))) return false;
+          if (!qLower.includes('recap') && !qLower.includes('récap') && (t.includes('recap') || t.includes('récap'))) return false;
+          return true;
+        });
+        const candidates = nonBonus.length > 0 ? nonBonus : matchingItems;
+
         const seasonRegex = new RegExp(`saison\\s*0*${targetSeason}\\b|season\\s*0*${targetSeason}\\b|s0*${targetSeason}\\b`, 'i');
-        const exactSeason = matchingItems.find((it) => seasonRegex.test(it.title || ''));
+        const exactSeason = candidates.find((it) => seasonRegex.test(it.title || ''));
         if (exactSeason) {
           bestItem = exactSeason;
           console.log(`[Otaku] Match exact saison ${targetSeason} trouvé: "${bestItem.title}"`);
         } else if (targetSeason === 1) {
-          const s1Item = matchingItems.find((it) => /saison\s*1\b|season\s*1\b/i.test(it.title || '') || !/saison\s*\d+/i.test(it.title || ''));
+          const s1Item = candidates.find((it) => /saison\s*1\b|season\s*1\b/i.test(it.title || '') || !/saison\s*\d+/i.test(it.title || ''));
           if (s1Item) {
             bestItem = s1Item;
             console.log(`[Otaku] Match saison 1 par défaut: "${bestItem.title}"`);
@@ -248,6 +258,14 @@ export async function searchOtaku(
           const hasEpisodes =
             Object.keys(eps.vf || {}).length > 0 || Object.keys(eps.vostfr || {}).length > 0;
           if (hasEpisodes) {
+            // Si une année est demandée, rejeter les homonymes dont l'année diverge (ex: live action 2023 pour animé 1999)
+            if (year && w?.meta?.year) {
+              const candYear = parseInt(w.meta.year, 10);
+              if (!isNaN(candYear) && Math.abs(candYear - year) > 3) {
+                console.log(`[Otaku] Candidat "${cand.title}" rejeté : année ${candYear} trop éloignée de l'année cible ${year}`);
+                continue;
+              }
+            }
             bestItem = cand;
             watch = w;
             console.log(`[Otaku] Candidat série avec épisodes retenu: "${cand.title}" (ID: ${cand.id})`);

@@ -23,6 +23,7 @@ export interface StreamQuery {
   isPremium?: boolean;
   strict1080p?: boolean;
   isIOS?: boolean;
+  isAnime?: boolean;
 }
 
 export interface StreamingProvider {

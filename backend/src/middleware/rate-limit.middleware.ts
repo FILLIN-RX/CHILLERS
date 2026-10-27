@@ -116,6 +116,10 @@ export function loginRateLimiter(req: Request, res: Response, next: NextFunction
  * Standard limits for public API
  */
 export function apiRateLimiter(req: Request, res: Response, next: NextFunction): void {
+  if (req.path.startsWith('/stream/oha/')) {
+    next();
+    return;
+  }
   createRateLimiter({
     windowMs: 60 * 1000, // 1 minute
     maxRequests: 60, // 60 requests per minute

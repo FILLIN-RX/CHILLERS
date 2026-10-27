@@ -1,6 +1,7 @@
 // @ts-nocheck
 import * as liveService from "./live.service";
 import { listOhaCatalogChannels, syncOhaCatalogChannels } from './oha-catalog.service';
+import { getEpgGuide } from './epg.service';
 export const getChannels = async (req, res, next) => {
     try {
         const category = req.query.category;
@@ -100,6 +101,29 @@ export const getOhaChannels = async (_req, res, next) => {
     }
 };
 
+function parseTime(value) {
+    if (value == null || value === '') return null;
+    const raw = String(value);
+    const ms = /^\d+$/.test(raw) ? Number(raw) : Date.parse(raw);
+    return Number.isFinite(ms) ? ms : null;
+}
+
+export const getEpg = async (req, res, next) => {
+    try {
+        const from = parseTime(req.query.from) ?? Date.now() - 6 * 60 * 60_000;
+        const requestedTo = parseTime(req.query.to) ?? from + 24 * 60 * 60_000;
+        const to = Math.min(requestedTo, from + 8 * 24 * 60 * 60_000);
+        const channelIds = typeof req.query.channels === 'string'
+            ? req.query.channels.split(',').map((id) => id.trim()).filter(Boolean)
+            : undefined;
+        const guide = await getEpgGuide({ from, to, channelIds });
+        res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=3600');
+        res.json({ success: true, data: guide, message: null });
+    }
+    catch (error) {
+        next(error);
+    }
+};
 export const syncOhaChannels = async (_req, res, next) => {
     try {
         const result = await syncOhaCatalogChannels();

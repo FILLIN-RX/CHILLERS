@@ -155,15 +155,11 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
                   aria-current={activeTab === "categories" ? "page" : undefined}
                   className={`relative flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium transition-colors focus:outline-none ${
                     activeTab === "categories"
-                      ? "text-zinc-500 font-medium"
-                      : "text-zinc-500 hover:text-zinc-400"
+                      ? "text-brand-primary font-bold"
+                      : "text-zinc-400 hover:text-white"
                   }`}
-                  title="Nollywood — bientôt disponible"
                 >
                   {_("nav.categories")}
-                  <span className="ml-0.5 rounded-full border border-brand-primary/30 bg-brand-primary/10 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-brand-primary/80">
-                    Bientôt
-                  </span>
                 </Link>
               </nav>
             </div>

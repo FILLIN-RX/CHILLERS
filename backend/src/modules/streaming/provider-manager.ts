@@ -8,6 +8,7 @@ import { DirectProvider } from './providers/direct.provider';
 import { FrenchStreamProvider } from './providers/frenchstream.provider';
 import { AfrolandProvider } from './providers/afroland.provider';
 import { OtakuProvider } from './providers/otaku.provider';
+import { OhaProvider } from './providers/oha.provider';
 import { FrenchAnimeProvider } from './providers/frenchanime.provider';
 import { StreamtapeProvider } from './providers/streamtape.provider';
 import { FawesomeProvider } from './providers/fawesome.provider';
@@ -16,13 +17,16 @@ import { TorrServerProvider } from './providers/torrserver.provider';
 import { resolveDirectFromEmbed } from './providers/direct-enricher';
 import { CachedStream, streamCache, getCacheKey } from '../../utils/stream-cache';
 import tmdbClient from '../../config/tmdb';
+import ProviderCatalogItem from '../../models/ProviderCatalogItem';
 
 const VALIDATION_TIMEOUT = 5000;
 const PROVIDER_TIMEOUT = 10000;
 /** Budget d'extraction d'URL directe (embed → HLS/MP4) après un provider gagnant. */
 const ENRICH_TIMEOUT = 15000;
 const OTAKU_TIMEOUT = 25000;
+const OHA_TIMEOUT = 25000;
 const TORRENT_TIMEOUT = 60_000;
+const OHA_CACHE_TTL = 30 * 60 * 1000;
 const CIRCUIT_BREAKER_THRESHOLD = 3;
 const CIRCUIT_BREAKER_COOLDOWN = 60_000;
 
@@ -68,6 +72,14 @@ function toCachedStream(attempt: ProviderAttempt): CachedStream {
   };
 }
 
+function cacheResult(key: string, result: CachedStream): void {
+  streamCache.set(
+    key,
+    result,
+    result.provider === 'oha' ? { ttl: OHA_CACHE_TTL } : undefined,
+  );
+}
+
 export class ProviderManager {
   private providers: StreamingProvider[];
   private health: Map<string, ProviderHealth> = new Map();
@@ -93,6 +105,9 @@ export class ProviderManager {
       new DoodStreamProvider(),
       new FrenchAnimeProvider(), // Épisodes VF/VOSTFR du catalogue French Anime (W16).
       new OtakuProvider(),
+      // 4b. OHA VOD : résolution TMDB → embed → HLS/MP4 relayé par le backend
+      //     (le jeton final est lié à l'IP du résolveur). Sources FR uniquement.
+      new OhaProvider(),
       // 5. Fawesome TV : API mp4/hls directe (Cachefly), match de titre strict.
       //    Catalogue films uniquement.
       new FawesomeProvider(),
@@ -144,7 +159,7 @@ export class ProviderManager {
         );
         const result = toCachedStream(attempt);
         if (!opts?.only) {
-          streamCache.set(cacheKey, result);
+          cacheResult(cacheKey, result);
         }
         return result;
       }
@@ -198,7 +213,7 @@ export class ProviderManager {
         );
         const result = toCachedStream(attempt);
         if (!opts?.only) {
-          streamCache.set(cacheKey, result);
+          cacheResult(cacheKey, result);
         }
         return result;
       }
@@ -234,6 +249,10 @@ export class ProviderManager {
         }
       }
 
+      if (query.type === 'anime') {
+        query.isAnime = true;
+      }
+
       if (query.tmdbId) {
         if (query.type === 'tv' || query.season !== undefined) {
           const { data } = await tmdbClient.get(`/tv/${query.tmdbId}?language=fr`);
@@ -244,6 +263,9 @@ export class ProviderManager {
             if (!query.year && data.first_air_date) {
               const y = new Date(data.first_air_date).getFullYear();
               if (!isNaN(y)) query.year = y;
+            }
+            if (data.genres?.some((g: any) => g.id === 16)) {
+              query.isAnime = true;
             }
           }
         } else {
@@ -256,7 +278,15 @@ export class ProviderManager {
               const y = new Date(data.release_date).getFullYear();
               if (!isNaN(y)) query.year = y;
             }
+            if (data.genres?.some((g: any) => g.id === 16)) {
+              query.isAnime = true;
+            }
           }
+        }
+
+        if (!query.isAnime) {
+          const isOtaku = await ProviderCatalogItem.exists({ tmdbId: query.tmdbId, provider: 'otaku', active: true }).catch(() => null);
+          if (isOtaku) query.isAnime = true;
         }
       }
     } catch (_) {}
@@ -319,9 +349,11 @@ export class ProviderManager {
     const timeout =
       provider.name === 'otaku'
         ? OTAKU_TIMEOUT
-        : provider.name === 'torrserver'
-          ? TORRENT_TIMEOUT
-          : PROVIDER_TIMEOUT;
+        : provider.name === 'oha'
+          ? OHA_TIMEOUT
+          : provider.name === 'torrserver'
+            ? TORRENT_TIMEOUT
+            : PROVIDER_TIMEOUT;
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     try {
@@ -347,6 +379,7 @@ export class ProviderManager {
       const valid =
         provider.name === 'mongodb' ||
         provider.name === 'torrserver' ||
+        provider.name === 'oha' ||
         (await this.validateUrl(result.embedUrl));
 
       if (valid) {
@@ -444,6 +477,38 @@ export class ProviderManager {
 
   private sortProviders(query: StreamQuery, only?: string[]): StreamingProvider[] {
     const base = only ? this.providers.filter((p) => only.includes(p.name)) : this.providers;
+    const isAnime = Boolean(query.isAnime || query.type === 'anime');
+
+    if (isAnime && !only) {
+      // Pour les animés :
+      // 1. mongodb
+      // 2. frenchanime (French Anime / catalogue W16)
+      // 3. otaku (API OpenOtaku)
+      // 4. puis les autres providers
+      // 5. frenchstream tout en bas
+      const animeOrder = ['mongodb', 'frenchanime', 'otaku'];
+      const byName = new Map(this.providers.map((p) => [p.name, p]));
+
+      const prioritized: StreamingProvider[] = [];
+      for (const name of animeOrder) {
+        const p = byName.get(name);
+        if (p && p.supports(query)) prioritized.push(p);
+      }
+
+      const others: StreamingProvider[] = [];
+      for (const p of this.providers) {
+        if (!animeOrder.includes(p.name) && p.name !== 'frenchstream') {
+          if (p.supports(query)) others.push(p);
+        }
+      }
+
+      const bottom: StreamingProvider[] = [];
+      const fs = byName.get('frenchstream');
+      if (fs && fs.supports(query)) bottom.push(fs);
+
+      return [...prioritized, ...others, ...bottom];
+    }
+
     const supports: StreamingProvider[] = [];
     const fallback: StreamingProvider[] = [];
 

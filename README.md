@@ -20,6 +20,20 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Application matchs (`matches-app/`)
+
+L'application Vue 3 de scores et de streaming est intégrée dans `matches-app/`.
+Son backend Express embarque sa propre copie de la chaîne providers CHILLERS
+(liveball, kora, kooorah, yallapro, streamiz) et du relay HLS.
+
+```bash
+npm run matches:install
+npm run matches:backend   # API matchs : http://localhost:5050
+npm run matches:frontend  # interface Vue : http://localhost:5173
+```
+
+Voir `matches-app/README.md` pour la configuration et le détail du proxy HLS.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

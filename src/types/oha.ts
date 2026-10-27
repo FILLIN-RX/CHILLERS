@@ -31,6 +31,19 @@ export interface OhaChannel {
   /** Programme en cours puis suivant (souvent absent) */
   epgNow?: OhaEpgEntry;
   epgNext?: OhaEpgEntry;
+  /** HLS URL resolved and cached by the backend when the stream is reachable. */
+  streamUrl?: string;
+  /** Dernière actualisation EPG (ISO 8601 UTC). */
+  epgUpdatedAt?: string;
+  epgSource?: "oha" | "epgshare";
+}
+
+/** Stable slug shared by the OHA catalogue and the regular Live TV endpoint. */
+export function ohaChannelSlug(name: string): string {
+  const key = name
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+  return `oha-${key.toLowerCase()}`;
 }
 
 export const OHA_CATEGORY_ORDER: readonly OhaCategory[] = [

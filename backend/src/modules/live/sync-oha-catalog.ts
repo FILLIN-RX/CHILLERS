@@ -1,10 +1,39 @@
 import '../../config/env';
-import { syncOhaCatalogChannels } from './oha-catalog.service';
+import {
+  revalidateOhaCatalogStreams,
+  syncOhaCatalogChannels,
+} from './oha-catalog.service';
+import { refreshOhaEpg } from './epg.service';
 import { getLiveDb } from './live.db';
 
 async function main() {
-  const result = await syncOhaCatalogChannels();
-  console.log(`[OHA] ${result.synced} chaîne(s), ${result.resolved} lien(s) vidéo résolu(s) et enregistré(s) dans Mongo à ${result.syncedAt}`);
+  if (process.argv.includes('--epg')) {
+    const result = await refreshOhaEpg();
+    console.log(
+      `[OHA] EPG now/next : ${result.withNow}/${result.checked} chaîne(s) avec programme en cours à ${result.updatedAt}`,
+    );
+    const conn = await getLiveDb();
+    await conn.close();
+    return;
+  }
+
+  const revalidate = process.argv.includes('--revalidate');
+  const result = revalidate
+    ? await revalidateOhaCatalogStreams()
+    : await syncOhaCatalogChannels();
+
+  if ('synced' in result) {
+    console.log(
+      `[OHA] ${result.synced} chaîne(s), ${result.resolved} flux vivant(s), ` +
+      `${result.deactivated} désactivée(s) à ${result.syncedAt}`,
+    );
+  } else {
+    console.log(
+      `[OHA] Revalidation : ${result.checked} vérifiée(s), ${result.resolved} flux vivant(s), ` +
+      `${result.deactivated} désactivée(s) à ${result.revalidatedAt}`,
+    );
+  }
+
   const conn = await getLiveDb();
   await conn.close();
 }

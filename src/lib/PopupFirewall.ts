@@ -12,6 +12,9 @@ const WHITELIST: RegExp[] = [
   /\.mp4(\?|$)/i,
   /\.m3u8(\?|$)/i,
   /\/api\/doodstream\//i,
+  // HilltopAds — click-throughs & tracking
+  /loyal-product\.com/i,
+  /silent-basis\.pro/i,
   // Auth réseaux sociaux (legit)
   /accounts\.google\.com/i,
   /facebook\.com\/(dialog|v2\.\d+\/dialog)/i,

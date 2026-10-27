@@ -1,0 +1,37 @@
+name: Rafraîchir l'EPG now/next OHA
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: refresh-oha-epg
+  cancel-in-progress: false
+
+jobs:
+  refresh-oha-epg:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v4
+
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Installer les dépendances backend
+        working-directory: backend
+        run: npm ci
+
+      - name: Rafraîchir le now/next OHA
+        working-directory: backend
+        env:
+          NODE_ENV: production
+          MONGO_URI: ${{ secrets.MONGO_URI }}
+        run: npx tsx src/modules/live/sync-oha-catalog.ts --epg

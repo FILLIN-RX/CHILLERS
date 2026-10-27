@@ -17,9 +17,15 @@ async function resolveOne(id: string): Promise<OhaResolvedStream | null> {
     });
     if (!response.ok) return null;
     const body = await response.json().catch(() => null) as { url?: unknown } | null;
-    return typeof body?.url === 'string' && body.url.startsWith('https://')
-      ? { id, url: body.url }
-      : null;
+    if (typeof body?.url !== 'string') return null;
+    try {
+      const url = new URL(body.url);
+      return url.protocol === 'https:' || url.protocol === 'http:'
+        ? { id, url: url.toString() }
+        : null;
+    } catch {
+      return null;
+    }
   } catch {
     return null;
   } finally {

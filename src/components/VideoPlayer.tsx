@@ -18,6 +18,7 @@ import { isSlowConnection } from "@/services/media";
 import { getAntiBotHeaders } from "@/lib/antibot";
 import { PopupFirewall } from "@/lib/PopupFirewall";
 import { getBackendOrigin } from "@/services/http";
+import { useMidrollVastAd } from "@/hooks/useMidrollVastAd";
 // Type-only : hls.js (~530 Ko) est importé dynamiquement dans l'effet HLS,
 // jamais inclus dans le bundle initial de la page watch.
 import type Hls from "hls.js";
@@ -79,6 +80,18 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const currentEpisode = episode;
+  const mediaKey = `${item.id}:${currentEpisode?.id ?? `${currentEpisode?.season ?? 0}:${currentEpisode?.number ?? 0}`}`;
+  const {
+    adContainerRef,
+    adVideoRef,
+    midrollState,
+    remainingSeconds,
+    onContentTimeUpdate,
+    onContentSeeked,
+    initializeFromUserGesture,
+    cancelMidrollForUserControl,
+    isConfigured: isMidrollConfigured,
+  } = useMidrollVastAd(videoRef, mediaKey);
 
   const triggerFeedback = useCallback((icon: "play" | "pause" | "forward" | "backward") => {
     setCenterFeedback({ icon, key: Date.now() });
@@ -561,6 +574,12 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
   const togglePlay = useCallback(() => {
     const video = videoRef.current;
     if (!video) return;
+    // Une pub est en cours : le clic la ferme et reprend le contenu.
+    if (cancelMidrollForUserControl({ resumeContent: false })) {
+      video.play().catch(() => {});
+      triggerFeedback("play");
+      return;
+    }
     if (video.paused) {
       video.play().catch(() => {});
       triggerFeedback("play");
@@ -568,7 +587,7 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
       video.pause();
       triggerFeedback("pause");
     }
-  }, [triggerFeedback]);
+  }, [cancelMidrollForUserControl, triggerFeedback]);
 
   const toggleMute = useCallback(() => {
     const video = videoRef.current;
@@ -594,15 +613,19 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
     if (!video) return;
     const target = Math.max(0, Math.min(video.duration || 0, (video.currentTime || 0) + seconds));
     video.currentTime = target;
+    onContentSeeked(target);
+    cancelMidrollForUserControl();
     triggerFeedback(seconds > 0 ? "forward" : "backward");
-  }, [triggerFeedback]);
+  }, [cancelMidrollForUserControl, onContentSeeked, triggerFeedback]);
 
   const seekTo = useCallback((time: number) => {
     const video = videoRef.current;
     if (!video) return;
     video.currentTime = time;
     setCurrentTime(time);
-  }, []);
+    onContentSeeked(time);
+    cancelMidrollForUserControl();
+  }, [cancelMidrollForUserControl, onContentSeeked]);
 
   const enterFullscreen = useCallback(async () => {
     const container = containerRef.current;
@@ -703,6 +726,8 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
       const parsed = JSON.parse(saved);
       if (Number.isFinite(parsed?.time) && parsed.time > RESUME_MIN_SECONDS) {
         video.currentTime = parsed.time;
+        // Reprise au-delà du point de rupture : pas de pub rétroactive.
+        onContentSeeked(parsed.time);
         const minutes = Math.floor(parsed.time / 60);
         const seconds = Math.floor(parsed.time % 60);
         setNotification({
@@ -712,7 +737,7 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
         setTimeout(() => setNotification(null), 2500);
       }
     } catch { /* ignore */ }
-  }, [progressKey]);
+  }, [onContentSeeked, progressKey]);
 
   /* ───────── Raccourcis clavier (Style YouTube) ───────── */
   useEffect(() => {
@@ -782,6 +807,7 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
         !controlsVisible && isPlaying ? "cursor-none" : "cursor-default"
       }`}
       onMouseMove={handleMouseMove}
+      onPointerDownCapture={initializeFromUserGesture}
       onTouchStart={scheduleHideControls}
       onDoubleClick={hasStarted ? toggleFullscreen : undefined}
     >
@@ -824,7 +850,10 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
             autoPlay
             playsInline
             preload="auto"
-            onTimeUpdate={updateProgressAndBuffer}
+            onTimeUpdate={() => {
+              updateProgressAndBuffer();
+              onContentTimeUpdate();
+            }}
             onProgress={updateProgressAndBuffer}
             onLoadedMetadata={handleLoadedMetadata}
             onDurationChange={() => setDuration(videoRef.current?.duration ?? 0)}
@@ -876,8 +905,36 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
             ))}
           </video>
 
+          {isMidrollConfigured && (
+            <div
+              ref={adContainerRef}
+              aria-live="polite"
+              className={`pointer-events-none absolute inset-0 z-10 bg-black transition-opacity duration-200 ${
+                midrollState === "idle" ? "pointer-events-none opacity-0" : "opacity-100"
+              }`}
+            >
+              <video
+                ref={adVideoRef}
+                className="absolute inset-0 h-full w-full bg-black object-contain"
+                playsInline
+              />
+              {midrollState === "loading" && (
+                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-black/90 text-white">
+                  <Spinner className="h-8 w-8 animate-spin" />
+                  <p className="text-sm text-white/80">La publicité démarre automatiquement…</p>
+                  <p className="text-xs text-white/55">Vous pourrez reprendre la vidéo après.</p>
+                </div>
+              )}
+              {midrollState === "playing" && (
+                <div className="pointer-events-none absolute left-4 top-4 z-10 rounded-md bg-black/70 px-3 py-2 text-xs text-white/90">
+                  Publicité{remainingSeconds !== null ? ` · ${remainingSeconds} s` : " en cours"} · utilisez la barre pour revenir au contenu
+                </div>
+              )}
+            </div>
+          )}
+
           {/* ─── YouTube Buffering Spinner ─── */}
-          {isBuffering && hasStarted && (
+          {isBuffering && hasStarted && midrollState === "idle" && (
             <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
               <div className="w-14 h-14 rounded-full border-4 border-white/20 border-t-[#ff0000] border-r-[#ff0000] animate-spin" />
             </div>

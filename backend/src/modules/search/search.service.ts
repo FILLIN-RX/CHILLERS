@@ -75,11 +75,19 @@ function calculateRelevanceScore(
   const normalizedTitle = normalizeTitle(title || '');
   const normalizedOriginal = normalizeTitle(originalTitle);
 
+  // Popularité (vote_average et vote_count)
+  const voteAverage = result.vote_average || 0;
+  const voteCount = result.vote_count || 0;
+
   let score = 0;
 
   // Correspondance exacte = 100 points
   if (normalizedTitle === normalizedQuery || normalizedOriginal === normalizedQuery) {
     score += 100;
+    // Si c'est une série avec une forte notoriété (ex: One Piece, Naruto, Game of Thrones)
+    if (mediaType === 'tv' && voteCount >= 500) {
+      score += 25;
+    }
   }
   // Commence par la requête = 50 points
   else if (normalizedTitle.startsWith(normalizedQuery) || normalizedOriginal.startsWith(normalizedQuery)) {
@@ -91,8 +99,6 @@ function calculateRelevanceScore(
   }
 
   // Bonus pour popularité (vote_average et vote_count)
-  const voteAverage = result.vote_average || 0;
-  const voteCount = result.vote_count || 0;
   score += (voteAverage / 10) * 20; // Max 20 points
   score += Math.min(voteCount / 100, 10); // Max 10 points
 

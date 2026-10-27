@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOhaChannels } from "@/lib/oha-catalog";
-import { getEpgIndex, programsAround } from "@/lib/epg-fr";
+import { getEpgGuide } from "@/services/epg";
 import { rankChannelsForMatch } from "@/lib/match-channels";
 
 export const dynamic = "force-dynamic";
@@ -30,18 +30,20 @@ export async function GET(req: NextRequest) {
   const startMs = parseStart(sp.get("start")) ?? Date.now();
 
   try {
-    const [channels, epg] = await Promise.all([getOhaChannels(), getEpgIndex()]);
+    const guidePromise = getEpgGuide({
+      from: new Date(startMs - 60 * 60_000).toISOString(),
+      to: new Date(startMs + 3 * 60 * 60_000).toISOString(),
+    }).catch(() => null);
+    const [channels, guide] = await Promise.all([getOhaChannels(), guidePromise]);
+    const programsByChannel = new Map(
+      (guide?.channels ?? []).map((channel) => [channel.id, channel.programs]),
+    );
     const ranked = rankChannelsForMatch(
       channels,
       { sport, league, home, away, title: `${home} ${away}`.trim() },
       startMs,
-      epg
-        ? (channel) =>
-            programsAround(epg, channel, startMs).map((p) => ({
-              title: p.title,
-              start: p.start,
-              end: p.end,
-            }))
+      guide
+        ? (channel) => programsByChannel.get(channel.id) ?? []
         : undefined,
     );
 

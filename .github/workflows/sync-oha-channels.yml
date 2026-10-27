@@ -3,7 +3,17 @@ name: Synchroniser les chaînes OHA vers MongoDB
 on:
   schedule:
     - cron: '0 4 * * *'
+    - cron: '15 * * * *'
   workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Mode de synchronisation'
+        required: true
+        default: full
+        type: choice
+        options:
+          - full
+          - revalidate
 
 concurrency:
   group: sync-oha-channels
@@ -29,9 +39,14 @@ jobs:
         working-directory: backend
         run: npm ci
 
-      - name: Récupérer les chaînes OHA et les enregistrer dans MongoDB
+      - name: Synchroniser ou revalider les chaînes OHA
         working-directory: backend
         env:
           NODE_ENV: production
           MONGO_URI: ${{ secrets.MONGO_URI }}
-        run: npx tsx src/modules/live/sync-oha-catalog.ts
+        run: |
+          if [ "${{ github.event.schedule }}" = "15 * * * *" ] || [ "${{ github.event.inputs.mode }}" = "revalidate" ]; then
+            npx tsx src/modules/live/sync-oha-catalog.ts --revalidate
+          else
+            npx tsx src/modules/live/sync-oha-catalog.ts
+          fi

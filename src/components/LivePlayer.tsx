@@ -7,6 +7,7 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import type { LiveChannel } from "@/types/live";
 import { PopupFirewall } from "@/lib/PopupFirewall";
 import { enterFullscreen, exitFullscreen, isFullscreenActive } from "@/lib/fullscreen";
+import { resolveOhaStream } from "@/services/oha";
 import { ArrowLeft, X, Play, Pause, ArrowsClockwise, SpeakerSimpleHigh, SpeakerSimpleSlash, ArrowsOutSimple, ArrowsInSimple, Television, PictureInPicture, ShareNetwork, Check } from "@phosphor-icons/react";
 
 interface LivePlayerProps {
@@ -130,12 +131,36 @@ export default function LivePlayer({
   const [error, setError] = useState<string | null>(null);
   const [proxyMode, setProxyMode] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
+  const [resolvedOha, setResolvedOha] = useState<{ channelId: string; url: string } | null>(null);
+  const ohaResolveAttemptRef = useRef<string | null>(null);
+
+  const streamUrl = (resolvedOha?.channelId === channel._id ? resolvedOha.url : channel.streamUrl) || "";
 
   const isHls = channel.type === "hls";
 
   useEffect(() => {
     onPlaybackErrorRef.current = onPlaybackError;
   }, [onPlaybackError]);
+
+  const resolveOhaFallback = useCallback(() => {
+    if (channel.source !== "oha" || !channel.ohaId) return false;
+    const attemptKey = `${channel._id}:${channel.streamUrl ?? ""}`;
+    if (ohaResolveAttemptRef.current === attemptKey) return false;
+    ohaResolveAttemptRef.current = attemptKey;
+    setIsLoading(true);
+    setError(null);
+    void resolveOhaStream(channel.ohaId, channel.ohaAltIds ?? [])
+      .then((url) => {
+        setResolvedOha({ channelId: channel._id, url });
+        setProxyMode(false);
+      })
+      .catch(() => {
+        setIsLoading(false);
+        setError("stream");
+        onPlaybackErrorRef.current?.("Le flux OHA n’a pas pu être résolu");
+      });
+    return true;
+  }, [channel._id, channel.ohaAltIds, channel.ohaId, channel.source, channel.streamUrl]);
 
   const iframeSrc =
     channel.type === "youtube" && channel.ytVideoId
@@ -201,7 +226,8 @@ export default function LivePlayer({
   useEffect(() => {
     const el = videoRef.current;
     if (!isHls) return;
-    if (!channel.streamUrl) {
+    if (!streamUrl) {
+      if (resolveOhaFallback()) return;
       setError("no-stream");
       return;
     }
@@ -235,14 +261,14 @@ export default function LivePlayer({
     };
     const isCorsRestricted = Boolean(
       (channel as any).proxy ||
-      channel.streamUrl?.includes('amagi.tv') ||
-      channel.streamUrl?.includes('wurl.com') ||
-      channel.streamUrl?.includes('edgesuite.net')
+      streamUrl.includes('amagi.tv') ||
+      streamUrl.includes('wurl.com') ||
+      streamUrl.includes('edgesuite.net')
     );
 
     const effectiveUrl = (proxyMode || isCorsRestricted)
-      ? buildProxyUrl(channel.streamUrl)
-      : channel.streamUrl;
+      ? buildProxyUrl(streamUrl)
+      : streamUrl;
 
     const startPlayback = () => {
       setIsLoading(false);
@@ -263,6 +289,7 @@ export default function LivePlayer({
     let failureReported = false;
     const reportFailure = (reason: string) => {
       if (failureReported) return;
+      if (resolveOhaFallback()) return;
       failureReported = true;
       onPlaybackErrorRef.current?.(reason);
     };
@@ -344,7 +371,7 @@ export default function LivePlayer({
       el.removeEventListener("timeupdate", schedulePlaybackWatchdog);
       if (hls) hls.destroy();
     };
-  }, [isHls, channel.streamUrl, proxyMode, isMuted, updateLiveState]);
+  }, [isHls, channel._id, channel.streamUrl, channel.source, channel.ohaId, channel.ohaAltIds, streamUrl, resolveOhaFallback, proxyMode, isMuted, updateLiveState]);
 
   // Fullscreen change listener
   useEffect(() => {

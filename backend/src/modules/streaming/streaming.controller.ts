@@ -28,7 +28,7 @@ function pickDownloadUrl(result: {
   const isFileUrl = (u?: string | null) =>
     Boolean(u) && !/\.html?(\?|$)|\/embed-|\/e\/|vidlink\.pro|youtube\.com/i.test(u!);
   if (isFileUrl(result.downloadUrl)) return result.downloadUrl!;
-  if (result.directUrl) return result.directUrl;
+  if (result.directUrl && !result.directUrl.startsWith('/api/stream/oha/')) return result.directUrl;
   return /\.(mp4|m3u8)(\?|$)/i.test(result.embedUrl) ? result.embedUrl : null;
 }
 

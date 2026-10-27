@@ -149,6 +149,22 @@ export function MatchStreamPlayer({
     }
   }, [activeStream, candidateIndex, candidates, matchId]);
 
+  const navigateToNextCandidate = React.useCallback(() => {
+    if (candidates.length < 2) return;
+    const nextIndex = (candidateIndex + 1) % candidates.length;
+    const nextCandidate = candidates[nextIndex];
+    // A manual selection is an explicit retry, even if this source failed before.
+    failedCandidatesRef.current.delete(`${matchId}:${nextCandidate.url}`);
+    if (nextCandidate.provider) {
+      failedCandidatesRef.current.delete(`${matchId}:provider:${nextCandidate.provider}`);
+    }
+    setCandidateChoice({ matchId, index: nextIndex });
+    setPlaybackNotice({
+      matchId,
+      text: `Source ${nextIndex + 1}/${candidates.length} : ${nextCandidate.name || nextCandidate.provider || "flux suivant"}.`,
+    });
+  }, [candidateIndex, candidates, matchId]);
+
   const selectedType = activeStream?.type;
 
   const rawEmbedUrl = selectedType === "iframe" ? activeStream?.url : null;
@@ -418,10 +434,10 @@ export function MatchStreamPlayer({
             {playbackNotice?.matchId === matchId && <p role="status" className="rounded-full bg-black/75 px-3 py-1.5 text-xs text-amber-200">{playbackNotice.text}</p>}
             <button
               type="button"
-              onClick={() => advanceCandidate("Changement de source demandé.")}
+              onClick={navigateToNextCandidate}
               className="rounded-full border border-white/20 bg-black/70 px-4 py-2 text-xs font-semibold text-white backdrop-blur hover:bg-white/15"
             >
-              Le flux ne démarre pas ? Essayer la source suivante
+              Changer de source · {(candidateIndex + 1) % candidates.length + 1}/{candidates.length}
             </button>
           </div>
         )}

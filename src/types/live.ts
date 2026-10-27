@@ -28,6 +28,10 @@ export interface LiveChannel {
   lastChecked?: string;
   isOnline: boolean;
   source?: string;
+  /** OHA catalogue identifiers used to refresh an expired or unresolved HLS URL. */
+  ohaId?: string;
+  ohaAltIds?: string[];
+  streamResolvedAt?: string;
   createdAt?: string;
   updatedAt?: string;
   /** Force le lecteur à passer le flux par /api/live/proxy (CORS/anti-leech). */
@@ -35,6 +39,8 @@ export interface LiveChannel {
   /** Programme en cours puis suivant (catalogue oha / EPG). */
   epgNow?: LiveEpgEntry;
   epgNext?: LiveEpgEntry;
+  epgUpdatedAt?: string;
+  epgSource?: string;
 }
 
 export interface LiveChannelInput {

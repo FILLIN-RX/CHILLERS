@@ -7,7 +7,7 @@ export class FrenchAnimeProvider implements StreamingProvider {
   readonly name = 'frenchanime';
 
   supports(query: StreamQuery): boolean {
-    return Boolean(query.tmdbId && (query.type === 'anime' || query.type === 'tv'));
+    return Boolean(query.tmdbId && (query.type === 'anime' || query.type === 'tv' || query.isAnime));
   }
 
   async getMovieStream(_query: StreamQuery): Promise<StreamResult | null> {
@@ -17,19 +17,32 @@ export class FrenchAnimeProvider implements StreamingProvider {
   async getEpisodeStream(query: StreamQuery): Promise<StreamResult | null> {
     const season = Number(query.season || 1);
     const episode = Number(query.episode || 1);
-    const items = await ProviderCatalogItem.find({
+    let items = await ProviderCatalogItem.find({
       provider: 'otaku', // Le catalogue W16 existant partage l'index anime Otaku.
       type: 'anime',
       tmdbId: query.tmdbId,
       active: true,
-      matchStatus: 'matched',
-      'card.media_type': 'tv',
-      'card.genre_ids': 16,
     })
       .select('sourceId title season pageUrl language')
       .lean();
 
-    const item = items.find((entry: any) => Number(entry.season || 1) === season);
+    if (!items.length && (query.title || query.frenchTitle || query.originalTitle)) {
+      const searchTitle = (query.title || query.frenchTitle || query.originalTitle)!.replace(/\b(saison|season)\s*\d+/gi, '').trim();
+      const escaped = searchTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      items = await ProviderCatalogItem.find({
+        provider: 'otaku',
+        type: 'anime',
+        active: true,
+        title: new RegExp(`^${escaped}\\b`, 'i'),
+      })
+        .select('sourceId title season pageUrl language')
+        .lean();
+    }
+
+    const item = items.find((entry: any) => {
+      const s = entry.season !== undefined ? Number(entry.season) : (entry.title?.match(/saison\s*(\d+)/i)?.[1] ? Number(entry.title.match(/saison\s*(\d+)/i)[1]) : 1);
+      return s === season;
+    });
     if (!item) {
       console.log(`[French Anime] Aucun catalogue lié à TMDB ${query.tmdbId} S${season}`);
       return null;

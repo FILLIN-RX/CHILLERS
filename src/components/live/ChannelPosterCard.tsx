@@ -140,7 +140,7 @@ export default function ChannelPosterCard({
       </div>
 
       {/* ── 2. Section pied de page : badge DIRECT + nom + programme (non superposé) ── */}
-      <div className="flex flex-col gap-0.5 bg-zinc-900 border-t border-white/10 px-2 py-1.5">
+      <div className="flex flex-col gap-0.5 bg-zinc-900 border-t border-white/10 px-2 py-1.5 text-left">
         <div className="flex items-center gap-1.5 min-w-0">
           {/* Badge Direct (déplacé depuis l'image) */}
           <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-red-600 text-[9px] font-black uppercase tracking-wider text-white shrink-0 shadow-md">

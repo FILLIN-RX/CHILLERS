@@ -5,12 +5,12 @@ import PageContent from "./page-content";
 export const metadata: Metadata = {
   title: "Nollywood",
   description:
-    "Découvrez les films Africaine et Nollywood disponibles sur CHILLERS.",
+    "Découvrez les films AfroLand et Nollywood disponibles sur CHILLERS.",
   alternates: { canonical: "/categories" },
   openGraph: {
     title: "Nollywood · CHILLERS",
     description:
-      "Découvrez les films Africaine et Nollywood disponibles sur CHILLERS.",
+      "Découvrez les films AfroLand et Nollywood disponibles sur CHILLERS.",
     url: `${SITE_URL}/categories`,
     siteName: "CHILLERS",
     locale: SITE_LOCALE,
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Nollywood · CHILLERS",
     description:
-      "Découvrez les films Africaine et Nollywood disponibles sur CHILLERS.",
+      "Découvrez les films AfroLand et Nollywood disponibles sur CHILLERS.",
   },
 };
 
