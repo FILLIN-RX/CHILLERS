@@ -195,8 +195,39 @@ function isUsableLiveBallHtml(html: string | null | undefined): html is string {
   return true;
 }
 
+/**
+ * Une page de match n'est exploitable que si elle porte le jeton de flux. Les
+ * miroirs servent parfois un shell sans marqueur : `length > 1000` le validait,
+ * le résolveur s'arrêtait sur ce miroir et rendait « aucun flux » sans jamais
+ * essayer les suivants ni le proxy.
+ */
+function hasStreamMarkers(html: string | null | undefined): boolean {
+  return Boolean(html && (html.includes('_lbStreams') || html.includes('_xrq(')));
+}
+
+/** Course contre un budget : la promesse abandonnée est consommée (pas de rejet non géré). */
+function withDeadline<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(null), Math.max(1, ms));
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      () => {
+        clearTimeout(timer);
+        resolve(null);
+      },
+    );
+  });
+}
+
 // Récupération HTML : Direct cURL d'abord (ultra rapide en local/résidentiel), puis Proxy/FlareSolverr en fallback
-async function fetchHtmlWithCurl(url: string): Promise<string> {
+async function fetchHtmlWithCurl(
+  url: string,
+  opts: { requireStreamMarkers?: boolean } = {},
+): Promise<string> {
+  const accept = opts.requireStreamMarkers ? hasStreamMarkers : isUsableLiveBallHtml;
   // 1. Essai direct avec cURL
   try {
     const curlArgs = [
@@ -223,7 +254,7 @@ async function fetchHtmlWithCurl(url: string): Promise<string> {
     ];
 
     const { stdout } = await execFileAsync('curl', curlArgs, { maxBuffer: 4 * 1024 * 1024 });
-    if (isUsableLiveBallHtml(stdout)) {
+    if (accept(stdout)) {
       return stdout;
     }
   } catch (_) {}
@@ -237,7 +268,7 @@ async function fetchHtmlWithCurl(url: string): Promise<string> {
         'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
       },
     });
-    if (isUsableLiveBallHtml(csRes)) {
+    if (accept(csRes)) {
       return csRes;
     }
   } catch (_) {}
@@ -251,7 +282,7 @@ async function fetchHtmlWithCurl(url: string): Promise<string> {
         headers: { 'User-Agent': USER_AGENT },
         proxy,
       });
-      if (typeof csRes === 'string' && isUsableLiveBallHtml(csRes)) {
+      if (typeof csRes === 'string' && accept(csRes)) {
         markProxyWorking(proxy);
         return csRes;
       }
@@ -264,7 +295,7 @@ async function fetchHtmlWithCurl(url: string): Promise<string> {
   // 4. FlareSolverr si configuré (contourne Cloudflare côté navigateur headless)
   if (FLARESOLVERR_URL) {
     const solverRes = await fetchWithFlareSolverr(url, 'GET');
-    if (isUsableLiveBallHtml(solverRes)) {
+    if (solverRes && accept(solverRes)) {
       return solverRes;
     }
   }
@@ -292,7 +323,7 @@ async function fetchHtmlWithCurl(url: string): Promise<string> {
       } catch {}
     }
     const { data } = await axios.get<string>(url, axiosConfig);
-    if (isUsableLiveBallHtml(data)) {
+    if (accept(data)) {
       if (proxy) markProxyWorking(proxy);
       return data;
     }
@@ -1000,30 +1031,46 @@ export async function resolveLiveBallStream(matchId: string, forceRefresh = fals
     // Fetch page across active domains
     let html: string | null = null;
     let activeDomain = process.env.LIVEBALL_DOMAIN || 'liveball.sx';
+    // 1) Passe directe. Un miroir peut répondre 200 avec un shell sans jeton
+    //    (variante bot servie aux IP datacenter, ou miroir JS) : on ne s'arrête
+    //    donc plus au premier qui répond, on garde la page la plus lourde en
+    //    réserve et on continue vers le miroir suivant. Budget global borné :
+    //    un match sans flux ne doit pas immobiliser la route.
+    let tokenlessHtml: string | null = null;
+    let tokenlessDomain: string | null = null;
+    const looseDeadline = Date.now() + 8_000;
     for (const domain of LIVEBALL_BASE_DOMAINS) {
+      const budget = Math.min(4_000, looseDeadline - Date.now());
+      if (budget <= 0) break;
       try {
-        html = await fetchHtmlWithCurl(`https://${domain}/match/${matchId}`);
-        if (html && (html.includes('_lbStreams') || html.includes('_xrq') || html.length > 1000)) {
+        const page = await withDeadline(fetchHtmlWithCurl(`https://${domain}/match/${matchId}`), budget);
+        if (!page) continue;
+        if (hasStreamMarkers(page)) {
+          html = page;
           activeDomain = domain;
           break;
         }
-      } catch {
-        try {
-          const { data } = await axios.get<string>(`https://${domain}/match/${matchId}`, {
-            headers: {
-              'User-Agent': USER_AGENT,
-              Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            },
-            timeout: 12_000,
-            responseType: 'text',
-          });
-          if (data && (data.includes('_lbStreams') || data.includes('_xrq') || data.length > 1000)) {
-            html = data;
-            activeDomain = domain;
-            break;
-          }
-        } catch (_) {}
-      }
+        if (!tokenlessHtml || page.length > tokenlessHtml.length) {
+          tokenlessHtml = page;
+          tokenlessDomain = domain;
+        }
+      } catch (_) {}
+    }
+
+    // 2) Aucun miroir n'a livré le jeton : nouvelle passe sur la page la plus
+    //    complète en exigeant le marqueur, ce qui force le couple proxy /
+    //    FlareSolverr au lieu d'échouer sur la page servie à l'IP datacenter.
+    if (!html && tokenlessDomain) {
+      try {
+        const page = await withDeadline(
+          fetchHtmlWithCurl(`https://${tokenlessDomain}/match/${matchId}`, { requireStreamMarkers: true }),
+          8_000,
+        );
+        if (page && hasStreamMarkers(page)) {
+          html = page;
+          activeDomain = tokenlessDomain;
+        }
+      } catch (_) {}
     }
 
     if (!html) {
