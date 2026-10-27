@@ -310,7 +310,7 @@ function TeamBlock({ name, logo }: { name: string; logo?: string | null }) {
   return (
     <div className="flex flex-col items-center gap-3 text-center">
       {logo ? (
-        <img src={getFastSportsImage(logo) ?? logo} alt="" width={112} height={112} decoding="async" className="h-14 w-14 object-contain" />
+        <img src={getFastSportsImage(logo, 56) ?? logo} alt="" width={112} height={112} decoding="async" className="h-14 w-14 object-contain" />
       ) : (
         <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#262626] text-[20px] text-[#B0B0B0]">
           {name[0]}

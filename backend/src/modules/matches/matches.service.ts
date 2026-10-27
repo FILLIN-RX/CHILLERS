@@ -2,6 +2,7 @@ import axios from 'axios';
 import { LRUCache } from 'lru-cache';
 import { getSportsMatches, resolveSportsFlux, warmupMatchChannels } from '../sports/sports.service';
 import { MULTI_SERVER_ENABLED, getRegisteredChannels } from '../sports/match-channels.registry';
+import { sideScore } from '../sports/utils/fixture-match';
 import {
   SportMatch,
   MatchStatus,
@@ -58,6 +59,67 @@ const LEAGUE_BY_NUMERIC_ID = new LRUCache<string, { league: ResolvedLeague | nul
   ttl: 24 * 60 * 60_000,
 });
 const LEAGUE_RESOLVE_INFLIGHT = new Map<string, Promise<ResolvedLeague | null>>();
+
+/**
+ * LiveBall translittère les clubs depuis le russe (« Al-Khusseyn »,
+ * « Esteglyal », « Rot-Vayss ») là où ESPN écrit l'orthographe internationale.
+ * On replie ces variantes avant de comparer les jetons ; les sigles de club
+ * (CE, UD, ADO…) sont du bruit pour la comparaison, pas une identité.
+ */
+const CLUB_ABBREVIATIONS = new Set([
+  'ce', 'cd', 'ud', 'sg', 'sd', 'ca', 'ec', 'ss', 'us', 'as', 'rc', 'cs', 'bc', 'ado', 'sv', 'tsv',
+  'vfb', 'vfl', 'spvgg', 'pfc', 'krc', 'rkc', 'nec',
+]);
+
+function foldTeamToken(token: string): string {
+  return token
+    .replace(/ß/g, 'ss')
+    .replace(/kh/g, 'h')
+    .replace(/gh/g, 'g')
+    .replace(/ph/g, 'f')
+    .replace(/ch/g, 'j')
+    .replace(/ck/g, 'k')
+    .replace(/[cq]/g, 'k')
+    .replace(/x/g, 'ks')
+    .replace(/ay/g, 'ei')
+    .replace(/ey/g, 'ei')
+    .replace(/y/g, 'i')
+    .replace(/w/g, 'v')
+    .replace(/v/g, 'u')
+    .replace(/z/g, 's')
+    .replace(/ee/g, 'i')
+    .replace(/oo/g, 'u')
+    .replace(/aa/g, 'a')
+    .replace(/eo/g, 'o')
+    .replace(/(.)\1+/g, '$1');
+}
+
+function foldTeamName(name?: string): string {
+  if (!name) return '';
+  const rawTokens = name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/['’`]/g, '')
+    .split(/[^A-Za-z0-9]+/)
+    .filter(Boolean);
+
+  const kept: string[] = [];
+  for (const token of rawTokens) {
+    const lower = token.toLowerCase();
+    if (lower.length <= 1 || CLUB_ABBREVIATIONS.has(lower)) continue;
+    // Sigle accolé au libellé (« RB Leipzig ») : sans lui, le nom reste lisible.
+    if (/^[A-Z]{2,4}$/.test(token) && rawTokens.some((o) => o !== token && o.length > 3)) continue;
+    kept.push(foldTeamToken(lower));
+  }
+  return kept.join(' ');
+}
+
+/** Meilleur des deux rapprochements : libellé brut ou translittéré. */
+function tolerantSideScore(a: string, aFolded: string, b: string, bFolded: string): number {
+  return Math.max(sideScore(a, b), sideScore(aFolded, bFolded));
+}
+
+const KICKOFF_TOLERANCE_S = 45 * 60;
 
 /** `s:600~l:776~e:401915573` → `776` (identifiant numérique de ligue ESPN). */
 function numericLeagueId(event: any): string | null {
@@ -511,6 +573,88 @@ export class MatchesService {
     return index;
   }
 
+  /** Après un échec LiveBall, on ne retente pas à chaque rafraîchissement. */
+  private liveballBackfillCooldownUntil = 0;
+
+  /**
+   * ESPN ne fournit pas d'écusson pour certains clubs (divisions régionales,
+   * coupes asiatiques…). LiveBall publie la même affiche avec les logos :
+   * on reprend la rencontre des deux côtés plutôt que le nom seul, sinon on
+   * colle l'écusson d'un club homonyme (« Europa » → Europa FC de Gibraltar).
+   */
+  private async backfillLogosFromLiveBall(matches: SportMatch[]): Promise<void> {
+    const pending = matches.filter((m) => m.sport === 'football' && (!m.homeTeam.logo || !m.awayTeam.logo));
+    if (pending.length === 0 || Date.now() < this.liveballBackfillCooldownUntil) return;
+
+    let liveball: Awaited<ReturnType<typeof import('../liveball/liveball.service').getLiveBallMatches>> = null;
+    try {
+      const { getLiveBallMatches } = await import('../liveball/liveball.service');
+      liveball = await Promise.race([
+        getLiveBallMatches(),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 5_000)),
+      ]);
+    } catch {
+      liveball = null;
+    }
+
+    if (!liveball || liveball.length === 0) {
+      this.liveballBackfillCooldownUntil = Date.now() + 10 * 60_000;
+      return;
+    }
+
+    const candidates = liveball.map((candidate) => ({
+      candidate,
+      homeFolded: foldTeamName(candidate.home),
+      awayFolded: foldTeamName(candidate.away),
+    }));
+
+    for (const match of pending) {
+      const homeFolded = foldTeamName(match.homeTeam.name);
+      const awayFolded = foldTeamName(match.awayTeam.name);
+      const kickoffS = match.startTimestamp ? Math.floor(match.startTimestamp / 1000) : undefined;
+
+      let best: (typeof liveball)[number] | null = null;
+      let flipped = false;
+      let bestScore = 0;
+
+      for (const { candidate, homeFolded: candHomeFolded, awayFolded: candAwayFolded } of candidates) {
+        if (!candidate.homeLogo && !candidate.awayLogo) continue;
+
+        const straight = Math.min(
+          tolerantSideScore(match.homeTeam.name, homeFolded, candidate.home, candHomeFolded),
+          tolerantSideScore(match.awayTeam.name, awayFolded, candidate.away, candAwayFolded)
+        );
+        const crossed = Math.min(
+          tolerantSideScore(match.homeTeam.name, homeFolded, candidate.away, candAwayFolded),
+          tolerantSideScore(match.awayTeam.name, awayFolded, candidate.home, candHomeFolded)
+        );
+        const score = Math.max(straight, crossed);
+
+        // Assez de jetons communs pour trancher seul, sinon il faut que le coup
+        // d'envoi confirme : les translittérations incomplètes (« Grossashpakh »
+        // face à « Sonnenhof Großaspach ») plafonnent autour de 0.5.
+        const kickoffClose =
+          kickoffS !== undefined &&
+          candidate.startTs !== undefined &&
+          Math.abs(kickoffS - candidate.startTs) <= KICKOFF_TOLERANCE_S;
+        const accepted = score >= 0.75 ? score : score >= 0.5 && kickoffClose ? score : 0;
+
+        if (accepted > bestScore) {
+          bestScore = accepted;
+          best = candidate;
+          flipped = crossed > straight;
+        }
+      }
+
+      if (!best) continue;
+
+      const homeLogo = flipped ? best.awayLogo : best.homeLogo;
+      const awayLogo = flipped ? best.homeLogo : best.awayLogo;
+      if (!match.homeTeam.logo && homeLogo) match.homeTeam.logo = homeLogo;
+      if (!match.awayTeam.logo && awayLogo) match.awayTeam.logo = awayLogo;
+    }
+  }
+
   /**
    * Convertit une date YYYY-MM-DD en format YYYYMMDD attendu par ESPN
    */
@@ -544,7 +688,7 @@ export class MatchesService {
         name: homeComp.team?.displayName || homeComp.team?.name || 'Équipe 1',
         shortName: homeComp.team?.shortDisplayName || homeComp.team?.name,
         abbreviation: homeComp.team?.abbreviation,
-        logo: homeComp.team?.logo || `https://a.espncdn.com/i/teamlogos/soccer/500/${homeComp.id}.png`,
+        logo: homeComp.team?.logo || homeComp.team?.logos?.[0]?.href,
         score: homeComp.score !== undefined ? parseInt(homeComp.score, 10) : undefined,
         isWinner: homeComp.winner || false,
       };
@@ -554,7 +698,7 @@ export class MatchesService {
         name: awayComp.team?.displayName || awayComp.team?.name || 'Équipe 2',
         shortName: awayComp.team?.shortDisplayName || awayComp.team?.name,
         abbreviation: awayComp.team?.abbreviation,
-        logo: awayComp.team?.logo || `https://a.espncdn.com/i/teamlogos/soccer/500/${awayComp.id}.png`,
+        logo: awayComp.team?.logo || awayComp.team?.logos?.[0]?.href,
         score: awayComp.score !== undefined ? parseInt(awayComp.score, 10) : undefined,
         isWinner: awayComp.winner || false,
       };
@@ -827,6 +971,8 @@ export class MatchesService {
         }
       }
 
+      await this.backfillLogosFromLiveBall(matches);
+
       // Tri des matchs : LIVE d'abord, puis par heure de début
       matches.sort((a, b) => {
         if (a.status === 'live' && b.status !== 'live') return -1;
@@ -958,7 +1104,7 @@ export class MatchesService {
         name: homeComp.team?.displayName || homeComp.team?.name || 'Équipe 1',
         shortName: homeComp.team?.shortDisplayName || homeComp.team?.name,
         abbreviation: homeComp.team?.abbreviation,
-        logo: homeComp.team?.logo || homeComp.team?.logos?.[0]?.href || `https://a.espncdn.com/i/teamlogos/soccer/500/${homeComp.id}.png`,
+        logo: homeComp.team?.logo || homeComp.team?.logos?.[0]?.href,
         score: homeComp.score !== undefined ? parseInt(homeComp.score, 10) : undefined,
         isWinner: Boolean(homeComp.winner),
       };
@@ -968,7 +1114,7 @@ export class MatchesService {
         name: awayComp.team?.displayName || awayComp.team?.name || 'Équipe 2',
         shortName: awayComp.team?.shortDisplayName || awayComp.team?.name,
         abbreviation: awayComp.team?.abbreviation,
-        logo: awayComp.team?.logo || awayComp.team?.logos?.[0]?.href || `https://a.espncdn.com/i/teamlogos/soccer/500/${awayComp.id}.png`,
+        logo: awayComp.team?.logo || awayComp.team?.logos?.[0]?.href,
         score: awayComp.score !== undefined ? parseInt(awayComp.score, 10) : undefined,
         isWinner: Boolean(awayComp.winner),
       };
