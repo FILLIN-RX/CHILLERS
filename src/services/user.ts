@@ -1,11 +1,13 @@
 import { httpJson } from './http';
-import { API_BASE_URL } from '@/lib/api-base';
 
 export type PushCategory = 'announcements' | 'favorites' | 'matches' | 'subscriptions' | 'reminders';
 export interface PushPreferences { announcements: boolean; favorites: boolean; matches: boolean; subscriptions: boolean; reminders: boolean; }
 
+// Chemin relatif : dans le navigateur il part sur l'origine du site, que la
+// rewrite de next.config proxifie vers le backend. Une URL absolue du domaine
+// Railway serait rejetée par le connect-src de la CSP.
 async function notificationRequest<T>(path: string, token?: string, options: { method?: 'GET' | 'POST' | 'PUT' | 'DELETE'; body?: unknown } = {}) {
-  return httpJson<T>(`${API_BASE_URL}/notifications${path}`, {
+  return httpJson<T>(`/api/notifications${path}`, {
     method: options.method || 'GET', body: options.body,
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
   });

@@ -2,7 +2,6 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { API_BASE_URL } from "@/lib/api-base";
 
 const VISITOR_KEY = "chillers-visitor-v1";
 const SESSION_KEY = "chillers-visit-session-v1";
@@ -60,7 +59,7 @@ export default function SiteVisitTracker() {
     try { localStorage.setItem(SESSION_KEY, JSON.stringify(session)); } catch {}
 
     const campaign = readCampaign(session.id);
-    void fetch(`${API_BASE_URL}/analytics/visit`, {
+    void fetch(`/api/analytics/visit`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
