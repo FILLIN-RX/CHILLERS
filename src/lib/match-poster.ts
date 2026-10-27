@@ -168,6 +168,8 @@ const TEAM_ALIASES: Array<[RegExp, string]> = [
   [/\bclub\s+bruges\b/g, "brugge"],
   [/\bnewcastle\s+united\b/g, "newcastle"],
   [/\bpraha\b/g, "prague"],
+  // Le flux russe francise l'allemand (« Kyoln ») là où ESPN écrit l'anglais.
+  [/\bcologne\b/g, "koln"],
 ];
 
 // « sporting » reste dans la clé : c'est l'identité de Sporting CP / Sporting
@@ -176,15 +178,53 @@ const TEAM_ALIASES: Array<[RegExp, string]> = [
 // « Sabah FA », le score écrit « Sabah FK », et les deux cartes feraient doublon.
 const NOISE_TOKENS = /\b(fc|cf|sc|ac|as|rc|us|afc|ssc|cd|club|de|united|city|hotspur|fa|fk|sk|bk|if|aif|kvv|sv)\b/g;
 
+/**
+ * Replie les translittérations russes des live (« Rot-Vayss », « Grossashpakh »,
+ * « Darmshtadt », « Verder ») sur les graphies ESPN. Les règles s'appliquent aux
+ * deux côtés de la comparaison : elles ne rapprochent jamais une source d'une
+ * autre sans que les deux clés passent par la même réduction.
+ */
+function foldTransliteration(key: string): string {
+  return key
+    .replace(/sht/g, "st")
+    .replace(/kh/g, "h")
+    .replace(/gh/g, "g")
+    .replace(/ph/g, "f")
+    .replace(/ch/g, "j")
+    .replace(/j/g, "h")
+    .replace(/ck/g, "k")
+    .replace(/sh/g, "s")
+    .replace(/[cq]/g, "k")
+    .replace(/x/g, "ks")
+    .replace(/yo/g, "o")
+    .replace(/ay/g, "ei")
+    .replace(/ey/g, "ei")
+    .replace(/y/g, "i")
+    .replace(/w/g, "v")
+    .replace(/v/g, "u")
+    .replace(/z/g, "s")
+    .replace(/ee/g, "i")
+    .replace(/oo/g, "u")
+    .replace(/aa/g, "a")
+    .replace(/eo/g, "o")
+    .replace(/(.)\1+/g, "$1");
+}
+
 /** Clé de comparaison d'un nom d'équipe : minuscules, sans accents, sans mention de club. */
 export function normalizeTeam(name?: string): string {
   if (!name) return "";
-  let s = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  let s = name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    // « Großaspach » se cassait en « gro aspach » sur le remplacement des
+    // caractères non latins, ce qui empêchait toute jointure.
+    .replace(/ß/g, "ss");
   s = s.replace(/[^a-z0-9 ]/g, " ");
   for (const [pattern, alias] of TEAM_ALIASES) s = s.replace(pattern, alias);
   s = s.replace(NOISE_TOKENS, " ");
   s = s.replace(/\s+/g, "");
-  return s.trim();
+  return foldTransliteration(s.trim());
 }
 
 /**
