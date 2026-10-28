@@ -39,6 +39,8 @@ export interface MatchStreamPlayerProps {
   homeName: string;
   awayName: string;
   isLive?: boolean;
+  /** Rencontre terminée : plus de flux ni de chaînes à proposer. */
+  finished?: boolean;
   minute?: string;
   /** Compétition, sport et coup d'envoi : vérifie l'EPG des chaînes. */
   league?: string;
@@ -51,6 +53,7 @@ export function MatchStreamPlayer({
   homeName,
   awayName,
   isLive,
+  finished,
   minute,
   league,
   sport,
@@ -104,6 +107,7 @@ export function MatchStreamPlayer({
       return { ...candidates[0], candidates };
     },
     staleTime: 30_000,
+    enabled: !finished,
   });
 
   // Charge les autres serveurs en parallèle : l'affichage du premier flux ne
@@ -207,6 +211,7 @@ export function MatchStreamPlayer({
       }),
     staleTime: 60_000,
     refetchInterval: 60_000,
+    enabled: !finished,
   });
 
   const confirmedChannels = React.useMemo(
@@ -246,6 +251,7 @@ export function MatchStreamPlayer({
   // dès le coup d'envoi (repli sur les autres chaînes confirmées, puis sources).
   const autoTriedRef = React.useRef<string | null>(null);
   React.useEffect(() => {
+    if (finished) return;
     const first = confirmedChannels[0];
     if (!first || ohaChoice) return;
     const key = `${matchId}:${first.id}`;
@@ -270,7 +276,7 @@ export function MatchStreamPlayer({
     return () => {
       cancelled = true;
     };
-  }, [confirmedChannels, ohaChoice, isLive, startTime, matchId, playOha]);
+  }, [confirmedChannels, ohaChoice, isLive, finished, startTime, matchId, playOha]);
 
   const ohaChannel: LiveChannel | null = ohaChoice
     ? {
@@ -320,7 +326,7 @@ export function MatchStreamPlayer({
   return (
     <div id="stream-player" className="w-full space-y-3">
       {/* Sélecteur unique : chaînes (confirmées d'abord) puis sources externes */}
-      {(confirmedChannels.length > 0 || candidateChannels.length > 0) && (
+      {!finished && (confirmedChannels.length > 0 || candidateChannels.length > 0) && (
         <div className="space-y-2 rounded-xl bg-[#161616] border border-white/10 p-3">
           <MatchChannelsRow
             channels={[...confirmedChannels, ...candidateChannels]}
@@ -355,6 +361,11 @@ export function MatchStreamPlayer({
               <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
               <span>{minute || "En direct"}</span>
             </span>
+          ) : finished ? (
+            <span className="flex items-center gap-1.5 rounded-full bg-[#1c1c1c]/90 px-2.5 py-1 text-[11px] font-semibold text-zinc-300 backdrop-blur-md border border-white/10">
+              <Broadcast className="h-3.5 w-3.5 text-zinc-500" />
+              <span>Terminé</span>
+            </span>
           ) : (
             <span className="flex items-center gap-1.5 rounded-full bg-[#1c1c1c]/90 px-2.5 py-1 text-[11px] font-semibold text-zinc-300 backdrop-blur-md border border-white/10">
               <Broadcast className="h-3.5 w-3.5 text-[#FF6A00]" />
@@ -388,21 +399,21 @@ export function MatchStreamPlayer({
         )}
 
         {/* 2. Chaîne CHILLERS sélectionnée */}
-        {!isLoading && ohaChannel && (
+        {!finished && !isLoading && ohaChannel && (
           <div className="h-full w-full">
             <LivePlayer key={`oha-${ohaChoice?.ch.id}`} channel={ohaChannel} onBack={() => {}} fill hideTopBar />
           </div>
         )}
 
         {/* 2b. Flux HLS actif */}
-        {!isLoading && channel && !ohaChannel && (
+        {!finished && !isLoading && channel && !ohaChannel && (
           <div className="h-full w-full">
             <LivePlayer channel={channel} onBack={() => {}} fill hideTopBar onPlaybackError={advanceCandidate} />
           </div>
         )}
 
         {/* 3. Flux Iframe (Player embarqué sécurisé) */}
-        {!isLoading && !channel && embedUrl && !ohaChannel && (
+        {!finished && !isLoading && !channel && embedUrl && !ohaChannel && (
           <div className="h-full w-full">
             <iframe
               key={embedUrl}
@@ -429,7 +440,7 @@ export function MatchStreamPlayer({
           </div>
         )}
 
-        {!isLoading && !ohaChannel && candidates.length > 1 && (
+        {!finished && !isLoading && !ohaChannel && candidates.length > 1 && (
           <div className="absolute bottom-3 inset-x-0 z-30 flex flex-col items-center gap-2 px-3">
             {playbackNotice?.matchId === matchId && <p role="status" className="rounded-full bg-black/75 px-3 py-1.5 text-xs text-amber-200">{playbackNotice.text}</p>}
             <button
@@ -442,8 +453,8 @@ export function MatchStreamPlayer({
           </div>
         )}
 
-        {/* 4. Aucun flux détecté ou match non commencé */}
-        {!isLoading && !channel && !embedUrl && !ohaChannel && (
+        {/* 4. Aucun flux détecté, match non commencé ou terminé */}
+        {!isLoading && (finished || (!ohaChannel && !channel && !embedUrl)) && (
           <div className="flex h-full w-full flex-col items-center justify-center gap-3.5 bg-[#121212] px-6 text-center">
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#1c1c1c] border border-white/10 text-zinc-400">
               <Television className="h-7 w-7" style={{ color: PRIMARY }} />
@@ -451,16 +462,18 @@ export function MatchStreamPlayer({
 
             <div className="max-w-sm space-y-1">
               <h3 className="text-[15px] font-bold text-white">
-                {isLive ? "Signal vidéo en attente..." : "Diffusion programmée"}
+                {finished ? "Match terminé" : isLive ? "Signal vidéo en attente..." : "Diffusion programmée"}
               </h3>
               <p className="text-[12px] text-zinc-400 leading-relaxed">
-                {isLive
-                  ? "Le flux direct pour ce match n'est pas encore disponible ou est momentanément indisponible."
-                  : "Le lecteur vidéo démarrera automatiquement dès le coup d'envoi de la rencontre."}
+                {finished
+                  ? "La rencontre est terminée : le score final est affiché sur la fiche du match."
+                  : isLive
+                    ? "Le flux direct pour ce match n'est pas encore disponible ou est momentanément indisponible."
+                    : "Le lecteur vidéo démarrera automatiquement dès le coup d'envoi de la rencontre."}
               </p>
             </div>
 
-            {(confirmedChannels.length > 0 || candidateChannels.length > 0) && (
+            {!finished && (confirmedChannels.length > 0 || candidateChannels.length > 0) && (
               <div className="w-full max-w-sm space-y-2 rounded-xl bg-white/5 border border-white/10 p-2.5">
                 {confirmedChannels.length > 0 && (
                   <MatchChannelsRow

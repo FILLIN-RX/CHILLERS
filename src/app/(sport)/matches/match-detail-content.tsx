@@ -65,12 +65,11 @@ export default function MatchDetailContent() {
 
       if (sumRes.status === "fulfilled" && sumRes.value) {
         setSummary(sumRes.value);
-        if (!resolvedMatch) {
-          resolvedMatch = buildMatchFromSummary(sumRes.value);
-        }
+        const fresh = buildMatchFromSummary(sumRes.value);
+        if (fresh) resolvedMatch = fresh;
       }
 
-      if (!resolvedMatch && matchRes.status === "fulfilled" && matchRes.value) {
+      if (matchRes.status === "fulfilled" && matchRes.value) {
         resolvedMatch = matchRes.value;
       }
 
@@ -105,11 +104,15 @@ export default function MatchDetailContent() {
   }, [load]);
 
   const isLive = match?.status === "live";
+  // On rafraîchit tant que le match n'est pas terminé : un match « à venir » qui
+  // démarre doit basculer en direct et afficher son score sans recharger la page.
+  const hasMatch = Boolean(match);
+  const isSettled = match?.status === "finished";
   useEffect(() => {
-    if (!isLive) return;
-    const interval = setInterval(load, 30_000);
+    if (!hasMatch || isSettled) return;
+    const interval = setInterval(load, isLive ? 20_000 : 60_000);
     return () => clearInterval(interval);
-  }, [isLive, load]);
+  }, [hasMatch, isLive, isSettled, load]);
 
   const goBack = () => {
     if (window.history.length > 1) router.back();
@@ -202,6 +205,7 @@ export default function MatchDetailContent() {
               homeName={match.homeTeam.name}
               awayName={match.awayTeam.name}
               isLive={isLive}
+              finished={isFinished}
               minute={match.minute}
               league={match.league.name}
               sport={match.sport}

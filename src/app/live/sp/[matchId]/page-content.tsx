@@ -128,19 +128,22 @@ export default function SportsMatchContent() {
   const { data: sportsMatches = [] } = useQuery({
     queryKey: ["live", "sports"],
     queryFn: () => getSportsMatches(),
-    staleTime: 60_000,
+    staleTime: 15_000,
+    refetchInterval: 30_000,
   });
 
   const { data: liveballMatches = [] } = useQuery({
     queryKey: ["live", "liveball"],
     queryFn: () => getLiveBallMatches(),
-    staleTime: 60_000,
+    staleTime: 15_000,
+    refetchInterval: 30_000,
   });
 
   const { data: clMatches = [] } = useQuery({
     queryKey: ["live", "liveball", "champions-league"],
     queryFn: () => getLiveBallChampionsLeague(),
-    staleTime: 60_000,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
   });
 
   const allLbMatches = [...liveballMatches, ...clMatches];

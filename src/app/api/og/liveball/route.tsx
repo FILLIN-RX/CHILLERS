@@ -81,6 +81,8 @@ export async function GET(req: NextRequest) {
     const score = searchParams.get("score") || "";
 
     const isLive = status === "live";
+    const isFinished = status === "finished";
+    const showScore = (isLive || isFinished) && Boolean(score);
     const poster = await fetchPoster(home, away, Number(startTs) || undefined);
     const fixture = poster?.fixture;
     // Les noms affichés viennent de la source ; son sens domicile/extérieur peut
@@ -223,7 +225,7 @@ export async function GET(req: NextRequest) {
                   backgroundColor: isLive ? "#ef4444" : "#52525b",
                 }}
               />
-              {isLive ? "EN DIRECT" : "À VENIR"}
+              {isLive ? "EN DIRECT" : isFinished ? "TERMINÉ" : "À VENIR"}
             </div>
             {competition && (
               <div
@@ -310,8 +312,15 @@ export async function GET(req: NextRequest) {
               position: "relative",
             }}
           >
-            {isLive && score ? (
-              <div style={{ fontSize: 34, fontWeight: 900, color: "#ffffff" }}>{score}</div>
+            {showScore ? (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                <div style={{ fontSize: 34, fontWeight: 900, color: "#ffffff" }}>{score}</div>
+                {isFinished && (
+                  <div style={{ fontSize: 18, fontWeight: 700, color: "#a1a1aa", letterSpacing: 2 }}>
+                    SCORE FINAL
+                  </div>
+                )}
+              </div>
             ) : (
               <div style={{ fontSize: 26, fontWeight: 700, color: "#d4d4d8" }}>
                 {formatStart(startTs)}
@@ -337,7 +346,9 @@ export async function GET(req: NextRequest) {
             }}
           >
             <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: BRAND }} />
-            FOOTBALL EN DIRECT · GRATUIT SUR CHILLERS
+            {isFinished
+              ? "SCORE FINAL · STATISTIQUES ET COMPOSITIONS SUR CHILLERS"
+              : "FOOTBALL EN DIRECT · GRATUIT SUR CHILLERS"}
           </div>
         </div>
       ),
@@ -345,7 +356,11 @@ export async function GET(req: NextRequest) {
         width: 1200,
         height: 630,
         headers: {
-          "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=3600",
+          // Le score d'un match en cours change : une image mise en cache une
+          // heure afficherait le score du coup d'envoi sur les partages.
+          "Cache-Control": isLive
+            ? "public, s-maxage=60, stale-while-revalidate=300"
+            : "public, s-maxage=3600, stale-while-revalidate=3600",
         },
       }
     );

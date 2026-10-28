@@ -182,14 +182,16 @@ export default function LiveMatchesRow({
   const { data: lbMatches = [] } = useQuery({
     queryKey: ["live", "liveball", "all"],
     queryFn: () => getLiveBallMatches(),
-    staleTime: 60_000,
+    staleTime: 15_000,
+    refetchInterval: 20_000,
   });
 
   const { data: leagueMatches = [], isLoading: isLoadingLeague } = useQuery({
     queryKey: ["live", "liveball", "league", leagueSlug],
     queryFn: () => (leagueSlug ? getLiveBallLeagueMatches(leagueSlug) : Promise.resolve([])),
     enabled: !!leagueSlug,
-    staleTime: 60_000,
+    staleTime: 15_000,
+    refetchInterval: 20_000,
   });
 
   const { posters, ready: postersReady } = useMatchPosterIndex();

@@ -703,9 +703,12 @@ export class MatchesService {
         isWinner: awayComp.winner || false,
       };
 
-      // Statut du match
-      const statusType = event.status?.type?.name || '';
-      const state = event.status?.type?.state || 'pre';
+      // Statut du match. L'endpoint `summary` ne place ni la date ni le statut
+      // à la racine de `header` : ils vivent dans la compétition. Sans ce repli,
+      // un match terminé ressortait en « à venir » avec l'heure du jour.
+      const matchStatus = event.status ?? competition.status;
+      const statusType = matchStatus?.type?.name || '';
+      const state = matchStatus?.type?.state || 'pre';
       let status: MatchStatus = 'upcoming';
 
       if (state === 'in') {
@@ -719,8 +722,9 @@ export class MatchesService {
       }
 
       // Minute / période
-      const minute = event.status?.displayClock || (event.status?.clock ? `${Math.floor(event.status.clock / 60)}'` : undefined);
-      const statusText = event.status?.type?.shortDetail || event.status?.type?.description;
+      const minute = matchStatus?.displayClock || (matchStatus?.clock ? `${Math.floor(matchStatus.clock / 60)}'` : undefined);
+      const statusText = matchStatus?.type?.shortDetail || matchStatus?.type?.description;
+      const startIso = event.date || competition.date;
 
       // Diffuseurs
       const broadcasts = (competition.broadcasts || [])
@@ -751,9 +755,9 @@ export class MatchesService {
         status,
         statusText,
         minute: status === 'live' ? minute : undefined,
-        period: event.status?.period ? `Période ${event.status.period}` : undefined,
-        startTime: event.date || new Date().toISOString(),
-        startTimestamp: event.date ? new Date(event.date).getTime() : Date.now(),
+        period: matchStatus?.period ? `Période ${matchStatus.period}` : undefined,
+        startTime: startIso || new Date().toISOString(),
+        startTimestamp: startIso ? new Date(startIso).getTime() : Date.now(),
         league,
         venue,
         broadcast: broadcasts.length > 0 ? broadcasts : undefined,

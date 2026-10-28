@@ -34,15 +34,15 @@ export default function LiveBallMatchContent() {
   const { data: matches = [] } = useQuery({
     queryKey: ["live", "liveball"],
     queryFn: () => getLiveBallMatches(),
-    staleTime: 60_000,
-    refetchInterval: 60_000,
+    staleTime: 15_000,
+    refetchInterval: 20_000,
   });
 
   const { data: clMatches = [] } = useQuery({
     queryKey: ["live", "liveball", "champions-league"],
     queryFn: () => getLiveBallChampionsLeague(),
-    staleTime: 60_000,
-    refetchInterval: 60_000,
+    staleTime: 15_000,
+    refetchInterval: 20_000,
   });
 
   const match: LiveBallMatch | undefined =

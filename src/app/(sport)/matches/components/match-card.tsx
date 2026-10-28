@@ -6,6 +6,7 @@ import { Star } from "@phosphor-icons/react";
 import type { SportMatch } from "@/types/matches";
 import { cacheMatch, formatTime, matchHref } from "../match-utils";
 import { getFastSportsImage } from "@/lib/sports-image";
+import { useNow } from "@/hooks/useNow";
 
 const PRIMARY = "#FF6A00";
 
@@ -74,6 +75,17 @@ export function MatchCard({
 }: MatchCardProps) {
   const isFinished = match.status === "finished";
 
+  // Le fournisseur annonce parfois le coup d'envoi avec du retard : la carte
+  // resterait sur l'heure de coup d'envoi alors que le match se joue. On se fie
+  // à l'horloge, sur une fenêtre bornée pour ne pas ranimer un vieux match.
+  const now = useNow(60_000);
+  const kickoffMs = Date.parse(match.startTime);
+  const clockLive =
+    match.status === "upcoming" &&
+    Number.isFinite(kickoffMs) &&
+    now >= kickoffMs + 5 * 60_000 &&
+    now - kickoffMs < 4 * 3_600_000;
+
   // Détection de la mi-temps (HT)
   const isHalfTime =
     (match.status === "live" &&
@@ -86,8 +98,13 @@ export function MatchCard({
       )) ||
     Boolean(match.period?.toLowerCase().includes("half"));
 
-  const isLive = match.status === "live";
-  const showScore = isLive || isFinished;
+  const isRealLive = match.status === "live";
+  const isLive = isRealLive || clockLive;
+
+  // Score : un match en direct sans score publié affiche 0–0 ; un match déduit
+  // en direct par l'horloge n'affiche rien tant que la source n'a pas de chiffre.
+  const hasScore = match.homeTeam.score !== undefined && match.awayTeam.score !== undefined;
+  const showScore = isFinished || isRealLive || (clockLive && hasScore);
 
   // Formatage de la date (ex: 13 OCT)
   const dayLabel = new Date(match.startTime)

@@ -100,15 +100,15 @@ export default function SportsMatchesRow({
   const { data: sportsMatches = [], isLoading: isLoadingSports } = useQuery({
     queryKey: ["live", "sports"],
     queryFn: () => getSportsMatches(),
-    staleTime: 60_000,
-    refetchInterval: 120_000,
+    staleTime: 15_000,
+    refetchInterval: 30_000,
   });
 
   const { data: liveballMatches = [], isLoading: isLoadingLiveBall } = useQuery({
     queryKey: ["live", "liveball"],
     queryFn: () => getLiveBallMatches(),
-    staleTime: 60_000,
-    refetchInterval: 120_000,
+    staleTime: 15_000,
+    refetchInterval: 30_000,
   });
 
   const isLoading = isLoadingSports && isLoadingLiveBall;
