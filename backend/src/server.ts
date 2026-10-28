@@ -7,6 +7,7 @@ import { SubscriptionPlan } from './models/SubscriptionPlan';
 import { syncSeed } from './modules/live/live.service';
 import { initializeSystemSettings } from './scripts/init-system-settings';
 import { startLabScheduler } from './modules/sports/lab/lab-scheduler';
+import { startSportsWarmScheduler } from './modules/sports/warm-scheduler';
 import { startNotificationWorker } from './modules/notifications/notification.worker';
 
 const PORT = process.env.PORT || 4000;
@@ -69,6 +70,7 @@ connectDB().then(async () => {
     // Seul exception : le snapshot « chaînes de match » du lab (flag dédié),
     // qui doit écrire un fichier local — impossible depuis une CI.
     startLabScheduler();
+    startSportsWarmScheduler();
     startNotificationWorker();
   });
 });

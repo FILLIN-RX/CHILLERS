@@ -20,7 +20,7 @@ async function main() {
   console.log('=== État des sources ===');
   const status = await getSportsSourcesStatus();
   for (const [name, s] of Object.entries(status)) {
-    console.log(`  ${s.ok ? 'OK ' : 'KO '} ${name.padEnd(10)} ${s.count} match(s)`);
+    console.log(`  ${s.ok ? 'OK ' : 'KO '} ${name.padEnd(10)} ${s.count} match(s) — fiabilité ${s.score}`);
   }
 
   console.log('\n=== Matchs agrégés ===');

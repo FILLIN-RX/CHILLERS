@@ -61,9 +61,12 @@ function serializeStream(req: Request, source: string, sourceId: string, stream:
     : [{ name: source, url: stream.url, type: stream.type }];
 
   // Le lien direct (HLS, surtout via notre relay) prime : l'embed provider
-  // n'est qu'un repli quand aucun HLS n'a été trouvé.
+  // n'est qu'un repli quand aucun HLS n'a été trouvé. À type égal, le meilleur
+  // score de fiabilité passe devant.
   const rank = (s: SportsServer) => (s.type === 'hls' ? 0 : 1);
-  const ordered = [...list].sort((a, b) => rank(a) - rank(b));
+  const ordered = [...list].sort(
+    (a, b) => rank(a) - rank(b) || (b.score ?? 0) - (a.score ?? 0),
+  );
 
   const servers = ordered.map((s) => {
     const provider = s.source ?? source;
@@ -88,6 +91,8 @@ function serializeStream(req: Request, source: string, sourceId: string, stream:
       provider: s.external ? undefined : provider,
       sourceId: s.external ? undefined : sid,
       external: s.external,
+      /** Probabilité estimée de flux jouable au prochain essai (0..1). */
+      score: s.score,
     };
   });
 

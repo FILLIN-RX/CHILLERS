@@ -57,6 +57,12 @@ export interface SportsServer {
   /** Flux TV indépendant du provider du match (ex. chaîne issue du snapshot IPTV). */
   external?: boolean;
   /**
+   * Probabilité estimée (0..1) que ce serveur réponde au prochain essai :
+   * fiabilité historique du provider, bonus HLS, sonde fraîche. C'est la clé de
+   * tri du sélecteur de sources côté client.
+   */
+  score?: number;
+  /**
    * Relay HLS déjà construit (fast path lab) : surcharge le relay générique
    * `source/sourceId` quand le lien vient du snapshot et non de la chaîne.
    */

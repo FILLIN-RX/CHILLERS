@@ -22,6 +22,7 @@ import { labFastPathServers } from './lab-fast-path';
 import { SPORTS_SOURCES, type ResolvedSportsStream, type SportsMatch, type SportsServer, type SportsSourceId } from './sports.types';
 import { getRegisteredChannels, rememberChannels } from './match-channels.registry';
 import { mapTvChannelsToMatch } from './utils/channel-mapping';
+import { getProviderScore, recordProviderOutcome, refreshProviderStats } from './provider-score';
 
 export * from './sports.types';
 
@@ -247,12 +248,20 @@ export async function findSportsMatch(matchId: string): Promise<SportsMatch | nu
 }
 
 /** État de chaque source, pour le diagnostic et la page /live. */
-export async function getSportsSourcesStatus(): Promise<Record<string, { ok: boolean; count: number }>> {
+export async function getSportsSourcesStatus(): Promise<Record<string, { ok: boolean; count: number; score: number }>> {
+  // Premier appel après démarrage : on attend le chargement des scores, sinon
+  // le diagnostic afficherait 50 % pour tout le monde.
+  await refreshProviderStats().catch(() => {});
   const results = await Promise.allSettled(SPORTS_SOURCES.map((s) => PROVIDERS[s].list()));
-  const status: Record<string, { ok: boolean; count: number }> = {};
+  const status: Record<string, { ok: boolean; count: number; score: number }> = {};
   SPORTS_SOURCES.forEach((s, i) => {
     const r = results[i];
-    status[s] = r.status === 'fulfilled' ? { ok: r.value.length > 0, count: r.value.length } : { ok: false, count: 0 };
+    status[s] = {
+      ok: r.status === 'fulfilled' && r.value.length > 0,
+      count: r.status === 'fulfilled' ? r.value.length : 0,
+      // Fiabilité observée (sondes passées), pas le nombre de matchs listés.
+      score: Math.round(getProviderScore(s) * 100) / 100,
+    };
   });
   return status;
 }
@@ -268,8 +277,19 @@ const CHAIN_DEADLINE_MS = 18_000;
 /** Agrégation de tous les providers : on parcourt toute la chaîne, pas seulement le premier qui joue. */
 const MULTI_CHAIN_DEADLINE_MS = 30_000;
 const ATTEMPT_BUDGET_MS = 7_000;
-/** Un seul lien de secours par provider : évite d'exposer plusieurs miroirs du même provider. */
-const MAX_SERVERS_PER_PROVIDER = 1;
+/**
+ * Candidats gardés par provider. Un provider qui publie plusieurs miroirs ne
+ * doit pas être réduit à un seul lien : si le premier meurt entre la collecte
+ * et le clic, le suivant est déjà là. `SPORTS_SERVERS_PER_PROVIDER` ajuste.
+ */
+const MAX_SERVERS_PER_PROVIDER = Math.min(
+  5,
+  Math.max(1, Number(process.env.SPORTS_SERVERS_PER_PROVIDER ?? 2) || 2),
+);
+/** Un flux TV apparié n'a pas été sondé : probabilité moyenne, pas nulle. */
+const TV_SERVER_SCORE = 0.55;
+/** HLS déjà récolté ET re-sondé par le lab : le candidat le plus sûr. */
+const LAB_SERVER_SCORE = 0.95;
 const FLUX_OK_TTL = 3 * 60_000;
 const FLUX_KO_TTL = 30_000;
 const FLUX_CACHE = new Map<string, { ts: number; data: SportsFlux | null; complete: boolean }>();
@@ -283,14 +303,37 @@ export interface ResolveSportsOptions {
   collectAll?: boolean;
 }
 
+/** Ordre de préférence d'une liste de serveurs : HLS d'abord, puis meilleur score. */
+function rankServers(servers: SportsServer[]): SportsServer[] {
+  return servers
+    .map((server, index) => ({ server, index }))
+    .sort((a, b) => {
+      const typeA = a.server.type === 'hls' ? 0 : 1;
+      const typeB = b.server.type === 'hls' ? 0 : 1;
+      if (typeA !== typeB) return typeA - typeB;
+      const scoreA = a.server.score ?? 0;
+      const scoreB = b.server.score ?? 0;
+      if (scoreA !== scoreB) return scoreB - scoreA;
+      return a.index - b.index;
+    })
+    .map((entry) => entry.server);
+}
+
+function candidateServerScore(providerScore: number, server: SportsServer): number {
+  const bonus = server.type === 'hls' ? 0.1 : 0;
+  return Math.round(Math.min(0.99, providerScore + bonus) * 100) / 100;
+}
+
 function limitServersPerProvider(servers: SportsServer[]): SportsServer[] {
-  const seenProviders = new Set<string>();
+  const perProvider = new Map<string, number>();
   const seenUrls = new Set<string>();
   const limited: SportsServer[] = [];
-  for (const server of servers) {
+  for (const server of rankServers(servers)) {
     const provider = server.source ?? (server.external ? `external:${server.name}` : `unknown:${server.name || server.url}`);
-    if (!server.url || seenProviders.has(provider) || seenUrls.has(server.url)) continue;
-    seenProviders.add(provider);
+    if (!server.url || seenUrls.has(server.url)) continue;
+    const count = perProvider.get(provider) ?? 0;
+    if (count >= MAX_SERVERS_PER_PROVIDER) continue;
+    perProvider.set(provider, count + 1);
     seenUrls.add(server.url);
     limited.push(server);
   }
@@ -303,8 +346,9 @@ function withBudget<T>(promise: Promise<T>, budgetMs: number): Promise<T | null>
 }
 
 /**
- * Le match demandé d'abord, puis ses jumeaux découverts chez les autres sources
- * — kora en tout dernier : c'est un repli, pas la source primaire.
+ * Le match demandé et ses jumeaux découverts chez les autres sources, classés
+ * par probabilité de donner un flux jouable : fiabilité historique du provider
+ * (55 %), correspondance de l'affiche (30 %), match déjà en direct (15 %).
  *
  * ⚠ On interroge chaque source SÉPARÉMENT (liste brute non dédupliquée) afin
  * de retrouver tous les providers qui couvrent ce même match. La liste globale
@@ -312,6 +356,9 @@ function withBudget<T>(promise: Promise<T>, budgetMs: number): Promise<T | null>
  * (le gagnant de la priorité) : les jumeaux kora/kooorah y seraient invisibles.
  */
 async function chainCandidates(target: SportsMatch): Promise<SportsMatch[]> {
+  // Scores à jour avant le tri ; une base indisponible laisse tout à 50 %.
+  await refreshProviderStats().catch(() => {});
+
   // Récupère la liste brute de chaque source en parallèle (cache 30 s individuel).
   const perSource = await Promise.allSettled(SPORTS_SOURCES.map((s) => getSportsMatches(s)));
   const rawAll: SportsMatch[] = [];
@@ -320,23 +367,19 @@ async function chainCandidates(target: SportsMatch): Promise<SportsMatch[]> {
   }
 
   const own = rawAll.find((m) => m.id === target.id) ?? target;
+  const candidates = [own, ...rawAll.filter((m) => m.id !== own.id && isSameFixture(own, m))];
 
-  const twins = rawAll
-    .filter((m) => m.id !== own.id && isSameFixture(own, m))
-    .map((m) => ({ m, score: fixtureScore(own, m), gap: Math.abs((m.startTs ?? 0) - (own.startTs ?? 0)) }))
-    .sort((a, b) => b.score - a.score || a.gap - b.gap)
-    .map((x) => x.m);
-
-  // Le match demandé doit TOUJOURS être testé en premier.
-  // Ses jumeaux ne sont tentés qu'en cas d'échec du flux principal,
-  // en privilégiant les sources HLS directes (liveball, kooorah...) avant kora.
-  const otherTwins = twins.filter((m) => m.id !== own.id);
-  const sortedTwins = [
-    ...otherTwins.filter((m) => m.source !== 'kora'),
-    ...otherTwins.filter((m) => m.source === 'kora'),
-  ];
-
-  return [own, ...sortedTwins];
+  return candidates
+    .map((m, index) => ({
+      match: m,
+      index,
+      rank:
+        getProviderScore(m.source) * 0.55 +
+        fixtureScore(own, m) * 0.3 +
+        (m.status === 'live' ? 0.15 : 0),
+    }))
+    .sort((a, b) => b.rank - a.rank || a.index - b.index)
+    .map((entry) => entry.match);
 }
 
 /**
@@ -364,6 +407,10 @@ export async function resolveSportsFlux(
 
   const deadline = Date.now() + (collectAll ? MULTI_CHAIN_DEADLINE_MS : CHAIN_DEADLINE_MS);
   const candidates = await chainCandidates(target);
+  // Un échec ne prouve quelque chose que sur un match commencé : avant le coup
+  // d'envoi, « aucun flux » est le comportement normal, pas une défaillance du
+  // provider. Sans ce garde-fou, le préchauffage ferait couler tous les scores.
+  const liveAttempt = target.status === 'live';
   const attempts: string[] = [];
   const servers: SportsServer[] = [];
   let primary: SportsFlux | null = null;
@@ -379,11 +426,13 @@ export async function resolveSportsFlux(
       labBudget,
     );
     if (labPlayable && labPlayable.length > 0) {
-      servers.push(...labPlayable);
+      // Sonde fraîche : le lab a déjà récolté et vérifié ces HLS.
+      const labTagged = labPlayable.map((s) => ({ ...s, score: LAB_SERVER_SCORE }));
+      servers.push(...labTagged);
       primary = {
-        stream: { url: labPlayable[0].url, type: 'hls', servers: labPlayable },
-        source: labPlayable[0].source ?? target.source,
-        sourceId: labPlayable[0].sourceId ?? target.sourceId,
+        stream: { url: labTagged[0].url, type: 'hls', servers: labTagged },
+        source: labTagged[0].source ?? target.source,
+        sourceId: labTagged[0].sourceId ?? target.sourceId,
       };
       attempts.push(`lab=${labPlayable.length} HLS`);
       console.log(`[sports] flux servi par le lab (${labPlayable.length} HLS déjà récolté(s)) pour ${target.id}`);
@@ -407,6 +456,7 @@ export async function resolveSportsFlux(
     const resolved = await withBudget(PROVIDERS[candidate.source].resolve(candidate.sourceId, force), budget);
     if (!resolved?.url) {
       attempts.push(`${candidate.source}=aucun flux`);
+      if (liveAttempt) recordProviderOutcome(candidate.source, 'fail');
       continue;
     }
 
@@ -420,15 +470,21 @@ export async function resolveSportsFlux(
     );
     if (!playable || playable.length === 0) {
       attempts.push(`${candidate.source}=flux non jouable`);
+      if (liveAttempt) recordProviderOutcome(candidate.source, 'fail');
       continue;
     }
 
+    // Score du provider observé + bonus HLS : ce que le client affichera comme
+    // probabilité de réussite, et la clé de tri du sélecteur de sources.
+    const providerScore = getProviderScore(candidate.source);
     const tagged: SportsServer[] = playable.map((s) => ({
       ...s,
       source: candidate.source,
       sourceId: candidate.sourceId,
+      score: candidateServerScore(providerScore, s),
     }));
     servers.push(...tagged);
+    recordProviderOutcome(candidate.source, playable[0].type === 'hls' ? 'hls' : 'iframe');
 
     if (!primary) {
       primary = {
@@ -451,10 +507,12 @@ export async function resolveSportsFlux(
   // Mapping diffuseurs TV : si le match est diffusé sur une chaîne TV disponible
   // (beIN Sports, Canal+, SSC, Eurosport, etc.), on l'ajoute aux serveurs.
   // Une source peut retourner plusieurs miroirs, mais ceux-ci ne sont pas
-  // autant de providers indépendants. On conserve le meilleur lien testé par
-  // provider (HLS d'abord, l'ordre de pickPlayableServers le garantit).
+  // autant de providers indépendants. On garde les meilleurs candidats par
+  // provider (HLS d'abord, puis score), dans la limite configurée.
   const providerServers = collectAll ? limitServersPerProvider(servers) : servers;
-  const mappedServers = mapTvChannelsToMatch(target, providerServers);
+  const mappedServers = mapTvChannelsToMatch(target, providerServers).map((server) =>
+    server.external && server.score === undefined ? { ...server, score: TV_SERVER_SCORE } : server,
+  );
   const boundedServers = limitServersPerProvider(mappedServers);
 
   if (!primary) {
@@ -526,16 +584,21 @@ const lastCollectAt = new Map<string, number>();
  * de suite (le premier provider qui joue suffit au player), les autres serveurs
  * arrivent dans le registre quelques secondes plus tard — le prochain appel
  * /channels les sert alors instantanément.
+ *
+ * Renvoie la promesse de collecte quand elle démarre, `null` quand les gardes
+ * l'ont évitée : l'ordonnanceur de préchauffage peut ainsi borner sa
+ * concurrence sans contourner les déduplications.
  */
-export function warmupMatchChannels(match: SportsMatch): void {
-  if (collectInFlight.has(match.id)) return;
-  if (getRegisteredChannels(match.id)?.complete) return;
+export function warmupMatchChannels(match: SportsMatch): Promise<void> | null {
+  if (collectInFlight.has(match.id)) return null;
+  if (getRegisteredChannels(match.id)?.complete) return null;
   const last = lastCollectAt.get(match.id) ?? 0;
-  if (Date.now() - last < COLLECT_COOLDOWN_MS) return;
+  if (Date.now() - last < COLLECT_COOLDOWN_MS) return null;
 
   lastCollectAt.set(match.id, Date.now());
   collectInFlight.add(match.id);
-  resolveSportsFlux(match, false, { collectAll: true })
+  return resolveSportsFlux(match, false, { collectAll: true })
+    .then(() => undefined)
     .catch((err) => console.warn(`[sports] agrégation en arrière-plan échouée pour ${match.id}:`, err))
     .finally(() => collectInFlight.delete(match.id));
 }

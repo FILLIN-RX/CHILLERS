@@ -37,6 +37,11 @@ export interface SportsServer {
   sourceId?: string;
   /** Flux TV indépendant d'un des providers de match. */
   external?: boolean;
+  /**
+   * Probabilité estimée (0..1) de flux jouable au prochain essai :
+   * fiabilité historique du provider, bonus HLS, sonde fraîche.
+   */
+  score?: number;
 }
 
 export interface SportsStream {

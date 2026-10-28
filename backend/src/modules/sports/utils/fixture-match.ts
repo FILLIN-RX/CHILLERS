@@ -11,6 +11,11 @@ import type { SportsMatch } from '../sports.types';
 const STOPWORDS = new Set([
   'fc', 'cf', 'sc', 'ac', 'afc', 'cfc', 'sk', 'fk', 'bk', 'de', 'du', 'del', 'la', 'le', 'les',
   'the', 'club', 'team', 'and', 'et', 'u',
+  // Article arabe : présent dans presque tous les noms de club, il ne
+  // distingue rien. Le laisser donnait 50 % à deux affiches différentes à la
+  // même heure (« Al-Nahda / Al-Rayyan » ≈ « Al-Dzhazira / Al-Mukharrak »),
+  // donc de faux jumeaux et le flux d'un autre match servi.
+  'al', 'el',
 ]);
 
 const ROMAN: Record<string, string> = { ii: '2', iii: '3', iv: '4', v: '5' };

@@ -107,7 +107,11 @@ export async function getKooorahMatches(): Promise<SportsMatch[]> {
       const startTs = dayStart !== undefined ? dayStart + h * 3600 + m * 60 : undefined;
 
       matches.push({
-        id: `kooorah:${shortHash(streamUrl)}`,
+        // Plusieurs affiches partagent la même chaîne (même `streamUrl`) : un
+        // identifiant dérivé du seul lien les confondrait — registre des
+        // chaînes, cache de flux et candidats d'un match se mélangeraient. La
+        // clé inclut donc la rencontre ; `sourceId` reste le lien à résoudre.
+        id: `kooorah:${shortHash(`${startTs ?? ''}|${rawHome}|${rawAway}|${streamUrl}`)}`,
         sourceId: streamUrl,
         source: 'kooorah',
         // Le site n'expose pas de statut : on se base sur l'heure de coupure

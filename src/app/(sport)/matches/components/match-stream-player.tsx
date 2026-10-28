@@ -31,6 +31,8 @@ interface ResolvedMatchStream {
   referer?: string;
   provider?: string;
   name?: string;
+  /** Probabilité de jouabilité estimée par le backend (0..1). */
+  score?: number;
   candidates?: ResolvedMatchStream[];
 }
 
@@ -96,6 +98,7 @@ export function MatchStreamPlayer({
             referer: server.referer,
             provider: server.external ? undefined : server.provider ?? primary.source ?? primary.provider,
             name: server.name,
+            score: server.score,
           }))
         : [{
             url: primary.url,
@@ -132,22 +135,35 @@ export function MatchStreamPlayer({
         referer: server.referer,
         provider: server.provider,
         name: server.name,
+        score: server.score,
       });
     }
-    return list.sort((a, b) => (a.type === "hls" ? 0 : 1) - (b.type === "hls" ? 0 : 1));
+    // Ordre de secours : HLS d'abord, puis la probabilité calculée par le
+    // backend (fiabilité du provider + sonde fraîche).
+    return list.sort(
+      (a, b) =>
+        (a.type === "hls" ? 0 : 1) - (b.type === "hls" ? 0 : 1) ||
+        (b.score ?? 0) - (a.score ?? 0),
+    );
   }, [backupChannels?.servers, stream]);
   const candidateIndex = candidateChoice?.matchId === matchId ? candidateChoice.index : 0;
   const activeStream = candidates[candidateIndex] ?? stream;
   const advanceCandidate = React.useCallback((reason: string) => {
+    // Seul le lien fautif est écarté : un autre miroir du même provider peut
+    // très bien répondre, c'est justement l'intérêt des candidats multiples.
     if (activeStream?.url) failedCandidatesRef.current.add(`${matchId}:${activeStream.url}`);
-    if (activeStream?.provider) failedCandidatesRef.current.add(`${matchId}:provider:${activeStream.provider}`);
     const next = candidates.findIndex((candidate, index) =>
-      index > candidateIndex && !failedCandidatesRef.current.has(`${matchId}:${candidate.url}`) &&
-      (!candidate.provider || !failedCandidatesRef.current.has(`${matchId}:provider:${candidate.provider}`)),
+      index > candidateIndex && !failedCandidatesRef.current.has(`${matchId}:${candidate.url}`),
     );
     if (next >= 0) {
+      const probability = candidates[next].score;
       setCandidateChoice({ matchId, index: next });
-      setPlaybackNotice({ matchId, text: `Source indisponible, passage à ${candidates[next].name || candidates[next].provider || "la source suivante"}.` });
+      setPlaybackNotice({
+        matchId,
+        text: `Source indisponible, passage à ${candidates[next].name || candidates[next].provider || "la source suivante"}${
+          probability !== undefined ? ` (${Math.round(probability * 100)} % de fiabilité)` : ""
+        }.`,
+      });
     } else {
       setPlaybackNotice({ matchId, text: `${reason}. Aucune autre source testée n’est disponible pour ce match.` });
     }
@@ -157,15 +173,14 @@ export function MatchStreamPlayer({
     if (candidates.length < 2) return;
     const nextIndex = (candidateIndex + 1) % candidates.length;
     const nextCandidate = candidates[nextIndex];
-    // A manual selection is an explicit retry, even if this source failed before.
+    // Un choix manuel est une nouvelle tentative, même si ce lien a échoué.
     failedCandidatesRef.current.delete(`${matchId}:${nextCandidate.url}`);
-    if (nextCandidate.provider) {
-      failedCandidatesRef.current.delete(`${matchId}:provider:${nextCandidate.provider}`);
-    }
     setCandidateChoice({ matchId, index: nextIndex });
     setPlaybackNotice({
       matchId,
-      text: `Source ${nextIndex + 1}/${candidates.length} : ${nextCandidate.name || nextCandidate.provider || "flux suivant"}.`,
+      text: `Source ${nextIndex + 1}/${candidates.length} : ${nextCandidate.name || nextCandidate.provider || "flux suivant"}${
+        nextCandidate.score !== undefined ? ` · ${Math.round(nextCandidate.score * 100)} %` : ""
+      }.`,
     });
   }, [candidateIndex, candidates, matchId]);
 
