@@ -165,7 +165,18 @@ export class ProviderManager {
       }
       // Embed sans URL directe jouable : on continue la chaîne (frenchstream,
       // torrents…) et on ne garde ce résultat qu'en dernier recours.
-      if (attempt.status === 'weak' && !weak) weak = attempt;
+      if (attempt.status === 'weak') {
+        // VidLink (iframe TMDB) clôt la chaîne et reste le dernier recours :
+        // il remplace un weak antérieur (embed souvent mort), mais ne doit
+        // jamais empêcher un provider direct d'être tenté avant lui. Inutile
+        // aussi de payer le P2P TorrServer (budget 50 s) pour retomber sur la
+        // même iframe.
+        if (attempt.provider === 'vidlink') {
+          weak = attempt;
+          break;
+        }
+        if (!weak) weak = attempt;
+      }
     }
 
     if (weak) {
@@ -217,7 +228,18 @@ export class ProviderManager {
         }
         return result;
       }
-      if (attempt.status === 'weak' && !weak) weak = attempt;
+      if (attempt.status === 'weak') {
+        // VidLink (iframe TMDB) clôt la chaîne et reste le dernier recours :
+        // il remplace un weak antérieur (embed souvent mort), mais ne doit
+        // jamais empêcher un provider direct d'être tenté avant lui. Inutile
+        // aussi de payer le P2P TorrServer (budget 50 s) pour retomber sur la
+        // même iframe.
+        if (attempt.provider === 'vidlink') {
+          weak = attempt;
+          break;
+        }
+        if (!weak) weak = attempt;
+      }
     }
 
     if (weak) {
@@ -396,7 +418,10 @@ export class ProviderManager {
           result: enriched,
         };
       } else {
-        this.recordFailure(provider.name);
+        // Un lien rejeté = fichier mort côté hébergeur (ex. Otaku renvoie un
+        // playmogo « Video not found »), pas une panne du provider : comme pour
+        // un « no result », on ne touche pas au circuit breaker, sinon 3 contenus
+        // expirés suffisent à priver le provider de toute la chaîne pendant 60 s.
         this.triggerReScrape(query.title || String(query.tmdbId), type, query.episode);
         return {
           provider: provider.name,
@@ -463,7 +488,12 @@ export class ProviderManager {
 
       // Hôte qu'on ne sait pas scraper (YouTube, VOE, …) : l'embed reste le
       // meilleur résultat disponible → compté comme une réussite.
-      if (outcome.status === 'unsupported') return { result, weak: false };
+      // Exception : VidLink est notre iframe TMDB de dernier recours. Pour la
+      // TV sa sonde de contenu ne rejette jamais rien : le compter comme
+      // « success » arrêtait la chaîne sur un lecteur potentiellement vide.
+      if (outcome.status === 'unsupported') {
+        return { result, weak: providerName === 'vidlink' };
+      }
 
       console.warn(
         `[Stream] "${providerName}" embed non jouable → ${result.embedUrl.slice(0, 120)} (on continue la chaîne)`
@@ -484,9 +514,13 @@ export class ProviderManager {
       // 1. mongodb
       // 2. frenchanime (French Anime / catalogue W16)
       // 3. otaku (API OpenOtaku)
-      // 4. puis les autres providers
-      // 5. frenchstream tout en bas
-      const animeOrder = ['mongodb', 'frenchanime', 'otaku'];
+      // 4. frenchstream : placé AVANT les autres providers. Il renvoie un HLS
+      //    direct là où VidLink ne sert qu'une iframe TMDB ; quand il était en
+      //    dernier, VidLink (jamais rejeté pour la TV) le court-circuitait et
+      //    les épisodes réellement disponibles chez FrenchStream tombaient sur
+      //    une iframe morte (ex. Pokémon Horizons).
+      // 5. puis les autres providers
+      const animeOrder = ['mongodb', 'frenchanime', 'otaku', 'frenchstream'];
       const byName = new Map(this.providers.map((p) => [p.name, p]));
 
       const prioritized: StreamingProvider[] = [];
@@ -497,16 +531,10 @@ export class ProviderManager {
 
       const others: StreamingProvider[] = [];
       for (const p of this.providers) {
-        if (!animeOrder.includes(p.name) && p.name !== 'frenchstream') {
-          if (p.supports(query)) others.push(p);
-        }
+        if (!animeOrder.includes(p.name) && p.supports(query)) others.push(p);
       }
 
-      const bottom: StreamingProvider[] = [];
-      const fs = byName.get('frenchstream');
-      if (fs && fs.supports(query)) bottom.push(fs);
-
-      return [...prioritized, ...others, ...bottom];
+      return [...prioritized, ...others];
     }
 
     const supports: StreamingProvider[] = [];

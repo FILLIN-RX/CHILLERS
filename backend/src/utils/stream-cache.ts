@@ -26,6 +26,14 @@ export interface CachedStream {
 
 const STREAM_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 heures (rechargement instantané)
 
+/**
+ * Préfixe de génération des clés. Incrémenté à chaque changement de sémantique
+ * du cache : les entrées de l'ancienne génération ne sont plus lues.
+ * v2 : purge des iframes VidLink figées 24 h avant que FrenchStream ne passe
+ * devant VidLink dans l'ordre animé.
+ */
+const CACHE_LAYOUT = 'v2';
+
 export const streamCache = new LRUCache<string, CachedStream>({
   max: 2000,
   ttl: STREAM_CACHE_TTL,
@@ -42,8 +50,8 @@ export function getCacheKey(
 ): string {
   const tier = isPremium ? 'prem' : 'free';
   const lang = (language || 'fr').toLowerCase();
-  if (type === 'movie') return `movie:${tmdbId}:${tier}:${lang}`;
-  return `ep:${tmdbId}:${season ?? 0}:${episode ?? 0}:${tier}:${lang}`;
+  if (type === 'movie') return `${CACHE_LAYOUT}:movie:${tmdbId}:${tier}:${lang}`;
+  return `${CACHE_LAYOUT}:ep:${tmdbId}:${season ?? 0}:${episode ?? 0}:${tier}:${lang}`;
 }
 
 /** Invalide le cache pour un film/épisode (après re-scrape par ex.). */
