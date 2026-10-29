@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getChannels, getMatches, getMatchStream, getMatchStreamById, getSources } from './sports.controller';
+import { getChannels, getLiveScores, getMatches, getMatchStream, getMatchStreamById, getSources } from './sports.controller';
 import { getHlsMasterPlaylist, getHlsProxy } from './utils/sports.hls-relay';
 import { matchLogger } from './match-logger';
 import { MULTI_SERVER_ENABLED } from './match-channels.registry';
@@ -10,6 +10,7 @@ const router = Router();
 
 // Public
 router.get('/matches', getMatches);
+router.get('/live-scores', getLiveScores);
 router.get('/sources', getSources);
 router.get('/match/:source/:matchId/stream', matchLogger, getMatchStream);
 router.get('/match/:matchId/stream', matchLogger, getMatchStreamById);

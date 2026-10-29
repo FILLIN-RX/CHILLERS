@@ -8,13 +8,15 @@ import { Television, X } from "@phosphor-icons/react";
 import LivePlayer from "@/components/LivePlayer";
 import CompetitionBadge from "@/components/CompetitionBadge";
 import MatchShareButton from "@/components/live/MatchShareButton";
+import FollowMatchButton from "@/components/live/FollowMatchButton";
 import { MatchBackdrop, TeamCrest } from "@/components/MatchCardBackdrop";
 import { getSportsChannels, getSportsMatches, getSportsStream } from "@/services/sports";
 import { getMatchChannels, resolveOhaStream } from "@/services/oha";
 import MatchChannelsRow from "@/components/live/MatchChannelsRow";
 import type { OhaChannel } from "@/types/oha";
 import { getLiveBallMatches, getLiveBallChampionsLeague } from "@/services/liveball";
-import { buildAffiche, useMatchPosterIndex } from "@/hooks/useMatchPosterIndex";
+import { useMatchPosterIndex, buildAffiche } from "@/hooks/useMatchPosterIndex";
+import { useLiveScores } from "@/hooks/useLiveScores";
 import { useNow } from "@/hooks/useNow";
 import { formatMatchDay, formatMatchTime, teamTier } from "@/lib/match-poster";
 import type { LiveChannel } from "@/types/live";
@@ -122,7 +124,6 @@ export default function SportsMatchContent() {
     };
   }, []);
 
-  const isLb = decodedId.startsWith("liveball:") || decodedId.startsWith("lb-");
   const cleanId = decodedId.replace(/^liveball:|^lb-/, "");
 
   const { data: sportsMatches = [] } = useQuery({
@@ -345,6 +346,16 @@ export default function SportsMatchContent() {
 
   const resolvedMatch = playing?.match ?? match;
 
+  // Score rafraîchi toutes les 5 s pour la source LiveBall : l'agrégateur
+  // (cache 30 s) suffit à l'affichage initial, pas à un but en direct.
+  const liveScores = useLiveScores(resolvedMatch?.status === "live");
+  const liveScore =
+    resolvedMatch?.source === "liveball"
+      ? liveScores.get(`liveball:${resolvedMatch.sourceId ?? resolvedMatch.id}`)
+      : undefined;
+  const liveMinute = liveScore?.minute ?? resolvedMatch?.minute;
+  const liveScoreline = (liveScore?.score ?? resolvedMatch?.score)?.replace(/\s*:\s*/, " - ");
+
   const advanceToNextServer = useCallback(async (reason: string) => {
     const currentUrl = activeServer?.url ?? playing?.url;
     if (currentUrl) failedServersRef.current.add(`${decodedId}:${currentUrl}`);
@@ -496,8 +507,8 @@ export default function SportsMatchContent() {
               <span className="inline-flex items-center gap-1.5 shrink-0 rounded-[5px] bg-black/50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-white tabular-nums">
                 {isLive && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />}
                 {isLive
-                  ? resolvedMatch?.minute
-                    ? `Direct · ${resolvedMatch.minute}`
+                  ? liveMinute
+                    ? `Direct · ${liveMinute}`
                     : "Direct"
                   : kickoff
                     ? `${formatMatchDay(kickoff)} · ${formatMatchTime(kickoff)}`
@@ -523,8 +534,8 @@ export default function SportsMatchContent() {
                   {match.home}
                   {match.away ? ` — ${match.away}` : ""}
                 </h1>
-                {isLive && match.score && (
-                  <p className="text-2xl sm:text-3xl font-black text-white tabular-nums">{match.score}</p>
+                {isLive && liveScoreline && (
+                  <p className="text-2xl sm:text-3xl font-black text-white tabular-nums">{liveScoreline}</p>
                 )}
               </div>
 
@@ -550,6 +561,7 @@ export default function SportsMatchContent() {
                 <X className="h-4 w-4" />
                 Retour
               </Link>
+              <FollowMatchButton home={match.home} away={match.away} />
               <MatchShareButton title={teamsLabel} />
             </div>
           </div>
@@ -588,6 +600,7 @@ export default function SportsMatchContent() {
                 <X className="h-4 w-4" />
                 Retour
               </Link>
+              <FollowMatchButton home={resolvedMatch?.home ?? match?.home} away={resolvedMatch?.away ?? match?.away} />
               <MatchShareButton title={teamsLabel} />
             </div>
 
@@ -708,6 +721,12 @@ export default function SportsMatchContent() {
               <p className="text-xs sm:text-sm font-black uppercase tracking-wider text-white truncate max-w-full">
                 {resolvedMatch ? teamsLabel : "Match en direct"}
               </p>
+              {isLive && liveScoreline && (
+                <p className="text-[11px] font-bold text-white tabular-nums">
+                  {liveScoreline}
+                  {liveMinute ? ` · ${liveMinute}` : ""}
+                </p>
+              )}
               {affiche?.competition && (
                 <span className="flex items-center gap-1.5 min-w-0 max-w-full">
                   {affiche.competitionLogo && (
@@ -725,7 +744,10 @@ export default function SportsMatchContent() {
               )}
             </div>
 
-            <MatchShareButton title={teamsLabel} iconOnly />
+            <div className="flex items-center gap-2">
+              <FollowMatchButton home={resolvedMatch?.home ?? match?.home} away={resolvedMatch?.away ?? match?.away} iconOnly />
+              <MatchShareButton title={teamsLabel} iconOnly />
+            </div>
           </div>
         </div>
       )}

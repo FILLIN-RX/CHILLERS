@@ -170,6 +170,9 @@ const TEAM_ALIASES: Array<[RegExp, string]> = [
   [/\bpraha\b/g, "prague"],
   // Le flux russe francise l'allemand (« Kyoln ») là où ESPN écrit l'anglais.
   [/\bcologne\b/g, "koln"],
+  // « Bolonya » pour Bologne : « gn » (ɲ) et « ny » ne se rejoignent par aucune
+  // règle phonétique du plieur, et l'écart est de deux caractères.
+  [/\bbolonya\b/g, "bologna"],
 ];
 
 // « sporting » reste dans la clé : c'est l'identité de Sporting CP / Sporting
@@ -186,6 +189,14 @@ const NOISE_TOKENS = /\b(fc|cf|sc|ac|as|rc|us|afc|ssc|cd|club|de|united|city|hot
  */
 function foldTransliteration(key: string): string {
   return key
+    // Digraphs vocaliques : le russe rend « ä/ö/ä » par « ya/yo », et l'anglais
+    // écrit « ae/oe » là où l'allemand écrit « ä/ö » (« Haecken », « Malmoe »).
+    .replace(/ae/g, "e")
+    .replace(/oe/g, "o")
+    // L'italien « g » devant e/i et le « z » sonnent /dʒ/ et /ts/ : le russe les
+    // écrit « dzh » et « ts » (« Dzhenoa » pour Genoa, « Montsa » pour Monza).
+    .replace(/dzh/g, "g")
+    .replace(/ts/g, "s")
     .replace(/sht/g, "st")
     .replace(/kh/g, "h")
     .replace(/gh/g, "g")
@@ -211,8 +222,12 @@ function foldTransliteration(key: string): string {
 }
 
 /** Clé de comparaison d'un nom d'équipe : minuscules, sans accents, sans mention de club. */
+const keyCache = new Map<string, string>();
+
 export function normalizeTeam(name?: string): string {
   if (!name) return "";
+  const cached = keyCache.get(name);
+  if (cached !== undefined) return cached;
   let s = name
     .toLowerCase()
     .normalize("NFD")
@@ -224,7 +239,11 @@ export function normalizeTeam(name?: string): string {
   for (const [pattern, alias] of TEAM_ALIASES) s = s.replace(pattern, alias);
   s = s.replace(NOISE_TOKENS, " ");
   s = s.replace(/\s+/g, "");
-  return foldTransliteration(s.trim());
+  const key = foldTransliteration(s.trim());
+  // La clé est recalculée des milliers de fois par rangée (chaque rencontre est
+  // comparée à chaque fiche) ; les noms d'équipe sont un ensemble borné.
+  if (keyCache.size < 2000) keyCache.set(name, key);
+  return key;
 }
 
 /**
@@ -243,14 +262,49 @@ export function teamTier(name?: string): string {
   return "";
 }
 
-/** Vrai quand les deux noms désignent la même équipe ; les clés trop courtes sont rejetées. */
-function sameTeam(a: string | undefined, b: string | undefined): boolean {
+/**
+ * Distance d'édition bornée : renvoie max+1 quand elle dépasse `max`, sans
+ * tableau complet pour les noms longs.
+ */
+function editDistance(a: string, b: string, max: number): number {
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    let best = i;
+    for (let j = 1; j <= b.length; j++) {
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      if (cur[j] < best) best = cur[j];
+    }
+    if (best > max) return max + 1;
+    prev = cur;
+  }
+  return prev[b.length] > max ? max + 1 : prev[b.length];
+}
+
+/**
+ * Vrai quand les deux noms désignent la même équipe.
+ *
+ * Le plieur phonétique traite les translittérations russes régulières
+ * (« Udineze » → Udinese, « Frayburg » → Freiburg, « Khalmstad » → Halmstad) mais
+ * laisse un ou deux caractères d'écart sur les autres. La tolérance ne s'applique
+ * qu'aux clés assez longues pour qu'un club homonyme distinct ne tombe pas
+ * dedans, et une jointure exige TOUJOURS les deux clubs de la rencontre :
+ * « Atalanta » et « Atlanta United » ont beau se ressembler, aucune rencontre
+ * commune ne les met face aux mêmes adversaires.
+ */
+export function sameTeam(a: string | undefined, b: string | undefined): boolean {
   const ka = normalizeTeam(a);
   const kb = normalizeTeam(b);
   if (ka.length < 3 || kb.length < 3) return false;
   // Deux catégories différentes ne sont jamais la même équipe.
   if (teamTier(a) !== teamTier(b)) return false;
-  return ka === kb || ka.includes(kb) || kb.includes(ka);
+  if (ka === kb) return true;
+  if (ka.includes(kb) || kb.includes(ka)) return true;
+  const shortest = Math.min(ka.length, kb.length);
+  if (shortest >= 8) return editDistance(ka, kb, 2) <= 2;
+  if (shortest >= 6) return editDistance(ka, kb, 1) <= 1;
+  return false;
 }
 
 export interface MatchPoster {

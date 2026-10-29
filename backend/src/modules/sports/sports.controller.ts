@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from 'express';
 import type { ResolvedSportsStream, SportsMatch, SportsServer } from './sports.types';
 import {
   findSportsMatch,
+  getLiveScoreSnapshot,
   getSportsMatches,
   getSportsSourcesStatus,
   isSportsSource,
@@ -28,6 +29,15 @@ export const getMatches = async (req: Request, res: Response, next: NextFunction
 
     const matches = await getSportsMatches(source);
     res.json({ success: true, data: matches, message: null });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** Scores bruts rafraîchis à 5 s, pour l'affichage et les alertes côté client. */
+export const getLiveScores = async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    res.json({ success: true, data: await getLiveScoreSnapshot(), message: null });
   } catch (error) {
     next(error);
   }

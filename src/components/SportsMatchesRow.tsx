@@ -8,7 +8,9 @@ import gsap from "gsap";
 import { getSportsMatches } from "@/services/sports";
 import { getLiveBallMatches } from "@/services/liveball";
 import { buildAffiche, useMatchPosterIndex, type MatchAffiche } from "@/hooks/useMatchPosterIndex";
-import { formatMatchDay, formatMatchTime } from "@/lib/match-poster";
+import { useLiveScores } from "@/hooks/useLiveScores";
+import { applyLiveScores } from "@/lib/live-scores";
+import { formatMatchDay, formatMatchTime, sameTeam } from "@/lib/match-poster";
 import CompetitionBadge from "@/components/CompetitionBadge";
 import { MatchBackdrop, TeamCrest } from "@/components/MatchCardBackdrop";
 import type { SportsMatch } from "@/types/sports";
@@ -27,8 +29,8 @@ function rankSource(entry: ShowcaseEntry): number {
 
 /**
  * Deux sources décrivent la même rencontre sans publier les mêmes champs : l'une
- * donne le score, l'autre les écussons. La carte retenue garde le meilleur des
- * deux au lieu de laisser passer la plus pauvre.
+ * donne le score, l'autre l'affiche du service de score. La carte retenue garde
+ * le meilleur des deux au lieu de laisser passer la plus pauvre.
  */
 function mergeSources(kept: ShowcaseEntry, extra: ShowcaseEntry): ShowcaseEntry {
   return {
@@ -51,29 +53,34 @@ function mergeSources(kept: ShowcaseEntry, extra: ShowcaseEntry): ShowcaseEntry 
   };
 }
 
-function normalizeTeam(name?: string): string {
-  if (!name) return "";
-  let s = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  s = s.replace(/\bparis\s+saint[- ]germain\b/g, "psg");
-  s = s.replace(/\bmanchester\s+city\b/g, "mancity");
-  s = s.replace(/\bmanchester\s+united\b/g, "manunited");
-  s = s.replace(/\batletico\s+madrid\b/g, "atleticomadrid");
-  s = s.replace(/\breal\s+madrid\b/g, "realmadrid");
-  s = s.replace(/\bbayern\s+munich\b/g, "bayernmunich");
-  s = s.replace(/\bbayern\s+münchen\b/g, "bayernmunich");
-  s = s.replace(/\bborussia\s+dortmund\b/g, "dortmund");
-  s = s.replace(/\b(fc|cf|sc|ac|as|rc|us|afc|ssc|cd|club|de|united|city|hotspur|sporting)\b/g, "");
-  s = s.replace(/[^a-z0-9]/g, "");
-  return s.trim();
+/**
+ * Deux sources décrivent la même rencontre avec des graphies de clubs qui ne se
+ * recouvrent pas (« Milan / Bologna » d'un côté, « AC Milan / Bolonya » de
+ * l'autre) : la comparaison se fait sur les jointures d'affiche, pas sur une clé
+ * locale. Le coup d'envoi n'est compatible que si les deux sources le publient —
+ * LiveBall n'en publie aucun, et exiger la fenêtre laissait les deux cartes
+ * séparées, l'une avec le score, l'autre sur « VS ».
+ */
+function isSameMatch(a: SportsMatch, b: SportsMatch): boolean {
+  const direct = sameTeam(a.home, b.home) && sameTeam(a.away, b.away);
+  const swapped = sameTeam(a.home, b.away) && sameTeam(a.away, b.home);
+  if (!direct && !swapped) return false;
+  if (!a.startTs || !b.startTs) return true;
+  return Math.abs(a.startTs - b.startTs) <= 6 * 3600;
 }
 
-function getMatchFingerprint(m: SportsMatch): string {
-  const h = normalizeTeam(m.home);
-  const a = normalizeTeam(m.away);
-  if (!h) return m.id;
-  const teams = [h, a].filter(Boolean).sort().join("_");
-  const timeWindow = m.startTs ? Math.floor(m.startTs / 7200) : "today";
-  return `${teams}_${timeWindow}`;
+/** Garde les champs que la source de base ne publie pas. */
+function mergeMatchFields(kept: SportsMatch, extra: SportsMatch): SportsMatch {
+  return {
+    ...kept,
+    score: kept.score || extra.score,
+    minute: kept.minute ?? extra.minute,
+    startTs: kept.startTs ?? extra.startTs,
+    homeLogo: kept.homeLogo || extra.homeLogo,
+    awayLogo: kept.awayLogo || extra.awayLogo,
+    league: kept.league || extra.league,
+    slug: kept.slug || extra.slug,
+  };
 }
 
 function formatKickoff(ts?: number): string {
@@ -113,6 +120,9 @@ export default function SportsMatchesRow({
 
   const isLoading = isLoadingSports && isLoadingLiveBall;
 
+  const hasLiveBall = liveballMatches.some((match) => match.status === "live");
+  const liveScores = useLiveScores(hasLiveBall);
+
   const { posters, ready: postersReady } = useMatchPosterIndex();
 
   // Déduplique intelligemment par équipes : LiveBall en priorité, fusion des logos et scores
@@ -134,46 +144,28 @@ export default function SportsMatchesRow({
     }));
 
     const all = [...lbConverted, ...(sportsMatches || [])];
-    const grouped = new Map<string, SportsMatch>();
+    const clusters: SportsMatch[] = [];
     const seenIds = new Set<string>();
 
     for (const m of all) {
       if (!m?.id || !m.home || !m.away) continue;
       if (seenIds.has(m.id)) continue;
-      const key = getMatchFingerprint(m);
-      const existing = grouped.get(key);
+      seenIds.add(m.id);
 
-      if (!existing) {
-        grouped.set(key, { ...m });
-        seenIds.add(m.id);
-      } else {
-        // Si la nouvelle source est LiveBall, elle prend le dessus sur l'ID et l'URL
-        if (m.source === "liveball" && existing.source !== "liveball") {
-          grouped.set(key, {
-            ...m,
-            // Slug neutle du backend : l'URL reste stable si les providers changent.
-            slug: existing.slug || m.slug,
-            homeLogo: existing.homeLogo || m.homeLogo,
-            awayLogo: existing.awayLogo || m.awayLogo,
-            score: existing.score || m.score,
-            league: existing.league || m.league,
-          });
-        } else {
-          // Complète les logos/score manquants
-          if (!existing.homeLogo && m.homeLogo) existing.homeLogo = m.homeLogo;
-          if (!existing.awayLogo && m.awayLogo) existing.awayLogo = m.awayLogo;
-          if (!existing.score && m.score) existing.score = m.score;
-          if (!existing.league && m.league) existing.league = m.league;
-          if (!existing.slug && m.slug) existing.slug = m.slug;
-        }
-      }
+      const idx = clusters.findIndex((c) => isSameMatch(c, m));
+      // LiveBall arrive en tête : la carte retenue garde donc son score et son
+      // identifiant de flux, et l'autre source ne comble que les champs vides.
+      if (idx < 0) clusters.push({ ...m });
+      else clusters[idx] = mergeMatchFields(clusters[idx], m);
     }
 
-    return Array.from(grouped.values()).sort((a, b) => {
+    // Le score de la carte LiveBall vient du relevé 5 s, plus frais que les
+    // listes en cache (60 s côté source, 30 s côté agrégateur).
+    return applyLiveScores(clusters, liveScores).sort((a, b) => {
       if (a.status !== b.status) return a.status === "live" ? -1 : 1;
       return (a.startTs ?? Number.MAX_SAFE_INTEGER) - (b.startTs ?? Number.MAX_SAFE_INTEGER);
     });
-  }, [sportsMatches, liveballMatches]);
+  }, [sportsMatches, liveballMatches, liveScores]);
 
   // Vitrine : les grandes compétitions seulement. Le tri se fait sur le libellé
   // de la source, renforcé par la jointure au service de score — jamais sur la
@@ -182,12 +174,12 @@ export default function SportsMatchesRow({
     const withAffiche = deduped.map((m) => ({ match: m, affiche: buildAffiche(m, posters) }));
     const majors = postersReady ? withAffiche.filter((entry) => entry.affiche.major) : withAffiche;
 
-    // Des sources différentes décrivent la même rencontre avec des noms de clubs
-    // et une heure de coup d'envoi qui ne se recouvrent pas : le fingerprint local
-    // ne les confond pas, l'identifiant du service de score oui.
+    // Deux fiches du service de score peuvent décrire la même rencontre (journée
+    // rejouée, doublon d'identifiant) : l'identifiant joint les cartes que les
+    // noms laissent séparées.
     const byKey = new Map<string, ShowcaseEntry>();
     for (const entry of majors) {
-      const key = entry.affiche.fixtureId || getMatchFingerprint(entry.match);
+      const key = entry.affiche.fixtureId || entry.match.id;
       const kept = byKey.get(key);
       if (!kept) byKey.set(key, entry);
       else byKey.set(key, rankSource(entry) > rankSource(kept) ? mergeSources(entry, kept) : mergeSources(kept, entry));

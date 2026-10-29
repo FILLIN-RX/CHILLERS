@@ -4,6 +4,7 @@ import {
   isMajorCompetition,
   normalizeTeam,
   presentCompetition,
+  sameTeam,
   type PosterFixture,
 } from "../match-poster";
 
@@ -38,7 +39,17 @@ const uclAtletico: PosterFixture = {
   away: "Manchester United",
 };
 
-const fixtures = [uclLens, serieA, uclAtletico];
+const milanBologna: PosterFixture = {
+  ...uclLens,
+  id: "401900002",
+  home: "AC Milan",
+  away: "Bologna",
+  leagueId: "ita.1",
+  leagueName: "Serie A",
+  leagueSlug: "serie-a",
+};
+
+const fixtures = [uclLens, serieA, uclAtletico, milanBologna];
 
 describe("isMajorCompetition", () => {
   it("reconnait les grandes compétitions quelle que soit la graphie de la source", () => {
@@ -82,6 +93,38 @@ describe("normalizeTeam", () => {
     // sans cette égalité, deux cartes décrivent la même rencontre.
     expect(normalizeTeam("Sabah FA")).toBe(normalizeTeam("Sabah FK"));
     expect(normalizeTeam("Inter")).toBe(normalizeTeam("Internazionale"));
+  });
+});
+
+describe("sameTeam", () => {
+  it("joint les translittérations russes des lives sur les graphies du score", () => {
+    // Relevé sur /live : faute de jointure, kooorah et LiveBall publient deux
+    // cartes de la même rencontre, l'une avec le score, l'autre sur « VS ».
+    expect(sameTeam("Bolonya", "Bologna")).toBe(true);
+    expect(sameTeam("Venetsiya", "Venezia")).toBe(true);
+    expect(sameTeam("Udineze", "Udinese")).toBe(true);
+    expect(sameTeam("Frayburg", "Freiburg")).toBe(true);
+    expect(sameTeam("Khalmstad", "Halmstad")).toBe(true);
+    expect(sameTeam("Malmyo", "Malmoe")).toBe(true);
+    expect(sameTeam("Kheken", "Haecken")).toBe(true);
+    expect(sameTeam("Gyoteborg", "Goeteborg")).toBe(true);
+    expect(sameTeam("Al-Vakhda", "Al-Wahda")).toBe(true);
+    expect(sameTeam("Sparta Praga", "Sparta Prague")).toBe(true);
+    expect(sameTeam("AC Milan", "Milan")).toBe(true);
+    expect(sameTeam("Inter Milan", "Inter")).toBe(true);
+  });
+
+  it("borne la tolérance aux noms assez longs pour ne pas confondre deux clubs", () => {
+    expect(sameTeam("Lecce", "Lecco")).toBe(false);
+    expect(sameTeam("Brest", "Brentford")).toBe(false);
+    expect(sameTeam("Betis", "Brest")).toBe(false);
+    expect(sameTeam("Albania", "Alianza FC")).toBe(false);
+    expect(sameTeam("Al Khaleej", "Al-Khaldiya")).toBe(false);
+  });
+
+  it("garde les catégories distinctes", () => {
+    expect(sameTeam("AS Roma (U-19)", "AS Roma")).toBe(false);
+    expect(sameTeam("Ajax U21", "Ajax U19")).toBe(false);
   });
 });
 
@@ -132,6 +175,14 @@ describe("findPoster", () => {
       startTs: uclAtletico.startTs,
     });
     expect(found?.fixture.id).toBe(uclAtletico.id);
+  });
+
+  it("rattache une rencontre écrite en translittération russe", () => {
+    // LiveBall écrit « AC Milan - Bolonya » là où le score publie « Bologna » :
+    // sans jointure, la carte du match perd son badge de compétition et son
+    // écusson, et se retrouve doublée par la carte de l'autre source.
+    const found = findPoster(fixtures, { home: "AC Milan", away: "Bolonya" });
+    expect(found?.fixture.id).toBe(milanBologna.id);
   });
 
   it("accepte les sources qui inversent domicile et extérieur", () => {

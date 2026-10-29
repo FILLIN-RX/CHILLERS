@@ -17,11 +17,43 @@ const STREAMIZ_ROOT = (process.env.STREAMIZ_URL || 'https://streamiz.lol').repla
 const STREAMIZ_PAGE = `${STREAMIZ_ROOT}/vipleaguetv/`;
 
 /**
- * Le programme de livetv902 est exprimé dans le fuseau de la source, qui est
- * décalé par rapport à l'UTC (le même programme apparaît 2h plus tard sur
- * l'API kora, qui est en UTC). Ajuster ici si la source change de fuseau.
+ * Le programme de livetv902 est exprimé dans le fuseau de la source, en heure
+ * locale : un décalage fixe par rapport à l'UTC se trompe d'une heure au
+ * changement d'heure (le direct du 29/10 était annoncé 1h trop tôt, donc
+ * « upcoming » alors que kora le donnait en direct). On lit donc le décalage
+ * réel à la date du programme, avec `STREAMIZ_TZ_OFFSET` pour forcer une valeur.
  */
-const STREAMIZ_TZ_OFFSET_HOURS = Number(process.env.STREAMIZ_TZ_OFFSET ?? 2);
+const STREAMIZ_TZ = process.env.STREAMIZ_TZ || 'Europe/Paris';
+const STREAMIZ_TZ_OFFSET_HOURS = process.env.STREAMIZ_TZ_OFFSET
+  ? Number(process.env.STREAMIZ_TZ_OFFSET)
+  : null;
+const TZ_FORMATTER = new Intl.DateTimeFormat('en-US', {
+  timeZone: STREAMIZ_TZ,
+  hour12: false,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+});
+
+/** Décalage (heures) du fuseau source à cet instant, heure d'été comprise. */
+function sourceOffsetHours(tsMs: number): number {
+  if (STREAMIZ_TZ_OFFSET_HOURS !== null) return STREAMIZ_TZ_OFFSET_HOURS;
+  const parts = Object.fromEntries(
+    TZ_FORMATTER.formatToParts(new Date(tsMs)).map((part) => [part.type, part.value]),
+  );
+  const asUtc = Date.UTC(
+    Number(parts.year),
+    Number(parts.month) - 1,
+    Number(parts.day),
+    Number(parts.hour) % 24,
+    Number(parts.minute),
+    Number(parts.second),
+  );
+  return Math.round((asUtc - tsMs) / 3600_000);
+}
 
 // L'identifiant exposé dans les URL ne doit contenir ni « / » ni « : » :
 // on condense donc la sourceId (une URL) en un hash court et stable.
@@ -102,7 +134,8 @@ export async function getStreamizMatches(): Promise<SportsMatch[]> {
 
       const [rawHome, rawAway] = label.split(' - ');
       const [h, m] = (time || '00:00').split(':').map((n) => parseInt(n, 10));
-      const startTs = dayStart + h * 3600 + m * 60 - STREAMIZ_TZ_OFFSET_HOURS * 3600;
+      const localTs = dayStart + h * 3600 + m * 60;
+      const startTs = localTs - sourceOffsetHours(localTs * 1000) * 3600;
 
       matches.push({
         id: `streamiz:${shortHash(servers[0])}`,

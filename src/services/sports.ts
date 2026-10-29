@@ -28,6 +28,26 @@ export async function getSportsLiveMatches(): Promise<SportsMatch[]> {
   return matches.filter((m) => m.status === "live");
 }
 
+export interface LiveScoreUpdate {
+  source: "liveball";
+  id: string;
+  score: string;
+  minute?: string;
+}
+
+/** Scores bruts rafraîchis à 5 s (page brute LiveBall, sans le cache 60 s). */
+export async function getSportsLiveScores(): Promise<{ scores: LiveScoreUpdate[]; updatedAt: number }> {
+  try {
+    const res = await httpJson<Envelope<{ scores: LiveScoreUpdate[]; updatedAt: number }>>("/sports/live-scores", {
+      timeoutMs: 8_000,
+    });
+    if (res?.data) return res.data;
+  } catch {
+    // Silencieux : les cartes gardent le score de l'agrégateur.
+  }
+  return { scores: [], updatedAt: 0 };
+}
+
 export async function getSportsStream(matchId: string): Promise<SportsStream | null> {
   try {
     const res = await httpJson<Envelope<SportsStream>>(

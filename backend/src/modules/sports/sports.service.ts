@@ -8,7 +8,9 @@
  * simplement contribution vide.
  */
 import {
+  fetchLiveBallHomepage,
   getLiveBallMatches,
+  parseBlocks,
   resolveLiveBallStream,
   type LiveBallMatch,
 } from '../liveball/liveball.service';
@@ -87,6 +89,52 @@ export function isSportsSource(value: string): value is SportsSourceId {
 const MATCHES_CACHE = new Map<string, { ts: number; data: SportsMatch[] }>();
 
 /**
+ * Un lien partagé (`/live/sp/1603075`) code l'identifiant d'UN provider. Quand
+ * celui-ci retire la rencontre de sa liste — rotation, fin de diffusion — alors
+ * que le match continue chez un autre, le lien tomberait sur « flux
+ * introuvable ». On garde l'affiche derrière chaque identifiant vu pour la
+ * relire dans la liste courante, quel que soit le provider qui la porte encore.
+ */
+const MATCH_ALIASES = new Map<string, { match: SportsMatch; ts: number }>();
+const ALIAS_TTL_MS = 12 * 3600_000;
+
+function rememberMatchAliases(members: SportsMatch[]) {
+  const ts = Date.now();
+  for (const member of members) {
+    MATCH_ALIASES.set(`${member.source}:${member.sourceId}`, { match: member, ts });
+    MATCH_ALIASES.set(member.sourceId, { match: member, ts });
+  }
+  if (MATCH_ALIASES.size > 2000) {
+    for (const [key, entry] of MATCH_ALIASES) {
+      if (ts - entry.ts > ALIAS_TTL_MS) MATCH_ALIASES.delete(key);
+    }
+  }
+}
+
+/**
+ * L'affiche mémorisée et son jumeau actuel : les libellés comptent, pas l'heure.
+ * Une source peut publier un coup d'envoi faux (décalage de fuseau) ; exiger la
+ * fenêtre ferait échouer la reprise d'un lien pourtant identifié.
+ */
+function sameFixtureByName(a: SportsMatch, b: SportsMatch): boolean {
+  return fixtureScore(a, b) >= 0.75;
+}
+
+/** Affiches mémorisées sous cet identifiant (nu ou `kora:659`). */
+function recallMatches(matchId: string): SportsMatch[] {
+  const now = Date.now();
+  const recalled: SportsMatch[] = [];
+  for (const [key, entry] of MATCH_ALIASES) {
+    if (now - entry.ts > ALIAS_TTL_MS) {
+      MATCH_ALIASES.delete(key);
+      continue;
+    }
+    if (key === matchId || key.endsWith(`:${matchId}`)) recalled.push(entry.match);
+  }
+  return recalled;
+}
+
+/**
  * Représentante d'une affiche publiée par plusieurs sources : les sources
  * HLS (liveball, kooorah…) passent avant kora, qui n'est qu'un repli.
  */
@@ -99,10 +147,17 @@ const SOURCE_PRIORITY: Record<SportsSourceId, number> = {
 };
 
 function representative(a: SportsMatch, b: SportsMatch): SportsMatch {
+  // Le direct passe avant la priorité du provider : une source qui annonce
+  // encore « à venir » ne doit pas masquer le match déjà commencé ailleurs —
+  // la carte afficherait « VS » et l'expiration des matchs à venir
+  // supprimerait la rencontre, flux compris.
+  if (a.status !== b.status) return a.status === 'live' ? a : b;
+  // À direct égal, l'entrée qui publie le score représente la rencontre : c'est
+  // l'information la plus visible de la carte (streamiz n'en publie aucun).
+  if (Boolean(a.score) !== Boolean(b.score)) return a.score ? a : b;
   const pa = SOURCE_PRIORITY[a.source];
   const pb = SOURCE_PRIORITY[b.source];
   if (pa !== pb) return pa < pb ? a : b;
-  if (a.status !== b.status) return a.status === 'live' ? a : b;
   return (a.startTs ?? Number.MAX_SAFE_INTEGER) <= (b.startTs ?? Number.MAX_SAFE_INTEGER) ? a : b;
 }
 
@@ -113,6 +168,39 @@ function readableSlug(m: SportsMatch): string | null {
 
 function fixtureHash(m: SportsMatch): string {
   return `f${createHash('sha1').update(`${m.home}|${m.away}|${m.startTs ?? ''}`).digest('hex').slice(0, 10)}`;
+}
+
+/** Score live brut, rafraîchi à 5 s : sert aux alertes but et à l'affichage. */
+export interface LiveScoreSnapshot {
+  source: 'liveball';
+  id: string;
+  score: string;
+  minute?: string;
+}
+
+let LIVE_SCORE_CACHE: { at: number; scores: LiveScoreSnapshot[] } | null = null;
+
+export async function getLiveScoreSnapshot(): Promise<{ scores: LiveScoreSnapshot[]; updatedAt: number }> {
+  if (LIVE_SCORE_CACHE && Date.now() - LIVE_SCORE_CACHE.at < 5_000) {
+    return { scores: LIVE_SCORE_CACHE.scores, updatedAt: LIVE_SCORE_CACHE.at };
+  }
+  try {
+    const html = await fetchLiveBallHomepage();
+    const scores = parseBlocks(html)
+      .filter((match) => match.status === 'live' && match.score)
+      .map((match) => ({
+        source: 'liveball' as const,
+        id: match.id,
+        score: match.score as string,
+        minute: match.minute,
+      }));
+    LIVE_SCORE_CACHE = { at: Date.now(), scores };
+    return { scores, updatedAt: LIVE_SCORE_CACHE.at };
+  } catch {
+    return LIVE_SCORE_CACHE
+      ? { scores: LIVE_SCORE_CACHE.scores, updatedAt: LIVE_SCORE_CACHE.at }
+      : { scores: [], updatedAt: 0 };
+  }
 }
 
 /**
@@ -152,46 +240,50 @@ export async function getSportsMatches(source?: string): Promise<SportsMatch[]> 
     .sort((a, b) => (a.startTs as number) - (b.startTs as number));
   const withoutTs = matches.filter((m) => m.startTs === undefined);
 
-  const groups: SportsMatch[] = [];
+  const groups: Array<{ match: SportsMatch; members: SportsMatch[] }> = [];
   for (const m of withTs) {
     let merged = false;
     for (let i = groups.length - 1; i >= 0; i--) {
       const g = groups[i];
-      if ((m.startTs as number) - (g.startTs as number) > WINDOW_S) break;
-      if (isSameFixture(g, m)) {
-        groups[i] = representative(g, m);
+      if ((m.startTs as number) - (g.match.startTs as number) > WINDOW_S) break;
+      if (isSameFixture(g.match, m)) {
+        g.match = representative(g.match, m);
+        g.members.push(m);
         merged = true;
         break;
       }
     }
-    if (!merged) groups.push(m);
+    if (!merged) groups.push({ match: m, members: [m] });
   }
   for (const m of withoutTs) {
     let merged = false;
     for (let i = 0; i < groups.length; i++) {
-      if (isSameFixture(groups[i], m)) {
-        groups[i] = representative(groups[i], m);
+      if (isSameFixture(groups[i].match, m)) {
+        groups[i].match = representative(groups[i].match, m);
+        groups[i].members.push(m);
         merged = true;
         break;
       }
     }
-    if (!merged) groups.push(m);
+    if (!merged) groups.push({ match: m, members: [m] });
   }
 
   // Expiry filter: drop matches that have likely ended.
   //   • 'upcoming' with startTs > 3 h ago → missed, definitely over
   //   • any status with startTs > 4 h ago  → safety net for stale 'live' markers
   const nowSec = Math.floor(Date.now() / 1000);
-  const active = groups.filter((m) => {
+  const active = groups.filter(({ match: m }) => {
     if (m.startTs === undefined) return true; // no timestamp → always keep
     const ageSec = nowSec - m.startTs;
     if (m.status === 'upcoming') return ageSec < 3 * 3600; // drop upcoming older than 3h
     return ageSec < 4 * 3600;                              // drop live/unknown older than 4h
   });
 
+  active.forEach((g) => rememberMatchAliases(g.members));
+
   // Slug neutle : `sourceId` lisible si personne d'autre ne le porte déjà,
   // sinon hash stable de la rencontre (pas de collision, pas de provider).
-  const based = active.map((m) => ({ ...m, slug: readableSlug(m) ?? fixtureHash(m) }));
+  const based = active.map(({ match }) => ({ ...match, slug: readableSlug(match) ?? fixtureHash(match) }));
   const slugCounts = new Map<string, number>();
   for (const m of based) slugCounts.set(m.slug as string, (slugCounts.get(m.slug as string) ?? 0) + 1);
   const sorted = based
@@ -236,6 +328,14 @@ export async function findSportsMatch(matchId: string): Promise<SportsMatch | nu
       const match = srcMatches.find((m) => m.sourceId === matchId || m.id === `${src}:${matchId}` || m.slug === matchId);
       if (match) return match;
     }
+
+    // Provider d'origine disparu de sa liste : retrouver l'affiche mémorisée
+    // dans la liste actuelle (un autre provider la diffuse peut-être encore).
+    const current = await getSportsMatches();
+    for (const remembered of recallMatches(matchId)) {
+      const found = current.find((m) => sameFixtureByName(m, remembered));
+      if (found) return found;
+    }
     return null;
   }
 
@@ -244,7 +344,15 @@ export async function findSportsMatch(matchId: string): Promise<SportsMatch | nu
 
   const wanted = matchId.slice(separator + 1);
   const matches = await getSportsMatches(source);
-  return matches.find((m) => m.sourceId === wanted || m.id === matchId) ?? null;
+  const found = matches.find((m) => m.sourceId === wanted || m.id === matchId);
+  if (found) return found;
+
+  const current = await getSportsMatches();
+  for (const remembered of recallMatches(matchId)) {
+    const twin = current.find((m) => sameFixtureByName(m, remembered));
+    if (twin) return twin;
+  }
+  return null;
 }
 
 /** État de chaque source, pour le diagnostic et la page /live. */

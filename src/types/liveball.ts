@@ -13,5 +13,7 @@ export interface LiveBallMatch {
 
 export interface LiveBallStream {
   url: string;
+  /** URL de notre relay HLS (renvoyée par le backend, absente du type historique). */
+  relayUrl?: string;
   type: "hls" | "iframe";
 }

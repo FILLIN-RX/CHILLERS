@@ -20,6 +20,40 @@ const STOPWORDS = new Set([
 
 const ROMAN: Record<string, string> = { ii: '2', iii: '3', iv: '4', v: '5' };
 
+/**
+ * Plie les translittérations des live (« Al-Khalidzh », « Khaleej », « Hazm »)
+ * sur une forme commune. Sans ce pli, LiveBall, kora et streamiz décrivent la
+ * même affiche avec des graphies que la distance d'édition ne rapproche pas :
+ * la chaîne de flux ne voit alors jamais le jumeau qui, lui, diffuse.
+ * Mêmes règles que le plieur du client (`src/lib/match-poster.ts`).
+ */
+const FOLD_RULES: Array<[RegExp, string]> = [
+  [/dzh/g, 'g'],
+  [/kh/g, 'h'],
+  [/gh/g, 'g'],
+  [/ph/g, 'f'],
+  [/ch/g, 'j'],
+  [/ck/g, 'k'],
+  [/sh/g, 's'],
+  [/j/g, 'h'],
+  [/[cq]/g, 'k'],
+  [/x/g, 'ks'],
+  [/y/g, 'i'],
+  [/w/g, 'v'],
+  [/v/g, 'u'],
+  [/z/g, 's'],
+  [/ee/g, 'i'],
+  [/oo/g, 'u'],
+  [/aa/g, 'a'],
+  [/(.)\1+/g, '$1'],
+];
+
+function foldTransliteration(token: string): string {
+  let value = token;
+  for (const [pattern, replacement] of FOLD_RULES) value = value.replace(pattern, replacement);
+  return value;
+}
+
 export function teamTokens(name?: string): string[] {
   if (!name) return [];
   const tokens = name
@@ -42,40 +76,58 @@ export function teamTokens(name?: string): string[] {
   });
 }
 
-/** Distance d'édition ≤ 1 (une insertion, suppression ou substitution). */
+/**
+ * Distance d'édition ≤ 1 (une insertion, suppression ou substitution).
+ * Le balayage naïf comptait deux éditions pour « Hazem » / « Hazm » quand la
+ * lettre en trop précède la fin du mot ; on retire un caractère du plus long
+ * et on compare, ce qui est exact pour une longueur d'un cran d'écart.
+ */
 function withinOneEdit(a: string, b: string): boolean {
+  if (a === b) return true;
   if (Math.abs(a.length - b.length) > 1) return false;
-  let i = 0;
-  let j = 0;
-  let edits = 0;
-  while (i < a.length && j < b.length) {
-    if (a[i] === b[j]) {
-      i++;
-      j++;
-      continue;
+  if (a.length === b.length) {
+    let diffs = 0;
+    for (let i = 0; i < a.length; i++) {
+      if (a[i] !== b[i] && ++diffs > 1) return false;
     }
-    if (++edits > 1) return false;
-    if (a.length > b.length) i++;
-    else if (b.length > a.length) j++;
-    else {
-      i++;
-      j++;
-    }
+    return true;
   }
-  return edits + (a.length - i) + (b.length - j) <= 1;
+  const short = a.length < b.length ? a : b;
+  const long = a.length < b.length ? b : a;
+  for (let i = 0; i < long.length; i++) {
+    if (long.slice(0, i) + long.slice(i + 1) === short) return true;
+  }
+  return false;
 }
 
-/** Deux jetons désignent le même mot si l'un est une abréviation/variante de l'autre. */
-function compatible(a: string, b: string): boolean {
+function sameToken(a: string, b: string): boolean {
   if (a === b) return true;
   // Tolérance d'abréviation : un jeton court est le début/fin de l'autre.
   // Seuil ≤7 pour couvrir "riyad"/"riyadh", "diriya"/"diriyah", "madrid"/"madridista"…
   if (a.length <= 7 && (b.startsWith(a) || b.endsWith(a))) return true;
   if (b.length <= 7 && (a.startsWith(b) || a.endsWith(b))) return true;
   // Variantes orthographiques d'une langue à l'autre (« Barcelone » / « Barcelona »,
-  // « Munich » / « Munchen ») : un seul caractère d'écart sur un mot assez long.
-  if (a.length >= 5 && b.length >= 5 && withinOneEdit(a, b)) return true;
+  // « Munich » / « Munchen », « Hazem » / « Hazm ») : un seul caractère d'écart.
+  // Une substitution exige deux mots assez longs ; une lettre de plus ou de
+  // moins est une preuve plus forte et passe dès 4 caractères.
+  const longer = Math.max(a.length, b.length);
+  const shorter = Math.min(a.length, b.length);
+  if (withinOneEdit(a, b) && shorter >= (longer === shorter ? 5 : 4)) return true;
   return false;
+}
+
+/**
+ * Deux jetons désignent le même mot si l'un est une abréviation/variante de
+ * l'autre, y compris à travers une translittération (« Khalidzh » / « Khaleej »).
+ * La forme brute est testée d'abord : le pli ne doit jamais casser une paire
+ * déjà reconnue (« Hazem » / « Hazm »).
+ */
+function compatible(a: string, b: string): boolean {
+  if (sameToken(a, b)) return true;
+  const fa = foldTransliteration(a);
+  const fb = foldTransliteration(b);
+  if (fa === a && fb === b) return false;
+  return sameToken(fa, fb);
 }
 
 /** 0 = rien en commun, 1 = les deux libellés couvrent les mêmes jetons. */
@@ -97,6 +149,11 @@ export function sideScore(a?: string, b?: string): number {
       hits++;
     }
   }
+  // Un libellé qui ajoute la ville qualifie le même club (« Al-Khaleej » /
+  // « Al Khaleej Saihat ») : quand tous les jetons de la forme courte sont
+  // couverts, la côté est complet — sinon le jumeau reste invisible et la
+  // chaîne s'arrête à un provider sans flux.
+  if (hits === Math.min(ta.length, tb.length)) return 1;
   return hits / Math.max(ta.length, tb.length);
 }
 

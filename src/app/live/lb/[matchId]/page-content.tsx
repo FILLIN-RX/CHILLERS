@@ -8,9 +8,12 @@ import { Television, X } from "@phosphor-icons/react";
 import LivePlayer from "@/components/LivePlayer";
 import CompetitionBadge from "@/components/CompetitionBadge";
 import MatchShareButton from "@/components/live/MatchShareButton";
+import FollowMatchButton from "@/components/live/FollowMatchButton";
 import { MatchBackdrop, TeamCrest } from "@/components/MatchCardBackdrop";
 import { getLiveBallStream, getLiveBallMatches, getLiveBallChampionsLeague } from "@/services/liveball";
+import { getSportsStream } from "@/services/sports";
 import { buildAffiche, useMatchPosterIndex } from "@/hooks/useMatchPosterIndex";
+import { useLiveScores } from "@/hooks/useLiveScores";
 import { useNow } from "@/hooks/useNow";
 import { formatMatchDay, formatMatchTime } from "@/lib/match-poster";
 import type { LiveChannel } from "@/types/live";
@@ -63,7 +66,13 @@ export default function LiveBallMatchContent() {
   const isUpcoming = preMatch || match?.status === "upcoming";
   const isLive = match?.status === "live";
 
-  const { data: stream, isLoading } = useQuery({
+  // Relevé 5 s : le cache de la source (60 s) laisse sinon le score en retard.
+  const liveScores = useLiveScores(isLive);
+  const liveScore = match ? liveScores.get(`liveball:${match.id}`) : undefined;
+  const liveMinute = liveScore?.minute ?? match?.minute;
+  const liveScoreline = (liveScore?.score ?? match?.score)?.replace(/\s*:\s*/, " - ");
+
+  const { data: stream, isLoading, isFetched: liveballFetched } = useQuery({
     queryKey: ["live", "liveball", "stream", matchId],
     queryFn: () => getLiveBallStream(matchId),
     staleTime: 0,
@@ -72,6 +81,20 @@ export default function LiveBallMatchContent() {
     // on re-vérifie régulièrement pour démarrer dès que la diffusion arrive.
     refetchInterval: (query) => (query.state.data ? false : 30_000),
   });
+
+  // Repli : LiveBall liste aussi des affiches qu'il ne diffuse pas. La chaîne
+  // unifiée cherche alors chez kora, kooorah… — sans elle, la page affichait
+  // « flux non détecté » alors qu'une source du même match jouait.
+  const { data: fallback, isPending: fallbackPending } = useQuery({
+    queryKey: ["live", "unified", "stream", `lb-${matchId}`],
+    queryFn: () => getSportsStream(matchId),
+    enabled: liveballFetched && !stream,
+    staleTime: 0,
+    retry: false,
+    refetchInterval: (query) => (query.state.data ? false : 30_000),
+  });
+  const resolved = stream ?? fallback ?? null;
+  const loadingStream = isLoading || (!stream && fallbackPending);
 
   const isInvalidEmbed = (url: string | null | undefined) => {
     if (!url) return true;
@@ -83,7 +106,7 @@ export default function LiveBallMatchContent() {
   //  - "iframe" → l'URL est un player propre à embarquer (pas la page du site).
   //    Passé par /api/live/embed-proxy comme sur les pages live/sp et matches :
   //    le proxy réécrit le HTML (pubs / popups / redirections retirées).
-  const rawEmbedUrl = stream?.type === "iframe" && !isInvalidEmbed(stream.url) ? stream.url : null;
+  const rawEmbedUrl = resolved?.type === "iframe" && !isInvalidEmbed(resolved.url) ? resolved.url : null;
   const embedUrl = rawEmbedUrl
     ? /youtube\.com|youtu\.be/i.test(rawEmbedUrl)
       ? rawEmbedUrl
@@ -95,14 +118,16 @@ export default function LiveBallMatchContent() {
   // (/hls/playlist.m3u8) : le backend rapatrie playlists + segments, donc le CDN
   // liveball ne voit que notre serveur (jeton lié à l'IP) et le navigateur reste
   // en same-origin (pas de CORS).
-  const channel: LiveChannel | null = stream?.type === "hls"
+  const channel: LiveChannel | null = resolved?.type === "hls"
     ? {
         _id: `lb-${matchId}`,
         name: match ? `${match.home} - ${match.away}` : `Match #${matchId}`,
         slug: `lb-${matchId}`,
         categories: ["sports"],
         type: "hls",
-        streamUrl: `/api/liveball/match/${matchId}/hls/playlist.m3u8`,
+        // Le backend renvoie déjà le relay de sa source (liveball, kora…) :
+        // l'ancien chemin fixe ne savait lire qu'un flux LiveBall.
+        streamUrl: resolved.relayUrl ?? `/api/liveball/match/${matchId}/hls/playlist.m3u8`,
         enabled: true,
         order: 0,
         isOnline: true,
@@ -111,7 +136,7 @@ export default function LiveBallMatchContent() {
 
   return (
     <div className="fixed inset-0 z-40 h-dvh w-screen bg-black overflow-hidden">
-      {isLoading && !channel && !embedUrl && (
+      {loadingStream && !channel && !embedUrl && (
         <div className="w-full h-full flex flex-col items-center justify-center gap-3 bg-black">
           <div className="h-12 w-12 border-4 border-brand-primary border-t-transparent rounded-full animate-spin" />
           <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
@@ -121,7 +146,7 @@ export default function LiveBallMatchContent() {
       )}
 
       {/* ── Match à venir : pas encore commencé ─────────────────────── */}
-      {!isLoading && isUpcoming && (preMatch || !stream) && match && (
+      {!loadingStream && isUpcoming && (preMatch || !resolved) && match && (
         <div className="relative w-full h-full overflow-hidden bg-black">
           <MatchBackdrop home={match.home} away={match.away} />
 
@@ -131,8 +156,8 @@ export default function LiveBallMatchContent() {
               <span className="inline-flex items-center gap-1.5 shrink-0 rounded-[5px] bg-black/50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-white tabular-nums">
                 {isLive && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />}
                 {isLive
-                  ? match.minute
-                    ? `Direct · ${match.minute}`
+                  ? liveMinute
+                    ? `Direct · ${liveMinute}`
                     : "Direct"
                   : kickoff
                     ? `${formatMatchDay(kickoff)} · ${formatMatchTime(kickoff)}`
@@ -158,8 +183,8 @@ export default function LiveBallMatchContent() {
                   {match.home}
                   {match.away ? ` — ${match.away}` : ""}
                 </h1>
-                {isLive && match.score && (
-                  <p className="text-2xl sm:text-3xl font-black text-white tabular-nums">{match.score}</p>
+                {isLive && liveScoreline && (
+                  <p className="text-2xl sm:text-3xl font-black text-white tabular-nums">{liveScoreline}</p>
                 )}
               </div>
 
@@ -185,6 +210,7 @@ export default function LiveBallMatchContent() {
                 <X className="h-4 w-4" />
                 Retour
               </Link>
+              <FollowMatchButton home={match?.home} away={match?.away} />
               <MatchShareButton title={match ? `${match.home} vs ${match.away}` : "Match en direct"} />
             </div>
           </div>
@@ -192,7 +218,7 @@ export default function LiveBallMatchContent() {
       )}
 
       {/* ── Aucun flux détecté (habillage carte Apple TV) ──────────── */}
-      {!isLoading && !stream && !isUpcoming && (
+      {!loadingStream && !resolved && !isUpcoming && (
         <div className="relative w-full h-full overflow-hidden bg-black">
           <MatchBackdrop home={match?.home} away={match?.away} />
 
@@ -224,6 +250,7 @@ export default function LiveBallMatchContent() {
                 <X className="h-4 w-4" />
                 Retour
               </Link>
+              <FollowMatchButton home={match?.home} away={match?.away} />
               <MatchShareButton title={match ? `${match.home} vs ${match.away}` : "Match en direct"} />
             </div>
 
@@ -255,8 +282,18 @@ export default function LiveBallMatchContent() {
           <LivePlayer channel={channel} fill onBack={() => (window.location.href = "/live")} />
         </div>
       )}
+      {!preMatch && (channel || embedUrl) && isLive && liveScoreline && (
+        <div className="pointer-events-none absolute left-3 top-[calc(4rem_+_env(safe-area-inset-top,0px))] z-50 flex items-center gap-1.5 rounded-[5px] bg-black/70 px-2.5 py-1">
+          <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
+          <span className="text-[11px] font-bold text-white tabular-nums">
+            {liveScoreline}
+            {liveMinute ? ` · ${liveMinute}` : ""}
+          </span>
+        </div>
+      )}
       {!preMatch && (channel || embedUrl) && (
-        <div className="absolute right-3 top-[calc(0.75rem_+_env(safe-area-inset-top,0px))] z-50">
+        <div className="absolute right-3 top-[calc(0.75rem_+_env(safe-area-inset-top,0px))] z-50 flex items-center gap-2">
+          <FollowMatchButton home={match?.home} away={match?.away} iconOnly />
           <MatchShareButton title={match ? `${match.home} vs ${match.away}` : "Match en direct"} iconOnly />
         </div>
       )}
