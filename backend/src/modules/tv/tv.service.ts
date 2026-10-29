@@ -1,7 +1,13 @@
 import tmdbClient from '../../config/tmdb';
 import { toTMDBLanguage } from '../../config/language';
 import Serie from '../../models/Serie';
-import { applyCatalogFilterToPage, catalogPage, tmdbCatalogList, CatalogSort } from '../catalog/catalog.service';
+import {
+  applyCatalogFilterToDetail,
+  applyCatalogFilterToPage,
+  catalogPage,
+  tmdbCatalogList,
+  CatalogSort,
+} from '../catalog/catalog.service';
 
 /** Genre TMDB « Animation » — sert à borner les rangées anime côté catalogue. */
 const ANIME_GENRE = '16';
@@ -222,7 +228,7 @@ export const getDetails = async (id: string, language?: string) => {
       if (local?.posterUrl) data.posterUrl = local.posterUrl;
       if (local?.backdropUrl) data.backdropUrl = local.backdropUrl;
     }
-    return data;
+    return applyCatalogFilterToDetail('tv', data);
   } catch (err: any) {
     if (err?.response?.status === 404) {
       try {
@@ -232,7 +238,7 @@ export const getDetails = async (id: string, language?: string) => {
             language: toTMDBLanguage(language) 
           },
         });
-        return data;
+        return applyCatalogFilterToDetail('movie', data);
       } catch (_) {}
     }
     throw err;

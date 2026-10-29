@@ -210,6 +210,28 @@ export async function applyCatalogFilterToPage<T extends { results?: any[] }>(
   }
 }
 
+type TmdbResultList = { results?: Array<{ id?: unknown }> };
+
+/**
+ * Filtre les listes `recommendations` / `similar` d'une fiche TMDB : la fiche
+ * elle-même reste servie, mais les cartes qui pointent vers un titre absent des
+ * providers sont retirées (sinon le clic mène à une fiche « indisponible »).
+ */
+export async function applyCatalogFilterToDetail<
+  T extends { recommendations?: TmdbResultList; similar?: TmdbResultList },
+>(type: 'movie' | 'tv', data: T): Promise<T> {
+  if (!data) return data;
+  const [recommendations, similar] = await Promise.all([
+    data.recommendations ? applyCatalogFilterToPage(type, data.recommendations) : undefined,
+    data.similar ? applyCatalogFilterToPage(type, data.similar) : undefined,
+  ]);
+  return {
+    ...data,
+    ...(recommendations ? { recommendations } : {}),
+    ...(similar ? { similar } : {}),
+  };
+}
+
 export type CatalogSort = 'popular' | 'rating' | 'recent' | 'oldest';
 
 const ROW_SIZE = 20;

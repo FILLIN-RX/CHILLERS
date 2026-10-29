@@ -1,7 +1,12 @@
 import tmdbClient from '../../config/tmdb';
 import { toTMDBLanguage } from '../../config/language';
 import Movie from '../../models/Movie';
-import { applyCatalogFilterToPage, tmdbCatalogList, CatalogSort } from '../catalog/catalog.service';
+import {
+  applyCatalogFilterToDetail,
+  applyCatalogFilterToPage,
+  tmdbCatalogList,
+  CatalogSort,
+} from '../catalog/catalog.service';
 
 export const getPopular = async (page: number = 1, language?: string) =>
   tmdbCatalogList('movie', '/movie/popular', { page, language: toTMDBLanguage(language) }, { sort: 'popular' });
@@ -54,7 +59,7 @@ export const getDetails = async (id: string, language?: string) => {
       } catch {}
     }
 
-    return data;
+    return applyCatalogFilterToDetail('movie', data);
   } catch (err: any) {
     if (err?.response?.status === 404) {
       try {
@@ -64,7 +69,7 @@ export const getDetails = async (id: string, language?: string) => {
             language: toTMDBLanguage(language) 
           },
         });
-        return data;
+        return applyCatalogFilterToDetail('tv', data);
       } catch (_) {}
     }
     throw err;
@@ -74,11 +79,11 @@ export const getDetails = async (id: string, language?: string) => {
 export const getRecommendations = async (id: string, language?: string) => {
   try {
     const { data } = await tmdbClient.get(`/movie/${id}/recommendations`, { params: { language: toTMDBLanguage(language) } });
-    return data;
+    return applyCatalogFilterToPage('movie', data);
   } catch (err: any) {
     try {
       const { data } = await tmdbClient.get(`/tv/${id}/recommendations`, { params: { language: toTMDBLanguage(language) } });
-      return data;
+      return applyCatalogFilterToPage('tv', data);
     } catch (_) {
       return { results: [], page: 1, total_pages: 0, total_results: 0 };
     }

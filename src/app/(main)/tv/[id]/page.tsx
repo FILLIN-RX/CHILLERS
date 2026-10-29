@@ -2,7 +2,12 @@ import { Metadata } from "next";
 import { Suspense, cache } from "react";
 import { API_BASE, getServerApiHeaders } from "@/lib/server-api";
 import { buildMediaMetadata, buildMediaJsonLd, SITE_LOCALE, DEFAULT_OG_IMAGE } from "@/lib/seo";
-import { getMediaDetails, getSimilarTitles, mapTMDBToMovieOrShow } from "@/services/media";
+import {
+  filterAvailableTitles,
+  getMediaDetails,
+  getSimilarTitles,
+  mapTMDBToMovieOrShow,
+} from "@/services/media";
 import TvClientWrapper from "./TvClientWrapper";
 
 export const dynamic = "force-dynamic";
@@ -32,7 +37,12 @@ const fetchTvData = cache(async function fetchTvData(id: string) {
       );
       const json = await tmdbRes.json();
       if (json && !json.status_code) {
-        return mapTMDBToMovieOrShow(json, "series");
+        const mapped = mapTMDBToMovieOrShow(json, "series");
+        if (mapped.similar?.length) {
+          const kept = await filterAvailableTitles(mapped.similar, "series");
+          mapped.similar = kept.length > 0 ? kept : undefined;
+        }
+        return mapped;
       }
     } catch (err) {
       console.warn("TMDB direct fetch failed in fetchTvData:", err);

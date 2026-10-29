@@ -1418,6 +1418,11 @@ export const getMediaDetails = cache(async function getMediaDetails(
   );
   if (directData) {
     const mapped = mapTMDBToMovieOrShow(directData, isTV ? "series" : "movie");
+    // Repli direct : le backend n'a pas pu filtrer, on applique l'index ici.
+    if (mapped.similar?.length) {
+      const kept = await filterAvailableTitles(mapped.similar, isTV ? "series" : "movie", signal);
+      mapped.similar = kept.length > 0 ? kept : undefined;
+    }
     setCached(cacheKey, mapped, 10 * 60 * 1000);
     return mapped;
   }
@@ -1546,10 +1551,16 @@ export async function getMovieRecommendations(
     signal,
   );
   if (directData?.results) {
-    return directData.results
+    const mapped = directData.results
       .filter((r) => r.media_type === "movie" || r.media_type === "tv" || !r.media_type)
       .slice(0, 20)
       .map((r) => mapTMDBToMovieOrShow(r, r.media_type === "tv" ? "series" : "movie"));
+    const [films, shows] = await Promise.all([
+      filterAvailableTitles(mapped.filter((m) => m.type === "movie"), "movie", signal),
+      filterAvailableTitles(mapped.filter((m) => m.type !== "movie"), "series", signal),
+    ]);
+    const kept = new Set([...films, ...shows].map((m) => m.id));
+    return mapped.filter((m) => kept.has(m.id));
   }
   return [];
 }
@@ -1567,10 +1578,11 @@ export async function getTVRecommendations(
       signal,
     );
     if (directData?.results) {
-      return directData.results
+      const mapped = directData.results
         .filter((r) => r.media_type === "tv" || !r.media_type)
         .slice(0, 20)
         .map((r) => mapTMDBToMovieOrShow(r, "series"));
+      return filterAvailableTitles(mapped, "series", signal);
     }
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") throw err;
@@ -1585,9 +1597,10 @@ export async function getTVRecommendations(
       signal,
     );
     if (similarData?.results) {
-      return similarData.results
+      const mapped = similarData.results
         .slice(0, 20)
         .map((r) => mapTMDBToMovieOrShow(r, "series"));
+      return filterAvailableTitles(mapped, "series", signal);
     }
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") throw err;
@@ -1969,6 +1982,46 @@ export async function getDisponible(
     console.error("Error fetching availability:", err);
   }
   return null;
+}
+
+/**
+ * Ne garde que les titres réellement servis par un provider (index catalogue ou
+ * lien en base), via le même endpoint que la fiche. Utilisé sur les listes TMDB
+ * récupérées en direct, qui échappent au filtre catalogue du backend.
+ * En cas d'échec réseau, la liste passe telle quelle : pas d'écran vide.
+ */
+export async function filterAvailableTitles(
+  items: MovieOrShow[],
+  type: "movie" | "series",
+  signal?: AbortSignal,
+): Promise<MovieOrShow[]> {
+  if (items.length === 0) return items;
+  const ids = items
+    .map((m) => Number(m.id))
+    .filter((n) => Number.isInteger(n) && n > 0);
+  if (ids.length === 0) return items;
+
+  try {
+    const env = await httpJson<ApiEnvelope<Record<string, AvailabilityEntry>>>(
+      "/availability/batch",
+      {
+        query: { type: type === "series" ? "tv" : "movie", ids: ids.join(",") },
+        signal,
+        timeoutMs: 8_000,
+      },
+    );
+    if (!env.success || !env.data) return items;
+    const map = env.data;
+    return items.filter((m) => {
+      const n = Number(m.id);
+      // Identifiants spéciaux (afroland-…) hors index TMDB : on ne les juge pas.
+      if (!Number.isInteger(n)) return true;
+      return map[String(n)]?.disponible === true;
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") throw err;
+    return items;
+  }
 }
 
 /* Backend cache clear (admin-triggered by LanguageContext). */
