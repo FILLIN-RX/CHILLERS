@@ -74,6 +74,16 @@ function createImaMock() {
   return { ima, manager, loader, displayContainer, emitLoader, emitManager };
 }
 
+const VAST_RESPONSE = `<?xml version="1.0" encoding="UTF-8"?>
+<VAST version="3.0"><Ad id="1"><InLine><AdSystem>Test</AdSystem><AdTitle>Test</AdTitle><Impression><![CDATA[https://example.com/impression]]></Impression><Creatives><Creative><Linear><Duration>00:00:30</Duration><MediaFiles><MediaFile delivery="progressive" type="video/mp4" width="640" height="360"><![CDATA[https://example.com/ad.mp4]]></MediaFile></MediaFiles></Linear></Creative></Creatives></InLine></Ad></VAST>`;
+
+async function flushPrefetch() {
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+}
+
 function createVideo() {
   const video = document.createElement("video");
   let paused = false;
@@ -128,15 +138,21 @@ async function renderMidrollHook(video: HTMLVideoElement) {
 
 describe("useMidrollVastAd", () => {
   let mock: ReturnType<typeof createImaMock>;
+  const originalFetch = globalThis.fetch;
 
   beforeEach(() => {
     mock = createImaMock();
     (window as any).google = { ima: mock.ima };
+    globalThis.fetch = jest.fn(async () => ({
+      ok: true,
+      text: async () => VAST_RESPONSE,
+    })) as unknown as typeof fetch;
   });
 
   afterEach(() => {
     jest.useRealTimers();
     delete (window as any).google;
+    globalThis.fetch = originalFetch;
     jest.restoreAllMocks();
   });
 
@@ -147,6 +163,7 @@ describe("useMidrollVastAd", () => {
 
     setTime(270);
     act(() => { apiRef.current!.onContentTimeUpdate(); });
+    await flushPrefetch();
 
     expect(mock.loader.requestAds).toHaveBeenCalledTimes(1);
     expect(mock.manager.init).not.toHaveBeenCalled();
@@ -166,6 +183,7 @@ describe("useMidrollVastAd", () => {
 
     setTime(270);
     act(() => { apiRef.current!.onContentTimeUpdate(); });
+    await flushPrefetch();
 
     setTime(330);
     act(() => { apiRef.current!.onContentTimeUpdate(); });
@@ -181,6 +199,41 @@ describe("useMidrollVastAd", () => {
 
     act(() => { mock.emitManager("all-ads-completed"); });
     expect(apiRef.current!.midrollState).toBe("idle");
+    expect(video.play).toHaveBeenCalled();
+
+    unmount();
+  });
+
+  it("ne peut passer la pub qu'après 10 secondes", async () => {
+    const { video, setTime } = createVideo();
+    const { apiRef, unmount } = await renderMidrollHook(video);
+    jest.useFakeTimers();
+
+    setTime(270);
+    act(() => { apiRef.current!.onContentTimeUpdate(); });
+    await flushPrefetch();
+
+    setTime(330);
+    act(() => { apiRef.current!.onContentTimeUpdate(); });
+
+    act(() => { mock.emitManager("started"); });
+    expect(apiRef.current!.midrollState).toBe("playing");
+    expect(apiRef.current!.canSkip).toBe(false);
+    expect(apiRef.current!.skipSeconds).toBe(10);
+
+    act(() => { expect(apiRef.current!.skipAd()).toBe(false); });
+    expect(apiRef.current!.midrollState).toBe("playing");
+
+    act(() => { jest.advanceTimersByTime(9_000); });
+    expect(apiRef.current!.canSkip).toBe(false);
+    expect(apiRef.current!.skipSeconds).toBe(1);
+
+    act(() => { jest.advanceTimersByTime(1_000); });
+    expect(apiRef.current!.canSkip).toBe(true);
+
+    act(() => { expect(apiRef.current!.skipAd()).toBe(true); });
+    expect(apiRef.current!.midrollState).toBe("idle");
+    expect(mock.manager.destroy).toHaveBeenCalled();
     expect(video.play).toHaveBeenCalled();
 
     unmount();
@@ -202,6 +255,7 @@ describe("useMidrollVastAd", () => {
 
     setTime(270);
     act(() => { apiRef.current!.onContentTimeUpdate(); });
+    await flushPrefetch();
 
     setTime(330);
     act(() => { apiRef.current!.onContentTimeUpdate(); });

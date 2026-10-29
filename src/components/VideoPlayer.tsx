@@ -86,6 +86,9 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
     adVideoRef,
     midrollState,
     remainingSeconds,
+    skipSeconds,
+    canSkip,
+    skipAd,
     onContentTimeUpdate,
     onContentSeeked,
     initializeFromUserGesture,
@@ -909,13 +912,16 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
             <div
               ref={adContainerRef}
               aria-live="polite"
-              className={`pointer-events-none absolute inset-0 z-10 bg-black transition-opacity duration-200 ${
-                midrollState === "idle" ? "pointer-events-none opacity-0" : "opacity-100"
+              className={`absolute inset-0 z-40 bg-black transition-opacity duration-200 ${
+                midrollState === "idle" ? "pointer-events-none opacity-0" : "pointer-events-auto opacity-100"
               }`}
             >
+              {/* IMA insère sa propre <video> avant celle-ci : celle du lecteur
+                  doit rester derrière et sans fond, sinon elle masque la créa
+                  (on n'entendait plus que l'audio). */}
               <video
                 ref={adVideoRef}
-                className="absolute inset-0 h-full w-full bg-black object-contain"
+                className="absolute inset-0 -z-10 h-full w-full object-contain"
                 playsInline
               />
               {midrollState === "loading" && (
@@ -926,9 +932,23 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
                 </div>
               )}
               {midrollState === "playing" && (
-                <div className="pointer-events-none absolute left-4 top-4 z-10 rounded-md bg-black/70 px-3 py-2 text-xs text-white/90">
-                  Publicité{remainingSeconds !== null ? ` · ${remainingSeconds} s` : " en cours"} · utilisez la barre pour revenir au contenu
-                </div>
+                <>
+                  <div className="pointer-events-none absolute left-4 top-4 z-10 rounded-md bg-black/70 px-3 py-2 text-xs text-white/90">
+                    Publicité{remainingSeconds !== null ? ` · ${remainingSeconds} s` : " en cours"}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={skipAd}
+                    disabled={!canSkip}
+                    className={`absolute bottom-4 right-4 z-20 rounded-[5px] border px-3 py-2 text-xs font-semibold transition-colors ${
+                      canSkip
+                        ? "cursor-pointer border-white/40 bg-black/70 text-white hover:bg-black/90"
+                        : "cursor-not-allowed border-white/15 bg-black/50 text-white/50"
+                    }`}
+                  >
+                    {canSkip ? "Passer la pub" : `Passer dans ${skipSeconds} s`}
+                  </button>
+                </>
               )}
             </div>
           )}

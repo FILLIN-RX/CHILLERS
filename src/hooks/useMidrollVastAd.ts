@@ -32,6 +32,7 @@ interface ImaAdsLoader {
 
 interface ImaAdsRequest {
   adTagUrl: string;
+  adsResponse: string;
   linearAdSlotWidth: number;
   linearAdSlotHeight: number;
   nonLinearAdSlotWidth: number;
@@ -71,7 +72,9 @@ declare global {
 const IMA_SCRIPT_ID = "google-ima-sdk";
 const IMA_SCRIPT_URL = "https://imasdk.googleapis.com/js/sdkloader/ima3.js";
 const IMA_LOAD_TIMEOUT_MS = 8_000;
+const VAST_FETCH_TIMEOUT_MS = 8_000;
 const AD_START_TIMEOUT_MS = 6_000;
+const SKIP_DELAY_SECONDS = 10;
 const MIN_CONTENT_DURATION_SECONDS = 120;
 const PRELOAD_THRESHOLD = 0.4;
 const BREAK_THRESHOLD = 0.5;
@@ -82,6 +85,40 @@ function logAdError(event?: ImaEvent) {
   if (process.env.NODE_ENV === "production" || !event?.getError) return;
   const error = event.getError();
   console.warn("[midroll-vast]", error?.getErrorCode?.() ?? "unknown", error?.getMessage?.() ?? "");
+}
+
+/**
+ * Récupère le VAST nous-mêmes et ne garde que la première création.
+ * IMA 3.796 rejette l'intégralité de la réponse (erreur 1009) dès que le tag
+ * HilltopAds en renvoie deux, alors que chaque création passe seule.
+ */
+async function fetchSingleAdVast(tagUrl: string): Promise<string | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), VAST_FETCH_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(tagUrl, { signal: controller.signal, credentials: "omit" });
+    if (!response.ok) return null;
+    const xml = await response.text();
+
+    const doc = new DOMParser().parseFromString(xml, "text/xml");
+    const root = doc.documentElement;
+    if (!root || root.nodeName.toLowerCase() !== "vast") return null;
+    if (doc.getElementsByTagName("parsererror").length > 0) return null;
+
+    const ads = Array.from(doc.getElementsByTagName("Ad"));
+    if (ads.length === 0) return null;
+    if (ads.length === 1) return xml;
+
+    const single = doc.createElement("VAST");
+    single.setAttribute("version", root.getAttribute("version") || "3.0");
+    single.appendChild(ads[0]);
+    return new XMLSerializer().serializeToString(single);
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function loadImaSdk(): Promise<boolean> {
@@ -137,9 +174,13 @@ export function useMidrollVastAd(videoRef: RefObject<HTMLVideoElement | null>, m
   const adStatusRef = useRef<AdStatus>("idle");
   const stateRef = useRef<MidrollState>("idle");
   const adStartTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const skipTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const skipArmedRef = useRef(false);
+  const skipCountRef = useRef(SKIP_DELAY_SECONDS);
   const [state, setState] = useState<MidrollState>("idle");
   const [sdkReady, setSdkReady] = useState(false);
   const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
+  const [skipSeconds, setSkipSeconds] = useState(SKIP_DELAY_SECONDS);
 
   const changeState = useCallback((next: MidrollState) => {
     stateRef.current = next;
@@ -153,10 +194,37 @@ export function useMidrollVastAd(videoRef: RefObject<HTMLVideoElement | null>, m
     }
   }, []);
 
+  const clearSkipCountdown = useCallback(() => {
+    if (skipTimerRef.current) {
+      clearInterval(skipTimerRef.current);
+      skipTimerRef.current = null;
+    }
+  }, []);
+
+  const resetSkip = useCallback(() => {
+    clearSkipCountdown();
+    skipArmedRef.current = false;
+    skipCountRef.current = SKIP_DELAY_SECONDS;
+    setSkipSeconds(SKIP_DELAY_SECONDS);
+  }, [clearSkipCountdown]);
+
+  const startSkipCountdown = useCallback(() => {
+    if (skipArmedRef.current) return;
+    skipArmedRef.current = true;
+    skipCountRef.current = SKIP_DELAY_SECONDS;
+    setSkipSeconds(SKIP_DELAY_SECONDS);
+    skipTimerRef.current = setInterval(() => {
+      skipCountRef.current = Math.max(0, skipCountRef.current - 1);
+      setSkipSeconds(skipCountRef.current);
+      if (skipCountRef.current === 0) clearSkipCountdown();
+    }, 1000);
+  }, [clearSkipCountdown]);
+
   const teardown = useCallback((resumeContent: boolean) => {
     shouldStartRef.current = false;
     managerInitializedRef.current = false;
     clearStartTimeout();
+    resetSkip();
 
     const manager = adsManagerRef.current;
     adsManagerRef.current = null;
@@ -176,10 +244,16 @@ export function useMidrollVastAd(videoRef: RefObject<HTMLVideoElement | null>, m
     changeState("idle");
 
     if (resumeContent) {
-      const video = videoRef.current;
-      if (video?.paused) video.play().catch(() => undefined);
+      // IMA peut remettre le contenu en pause pendant son destroy() :
+      // on retente une fois après la fin de la créa.
+      const resume = () => {
+        const video = videoRef.current;
+        if (video?.paused) video.play().catch(() => undefined);
+      };
+      resume();
+      setTimeout(resume, 250);
     }
-  }, [changeState, clearStartTimeout, videoRef]);
+  }, [changeState, clearStartTimeout, resetSkip, videoRef]);
 
   const handleAdFailure = useCallback((event?: ImaEvent) => {
     logAdError(event);
@@ -247,6 +321,11 @@ export function useMidrollVastAd(videoRef: RefObject<HTMLVideoElement | null>, m
     return true;
   }, [teardown]);
 
+  const skipAd = useCallback(() => {
+    if (skipCountRef.current > 0) return false;
+    return cancelMidrollForUserControl({ resumeContent: true });
+  }, [cancelMidrollForUserControl]);
+
   const preloadAds = useCallback(async () => {
     if (preloadRequestedRef.current || !VAST_TAG_URL) return;
     preloadRequestedRef.current = true;
@@ -263,6 +342,14 @@ export function useMidrollVastAd(videoRef: RefObject<HTMLVideoElement | null>, m
     const adVideo = adVideoRef.current;
     const adContainer = adContainerRef.current;
     if (!ima || !contentVideo || !adVideo || !adContainer) {
+      adStatusRef.current = "unavailable";
+      return;
+    }
+
+    const vastResponse = await fetchSingleAdVast(VAST_TAG_URL);
+    // Épisode changé ou seek hors coupure pendant le téléchargement du tag.
+    if (!preloadRequestedRef.current) return;
+    if (!vastResponse) {
       adStatusRef.current = "unavailable";
       return;
     }
@@ -296,6 +383,7 @@ export function useMidrollVastAd(videoRef: RefObject<HTMLVideoElement | null>, m
           manager.addEventListener(ima.AdEvent.Type.STARTED, () => {
             adPlayedRef.current = true;
             clearStartTimeout();
+            startSkipCountdown();
             changeState("playing");
           });
           manager.addEventListener(ima.AdEvent.Type.CONTENT_RESUME_REQUESTED, () => teardown(true));
@@ -314,7 +402,7 @@ export function useMidrollVastAd(videoRef: RefObject<HTMLVideoElement | null>, m
       });
 
       const request = new ima.AdsRequest();
-      request.adTagUrl = VAST_TAG_URL;
+      request.adsResponse = vastResponse;
       const bounds = adContainer.getBoundingClientRect();
       const width = Math.max(1, Math.round(bounds.width || contentVideo.clientWidth || 640));
       const height = Math.max(1, Math.round(bounds.height || contentVideo.clientHeight || 360));
@@ -326,7 +414,7 @@ export function useMidrollVastAd(videoRef: RefObject<HTMLVideoElement | null>, m
     } catch {
       handleAdFailure();
     }
-  }, [changeState, clearStartTimeout, handleAdFailure, sdkReady, startLoadedAd, teardown, videoRef]);
+  }, [changeState, clearStartTimeout, handleAdFailure, sdkReady, startLoadedAd, startSkipCountdown, teardown, videoRef]);
 
   const onContentTimeUpdate = useCallback(() => {
     const video = videoRef.current;
@@ -400,11 +488,13 @@ export function useMidrollVastAd(videoRef: RefObject<HTMLVideoElement | null>, m
     displayInitializedRef.current = false;
     adStatusRef.current = "idle";
     clearStartTimeout();
+    resetSkip();
     if (stateRef.current !== "idle" || adsManagerRef.current || adsLoaderRef.current) teardown(false);
-  }, [clearStartTimeout, mediaKey, teardown]);
+  }, [clearStartTimeout, mediaKey, resetSkip, teardown]);
 
   useEffect(() => () => {
     clearStartTimeout();
+    clearSkipCountdown();
     const manager = adsManagerRef.current;
     const loader = adsLoaderRef.current;
     const displayContainer = displayContainerRef.current;
@@ -414,13 +504,16 @@ export function useMidrollVastAd(videoRef: RefObject<HTMLVideoElement | null>, m
     try { manager?.destroy(); } catch { /* Ignore SDK teardown errors. */ }
     try { loader?.destroy(); } catch { /* Ignore SDK teardown errors. */ }
     try { displayContainer?.destroy(); } catch { /* Ignore SDK teardown errors. */ }
-  }, [clearStartTimeout]);
+  }, [clearSkipCountdown, clearStartTimeout]);
 
   return {
     adContainerRef,
     adVideoRef,
     midrollState: state,
     remainingSeconds,
+    skipSeconds,
+    canSkip: skipSeconds === 0,
+    skipAd,
     onContentTimeUpdate,
     onContentSeeked,
     initializeFromUserGesture,
