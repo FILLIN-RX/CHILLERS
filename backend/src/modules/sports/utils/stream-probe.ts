@@ -104,13 +104,14 @@ export async function probeHls(url: string, referer?: string): Promise<boolean> 
 }
 
 /**
- * Vérifie qu'une page de player existe bien, et en profite pour remonter un HLS
- * natif quand le player en cache un (meilleure lecture que l'iframe).
+ * Vérifie qu'une page de player existe bien et tente d'en remonter le HLS
+ * natif. Les iframes ne sont JAMAIS servies : sans HLS extractible, la page
+ * de player ne vaut rien pour le lecteur.
  */
 export async function probeIframe(
   url: string,
   referer?: string,
-): Promise<{ type: 'hls'; url: string } | { type: 'iframe' } | null> {
+): Promise<{ type: 'hls'; url: string } | null> {
   let html = '';
   try {
     const { data } = await axios.get<string>(url, {
@@ -135,20 +136,22 @@ export async function probeIframe(
   const lower = `${html.slice(0, 4000)} ${html.slice(-2000)}`.toLowerCase();
   if (isErrorPage(html, lower)) return null;
 
+  if (html.length < 200) return null;
+  if (!PLAYER_MARKERS.some((m) => lower.includes(m))) return null;
+
   const direct = await extractDirectStream(url, referer).catch(() => null);
   if (direct?.m3u8Url && (await probeHls(direct.m3u8Url, direct.referer || url))) {
     return { type: 'hls', url: direct.m3u8Url };
   }
 
-  if (html.length < 200) return null;
-  if (!PLAYER_MARKERS.some((m) => lower.includes(m))) return null;
-  return { type: 'iframe' };
+  return null;
 }
 
 /**
- * Choisit tous les serveurs réellement jouables du flux résolu, HLS d'abord
- * (meilleure lecture) puis iframe (rejouable). `[]` = la source a bien répondu
- * mais ne diffuse rien pour l'instant.
+ * Choisit tous les serveurs réellement jouables du flux résolu. Seul le HLS
+ * est servi : un player iframe n'est pas un flux (choix explicite), il est
+ * extrait en HLS s'il en cache un, sinon le serveur tombe. `[]` = la source a
+ * bien répondu mais ne diffuse rien de jouable pour l'instant.
  *
  * La sonde est parallélisée : trois serveurs à 7 s chacun en séquentiel
  * dépasserait le budget de la chaîne.
@@ -172,16 +175,11 @@ export async function pickPlayableServers(stream: ResolvedSportsStream): Promise
 
       const outcome = await probeIframe(server.url, referer);
       if (!outcome) return null;
-      if (outcome.type === 'hls') {
-        return { name: server.name, url: outcome.url, type: 'hls', referer: server.url };
-      }
-      // Player embarqué : rejouable, mais un HLS ailleurs serait meilleur.
-      return { ...server, type: 'iframe' };
+      return { name: server.name, url: outcome.url, type: 'hls', referer: server.url };
     }),
   );
 
-  const playable = outcomes.filter((s): s is SportsServer => s !== null);
-  return [...playable.filter((s) => s.type === 'hls'), ...playable.filter((s) => s.type !== 'hls')];
+  return outcomes.filter((s): s is SportsServer => s !== null);
 }
 
 /**
