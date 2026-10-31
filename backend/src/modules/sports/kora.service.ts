@@ -191,33 +191,44 @@ export async function resolveKoraStream(matchId: string, force = false): Promise
     const servers: SportsServer[] = [];
     let directHls: string | null = null;
 
-    for (const channel of ordered) {
-      const url = buildChannelUrl(channel, hosts, visitorId);
-      if (!url) continue;
+    const entries = ordered
+      .map((channel) => ({ channel, url: buildChannelUrl(channel, hosts, visitorId) }))
+      .filter((e): e is { channel: any; url: string } => Boolean(e.url));
 
-      const serverName = channel?.server_name || 'Serveur';
-
-      // 1. Tenter l'extraction directe du flux HLS .m3u8
-      if (!directHls) {
+    // Extraction parallèle : les canaux morts (403 CF) étaient sondés en série
+    // et pouvaient consumer tout le budget de tentative de la chaîne avant
+    // d'arriver au HLS kora-plus.
+    const extractions = await Promise.all(
+      entries.map(async (entry) => {
         try {
-          const extracted = await extractDirectStream(url, KORA_FRONT);
-          if (extracted?.m3u8Url) {
-            directHls = extracted.m3u8Url;
-            console.log(`[Kora] ✓ Flux HLS direct extrait pour le match ${id}: ${directHls.slice(0, 60)}...`);
-            servers.push({
-              name: `${serverName} (HLS Direct)`,
-              url: directHls,
-              type: 'hls',
-              referer: extracted.referer || KORA_FRONT,
-            });
-            continue;
-          }
-        } catch (extErr: any) {
-          console.warn(`[Kora] Échec extraction HLS sur ${url}:`, extErr?.message);
+          const extracted = await extractDirectStream(entry.url, KORA_FRONT);
+          if (extracted?.m3u8Url) return { entry, m3u8: extracted.m3u8Url, referer: extracted.referer };
+        } catch {
+          // canal mort : on le propose en iframe, la sonde décidera
         }
+        return null;
+      }),
+    );
+
+    for (const entry of entries) {
+      const serverName = entry.channel?.server_name || 'Serveur';
+      const hit = extractions.find((e) => e?.entry === entry);
+
+      if (hit?.m3u8) {
+        if (!directHls) {
+          directHls = hit.m3u8;
+          console.log(`[Kora] ✓ Flux HLS direct extrait pour le match ${id}: ${directHls.slice(0, 60)}...`);
+        }
+        servers.push({
+          name: `${serverName} (HLS Direct)`,
+          url: hit.m3u8,
+          type: 'hls',
+          referer: hit.referer || KORA_FRONT,
+        });
+        continue;
       }
 
-      servers.push({ name: serverName, url, type: 'iframe', referer: KORA_FRONT });
+      servers.push({ name: serverName, url: entry.url, type: 'iframe', referer: KORA_FRONT });
     }
 
     if (servers.length === 0) return null;

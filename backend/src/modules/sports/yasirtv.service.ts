@@ -54,6 +54,42 @@ export function extractIframe(html: string, base = 'https://placeholder.invalid'
 
 const shortHash = (value: string) => crypto.createHash('sha1').update(value).digest('hex').slice(0, 12);
 
+/** Hôtes de pubs/popunders : les pages de canaux kooorah les ont en premier iframe. */
+const AD_HOST_PATTERNS = [
+  /\.dynmeadow\.net$/i,
+  /\.blurbsoutpry\.com$/i,
+  /\.ndcertainlywhen\.com$/i,
+  /\.budgetezy\.org$/i,
+  /\.czernik\.org$/i,
+  /\.histats\.com$/i,
+  /\.t\.dtscout\.com$/i,
+];
+
+function isAdHost(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    if (AD_HOST_PATTERNS.some((re) => re.test(parsed.hostname))) return true;
+    // Iframes locales de remplissage (caches anti-adblock), pas le player.
+    return /\/(glk|afurl|go|ads?)\.php$/i.test(parsed.pathname);
+  } catch {
+    return false;
+  }
+}
+
+/** Tous les src d'iframe de la page (les players sont toujours des iframes). */
+export function extractIframes(html: string, base = 'https://placeholder.invalid'): string[] {
+  const out: string[] = [];
+  const re = /<iframe[^>]+src\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))/gi;
+  for (const match of html.matchAll(re)) {
+    const src = match[1] || match[2] || match[3];
+    if (!src) continue;
+    try {
+      out.push(new URL(src, base).toString());
+    } catch {}
+  }
+  return out;
+}
+
 /**
  * Certaines pages albaplayer n'embarquent pas d'iframe mais configurent un
  * lecteur HTML5 (Clappr / Video.js) avec une URL m3u8 directe. On la récupère
@@ -141,33 +177,51 @@ export async function resolveKooorahStream(sourceId: string, force = false): Pro
 
   try {
     const page = await fetchText(sourceId, 'https://www.livekora.vip/');
-    const iframe = extractIframe(page, sourceId);
-    if (!iframe) return null;
+    const candidates = extractIframes(page, sourceId).filter((url) => !isAdHost(url));
+    const iframe = candidates[0] ?? null;
+
+    // Page réduite à des pubs (yshoot ne sert plus le player) : sans iframe de
+    // player ni HLS embarqué, on échoue vite au lieu de renvoyer une pub que la
+    // sonde mettrait du temps à rejeter.
+    if (!iframe && !extractM3u8(page, sourceId)) {
+      console.warn('[kooorah] page sans player (pubs uniquement):', sourceId.slice(0, 80));
+      return null;
+    }
 
     // Tentative de décodage HLS direct. Le lecteur vérifie le domaine qui
     // l'embarque : sans le Referer de la page du canal, il ne répond qu'une
     // page « domain protected » et rien n'est extractible.
-    try {
-      const extracted = await extractDirectStream(iframe, sourceId);
-      if (extracted?.m3u8Url) {
-        console.log(`[Kooorah] ✓ Flux HLS direct extrait: ${extracted.m3u8Url.slice(0, 60)}...`);
-        const resolved: ResolvedSportsStream = {
-          url: extracted.m3u8Url,
-          type: 'hls',
-          servers: [
-            { name: 'HLS', url: extracted.m3u8Url, type: 'hls', referer: extracted.referer || iframe },
-            { name: 'Miroir', url: iframe, type: 'iframe', referer: sourceId },
-          ],
-        };
-        STREAM_CACHE.set(key, resolved);
-        return resolved;
-      }
-    } catch {}
+    if (iframe) {
+      try {
+        const extracted = await extractDirectStream(iframe, sourceId);
+        if (extracted?.m3u8Url) {
+          console.log(`[Kooorah] ✓ Flux HLS direct extrait: ${extracted.m3u8Url.slice(0, 60)}...`);
+          const resolved: ResolvedSportsStream = {
+            url: extracted.m3u8Url,
+            type: 'hls',
+            servers: [
+              { name: 'HLS', url: extracted.m3u8Url, type: 'hls', referer: extracted.referer || iframe },
+              { name: 'Miroir', url: iframe, type: 'iframe', referer: sourceId },
+            ],
+          };
+          STREAM_CACHE.set(key, resolved);
+          return resolved;
+        }
+      } catch {}
+    }
+
+    const m3u8 = iframe ? null : extractM3u8(page, sourceId);
+    const primaryUrl = iframe || m3u8;
+    if (!primaryUrl) return null;
 
     const resolved: ResolvedSportsStream = {
-      url: iframe,
-      type: 'iframe',
-      servers: [{ name: 'Player', url: iframe, type: 'iframe', referer: sourceId }],
+      url: primaryUrl,
+      type: iframe ? 'iframe' : 'hls',
+      servers: [
+        iframe
+          ? { name: 'Player', url: primaryUrl, type: 'iframe', referer: sourceId }
+          : { name: 'HLS', url: primaryUrl, type: 'hls', referer: sourceId },
+      ],
     };
     STREAM_CACHE.set(key, resolved);
     return resolved;

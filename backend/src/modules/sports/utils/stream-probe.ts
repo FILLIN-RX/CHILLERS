@@ -11,7 +11,23 @@ const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 
 const PROBE_TIMEOUT_MS = 7_000;
-const MAX_SERVERS_PROBED = 3;
+const MAX_SERVERS_PROBED = 4;
+
+/**
+ * Ordonne HLS d'abord (stable) AVANT de limiter la sonde : un provider peut
+ * empiler des canaux morts en tête (kora pousse 3 iframes 403 avant son HLS)
+ * et le `slice(0, MAX)` laissait alors le HLS réel hors sonde.
+ */
+function prioritizeForProbe(servers: SportsServer[]): SportsServer[] {
+  return servers
+    .map((server, index) => ({ server, index }))
+    .sort((a, b) => {
+      const typeA = a.server.type === 'hls' || /\.m3u8([?#]|$)/i.test(a.server.url) ? 0 : 1;
+      const typeB = b.server.type === 'hls' || /\.m3u8([?#]|$)/i.test(b.server.url) ? 0 : 1;
+      return typeA - typeB || a.index - b.index;
+    })
+    .map((entry) => entry.server);
+}
 
 const BLOCK_MARKERS = [
   'just a moment',
@@ -138,7 +154,7 @@ export async function probeIframe(
  * dépasserait le budget de la chaîne.
  */
 export async function pickPlayableServers(stream: ResolvedSportsStream): Promise<SportsServer[]> {
-  const servers = stream.servers.slice(0, MAX_SERVERS_PROBED);
+  const servers = prioritizeForProbe(stream.servers).slice(0, MAX_SERVERS_PROBED);
   if (servers.length === 0 && stream.url) {
     servers.push({ name: stream.type || 'iframe', url: stream.url, type: stream.type });
   }
