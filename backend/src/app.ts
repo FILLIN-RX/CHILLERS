@@ -62,17 +62,26 @@ const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
     const normalizedOrigin = origin.replace(/\/$/, '');
-    
-    // Vérification directe ou wildcard chillers.site / vercel.app
+
+    // Vérification directe ou wildcard chillers.site / vercel.app / railway.
+    // Le frontend est aussi servi depuis le domaine Railway : sans lui, tout
+    // POST (Origin toujours envoyé) recevait une 500 CORS et le login admin
+    // échouait en « failed to fetch ».
     if (
       allowedOrigins.includes(normalizedOrigin) ||
       normalizedOrigin.endsWith('.chillers.site') ||
       normalizedOrigin.endsWith('.vercel.app') ||
+      normalizedOrigin.endsWith('.up.railway.app') ||
+      normalizedOrigin.endsWith('.railway.app') ||
       normalizedOrigin.endsWith('chillers.onrender.com')
     ) {
       return callback(null, true);
     }
-    return callback(new Error(`CORS non autorisé pour l'origine: ${origin}`));
+    // Origine inconnue : on omet simplement les en-têtes CORS (callback(null,
+    // false)) au lieu de faire échouer la requête serveur — le navigateur
+    // bloque alors proprement, et les requêtes même-origine continuent de
+    // fonctionner.
+    return callback(null, false);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'],

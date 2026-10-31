@@ -8,8 +8,16 @@ import type { LiveChannel, LiveChannelInput } from "@/types/live";
 const ADMIN_API_URL = `${API_BASE_URL.replace(/\/+$/, "")}/admin`;
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, "");
 
+/**
+ * Côté navigateur : chemin relatif (`/api/admin/...`) → même origine, routé
+ * vers le backend par les rewrites Next. Une URL absolue créait une requête
+ * cross-origin dont le bloqueur CORS renvoyait « failed to fetch » sur le
+ * login. Côté serveur (SSR) : URL absolue, il n'y a pas de rewrites.
+ */
 function adminApiUrl(path: string): string {
-  return `${ADMIN_API_URL}${path.startsWith("/") ? path : `/${path}`}`;
+  const suffix = path.startsWith("/") ? path : `/${path}`;
+  if (typeof window !== "undefined") return `/api/admin${suffix}`;
+  return `${ADMIN_API_URL}${suffix}`;
 }
 
 function getAdminToken(): string | null {
