@@ -279,11 +279,22 @@ export default function LiveBallMatchContent() {
       {/* ── Flux natif HLS via LivePlayer ────────────────────────────── */}
       {channel && !preMatch && (
         <div className="absolute inset-0">
-          <LivePlayer channel={channel} fill onBack={() => (window.location.href = "/live")} />
+          {/* hideTopBar : la barre du joueur superposerait son logo CHILLERS
+              sur la cloche de notification à droite. */}
+          <LivePlayer channel={channel} fill hideTopBar onBack={() => (window.location.href = "/live")} />
         </div>
       )}
+      {!preMatch && (channel || embedUrl) && (
+        <Link
+          href="/live"
+          aria-label="Retour"
+          className="absolute left-3 top-[calc(0.75rem_+_env(safe-area-inset-top,0px))] z-50 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md transition-colors hover:bg-white/20"
+        >
+          <X className="h-5 w-5" />
+        </Link>
+      )}
       {!preMatch && (channel || embedUrl) && isLive && liveScoreline && (
-        <div className="pointer-events-none absolute left-3 top-[calc(4rem_+_env(safe-area-inset-top,0px))] z-50 flex items-center gap-1.5 rounded-[5px] bg-black/70 px-2.5 py-1">
+        <div className="pointer-events-none absolute left-14 top-[calc(0.75rem_+_env(safe-area-inset-top,0px))] z-50 flex items-center gap-1.5 rounded-[5px] bg-black/70 px-2.5 py-1">
           <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
           <span className="text-[11px] font-bold text-white tabular-nums">
             {liveScoreline}

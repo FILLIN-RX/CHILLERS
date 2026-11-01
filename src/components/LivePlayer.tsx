@@ -8,7 +8,7 @@ import type { LiveChannel } from "@/types/live";
 import { PopupFirewall } from "@/lib/PopupFirewall";
 import { enterFullscreen, exitFullscreen, isFullscreenActive } from "@/lib/fullscreen";
 import { resolveOhaStream } from "@/services/oha";
-import { ArrowLeft, X, Play, Pause, ArrowsClockwise, SpeakerSimpleHigh, SpeakerSimpleSlash, ArrowsOutSimple, ArrowsInSimple, Television, PictureInPicture, ShareNetwork, Check } from "@phosphor-icons/react";
+import { ArrowLeft, X, Play, Pause, SpeakerSimpleHigh, SpeakerSimpleSlash, ArrowsOutSimple, ArrowsInSimple, Television, PictureInPicture, ShareNetwork, Check } from "@phosphor-icons/react";
 
 interface LivePlayerProps {
   channel: LiveChannel;
@@ -442,13 +442,6 @@ export default function LivePlayer({
     }
   };
 
-  const seekRelative = (seconds: number) => {
-    const el = videoRef.current;
-    if (!el) return;
-    el.currentTime = Math.max(0, el.currentTime + seconds);
-    updateLiveState();
-  };
-
   // Revenir au direct instantanément
   const jumpToLive = () => {
     const el = videoRef.current;
@@ -512,21 +505,25 @@ export default function LivePlayer({
             : "min-h-[200px] sm:min-h-[340px] aspect-video max-h-[75dvh]"
       }`}
     >
-      {/* Marque permanente : indépendante de l'apparition des commandes. */}
-      <div className="pointer-events-none absolute right-[calc(env(safe-area-inset-right,0px)+0.75rem)] top-[calc(env(safe-area-inset-top,0px)+0.75rem)] z-50 flex items-center rounded-full border border-white/10 bg-black/55 px-2.5 py-1 backdrop-blur-md shadow-lg">
-        <img
-          src="/favicon-32x32.png"
-          alt="CHILLERS"
-          width={28}
-          height={28}
-          loading="eager"
-          decoding="async"
-          className="h-6 w-6 shrink-0 object-contain drop-shadow-[0_0_10px_rgba(215,4,102,0.5)]"
-        />
-        <span className="-ml-1.5 text-sm font-isometra tracking-tight text-white">
-          HILL<span className="text-brand-primary">ERS</span>
-        </span>
-      </div>
+      {/* Marque permanente : indépendante de l'apparition des commandes.
+          Masquée quand la page hôte (couches /live/sp, /live/lb…) dessine sa
+          propre barre du haut : ici elle recouvrait la cloche de notification. */}
+      {!hideTopBar && (
+        <div className="pointer-events-none absolute right-[calc(env(safe-area-inset-right,0px)+0.75rem)] top-[calc(env(safe-area-inset-top,0px)+0.75rem)] z-50 flex items-center rounded-full border border-white/10 bg-black/55 px-2.5 py-1 backdrop-blur-md shadow-lg">
+          <img
+            src="/favicon-32x32.png"
+            alt="CHILLERS"
+            width={28}
+            height={28}
+            loading="eager"
+            decoding="async"
+            className="h-6 w-6 shrink-0 object-contain drop-shadow-[0_0_10px_rgba(215,4,102,0.5)]"
+          />
+          <span className="-ml-1.5 text-sm font-isometra tracking-tight text-white">
+            HILL<span className="text-brand-primary">ERS</span>
+          </span>
+        </div>
+      )}
 
       {/* ── Main Video Layer ────────────────────────────────────── */}
       {iframeSrc ? (
@@ -614,7 +611,7 @@ export default function LivePlayer({
             </div>
           </div>
 
-          {/* Droite : Logo chaîne + Volume + PiP + Partager */}
+          {/* Droite : Logo chaîne + PiP + Partager (volume déplacé près du play) */}
           <div className="mr-28 flex shrink-0 items-center gap-2 sm:gap-3">
             <ChannelLogoBadge
               logo={channel.logo}
@@ -622,18 +619,6 @@ export default function LivePlayer({
               className="h-7 w-auto max-w-[80px]"
               fallbackClassName="w-8 h-7"
             />
-
-            <button
-              onClick={toggleMute}
-              className={`${GLASS_BTN} w-11 h-11`}
-              aria-label="Volume"
-            >
-              {isMuted ? (
-                <SpeakerSimpleSlash className="h-5 w-5 text-red-500" />
-              ) : (
-                <SpeakerSimpleHigh className="h-5 w-5" />
-              )}
-            </button>
 
             <button
               onClick={togglePictureInPicture}
@@ -683,15 +668,18 @@ export default function LivePlayer({
 
         {/* Ligne des contrôles */}
         <div className="flex items-center justify-between gap-2 sm:gap-4">
-          {/* Gauche : -10s, Lecture/Pause, +10s, LIVE */}
+          {/* Gauche : Volume, Lecture/Pause, LIVE */}
           <div className="flex items-center gap-2 sm:gap-3">
             <button
-              onClick={() => seekRelative(-10)}
-              className={`${GLASS_BTN} w-11 h-11 hidden sm:flex`}
-              aria-label="Reculer de 10s"
-              title="Reculer de 10s"
+              onClick={toggleMute}
+              className={`${GLASS_BTN} w-11 h-11`}
+              aria-label={isMuted ? "Activer le son" : "Couper le son"}
             >
-              <ArrowsClockwise className="h-5 w-5" />
+              {isMuted ? (
+                <SpeakerSimpleSlash className="h-5 w-5 text-red-500" />
+              ) : (
+                <SpeakerSimpleHigh className="h-5 w-5" />
+              )}
             </button>
 
             <button
@@ -704,15 +692,6 @@ export default function LivePlayer({
               ) : (
                 <Play className="h-6 w-6 fill-white ml-0.5" />
               )}
-            </button>
-
-            <button
-              onClick={() => seekRelative(10)}
-              className={`${GLASS_BTN} w-11 h-11 hidden sm:flex`}
-              aria-label="Avancer de 10s"
-              title="Avancer de 10s"
-            >
-              <ArrowsClockwise className="h-5 w-5" />
             </button>
 
             <button
