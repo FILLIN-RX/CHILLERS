@@ -22,6 +22,14 @@ const USER_AGENT =
 
 const API_BASE = (process.env.KORA_API_BASE || 'https://cdn.kora-api.org/').replace(/\/?$/, '/');
 const API_TIMEOUT_MS = 12_000;
+/**
+ * Budget total résolution (API détail + extractions parallèles). Sans plafond,
+ * Promise.all laissait la résolution suivre les timeouts 10 s des derniers
+ * canaux morts (~10,5 s mesurés) — au-delà du budget de 7 s d'une tentative de
+ * chaîne, ce qui coupait kora au profit d'« aucun flux » alors que le HLS
+ * kora-plus était déjà extrait en quelques secondes.
+ */
+const EXTRACT_WAIT_MS = 6_000;
 /** Front-end public du CDN kora : les players exigent ce Referer. */
 const KORA_FRONT = 'https://goalakor.space/';
 
@@ -175,6 +183,7 @@ export async function resolveKoraStream(matchId: string, force = false): Promise
   }
 
   try {
+    const startedAt = Date.now();
     const detail = await koraGet(`api/v1/matche/${encodeURIComponent(id)}/en?t=${Date.now()}`);
     const match = detail?.match;
     if (!match) return null;
@@ -197,22 +206,34 @@ export async function resolveKoraStream(matchId: string, force = false): Promise
 
     // Extraction parallèle : les canaux morts (403 CF) étaient sondés en série
     // et pouvaient consumer tout le budget de tentative de la chaîne avant
-    // d'arriver au HLS kora-plus.
-    const extractions = await Promise.all(
-      entries.map(async (entry) => {
-        try {
-          const extracted = await extractDirectStream(entry.url, KORA_FRONT);
-          if (extracted?.m3u8Url) return { entry, m3u8: extracted.m3u8Url, referer: extracted.referer };
-        } catch {
-          // canal mort : on le propose en iframe, la sonde décidera
+    // d'arriver au HLS kora-plus. Les résultats arrivent au fil de l'eau dans
+    // la carte, et l'attente globale est plafonnée : les canaux lents qui n'ont
+    // pas répondu à temps sont proposés en iframe (la sonde décidera).
+    const extractedByEntry = new Map<(typeof entries)[number], { m3u8: string; referer?: string }>();
+    const extractions = entries.map(async (entry) => {
+      try {
+        const extracted = await extractDirectStream(entry.url, KORA_FRONT);
+        if (extracted?.m3u8Url) {
+          extractedByEntry.set(entry, { m3u8: extracted.m3u8Url, referer: extracted.referer });
         }
-        return null;
+      } catch {
+        // canal mort : on le propose en iframe, la sonde décidera
+      }
+    });
+    let extractTimer: NodeJS.Timeout | undefined;
+    await Promise.race([
+      Promise.all(extractions),
+      new Promise<void>((resolveWait) => {
+        // Temps restant du budget résolution après l'appel d'API détail.
+        const extractWaitMs = Math.max(1_000, EXTRACT_WAIT_MS - (Date.now() - startedAt));
+        extractTimer = setTimeout(resolveWait, extractWaitMs);
       }),
-    );
+    ]);
+    if (extractTimer) clearTimeout(extractTimer);
 
     for (const entry of entries) {
       const serverName = entry.channel?.server_name || 'Serveur';
-      const hit = extractions.find((e) => e?.entry === entry);
+      const hit = extractedByEntry.get(entry);
 
       if (hit?.m3u8) {
         if (!directHls) {
@@ -243,7 +264,7 @@ export async function resolveKoraStream(matchId: string, force = false): Promise
     STREAM_CACHE.set(id, resolved);
     return resolved;
   } catch (err: any) {
-    console.warn(`[kora] résolution du flux ${id} impossible:`, err?.message);
+    console.warn(`[kora] résolution du flux ${id} impossible:`, err?.stack?.split('\n').slice(0, 3).join(' | ') || err?.message || String(err));
     return null;
   }
 }

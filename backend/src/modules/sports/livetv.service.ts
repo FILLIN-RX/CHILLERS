@@ -152,7 +152,7 @@ export async function getStreamizMatches(): Promise<SportsMatch[]> {
     MATCH_CACHE.set('streamiz', matches);
     return matches;
   } catch (err: any) {
-    console.warn('[streamiz] programme indisponible:', err?.message);
+    console.warn('[streamiz] programme indisponible:', err?.stack?.split('\n').slice(0, 3).join(' | ') || err?.message || String(err));
     return [];
   }
 }
@@ -198,7 +198,7 @@ export async function resolveStreamizStream(sourceId: string, force = false): Pr
     STREAM_CACHE.set(sourceId, resolved);
     return resolved;
   } catch (err: any) {
-    console.warn('[streamiz] flux indisponible:', err?.message);
+    console.warn('[streamiz] flux indisponible:', err?.stack?.split('\n').slice(0, 3).join(' | ') || err?.message || String(err));
     return null;
   }
 }

@@ -12,6 +12,12 @@ const USER_AGENT =
 
 const PROBE_TIMEOUT_MS = 7_000;
 const MAX_SERVERS_PROBED = 4;
+/**
+ * Fenêtre d'attente des miroirs iframe quand un HLS direct joue déjà. Les
+ * iframes mortes coûtent jusqu'au timeout de sonde (7 s) pour rien — on laisse
+ * courir leurs promesses, mais on répond sans elles au-delà de ce délai.
+ */
+const IFRAME_GRACE_MS = 1_500;
 
 /**
  * Ordonne HLS d'abord (stable) AVANT de limiter la sonde : un provider peut
@@ -163,23 +169,51 @@ export async function pickPlayableServers(stream: ResolvedSportsStream): Promise
   }
   if (servers.length === 0) return [];
 
-  const outcomes = await Promise.all(
-    servers.map(async (server): Promise<SportsServer | null> => {
-      // Un player « domain protected » ne répond qu'au Referer de la page qui
-      // l'embarque ; sans lui, la sonde verrait une page d'erreur.
-      const referer = server.referer || originOf(server.url);
+  const probeOne = async (server: SportsServer): Promise<SportsServer | null> => {
+    // Un player « domain protected » ne répond qu'au Referer de la page qui
+    // l'embarque ; sans lui, la sonde verrait une page d'erreur.
+    const referer = server.referer || originOf(server.url);
 
-      if (server.type === 'hls' || /\.m3u8([?#]|$)/i.test(server.url)) {
-        return (await probeHls(server.url, referer)) ? { ...server, type: 'hls' } : null;
-      }
+    if (server.type === 'hls' || /\.m3u8([?#]|$)/i.test(server.url)) {
+      return (await probeHls(server.url, referer)) ? { ...server, type: 'hls' } : null;
+    }
 
-      const outcome = await probeIframe(server.url, referer);
-      if (!outcome) return null;
-      return { name: server.name, url: outcome.url, type: 'hls', referer: server.url };
-    }),
+    const outcome = await probeIframe(server.url, referer);
+    if (!outcome) return null;
+    return { name: server.name, url: outcome.url, type: 'hls', referer: server.url };
+  };
+  const isDirect = (s: SportsServer) => s.type === 'hls' || /\.m3u8([?#]|$)/i.test(s.url);
+  const direct = servers.filter(isDirect);
+  const frames = servers.filter((s) => !isDirect(s));
+
+  // Les deux familles partent en même temps (durée totale = max des deux,
+  // jamais la somme). Un HLS direct qui répond suffit : on n'attend plus les
+  // iframes que pour une courte fenêtre — leur extraction native peut ajouter
+  // un miroir, mais leurs timeouts ne doivent pas consumer le budget restant
+  // de la tentative de chaîne.
+  const framesPromise = Promise.all(frames.map(probeOne));
+  const directPlayable = (await Promise.all(direct.map(probeOne))).filter(
+    (s): s is SportsServer => s !== null,
   );
 
-  return outcomes.filter((s): s is SportsServer => s !== null);
+  if (directPlayable.length > 0) {
+    let graceTimer: NodeJS.Timeout | undefined;
+    const grace = await Promise.race([
+      framesPromise,
+      new Promise<null>((resolveGrace) => {
+        graceTimer = setTimeout(() => resolveGrace(null), IFRAME_GRACE_MS);
+      }),
+    ]);
+    if (graceTimer) clearTimeout(graceTimer);
+    const extra = (grace ?? []).filter((s): s is SportsServer => s !== null);
+    return [...directPlayable, ...extra];
+  }
+
+  // Aucun direct jouable : les iframes sont la dernière ressource (extraction
+  // du HLS embarqué) et on les attend toutes — sans elles, la source ne sert
+  // rien et la chaîne passera au provider suivant.
+  const framePlayable = (await framesPromise).filter((s): s is SportsServer => s !== null);
+  return [...directPlayable, ...framePlayable];
 }
 
 /**

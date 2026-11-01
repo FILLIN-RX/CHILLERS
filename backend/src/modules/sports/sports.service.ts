@@ -513,8 +513,11 @@ export async function resolveSportsFlux(
     if (!collectAll || cached.complete) return cached.data;
   }
 
-  const deadline = Date.now() + (collectAll ? MULTI_CHAIN_DEADLINE_MS : CHAIN_DEADLINE_MS);
+  // D'abord la découverte des jumeaux, puis le budget : la découverte (listes
+  // de providers, plusieurs secondes à froid) ne doit pas réduire le temps de
+  // résolution des candidats — seuls comptent les 18/30 s passés en chaîne.
   const candidates = await chainCandidates(target);
+  const deadline = Date.now() + (collectAll ? MULTI_CHAIN_DEADLINE_MS : CHAIN_DEADLINE_MS);
   // Un échec ne prouve quelque chose que sur un match commencé : avant le coup
   // d'envoi, « aucun flux » est le comportement normal, pas une défaillance du
   // provider. Sans ce garde-fou, le préchauffage ferait couler tous les scores.
