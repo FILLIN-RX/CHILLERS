@@ -102,7 +102,6 @@ export default function SportsMatchContent() {
 
   /** Serveur choisi dans le sélecteur, indexé par match : changer de match remet le flux principal. */
   const [serverChoice, setServerChoice] = useState<{ id: string; idx: number } | null>(null);
-  const [playbackNotice, setPlaybackNotice] = useState<{ matchId: string; text: string } | null>(null);
   const failedServersRef = useRef(new Set<string>());
   const failedProvidersRef = useRef(new Set<string>());
   /** Chaîne CHILLERS choisie : prioritaire sur les sources externes. */
@@ -356,13 +355,12 @@ export default function SportsMatchContent() {
   const liveMinute = liveScore?.minute ?? resolvedMatch?.minute;
   const liveScoreline = (liveScore?.score ?? resolvedMatch?.score)?.replace(/\s*:\s*/, " - ");
 
-  const advanceToNextServer = useCallback(async (reason: string) => {
+  const advanceToNextServer = useCallback(async () => {
     const currentUrl = activeServer?.url ?? playing?.url;
     if (currentUrl) failedServersRef.current.add(`${decodedId}:${currentUrl}`);
     if (playing?.url) failedServersRef.current.add(`${decodedId}:${playing.url}`);
     const failedProvider = activeServer?.provider ?? playing?.provider;
     if (failedProvider) failedProvidersRef.current.add(`${decodedId}:${failedProvider}`);
-    setPlaybackNotice({ matchId: decodedId, text: reason });
 
     let candidates = servers;
     const currentIndex = Math.max(
@@ -390,16 +388,14 @@ export default function SportsMatchContent() {
       );
     }
 
+    // Bascule silencieuse : plus d'overlay d'erreur sur les couches match.
     if (nextIndex >= 0) {
       setServerChoice({ id: decodedId, idx: nextIndex });
-      setPlaybackNotice({ matchId: decodedId, text: `Source indisponible, passage à ${candidates[nextIndex].name}.` });
-      return;
     }
-    setPlaybackNotice({ matchId: decodedId, text: `${reason}. Aucune autre source testée n’est disponible. Réessaie la recherche dans un instant.` });
   }, [activeIdx, activeServer, channels?.complete, decodedId, playing, queryClient, servers, targetId]);
 
-  const handlePlayerError = useCallback((reason: string) => {
-    void advanceToNextServer(reason);
+  const handlePlayerError = useCallback(() => {
+    void advanceToNextServer();
   }, [advanceToNextServer]);
 
   // Affiche officielle du service de score : nom de la compétition, écusson de
@@ -649,7 +645,7 @@ export default function SportsMatchContent() {
             className="h-full w-full border-0"
             allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
             referrerPolicy="no-referrer"
-            onError={() => handlePlayerError("Le player intégré n’a pas pu charger la source.")}
+            onError={() => handlePlayerError()}
             onLoad={(event) => {
               // Le proxy renvoie une page de même origine : on peut repérer
               // quelques erreurs explicites sans prétendre lire le player
@@ -661,7 +657,7 @@ export default function SportsMatchContent() {
                 const text = `${title} ${body}`.slice(0, 3000);
                 if (/stream is offline|channel is offline|no stream|access denied|error 404/i.test(title) ||
                     (body.length < 1200 && /stream is offline|channel is offline|no stream|access denied|error 404/i.test(text))) {
-                  handlePlayerError("La page du player signale un flux indisponible.");
+                  handlePlayerError();
                 }
               } catch {
                 // Une iframe devenue cross-origin ne peut pas être inspectée.
@@ -683,25 +679,6 @@ export default function SportsMatchContent() {
             onBack={() => (window.location.href = "/live")}
             onPlaybackError={handlePlayerError}
           />
-        </div>
-      )}
-
-      {/* Les iframes tierces masquent leur état de lecture au navigateur parent.
-          Le bouton permet de basculer quand le player s'ouvre mais reste bloqué. */}
-      {playing && !preMatch && !activeOha && servers.length > 1 && (
-        <div className="absolute bottom-5 inset-x-0 z-30 flex flex-col items-center gap-2 px-4">
-          {playbackNotice?.matchId === decodedId && (
-            <p role="status" className="rounded-full bg-black/75 px-4 py-2 text-center text-xs text-amber-200">
-              {playbackNotice.text}
-            </p>
-          )}
-          <button
-            type="button"
-            onClick={() => void advanceToNextServer("Changement de source demandé.")}
-            className="rounded-full border border-white/20 bg-black/70 px-4 py-2 text-xs font-semibold text-white backdrop-blur hover:bg-white/15"
-          >
-            Le flux ne démarre pas ? Essayer la source suivante
-          </button>
         </div>
       )}
 

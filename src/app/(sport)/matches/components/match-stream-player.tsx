@@ -65,7 +65,6 @@ export function MatchStreamPlayer({
   const [ohaResolving, setOhaResolving] = useState<string | null>(null);
   const [ohaError, setOhaError] = useState<string | null>(null);
   const [candidateChoice, setCandidateChoice] = useState<{ matchId: string; index: number } | null>(null);
-  const [playbackNotice, setPlaybackNotice] = useState<{ matchId: string; text: string } | null>(null);
   const failedCandidatesRef = React.useRef(new Set<string>());
 
   // Active le pare-feu anti-pub pour sécuriser les iframes de flux
@@ -148,7 +147,8 @@ export function MatchStreamPlayer({
   }, [backupChannels?.servers, stream]);
   const candidateIndex = candidateChoice?.matchId === matchId ? candidateChoice.index : 0;
   const activeStream = candidates[candidateIndex] ?? stream;
-  const advanceCandidate = React.useCallback((reason: string) => {
+  // Bascule silencieuse vers la source suivante : aucun overlay d'erreur.
+  const advanceCandidate = React.useCallback(() => {
     // Seul le lien fautif est écarté : un autre miroir du même provider peut
     // très bien répondre, c'est justement l'intérêt des candidats multiples.
     if (activeStream?.url) failedCandidatesRef.current.add(`${matchId}:${activeStream.url}`);
@@ -156,33 +156,9 @@ export function MatchStreamPlayer({
       index > candidateIndex && !failedCandidatesRef.current.has(`${matchId}:${candidate.url}`),
     );
     if (next >= 0) {
-      const probability = candidates[next].score;
       setCandidateChoice({ matchId, index: next });
-      setPlaybackNotice({
-        matchId,
-        text: `Source indisponible, passage à ${candidates[next].name || candidates[next].provider || "la source suivante"}${
-          probability !== undefined ? ` (${Math.round(probability * 100)} % de fiabilité)` : ""
-        }.`,
-      });
-    } else {
-      setPlaybackNotice({ matchId, text: `${reason}. Aucune autre source testée n’est disponible pour ce match.` });
     }
   }, [activeStream, candidateIndex, candidates, matchId]);
-
-  const navigateToNextCandidate = React.useCallback(() => {
-    if (candidates.length < 2) return;
-    const nextIndex = (candidateIndex + 1) % candidates.length;
-    const nextCandidate = candidates[nextIndex];
-    // Un choix manuel est une nouvelle tentative, même si ce lien a échoué.
-    failedCandidatesRef.current.delete(`${matchId}:${nextCandidate.url}`);
-    setCandidateChoice({ matchId, index: nextIndex });
-    setPlaybackNotice({
-      matchId,
-      text: `Source ${nextIndex + 1}/${candidates.length} : ${nextCandidate.name || nextCandidate.provider || "flux suivant"}${
-        nextCandidate.score !== undefined ? ` · ${Math.round(nextCandidate.score * 100)} %` : ""
-      }.`,
-    });
-  }, [candidateIndex, candidates, matchId]);
 
   const selectedType = activeStream?.type;
 
@@ -437,7 +413,7 @@ export function MatchStreamPlayer({
               className="h-full w-full border-0"
               allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
               referrerPolicy="no-referrer"
-              onError={() => advanceCandidate("Le player intégré n’a pas pu charger la source.")}
+              onError={() => advanceCandidate()}
               onLoad={(event) => {
                 try {
                   const doc = event.currentTarget.contentDocument;
@@ -445,26 +421,13 @@ export function MatchStreamPlayer({
                   const body = doc?.body?.innerText ?? "";
                   if (/stream is offline|channel is offline|no stream|access denied|error 404/i.test(title) ||
                       (body.length < 1200 && /stream is offline|channel is offline|no stream|access denied|error 404/i.test(body))) {
-                    advanceCandidate("La page du player signale un flux indisponible.");
+                    advanceCandidate();
                   }
                 } catch {
                   // Le contenu imbriqué peut être cross-origin et invisible au navigateur.
                 }
               }}
             />
-          </div>
-        )}
-
-        {!finished && !isLoading && !ohaChannel && candidates.length > 1 && (
-          <div className="absolute bottom-3 inset-x-0 z-30 flex flex-col items-center gap-2 px-3">
-            {playbackNotice?.matchId === matchId && <p role="status" className="rounded-full bg-black/75 px-3 py-1.5 text-xs text-amber-200">{playbackNotice.text}</p>}
-            <button
-              type="button"
-              onClick={navigateToNextCandidate}
-              className="rounded-full border border-white/20 bg-black/70 px-4 py-2 text-xs font-semibold text-white backdrop-blur hover:bg-white/15"
-            >
-              Changer de source · {(candidateIndex + 1) % candidates.length + 1}/{candidates.length}
-            </button>
           </div>
         )}
 

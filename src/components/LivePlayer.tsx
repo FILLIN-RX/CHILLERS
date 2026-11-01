@@ -567,7 +567,9 @@ export default function LivePlayer({
       )}
 
       {/* ── Error Screen ────────────────────────────────────────── */}
-      {error && (
+      {/* Masqué sur les couches match (hideTopBar) : aucun overlay ne
+          recouvre plus le flux, la bascule de source est silencieuse. */}
+      {error && !hideTopBar && (
         <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-4 bg-black/90 px-6 text-center">
           <div className="h-16 w-16 rounded-full bg-red-600/20 border border-red-500/30 flex items-center justify-center">
             <Television className="h-8 w-8 text-red-500" />
