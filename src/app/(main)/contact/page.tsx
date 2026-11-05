@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   title: "Contactez l'équipe CHILLERS",
   description:
     "Une question ou un problème ? Contactez l'équipe CHILLERS, votre plateforme de streaming gratuit de films, séries et anime.",
-  alternates: { canonical: "/contact" },
+  alternates: { canonical: `${SITE_URL}/contact` },
   openGraph: {
     title: "Contact · CHILLERS",
     description:

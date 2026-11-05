@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   title: "Politique de confidentialité",
   description:
     "Politique de confidentialité de CHILLERS, la plateforme de streaming gratuit de films, séries et anime.",
-  alternates: { canonical: "/privacy" },
+  alternates: { canonical: `${SITE_URL}/privacy` },
   openGraph: {
     title: "Confidentialité · CHILLERS",
     description: "Politique de confidentialité de CHILLERS, la plateforme de streaming gratuit de films et séries.",

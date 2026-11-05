@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   title: "À propos de CHILLERS",
   description:
     "Découvrez qui est derrière CHILLERS, la plateforme de streaming gratuit de films, séries et anime en VF/VOSTFR.",
-  alternates: { canonical: "/about" },
+  alternates: { canonical: `${SITE_URL}/about` },
   openGraph: {
     title: "À propos de CHILLERS",
     description:

@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   title: "Support & Aide CHILLERS",
   description:
     "Besoin d'aide avec CHILLERS ? Retrouvez toutes les réponses dans notre centre d'aide : streaming, lecture, téléchargement et plus.",
-  alternates: { canonical: "/support" },
+  alternates: { canonical: `${SITE_URL}/support` },
   openGraph: {
     title: "Support · CHILLERS",
     description:

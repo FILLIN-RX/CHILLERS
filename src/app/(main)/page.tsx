@@ -12,13 +12,15 @@ import HomeSkeleton from "@/components/HomeSkeleton";
 import HomeSecondaryStream from "./HomeSecondaryStream";
 import HomeSecondarySkeleton from "@/components/HomeSecondarySkeleton";
 import { trimRowItems, trimShowcaseItems } from "./homeMedia";
+import { SITE_URL } from "@/lib/seo";
 
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: "Accueil",
   description: "Découvrez les meilleurs films, séries et animes en streaming gratuit.",
-  alternates: { canonical: "/" },
+  // URL canonique absolue — évite que Google interprète "/" comme chillers.site (sans www)
+  alternates: { canonical: SITE_URL },
 };
 
 const getCachedTrendingMovies = unstable_cache(

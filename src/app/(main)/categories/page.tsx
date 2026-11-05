@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   title: "Nollywood",
   description:
     "Découvrez les films AfroLand et Nollywood disponibles sur CHILLERS.",
-  alternates: { canonical: "/categories" },
+  alternates: { canonical: `${SITE_URL}/categories` },
   openGraph: {
     title: "Nollywood · CHILLERS",
     description:
