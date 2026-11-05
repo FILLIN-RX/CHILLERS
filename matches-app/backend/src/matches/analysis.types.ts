@@ -15,6 +15,9 @@ export interface MatchOdds {
   homeMoneyLine?: number;
   awayMoneyLine?: number;
   drawMoneyLine?: number;
+  homeDecimalOdds?: number;
+  drawDecimalOdds?: number;
+  awayDecimalOdds?: number;
   homeWinProbability?: number; // 0 à 100%
   drawProbability?: number;    // 0 à 100%
   awayWinProbability?: number;    // 0 à 100%
@@ -64,6 +67,8 @@ export interface TeamRecentForm {
     id: string;
     date: string;
     opponentName: string;
+    opponentLogo?: string;
+    competition?: string;
     score: string;
     isHome: boolean;
     result: 'W' | 'D' | 'L';

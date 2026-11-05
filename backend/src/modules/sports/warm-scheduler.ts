@@ -24,8 +24,8 @@ import type { SportsMatch } from './sports.types';
 const DEFAULT_CRON = '*/2 * * * *';
 /** Fenêtre avant le coup d'envoi : au-delà, le registre (2 min de TTL) serait déjà froid. */
 const WINDOW_BEFORE_S = 60 * 60;
-/** Un match marqué live depuis plus de 4 h est terminé côté providers. */
-const WINDOW_AFTER_S = 4 * 3600;
+/** Un match marqué live depuis plus de N h est terminé côté providers. */
+const WINDOW_AFTER_S = Number(process.env.SPORTS_EXPIRY_LIVE_S) || 6 * 3600;
 const MAX_PER_RUN = Math.max(1, Number(process.env.SPORTS_WARM_MAX) || 8);
 const CONCURRENCY = Math.max(1, Number(process.env.SPORTS_WARM_CONCURRENCY) || 3);
 

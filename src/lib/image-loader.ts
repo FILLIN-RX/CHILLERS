@@ -29,7 +29,10 @@ export default function imageLoader({
     else if (width <= 1280) size = "w1280";
     else size = "w1280"; // Plafond à w1280 pour éviter de télécharger des 'original' de 10 Mo
 
-    return src.replace(/\/t\/p\/(original|w\d+)\//, `/t/p/${size}/`);
+    const out = src.replace(/\/t\/p\/(original|w\d+)\//, `/t/p/${size}/`);
+    // Next.js exige une URL différente de la source pour un loader custom, sinon
+    // il loggue un warning "does not implement width" (cas du bucket identique).
+    return out === src ? `${out}?w=${width}` : out;
   }
 
   // Unsplash: Paramètres natifs de redimensionnement

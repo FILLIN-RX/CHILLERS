@@ -871,16 +871,32 @@ const LEAGUE_CONFIGS: Record<string, { title: string; slugs: string[]; keywords:
     keywords: ['ligue 1', 'france', 'лига 1', 'франция'],
     teams: ['Paris Saint-Germain', 'PSG', 'Marseille', 'Marsel', 'Lyon', 'Lion', 'Monaco', 'Monako', 'Lille', 'Lill', 'Rennes', 'Renn', 'Nice', 'Nitstsa', 'Lens', 'Lans', 'Strasbourg', 'Strasbur', 'Nantes', 'Nant', 'Brest', 'Reims', 'Reyms', 'Montpellier', 'Monpele', 'Toulouse', 'Tuluza', 'Auxerre', 'Oser', 'Angers', 'Anzhe', 'Saint-Etienne', 'Sent-Eten', 'Le Havre', 'Gavr'],
   },
+  'russian-premier-league': {
+    title: 'Russian Premier League',
+    slugs: ['rpl', 'russian-premier-league', 'chempionat-rossii', 'rossiya-premer-liga'],
+    keywords: ['rpl', 'russie', 'rusie', 'россия', 'премьер-лига', 'чемпионат россии'],
+    // teams volontairement vide : les clubs russes jouent championnat ET coupe
+    // avec les mêmes affiches, donc le rattrapage par noms d'équipes injecterait
+    // des matchs de la Kupok Rossii dans la liste du championnat.
+    teams: [],
+  },
+  'russian-cup': {
+    title: 'Russian Cup',
+    slugs: ['rus-cup', 'kubok-rossii', 'russkiy-kubok'],
+    keywords: ['russie', 'rusie', 'кубок россии'],
+    teams: [],
+  },
 };
 
 export async function getLiveBallLeagueMatches(league: string): Promise<LiveBallMatch[] | null> {
   const normalizedInput = league.toLowerCase().trim().replace(/[\s_]+/g, '-');
-  const matchedKey = Object.keys(LEAGUE_CONFIGS).find(
-    (k) =>
-      k === normalizedInput ||
-      normalizedInput.includes(k) ||
-      k.includes(normalizedInput)
-  );
+  // Correspondance strictement sur la clé ou un slug déclaré : la correspondance
+  // en sous-chaîne faisait rendre la Premier League anglaise à
+  // « russian-premier-league », avec l'air d'avoir réussi.
+  const matchedKey =
+    Object.keys(LEAGUE_CONFIGS).find((k) => k === normalizedInput) ??
+    Object.entries(LEAGUE_CONFIGS).find(([, c]) => c.slugs.includes(normalizedInput))?.[0] ??
+    null;
 
   const conf = matchedKey ? LEAGUE_CONFIGS[matchedKey] : null;
   const leagueTitle = conf ? conf.title : league;

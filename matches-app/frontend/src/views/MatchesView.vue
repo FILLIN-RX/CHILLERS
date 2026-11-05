@@ -1,5 +1,5 @@
 <template>
-  <v-container fluid class="pa-3 pa-sm-5 max-w-matches position-relative">
+  <v-container fluid class="pa-2 pa-sm-5 max-w-matches position-relative">
 
     <!-- ─── Tiroir mobile (menu ☰) : mêmes championnats que la colonne de gauche ─── -->
     <v-navigation-drawer
@@ -13,7 +13,7 @@
       <LeagueSidebar @open-standings="openStandingsFromDrawer" />
     </v-navigation-drawer>
     <!-- ─── Bannières des 5 Grands Championnats ─── -->
-    <v-row class="mb-4">
+    <v-row class="mb-3">
       <v-col cols="12">
         <FiveLeague @select="handleLeagueSelect" />
       </v-col>
@@ -26,7 +26,7 @@
 
             <!-- ─── Contenu Principal ─── -->
       <v-col cols="12" lg="8" xl="8">
-        <div class="d-flex flex-column gap-5">
+        <div class="d-flex flex-column gap-4">
           <!-- 1. Calendrier (sélecteur de date) -->
           <CalendarStrip
             :selected-date="selectedDate"
@@ -85,7 +85,7 @@
             </v-btn>
           </div>
 
-          <div v-else class="d-flex flex-column gap-6">
+          <div v-else class="d-flex flex-column gap-4">
             <!-- ─── LES COMPÉTITIONS SERVENT DIRECTEMENT D'EN-TÊTES PRINCIPAUX ─── -->
             <div
               v-for="compSection in displayedCompetitionSections"
@@ -95,15 +95,16 @@
             >
               <!-- En-tête de Compétition Principal -->
               <div
-                class="competition-header d-flex align-center justify-space-between px-1 py-2 cursor-pointer"
+                class="competition-header d-flex align-center justify-space-between px-1 py-1-5 cursor-pointer"
                 @click="toggleCollapse(compSection.id)"
               >
                 <div class="d-flex align-center gap-3 min-w-0">
                   <TeamLogo
                     :src="compSection.league.logo || undefined"
-                    :flag="compSection.flag"
                     :name="compSection.league.name"
-                    :size="24"
+                    :size="32"
+                    :aspect="1.9"
+                    fallback-icon="mdi-trophy-outline"
                     class="flex-shrink-0"
                   />
                   <div class="min-w-0">
@@ -342,7 +343,11 @@ const displayedCompetitionSections = computed<CompetitionSection[]>(() => {
   // (ex: "UEFA Nations League - League A: Group 1", "LaLiga 2").
   // Aucune imbrication : chaque en-tête ne contient que ses propres matchs.
   for (const group of displayedLeagueGroups.value) {
-    const compId = group.league.id || group.league.slug || group.league.name;
+    const leagueId = (group.league.id || '').toLowerCase();
+    const genericId = !leagueId || ['all', 'football', 'soccer'].includes(leagueId);
+    const compId = genericId
+      ? `${group.league.name.trim().toLowerCase()}|${group.league.slug || ''}|${(group.league.country || '').toLowerCase()}`
+      : group.league.id || group.league.slug || group.league.name;
     const countryName = group.league.country || 'International';
     const flag = group.league.flag || (group.isFriendly ? '🤝' : '🌍');
 
@@ -492,7 +497,7 @@ function goToMatch(match: SportMatch, tab?: string) {
 
 .league-card {
   border: 1px solid rgba(255, 255, 255, 0.04) !important;
-  background-color: #181818 !important;
+  background-color: #262626 !important;
 }
 
 .league-header {

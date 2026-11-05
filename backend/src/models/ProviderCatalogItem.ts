@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 import { normalizeTitle } from '../utils/title-match';
 
-export type CatalogProvider = 'frenchstream' | 'otaku' | 'afroland';
+export type CatalogProvider = 'frenchstream' | 'otaku' | 'afroland' | 'mongodb';
 export type CatalogItemType = 'movie' | 'tv' | 'anime';
 export type CatalogMatchStatus = 'pending' | 'matched' | 'unmatched';
 
@@ -65,7 +65,7 @@ export interface IProviderCatalogItem extends Document {
 
 const ProviderCatalogItemSchema: Schema = new Schema(
   {
-    provider: { type: String, required: true, enum: ['frenchstream', 'otaku', 'afroland'], index: true },
+    provider: { type: String, required: true, enum: ['frenchstream', 'otaku', 'afroland', 'mongodb'], index: true },
     sourceId: { type: String, required: true },
     type: { type: String, required: true, enum: ['movie', 'tv', 'anime'], index: true },
     title: { type: String, required: true },

@@ -16,7 +16,7 @@ import type { TmdbSearchResult } from '@/types/admin';
 
 const { Title, Text, Paragraph } = Typography;
 type CatalogType = 'movie' | 'tv' | 'anime';
-type Provider = 'frenchstream' | 'otaku' | 'afroland';
+type Provider = 'frenchstream' | 'otaku' | 'afroland' | 'mongodb';
 type Candidate = TmdbSearchResult & { media_type: 'movie' | 'tv' };
 
 const typeLabels: Record<CatalogType, string> = { movie: 'Films', tv: 'Séries', anime: 'Animes' };
@@ -24,6 +24,7 @@ const providerLabels: Record<Provider, string> = {
   frenchstream: 'FrenchStream',
   otaku: 'French-Manga (W16)',
   afroland: 'AfroLandTV',
+  mongodb: 'MongoDB (hébergés)',
 };
 
 export default function AdminCataloguePage() {

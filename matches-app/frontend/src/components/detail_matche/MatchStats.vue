@@ -1,47 +1,17 @@
 <template>
   <div class="match-stats">
-    <!-- ─── 1. En-tête : identification Domicile / Extérieur ─── -->
-    <div class="stats-header">
-      <div class="side side-home">
-        <TeamLogo :src="home.logo" :name="home.name" :size="36" />
-        <div class="side-meta">
-          <span class="side-name">{{ home.name }}</span>
-          <span class="side-tag">
-            <i class="tag-dot tag-dot-home" />
-            Domicile
-          </span>
-        </div>
-      </div>
-
-      <div class="header-center">
-        <v-icon size="14" color="zinc-400">mdi-chart-box-outline</v-icon>
-        <span>Statistiques</span>
-      </div>
-
-      <div class="side side-away">
-        <div class="side-meta side-meta-away">
-          <span class="side-name">{{ away.name }}</span>
-          <span class="side-tag">
-            <i class="tag-dot tag-dot-away" />
-            Extérieur
-          </span>
-        </div>
-        <TeamLogo :src="away.logo" :name="away.name" :size="36" />
-      </div>
-    </div>
-
-    <!-- ─── 2. État vide ─── -->
+    <!-- ─── État vide ─── -->
     <div v-if="rows.length === 0" class="stats-empty">
       <v-icon size="34" color="zinc-500">mdi-chart-box-outline</v-icon>
       <div class="empty-title">Statistiques non disponibles</div>
       <div class="empty-sub">Les données comparatives de ce match ne sont pas encore remontées.</div>
     </div>
 
-    <!-- ─── 3. Lignes de statistiques ─── -->
+    <!-- ─── Lignes de statistiques ─── -->
     <div v-else class="stats-list">
       <div v-for="row in rows" :key="row.key" class="stat-row">
         <div class="stat-topline">
-          <span class="value-cell value-cell-home">
+          <span class="value-cell value-cell-home" :style="{ left: row.homePos + '%' }">
             <span
               class="stat-value"
               :class="row.lead === 'home' ? 'is-lead is-lead-home' : 'is-trail'"
@@ -56,7 +26,7 @@
             {{ row.label }}
           </span>
 
-          <span class="value-cell value-cell-away">
+          <span class="value-cell value-cell-away" :style="{ left: row.awayPos + '%' }">
             <span
               class="stat-value"
               :class="row.lead === 'away' ? 'is-lead is-lead-away' : 'is-trail'"
@@ -78,7 +48,6 @@
 
 <script setup lang="ts">
 import { computed, type PropType } from 'vue';
-import TeamLogo from '../TeamLogo.vue';
 import type { SportMatch, MatchSummary } from '../../types/matches';
 
 interface StatRow {
@@ -89,6 +58,8 @@ interface StatRow {
   away: string;
   homePct: number;
   awayPct: number;
+  homePos: number;
+  awayPos: number;
   lead: 'home' | 'away' | 'equal';
 }
 
@@ -114,9 +85,6 @@ const props = defineProps({
     default: null,
   },
 });
-
-const home = computed(() => props.summary?.homeTeam ?? props.match.homeTeam);
-const away = computed(() => props.summary?.awayTeam ?? props.match.awayTeam);
 
 function toNum(value?: string): number {
   if (!value) return 0;
@@ -151,6 +119,8 @@ const rows = computed<StatRow[]>(() => {
       away: awayValue,
       homePct,
       awayPct: 100 - homePct,
+      homePos: 25,
+      awayPos: 75,
       lead: homeNum > awayNum ? 'home' : awayNum > homeNum ? 'away' : 'equal',
     } as StatRow;
   }).filter((row): row is StatRow => row !== null);
@@ -164,95 +134,6 @@ const rows = computed<StatRow[]>(() => {
   gap: 18px;
 }
 
-/* ─── En-tête ─── */
-.stats-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid #1f1c2b;
-}
-
-.side {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: 1 1 0;
-  min-width: 0;
-}
-
-.side-away {
-  flex-direction: row-reverse;
-}
-
-.side-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-}
-
-.side-meta-away {
-  align-items: flex-end;
-  text-align: right;
-}
-
-.side-name {
-  font-size: 13px;
-  font-weight: 800;
-  color: #fff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 150px;
-}
-
-.side-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: #71717a;
-}
-
-.tag-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.tag-dot-home {
-  background: #e50914;
-  box-shadow: 0 0 0 3px rgba(229, 9, 20, 0.18);
-}
-
-.tag-dot-away {
-  background: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
-}
-
-.header-center {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  flex: 0 0 auto;
-  padding: 5px 12px;
-  border-radius: 999px;
-  background: #161420;
-  border: 1px solid #1f1c2b;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: #a1a1aa;
-  white-space: nowrap;
-}
-
 /* ─── État vide ─── */
 .stats-empty {
   display: flex;
@@ -260,9 +141,9 @@ const rows = computed<StatRow[]>(() => {
   align-items: center;
   gap: 6px;
   padding: 34px 16px;
-  border: 1px dashed #26233a;
+  border: 1px dashed #3a3a3a;
   border-radius: 16px;
-  background: #13111c;
+  background: #1F1F1F;
 }
 
 .empty-title {
@@ -292,24 +173,20 @@ const rows = computed<StatRow[]>(() => {
 }
 
 .stat-topline {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  position: relative;
+  display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  min-height: 24px;
 }
 
 .value-cell {
+  position: absolute;
+  top: 50%;
   display: flex;
   align-items: center;
-  min-width: 0;
-}
-
-.value-cell-home {
-  justify-content: flex-start;
-}
-
-.value-cell-away {
-  justify-content: flex-end;
+  transform: translate(-50%, -50%);
+  z-index: 1;
 }
 
 .stat-value {
@@ -382,7 +259,7 @@ const rows = computed<StatRow[]>(() => {
   height: 8px;
   border-radius: 999px;
   overflow: hidden;
-  background: #1a1826;
+  background: #1F1F1F;
 }
 
 .seg {
@@ -401,17 +278,20 @@ const rows = computed<StatRow[]>(() => {
 
 /* ─── Responsive ─── */
 @media (max-width: 600px) {
-  .side-name {
-    max-width: 92px;
-    font-size: 12px;
+  .match-stats {
+    gap: 12px;
   }
 
-  .header-center span {
-    display: none;
+  .stats-list {
+    gap: 12px;
   }
 
-  .header-center {
-    padding: 5px 7px;
+  .stat-row {
+    gap: 5px;
+  }
+
+  .stat-topline {
+    min-height: 22px;
   }
 
   .stat-label {
@@ -420,8 +300,8 @@ const rows = computed<StatRow[]>(() => {
   }
 
   .stat-value {
-    min-width: 46px;
-    padding: 4px 7px;
+    min-width: 38px;
+    padding: 3px 6px;
     font-size: 12px;
   }
 }

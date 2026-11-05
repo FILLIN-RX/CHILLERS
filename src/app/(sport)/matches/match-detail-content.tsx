@@ -167,7 +167,8 @@ export default function MatchDetailContent() {
           match.minute?.toLowerCase().includes("half") ||
           match.statusText?.toLowerCase().includes("half") ||
           match.statusText?.toLowerCase().includes("mi-temps") ||
-          match.statusText?.toLowerCase() === "ht"
+          match.statusText?.toLowerCase() === "ht" ||
+          match.statusText?.toLowerCase().includes("half")
       )) ||
     Boolean(match.period?.toLowerCase().includes("half"));
 
@@ -207,6 +208,7 @@ export default function MatchDetailContent() {
               isLive={isLive}
               finished={isFinished}
               minute={match.minute}
+              isHalfTime={isHalfTime}
               league={match.league.name}
               sport={match.sport}
               startTime={match.startTime}

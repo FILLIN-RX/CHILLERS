@@ -113,9 +113,17 @@ function createVideo() {
   };
 }
 
-function Harness({ video, apiRef }: { video: HTMLVideoElement; apiRef: { current: MidrollApi | null } }) {
+function Harness({
+  video,
+  apiRef,
+  options,
+}: {
+  video: HTMLVideoElement;
+  apiRef: { current: MidrollApi | null };
+  options?: Parameters<typeof useMidrollVastAd>[2];
+}) {
   const videoRef = useRef<HTMLVideoElement | null>(video);
-  const api = useMidrollVastAd(videoRef, "movie-1");
+  const api = useMidrollVastAd(videoRef, "movie-1", options);
   apiRef.current = api;
 
   return (
@@ -127,9 +135,9 @@ function Harness({ video, apiRef }: { video: HTMLVideoElement; apiRef: { current
   );
 }
 
-async function renderMidrollHook(video: HTMLVideoElement) {
+async function renderMidrollHook(video: HTMLVideoElement, options?: Parameters<typeof useMidrollVastAd>[2]) {
   const apiRef: { current: MidrollApi | null } = { current: null };
-  const utils = render(<Harness video={video} apiRef={apiRef} />);
+  const utils = render(<Harness video={video} apiRef={apiRef} options={options} />);
   await act(async () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
@@ -262,6 +270,49 @@ describe("useMidrollVastAd", () => {
 
     expect(video.pause).not.toHaveBeenCalled();
     expect(apiRef.current!.midrollState).toBe("idle");
+
+    unmount();
+  });
+
+  it("mode intervalle : déclenche et réarme une pub toutes les N secondes", async () => {
+    const { video, setTime, isPaused } = createVideo(); // durée : 600 s
+    const { apiRef, unmount } = await renderMidrollHook(video, { intervalSeconds: 120 });
+
+    setTime(100); // préchargement 20 s avant la première rupture
+    act(() => { apiRef.current!.onContentTimeUpdate(); });
+    await flushPrefetch();
+
+    expect(mock.loader.requestAds).toHaveBeenCalledTimes(1);
+    expect(apiRef.current!.midrollState).toBe("idle");
+    expect(apiRef.current!.nextBreakRef.current).toBe(120);
+
+    setTime(125); // rupture atteinte
+    act(() => { apiRef.current!.onContentTimeUpdate(); });
+
+    expect(video.pause).toHaveBeenCalledTimes(1);
+    expect(isPaused()).toBe(true);
+    expect(mock.manager.start).toHaveBeenCalledTimes(1);
+    expect(apiRef.current!.nextBreakRef.current).toBe(240);
+
+    act(() => { mock.emitManager("started"); });
+    act(() => { mock.emitManager("all-ads-completed"); });
+    expect(apiRef.current!.midrollState).toBe("idle");
+    expect(video.play).toHaveBeenCalled();
+
+    setTime(235); // réarmement : préchargement avant la 2ᵉ rupture
+    act(() => { apiRef.current!.onContentTimeUpdate(); });
+    await flushPrefetch();
+
+    expect(mock.loader.requestAds).toHaveBeenCalledTimes(2);
+    expect(video.pause).toHaveBeenCalledTimes(1);
+    expect(apiRef.current!.midrollState).toBe("idle");
+
+    setTime(245); // 2ᵉ rupture
+    act(() => { apiRef.current!.onContentTimeUpdate(); });
+
+    expect(video.pause).toHaveBeenCalledTimes(2);
+    expect(mock.manager.start).toHaveBeenCalledTimes(2);
+    expect(apiRef.current!.nextBreakRef.current).toBe(360);
 
     unmount();
   });

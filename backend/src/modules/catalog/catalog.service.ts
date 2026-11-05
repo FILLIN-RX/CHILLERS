@@ -5,6 +5,8 @@ import ProviderCatalogItem, {
   CatalogProvider,
   normalizeCatalogTitle,
 } from '../../models/ProviderCatalogItem';
+import Movie from '../../models/Movie';
+import Serie from '../../models/Serie';
 
 const MAX_LIMIT = 50;
 
@@ -146,8 +148,51 @@ export async function catalogStatus() {
   };
 }
 
+const HTTP_URL = /^https?:\/\//i;
+
 /**
- * Filtre une liste TMDB : ne garde que les ids présents dans l'index.
+ * Preuve « hébergé » : docs Movie/Serie avec un lien jouable en base, bornée
+ * aux ids demandés. Complète l'index providers (incomplet : docs scrapés mais
+ * jamais liés à TMDB ou dépubliés après des absences cumulées) sans élargir
+ * le filtre à des titres qu'on ne sers pas — erreur Mongo ⇒ on reste sur
+ * l'index seul, comportement actuel préservé.
+ */
+async function hostedTmdbIds(type: 'movie' | 'tv', ids: number[]): Promise<Set<number>> {
+  const out = new Set<number>();
+  if (!ids.length) return out;
+  try {
+    if (type === 'movie') {
+      const rows = await Movie.find({
+        tmdbId: { $in: ids },
+        $or: [
+          { lien: { $regex: HTTP_URL } },
+          { uqloadLink: { $regex: HTTP_URL } },
+          { uqloadHls: { $regex: HTTP_URL } },
+          { streamtapeLink: { $regex: HTTP_URL } },
+        ],
+      })
+        .select('tmdbId')
+        .lean();
+      for (const row of rows as any[]) out.add(Number(row.tmdbId));
+      return out;
+    }
+    const rows = await Serie.find({
+      tmdbId: { $in: ids },
+      'episodes.lien': { $regex: HTTP_URL },
+    })
+      .select('tmdbId')
+      .lean();
+    for (const row of rows as any[]) out.add(Number(row.tmdbId));
+    return out;
+  } catch (err) {
+    console.warn('[catalog] hostedTmdbIds a échoué — preuve catalogue seule:', (err as Error)?.message);
+    return out;
+  }
+}
+
+/**
+ * Filtre une liste TMDB : ne garde que les ids présents dans l'index
+ * (ou dont un lien jouable existe en base).
  * Retourne null si l'index est vide (gate : pas de filtrage).
  */
 export async function filterIdsByCatalog(
@@ -164,7 +209,8 @@ export async function filterIdsByCatalog(
     .select('tmdbId')
     .lean();
   const found = new Set(rows.map((r: any) => r.tmdbId));
-  return ids.filter((id) => found.has(id));
+  const hosted = await hostedTmdbIds(type, ids);
+  return ids.filter((id) => found.has(id) || hosted.has(id));
 }
 
 /**

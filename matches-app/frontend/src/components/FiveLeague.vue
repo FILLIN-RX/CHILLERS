@@ -19,6 +19,7 @@
               :src="league.watermark"
               alt=""
               class="watermark-img"
+              decoding="async"
             />
 
             <!-- Contenu texte à gauche -->
@@ -45,6 +46,7 @@
               :src="league.player"
               :alt="league.name"
               class="player-img"
+              decoding="async"
             />
           </div>
         </div>
@@ -90,6 +92,7 @@
               :src="league.player"
               :alt="league.name"
               class="player-img"
+              decoding="async"
             />
           </div>
         </div>
@@ -117,6 +120,7 @@
               :src="league.watermark"
               alt=""
               class="watermark-img"
+              decoding="async"
               :class="{ 'watermark-bottom': index >= 2 }"
             />
 
@@ -142,6 +146,7 @@
               :src="league.player"
               :alt="league.name"
               class="player-img"
+              decoding="async"
             />
           </div>
         </div>
@@ -304,7 +309,7 @@ const topLeagues = [
     action: 'Accéder aux matchs de championnat',
     bg: '#38003C', // Violet officiel Premier League
     watermark: '/league/premiere_ligue/pl_logo.png',
-    player: '/league/premiere_ligue/Erling Braut Håland - FootyRenders.png',
+    player: '/league/players/haaland.webp',
   },
   {
     id: 'esp.1',
@@ -314,7 +319,7 @@ const topLeagues = [
     action: 'Accéder aux matchs de championnat',
     bg: '#FF4633', // Rouge vif LaLiga
     watermark: '/league/liga/liga.png',
-    player: '/league/liga/Kylian Mbappé - FootyRenders.png',
+    player: '/league/players/mbappe.webp',
   },
 ];
 
@@ -327,7 +332,7 @@ const bottomLeagues = [
     action: 'Accéder aux matchs',
     bg: '#D20515', // Rouge profond Bundesliga
     watermark: '/league/Bundesliga/budesliga.png',
-    player: '/league/Bundesliga/kane_transparent.png',
+    player: '/league/players/kane.webp',
   },
   {
     id: 'fra.1',
@@ -337,7 +342,7 @@ const bottomLeagues = [
     action: 'Accéder aux matchs',
     bg: '#142954', // Bleu nuit Ligue 1
     watermark: '/league/ligue_1/l1_logo.png',
-    player: '/league/ligue_1/dembele_transparent.png',
+    player: '/league/players/dembele.webp',
   },
   {
     id: 'ita.1',
@@ -347,7 +352,7 @@ const bottomLeagues = [
     action: 'Accéder aux matchs',
     bg: '#0091DA', // Bleu azur Serie A
     watermark: '/league/serie_A/seriea.png',
-    player: '/league/serie_A/Lautaro Martínez - FootyRenders.png',
+    player: '/league/players/lautaro.webp',
   },
 ];
 

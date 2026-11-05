@@ -31,7 +31,7 @@ function nameSimilarity(a: string, b: string): number {
 
 async function searchTmdbMovie(query: string, year?: number | null): Promise<any[]> {
   try {
-    const params: Record<string, any> = { query, page: 1 };
+    const params: Record<string, any> = { query, page: 1, language: 'fr-FR' };
     if (year) params.year = year;
     const { data } = await tmdbClient.get('/search/movie', { params });
     return data.results || [];

@@ -10,7 +10,7 @@
       <!-- En-tête de la modale -->
       <v-card-title class="d-flex align-center justify-space-between px-6 py-4 border-b-dark bg-surface-header">
         <div class="d-flex align-center gap-3">
-          <TeamLogo :src="leagueLogo" :name="leagueName" :size="36" />
+          <TeamLogo :src="leagueLogo" :name="leagueName" :size="40" fallback-icon="mdi-trophy-outline" />
           <div>
             <div class="text-h6 font-weight-black text-white leading-tight">
               {{ leagueName }}
@@ -131,7 +131,7 @@
                     <!-- Club -->
                     <td class="club-cell">
                       <div class="d-flex align-center gap-2">
-                        <TeamLogo :src="entry.team.logo" :name="entry.team.name" :size="24" />
+                        <TeamLogo :src="entry.team.logo" :name="entry.team.name" :size="28" />
                         <span class="text-body-2 font-weight-bold text-white text-truncate" style="max-width: 180px;">
                           {{ entry.team.name }}
                         </span>
@@ -278,7 +278,7 @@
               </v-btn>
 
               <div class="d-flex align-center gap-2">
-                <TeamLogo :src="selectedTeamLogo" :name="selectedTeamName" :size="28" />
+                <TeamLogo :src="selectedTeamLogo" :name="selectedTeamName" :size="32" />
                 <span class="text-subtitle-1 font-weight-black text-white">{{ selectedTeamName }}</span>
               </div>
             </div>
@@ -366,7 +366,7 @@
                   @click="openTeamRoster(t.id, t.name, t.logo)"
                 >
                   <div class="d-flex align-center gap-3">
-                    <TeamLogo :src="t.logo" :name="t.name" :size="36" />
+                    <TeamLogo :src="t.logo" :name="t.name" :size="40" />
                     <div class="flex-1 min-w-0">
                       <div class="text-body-2 font-weight-bold text-white text-truncate">
                         {{ t.name }}

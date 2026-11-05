@@ -42,7 +42,7 @@
         @click="setLeague(league.id)"
       >
         <template #prepend>
-          <TeamLogo :src="league.logo || undefined" :name="league.name" :size="24" class="mr-2" />
+          <TeamLogo :src="league.logo || undefined" :name="league.name" :size="28" class="mr-2" />
         </template>
         <v-list-item-title class="text-caption font-weight-bold">
           {{ league.name }}
@@ -68,14 +68,18 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
+import { useRouter } from 'vue-router';
 import { useMatchesStore } from '../stores/matches';
+import { useUiStore } from '../stores/ui';
 import TeamLogo from './TeamLogo.vue';
 
 defineEmits<{
   (e: 'openStandings', id: string, name: string, logo?: string): void;
 }>();
 
+const router = useRouter();
 const store = useMatchesStore();
+const ui = useUiStore();
 const { leagues, countries, selectedCountry, selectedLeague } = storeToRefs(store);
 
 function onCountryChange(countryId: string) {
@@ -85,6 +89,8 @@ function onCountryChange(countryId: string) {
 function setLeague(leagueId: string) {
   selectedLeague.value = leagueId;
   store.loadMatches();
+  ui.navDrawer = false;
+  router.push(`/competition/${encodeURIComponent(leagueId)}`);
 }
 </script>
 

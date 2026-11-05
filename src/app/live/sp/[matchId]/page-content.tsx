@@ -6,11 +6,13 @@ import { useParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Television, X } from "@phosphor-icons/react";
 import LivePlayer from "@/components/LivePlayer";
+import HalftimeAdPod from "@/components/matches/HalftimeAdPod";
 import CompetitionBadge from "@/components/CompetitionBadge";
 import MatchShareButton from "@/components/live/MatchShareButton";
 import FollowMatchButton from "@/components/live/FollowMatchButton";
 import { MatchBackdrop, TeamCrest } from "@/components/MatchCardBackdrop";
 import { getSportsChannels, getSportsMatches, getSportsStream } from "@/services/sports";
+import { getMatchById, getMatchStream } from "@/services/matches";
 import { getMatchChannels, resolveOhaStream } from "@/services/oha";
 import MatchChannelsRow from "@/components/live/MatchChannelsRow";
 import type { OhaChannel } from "@/types/oha";
@@ -31,21 +33,16 @@ interface ResolvedSportsStream {
   /** Referer à reconstituer côté proxy d'embarquement (hôtes « domain protected »). */
   referer?: string;
   provider?: string;
+  /** La réponse unifiée transporte déjà toutes les sources agrégées. */
+  servers?: SportsServer[];
 }
-
 function normalizeTeamName(name?: string): string {
-  if (!name) return "";
-  let s = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  s = s.replace(/\bparis\s+saint[- ]germain\b/g, "psg");
-  s = s.replace(/\bmanchester\s+city\b/g, "mancity");
-  s = s.replace(/\bmanchester\s+united\b/g, "manunited");
-  s = s.replace(/\batletico\s+madrid\b/g, "atleticomadrid");
-  s = s.replace(/\breal\s+madrid\b/g, "realmadrid");
-  s = s.replace(/\bbayern\s+munich\b/g, "bayernmunich");
-  s = s.replace(/\bbayern\s+münchen\b/g, "bayernmunich");
-  s = s.replace(/\bborussia\s+dortmund\b/g, "dortmund");
-  s = s.replace(/\b(fc|cf|sc|ac|as|rc|us|afc|ssc|cd|club|de|united|city|hotspur|sporting)\b/g, "");
-  s = s.replace(/[^a-z0-9]/g, "");
+  if (!name) return '';
+  let s = name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  s = s.replace(/\blayon\b/g, 'lion').replace(/\bseylors\b/g, 'sailors').replace(/\bsiti\b/g, 'city');
+  s = s.replace(/\badelaid[ai]\b/g, 'adelaide').replace(/\byunayted\b/g, 'united').replace(/\bkanvon\b/g, 'gangwon').replace(/\btempayns\b/g, 'tampines').replace(/\bbidzhi\b/g, 'bg').replace(/\bpatkum\b/g, 'pathum');
+  s = s.replace(/\b(fc|cf|sc|ac|as|rc|us|afc|ssc|cd|club|de|united|city|hotspur|sporting)\b/g, '');
+  s = s.replace(/[^a-z0-9]/g, '');
   return s.trim();
 }
 
@@ -164,6 +161,46 @@ export default function SportsMatchContent() {
 
   const targetId = matchedLb ? `liveball:${matchedLb.id}` : (matchedSports?.slug || matchedSports?.id || decodedId);
 
+  // Les cartes de la home portent l'id ESPN : quand ni liveball ni la chaîne
+  // sports ne connaît la rencontre, on la reconstitue depuis l'API de scores
+  // (fallback ESPN) — le flux passe alors par /matches/:id/stream (unifié).
+  const { data: espnMatch } = useQuery({
+    queryKey: ["live", "espn", "match", cleanId],
+    queryFn: () => getMatchById(cleanId),
+    enabled: !matchedLb && !matchedSports,
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+  });
+
+  const displayMatch = useMemo<SportsMatch | undefined>(() => {
+    if (matchedLb || matchedSports || !espnMatch) return undefined;
+    const home = espnMatch.homeTeam?.name;
+    const away = espnMatch.awayTeam?.name;
+    if (!home || !away) return undefined;
+    const ts = Date.parse(espnMatch.startTime);
+    const homeScore = espnMatch.homeTeam?.score;
+    const awayScore = espnMatch.awayTeam?.score;
+    return {
+      id: `espn:${espnMatch.id}`,
+      sourceId: espnMatch.id,
+      source: "espn",
+      status:
+        espnMatch.status === "live" ? "live" : espnMatch.status === "finished" ? "finished" : "upcoming",
+      home,
+      away,
+      homeLogo: espnMatch.homeTeam?.logo,
+      awayLogo: espnMatch.awayTeam?.logo,
+      score:
+        homeScore !== undefined && homeScore !== null && awayScore !== undefined && awayScore !== null
+          ? `${homeScore} - ${awayScore}`
+          : undefined,
+      minute: espnMatch.minute,
+      statusText: espnMatch.statusText,
+      startTs: Number.isFinite(ts) ? Math.floor(ts / 1000) : undefined,
+      league: espnMatch.league?.name,
+    };
+  }, [espnMatch, matchedLb, matchedSports]);
+
   // useMemo : l'objet est recréé à chaque render, et `playing` en dépend.
   const match = useMemo<SportsMatch | undefined>(() => (matchedLb
     ? {
@@ -180,7 +217,7 @@ export default function SportsMatchContent() {
         startTs: matchedLb.startTs || matchedSports?.startTs,
         league: matchedLb.league || matchedSports?.league,
       }
-    : matchedSports), [matchedLb, matchedSports]);
+    : (matchedSports ?? displayMatch)), [matchedLb, matchedSports, displayMatch]);
 
   // Chaînes CHILLERS qui diffusent ce match — l'EPG est vérifié au coup d'envoi.
   const { data: channelStatuses = [] } = useQuery({
@@ -247,29 +284,63 @@ export default function SportsMatchContent() {
     [confirmedChannels],
   );
 
-  // Le backend chaîne les providers (LiveBall, Kora, Kooorah, YallaPro, Streamiz)
-  // et ne renvoie que celui qui diffuse réellement.
+  // Résolution du flux. Chemin providers (liveball/slug sports) d'abord, puis
+  // fallback unifié côté ESPN : les cartes de la home portent l'id ESPN, que
+  // /matches/:id/stream résout par noms d'équipes contre TOUS les jumeaux des
+  // sources. Aucun des deux chemins n'attend les listes chargées côté client :
+  // le backend fait sa propre jointure.
   const { data: stream, isLoading } = useQuery({
     queryKey: ["live", "unified", "stream", decodedId],
     queryFn: async (): Promise<(ResolvedSportsStream & { match?: SportsMatch }) | null> => {
-      const resolved = await getSportsStream(targetId);
-      if (!resolved?.url) return null;
+      const providerPath = async () => {
+        const resolved = await getSportsStream(targetId);
+        if (!resolved?.url) return null;
 
-      const skipCanal = shouldSkipCanalToday(match ?? resolved.match, decodedId);
-      const availableServers = skipCanal
-        ? (resolved.servers ?? []).filter((server) => !isCanalChannel(server.name))
-        : resolved.servers ?? [];
-      if (skipCanal && resolved.servers?.length && !availableServers.length) return null;
+        const skipCanal = shouldSkipCanalToday(match ?? resolved.match, decodedId);
+        const availableServers = skipCanal
+          ? (resolved.servers ?? []).filter((server) => !isCanalChannel(server.name))
+          : resolved.servers ?? [];
+        if (skipCanal && resolved.servers?.length && !availableServers.length) return null;
 
-      const server = availableServers[0];
-      return {
-        url: server?.relayUrl || server?.url || resolved.url,
-        type: server?.type ?? resolved.type,
-        relayUrl: server?.relayUrl ?? resolved.relayUrl,
-        referer: server?.referer ?? resolved.referer,
-        provider: resolved.provider,
-        match: resolved.match ?? match,
+        const server = availableServers[0];
+        return {
+          url: server?.relayUrl || server?.url || resolved.url,
+          type: server?.type ?? resolved.type,
+          relayUrl: server?.relayUrl ?? resolved.relayUrl,
+          referer: server?.referer ?? resolved.referer,
+          provider: resolved.provider,
+          match: resolved.match ?? match,
+        };
       };
+
+      const unifiedPath = async () => {
+        const resolved = await getMatchStream(cleanId).catch(() => null);
+        if (!resolved?.url) return null;
+        const rawServers = Array.isArray(resolved.servers) ? resolved.servers : [];
+        const server = rawServers.find((sv: SportsServer) => sv?.type === "hls") ?? rawServers[0];
+        return {
+          url: server?.relayUrl || server?.url || resolved.url,
+          type: server?.type ?? resolved.type,
+          relayUrl: server?.relayUrl ?? resolved.relayUrl,
+          referer: server?.referer ?? resolved.referer,
+          provider: resolved.provider ?? resolved.source ?? server?.provider,
+          servers: rawServers,
+          match: displayMatch,
+        };
+      };
+
+      if (matchedLb || matchedSports) {
+        const viaProvider = await providerPath();
+        if (viaProvider) return viaProvider;
+      }
+
+      const viaUnified = await unifiedPath();
+      if (viaUnified) return viaUnified;
+
+      // Slug neutle : pas de match providers trouvé côté client — le chemin
+      // sports classique tranche tout (identification backend).
+      if (!matchedLb && !matchedSports) return providerPath();
+      return null;
     },
     staleTime: 0,
     retry: false,
@@ -282,7 +353,7 @@ export default function SportsMatchContent() {
   const { data: channels } = useQuery({
     queryKey: ["live", "unified", "channels", decodedId],
     queryFn: () => getSportsChannels(targetId),
-    enabled: Boolean(decodedId),
+    enabled: Boolean(matchedLb || matchedSports),
     staleTime: 60_000,
     retry: false,
     // /stream a déjà mis le flux principal au registre : le premier /channels
@@ -298,19 +369,21 @@ export default function SportsMatchContent() {
   });
 
   const servers = useMemo<SportsServer[]>(() => {
-    const list: SportsServer[] = channels?.servers?.length
-      ? channels.servers
-      : stream
-        ? [
-            {
-              name: stream.provider ? stream.provider.toUpperCase() : "Direct",
-              url: stream.url,
-              type: stream.type,
-              relayUrl: stream.relayUrl,
-              referer: stream.referer,
-            },
-          ]
-        : [];
+    const list: SportsServer[] = stream?.servers?.length
+      ? stream.servers
+      : channels?.servers?.length
+        ? channels.servers
+        : stream
+          ? [
+              {
+                name: stream.provider ? stream.provider.toUpperCase() : "Direct",
+                url: stream.url,
+                type: stream.type,
+                relayUrl: stream.relayUrl,
+                referer: stream.referer,
+              },
+            ]
+          : [];
     // HLS direct d'abord (repli des anciens registres déjà en mémoire),
     // embed provider ensuite.
     const available = shouldSkipCanalToday(match, decodedId)
@@ -352,8 +425,13 @@ export default function SportsMatchContent() {
     resolvedMatch?.source === "liveball"
       ? liveScores.get(`liveball:${resolvedMatch.sourceId ?? resolvedMatch.id}`)
       : undefined;
+  const isFinished = (resolvedMatch?.status ?? match?.status) === "finished";
   const liveMinute = liveScore?.minute ?? resolvedMatch?.minute;
   const liveScoreline = (liveScore?.score ?? resolvedMatch?.score)?.replace(/\s*:\s*/, " - ");
+  // Mi-temps : la source publie « HT » dans la minute. Le pod pub joue une fois par match.
+  const minuteSource = `${liveScore?.minute ?? ""} ${resolvedMatch?.minute ?? ""} ${resolvedMatch?.statusText ?? ""}`.toLowerCase();
+  const isHalfTime = /\bht\b|half|mi[- ]?temps/.test(minuteSource);
+  const pageRef = useRef<HTMLDivElement>(null);
 
   const advanceToNextServer = useCallback(async () => {
     const currentUrl = activeServer?.url ?? playing?.url;
@@ -484,7 +562,8 @@ export default function SportsMatchContent() {
   const teamsLabel = resolvedMatch ? `${resolvedMatch.home}${resolvedMatch.away ? ` vs ${resolvedMatch.away}` : ""}` : "ce match";
 
   return (
-    <div className="fixed inset-0 z-40 h-dvh w-screen bg-black overflow-hidden">
+    <div ref={pageRef} className="fixed inset-0 z-40 h-dvh w-screen bg-black overflow-hidden">
+      <HalftimeAdPod key={`halftime-sp-${decodedId}`} active={Boolean(isLive && isHalfTime && (channel || embedUrl || activeOha))} containerRef={pageRef} />
       {isLoading && !channel && !embedUrl && !activeOha && (
         <div className="w-full h-full flex flex-col items-center justify-center gap-3 bg-black">
           <div className="h-12 w-12 border-4 border-brand-primary border-t-transparent rounded-full animate-spin" />
@@ -564,8 +643,51 @@ export default function SportsMatchContent() {
         </div>
       )}
 
+      {/* ── Match terminé ─────────────────────────────────────────── */}
+      {!isLoading && isFinished && (
+        <div className="relative w-full h-full overflow-hidden bg-black">
+          <MatchBackdrop home={resolvedMatch?.home} away={resolvedMatch?.away} />
+          <div className="relative z-10 w-full h-full flex flex-col items-center justify-center gap-6 px-6 text-center">
+            <div className="flex items-center justify-center gap-6 sm:gap-14">
+              <TeamCrest src={resolvedMatch?.homeLogo} alt={resolvedMatch?.home ?? "?"} size="lg" />
+              <div className="flex flex-col items-center gap-1">
+                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Full Time</span>
+                <div className="text-4xl sm:text-5xl font-black text-white tabular-nums">
+                  {resolvedMatch?.score ? resolvedMatch.score.replace(/\s*:\s*/, " - ") : "–"}
+                </div>
+              </div>
+              <TeamCrest src={resolvedMatch?.awayLogo} alt={resolvedMatch?.away ?? "?"} size="lg" />
+            </div>
+
+            <div className="max-w-md space-y-1">
+              <h1 className="text-lg sm:text-2xl font-black text-white leading-tight">
+                {resolvedMatch ? `${resolvedMatch.home} — ${resolvedMatch.away}` : "Match terminé"}
+              </h1>
+              <p className="text-xs sm:text-sm text-zinc-400">
+                La rencontre est terminée. Le score final ci-dessus reste disponible sur la fiche du match.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <Link
+                href={`/matches/${encodeURIComponent(resolvedMatch?.sourceId ?? decodedId)}`}
+                className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-wider transition-all"
+              >
+                Voir la fiche du match
+              </Link>
+              <Link
+                href="/matches"
+                className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/5 hover:bg-white/10 text-white/70 text-xs font-black uppercase tracking-wider transition-all border border-white/10"
+              >
+                Scores &amp; Matchs
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Aucun flux détecté (habillage carte Apple TV) ──────────── */}
-      {!isLoading && !playing && !isUpcoming && !activeOha && (
+      {!isLoading && !playing && !isUpcoming && !activeOha && !isFinished && (
         <div className="relative w-full h-full overflow-hidden bg-black">
           <MatchBackdrop home={resolvedMatch?.home} away={resolvedMatch?.away} />
 
@@ -623,7 +745,7 @@ export default function SportsMatchContent() {
       )}
 
       {/* ── Chaîne CHILLERS (première option) ──────────────────────── */}
-      {ohaLiveChannel && !preMatch && (
+      {!isFinished && ohaLiveChannel && !preMatch && (
         <div className="absolute inset-0">
           <LivePlayer
             key={`oha-${activeOha?.ch.id}`}
@@ -636,7 +758,7 @@ export default function SportsMatchContent() {
       )}
 
       {/* ── Player embarqué (iframe) ───────────────────────────────── */}
-      {embedUrl && !preMatch && !activeOha && (
+      {!isFinished && embedUrl && !preMatch && !activeOha && (
         <div className="absolute inset-0 bg-black">
           <iframe
             key={embedUrl}
@@ -668,7 +790,7 @@ export default function SportsMatchContent() {
       )}
 
       {/* ── Flux HLS natif via notre relay ─────────────────────────── */}
-      {channel && !preMatch && !activeOha && (
+      {!isFinished && channel && !preMatch && !activeOha && (
         <div className="absolute inset-0">
           {/* key : un changement de serveur remonte le player sur le nouveau flux */}
           <LivePlayer
@@ -683,7 +805,7 @@ export default function SportsMatchContent() {
       )}
 
       {/* ── Barre de contrôle : retour, recharge, partage ──────────── */}
-      {(playing || activeOha) && !preMatch && (
+      {!isFinished && (playing || activeOha) && !preMatch && (
         <div className="absolute top-0 inset-x-0 z-30 pt-[calc(0.75rem_+_env(safe-area-inset-top,0px))] pb-3 pl-[calc(0.75rem_+_env(safe-area-inset-left,0px))] pr-[calc(0.75rem_+_env(safe-area-inset-right,0px))] bg-gradient-to-b from-black/90 via-black/50 to-transparent">
           <div className="flex items-center justify-between gap-3">
             <Link

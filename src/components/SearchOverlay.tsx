@@ -230,6 +230,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                       item={m}
                       variant="grid-poster"
                       appleFrame
+                      showTitle
                       onPlay={(i) => {
                         const typeParam = i.type === "series" || i.type === "anime" ? "tv" : "movie";
                         router.push(`/watch/${i.id}?type=${typeParam}`);
@@ -281,6 +282,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                   item={item}
                   variant="grid-poster"
                   appleFrame
+                  titleBelow
                   onPlay={(i) => {
                     const typeParam = i.type === "series" || i.type === "anime" ? "tv" : "movie";
                     router.push(`/watch/${i.id}?type=${typeParam}`);

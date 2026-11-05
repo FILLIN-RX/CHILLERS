@@ -39,6 +39,32 @@ export const COUNTRIES_CONFIG: CountryConfig[] = [
 export const LEAGUES_CONFIG: LeagueConfig[] = [
   // Europe & International
   {
+    id: 'afc.champions',
+    slug: 'afc-champions-league-elite',
+    name: 'AFC Champions League Elite',
+    sport: 'football',
+    espnLeague: 'afc.champions',
+    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/2200.png',
+    country: 'Asie',
+    countryId: 'asia',
+    countryCode: 'AFC',
+    flag: '🌏',
+    hasStandings: true,
+  },
+  {
+    id: 'afc.cup',
+    slug: 'afc-champions-league-two',
+    name: 'AFC Champions League Two',
+    sport: 'football',
+    espnLeague: 'afc.cup',
+    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/2243.png',
+    country: 'Asie',
+    countryId: 'asia',
+    countryCode: 'AFC',
+    flag: '🌏',
+    hasStandings: true,
+  },
+  {
     id: 'uefa.champions',
     slug: 'champions-league',
     name: 'Ligue des Champions',
@@ -57,7 +83,7 @@ export const LEAGUES_CONFIG: LeagueConfig[] = [
     name: 'Ligue Europa',
     sport: 'football',
     espnLeague: 'uefa.europa',
-    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/2.png',
+    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/2310.png',
     country: 'Europe',
     countryId: 'europe',
     countryCode: 'EU',
@@ -70,7 +96,7 @@ export const LEAGUES_CONFIG: LeagueConfig[] = [
     name: 'Ligue Conférence',
     sport: 'football',
     espnLeague: 'uefa.europa.conf',
-    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/2.png',
+    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/20296.png',
     country: 'Europe',
     countryId: 'europe',
     countryCode: 'EU',
@@ -150,7 +176,7 @@ export const LEAGUES_CONFIG: LeagueConfig[] = [
     name: 'Carabao Cup',
     sport: 'football',
     espnLeague: 'eng.league_cup',
-    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/22.png',
+    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/41.png',
     country: 'Angleterre',
     countryId: 'england',
     countryCode: 'GB-ENG',
@@ -178,7 +204,7 @@ export const LEAGUES_CONFIG: LeagueConfig[] = [
     name: 'LaLiga 2',
     sport: 'football',
     espnLeague: 'esp.2',
-    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/16.png',
+    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/107.png',
     country: 'Espagne',
     countryId: 'spain',
     countryCode: 'ES',
@@ -191,7 +217,7 @@ export const LEAGUES_CONFIG: LeagueConfig[] = [
     name: 'Coupe du Roi',
     sport: 'football',
     espnLeague: 'esp.copa_del_rey',
-    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/18.png',
+    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/80.png',
     country: 'Espagne',
     countryId: 'spain',
     countryCode: 'ES',
@@ -260,7 +286,7 @@ export const LEAGUES_CONFIG: LeagueConfig[] = [
     name: 'Serie B',
     sport: 'football',
     espnLeague: 'ita.2',
-    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/13.png',
+    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/99.png',
     country: 'Italie',
     countryId: 'italy',
     countryCode: 'IT',
@@ -273,7 +299,7 @@ export const LEAGUES_CONFIG: LeagueConfig[] = [
     name: 'Coppa Italia',
     sport: 'football',
     espnLeague: 'ita.coppa_italia',
-    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/14.png',
+    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/2192.png',
     country: 'Italie',
     countryId: 'italy',
     countryCode: 'IT',
@@ -301,7 +327,7 @@ export const LEAGUES_CONFIG: LeagueConfig[] = [
     name: '2. Bundesliga',
     sport: 'football',
     espnLeague: 'ger.2',
-    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/11.png',
+    logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/97.png',
     country: 'Allemagne',
     countryId: 'germany',
     countryCode: 'DE',
@@ -473,4 +499,49 @@ export function getLeagueByIdConfig(idOrSlug: string) {
   return LEAGUES_CONFIG.find(
     (l) => l.id === idOrSlug || l.slug === idOrSlug || l.espnLeague === idOrSlug
   );
+}
+
+const normalizeCompetitionKey = (value?: string) =>
+  (value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, '');
+
+/**
+ * Logos des compétitions rencontrées dans le flux global ESPN, y compris
+ * celles qui n'ont pas de configuration dédiée dans la sidebar.
+ */
+export function getCompetitionLogo(name?: string, country?: string): string | undefined {
+  const n = normalizeCompetitionKey(name);
+  const c = normalizeCompetitionKey(country);
+
+  if (n.includes('scottishcup')) return '/league/competitions/scottish-cup.webp';
+  if (n.includes('nationalleague')) return '/league/competitions/national-league.webp';
+  if (n.includes('scottishchampionship') || (n.includes('championship') && c.includes('scotland'))) {
+    return '/league/competitions/scottish-championship-icon.webp';
+  }
+  if (n.includes('concacafcentralamericancup')) return 'https://a.espncdn.com/i/leaguelogos/soccer/500/12.png';
+  if (n.includes('afcchampionsleagueelite')) return 'https://a.espncdn.com/i/leaguelogos/soccer/500/2200.png';
+  if (n.includes('afcchampionsleaguetwo')) return 'https://a.espncdn.com/i/leaguelogos/soccer/500/2243.png';
+  if (n.includes('efltrophy')) return 'https://a.espncdn.com/i/leaguelogos/soccer/500/42.png';
+  if (n.includes('eflcup')) return 'https://a.espncdn.com/i/leaguelogos/soccer/500/41.png';
+  if (n.includes('dfbcup') || n.includes('dfbpokal')) return 'https://a.espncdn.com/i/leaguelogos/soccer/500/2061.png';
+  if (n.includes('copadelrey')) return 'https://a.espncdn.com/i/leaguelogos/soccer/500/80.png';
+  if (n.includes('knvbbeker')) return 'https://a.espncdn.com/i/leaguelogos/soccer/500/2196.png';
+  if (n.includes('saudiprofessionalleague') || n.includes('saudiproleague')) return 'https://a.espncdn.com/i/leaguelogos/soccer/500/2488.png';
+  if (n.includes('ncaamenssoccer')) return 'https://a.espncdn.com/redesign/assets/img/icons/ESPN-icon-soccer.png';
+  if (n.includes('nbabasketball')) return 'https://a.espncdn.com/i/teamlogos/leagues/500/nba.png';
+  if (n.includes('seriea') && !n.includes('serieb')) return 'https://a.espncdn.com/i/leaguelogos/soccer/500/12.png';
+  if (n.includes('serieb')) return 'https://a.espncdn.com/i/leaguelogos/soccer/500/99.png';
+  if (n.includes('allsvenskan')) return 'https://a.espncdn.com/i/leaguelogos/soccer/500/16.png';
+  if (n.includes('liga1')) return 'https://a.espncdn.com/i/leaguelogos/soccer/500/1813.png';
+  if (n.includes('primeraa') || n.includes('colombianprimera')) return 'https://a.espncdn.com/i/leaguelogos/soccer/500/1543.png';
+  if (n.includes('primera') && c.includes('venezuela')) return 'https://a.espncdn.com/i/leaguelogos/soccer/500/1947.png';
+  if (n.includes('primera') && (c.includes('argentin') || n.includes('ligaprofesional'))) return 'https://a.espncdn.com/i/leaguelogos/soccer/500/1.png';
+  if (n.includes('league1')) return 'https://a.espncdn.com/i/leaguelogos/soccer/500/25.png';
+  if (n.includes('league2')) return 'https://a.espncdn.com/i/leaguelogos/soccer/500/26.png';
+  if (n.includes('uefayouthleague')) return 'https://a.espncdn.com/i/leaguelogos/soccer/500/53.png';
+
+  return undefined;
 }

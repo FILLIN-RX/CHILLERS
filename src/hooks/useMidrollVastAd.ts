@@ -1,164 +1,42 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import {
+  VAST_TAG_URL,
+  fetchSingleAdVast,
+  loadImaSdk,
+  logAdError,
+  type ImaAdsLoader,
+  type ImaAdsManager,
+  type ImaDisplayContainer,
+  type ImaEvent,
+} from "@/lib/ima-ads";
 
 type MidrollState = "idle" | "loading" | "playing";
 type AdStatus = "idle" | "requesting" | "ready" | "unavailable";
 
-interface ImaAdError {
-  getErrorCode?: () => number;
-  getMessage?: () => string;
-}
-
-interface ImaEvent {
-  getAdsManager: (contentPlayback: HTMLVideoElement, settings?: unknown) => ImaAdsManager;
-  getError?: () => ImaAdError;
-}
-
-interface ImaAdsManager {
-  addEventListener: (event: string, listener: (event: ImaEvent) => void) => void;
-  init: (width: number, height: number, viewMode: string) => void;
-  start: () => void;
-  destroy: () => void;
-  getRemainingTime: () => number;
-}
-
-interface ImaAdsLoader {
-  addEventListener: (event: string, listener: (event: ImaEvent) => void) => void;
-  requestAds: (request: ImaAdsRequest) => void;
-  contentComplete: () => void;
-  destroy: () => void;
-}
-
-interface ImaAdsRequest {
-  adTagUrl: string;
-  adsResponse: string;
-  linearAdSlotWidth: number;
-  linearAdSlotHeight: number;
-  nonLinearAdSlotWidth: number;
-  nonLinearAdSlotHeight: number;
-}
-
-interface ImaDisplayContainer {
-  initialize: () => void;
-  destroy: () => void;
-}
-
-interface ImaSdk {
-  AdDisplayContainer: new (container: Element, video: HTMLVideoElement) => ImaDisplayContainer;
-  AdsLoader: new (container: ImaDisplayContainer) => ImaAdsLoader;
-  AdsRequest: new () => ImaAdsRequest;
-  AdsRenderingSettings: new () => unknown;
-  ViewMode: { NORMAL: string };
-  AdsManagerLoadedEvent: { Type: { ADS_MANAGER_LOADED: string } };
-  AdErrorEvent: { Type: { AD_ERROR: string } };
-  AdEvent: {
-    Type: {
-      CONTENT_PAUSE_REQUESTED: string;
-      CONTENT_RESUME_REQUESTED: string;
-      ALL_ADS_COMPLETED: string;
-      AD_PROGRESS: string;
-      STARTED: string;
-    };
-  };
-}
-
-declare global {
-  interface Window {
-    google?: { ima?: ImaSdk };
-  }
-}
-
-const IMA_SCRIPT_ID = "google-ima-sdk";
-const IMA_SCRIPT_URL = "https://imasdk.googleapis.com/js/sdkloader/ima3.js";
-const IMA_LOAD_TIMEOUT_MS = 8_000;
-const VAST_FETCH_TIMEOUT_MS = 8_000;
 const AD_START_TIMEOUT_MS = 6_000;
 const SKIP_DELAY_SECONDS = 10;
 const MIN_CONTENT_DURATION_SECONDS = 120;
 const PRELOAD_THRESHOLD = 0.4;
 const BREAK_THRESHOLD = 0.5;
-const VAST_TAG_URL = process.env.NEXT_PUBLIC_HILLTOP_VAST_TAG_URL?.trim()
-  || "https://loyal-product.com/dBmhF.zKdpGsN/vkZHGlUU/veUmH9AuYZSUnl_kuP-T/cZ1aNPDKQd4vN/DmEEtdNHzOUA0_NDD/gu0dNtQJ";
-
-function logAdError(event?: ImaEvent) {
-  if (process.env.NODE_ENV === "production" || !event?.getError) return;
-  const error = event.getError();
-  console.warn("[midroll-vast]", error?.getErrorCode?.() ?? "unknown", error?.getMessage?.() ?? "");
-}
-
-/**
- * Récupère le VAST nous-mêmes et ne garde que la première création.
- * IMA 3.796 rejette l'intégralité de la réponse (erreur 1009) dès que le tag
- * HilltopAds en renvoie deux, alors que chaque création passe seule.
- */
-async function fetchSingleAdVast(tagUrl: string): Promise<string | null> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), VAST_FETCH_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(tagUrl, { signal: controller.signal, credentials: "omit" });
-    if (!response.ok) return null;
-    const xml = await response.text();
-
-    const doc = new DOMParser().parseFromString(xml, "text/xml");
-    const root = doc.documentElement;
-    if (!root || root.nodeName.toLowerCase() !== "vast") return null;
-    if (doc.getElementsByTagName("parsererror").length > 0) return null;
-
-    const ads = Array.from(doc.getElementsByTagName("Ad"));
-    if (ads.length === 0) return null;
-    if (ads.length === 1) return xml;
-
-    const single = doc.createElement("VAST");
-    single.setAttribute("version", root.getAttribute("version") || "3.0");
-    single.appendChild(ads[0]);
-    return new XMLSerializer().serializeToString(single);
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-function loadImaSdk(): Promise<boolean> {
-  if (typeof window === "undefined") return Promise.resolve(false);
-  if (window.google?.ima) return Promise.resolve(true);
-
-  return new Promise((resolve) => {
-    let settled = false;
-    let timeout: ReturnType<typeof setTimeout> | null = null;
-
-    const finish = (success: boolean) => {
-      if (settled) return;
-      settled = true;
-      if (timeout) clearTimeout(timeout);
-      resolve(success);
-    };
-
-    timeout = setTimeout(() => finish(Boolean(window.google?.ima)), IMA_LOAD_TIMEOUT_MS);
-
-    let script = document.getElementById(IMA_SCRIPT_ID) as HTMLScriptElement | null;
-    const onLoad = () => finish(Boolean(window.google?.ima));
-    const onError = () => finish(false);
-
-    if (!script) {
-      script = document.createElement("script");
-      script.id = IMA_SCRIPT_ID;
-      script.src = IMA_SCRIPT_URL;
-      script.async = true;
-      script.onload = onLoad;
-      script.onerror = onError;
-      document.head.appendChild(script);
-      return;
-    }
-
-    script.addEventListener("load", onLoad, { once: true });
-    script.addEventListener("error", onError, { once: true });
-  });
-}
-
-export function useMidrollVastAd(videoRef: RefObject<HTMLVideoElement | null>, mediaKey: string) {
+/** Mode intervalle : une pub toutes les N secondes (2 minutes par défaut). */
+export const AD_INTERVAL_SECONDS = 120;
+/** Préchargement du VAST N secondes avant la prochaine rupture. */
+const AD_PRELOAD_LEAD_SECONDS = 20;
+export function useMidrollVastAd(
+  videoRef: RefObject<HTMLVideoElement | null>,
+  mediaKey: string,
+  options?: { intervalSeconds?: number | null },
+) {
+  /**
+   * Mode intervalle (opt-in via `options.intervalSeconds`) : une pub toutes
+   * les N secondes. Sans option, comportement historique : une seule rupture
+   * à mi-parcours (50 % de la vidéo).
+   */
+  const intervalSeconds = options?.intervalSeconds ?? null;
+  const intervalRef = useRef<number | null>(intervalSeconds);
+  const nextBreakRef = useRef<number>(intervalSeconds ?? 0);
   const adContainerRef = useRef<HTMLDivElement>(null);
   const adVideoRef = useRef<HTMLVideoElement>(null);
   const adsManagerRef = useRef<ImaAdsManager | null>(null);
@@ -242,6 +120,13 @@ export function useMidrollVastAd(videoRef: RefObject<HTMLVideoElement | null>, m
     adStatusRef.current = "idle";
     setRemainingSeconds(null);
     changeState("idle");
+
+    // Mode intervalle : la rupture est terminée, on réarme la suivante
+    // (rechargement du VAST + prochaine rupture au prochain tour).
+    if (intervalRef.current) {
+      breakHandledRef.current = false;
+      preloadRequestedRef.current = false;
+    }
 
     if (resumeContent) {
       // IMA peut remettre le contenu en pause pendant son destroy() :
@@ -418,11 +303,39 @@ export function useMidrollVastAd(videoRef: RefObject<HTMLVideoElement | null>, m
 
   const onContentTimeUpdate = useCallback(() => {
     const video = videoRef.current;
-    if (!video || !VAST_TAG_URL || !sdkReady || breakHandledRef.current) return;
+    if (!video || !VAST_TAG_URL || !sdkReady) return;
     if (video.seeking || video.paused) return;
 
     const duration = video.duration;
     if (!Number.isFinite(duration) || duration < MIN_CONTENT_DURATION_SECONDS) return;
+
+    const interval = intervalRef.current;
+
+    // ── Mode intervalle : une pub toutes les N secondes ──
+    if (interval) {
+      if (stateRef.current !== "idle" || breakHandledRef.current) return;
+
+      const nextBreak = nextBreakRef.current;
+      if (!preloadRequestedRef.current && video.currentTime >= nextBreak - AD_PRELOAD_LEAD_SECONDS) {
+        void preloadAds();
+      }
+      if (video.currentTime < nextBreak) return;
+
+      breakHandledRef.current = true;
+      nextBreakRef.current = nextBreak + interval;
+
+      // Pas d'inventaire : on ne met jamais le contenu en attente pour rien.
+      if (adStatusRef.current === "unavailable") return;
+
+      shouldStartRef.current = true;
+      video.pause();
+      changeState("loading");
+      armStartTimeout();
+      startLoadedAd();
+      return;
+    }
+
+    if (breakHandledRef.current) return;
 
     if (!preloadRequestedRef.current && video.currentTime >= duration * PRELOAD_THRESHOLD) {
       void preloadAds();
@@ -444,6 +357,20 @@ export function useMidrollVastAd(videoRef: RefObject<HTMLVideoElement | null>, m
 
   const onContentSeeked = useCallback((time: number) => {
     const video = videoRef.current;
+    const interval = intervalRef.current;
+
+    // ── Mode intervalle : on ne rejoue jamais une rupture déjà atteinte,
+    //    la prochaine rupture est simplement recalculée après le saut ──
+    if (interval) {
+      if (stateRef.current !== "idle") teardown(true);
+      else if (adsManagerRef.current || adsLoaderRef.current) teardown(false);
+      shouldStartRef.current = false;
+      clearStartTimeout();
+      while (nextBreakRef.current <= time) nextBreakRef.current += interval;
+      if (stateRef.current === "idle") breakHandledRef.current = false;
+      return;
+    }
+
     const duration = video?.duration ?? 0;
     const isPastBreak = Number.isFinite(duration) && duration > 0 && time >= duration * BREAK_THRESHOLD;
 
@@ -487,10 +414,12 @@ export function useMidrollVastAd(videoRef: RefObject<HTMLVideoElement | null>, m
     managerInitializedRef.current = false;
     displayInitializedRef.current = false;
     adStatusRef.current = "idle";
+    intervalRef.current = intervalSeconds ?? null;
+    nextBreakRef.current = intervalSeconds ?? 0;
     clearStartTimeout();
     resetSkip();
     if (stateRef.current !== "idle" || adsManagerRef.current || adsLoaderRef.current) teardown(false);
-  }, [clearStartTimeout, mediaKey, resetSkip, teardown]);
+  }, [clearStartTimeout, intervalSeconds, mediaKey, resetSkip, teardown]);
 
   useEffect(() => () => {
     clearStartTimeout();
@@ -518,6 +447,9 @@ export function useMidrollVastAd(videoRef: RefObject<HTMLVideoElement | null>, m
     onContentSeeked,
     initializeFromUserGesture,
     cancelMidrollForUserControl,
+    /** Position (secondes) de la prochaine pub — mode intervalle. */
+    nextBreakRef,
+    intervalSeconds,
     isConfigured: Boolean(VAST_TAG_URL),
   };
 }

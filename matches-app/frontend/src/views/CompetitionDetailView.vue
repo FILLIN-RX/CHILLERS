@@ -21,12 +21,11 @@
         <!-- Logo & Titre de la Ligue -->
         <div class="d-flex align-center gap-4 min-w-0">
           <div class="league-logo-wrapper d-flex align-center justify-center flex-shrink-0">
-            <span v-if="leagueFlag && !leagueLogo" class="emoji-flag">{{ leagueFlag }}</span>
             <TeamLogo
-              v-else
               :src="leagueLogo"
               :name="competitionName"
-              :size="56"
+              :size="60"
+              fallback-icon="mdi-trophy-outline"
               class="league-logo-img"
             />
           </div>
@@ -302,7 +301,7 @@
                   </td>
                   <td class="py-2.5 px-3">
                     <div class="d-flex align-center gap-2.5 min-w-0">
-                      <TeamLogo :src="entry.team.logo" :name="entry.team.name" :size="20" class="flex-shrink-0" />
+                      <TeamLogo :src="entry.team.logo" :name="entry.team.name" :size="28" class="flex-shrink-0" />
                       <span class="text-body-2 font-weight-bold text-white text-truncate">{{ entry.team.name }}</span>
                     </div>
                   </td>
@@ -489,7 +488,7 @@
                   <!-- Nom et Logo Équipe -->
                   <td class="py-3 px-3">
                     <div class="d-flex align-center gap-2.5 min-w-0">
-                      <TeamLogo :src="entry.team.logo" :name="entry.team.name" :size="24" class="flex-shrink-0" />
+                      <TeamLogo :src="entry.team.logo" :name="entry.team.name" :size="28" class="flex-shrink-0" />
                       <span class="text-body-2 font-weight-bold text-white text-truncate">{{ entry.team.name }}</span>
                     </div>
                   </td>
@@ -517,7 +516,7 @@
       </div>
 
       <!-- ═══════════════ ONGLET 5 : STATS & BUTEURS (LEADERS) ═══════════════ -->
-      <div v-else-if="activeTab === 'stats'" class="d-flex flex-column gap-6">
+      <div v-else-if="activeTab === 'stats'" class="d-flex flex-column gap-4">
         <div v-if="leadersCategories.length === 0" class="text-center py-16">
           <v-icon size="48" color="zinc-600" class="mb-3">mdi-chart-bar</v-icon>
           <div class="text-h6 font-weight-bold text-white">Aucune statistique disponible</div>
@@ -526,11 +525,28 @@
           </div>
         </div>
 
-        <div v-else class="d-flex flex-column gap-6">
-          <!-- Cartes par catégorie de stats (Buteurs, Passeurs...) -->
+        <template v-else>
+          <!-- Sous-onglets : Buteurs, Passes D, etc. -->
+          <div class="stats-subtabs d-flex align-center flex-wrap gap-2">
+            <button
+              v-for="cat in leadersCategories"
+              :key="cat.name"
+              type="button"
+              class="stats-subtab d-flex align-center gap-1"
+              :class="{ 'stats-subtab--active': activeStatsCategory?.name === cat.name }"
+              @click="activeStatsCat = cat.name"
+            >
+              <v-icon size="14" :color="activeStatsCategory?.name === cat.name ? 'white' : 'zinc-400'">
+                {{ statsCatIcon(cat) }}
+              </v-icon>
+              <span>{{ statsCatLabel(cat) }}</span>
+              <span class="stats-subtab__count">{{ cat.leaders.length }}</span>
+            </button>
+          </div>
+
+          <!-- Carte de la catégorie active -->
           <v-card
-            v-for="cat in leadersCategories"
-            :key="cat.name"
+            v-if="activeStatsCategory"
             color="#161618"
             rounded="2xl"
             class="overflow-hidden"
@@ -538,11 +554,13 @@
           >
             <div class="section-header px-5 py-4 d-flex align-center justify-space-between">
               <div class="d-flex align-center gap-2">
-                <v-icon size="20" color="primary">mdi-soccer</v-icon>
-                <h3 class="text-h6 font-weight-black text-white">{{ cat.displayName }}</h3>
+                <v-icon size="20" color="primary">{{ statsCatIcon(activeStatsCategory) }}</v-icon>
+                <h3 class="text-h6 font-weight-black text-white">
+                  {{ statsCatLabel(activeStatsCategory) }}
+                </h3>
               </div>
               <span class="text-caption text-zinc-400 font-weight-medium">
-                {{ cat.leaders.length }} joueurs
+                {{ activeStatsCategory.leaders.length }} joueurs
               </span>
             </div>
 
@@ -551,9 +569,9 @@
             <!-- Liste des leaders -->
             <div class="divide-dark">
               <div
-                v-for="leader in cat.leaders.slice(0, 15)"
+                v-for="leader in activeStatsCategory.leaders.slice(0, 20)"
                 :key="leader.athlete.id"
-                class="d-flex align-center justify-space-between px-5 py-3 hover:bg-white/5 transition-colors"
+                class="d-flex align-center justify-between px-5 py-3 hover:bg-white/5 transition-colors"
               >
                 <!-- Rang & Joueur -->
                 <div class="d-flex align-center gap-3 min-w-0">
@@ -580,7 +598,7 @@
                       {{ leader.athlete.displayName }}
                     </div>
                     <div class="text-caption text-zinc-400 text-truncate">
-                      {{ leader.displayValue || `Rang #${leader.rank}` }}
+                      {{ leaderSubtitle(leader) }}
                     </div>
                   </div>
                 </div>
@@ -592,7 +610,7 @@
               </div>
             </div>
           </v-card>
-        </div>
+        </template>
       </div>
     </div>
   </v-container>
@@ -612,12 +630,15 @@ import type {
   StandingEntry,
   SportMatch,
   CompetitionLeadersCategory,
+  CompetitionLeader,
 } from '../types/matches';
 import TeamLogo from '../components/TeamLogo.vue';
 import MatchCard from '../components/MatchCard.vue';
+import { useMatchesStore } from '../stores/matches';
 
 const route = useRoute();
 const router = useRouter();
+const matchesStore = useMatchesStore();
 
 const leagueId = computed(() => String(route.params.id || ''));
 
@@ -627,6 +648,43 @@ const competitionData = ref<CompetitionDetails | null>(null);
 const allMatches = ref<SportMatch[]>([]);
 const leadersCategories = ref<CompetitionLeadersCategory[]>([]);
 const selectedSeason = ref<number | string>('');
+
+// Sous-onglet actif de l'onglet Stats (ex: Buteurs / Passes D)
+const activeStatsCat = ref<string>('');
+const activeStatsCategory = computed<CompetitionLeadersCategory | undefined>(() =>
+  leadersCategories.value.find((c) => c.name === activeStatsCat.value) ?? leadersCategories.value[0]
+);
+
+const STATS_CAT_LABELS: Record<string, string> = {
+  goalsleaders: 'Buteurs',
+  goals: 'Buteurs',
+  assistsleaders: 'Passes D',
+  assists: 'Passes D',
+  yellowcards: 'Cartons jaunes',
+  redcards: 'Cartons rouges',
+  saves: 'Arrêts',
+};
+
+function statsCatLabel(cat: CompetitionLeadersCategory): string {
+  return STATS_CAT_LABELS[cat.name.toLowerCase()] || cat.displayName;
+}
+
+function statsCatIcon(cat: CompetitionLeadersCategory): string {
+  const key = cat.name.toLowerCase();
+  if (key.includes('assist')) return 'mdi-account-arrow-right';
+  if (key.includes('goal')) return 'mdi-soccer';
+  if (key.includes('card')) return 'mdi-card-text-outline';
+  if (key.includes('save')) return 'mdi-hand-back-right-outline';
+  return 'mdi-chart-bar';
+}
+
+function leaderSubtitle(leader: CompetitionLeader): string {
+  const parts: string[] = [];
+  if (leader.team?.displayName) parts.push(leader.team.displayName);
+  if (leader.apps) parts.push(`${leader.apps} match${leader.apps > 1 ? 's' : ''}`);
+  if (parts.length > 0) return parts.join(' • ');
+  return leader.displayValue || `Rang #${leader.rank}`;
+}
 
 // Onglet actif
 type TabId = 'overview' | 'fixtures' | 'results' | 'standings' | 'stats';
@@ -661,27 +719,13 @@ function toggleLeagueFavorite() {
   } catch {}
 }
 
-// Favoris matchs dans localStorage
-const FAVORITE_MATCHES_KEY = 'chillers_matches_favorites';
-const favoriteMatches = ref<string[]>([]);
-try {
-  const saved = localStorage.getItem(FAVORITE_MATCHES_KEY);
-  if (saved) favoriteMatches.value = JSON.parse(saved);
-} catch {}
-
+// Favoris matchs : source de vérité = store (localStorage partagé + notifications)
 function isMatchFavorite(id: string): boolean {
-  return favoriteMatches.value.includes(id);
+  return matchesStore.isFavorite(id);
 }
 
 function toggleMatchFavorite(id: string) {
-  if (isMatchFavorite(id)) {
-    favoriteMatches.value = favoriteMatches.value.filter((mId) => mId !== id);
-  } else {
-    favoriteMatches.value.push(id);
-  }
-  try {
-    localStorage.setItem(FAVORITE_MATCHES_KEY, JSON.stringify(favoriteMatches.value));
-  } catch {}
+  matchesStore.toggleFavorite(id);
 }
 
 // Métadonnées de la compétition
@@ -767,18 +811,42 @@ const groupedFinishedMatches = computed(() => {
 });
 
 // Chargement des données
+function computeMatchWindow(): { from: string; to: string } {
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  const now = new Date();
+  const current = competitionData.value?.currentSeason;
+  const sel = Number(selectedSeason.value);
+
+  // Saison passée sélectionnée (format européen : Août Y-1 → Mai Y)
+  if (selectedSeason.value && current && !Number.isNaN(sel) && sel !== Number(current)) {
+    return { from: `${sel - 1}-08-01`, to: `${sel}-05-31` };
+  }
+
+  // Fenêtre courante : 35 jours de résultats récents + 100 jours à venir
+  const start = new Date(now);
+  start.setUTCDate(start.getUTCDate() - 35);
+  const end = new Date(now);
+  end.setUTCDate(end.getUTCDate() + 100);
+  return { from: iso(start), to: iso(end) };
+}
+
 async function loadCompetition() {
   isLoading.value = true;
   try {
+    const window = computeMatchWindow();
     const [details, matches, leaders] = await Promise.all([
       fetchCompetitionDetails(leagueId.value, selectedSeason.value || undefined),
-      fetchCompetitionMatches(leagueId.value, { season: selectedSeason.value || undefined }),
+      fetchCompetitionMatches(leagueId.value, { from: window.from, to: window.to }),
       fetchCompetitionLeaders(leagueId.value),
     ]);
 
     competitionData.value = details;
     allMatches.value = matches;
     leadersCategories.value = leaders;
+
+    if (!leaders.some((c) => c.name === activeStatsCat.value)) {
+      activeStatsCat.value = leaders[0]?.name || '';
+    }
 
     if (!selectedSeason.value && details?.currentSeason) {
       selectedSeason.value = details.currentSeason;
@@ -873,13 +941,7 @@ onMounted(() => {
   width: 68px;
   height: 68px;
   border-radius: 18px;
-  background-color: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 6px;
-}
-
-.emoji-flag {
-  font-size: 34px;
+  padding: 4px;
 }
 
 .country-flag-icon {
@@ -974,6 +1036,43 @@ onMounted(() => {
 
 .table-responsive {
   overflow-x: auto;
+}
+
+/* 5. Sous-onglets Stats (Buteurs / Passes D / ...) */
+.stats-subtab {
+  background: #1c1c1f;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.62);
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+
+.stats-subtab:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+
+.stats-subtab--active {
+  background: #e50914;
+  border-color: #e50914;
+  color: #fff;
+}
+
+.stats-subtab--active:hover {
+  background: #e50914;
+  border-color: #e50914;
+}
+
+.stats-subtab__count {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0.75;
 }
 
 /* Utilitaires */

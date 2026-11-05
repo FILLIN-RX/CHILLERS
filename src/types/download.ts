@@ -38,6 +38,10 @@ export interface DownloadTask {
   resolvedUrl: string | null;
   /** Timestamp when the URL was resolved, for cache expiration (TTL 6-12h). */
   resolvedUrlAt?: number;
+  /** iOS : horodatage du geste qui a remis le fichier au navigateur. Le statut
+   *  reste `ready` — on ne peut pas savoir quand Safari a fini, et marquer
+   *  `done` produirait des « Terminé » vides. */
+  launchedAt?: number;
   /** Bytes downloaded so far. */
   bytesDownloaded: number;
   /** Total bytes if known (Content-Length from upstream). */

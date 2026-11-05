@@ -42,7 +42,7 @@
     <v-row align="center" justify="center" class="text-center position-relative z-1 my-1 my-sm-2">
       <!-- Domicile -->
       <v-col cols="4" class="d-flex flex-column align-center px-1">
-        <TeamLogo :src="match.homeTeam.logo" :name="match.homeTeam.name" :size="52" class="mb-2 logo-responsive" />
+        <TeamLogo :src="match.homeTeam.logo" :name="match.homeTeam.name" :size="58" class="mb-2 logo-responsive" />
         <span class="text-caption text-sm-subtitle-2 font-weight-bold text-white text-truncate text-center" style="max-width: 120px;">
           {{ match.homeTeam.name }}
         </span>
@@ -87,7 +87,7 @@
 
       <!-- Extérieur -->
       <v-col cols="4" class="d-flex flex-column align-center px-1">
-        <TeamLogo :src="match.awayTeam.logo" :name="match.awayTeam.name" :size="52" class="mb-2 logo-responsive" />
+        <TeamLogo :src="match.awayTeam.logo" :name="match.awayTeam.name" :size="58" class="mb-2 logo-responsive" />
         <span class="text-caption text-sm-subtitle-2 font-weight-bold text-white text-truncate text-center" style="max-width: 120px;">
           {{ match.awayTeam.name }}
         </span>

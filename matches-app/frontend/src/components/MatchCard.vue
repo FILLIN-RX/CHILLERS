@@ -48,7 +48,7 @@
         <TeamLogo
           :src="match.homeTeam.logo"
           :name="match.homeTeam.name"
-          :size="24"
+          :size="26"
           class="flex-shrink-0 mr-2-5 team-logo-hover"
         />
         <span
@@ -79,7 +79,7 @@
         <TeamLogo
           :src="match.awayTeam.logo"
           :name="match.awayTeam.name"
-          :size="24"
+          :size="26"
           class="flex-shrink-0 mr-2-5 team-logo-hover"
         />
         <span
@@ -241,13 +241,12 @@ const isAwayLeading = computed(() => {
 .match-card {
   position: relative;
   display: grid !important;
-  grid-template-columns: 58px 1fr 76px;
+  grid-template-columns: 58px minmax(0, 1fr) auto;
   align-items: center;
-  column-gap: 10px;
-  padding: 0 10px 0 10px !important;
-  height: 68px;
-  min-height: 68px;
-  max-height: 68px;
+  column-gap: 8px;
+  padding: 5px 8px !important;
+  height: auto;
+  min-height: 64px;
   border: 1px solid transparent;
   border-radius: 4px;
   overflow: hidden;
@@ -258,14 +257,14 @@ const isAwayLeading = computed(() => {
 
 @media (min-width: 600px) {
   .match-card {
-    grid-template-columns: 62px 1fr 82px;
-    column-gap: 14px;
-    padding: 0 14px 0 14px !important;
+    grid-template-columns: 62px minmax(0, 1fr) auto;
+    column-gap: 12px;
+    padding: 5px 12px !important;
   }
 }
 
 .match-card:hover {
-  background-color: #202020 !important;
+  background-color: #2E2E2E !important;
 }
 
 .match-card:active {
@@ -286,7 +285,7 @@ const isAwayLeading = computed(() => {
 }
 
 .match-card-live {
-  background: linear-gradient(90deg, rgba(229, 9, 20, 0.06) 0%, rgba(24, 24, 24, 1) 35%) !important;
+  background: rgba(229, 9, 20, 0.05) !important;
 }
 
 /* Animation But */
@@ -310,7 +309,7 @@ const isAwayLeading = computed(() => {
 
 .goal-tag {
   position: absolute;
-  top: -8px;
+  top: 3px;
   right: 50px;
   background-color: #E50914;
   color: #ffffff;
@@ -370,6 +369,8 @@ const isAwayLeading = computed(() => {
 .live-status-pill {
   line-height: 1;
   margin-bottom: 2px;
+  max-width: 100%;
+  white-space: nowrap;
 }
 
 .live-dot-pulse {
@@ -394,8 +395,9 @@ const isAwayLeading = computed(() => {
 
 .live-period-tag {
   color: #ff453a;
-  font-size: 8.5px;
-  letter-spacing: 0.03em;
+  font-size: 8px;
+  letter-spacing: 0;
+  white-space: nowrap;
   text-transform: uppercase;
   line-height: 1;
 }
@@ -450,7 +452,8 @@ const isAwayLeading = computed(() => {
 }
 
 .team-line {
-  height: 24px;
+  height: 26px;
+  min-height: 26px;
   min-width: 0;
 }
 
@@ -490,10 +493,10 @@ const isAwayLeading = computed(() => {
 /* ─── 3. Grille Colonne 3 : Scores & Actions ─── */
 .grid-col-scores-actions {
   display: grid;
-  grid-template-columns: 38px 1fr;
+  grid-template-columns: 38px auto;
   align-items: center;
-  column-gap: 6px;
-  width: 100%;
+  column-gap: 5px;
+  width: auto;
   position: relative;
 }
 
@@ -508,12 +511,12 @@ const isAwayLeading = computed(() => {
 }
 
 .scores-placeholder {
-  height: 42px;
+  height: 40px;
   width: 100%;
 }
 
 .score-line {
-  height: 24px;
+  height: 22px;
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -552,8 +555,8 @@ const isAwayLeading = computed(() => {
 }
 
 .fav-btn {
-  width: 26px !important;
-  height: 26px !important;
+  width: 24px !important;
+  height: 24px !important;
   opacity: 0.85;
   transition: opacity 0.15s ease, transform 0.15s ease;
 }
@@ -564,9 +567,9 @@ const isAwayLeading = computed(() => {
 }
 
 .player-btn {
-  width: 24px !important;
-  height: 24px !important;
-  min-width: 24px !important;
+  width: 22px !important;
+  height: 22px !important;
+  min-width: 22px !important;
   border-radius: 6px !important;
   box-shadow: 0 0 10px rgba(229, 9, 20, 0.5);
   transition: transform 0.15s ease, box-shadow 0.15s ease;

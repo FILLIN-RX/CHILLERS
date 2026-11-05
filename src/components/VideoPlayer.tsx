@@ -18,7 +18,8 @@ import { isSlowConnection } from "@/services/media";
 import { getAntiBotHeaders } from "@/lib/antibot";
 import { PopupFirewall } from "@/lib/PopupFirewall";
 import { getBackendOrigin } from "@/services/http";
-import { useMidrollVastAd } from "@/hooks/useMidrollVastAd";
+import { isSignedLinkExpired } from "@/services/downloads";
+import { AD_INTERVAL_SECONDS, useMidrollVastAd } from "@/hooks/useMidrollVastAd";
 // Type-only : hls.js (~530 Ko) est importé dynamiquement dans l'effet HLS,
 // jamais inclus dans le bundle initial de la page watch.
 import type Hls from "hls.js";
@@ -94,7 +95,7 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
     initializeFromUserGesture,
     cancelMidrollForUserControl,
     isConfigured: isMidrollConfigured,
-  } = useMidrollVastAd(videoRef, mediaKey);
+  } = useMidrollVastAd(videoRef, mediaKey, { intervalSeconds: AD_INTERVAL_SECONDS });
 
   const triggerFeedback = useCallback((icon: "play" | "pause" | "forward" | "backward") => {
     setCenterFeedback({ icon, key: Date.now() });
@@ -261,6 +262,12 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
     // Sur iOS, un lien Uqload / HLS ne doit pas être téléchargé directement :
     // on ouvre la modal qui résout automatiquement vers le MP4 direct (Vidzy/FrenchStream).
     if (directDl && !(isIOS && isUqloadOrHls)) {
+      // Signature expirée : naviguer dessus afficherait la page 403 de
+      // l'hébergeur. On ouvre la modal qui résout un lien neuf à la place.
+      if (isSignedLinkExpired(directDl)) {
+        setShowSingleDownload(true);
+        return;
+      }
       const cleanTitle = (item.title || "video")
         .replace(/\s*:\s*/g, " - ")
         .replace(/[/\\?%*:|"<>]/g, "")

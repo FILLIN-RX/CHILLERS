@@ -220,6 +220,9 @@ export interface MatchOdds {
   homeMoneyLine?: number;
   awayMoneyLine?: number;
   drawMoneyLine?: number;
+  homeDecimalOdds?: number;
+  drawDecimalOdds?: number;
+  awayDecimalOdds?: number;
   homeWinProbability?: number;
   drawProbability?: number;
   awayWinProbability?: number;
@@ -269,6 +272,8 @@ export interface TeamRecentForm {
     id: string;
     date: string;
     opponentName: string;
+    opponentLogo?: string;
+    competition?: string;
     score: string;
     isHome: boolean;
     result: 'W' | 'D' | 'L';
@@ -402,6 +407,7 @@ export interface CompetitionLeader {
   };
   value: number;
   displayValue: string;
+  apps?: number; // Nombre de matchs joués (athlète.statistics.appearances)
 }
 
 export interface CompetitionLeadersCategory {

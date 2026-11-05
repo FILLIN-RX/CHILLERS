@@ -8,7 +8,7 @@ import { useDownloadsStore } from "@/store/downloads";
 import type { DownloadStatus } from "@/types/download";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { getBackendOrigin } from "@/services/http";
-import { isDownloadableUrl, toIOSDownloadHref } from "@/services/downloads";
+import { isDownloadableUrl, isSignedLinkExpired, toIOSDownloadHref } from "@/services/downloads";
 import { isIOS } from "@/services/streamSaver";
 
 interface DownloadModalProps {
@@ -123,7 +123,12 @@ export default function DownloadModal({
       : "#"
     : readyHref;
 
-  const canDownload = dl.status === "ready" && isDownloadableUrl(dl.task?.resolvedUrl);
+  // Une signature d'hébergeur ne vit que quelques heures : au-delà, le CDN
+  // répond 403. On refuse de proposer un lien déjà mort et on offre un re-test.
+  const linkExpired = isSignedLinkExpired(dl.task?.resolvedUrl);
+
+  const canDownload =
+    dl.status === "ready" && !linkExpired && isDownloadableUrl(dl.task?.resolvedUrl);
   const noFileAvailable = dl.status === "ready" && !canDownload;
 
   const showError = dl.status === "error" || noFileAvailable;
@@ -248,9 +253,11 @@ export default function DownloadModal({
         <p className="text-zinc-400 text-xs sm:text-sm mb-5">
           {dl.error
             ? dl.error
-            : noFileAvailable
-              ? "Aucun fichier vidéo n'a pu être extrait pour cette version. Réessayez ou choisissez une autre langue."
-              : STATUS_LABEL[dl.status]}
+            : linkExpired
+              ? "Le lien de téléchargement a expiré. Relancez la résolution pour obtenir un lien neuf."
+              : noFileAvailable
+                ? "Aucun fichier vidéo n'a pu être extrait pour cette version. Réessayez ou choisissez une autre langue."
+                : STATUS_LABEL[dl.status]}
         </p>
 
         {canDownload && (
@@ -267,7 +274,7 @@ export default function DownloadModal({
           </a>
         )}
 
-        {dl.status === "error" && (
+        {(dl.status === "error" || linkExpired) && (
           <button
             onClick={dl.retry}
             className="w-full px-8 py-3 rounded-[5px] bg-white text-black font-bold text-sm hover:bg-zinc-200 transition-all cursor-pointer"

@@ -432,19 +432,18 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
       <div className="relative flex w-full flex-col justify-end overflow-hidden sm:min-h-[70vh] sm:max-h-[750px] lg:h-[78vh]">
         {heroImageUrl ? (
           <>
-            {/* Mobile : affiche portrait (comme oha.to), non recadrée */}
-            <div className="relative aspect-[2/3] w-full shrink-0 overflow-hidden sm:hidden">
+            {/* Mobile : affiche entière plein cadre, ratio 2/3 conservé — rien
+                n'est rogné, posée sur le backdrop flouté de la page. */}
+            <div className="relative aspect-[50/57] w-full shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 ring-1 ring-white/5 sm:hidden">
               <Image
                 src={heroImageUrl}
                 alt={item.title}
                 fill
-                className="object-cover object-center"
+                className="object-cover object-top"
                 sizes="100vw"
                 quality={85}
                 priority
               />
-              <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-[#1F1F1F] to-transparent" />
-              <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black/60 to-transparent" />
             </div>
             {/* Desktop : backdrop plein écran */}
             {desktopBackdropUrl && (
@@ -472,7 +471,7 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
         <div className="absolute bottom-0 left-0 right-0 hidden h-16 bg-gradient-to-t from-[#1F1F1F] via-[#1F1F1F]/40 to-transparent sm:block sm:from-[#09090B] sm:via-[#09090B]/40" />
 
         {/* Contenu du Hero */}
-        <div className="relative z-20 w-full px-4 pb-8 pt-4 sm:px-8 sm:pb-12 sm:pt-24 md:px-12 lg:px-16">
+        <div className="relative z-20 w-full px-4 pb-8 pt-2 sm:px-8 sm:pb-12 sm:pt-24 md:px-12 lg:px-16">
           <div className="flex w-full flex-col items-center gap-5 text-center sm:flex-row sm:items-end sm:gap-8 sm:text-left">
             {/* Poster vertical (desktop) : masqué sur mobile pour un hero image simple */}
             <div className="relative hidden aspect-[2/3] w-44 flex-none shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 ring-1 ring-white/5 sm:block md:w-52 lg:w-56">
@@ -577,7 +576,7 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
               </p>
 
               {/* Actions : Regarder seul sur sa ligne, VF + icônes sur la suivante (sans bordure sur mobile) */}
-              <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-start sm:gap-3">
+              <div className="flex flex-wrap items-center gap-3 pt-2">
                 {isUpcoming ? (
                   <Button
                     disabled
@@ -585,7 +584,7 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
                     size="md"
                     text="Bientôt dispo"
                     ariaLabel={`Sortie prévue le ${releaseDateLabel}`}
-                    className="w-full cursor-not-allowed border-0 bg-blue-600/20 font-bold text-blue-200 opacity-90 shadow-none sm:w-auto"
+                    className="max-sm:flex-1 cursor-not-allowed border-0 bg-blue-600/20 font-bold text-blue-200 opacity-90 shadow-none sm:w-auto"
                   />
                 ) : (
                   <Button
@@ -596,7 +595,7 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
                     text={_("media.watch")}
                     leftIcon={<Play className="h-4 w-4 fill-current" />}
                     ariaLabel={`Regarder le film ${item?.title || ""}`}
-                    className="w-full max-sm:!bg-white max-sm:!text-black max-sm:border-white max-sm:shadow-none sm:w-auto"
+                    className="max-sm:flex-1 max-sm:!bg-white max-sm:!text-black max-sm:border-white max-sm:shadow-none sm:w-auto"
                   />
                 )}
 
@@ -636,9 +635,9 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
                       size="md"
                       leftIcon={<DownloadSimple className="h-4 w-4" />}
                       ariaLabel={`Télécharger ${item.title}`}
-                      className="max-sm:!rounded-full max-sm:!border-0 max-sm:!bg-white/10 max-sm:px-3"
+                      className="max-sm:flex-1 max-sm:justify-center sm:flex-none"
                     >
-                      <span className="max-sm:hidden">Télécharger</span>
+                      <span>Télécharger</span>
                     </Button>
                   )}
 

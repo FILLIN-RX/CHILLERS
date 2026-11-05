@@ -161,7 +161,7 @@ function onPick() {
   display: grid;
   grid-template-columns: 1fr 1fr;
   align-items: stretch;
-  background-color: #181818;
+  background-color: #262626;
   border: 1px solid rgba(255, 255, 255, 0.04);
   border-radius: 12px;
   padding: 6px 8px;

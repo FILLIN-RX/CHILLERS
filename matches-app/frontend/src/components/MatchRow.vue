@@ -6,7 +6,7 @@
   >
     <!-- Équipe Domicile -->
     <div class="team-col d-flex align-center gap-3 flex-1 min-w-0 pr-2">
-      <TeamLogo :src="match.homeTeam.logo" :name="match.homeTeam.name" :size="32" />
+      <TeamLogo :src="match.homeTeam.logo" :name="match.homeTeam.name" :size="36" />
       <span
         class="text-body-2 text-truncate"
         :class="match.homeTeam.isWinner ? 'font-weight-bold text-white' : 'font-weight-medium text-zinc-300'"
@@ -50,7 +50,7 @@
       >
         {{ match.awayTeam.name }}
       </span>
-      <TeamLogo :src="match.awayTeam.logo" :name="match.awayTeam.name" :size="32" />
+      <TeamLogo :src="match.awayTeam.logo" :name="match.awayTeam.name" :size="36" />
     </div>
 
     <!-- Bouton Favori -->

@@ -1,4 +1,4 @@
-export type SportsSourceId = "liveball" | "kora" | "kooorah" | "yallapro" | "streamiz";
+export type SportsSourceId = "liveball" | "kora" | "kooorah" | "yallapro" | "streamiz" | "espn";
 
 export interface SportsMatch {
   /** Identifiant composite `source:sourceId` (interne, historique des URL). */
@@ -11,13 +11,14 @@ export interface SportsMatch {
    */
   slug?: string;
   source: SportsSourceId;
-  status: "live" | "upcoming";
+  status: "live" | "upcoming" | "finished";
   home: string;
   away: string;
   homeLogo?: string;
   awayLogo?: string;
   score?: string;
   minute?: string;
+  statusText?: string;
   startTs?: number;
   league?: string;
 }

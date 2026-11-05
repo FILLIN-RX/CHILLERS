@@ -66,7 +66,7 @@ export class CompetitionsController {
   async getCompetitionMatches(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const leagueId = String(req.params.leagueId || req.params.id);
-      const { date, month, season, seasontype, status, limit, search } = req.query;
+      const { date, month, season, seasontype, status, limit, search, from, to } = req.query;
 
       const matches = await matchesService.getMatches({
         league: leagueId,
@@ -74,6 +74,8 @@ export class CompetitionsController {
         month: month as string | undefined,
         season: season as string | undefined,
         seasontype: seasontype as string | undefined,
+        from: from as string | undefined,
+        to: to as string | undefined,
         status: (status as any) || 'all',
         search: search as string | undefined,
         limit: limit ? parseInt(String(limit), 10) : undefined,

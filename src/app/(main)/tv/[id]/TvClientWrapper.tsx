@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { getDisponible, AvailabilityEntry, mapTMDBToMovieOrShow, getMediaLogo } from "@/services/media";
+import { getDisponible, AvailabilityEntry, mapTMDBToMovieOrShow, getMediaLogo, getSeasonDetails } from "@/services/media";
 import { useMediaDetails } from "@/hooks/useMediaDetails";
 import { httpJson } from "@/services/http";
 import type { MovieOrShow, Episode } from "@/types/media";
@@ -14,10 +14,11 @@ import { userService } from "@/services/user";
 import MovieCard from "@/components/MovieCard";
 import ScrollRow from "@/components/ScrollRow";
 import AddToPlaylistModal from "@/components/AddToPlaylistModal";
+import SeriesDownloadModal from "@/features/downloads/SeriesDownloadModal";
 import Button from "@/components/Button";
 import CardImage from "@/components/CardImage";
 import MediaLogo from "@/components/MediaLogo";
-import { ArrowLeft, Play, Star, CalendarBlank, FilmSlate, ShareNetwork, BookmarkSimple, X, Check, LinkSimple, ListNumbers } from "@phosphor-icons/react";
+import { ArrowLeft, Play, Star, CalendarBlank, FilmSlate, ShareNetwork, BookmarkSimple, X, Check, LinkSimple, ListNumbers, DownloadSimple } from "@phosphor-icons/react";
 
 interface TvClientWrapperProps {
   id: string;
@@ -62,6 +63,9 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
   const [copiedLink, setCopiedLink] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
+  const [downloadEpisodes, setDownloadEpisodes] = useState<Episode[]>([]);
+  const [downloadLoading, setDownloadLoading] = useState(false);
+  const [downloadOpen, setDownloadOpen] = useState(false);
   const [selectedLang, setSelectedLang] = useState<"fr" | "vostfr">("fr");
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   
@@ -75,6 +79,38 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
     setCastCanScrollLeft(el.scrollLeft > 4);
     setCastCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
   }, []);
+
+  const openSeasonDownload = useCallback(
+    async (seasonNumber: number) => {
+      if (!id || downloadLoading) return;
+      setDownloadLoading(true);
+      try {
+        const data = await getSeasonDetails(id, String(seasonNumber), undefined);
+        const eps: Episode[] = (data?.episodes || []).map((ep: any) => ({
+          id: String(ep.id),
+          title: ep.name || `${_("media.episode")} ${ep.episode_number}`,
+          duration: `${ep.runtime || 24}m`,
+          number: ep.episode_number,
+          season: seasonNumber,
+          thumbnail: ep.still_path
+            ? String(ep.still_path).startsWith("http")
+              ? ep.still_path
+              : `https://image.tmdb.org/t/p/original${ep.still_path}`
+            : item?.backdropUrl || item?.posterUrl || "",
+          synopsis: ep.overview || "",
+        }));
+        if (!eps.length) return;
+        setDownloadEpisodes(eps);
+        setDownloadOpen(true);
+      } catch {
+        // La fiche reste affichée ; l'utilisateur peut toujours ouvrir /watch.
+      } finally {
+        setDownloadLoading(false);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [id, downloadLoading, item, _]
+  );
 
   const isFavorite = user?.favorites?.some(
     (f) => f.tmdbId === String(item?.id) && (f.mediaType === "series" || f.mediaType === "anime")
@@ -268,19 +304,18 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
       <div className="relative flex w-full flex-col justify-end overflow-hidden sm:min-h-[75vh] lg:min-h-[82vh]">
         {displayPoster || displayBackdrop ? (
           <>
-            {/* Mobile : affiche portrait (comme oha.to), non recadrée */}
-            <div className="relative aspect-[2/3] w-full shrink-0 overflow-hidden sm:hidden">
+            {/* Mobile : affiche entière plein cadre, ratio 2/3 conservé — rien
+                n'est rogné, posée sur le backdrop flouté de la page. */}
+            <div className="relative aspect-[50/57] w-full shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 ring-1 ring-white/5 sm:hidden">
               <Image
                 src={displayPoster || displayBackdrop}
                 alt={displayTitle}
                 fill
                 priority
                 quality={85}
-                className="object-cover object-center"
+                className="object-cover object-top"
                 sizes="100vw"
               />
-              <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-[#1F1F1F] to-transparent" />
-              <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black/60 to-transparent" />
             </div>
             {/* Desktop : backdrop plein écran */}
             {displayBackdrop && (
@@ -318,7 +353,7 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
         </div>
 
         {/* Contenu du Hero - grille 7 colonnes : 2 vides, poster, texte collé sur 4 */}
-        <div className="relative z-20 w-full px-4 pb-8 pt-4 sm:px-8 sm:pb-12 sm:pt-24 md:px-12 lg:px-16">
+        <div className="relative z-20 w-full px-4 pb-8 pt-2 sm:px-8 sm:pb-12 sm:pt-24 md:px-12 lg:px-16">
           <div className="mx-auto flex w-full max-w-[1600px] flex-col items-center gap-4 text-center sm:grid sm:grid-cols-7 sm:items-end sm:gap-0 sm:text-left">
             {/* Poster vertical (desktop) : masqué sur mobile pour un hero image simple */}
             <div className="relative hidden aspect-[2/3] w-full shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 sm:block">
@@ -434,7 +469,7 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
               {item.synopsis || item.description}
             </p>
 
-            <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-start sm:gap-3">
+            <div className="flex flex-wrap items-center gap-3 pt-2">
               {isUpcoming ? (
                 <Button
                   disabled
@@ -442,19 +477,31 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
                   size="md"
                   text="Bientôt dispo"
                   ariaLabel={`Sortie prévue le ${releaseDateLabel}`}
-                  className="w-full cursor-not-allowed border-0 bg-blue-600/20 font-bold text-blue-200 opacity-90 shadow-none sm:w-auto"
+                  className="max-sm:flex-1 cursor-not-allowed border-0 bg-blue-600/20 font-bold text-blue-200 opacity-90 shadow-none sm:w-auto"
                 />
               ) : (
-                <Link href={`/tv/${id}/season/${firstSeasonNumber}?lang=${selectedLang}`} className="w-full sm:w-auto">
+                <>
+                <Link href={`/tv/${id}/season/${firstSeasonNumber}?lang=${selectedLang}`} className="max-sm:flex-1 sm:flex-none sm:w-auto">
                   <Button
                     variant="primary"
                     size="md"
-                    text={`Regarder Saison ${firstSeasonNumber}`}
+                    text={`Regarder`}
                     leftIcon={<Play className="h-4 w-4 fill-current" />}
                     ariaLabel={`Regarder la saison ${firstSeasonNumber} de ${item.title}`}
-                    className="w-full max-sm:!bg-white max-sm:!text-black max-sm:border-white max-sm:shadow-none sm:w-auto"
+                    className="max-sm:flex-1 max-sm:!bg-white max-sm:!text-black max-sm:border-white max-sm:shadow-none sm:w-auto"
                   />
                 </Link>
+                <Button
+                  variant="dark"
+                  size="md"
+                  text={downloadLoading ? "Chargement…" : "Télécharger"}
+                  leftIcon={<DownloadSimple className="h-4 w-4" />}
+                  onClick={() => openSeasonDownload(firstSeasonNumber)}
+                  disabled={downloadLoading}
+                  ariaLabel="Télécharger les épisodes de cette série"
+                  className="max-sm:flex-1 max-sm:justify-center sm:w-auto"
+                />
+                </>
               )}
 
               <div className="flex flex-wrap items-center justify-center gap-2.5 sm:contents sm:justify-start sm:gap-3">
@@ -714,6 +761,17 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
             />
           </div>
         </div>
+      )}
+
+      {downloadOpen && item && (
+        <SeriesDownloadModal
+          isOpen={downloadOpen}
+          onClose={() => setDownloadOpen(false)}
+          seriesTitle={displayTitle}
+          tmdbId={String(item.id)}
+          episodes={downloadEpisodes}
+          initialLanguage={selectedLang}
+        />
       )}
 
       {showPlaylistModal && item && (

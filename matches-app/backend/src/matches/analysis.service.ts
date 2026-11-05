@@ -36,13 +36,35 @@ export class AnalysisService {
     if (homeML === undefined || awayML === undefined) return undefined;
 
     const toProb = (ml: number): number => {
-      if (ml > 0) return 100 / (ml + 100);
-      return Math.abs(ml) / (Math.abs(ml) + 100);
+      if (ml > 100) return 100 / (ml + 100); // cote US positive
+      if (ml > 1 && ml < 100) return 1 / ml; // cote décimale
+      return Math.abs(ml) / (Math.abs(ml) + 100); // cote US négative
     };
 
     const homeRaw = toProb(homeML);
     const awayRaw = toProb(awayML);
     const drawRaw = drawML !== undefined ? toProb(drawML) : 0;
+    const total = homeRaw + awayRaw + drawRaw;
+
+    if (total === 0) return undefined;
+
+    return {
+      home: Math.round((homeRaw / total) * 100),
+      draw: Math.round((drawRaw / total) * 100),
+      away: Math.round((awayRaw / total) * 100),
+    };
+  }
+
+  private calculateImpliedFromDecimal(
+    homeDec?: number,
+    awayDec?: number,
+    drawDec?: number
+  ): { home: number; draw: number; away: number } | undefined {
+    if (!homeDec || !awayDec || homeDec <= 1 || awayDec <= 1) return undefined;
+
+    const homeRaw = 1 / homeDec;
+    const awayRaw = 1 / awayDec;
+    const drawRaw = drawDec && drawDec > 1 ? 1 / drawDec : 0;
     const total = homeRaw + awayRaw + drawRaw;
 
     if (total === 0) return undefined;
@@ -232,7 +254,15 @@ export class AnalysisService {
         const homeML = pickcenterItem.homeTeamOdds?.moneyLine;
         const awayML = pickcenterItem.awayTeamOdds?.moneyLine;
         const drawML = pickcenterItem.drawOdds?.moneyLine;
-        const implied = this.calculateImpliedProbabilities(homeML, awayML, drawML);
+
+        // ESPN expose parfois des cotes décimales (soccer hors gros championnats)
+        const homeDec = pickcenterItem.homeTeamOdds?.odds?.value;
+        const awayDec = pickcenterItem.awayTeamOdds?.odds?.value;
+        const drawDec = pickcenterItem.drawOdds?.odds?.value ?? pickcenterItem.drawOdds?.value;
+
+        const implied =
+          this.calculateImpliedProbabilities(homeML, awayML, drawML) ||
+          this.calculateImpliedFromDecimal(homeDec, awayDec, drawDec);
 
         odds = {
           provider: pickcenterItem.provider?.name || 'ESPN',
@@ -242,6 +272,9 @@ export class AnalysisService {
           homeMoneyLine: homeML,
           awayMoneyLine: awayML,
           drawMoneyLine: drawML,
+          homeDecimalOdds: homeDec,
+          drawDecimalOdds: drawDec,
+          awayDecimalOdds: awayDec,
           homeWinProbability: implied?.home,
           drawProbability: implied?.draw,
           awayWinProbability: implied?.away,
@@ -300,7 +333,38 @@ export class AnalysisService {
         for (const tf of rawData.lastFiveGames) {
           const teamId = String(tf.team?.id || '');
           const teamName = tf.team?.displayName || tf.team?.name || '';
+
           const matches = (tf.events || []).map((ev: any) => {
+            // Format ESPN soccer : opponent / gameResult / atVs / score (home-away)
+            if (ev.opponent || ev.gameResult) {
+              const rawScore = String(ev.score || '0-0');
+              const scoreParts = rawScore.split('-');
+              const homeScore = ev.homeTeamScore !== undefined ? Number(ev.homeTeamScore) : Number(scoreParts[0] || 0);
+              const awayScore = ev.awayTeamScore !== undefined ? Number(ev.awayTeamScore) : Number(scoreParts[1] || 0);
+              const isHome =
+                ev.atVs === 'vs'
+                  ? true
+                  : ev.atVs === '@'
+                    ? false
+                    : String(ev.homeTeamId || '') === teamId;
+              const teamScore = isHome ? homeScore : awayScore;
+              const opponentScore = isHome ? awayScore : homeScore;
+              const rawResult = String(ev.gameResult || '').toUpperCase();
+
+              return {
+                id: String(ev.id || ''),
+                date: ev.gameDate || ev.date || '',
+                opponentName:
+                  ev.opponent?.displayName || ev.opponent?.name || ev.opponent?.shortDisplayName || 'Adversaire',
+                opponentLogo: ev.opponentLogo || ev.opponent?.logo || ev.opponent?.logos?.[0]?.href,
+                competition: ev.competitionName || ev.leagueName || ev.leagueAbbreviation,
+                score: `${teamScore}-${opponentScore}`,
+                isHome,
+                result: (rawResult === 'W' || rawResult === 'L' ? rawResult : 'D') as 'W' | 'D' | 'L',
+              };
+            }
+
+            // Ancien format (compétitions avec objets competitions[])
             const comp = ev.competitions?.[0] || {};
             const competitor = (comp.competitors || []).find((c: any) => String(c.id || c.team?.id) === teamId);
             const opponent = (comp.competitors || []).find((c: any) => String(c.id || c.team?.id) !== teamId);
@@ -311,8 +375,10 @@ export class AnalysisService {
 
             return {
               id: String(ev.id || ''),
-              date: ev.date || comp.date,
+              date: ev.date || comp.date || '',
               opponentName: opponent?.team?.displayName || opponent?.team?.name || 'Adversaire',
+              opponentLogo: opponent?.team?.logo || opponent?.team?.logos?.[0]?.href,
+              competition: comp.competitionName || comp.leagueName,
               score: `${competitor?.score || 0}-${opponent?.score || 0}`,
               isHome: competitor?.homeAway === 'home',
               result,
@@ -344,7 +410,7 @@ export class AnalysisService {
               headToHead.push({
                 id: String(ev.id || comp.id || ''),
                 date: ev.date || comp.date || '',
-                competition: series.competitionName || series.title,
+                competition: ev.competitionName || series.competitionName || series.title,
                 homeTeam: {
                   id: String(h.id || h.team?.id || ''),
                   name: h.team?.displayName || h.team?.name || 'Équipe',
@@ -363,6 +429,9 @@ export class AnalysisService {
           }
         }
       }
+
+      // Les confrontations les plus récentes d'abord (style LiveScore)
+      headToHead.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
       // Live Commentary
       const commentary: MatchCommentaryItem[] = [];

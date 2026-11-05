@@ -4,8 +4,8 @@
 
 /* Styles globaux pour CHILLERS Sports */
 :root {
-  --color-bg: #111111;
-  --color-card: #181818;
+  --color-bg: #1F1F1F;
+  --color-card: #262626;
   --color-primary: #E50914;
 }
 
@@ -14,7 +14,7 @@
 }
 
 body {
-  background-color: #111111;
+  background-color: #1F1F1F;
   color: #f3f4f6;
   font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   margin: 0;

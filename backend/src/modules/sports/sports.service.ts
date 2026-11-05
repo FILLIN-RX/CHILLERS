@@ -87,6 +87,15 @@ export function isSportsSource(value: string): value is SportsSourceId {
 }
 
 const MATCHES_CACHE = new Map<string, { ts: number; data: SportsMatch[] }>();
+/** Dernière liste saine (≤5 min) : servie quand TOUS les providers tombent en même temps (micro-coupure réseau/API), sinon la vitrine se viderait. */
+const MATCHES_LAST_GOOD = new Map<string, { ts: number; data: SportsMatch[] }>();
+const LAST_GOOD_TTL_MS = 5 * 60_000;
+
+/** Variable d'env numérique > 0, sinon la valeur par défaut. */
+const numEnv = (name: string, fallback: number): number => {
+  const parsed = Number(process.env[name]);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
+};
 
 /**
  * Un lien partagé (`/live/sp/1603075`) code l'identifiant d'UN provider. Quand
@@ -269,14 +278,16 @@ export async function getSportsMatches(source?: string): Promise<SportsMatch[]> 
   }
 
   // Expiry filter: drop matches that have likely ended.
-  //   • 'upcoming' with startTs > 3 h ago → missed, definitely over
-  //   • any status with startTs > 4 h ago  → safety net for stale 'live' markers
+  //   • 'upcoming' with startTs > N h ago → missed, definitely over
+  //   • any status with startTs > N h ago  → safety net for stale 'live' markers
+  const upcomingExpiryS = numEnv('SPORTS_EXPIRY_UPCOMING_S', 3 * 3600);
+  const liveExpiryS = numEnv('SPORTS_EXPIRY_LIVE_S', 6 * 3600);
   const nowSec = Math.floor(Date.now() / 1000);
   const active = groups.filter(({ match: m }) => {
     if (m.startTs === undefined) return true; // no timestamp → always keep
     const ageSec = nowSec - m.startTs;
-    if (m.status === 'upcoming') return ageSec < 3 * 3600; // drop upcoming older than 3h
-    return ageSec < 4 * 3600;                              // drop live/unknown older than 4h
+    if (m.status === 'upcoming') return ageSec < upcomingExpiryS; // drop upcoming older than 3h
+    return ageSec < liveExpiryS;                                 // drop live/unknown older than 6h
   });
 
   active.forEach((g) => rememberMatchAliases(g.members));
@@ -292,6 +303,19 @@ export async function getSportsMatches(source?: string): Promise<SportsMatch[]> 
       if (a.status !== b.status) return a.status === 'live' ? -1 : 1;
       return (a.startTs ?? Number.MAX_SAFE_INTEGER) - (b.startTs ?? Number.MAX_SAFE_INTEGER);
     });
+
+  if (sorted.length > 0) {
+    MATCHES_LAST_GOOD.set(cacheKey, { ts: Date.now(), data: sorted });
+  } else if (matches.length === 0) {
+    // Toutes les sources ont rendu vide (panne/timeout) : on ressert la dernière
+    // liste saine, bornée à 5 min, plutôt que de vider la vitrine de l'écran.
+    const lastGood = MATCHES_LAST_GOOD.get(cacheKey);
+    if (lastGood && Date.now() - lastGood.ts < LAST_GOOD_TTL_MS) {
+      console.warn('[sports] providers indisponibles : repli sur la dernière liste connue', cacheKey);
+      MATCHES_CACHE.set(cacheKey, { ts: Date.now(), data: lastGood.data });
+      return lastGood.data;
+    }
+  }
 
   MATCHES_CACHE.set(cacheKey, { ts: Date.now(), data: sorted });
   return sorted;
@@ -381,10 +405,10 @@ export interface SportsFlux {
   sourceId: string;
 }
 
-const CHAIN_DEADLINE_MS = 18_000;
+const CHAIN_DEADLINE_MS = numEnv('SPORTS_CHAIN_DEADLINE_MS', 26_000);
 /** Agrégation de tous les providers : on parcourt toute la chaîne, pas seulement le premier qui joue. */
-const MULTI_CHAIN_DEADLINE_MS = 30_000;
-const ATTEMPT_BUDGET_MS = 7_000;
+const MULTI_CHAIN_DEADLINE_MS = numEnv('SPORTS_MULTI_CHAIN_DEADLINE_MS', 40_000);
+const ATTEMPT_BUDGET_MS = numEnv('SPORTS_ATTEMPT_BUDGET_MS', 10_000);
 /**
  * Candidats gardés par provider. Un provider qui publie plusieurs miroirs ne
  * doit pas être réduit à un seul lien : si le premier meurt entre la collecte
@@ -664,6 +688,29 @@ export async function resolveSportsFlux(
   // départ sans repeindre toute la chaîne.
   rememberChannels(target.id, { source: flux.source, sourceId: flux.sourceId, servers: finalServers, complete });
   return flux;
+}
+
+/**
+ * Retrouve l'affiche chez les providers en appariant les noms d'équipes contre
+ * TOUS les jumeaux publiés par chaque source (pas seulement la représentante de
+ * la liste dédupliquée). Sert au service de score (affiche ESPN) : le match y
+ * est peut-être bien listé, mais chez une source que l'agrégation a reléguée au
+ * second plan — la représentante ne suffisait plus à faire voir le flux.
+ */
+export async function findSportsMatchByTeams(home: string, away: string): Promise<SportsMatch | null> {
+  if (!home || !away) return null;
+  const target = { home, away } as SportsMatch;
+  const settled = await Promise.allSettled(SPORTS_SOURCES.map((s) => getSportsMatches(s)));
+  let best: { match: SportsMatch; rank: number } | null = null;
+  for (const res of settled) {
+    if (res.status !== 'fulfilled') continue;
+    for (const candidate of res.value) {
+      if (!isSameFixture(target, candidate)) continue;
+      const rank = fixtureScore(target, candidate) + (candidate.status === 'live' ? 0.15 : 0);
+      if (!best || rank > best.rank) best = { match: candidate, rank };
+    }
+  }
+  return best?.match ?? null;
 }
 
 /** Variante par identifiant composite (`liveball:1534869`). */

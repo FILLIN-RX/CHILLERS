@@ -5,8 +5,6 @@ import Image from "next/image";
 import { X, DownloadSimple, FilmSlate, Warning, Check, User } from "@phosphor-icons/react";
 import { acquireModalScrollLock, releaseModalScrollLock } from "@/lib/modalScrollLock";
 import { useDownloadsBatch } from "@/hooks/useDownloadsBatch";
-import { isDownloadableUrl } from "@/services/downloads";
-import { getBackendOrigin } from "@/services/http";
 import { isIOS } from "@/services/streamSaver";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { downloadTaskId } from "@/lib/format";
@@ -36,7 +34,6 @@ export default function MultiDownloadModal({
   const { translate: _ } = useLanguage();
   // Étape 1 = récupération de tous les liens, étape 2 = lancement des fichiers.
   const [started, setStarted] = useState(false);
-  const [launched, setLaunched] = useState<Set<string>>(new Set());
   const ios = isIOS();
 
   const batch = useDownloadsBatch({
@@ -72,19 +69,21 @@ export default function MultiDownloadModal({
     ]),
   );
 
-  const launchEpisode = (task: DownloadTask) => {
-    const url = task.resolvedUrl;
-    if (!url || !isDownloadableUrl(url)) return;
-    const href = url.startsWith("http") ? url : `${getBackendOrigin()}${url}`;
-    // WebKit iOS n'autorise qu'un fichier par geste utilisateur : on navigue dans
-    // l'onglet courant (Content-Disposition: attachment) au lieu d'un clic synthétique.
-    window.location.assign(href);
-    setLaunched((prev) => {
-      const next = new Set(prev);
-      next.add(task.id);
-      return next;
-    });
-  };
+  const launchEpisode = (task: DownloadTask) => batch.launchReady(task.id);
+
+  // Safari iOS impose un geste par fichier : la file d'attente est donc l'ordre
+  // des épisodes restants, et le pied du modal pointe toujours le suivant.
+  const iosQueue = episodes
+    .map((ep) =>
+      taskByKey.get(
+        downloadTaskId({ tmdbId, season: ep.season, episodeNumber: ep.number })
+      )
+    )
+    .filter((t): t is DownloadTask => !!t && t.status === "ready");
+  const iosPending = iosQueue.filter((t) => !t.launchedAt);
+  const nextTask = iosPending[0];
+  const epLabelOf = (task: DownloadTask) =>
+    `S${task.season ?? 1}E${String(task.episodeNumber ?? 1).padStart(2, "0")}`;
 
   return (
     <div
@@ -123,7 +122,20 @@ export default function MultiDownloadModal({
                     )}
                   </span>
                 ) : ios ? (
-                  <span>Touchez chaque épisode pour lancer son téléchargement</span>
+                  <span>
+                    {iosPending.length > 0 ? (
+                      <>
+                        <span className="text-brand-primary">
+                          {iosQueue.length - iosPending.length}/{iosQueue.length} lancés
+                        </span>{" "}
+                        · Safari exige un geste par épisode
+                      </>
+                    ) : (
+                      <span className="text-emerald-400">
+                        {iosQueue.length} épisode{iosQueue.length > 1 ? "s" : ""} remis à Safari
+                      </span>
+                    )}
+                  </span>
                 ) : totals.running > 0 || totals.queued > 0 ? (
                   <span>
                     {totals.running > 0 && (
@@ -233,14 +245,14 @@ export default function MultiDownloadModal({
                         <button
                           onClick={() => launchEpisode(task)}
                           className={`flex items-center gap-1.5 text-xs font-bold rounded-full px-3 py-1 transition-colors cursor-pointer ${
-                            launched.has(id)
+                            task.launchedAt
                               ? "text-emerald-400 bg-emerald-500/10 border border-emerald-500/25"
                               : "bg-white text-black hover:bg-zinc-200"
                           }`}
                         >
-                          {launched.has(id) ? (
+                          {task.launchedAt ? (
                             <>
-                              <Check className="h-3 w-3" />Lancé
+                              <Check className="h-3 w-3" />Relancer
                             </>
                           ) : (
                             <>
@@ -332,6 +344,37 @@ export default function MultiDownloadModal({
                 </button>
               )}
             </div>
+          ) : ios ? (
+            <>
+              {nextTask ? (
+                <>
+                  <button
+                    onClick={() => launchEpisode(nextTask)}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-[5px] font-bold text-sm bg-white text-black hover:bg-zinc-200 transition-all shadow-lg cursor-pointer"
+                  >
+                    <DownloadSimple className="h-4 w-4" />
+                    Télécharger {epLabelOf(nextTask)}
+                    <span className="text-black/45 font-semibold tabular-nums">
+                      {iosQueue.length - iosPending.length + 1}/{iosQueue.length}
+                    </span>
+                  </button>
+                  <button
+                    onClick={onClose}
+                    className="px-4 py-3 rounded-[5px] font-bold text-xs bg-white/10 text-white hover:bg-white/20 transition-all cursor-pointer"
+                  >
+                    Fermer
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={onClose}
+                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-[5px] font-bold text-sm bg-white text-black hover:bg-zinc-200 transition-all shadow-lg cursor-pointer"
+                >
+                  <Check className="h-4 w-4" />
+                  Fermer
+                </button>
+              )}
+            </>
           ) : (
             <>
               {totals.running > 0 && (

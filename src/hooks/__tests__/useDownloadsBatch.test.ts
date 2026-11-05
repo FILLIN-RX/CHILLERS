@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { useDownloadsBatch } from '@/hooks/useDownloadsBatch';
 import { useDownloadsStore } from '@/store/downloads';
 import * as downloadServiceModule from '@/services/downloads';
@@ -150,6 +150,35 @@ describe('useDownloadsBatch — téléchargement de sélection en deux étapes',
 
     expect(stream).not.toHaveBeenCalled();
     expect(result.current.totals.done).toBe(0);
+  });
+
+  it('iOS : « launchReady » remet un épisode au navigateur sans quitter l app', async () => {
+    Object.defineProperty(navigator, 'userAgent', { value: IOS_UA, configurable: true });
+
+    jest
+      .spyOn(downloadServiceModule, 'resolveDownloadUrl')
+      .mockResolvedValue({ downloadUrl: MP4, fileCode: '' });
+    const stream = jest
+      .spyOn(streamSaverModule, 'streamDownloadToDisk')
+      .mockResolvedValue({ totalBytes: null });
+
+    const { result } = useBatch({ ...BASE, gated: false });
+    await waitFor(() => expect(result.current.totals.ready).toBe(3));
+
+    const first = result.current.tasks.find((t) => t.episodeNumber === 1)!;
+    act(() => {
+      expect(result.current.launchReady(first.id)).toBe(true);
+    });
+
+    const frame = document.querySelector('iframe');
+    expect(frame?.getAttribute('src')).toContain('/api/download/file?');
+    // L onglet ne doit pas bouger : c est la navigation qui tuait le reste du lot.
+    expect(window.location.href).toBe('http://localhost/');
+    expect(stream).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(result.current.tasks.find((t) => t.id === first.id)?.launchedAt).toBeTruthy(),
+    );
+    expect(result.current.tasks.find((t) => t.id === first.id)?.status).toBe('ready');
   });
 
   it('une URL de page hébergeur est une erreur, jamais un téléchargement', async () => {

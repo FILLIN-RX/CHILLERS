@@ -7,7 +7,7 @@ import { useAuthStore } from '@/stores/useAuthStore';
 const categories: { key: keyof PushPreferences; label: string; description: string }[] = [
   { key: 'announcements', label: 'Annonces générales', description: 'Actualités et campagnes CHILLERS' },
   { key: 'favorites', label: 'Favoris', description: 'Disponibilité, nouveaux épisodes et saisons' },
-  { key: 'matches', label: 'Matchs', description: 'Rappels 15 minutes avant le coup d’envoi' },
+  { key: 'matches', label: 'Matchs', description: 'Rappels avant le coup d’envoi et buts de vos équipes' },
   { key: 'subscriptions', label: 'Abonnement', description: 'Activation, changements et échéances' },
   { key: 'reminders', label: 'Reprise', description: 'Un rappel quotidien au maximum' },
 ];

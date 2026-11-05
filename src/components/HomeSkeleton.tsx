@@ -74,7 +74,7 @@ export default function HomeSkeleton() {
 
         {/* --------------------------------------------------------
             2. LIVE MATCHES ROW SKELETON
-            Mirrors LiveMatchesRow.tsx
+            Mirrors SportsMatchesRow.tsx
             -------------------------------------------------------- */}
         <div className="relative w-full overflow-hidden select-none">
           <div className="flex items-center justify-between pr-1 mb-2">

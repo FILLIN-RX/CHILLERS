@@ -96,6 +96,7 @@ export interface CompetitionLeader {
   };
   value: number;
   displayValue: string;
+  apps?: number; // Nombre de matchs joués (athlète.statistics.appearances)
 }
 
 export interface CompetitionLeadersCategory {

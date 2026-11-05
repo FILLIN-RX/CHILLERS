@@ -316,7 +316,7 @@ const rows = computed<Row[]>(() => {
 
 .seg-tab {
   appearance: none;
-  border: 1px solid #2a2738;
+  border: 1px solid #3a3a3a;
   background: transparent;
   color: #a1a1aa;
   font-family: inherit;
@@ -331,7 +331,7 @@ const rows = computed<Row[]>(() => {
 
 .seg-tab:hover {
   color: #e4e4e7;
-  border-color: #3a374d;
+  border-color: #4a4a4a;
 }
 
 .seg-tab.is-active {
@@ -342,8 +342,8 @@ const rows = computed<Row[]>(() => {
 
 /* ─── Carte ─── */
 .timeline-card {
-  background: #100f18;
-  border: 1px solid #1f1c2b;
+  background: #262626;
+  border: 1px solid #333333;
   border-radius: 16px;
   overflow: hidden;
 }
@@ -379,7 +379,7 @@ const rows = computed<Row[]>(() => {
 }
 
 .tl-row + .tl-row {
-  border-top: 1px solid #1a1826;
+  border-top: 1px solid #333333;
 }
 
 .tl-clock {
@@ -486,7 +486,7 @@ const rows = computed<Row[]>(() => {
 }
 
 .comm-row + .comm-row {
-  border-top: 1px solid #1a1826;
+  border-top: 1px solid #333333;
 }
 
 .comm-text {
@@ -505,7 +505,7 @@ const rows = computed<Row[]>(() => {
 
 .sk-bone {
   display: block;
-  background: linear-gradient(90deg, #24222f 0%, #2f2c3f 50%, #24222f 100%);
+  background: linear-gradient(90deg, #2f2f2f 0%, #3a3a3a 50%, #2f2f2f 100%);
   background-size: 200% 100%;
   animation: sk-shimmer 1.4s ease-in-out infinite;
   border-radius: 8px;

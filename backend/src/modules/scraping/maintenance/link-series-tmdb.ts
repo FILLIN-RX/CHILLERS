@@ -57,7 +57,7 @@ function extractEpisodeTitleFromFilename(filename: string): string | null {
 async function searchTmdb(query: string): Promise<any[]> {
   try {
     const { data } = await tmdbClient.get('/search/tv', {
-      params: { query, page: 1 },
+      params: { query, page: 1, language: 'fr-FR' },
     });
     return data.results || [];
   } catch (err: any) {

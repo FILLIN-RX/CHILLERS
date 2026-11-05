@@ -189,7 +189,7 @@ export async function fetchCompetitionLeaders(leagueId: string): Promise<Competi
 
 export async function fetchCompetitionMatches(
   leagueId: string,
-  options: { status?: string; season?: string | number; date?: string; limit?: number } = {}
+  options: { status?: string; season?: string | number; date?: string; limit?: number; from?: string; to?: string } = {}
 ): Promise<SportMatch[]> {
   try {
     const params: Record<string, string> = {};
@@ -197,6 +197,8 @@ export async function fetchCompetitionMatches(
     if (options.season) params.season = String(options.season);
     if (options.date) params.date = options.date;
     if (options.limit) params.limit = String(options.limit);
+    if (options.from) params.from = options.from;
+    if (options.to) params.to = options.to;
 
     const res = await apiClient.get<{ success: boolean; data: SportMatch[] }>(
       `/competitions/${encodeURIComponent(leagueId)}/matches`,

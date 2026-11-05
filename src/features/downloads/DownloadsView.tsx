@@ -17,7 +17,7 @@ import DownloadProgressBar from "@/features/downloads/DownloadProgressBar";
 import OfflinePlayerModal from "@/features/downloads/OfflinePlayerModal";
 import type { DownloadTask } from "@/types/download";
 import { formatBytes } from "@/lib/format";
-import { resolveDownloadUrl } from "@/services/downloads";
+import { resolveDownloadUrl, isSignedLinkExpired } from "@/services/downloads";
 import { useAuthStore } from "@/stores/useAuthStore";
 
 function getPosterUrl(task: DownloadTask): string | null {
@@ -173,7 +173,9 @@ export default function DownloadsView({
     const isUrlFresh =
       activeUrl &&
       targetTask.resolvedUrlAt &&
-      Date.now() - targetTask.resolvedUrlAt < 6 * 60 * 60 * 1000;
+      // Signature hébergeur valable ~4 h : au-delà, le CDN renvoie un 403.
+      Date.now() - targetTask.resolvedUrlAt < 3 * 60 * 60 * 1000 &&
+      !isSignedLinkExpired(activeUrl);
 
     const ctrl = new AbortController();
     setController(targetTask.id, ctrl);

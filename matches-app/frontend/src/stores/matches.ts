@@ -3,6 +3,8 @@ import { ref, computed } from 'vue';
 import type { SportMatch, MatchLeague, SportType, CountryInfo } from '../types/matches';
 import { fetchMatches, fetchLeagues, fetchCountries, simulateTestGoal } from '../services/api';
 import { liveSseClient, type GoalEventData, type MatchUpdateData } from '../services/sse.service';
+import { showMatchNotification, requestNotificationPermission } from '../services/notifications.service';
+import { noteSseGoal } from '../services/favoriteEventsWatcher';
 import { classifyLeague, resolveMatchCompetition } from '../utils/matchClassifier';
 
 const FAVORITES_STORAGE_KEY = 'chillers_matches_favorites';
@@ -79,8 +81,12 @@ export const useMatchesStore = defineStore('matches', () => {
         if (!m.startTime) return false;
         const ts = Date.parse(m.startTime);
         if (Number.isNaN(ts)) return false;
-        // ±1 jour : une journée ESPN couvre aussi les matchs du lendemain UTC
-        return Math.abs(ts - (ts % DAY_MS) - targetMs) <= DAY_MS;
+        // Jour demandé uniquement (+ lendemain UTC pour les matchs à venir ESPN),
+        // jamais le jour précédent : sinon les matchs live d'aujourd'hui
+        // s'afficheraient aussi sur la date de demain.
+        const diff = ts - (ts % DAY_MS) - targetMs;
+        if (diff === 0) return true;
+        return diff === DAY_MS && m.status === 'upcoming';
       });
     }
 
@@ -90,8 +96,10 @@ export const useMatchesStore = defineStore('matches', () => {
       result = result.filter((m) => favorites.value.includes(m.id));
     }
 
-    if (searchQuery.value.trim()) {
-      const q = searchQuery.value.toLowerCase().trim();
+    // v-text-field clearable peut émettre null → on normalise
+    const search = (searchQuery.value ?? '').trim();
+    if (search) {
+      const q = search.toLowerCase();
       result = result.filter(
         (m) =>
           m.homeTeam.name.toLowerCase().includes(q) ||
@@ -160,7 +168,8 @@ export const useMatchesStore = defineStore('matches', () => {
   }
 
   function toggleFavorite(matchId: string) {
-    if (favorites.value.includes(matchId)) {
+    const wasFavorite = favorites.value.includes(matchId);
+    if (wasFavorite) {
       favorites.value = favorites.value.filter((id) => id !== matchId);
     } else {
       favorites.value.push(matchId);
@@ -168,6 +177,26 @@ export const useMatchesStore = defineStore('matches', () => {
     try {
       localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(favorites.value));
     } catch {}
+    if (!wasFavorite) {
+      void enableFavoriteNotifications(matchId);
+    }
+  }
+
+  async function enableFavoriteNotifications(matchId: string) {
+    const granted = await requestNotificationPermission();
+    if (!granted) {
+      console.log('[Notifications] Permission refusée — alertes désactivées pour ce match.');
+      return;
+    }
+    const match = matches.value.find((m) => m.id === matchId);
+    showMatchNotification({
+      title: 'Favori ajouté',
+      body: match
+        ? `${match.title} — tu recevras les alerts : buts, corners, cartons, mi-temps, fin de match.`
+        : 'Notifications activées pour ce match.',
+      tag: `favorite-${matchId}`,
+      matchId,
+    });
   }
 
   async function loadMatches(background = false) {
@@ -244,9 +273,8 @@ export const useMatchesStore = defineStore('matches', () => {
         const scoreChanged =
           existing.homeTeam.score !== liveMatch.homeTeam.score ||
           existing.awayTeam.score !== liveMatch.awayTeam.score;
-        const minuteChanged = existing.minute !== liveMatch.minute;
 
-        if (scoreChanged || minuteChanged) {
+        if (scoreChanged) {
           markMatchUpdated(liveMatch.id);
         }
 
@@ -265,7 +293,6 @@ export const useMatchesStore = defineStore('matches', () => {
           liveMatch.clockUpdatedAt = Date.now();
         }
         matches.value.unshift(liveMatch);
-        markMatchUpdated(liveMatch.id);
       }
     }
   }
@@ -273,6 +300,18 @@ export const useMatchesStore = defineStore('matches', () => {
   function handleGoal(goalData: GoalEventData) {
     activeGoalAlert.value = goalData;
     markMatchUpdated(goalData.matchId);
+
+    if (favorites.value.includes(goalData.matchId)) {
+      const shouldNotify = noteSseGoal(goalData.matchId, goalData.homeTeam.score, goalData.awayTeam.score);
+      if (shouldNotify) {
+        showMatchNotification({
+          title: `BUT ! ${goalData.teamName} (${goalData.newScore})`,
+          body: [goalData.matchTitle, goalData.leagueName, goalData.minute].filter(Boolean).join(' · '),
+          tag: `goal-${goalData.matchId}`,
+          matchId: goalData.matchId,
+        });
+      }
+    }
 
     setTimeout(() => {
       if (activeGoalAlert.value?.timestamp === goalData.timestamp) {
@@ -284,11 +323,17 @@ export const useMatchesStore = defineStore('matches', () => {
   function handleMatchUpdate(update: MatchUpdateData) {
     const existing = matches.value.find((m) => m.id === update.match.id);
     if (existing) {
+      const scoreChanged =
+        existing.homeTeam.score !== update.match.homeTeam.score ||
+        existing.awayTeam.score !== update.match.awayTeam.score;
+
       Object.assign(existing, update.match);
       if (!existing.clockUpdatedAt) {
         existing.clockUpdatedAt = Date.now();
       }
-      markMatchUpdated(update.match.id);
+      if (scoreChanged) {
+        markMatchUpdated(update.match.id);
+      }
     }
   }
 

@@ -314,7 +314,7 @@ export const adminTmdbSearch = (query: string, type: "movie" | "tv", year?: numb
 
 export interface AdminUnmatchedCatalogItem {
   id: string;
-  provider: "frenchstream" | "otaku" | "afroland";
+  provider: "frenchstream" | "otaku" | "afroland" | "mongodb";
   type: "movie" | "tv" | "anime";
   title: string;
   year?: number;
@@ -328,7 +328,7 @@ export interface AdminUnmatchedCatalogItem {
 
 export const adminGetUnmatchedCatalog = (params: {
   type?: "movie" | "tv" | "anime";
-  provider?: "frenchstream" | "otaku" | "afroland";
+  provider?: "frenchstream" | "otaku" | "afroland" | "mongodb";
   page?: number;
   q?: string;
 }) => {

@@ -61,17 +61,22 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted, onUnmounted } from 'vue';
 import { useMatchesStore } from './stores/matches';
 import { useUiStore } from './stores/ui';
+import { startFavoriteWatcher, stopFavoriteWatcher } from './services/favoriteEventsWatcher';
 
 const store = useMatchesStore();
 const ui = useUiStore();
+
+onMounted(() => startFavoriteWatcher(() => store.favorites));
+onUnmounted(() => stopFavoriteWatcher());
 </script>
 
 <style>
 /* Global resets & typography */
 html, body {
-  background-color: #111111 !important;
+  background-color: #1F1F1F !important;
   color: #f3f4f6;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', system-ui, sans-serif;
   margin: 0;
@@ -79,11 +84,11 @@ html, body {
 }
 
 .chillers-app {
-  background-color: #111111 !important;
+  background-color: #1F1F1F !important;
 }
 
 .border-b-dark {
-  border-bottom: 1px solid #1a1a1a !important;
+  border-bottom: 1px solid #333333 !important;
 }
 
 .brand-text {

@@ -143,6 +143,19 @@ export function presentCompetition(label?: string | null): string | null {
 // Les graphismes live abrègent ou francisent (« PSG », « Man City », « Barcelone »)
 // là où le service de score écrit le nom anglais : sans ces équivalences, la
 // rencontre ne se rejoint pas et l'affiche reste sans écusson officiel.
+const TEAM_ALIASES_EXTRA: Array<[RegExp, string]> = [
+  [/\blayon\b/g, 'lion'],
+  [/\bseylors\b/g, 'sailors'],
+  [/\bsiti\b/g, 'city'],
+  [/\badelaida\b/g, 'adelaide'],
+  [/\byunayted\b/g, 'united'],
+  [/\bkanvon\b/g, 'gangwon'],
+  [/\btempayns\b/g, 'tampines'],
+  [/\bpathum\b/g, 'pathum'],
+  [/\bbidzhi\b/g, 'bg'],
+  [/\bsvayrieng\b/g, 'svayrieng'],
+  [/\badele?ida\b/g, 'adelaide'],
+];
 const TEAM_ALIASES: Array<[RegExp, string]> = [
   [/\bparis\s+saint[-\s]?germain\b/g, "psg"],
   [/\bparis\s+sg\b/g, "psg"],
@@ -236,6 +249,7 @@ export function normalizeTeam(name?: string): string {
     // caractères non latins, ce qui empêchait toute jointure.
     .replace(/ß/g, "ss");
   s = s.replace(/[^a-z0-9 ]/g, " ");
+  for (const [pattern, alias] of TEAM_ALIASES_EXTRA) s = s.replace(pattern, alias);
   for (const [pattern, alias] of TEAM_ALIASES) s = s.replace(pattern, alias);
   s = s.replace(NOISE_TOKENS, " ");
   s = s.replace(/\s+/g, "");

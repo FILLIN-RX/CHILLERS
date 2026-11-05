@@ -33,6 +33,13 @@ export interface MovieCardProps {
   badge?: string;
   selected?: boolean;
   appleFrame?: boolean;
+  /**
+   * Nom du titre gravé en bas de l'affiche. Pour les grilles où l'affiche seule
+   * ne suffit pas à reconnaître le film (page recherche).
+   */
+  showTitle?: boolean;
+  /** Titres sous la carte (page recherche) plutôt que sur l'affiche. */
+  titleBelow?: boolean;
 }
 
 // Apple design principles spring constants (§4 Behavior over animation):
@@ -68,6 +75,8 @@ function MovieCard({
   badge,
   selected = false,
   appleFrame = false,
+  titleBelow = false,
+  showTitle = false,
 }: MovieCardProps) {
   const router = useRouter();
   const { translate: _ } = useLanguage();
@@ -232,7 +241,7 @@ function MovieCard({
           selected ? "ring-2 ring-brand-primary" : ""
         } ${className}`;
 
-    return (
+    const posterCard = (
       <motion.div
         ref={cardRef}
         data-testid="movie-card-poster"
@@ -380,9 +389,32 @@ function MovieCard({
           </div>
         </div>
 
+        {/* Nom gravé en bas de l'affiche (page recherche) ; effacé au survol au
+            profit du bandeau d'infos qui reprend déjà le titre. */}
+        {showTitle && item.title && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 transition-opacity duration-200 group-hover:opacity-0">
+            <div className="bg-gradient-to-t from-black via-black/75 to-transparent px-2.5 pb-2.5 pt-8">
+              <h3 className="line-clamp-2 text-[11px] font-bold leading-tight tracking-tight text-white drop-shadow-md">
+                {item.title}
+              </h3>
+            </div>
+          </div>
+        )}
+
         </div>
       </motion.div>
     );
+    if (titleBelow && item.title) {
+      return (
+        <div className={`flex flex-col ${isGridPoster ? "w-full" : "flex-none"} ${className || ""}`}>
+          {posterCard}
+          <h3 className="mt-1.5 line-clamp-2 text-[10px] font-semibold leading-snug tracking-tight text-zinc-200">
+            {item.title}
+          </h3>
+        </div>
+      );
+    }
+    return posterCard;
   }
 
   // ═════════════════════════════════════════════════════════════════════════

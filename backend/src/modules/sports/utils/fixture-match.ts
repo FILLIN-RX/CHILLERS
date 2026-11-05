@@ -21,6 +21,37 @@ const STOPWORDS = new Set([
 const ROMAN: Record<string, string> = { ii: '2', iii: '3', iv: '4', v: '5' };
 
 /**
+ * Alias de club asiatique (la translittération russo-arabe « Layon Siti
+ * Seylors » est du Cyrillique romanisé ; aucune pliphonétique ne la rejoint).
+ * Couvre les clubs du tableau asiatique visible (AFC Champions League/Rounde
+ * of 32 / Cup) et les principaux asiatiques.
+ */
+/**
+ * Matrice de repli pour les clubs d'Asie publiés en translittération russe-
+ * arabe par les providers (« Layon Siti Seylors » pour Lion City Sailors).
+ * Appliquée AVANT le découpage en jetons.
+ */
+const PRE_FOLD_RULES: Array<[RegExp, string]> = [
+  [/lion\s*city/g, 'lioncity'],
+  [/lion\s*city/g, 'lion city'],
+  [/adelaida\s+yunayted/g, 'adelaide united'],
+  [/layon\s+siti/g, 'lion city'],
+  [/bi\s+dzhi\s+patkhum/g, 'bg pathum'],
+  [/bi\s+dzhi\s+patkum/g, 'bg pathum'],
+  [/patkhum/g, 'pathum'],
+  [/patkum/g, 'pathum'],
+  [/yunayted/g, 'united'],
+  [/ta(?=\s|$|y\b)/g, 'tai'],
+];
+
+const TEAM_ALIASES: Record<string, string> = {
+  adelaida: 'adelaide',
+  kanvon: 'gangwon',
+  tempayns: 'tampines',
+  svayrieng: 'svayrieng',
+};
+
+/**
  * Plie les translittérations des live (« Al-Khalidzh », « Khaleej », « Hazm »)
  * sur une forme commune. Sans ce pli, LiveBall, kora et streamiz décrivent la
  * même affiche avec des graphies que la distance d'édition ne rapproche pas :
@@ -56,13 +87,14 @@ function foldTransliteration(token: string): string {
 
 export function teamTokens(name?: string): string[] {
   if (!name) return [];
-  const tokens = name
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
+  let folded = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  for (const [pattern, replacement] of PRE_FOLD_RULES) folded = folded.replace(pattern, replacement);
+  const tokens = folded
     .replace(/[^a-z0-9]+/g, ' ')
     .split(' ')
+    .filter(Boolean)
     .map((t) => ROMAN[t] ?? t)
+    .map((t) => TEAM_ALIASES[t] ?? t)
     .filter((t) => t.length > 1 && !STOPWORDS.has(t));
 
   // Sigle de club accolé au libellé (« Real Madrid RM », « Raja CA ») : ce n'est
@@ -100,7 +132,7 @@ function withinOneEdit(a: string, b: string): boolean {
   return false;
 }
 
-function sameToken(a: string, b: string): boolean {
+export function sameToken(a: string, b: string): boolean {
   if (a === b) return true;
   // Tolérance d'abréviation : un jeton court est le début/fin de l'autre.
   // Seuil ≤7 pour couvrir "riyad"/"riyadh", "diriya"/"diriyah", "madrid"/"madridista"…

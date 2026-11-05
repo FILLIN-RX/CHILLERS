@@ -348,6 +348,18 @@ router.get('/resolve', async (req: Request, res: Response) => {
       }
     }
 
+    // Dernier filet : ne jamais livrer une signature déjà expirée. Le CDN
+    // répond 403 (page nginx) au client au moment du téléchargement, ce qui se
+    // traduit par « certains liens renvoient un 403 » côté utilisateur.
+    if (isSignedLinkExpired(downloadUrl)) {
+      console.warn(`[Download Resolve] ⚠️ Lien final expiré (${resolvedProvider}) rejeté: ${downloadUrl.slice(0, 90)}`);
+      return res.status(404).json({
+        success: false,
+        error: "Le lien de téléchargement a expiré chez l'hébergeur. Relance la résolution.",
+        data: null,
+      });
+    }
+
     // Nettoyage propre du nom de fichier (sans les triples underscores)
     const safeTitle = (title || 'video')
       .replace(/\s*:\s*/g, ' - ')
@@ -500,7 +512,10 @@ async function serveFileProxy(
       validateStatus: status => status >= 200 && status < 400
     });
   } catch (error: any) {
-    console.error('[Download File Proxy] Amont injoignable:', error.message);
+    const upstreamStatus = error?.response?.status;
+    console.error(
+      `[Download File Proxy] Amont en échec${upstreamStatus ? ` (HTTP ${upstreamStatus})` : ''}: ${error.message} — ${url.slice(0, 90)}`,
+    );
     return false;
   }
 
@@ -580,6 +595,14 @@ router.get('/file', async (req: Request, res: Response) => {
 
     if (!(await serveFileProxy(req, res, target, filename))) {
       console.warn(`[Download File Proxy] Proxy échoué pour ${target.slice(0, 80)}...`);
+      // Rediriger le navigateur vers une signature morte afficherait la page
+      // 403 de l'hébergeur : on renvoie plutôt une erreur claire.
+      if (isSignedLinkExpired(target)) {
+        return res.status(502).json({
+          success: false,
+          error: "Ce lien de téléchargement a expiré chez l'hébergeur. Relance la résolution.",
+        });
+      }
       if (target.includes('uqload') || target.includes('vidzy')) {
         return res.status(502).json({
           success: false,
@@ -655,6 +678,16 @@ router.get('/stream', async (req: Request, res: Response) => {
   m3u8Url = unwrapUrl(m3u8Url);
 
   const filename = (req.query.filename as string) || 'video.mp4';
+
+  // Une playlist signée expirée ferait échouer FFmpeg en silence (réponse
+  // 200 « chunked » vide). On le signale proprement côté client.
+  if (isSignedLinkExpired(m3u8Url)) {
+    res.status(502).json({
+      success: false,
+      error: "Le lien de streaming a expiré chez l'hébergeur. Relance la résolution.",
+    });
+    return;
+  }
 
   // Une page lecteur n'est pas une playlist : FFmpeg produirait une réponse
   // 200 vide « chunked » sans Content-Length (taille inconnue côté iOS).

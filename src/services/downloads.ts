@@ -69,6 +69,38 @@ export async function resolveDownloadUrl(
 }
 
 /**
+ * Une signature d'hébergeur vaut quelques heures (Vidzy `e=14400` → 4 h).
+ * `e` est soit une epoch UNIX, soit une durée en secondes à partir de `s`.
+ * Au-delà, le CDN répond un 403 (page nginx) : on prévient le client avant
+ * de lancer un téléchargement qui échouerait.
+ */
+export function isSignedLinkExpired(
+  url: string | null | undefined,
+  marginSeconds = 60,
+): boolean {
+  if (!url) return false;
+  try {
+    const u = new URL(url, "https://local.invalid");
+    const eParam = u.searchParams.get("e");
+    if (!eParam) return false;
+    const exp = Number.parseInt(eParam, 10);
+    if (!Number.isFinite(exp)) return false;
+
+    let expirySec: number;
+    if (exp >= 1_000_000_000) {
+      expirySec = exp;
+    } else {
+      const s = Number.parseInt(u.searchParams.get("s") || "", 10);
+      if (!Number.isFinite(s)) return false;
+      expirySec = s + exp;
+    }
+    return Date.now() + marginSeconds * 1000 > expirySec * 1000;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Le résolveur backend peut renvoyer la page d'un hébergeur quand aucun fichier
  * n'a pu en être extrait. Naviguer dessus ferait quitter l'app pour le site tiers.
  */
@@ -125,7 +157,7 @@ export function proxyDownloadHref(downloadUrl: string, filename: string): string
  * donc passée par le proxy /file (headers safari-safe). Les URLs /api/ déjà
  * proxifiées sont retournées telles quelles.
  *
- * À utiliser sur TOUS les points de navigation iOS (window.location.href/assign,
+ * À utiliser sur TOUS les points de téléchargement iOS (triggerAttachmentDownload,
  * ancre…) pour garantir la boîte native de téléchargement.
  */
 export function toIOSDownloadHref(downloadUrl: string, filename: string): string {
@@ -137,6 +169,30 @@ export function toIOSDownloadHref(downloadUrl: string, filename: string): string
     return `${API_BASE_PATH}/download/file?url=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(filename || "video.mp4")}`;
   }
   return downloadUrl;
+}
+
+/**
+ * Ouvre la boîte de téléchargement SANS emporter l'application.
+ *
+ * `window.location.href = …` déclenchait bien le téléchargement iOS, mais c'était
+ * une navigation de l'onglet courant : le modal, la file et les liens déjà résolus
+ * étaient jetés avec la page, et chaque épisode suivant coûtait une reprise à
+ * zéro. La même réponse `Content-Disposition: attachment` consommée dans une
+ * iframe hors écran ne quitte jamais l'onglet.
+ *
+ * Appeler depuis un geste utilisateur (WebKit n'autorise qu'un fichier par geste).
+ */
+export function triggerAttachmentDownload(href: string): void {
+  if (typeof document === "undefined" || !href) return;
+  const frame = document.createElement("iframe");
+  frame.setAttribute("aria-hidden", "true");
+  // hors écran plutôt que `display:none` : certains moteurs ne chargent pas un frame caché.
+  frame.style.cssText = "position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;visibility:hidden;";
+  document.body.appendChild(frame);
+  frame.src = href;
+  // Le téléchargement appartient au navigateur dès que la réponse a été en-têtée ;
+  // attendre évite de couper le flux pendant l'ouverture de la boîte.
+  window.setTimeout(() => frame.remove(), 120_000);
 }
 
 /**

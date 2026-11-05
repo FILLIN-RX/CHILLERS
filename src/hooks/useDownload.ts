@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { resolveDownloadUrl } from "@/services/downloads";
+import { resolveDownloadUrl, isSignedLinkExpired } from "@/services/downloads";
 import { streamDownloadToDisk } from "@/services/streamSaver";
 import { buildEpisodeFilename, downloadTaskId } from "@/lib/format";
 import type { DownloadTask, DownloadStatus } from "@/types/download";
@@ -155,7 +155,9 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
     clearCancelRequest(id);
 
     const directUrl = forcedUrl || initialDownloadUrl;
-    if (directUrl) {
+    // Une URL déjà morte (signature expirée → 403 CDN) ne sert à rien : on
+    // relance une résolution complète pour obtenir un lien neuf.
+    if (directUrl && !isSignedLinkExpired(directUrl)) {
       updateTask(id, {
         resolvedUrl: directUrl,
         resolvedUrlAt: Date.now(),
@@ -247,6 +249,9 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
       if (ctrl.signal.aborted || isCancelRequested(id)) {
         setStatus(id, "canceled");
       } else {
+        // Un échec vient presque toujours d'une signature expirée côté CDN
+        // (403/502) : on jette l'URL pour que le prochain essai en résolve une fraîche.
+        updateTask(id, { resolvedUrl: null, resolvedUrlAt: undefined });
         const message = err instanceof Error ? err.message : String(err);
         setStatus(id, "error", message);
       }
@@ -254,7 +259,7 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
       removeController(id);
       setIsRunning(false);
     }
-  }, [id, title, isCancelRequested, setProgress, setStatus, setController, removeController]);
+  }, [id, title, isCancelRequested, setProgress, setStatus, setController, removeController, updateTask]);
 
   const start = useCallback(async () => {
     if (isRunning) return;
@@ -262,7 +267,10 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
     const isUrlFresh =
       current?.resolvedUrl &&
       current.resolvedUrlAt &&
-      Date.now() - current.resolvedUrlAt < 6 * 60 * 60 * 1000;
+      // Les hébergeurs signent leurs liens pour ~4 h (Vidzy `e=14400`) :
+      // réutiliser une URL plus vieille que ça, c'est se prendre un 403.
+      Date.now() - current.resolvedUrlAt < 3 * 60 * 60 * 1000 &&
+      !isSignedLinkExpired(current.resolvedUrl);
 
     if (current?.status === "ready" && current.resolvedUrl && isUrlFresh) {
       await streamCurrent(current.resolvedUrl);

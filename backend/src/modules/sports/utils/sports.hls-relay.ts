@@ -118,6 +118,15 @@ async function fetchRemote(
         return fetchRemote(fresh.url, source, sourceId, fresh.referer, retryCount + 1);
       }
     }
+
+    // Glissement transitoire (5xx, 429, socket coupé, timeout sans statut) :
+    // une seule reprise après une courte pause — inutile de re-résoudre le
+    // flux entier pour une rafale de segments qui n'ont pas abouti.
+    const transient = status === undefined || status >= 500 || status === 429;
+    if (transient && retryCount === 0) {
+      await new Promise((resolve) => setTimeout(resolve, 350));
+      return fetchRemote(url, source, sourceId, referer, retryCount + 1);
+    }
     throw err;
   }
 }

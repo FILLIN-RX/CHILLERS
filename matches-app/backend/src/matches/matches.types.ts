@@ -68,6 +68,8 @@ export interface MatchesFilterOptions {
   month?: string; // YYYY-MM ou YYYYMM (ex: 202409 pour tout le mois de septembre 2024)
   season?: string | number; // Année de la saison, ex: 2024, 2025, 2026
   seasontype?: string | number; // 1=pré-saison, 2=saison régulière, 3=post-saison
+  from?: string; // Début de plage ISO (YYYY-MM-DD) — fetch multi-mois
+  to?: string; // Fin de plage ISO (YYYY-MM-DD) — fetch multi-mois
   sport?: SportType | 'all';
   search?: string;
   limit?: number;

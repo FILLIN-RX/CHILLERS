@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
-import { resolveDownloadUrl, proxyDownloadHref, isDownloadableUrl } from "@/services/downloads";
+import { resolveDownloadUrl, proxyDownloadHref, isDownloadableUrl, isSignedLinkExpired, toIOSDownloadHref, triggerAttachmentDownload } from "@/services/downloads";
+import { getBackendOrigin } from "@/services/http";
 import { streamDownloadToDisk, isIOS } from "@/services/streamSaver";
 import { buildEpisodeFilename, downloadTaskId } from "@/lib/format";
 import type { DownloadTask } from "@/types/download";
@@ -39,6 +40,9 @@ export interface UseDownloadsBatchReturn {
     canceled: number;
   };
   cancelOne: (id: string) => void;
+  /** iOS/Safari : WebKit n'accepte qu'un fichier par geste utilisateur. Le pool
+   *  laisse donc les épisodes en `ready` ; la liste appelle ceci à chaque tap. */
+  launchReady: (id: string) => boolean;
   retryOne: (id: string) => void;
   cancelAll: () => void;
   resumeAll: () => void;
@@ -144,7 +148,8 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
       setStatus(task.id, "resolving");
 
       let result: { downloadUrl: string; fileCode: string } | null = null;
-      if (task.resolvedUrl) {
+      // Un lien déjà expiré ne sert à rien : on re-résolve pour en obtenir un neuf.
+      if (task.resolvedUrl && !isSignedLinkExpired(task.resolvedUrl)) {
         result = { downloadUrl: task.resolvedUrl, fileCode: "" };
       } else {
         result = await resolveDownloadUrl(
@@ -219,6 +224,17 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
           throw streamErr;
         }
         console.warn(`[Download] Erreur stream pour ${task.filename}:`, streamErr);
+        // Le lien résolu est le plus souvent mort (signature expirée → 403/502) :
+        // on le purge pour que la tentative suivante relance la résolution.
+        updateTask(task.id, { resolvedUrl: null, resolvedUrlAt: undefined });
+
+        // Un statut d'amont définitif ne servira à rien en navigation directe
+        // (l'utilisateur atterrirait sur la page 403 de l'hébergeur) : on laisse
+        // la boucle de retry relancer une résolution fraîche.
+        const upstreamDead =
+          streamErr instanceof Error && /HTTP (403|404|410|429|502|503)/.test(streamErr.message);
+        if (upstreamDead) throw streamErr;
+
         // Fallback sécurisé : déclenchement du téléchargement direct navigateur
         if (typeof window !== "undefined") {
           const href = proxyDownloadHref(finalUrl, task.filename);
@@ -312,6 +328,20 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
       retryTimersRef.current.clear();
     };
   }, []);
+
+  const launchReady = useCallback(
+    (id: string) => {
+      const task = tasksRef.current.find((t) => t.id === id);
+      const url = task?.resolvedUrl;
+      if (!task || !url || !isDownloadableUrl(url)) return false;
+      const relative = toIOSDownloadHref(url, task.filename || "video.mp4");
+      const href = relative.startsWith("http") ? relative : `${getBackendOrigin()}${relative}`;
+      triggerAttachmentDownload(href);
+      updateTask(id, { launchedAt: Date.now() });
+      return true;
+    },
+    [updateTask],
+  );
 
   const cancelOne = useCallback(
     (id: string) => {
@@ -425,6 +455,7 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
     tasks: relevantTasks,
     totals,
     cancelOne,
+    launchReady,
     retryOne,
     cancelAll,
     resumeAll,

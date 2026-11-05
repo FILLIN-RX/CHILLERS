@@ -1,5 +1,5 @@
 <template>
-  <v-container class="pa-3 pa-sm-6 max-w-900 position-relative">
+  <v-container class="pa-2 pa-sm-6 max-w-900 position-relative">
     <!-- Notification flottante en cas de but en direct (SSE) -->
     <GoalNotificationBanner :alert="store.activeGoalAlert" @close="store.dismissGoalAlert" />
 
@@ -79,7 +79,7 @@
           title="Voir les détails de la compétition"
           @click="router.push(`/competition/${encodeURIComponent(match.league.id || match.league.slug || 'eng.1')}`)"
         >
-          <TeamLogo :src="match.league.logo || undefined" :name="match.league.name" :size="20" />
+          <TeamLogo :src="match.league.logo || undefined" :name="match.league.name" :size="24" fallback-icon="mdi-trophy-outline" />
           <span class="text-caption font-weight-bold text-grey-lighten-1 text-uppercase tracking-wider text-truncate">
             {{ match.league.name }}
           </span>
@@ -147,8 +147,8 @@
       </v-card>
 
       <!-- ─── 2. Onglets de Détails (Flux, Résumé, Stats, Compos) ─── -->
-      <v-card class="rounded-2xl overflow-hidden" color="surface">
-        <v-tabs v-model="activeTab" grow :scroll-to-active="false" color="primary" bg-color="surface" class="match-tabs">
+      <div class="match-detail-tabs">
+        <v-tabs v-model="activeTab" grow :scroll-to-active="false" color="primary" bg-color="transparent" class="match-tabs">
           <v-tab value="stream" class="font-weight-bold">
             <v-icon start size="16" color="error" class="d-none d-sm-flex">mdi-record</v-icon>
             <span class="d-none d-sm-inline">Direct Flux</span>
@@ -163,14 +163,17 @@
             <span class="d-none d-sm-inline">Compositions</span>
             <span class="d-sm-none">Compos</span>
           </v-tab>
-          <v-tab value="analysis" class="font-weight-bold">
-            <v-icon start size="16" color="primary" class="d-none d-sm-flex">mdi-chart-timeline-variant</v-icon>
-            <span class="d-none d-sm-inline">Analyse & Cotes</span>
-            <span class="d-sm-none">Analyse</span>
+          <v-tab value="table" class="font-weight-bold">
+            <span class="d-none d-sm-inline">Table</span>
+            <span class="d-sm-none">Table</span>
+          </v-tab>
+          <v-tab value="recent" class="font-weight-bold">
+            <span class="d-none d-sm-inline">Récent</span>
+            <span class="d-sm-none">Récent</span>
           </v-tab>
         </v-tabs>
 
-        <v-window v-model="activeTab" class="pa-3 pa-sm-6">
+        <v-window v-model="activeTab" class="pa-2 pa-sm-6">
           <!-- ── TAB 0 : Flux Direct ── -->
           <v-window-item value="stream">
             <MatchStreamPlayer
@@ -206,217 +209,180 @@
             <LineUp :match="match" :summary="summary" />
           </v-window-item>
 
-          <!-- ── TAB 4 : Analyse Détaillée & Cotes (Phase 3) ── -->
-          <v-window-item value="analysis">
+          <!-- ── TAB 4 : Table (Classement de la compétition) ── -->
+          <v-window-item value="table">
+            <div v-if="isLoadingStandings" class="text-center py-12">
+              <v-progress-circular indeterminate color="primary" size="44" />
+              <div class="text-caption text-zinc-400 mt-3">Chargement du classement...</div>
+            </div>
+
+            <div v-else-if="!standings || standings.length === 0" class="text-center py-12 text-zinc-400">
+              Aucun classement disponible pour cette compétition.
+            </div>
+
+            <div v-else class="standings-wrap">
+              <div v-for="group in standings" :key="group.id" class="standings-group">
+                <div v-if="standings.length > 1" class="group-title">{{ group.name }}</div>
+                <table class="standings-table w-100">
+                  <thead>
+                    <tr class="table-head-row text-[11px] text-zinc-400 text-uppercase">
+                      <th class="text-center py-2 px-2" style="width: 40px;">#</th>
+                      <th class="text-left py-2 px-2">Équipe</th>
+                      <th class="text-center py-2 px-1" style="width: 40px;">J</th>
+                      <th class="text-center py-2 px-1 d-none d-sm-table-cell" style="width: 40px;">G</th>
+                      <th class="text-center py-2 px-1 d-none d-sm-table-cell" style="width: 40px;">N</th>
+                      <th class="text-center py-2 px-1 d-none d-sm-table-cell" style="width: 40px;">P</th>
+                      <th class="text-center py-2 px-1" style="width: 48px;">Diff</th>
+                      <th class="text-center py-2 px-2 font-weight-black text-white" style="width: 50px;">Pts</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-dark">
+                    <tr
+                      v-for="entry in group.entries"
+                      :key="entry.team.id"
+                      class="table-body-row"
+                      :class="{ 'is-match-team': entry.team.id === match.homeTeam.id || entry.team.id === match.awayTeam.id }"
+                    >
+                      <td class="text-center py-2 px-2 font-mono font-weight-bold text-caption text-zinc-300 position-relative">
+                        <span
+                          class="rank-indicator-strip"
+                          :style="{ backgroundColor: getRankColor(entry.rank) }"
+                          aria-hidden="true"
+                        />
+                        {{ entry.rank }}
+                      </td>
+                      <td class="py-2 px-2">
+                        <div class="d-flex align-center gap-2 min-w-0">
+                          <TeamLogo :src="entry.team.logo" :name="entry.team.name" :size="24" class="flex-shrink-0" />
+                          <span class="text-body-2 font-weight-bold text-white text-truncate">{{ entry.team.name }}</span>
+                        </div>
+                      </td>
+                      <td class="text-center py-2 px-1 font-mono text-caption text-zinc-300">{{ entry.gamesPlayed }}</td>
+                      <td class="text-center py-2 px-1 font-mono text-caption text-zinc-300 d-none d-sm-table-cell">{{ entry.wins }}</td>
+                      <td class="text-center py-2 px-1 font-mono text-caption text-zinc-400 d-none d-sm-table-cell">{{ entry.ties }}</td>
+                      <td class="text-center py-2 px-1 font-mono text-caption text-zinc-400 d-none d-sm-table-cell">{{ entry.losses }}</td>
+                      <td class="text-center py-2 px-1 font-mono text-caption" :class="entry.goalDifference > 0 ? 'text-emerald-400' : entry.goalDifference < 0 ? 'text-red-400' : 'text-zinc-400'">
+                        {{ entry.goalDifference > 0 ? `+${entry.goalDifference}` : entry.goalDifference }}
+                      </td>
+                      <td class="text-center py-2 px-2 font-mono font-weight-black text-white">{{ entry.points }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </v-window-item>
+
+          <!-- ── TAB 5 : Récent (Matchs récents des 2 équipes) ── -->
+          <v-window-item value="recent">
             <div v-if="isLoadingAnalysis" class="text-center py-12">
               <v-progress-circular indeterminate color="primary" size="44" />
-              <div class="text-caption text-zinc-400 mt-3">Analyse statistique approfondie en cours...</div>
+              <div class="text-caption text-zinc-400 mt-3">Chargement des matchs récents...</div>
             </div>
 
             <div v-else-if="!analysis" class="text-center py-12 text-zinc-400">
-              Données d'analyse non disponibles pour ce match.
+              Aucune donnée de matchs récents disponible.
             </div>
 
-            <div v-else class="d-flex flex-column gap-6">
-              <!-- 1. Probabilité de Victoire (Win Probability) -->
-              <v-card class="pa-5 rounded-2xl border-dark" color="surface-variant">
-                <div class="d-flex align-center justify-space-between mb-3 mb-sm-4">
-                  <div class="d-flex align-center gap-2">
-                    <v-icon color="primary" size="20">mdi-chart-arc</v-icon>
-                    <span class="text-subtitle-2 font-weight-black text-white">Probabilité de Victoire</span>
-                  </div>
-                  <v-chip size="x-small" color="primary" variant="tonal" class="font-weight-bold">
-                    Modèle Prédictif ESPN
-                  </v-chip>
+            <div v-else class="recent-wrap">
+              <!-- Sélecteur d'équipe -->
+              <div class="recent-team-selector">
+                <button
+                  class="team-sel-btn"
+                  :class="{ 'is-active': recentTab === 'h2h' }"
+                  @click="recentTab = 'h2h'"
+                >
+                  H2H
+                </button>
+                <button
+                  class="team-sel-btn"
+                  :class="{ 'is-active': recentTab === 'home' }"
+                  @click="recentTab = 'home'"
+                >
+                  <TeamLogo :src="match.homeTeam.logo" :name="match.homeTeam.name" :size="18" />
+                  <span class="text-truncate">{{ match.homeTeam.shortName || match.homeTeam.name }}</span>
+                </button>
+                <button
+                  class="team-sel-btn"
+                  :class="{ 'is-active': recentTab === 'away' }"
+                  @click="recentTab = 'away'"
+                >
+                  <TeamLogo :src="match.awayTeam.logo" :name="match.awayTeam.name" :size="18" />
+                  <span class="text-truncate">{{ match.awayTeam.shortName || match.awayTeam.name }}</span>
+                </button>
+              </div>
+
+              <!-- H2H : Confrontations directes -->
+              <div v-if="recentTab === 'h2h'" class="recent-section">
+                <div v-if="!analysis.headToHead || analysis.headToHead.length === 0" class="text-center py-8 text-zinc-400">
+                  Aucune confrontation directe récente.
                 </div>
-
-                <div class="prob-bar-container rounded-pill overflow-hidden d-flex mb-3">
-                  <div
-                    class="prob-segment bg-primary"
-                    :style="{ width: `${winProbHome}%` }"
-                    v-tooltip="`${match.homeTeam.name}: ${winProbHome}%`"
-                  ></div>
-                  <div
-                    class="prob-segment bg-zinc-600"
-                    :style="{ width: `${winProbDraw}%` }"
-                    v-tooltip="`Match Nul: ${winProbDraw}%`"
-                  ></div>
-                  <div
-                    class="prob-segment bg-secondary"
-                    :style="{ width: `${winProbAway}%` }"
-                    v-tooltip="`${match.awayTeam.name}: ${winProbAway}%`"
-                  ></div>
-                </div>
-
-                <v-row class="text-center">
-                  <v-col cols="4">
-                    <div class="text-caption text-zinc-400 text-truncate">{{ match.homeTeam.name }}</div>
-                    <div class="text-h6 font-weight-black text-primary font-mono">{{ winProbHome }}%</div>
-                  </v-col>
-                  <v-col cols="4">
-                    <div class="text-caption text-zinc-400">Match Nul</div>
-                    <div class="text-h6 font-weight-black text-zinc-300 font-mono">{{ winProbDraw }}%</div>
-                  </v-col>
-                  <v-col cols="4">
-                    <div class="text-caption text-zinc-400 text-truncate">{{ match.awayTeam.name }}</div>
-                    <div class="text-h6 font-weight-black text-secondary font-mono">{{ winProbAway }}%</div>
-                  </v-col>
-                </v-row>
-              </v-card>
-
-              <!-- 2. Cotes des Bookmakers (Odds & Lines) -->
-              <v-card v-if="analysis.odds" class="pa-5 rounded-2xl border-dark" color="surface-variant">
-                <div class="d-flex align-center justify-space-between mb-3 mb-sm-4">
-                  <div class="d-flex align-center gap-2">
-                    <v-icon color="warning" size="20">mdi-cash-multiple</v-icon>
-                    <span class="text-subtitle-2 font-weight-black text-white">Cotes Bookmakers</span>
-                  </div>
-                  <span v-if="analysis.odds.provider" class="text-caption text-zinc-400 font-weight-bold">
-                    Fournisseur : {{ analysis.odds.provider }}
-                  </span>
-                </div>
-
-                <v-row>
-                  <v-col cols="4">
-                    <div class="odd-box text-center pa-3 rounded-xl border-dark">
-                      <div class="text-caption text-zinc-400 text-truncate mb-1">{{ match.homeTeam.name }} (1)</div>
-                      <div class="text-h6 font-weight-black text-white font-mono">
-                        {{ formatMoneyLine(analysis.odds.homeMoneyLine) }}
-                      </div>
+                <div v-else>
+                  <div class="h2h-summary">
+                    <div class="h2h-side">
+                      <strong>{{ h2hSummary.homeWins }}</strong>
+                      <small>{{ match.homeTeam.shortName || match.homeTeam.name }}</small>
                     </div>
-                  </v-col>
-                  <v-col cols="4">
-                    <div class="odd-box text-center pa-3 rounded-xl border-dark">
-                      <div class="text-caption text-zinc-400 mb-1">Nul (X)</div>
-                      <div class="text-h6 font-weight-black text-white font-mono">
-                        {{ formatMoneyLine(analysis.odds.drawMoneyLine) }}
-                      </div>
+                    <div class="h2h-side h2h-draws">
+                      <strong>{{ h2hSummary.draws }}</strong>
+                      <small>Nuls</small>
                     </div>
-                  </v-col>
-                  <v-col cols="4">
-                    <div class="odd-box text-center pa-3 rounded-xl border-dark">
-                      <div class="text-caption text-zinc-400 text-truncate mb-1">{{ match.awayTeam.name }} (2)</div>
-                      <div class="text-h6 font-weight-black text-white font-mono">
-                        {{ formatMoneyLine(analysis.odds.awayMoneyLine) }}
-                      </div>
-                    </div>
-                  </v-col>
-                </v-row>
-
-                <div v-if="analysis.odds.overUnder || analysis.odds.spread" class="d-flex flex-wrap justify-space-around gap-2 mt-4 pt-3 border-t-dark text-caption">
-                  <span v-if="analysis.odds.overUnder" class="text-zinc-300">
-                    Total Buts (Over/Under) : <strong class="text-white">{{ analysis.odds.overUnder }}</strong>
-                  </span>
-                  <span v-if="analysis.odds.spread" class="text-zinc-300">
-                    Handicap (Spread) : <strong class="text-white">{{ analysis.odds.spread > 0 ? `+${analysis.odds.spread}` : analysis.odds.spread }}</strong>
-                  </span>
-                </div>
-              </v-card>
-
-              <!-- 3. Forme Récente (Recent Form) -->
-              <v-card v-if="analysis.recentForm && analysis.recentForm.length > 0" class="pa-5 rounded-2xl border-dark" color="surface-variant">
-                <div class="d-flex align-center gap-2 mb-4">
-                  <v-icon color="info" size="20">mdi-history</v-icon>
-                  <span class="text-subtitle-2 font-weight-black text-white">Forme Récente (5 derniers matchs)</span>
-                </div>
-
-                <v-row>
-                  <v-col v-for="teamForm in analysis.recentForm" :key="teamForm.teamId" cols="12" md="6">
-                    <div class="form-team-card pa-4 rounded-xl border-dark">
-                      <div class="d-flex align-center justify-space-between mb-3">
-                        <span class="text-caption font-weight-bold text-white">{{ teamForm.teamName }}</span>
-                        <div class="d-flex gap-1">
-                          <span
-                            v-for="(f, fIdx) in parseFormArray(teamForm.form)"
-                            :key="fIdx"
-                            class="form-badge"
-                            :class="getFormDotClass(f)"
-                          >
-                            {{ f }}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div v-if="teamForm.matches && teamForm.matches.length > 0" class="d-flex flex-column gap-2 mt-2">
-                        <div
-                          v-for="m in teamForm.matches"
-                          :key="m.id"
-                          class="recent-match-row d-flex align-center justify-space-between pa-2 rounded-lg text-caption"
-                        >
-                          <div class="d-flex align-center gap-2 min-w-0">
-                            <span class="form-dot-mini" :class="getFormDotClass(m.result)">{{ m.result }}</span>
-                            <span class="text-zinc-300 text-truncate">{{ m.isHome ? 'vs' : '@' }} {{ m.opponentName }}</span>
-                          </div>
-                          <span class="font-mono font-weight-bold text-white">{{ m.score }}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </v-col>
-                </v-row>
-              </v-card>
-
-              <!-- 4. Face-à-Face Historique (Head-to-Head) -->
-              <v-card v-if="analysis.headToHead && analysis.headToHead.length > 0" class="pa-5 rounded-2xl border-dark" color="surface-variant">
-                <div class="d-flex align-center gap-2 mb-4">
-                  <v-icon color="secondary" size="20">mdi-sword-cross</v-icon>
-                  <span class="text-subtitle-2 font-weight-black text-white">Historique des Confrontations Directes</span>
-                </div>
-
-                <div class="d-flex flex-column gap-2">
-                  <div
-                    v-for="h2h in analysis.headToHead"
-                    :key="h2h.id"
-                    class="h2h-row d-flex align-center justify-space-between pa-3 rounded-xl border-dark"
-                  >
-                    <div class="text-caption text-zinc-400 font-mono h2h-date">
-                      {{ formatH2HDate(h2h.date) }}
-                    </div>
-
-                    <div class="d-flex align-center gap-2 flex-1 justify-center h2h-main">
-                      <span class="text-caption font-weight-bold text-white text-right text-truncate h2h-team">
-                        {{ h2h.homeTeam.name }}
-                      </span>
-                      <div class="h2h-score font-mono font-weight-black text-white px-2 py-1 rounded bg-surface flex-shrink-0">
-                        {{ h2h.homeTeam.score }} - {{ h2h.awayTeam.score }}
-                      </div>
-                      <span class="text-caption font-weight-bold text-white text-left text-truncate h2h-team">
-                        {{ h2h.awayTeam.name }}
-                      </span>
-                    </div>
-
-                    <div class="text-caption text-zinc-500 d-none d-sm-block text-right" style="min-width: 80px;">
-                      {{ h2h.competition || '' }}
+                    <div class="h2h-side h2h-side-away">
+                      <strong>{{ h2hSummary.awayWins }}</strong>
+                      <small>{{ match.awayTeam.shortName || match.awayTeam.name }}</small>
                     </div>
                   </div>
-                </div>
-              </v-card>
-
-              <!-- 5. Commentaires en Direct (Live Commentary) -->
-              <v-card v-if="analysis.commentary && analysis.commentary.length > 0" class="pa-5 rounded-2xl border-dark" color="surface-variant">
-                <div class="d-flex align-center gap-2 mb-4">
-                  <v-icon color="error" size="20">mdi-comment-text-multiple-outline</v-icon>
-                  <span class="text-subtitle-2 font-weight-black text-white">Commentaires en direct</span>
-                </div>
-
-                <div class="commentary-scroll-box d-flex flex-column gap-2">
-                  <div
-                    v-for="comm in analysis.commentary"
-                    :key="comm.sequence"
-                    class="comm-item pa-3 rounded-xl border-dark d-flex gap-3"
-                  >
-                    <div class="comm-clock font-mono font-weight-bold text-caption text-primary flex-shrink-0">
-                      {{ comm.clock || `${comm.period}e` }}
-                    </div>
-                    <div class="text-caption text-zinc-200">
-                      {{ comm.text }}
-                    </div>
+                  <div class="h2h-bar">
+                    <span class="h2h-seg h2h-seg-home" :style="{ width: `${h2hPct.home}%` }" />
+                    <span class="h2h-seg h2h-seg-draw" :style="{ width: `${h2hPct.draw}%` }" />
+                    <span class="h2h-seg h2h-seg-away" :style="{ width: `${h2hPct.away}%` }" />
+                  </div>
+                  <div class="d-flex flex-column gap-2">
+                    <MatchCard
+                      v-for="(sm, i) in h2hCards"
+                      :key="sm.id || `h2h-${i}`"
+                      :match="sm"
+                      :is-favorite="store.isFavorite(sm.id)"
+                      @select="openFromRecent"
+                      @toggle-favorite="store.toggleFavorite"
+                    />
                   </div>
                 </div>
-              </v-card>
+              </div>
+
+              <!-- Équipe sélectionnée : matchs récents -->
+              <div v-else class="recent-section">
+                <div v-if="!selectedRecentForm || !selectedRecentForm.matches || selectedRecentForm.matches.length === 0" class="text-center py-8 text-zinc-400">
+                  Aucun match récent disponible.
+                </div>
+                <div v-else>
+                  <div class="recent-team-head">
+                    <TeamLogo :src="selectedRecentForm.teamId === match.homeTeam.id ? match.homeTeam.logo : match.awayTeam.logo" :name="selectedRecentForm.teamName" :size="28" />
+                    <span class="recent-team-name">{{ selectedRecentForm.teamName }}</span>
+                    <div class="form-badges">
+                      <span
+                        v-for="(f, fIdx) in parseFormArray(selectedRecentForm.form)"
+                        :key="fIdx"
+                        class="form-badge"
+                        :class="getFormDotClass(f)"
+                      >{{ f }}</span>
+                    </div>
+                  </div>
+                  <div class="d-flex flex-column gap-2">
+                    <MatchCard
+                      v-for="(sm, i) in recentFormCards"
+                      :key="sm.id || `form-${i}`"
+                      :match="sm"
+                      :is-favorite="store.isFavorite(sm.id)"
+                      @select="openFromRecent"
+                      @toggle-favorite="store.toggleFavorite"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           </v-window-item>
         </v-window>
-      </v-card>
+      </div>
     </div>
   </v-container>
 </template>
@@ -432,9 +398,11 @@ import {
   fetchMatchById,
   fetchMatchSummary,
   fetchMatchAnalysis,
+  fetchStandings,
 } from '../services/api';
-import type { SportMatch, MatchSummary, DetailedMatchAnalysis } from '../types/matches';
+import type { SportMatch, MatchSummary, DetailedMatchAnalysis, StandingGroup } from '../types/matches';
 import TeamLogo from '../components/TeamLogo.vue';
+import MatchCard from '../components/MatchCard.vue';
 import MatchStreamPlayer from '../components/MatchStreamPlayer.vue';
 import GoalNotificationBanner from '../components/GoalNotificationBanner.vue';
 import LineUp from '../components/detail_matche/LineUp.vue';
@@ -452,9 +420,13 @@ const leagueParam = computed(() => String(route.query.league || 'all'));
 const match = ref<SportMatch | null>(null);
 const summary = ref<MatchSummary | null>(null);
 const analysis = ref<DetailedMatchAnalysis | null>(null);
+const standings = ref<StandingGroup[] | null>(null);
+const standingsLoaded = ref(false);
+const recentTab = ref<'h2h' | 'home' | 'away'>('h2h');
 const isLoading = ref(true);
 const isLoadingAnalysis = ref(false);
-const activeTab = ref<'stream' | 'summary' | 'stats' | 'lineups' | 'analysis'>('summary');
+const isLoadingStandings = ref(false);
+const activeTab = ref<'stream' | 'summary' | 'stats' | 'lineups' | 'table' | 'recent'>('summary');
 
 // Minute / statut en direct en temps réel (composable partagé)
 const { displayMinute, periodLabel, isLive, isHalfTime, isFinished } = useLiveMinute(computed(() => match.value));
@@ -472,9 +444,44 @@ async function loadAnalysis() {
   }
 }
 
+async function loadStandings() {
+  if (standingsLoaded.value) return;
+  const candidates = [
+    summary.value?.league?.slug,
+    summary.value?.league?.id,
+    match.value?.league?.id,
+    match.value?.league?.slug,
+    leagueParam.value,
+  ].filter((v): v is string => Boolean(v) && v !== 'all' && v !== 'football');
+  if (candidates.length === 0) return;
+
+  isLoadingStandings.value = true;
+  try {
+    let result: StandingGroup[] = [];
+    for (const id of [...new Set(candidates)]) {
+      const res = await fetchStandings(id);
+      if (res && res.length > 0) {
+        result = res;
+        break;
+      }
+    }
+    standings.value = result;
+    standingsLoaded.value = true;
+  } catch (err) {
+    console.warn('[MatchDetailView] Erreur de chargement classement:', err);
+    standings.value = [];
+    standingsLoaded.value = true;
+  } finally {
+    isLoadingStandings.value = false;
+  }
+}
+
 watch(activeTab, (tab) => {
-  if (tab === 'analysis' && !analysis.value) {
+  if (tab === 'recent' && !analysis.value) {
     loadAnalysis();
+  }
+  if (tab === 'table' && !standingsLoaded.value) {
+    loadStandings();
   }
 });
 
@@ -488,6 +495,9 @@ async function loadMatchData() {
   match.value = null;
   summary.value = null;
   analysis.value = null;
+  standings.value = null;
+  standingsLoaded.value = false;
+  recentTab.value = 'h2h';
   activeTab.value = 'summary';
 
   try {
@@ -527,19 +537,25 @@ async function loadMatchData() {
       analysis.value = analysisData.value;
     }
 
-    // Si le match est en direct ou demandé dans l'URL ?tab=stream, ouvrir l'onglet stream
-    if (route.query.tab === 'stream' || match.value?.status === 'live') {
+    // L'onglet demandé dans l'URL est prioritaire (même pour un match en direct)
+    const requestedTab = String(route.query.tab || '');
+    if (requestedTab === 'stream' || requestedTab === 'recent' || requestedTab === 'table') {
+      activeTab.value = requestedTab as typeof activeTab.value;
+      if (requestedTab === 'recent') loadAnalysis();
+      if (requestedTab === 'table') loadStandings();
+    } else if (['summary', 'stats', 'lineups'].includes(requestedTab)) {
+      activeTab.value = requestedTab as typeof activeTab.value;
+    } else if (match.value?.status === 'live') {
       activeTab.value = 'stream';
-    } else if (route.query.tab === 'analysis') {
-      activeTab.value = 'analysis';
-    } else if (route.query.tab && ['summary', 'stats', 'lineups'].includes(String(route.query.tab))) {
-      activeTab.value = route.query.tab as typeof activeTab.value;
     }
   } catch (err) {
     console.error('[MatchDetailView] Error:', err);
   } finally {
     isLoading.value = false;
   }
+
+  // Préchargement en arrière-plan : l'onglet Table s'affiche instantanément
+  if (!standingsLoaded.value && !isLoadingStandings.value) loadStandings();
 }
 
 function connectSse() {
@@ -589,32 +605,124 @@ onUnmounted(() => {
 });
 
 // Probabilités de victoire calculées
-const winProbHome = computed(() => {
-  if (analysis.value?.currentWinProbability) return analysis.value.currentWinProbability.home;
-  if (analysis.value?.odds?.homeWinProbability) return analysis.value.odds.homeWinProbability;
-  return 45;
+const selectedRecentForm = computed(() => {
+  if (!analysis.value?.recentForm || !match.value) return null;
+  const wantedId = recentTab.value === 'home' ? match.value.homeTeam.id : match.value.awayTeam.id;
+  return analysis.value.recentForm.find((t) => t.teamId === wantedId) || null;
 });
 
-const winProbDraw = computed(() => {
-  if (analysis.value?.currentWinProbability) return analysis.value.currentWinProbability.draw;
-  if (analysis.value?.odds?.drawProbability) return analysis.value.odds.drawProbability;
-  return 25;
+function getRankColor(rank: number): string {
+  if (rank <= 4) return '#3b82f6';
+  if (rank === 5) return '#f97316';
+  if (rank === 6) return '#10b981';
+  if (rank >= 18) return '#ef4444';
+  return 'transparent';
+}
+
+const h2hSummary = computed(() => {
+  const list = analysis.value?.headToHead || [];
+  const homeId = match.value?.homeTeam.id;
+  const awayId = match.value?.awayTeam.id;
+  let homeWins = 0;
+  let awayWins = 0;
+  let draws = 0;
+
+  for (const h2h of list) {
+    if (h2h.winnerId && h2h.winnerId === homeId) homeWins += 1;
+    else if (h2h.winnerId && h2h.winnerId === awayId) awayWins += 1;
+    else draws += 1;
+  }
+
+  return { total: list.length, homeWins, awayWins, draws };
 });
 
-const winProbAway = computed(() => {
-  if (analysis.value?.currentWinProbability) return analysis.value.currentWinProbability.away;
-  if (analysis.value?.odds?.awayWinProbability) return analysis.value.odds.awayWinProbability;
-  return 30;
+const h2hPct = computed(() => {
+  const { total, homeWins, awayWins, draws } = h2hSummary.value;
+  if (!total) return { home: 0, draw: 0, away: 0 };
+  return {
+    home: Math.round((homeWins / total) * 100),
+    draw: Math.round((draws / total) * 100),
+    away: Math.round((awayWins / total) * 100),
+  };
 });
 
-function formatMoneyLine(val?: number): string {
-  if (val === undefined || val === null) return '-';
-  return val > 0 ? `+${val}` : `${val}`;
+// ─── Onglet Récent : conversion vers des cartes de match standardisées ───
+const h2hCards = computed<SportMatch[]>(() => {
+  const cur = match.value;
+  if (!cur || !analysis.value?.headToHead?.length) return [];
+  return analysis.value.headToHead.map((h) => ({
+    id: h.id,
+    title: `${h.homeTeam.name} vs ${h.awayTeam.name}`,
+    homeTeam: {
+      id: h.homeTeam.id,
+      name: h.homeTeam.name,
+      logo: h.homeTeam.logo,
+      score: h.homeTeam.score,
+      isWinner: Boolean(h.winnerId) && h.winnerId === h.homeTeam.id,
+    },
+    awayTeam: {
+      id: h.awayTeam.id,
+      name: h.awayTeam.name,
+      logo: h.awayTeam.logo,
+      score: h.awayTeam.score,
+      isWinner: Boolean(h.winnerId) && h.winnerId === h.awayTeam.id,
+    },
+    status: 'finished',
+    startTime: h.date,
+    startTimestamp: new Date(h.date).getTime() || Date.now(),
+    league: { ...cur.league, name: h.competition || cur.league.name },
+    sport: 'football',
+  }));
+});
+
+const recentFormCards = computed<SportMatch[]>(() => {
+  const cur = match.value;
+  const form = selectedRecentForm.value;
+  if (!cur || !form?.matches?.length) return [];
+  const teamIsHome = form.teamId === cur.homeTeam.id;
+  const teamLogo = teamIsHome ? cur.homeTeam.logo : cur.awayTeam.logo;
+  const teamId = form.teamId || (teamIsHome ? cur.homeTeam.id : cur.awayTeam.id);
+
+  return form.matches.map((m, idx) => {
+    const [teamRaw, oppRaw] = (m.score || '0-0').split('-');
+    const teamScore = Number(teamRaw) || 0;
+    const oppScore = Number(oppRaw) || 0;
+    const team = { id: teamId, name: form.teamName, logo: teamLogo };
+    const opp = { id: `opp-${idx}`, name: m.opponentName, logo: m.opponentLogo };
+
+    const homeTeam = m.isHome
+      ? { ...team, score: teamScore, isWinner: m.result === 'W' }
+      : { ...opp, score: oppScore, isWinner: m.result === 'L' };
+    const awayTeam = m.isHome
+      ? { ...opp, score: oppScore, isWinner: m.result === 'L' }
+      : { ...team, score: teamScore, isWinner: m.result === 'W' };
+
+    return {
+      id: m.id,
+      title: `${homeTeam.name} vs ${awayTeam.name}`,
+      homeTeam,
+      awayTeam,
+      status: 'finished' as const,
+      startTime: m.date,
+      startTimestamp: new Date(m.date).getTime() || Date.now(),
+      league: { ...cur.league, name: m.competition || cur.league.name },
+      sport: 'football' as const,
+    };
+  });
+});
+
+function openFromRecent(sm: SportMatch) {
+  if (!sm.id) return;
+  router.push({
+    name: 'match-detail',
+    params: { id: sm.id },
+    query: { league: sm.league.slug || sm.league.id || 'all' },
+  });
 }
 
 function parseFormArray(formStr?: string): string[] {
   if (!formStr) return [];
-  if (formStr.includes(',')) return formStr.split(',');
+  if (formStr.includes(',')) return formStr.split(',').filter(Boolean).slice(-5);
   return formStr.split('').slice(-5);
 }
 
@@ -624,14 +732,6 @@ function getFormDotClass(form?: string): string {
   if (f === 'D' || f === 'N') return 'form-draw';
   if (f === 'L') return 'form-loss';
   return 'form-draw';
-}
-
-function formatH2HDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' });
-  } catch {
-    return iso;
-  }
 }
 
 function formatStartTime(iso: string): string {
@@ -685,14 +785,6 @@ async function shareMatch() {
   padding-inline: 10px;
 }
 
-.h2h-date {
-  min-width: 80px;
-}
-
-.h2h-team {
-  width: 140px;
-}
-
 @media (max-width: 600px) {
   .match-tabs :deep(.v-tab) {
     padding-inline: 3px;
@@ -704,37 +796,16 @@ async function shareMatch() {
   .match-score-card :deep(.text-h5) {
     line-height: 1;
   }
-
-  .h2h-row {
-    flex-wrap: wrap;
-    align-items: flex-start;
-  }
-
-  .h2h-date {
-    min-width: 0;
-    width: 100%;
-    text-align: center;
-  }
-
-  .h2h-main {
-    width: 100%;
-  }
-
-  .h2h-team {
-    width: auto;
-    flex: 1 1 0;
-    font-size: 11px;
-  }
 }
 
 
 
 .border-t-dark {
-  border-top: 1px solid #1a1824;
+  border-top: 1px solid #333333;
 }
 
 .border-dark {
-  border: 1px solid #1a1824;
+  border: 1px solid #333333;
 }
 
 .jersey-num {
@@ -750,8 +821,8 @@ async function shareMatch() {
 .video-container {
   width: 100%;
   aspect-ratio: 16 / 9;
-  background-color: #0b0a10;
-  border: 1px solid #1a1824;
+  background-color: #1F1F1F;
+  border: 1px solid #333333;
 }
 
 .video-iframe,
@@ -762,77 +833,244 @@ async function shareMatch() {
   display: block;
 }
 
-/* Probabilités & Cotes */
-.prob-bar-container {
-  height: 10px;
+/* ─── Table (Classement) ─── */
+.standings-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.standings-group {
+  border: 1px solid #333333;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #1f1f1f;
+}
+
+.group-title {
+  padding: 10px 14px 6px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #a1a1aa;
+  background: #262626;
+  border-bottom: 1px solid #333333;
+}
+
+.standings-table {
+  border-collapse: collapse;
   width: 100%;
-  background-color: #181622;
 }
 
-.prob-segment {
-  height: 100%;
-  transition: width 0.3s ease;
+.table-head-row {
+  background: #262626;
+  border-bottom: 1px solid #333333;
 }
 
-.odd-box {
-  background-color: #161420;
+.table-head-row th {
+  font-weight: 700;
+  color: #8a8a93;
 }
 
-.form-team-card {
-  background-color: #14131d;
+.table-body-row {
+  border-bottom: 1px solid #2c2c2c;
+}
+
+.table-body-row:last-child {
+  border-bottom: none;
+}
+
+.table-body-row:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.table-body-row.is-match-team {
+  background: rgba(229, 9, 20, 0.08);
+}
+
+.rank-indicator-strip {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 60%;
+  border-radius: 0 3px 3px 0;
+}
+
+.divide-dark > *:not(:last-child) {
+  border-bottom: 1px solid #2c2c2c;
+}
+
+/* ─── Récent (matchs récents / H2H) ─── */
+.recent-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.recent-team-selector {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 12px;
+  background: #1f1f1f;
+  border: 1px solid #333333;
+}
+
+.team-sel-btn {
+  flex: 1 1 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: #a1a1aa;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.team-sel-btn span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.team-sel-btn.is-active {
+  background: #333333;
+  color: #fafafa;
+}
+
+.recent-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.recent-team-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #262626;
+  border: 1px solid #333333;
+}
+
+.recent-team-name {
+  font-size: 13px;
+  font-weight: 800;
+  color: #fafafa;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.form-badges {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
 }
 
 .form-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   border-radius: 4px;
-  font-size: 11px;
-  font-weight: 900;
-  color: #ffffff;
-}
-
-.form-dot-mini {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-  border-radius: 3px;
   font-size: 10px;
   font-weight: 900;
   color: #ffffff;
 }
 
-.form-win {
-  background-color: #10b981;
+.form-win { background-color: #10b981; }
+.form-draw { background-color: #6b7280; }
+.form-loss { background-color: #ef4444; }
+
+/* Confrontations directes */
+.h2h-summary {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #1f1f1f;
+  border: 1px solid #333333;
 }
 
-.form-draw {
-  background-color: #6b7280;
+.h2h-side {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
-.form-loss {
-  background-color: #ef4444;
+.h2h-side strong {
+  font-size: 20px;
+  font-weight: 800;
+  color: #e50914;
+  line-height: 1;
 }
 
-.recent-match-row {
-  background-color: #191724;
+.h2h-side small {
+  font-size: 10px;
+  color: #8a8a93;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.h2h-row {
-  background-color: #161420;
+.h2h-draws {
+  align-items: center;
 }
 
-.comm-item {
-  background-color: #161420;
+.h2h-draws strong {
+  color: #d4d4d8;
 }
 
-.commentary-scroll-box {
-  max-height: 380px;
-  overflow-y: auto;
+.h2h-side-away {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.h2h-side-away strong {
+  color: #3b82f6;
+}
+
+.h2h-bar {
+  display: flex;
+  height: 7px;
+  margin: 10px 0 4px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #1a1a1a;
+}
+
+.h2h-seg {
+  height: 100%;
+}
+
+.h2h-seg-home { background: #e50914; }
+.h2h-seg-draw { background: #5c5c66; }
+.h2h-seg-away { background: #3b82f6; }
+
+@media (max-width: 600px) {
+  .team-sel-btn {
+    font-size: 11px;
+    padding: 7px 6px;
+  }
 }
 
 .gap-1 { gap: 4px; }

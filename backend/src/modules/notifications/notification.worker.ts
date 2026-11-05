@@ -4,6 +4,7 @@ import Serie from '../../models/Serie';
 import { getSportsMatches } from '../sports/sports.service';
 import { PushCampaign, PushSubscription } from './notification.models';
 import { markOnce, sendToAll, sendToSubscription, sendToUser } from './push.service';
+import { startScoreAlerts } from './score-alerts';
 import { applyPromoToFreeUsers } from './notifications.controller';
 
 const MINUTE = 60_000;
@@ -130,5 +131,6 @@ export function startNotificationWorker() {
   }
   void tick();
   setInterval(() => void tick(), MINUTE);
+  startScoreAlerts();
   console.log('[WebPush] Notification worker started (60s interval).');
 }

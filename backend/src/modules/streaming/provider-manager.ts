@@ -16,6 +16,7 @@ import { VidLinkProvider } from './providers/vidlink.provider';
 import { TorrServerProvider } from './providers/torrserver.provider';
 import { resolveDirectFromEmbed } from './providers/direct-enricher';
 import { CachedStream, streamCache, getCacheKey } from '../../utils/stream-cache';
+import { getSignedLinkTtlSeconds } from '../../utils/link-ttl';
 import tmdbClient from '../../config/tmdb';
 import ProviderCatalogItem from '../../models/ProviderCatalogItem';
 
@@ -53,6 +54,29 @@ interface ProviderHealth {
 /** Cache court pour un résultat « weak » (embed sans URL directe jouable). */
 const WEAK_CACHE_TTL = 10 * 60 * 1000;
 
+/**
+ * Les hébergeurs signent leurs URL pour quelques heures seulement (Vidzy
+ * `e=14400` → 4 h). Un lien mort relu dans le cache est renvoyé tel quel au
+ * client : le CDN répond alors un 403 (page nginx) au moment du téléchargement.
+ * On garde donc une marge de sécurité avant expiration.
+ */
+const LINK_SAFETY_MARGIN_SECONDS = 120;
+
+/** TTL restant (ms) d'un résultat, borné par la signature la plus courte. */
+function signedLinkTtlMs(result: CachedStream): number | null {
+  const ttls = [result.directUrl, result.downloadUrl]
+    .map((url) => getSignedLinkTtlSeconds(url))
+    .filter((ttl): ttl is number => ttl !== null);
+  if (ttls.length === 0) return null;
+  return (Math.min(...ttls) - LINK_SAFETY_MARGIN_SECONDS) * 1000;
+}
+
+/** Un résultat dont la signature est (presque) expirée ne vaut plus rien. */
+function isCachedStreamFresh(result: CachedStream): boolean {
+  const ttl = signedLinkTtlMs(result);
+  return ttl === null || ttl > 0;
+}
+
 function isEmbedOrHtml(url: string | null | undefined): boolean {
   if (!url) return false;
   return /\.html?(\?|$)/i.test(url) || url.includes('/embed-') || url.includes('/e/') || url.includes('/embed/');
@@ -73,11 +97,23 @@ function toCachedStream(attempt: ProviderAttempt): CachedStream {
 }
 
 function cacheResult(key: string, result: CachedStream): void {
-  streamCache.set(
-    key,
-    result,
-    result.provider === 'oha' ? { ttl: OHA_CACHE_TTL } : undefined,
-  );
+  const baseTtl = result.provider === 'oha' ? OHA_CACHE_TTL : undefined;
+  const linkTtl = signedLinkTtlMs(result);
+
+  // Le cache ne doit jamais survivre à la signature du lien : au-delà, le CDN
+  // répond 403 et le client affiche une page d'erreur au téléchargement.
+  if (linkTtl !== null) {
+    if (linkTtl <= 0) {
+      console.warn(`[StreamCache] Résultat ${result.provider} non mis en cache : signature déjà expirée`);
+      return;
+    }
+    streamCache.set(key, result, {
+      ttl: baseTtl !== undefined ? Math.min(baseTtl, linkTtl) : linkTtl,
+    });
+    return;
+  }
+
+  streamCache.set(key, result, baseTtl !== undefined ? { ttl: baseTtl } : undefined);
 }
 
 export class ProviderManager {
@@ -135,7 +171,10 @@ export class ProviderManager {
     const cacheKey = getCacheKey('movie', query.tmdbId, undefined, undefined, query.isPremium, query.language || 'fr');
     const cached = streamCache.get(cacheKey);
     if (cached) {
-      if (cached.directUrl && /\/(taunt|promo)\//i.test(cached.directUrl)) {
+      if (!isCachedStreamFresh(cached)) {
+        console.warn(`[StreamCache] Entrée expirée purgée (movie ${query.tmdbId}, ${cached.provider}) → nouvelle résolution`);
+        streamCache.delete(cacheKey);
+      } else if (cached.directUrl && /\/(taunt|promo)\//i.test(cached.directUrl)) {
         streamCache.delete(cacheKey);
       } else if (!opts?.only || opts.only.includes(cached.provider)) {
         console.log(`[Stream] Cache hit for movie ${query.tmdbId} (${cached.provider})`);
@@ -200,7 +239,10 @@ export class ProviderManager {
     const cacheKey = getCacheKey('episode', query.tmdbId, query.season, query.episode, query.isPremium, query.language || 'fr');
     const cached = streamCache.get(cacheKey);
     if (cached) {
-      if (cached.directUrl && /\/(taunt|promo)\//i.test(cached.directUrl)) {
+      if (!isCachedStreamFresh(cached)) {
+        console.warn(`[StreamCache] Entrée expirée purgée (épisode ${query.tmdbId} S${query.season}E${query.episode}, ${cached.provider}) → nouvelle résolution`);
+        streamCache.delete(cacheKey);
+      } else if (cached.directUrl && /\/(taunt|promo)\//i.test(cached.directUrl)) {
         streamCache.delete(cacheKey);
       } else if (!opts?.only || opts.only.includes(cached.provider)) {
         console.log(`[Stream] Cache hit for episode ${query.tmdbId} S${query.season}E${query.episode} (${cached.provider})`);

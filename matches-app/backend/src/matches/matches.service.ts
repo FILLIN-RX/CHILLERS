@@ -7,6 +7,7 @@ import {
   getLeaguesConfig,
   getLeaguesByCountryConfig,
   getLeagueByIdConfig,
+  getCompetitionLogo,
   LeagueConfig,
 } from '../config/leagues.config';
 import {
@@ -308,7 +309,11 @@ export class MatchesService {
           name: canonical?.name || String(league.name),
           slug: canonical?.slug || league.slug,
           espnLeague: canonical?.espnLeague || league.slug,
-          logo: canonical?.logo || league.logos?.[0]?.href,
+          logo:
+            canonical?.logo ||
+            league.logos?.find(
+              (logo: any) => !String(logo?.href || '').includes('default-team-logo')
+            )?.href,
           country: canonical?.country || league.country,
           countryId: canonical?.countryId,
           countryCode: canonical?.countryCode,
@@ -348,6 +353,12 @@ export class MatchesService {
   }
 
   async getMatches(options: MatchesFilterOptions = {}): Promise<SportMatch[]> {
+    // Plage de dates from/to : ESPN ne supporte pas les ranges sur le scoreboard,
+    // on décline en appels mois par mois (limités) puis on fusionne.
+    if (options.from && options.to) {
+      return this.getMatchesInRange(options);
+    }
+
     const queryKey = this.buildScoreboardQuery(options);
     const countryKey = options.country || 'all';
     const leagueKey = options.league || 'all';
@@ -470,7 +481,7 @@ export class MatchesService {
                       m.league.countryCode = 'ES';
                       m.league.flag = '🇪🇸';
                       m.league.id = 'esp.2';
-                      m.league.logo = 'https://a.espncdn.com/i/leaguelogos/soccer/500/16.png';
+                      m.league.logo = 'https://a.espncdn.com/i/leaguelogos/soccer/500/107.png';
                       m.group = undefined;
                     }
                     // 2. CONCACAF Nations League
@@ -533,10 +544,15 @@ export class MatchesService {
                     else if (['paraguay', 'colombia', 'uruguay'].includes(stage.Ccd?.toLowerCase() || '')) {
                       const flagMap: Record<string, string> = { paraguay: '🇵🇾', colombia: '🇨🇴', uruguay: '🇺🇾' };
                       const nameMap: Record<string, string> = { paraguay: 'Paraguay', colombia: 'Colombie', uruguay: 'Uruguay' };
+                      const logoMap: Record<string, string> = {
+                        paraguay: 'https://a.espncdn.com/i/leaguelogos/soccer/500/1892.png',
+                        colombia: 'https://a.espncdn.com/i/leaguelogos/soccer/500/1543.png',
+                        uruguay: 'https://a.espncdn.com/i/leaguelogos/soccer/500/1592.png',
+                      };
                       const ccd = (stage.Ccd || '').toLowerCase();
                       m.league.country = nameMap[ccd] || cnm;
                       m.league.flag = flagMap[ccd] || '🌎';
-                      m.league.logo = 'https://a.espncdn.com/i/leaguelogos/soccer/500/1543.png';
+                      m.league.logo = logoMap[ccd] || 'https://a.espncdn.com/i/leaguelogos/soccer/500/1543.png';
                       m.league.name = snm || m.league.name;
                       m.group = undefined;
                     }
@@ -592,6 +608,12 @@ export class MatchesService {
               };
             }
           }
+
+          for (const m of matches) {
+            if (m.sport === 'football' && !m.league.logo) {
+              m.league.logo = getCompetitionLogo(m.league.name, m.league.country);
+            }
+          }
         }
       } catch (err: any) {
         console.warn('[MatchesService] Enrichissement LiveScore stage ignoré:', err.message);
@@ -617,9 +639,9 @@ export class MatchesService {
         ? options.date
         : `${options.date.slice(0, 4)}-${options.date.slice(4, 6)}-${options.date.slice(6, 8)}`;
       
-      // On garde les matchs dont le jour UTC est le jour demandé ±1 :
-      // une journée ESPN couvre aussi les matchs du lendemain UTC
-      // (soirée du jour précédent pour les fuseaux Amériques).
+      // On garde les matchs du jour demandé. Le lendemain UTC n'est inclus que
+      // pour les matchs à venir (couverture ESPN soirée US) — jamais le jour
+      // précédent, sinon les matchs live du jour J remonteraient sur J+1.
       const DAY_MS = 86_400_000;
       const targetMs = Date.parse(`${targetDate}T00:00:00Z`);
 
@@ -627,8 +649,9 @@ export class MatchesService {
         if (!m.startTime) return false;
         const ts = Date.parse(m.startTime);
         if (Number.isNaN(ts)) return false;
-        const utcDay = ts - (ts % DAY_MS);
-        return Math.abs(utcDay - targetMs) <= DAY_MS;
+        const diff = ts - (ts % DAY_MS) - targetMs;
+        if (diff === 0) return true;
+        return diff === DAY_MS && m.status === 'upcoming';
       });
     }
 
@@ -659,6 +682,64 @@ export class MatchesService {
     }
 
     return filtered;
+  }
+
+  /**
+   * Récupère les matchs sur une plage ISO from → to en fetchant mois par mois
+   * ( ESPN ne supporte pas les plages de dates ), en fusionnant et dédupliquant.
+   */
+  private async getMatchesInRange(options: MatchesFilterOptions): Promise<SportMatch[]> {
+    const fromMs = Date.parse(`${String(options.from).slice(0, 10)}T00:00:00Z`);
+    const toMs = Date.parse(`${String(options.to).slice(0, 10)}T23:59:59Z`);
+    if (Number.isNaN(fromMs) || Number.isNaN(toMs) || toMs < fromMs) return [];
+
+    const months: string[] = [];
+    const cursor = new Date(fromMs);
+    while (cursor.getTime() <= toMs && months.length < 14) {
+      const y = cursor.getUTCFullYear();
+      const m = String(cursor.getUTCMonth() + 1).padStart(2, '0');
+      const key = `${y}${m}`;
+      if (!months.includes(key)) months.push(key);
+      cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+    }
+
+    const childOptions = (month: string): MatchesFilterOptions => ({
+      ...options,
+      month,
+      date: undefined,
+      season: undefined,
+      seasontype: undefined,
+      from: undefined,
+      to: undefined,
+    });
+
+    const settled = await Promise.allSettled(months.map((m) => this.getMatches(childOptions(m))));
+
+    const seen = new Set<string>();
+    const merged: SportMatch[] = [];
+    for (const res of settled) {
+      if (res.status !== 'fulfilled') continue;
+      for (const match of res.value) {
+        const key = match.id || `${match.homeTeam?.name}_${match.awayTeam?.name}_${match.startTime}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const ts = match.startTimestamp || (match.startTime ? Date.parse(match.startTime) : NaN);
+        if (!Number.isNaN(ts) && (ts < fromMs || ts > toMs)) continue;
+        merged.push(match);
+      }
+    }
+
+    // En direct en premier, puis ordre chronologique
+    merged.sort((a, b) => {
+      if (a.status === 'live' && b.status !== 'live') return -1;
+      if (b.status === 'live' && a.status !== 'live') return 1;
+      return a.startTimestamp - b.startTimestamp;
+    });
+
+    if (options.limit && options.limit > 0 && merged.length > options.limit) {
+      return merged.slice(0, options.limit);
+    }
+    return merged;
   }
 
   /**

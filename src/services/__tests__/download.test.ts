@@ -12,6 +12,7 @@ import {
   verifyDownloadStarted,
   getPremiumDownloadUrl,
   isDownloadableUrl,
+  isSignedLinkExpired,
   toIOSDownloadHref,
 } from '@/services/downloads';
 
@@ -253,5 +254,33 @@ describe('isDownloadableUrl()', () => {
     expect(isDownloadableUrl(null)).toBe(false);
     expect(isDownloadableUrl(undefined)).toBe(false);
     expect(isDownloadableUrl('')).toBe(false);
+  });
+});
+
+describe('isSignedLinkExpired()', () => {
+  const nowSec = () => Math.floor(Date.now() / 1000);
+
+  it('accepts a fresh Vidzy link (e = durée relative depuis s)', () => {
+    expect(isSignedLinkExpired(`https://u14.vidzy.cc/v/x.mp4?t=a&s=${nowSec()}&e=14400`)).toBe(false);
+  });
+
+  it('rejects a Vidzy link whose s + e is in the past (403 CDN)', () => {
+    expect(isSignedLinkExpired(`https://u14.vidzy.cc/v/x.mp4?t=a&s=${nowSec() - 20000}&e=14400`)).toBe(true);
+  });
+
+  it('treats a link expiring within the safety margin as dead', () => {
+    expect(isSignedLinkExpired(`https://u14.vidzy.cc/v/x.mp4?t=a&s=${nowSec() - 14390}&e=14400`, 60)).toBe(true);
+  });
+
+  it('supports absolute epoch expiry', () => {
+    expect(isSignedLinkExpired(`https://host/v.mp4?t=a&e=${nowSec() + 600}`)).toBe(false);
+    expect(isSignedLinkExpired(`https://host/v.mp4?t=a&e=${nowSec() - 10}`)).toBe(true);
+  });
+
+  it('ignores URLs without a measurable signature', () => {
+    expect(isSignedLinkExpired('https://host/v.mp4')).toBe(false);
+    expect(isSignedLinkExpired('/api/download/file?url=x')).toBe(false);
+    expect(isSignedLinkExpired(null)).toBe(false);
+    expect(isSignedLinkExpired('')).toBe(false);
   });
 });

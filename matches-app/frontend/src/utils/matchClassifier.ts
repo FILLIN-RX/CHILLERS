@@ -589,7 +589,7 @@ export function resolveMatchCompetition(match: SportMatch): MatchLeague {
       country: 'Venezuela',
       countryCode: 'VE',
       flag: '🇻🇪',
-      logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/1543.png',
+      logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/1947.png',
     };
   }
 
@@ -611,7 +611,7 @@ export function resolveMatchCompetition(match: SportMatch): MatchLeague {
       country: 'Espagne',
       countryCode: 'ES',
       flag: '🇪🇸',
-      logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/16.png',
+      logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/107.png',
     };
   }
 
@@ -624,7 +624,23 @@ export function resolveMatchCompetition(match: SportMatch): MatchLeague {
       country: 'France',
       countryCode: 'FR',
       flag: '🇫🇷',
-      logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/10.png',
+      logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/96.png',
+    };
+  }
+
+  if (
+    rawName.includes('championship') &&
+    (combined.includes('scotland') || combined.includes('écosse') || combined.includes('ecosse'))
+  ) {
+    return {
+      ...currentLeague,
+      id: 'sco.2',
+      name: 'Championship',
+      slug: 'sco.2',
+      country: 'Écosse',
+      countryCode: 'GB-SCT',
+      flag: '🏴󠁧󠁢󠁳󠁣󠁴󠁿',
+      logo: currentLeague.logo || '/league/competitions/scottish-championship-icon.webp',
     };
   }
 
@@ -637,7 +653,7 @@ export function resolveMatchCompetition(match: SportMatch): MatchLeague {
       country: 'Angleterre',
       countryCode: 'GB-ENG',
       flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
-      logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/24.png',
+      logo: currentLeague.logo || 'https://a.espncdn.com/i/leaguelogos/soccer/500/24.png',
     };
   }
 
@@ -650,7 +666,7 @@ export function resolveMatchCompetition(match: SportMatch): MatchLeague {
       country: 'Italie',
       countryCode: 'IT',
       flag: '🇮🇹',
-      logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/13.png',
+      logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/99.png',
     };
   }
 
@@ -663,7 +679,7 @@ export function resolveMatchCompetition(match: SportMatch): MatchLeague {
       country: 'Allemagne',
       countryCode: 'DE',
       flag: '🇩🇪',
-      logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/6.png',
+      logo: 'https://a.espncdn.com/i/leaguelogos/soccer/500/97.png',
     };
   }
 

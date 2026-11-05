@@ -122,11 +122,18 @@ export default function LivePlayer({
   const [isPlaying, setIsPlaying] = useState(true);
   const [isLive, setIsLive] = useState(true);
   const [liveProgress, setLiveProgress] = useState(100);
-  const [isMuted, setIsMuted] = useState(false);
+  // Muet au démarrage : un <video> non muet sans geste préalable voit son play()
+  // refusé, et le refus n'émet aucun événement — sans ceci, écran noir.
+  const [isMuted, setIsMuted] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [showChannelDrawer, setShowChannelDrawer] = useState(false);
   const onPlaybackErrorRef = useRef(onPlaybackError);
+  /** Volume lu à chaud par l'effet HLS : le state `isMuted` n'est pas une dépendance. */
+  const mutedRef = useRef(true);
+  const userMuteChoiceRef = useRef(false);
+  /** Pause voulue par l'utilisateur : ne doit pas être lue comme un flux mort. */
+  const userPausedRef = useRef(false);
 
   const [error, setError] = useState<string | null>(null);
   const [proxyMode, setProxyMode] = useState(false);
@@ -270,10 +277,25 @@ export default function LivePlayer({
       ? buildProxyUrl(streamUrl)
       : streamUrl;
 
-    const startPlayback = () => {
+    const startPlayback = async () => {
       setIsLoading(false);
-      el.muted = isMuted;
-      el.play().catch(() => {});
+      el.muted = mutedRef.current;
+      try {
+        await el.play();
+      } catch {
+        // Second essai muet : c'est le seul que les politiques d'autoplay
+        // tolèrent sans geste. S'il échoue aussi, on rend la main au CTA.
+        el.muted = true;
+        mutedRef.current = true;
+        try {
+          await el.play();
+        } catch {
+          setIsPlaying(false);
+          setIsLive(false);
+          return;
+        }
+      }
+      setIsMuted(el.muted);
       setIsPlaying(true);
       setIsLive(true);
       if (el.seekable && el.seekable.length > 0) {
@@ -302,6 +324,31 @@ export default function LivePlayer({
       }, 20_000);
     };
     schedulePlaybackWatchdog();
+
+    // Le watchdog ci-dessus est remis à zéro par chaque fragment : un élément
+    // figé pendant que le buffer se remplit lui échappe complètement. Cette
+    // sonde lit la progression de lecture, pas le réseau.
+    let probeLastTime = el.currentTime;
+    let probeStalledMs = 0;
+    const progressProbe = setInterval(() => {
+      if (el.paused || userPausedRef.current) {
+        probeStalledMs = 0;
+        probeLastTime = el.currentTime;
+        return;
+      }
+      if (Math.abs(el.currentTime - probeLastTime) < 0.05) {
+        probeStalledMs += 2000;
+        if (probeStalledMs >= 10_000) {
+          probeStalledMs = 0;
+          setIsPlaying(false);
+          setIsLive(false);
+          reportFailure("Aucune progression de lecture depuis 10 secondes");
+        }
+      } else {
+        probeStalledMs = 0;
+        probeLastTime = el.currentTime;
+      }
+    }, 2000);
 
     // Import à la demande de hls.js (~530 Ko) : jamais dans le bundle initial.
     void (async () => {
@@ -361,6 +408,7 @@ export default function LivePlayer({
       } else {
         setError("unsupported");
         if (playbackTimer) clearTimeout(playbackTimer);
+        clearInterval(progressProbe);
         reportFailure("HLS non supporté par ce navigateur");
       }
     })();
@@ -368,10 +416,11 @@ export default function LivePlayer({
     return () => {
       cancelled = true;
       if (playbackTimer) clearTimeout(playbackTimer);
+      clearInterval(progressProbe);
       el.removeEventListener("timeupdate", schedulePlaybackWatchdog);
       if (hls) hls.destroy();
     };
-  }, [isHls, channel._id, channel.streamUrl, channel.source, channel.ohaId, channel.ohaAltIds, streamUrl, resolveOhaFallback, proxyMode, isMuted, updateLiveState]);
+  }, [isHls, channel._id, channel.streamUrl, channel.source, channel.ohaId, channel.ohaAltIds, streamUrl, resolveOhaFallback, proxyMode, updateLiveState]);
 
   // Fullscreen change listener
   useEffect(() => {
@@ -395,10 +444,26 @@ export default function LivePlayer({
     const el = videoRef.current;
     if (!el) return;
     if (el.paused) {
-      el.play().catch(() => {});
-      setIsPlaying(true);
-      updateLiveState();
+      userPausedRef.current = false;
+      el.play()
+        .then(() => {
+          setIsPlaying(true);
+          updateLiveState();
+        })
+        .catch(() => {
+          // Le tap qui amène ici EST le geste préalable qu'exige la politique
+          // d'autoplay : le repli muet ne devrait jamais servir, mais certains
+          // navigateurs le réclament quand même.
+          el.muted = true;
+          mutedRef.current = true;
+          setIsMuted(true);
+          return el.play().catch(() => {
+            setIsPlaying(false);
+            setIsLive(false);
+          });
+        });
     } else {
+      userPausedRef.current = true;
       el.pause();
       setIsPlaying(false);
       setIsLive(false);
@@ -409,8 +474,30 @@ export default function LivePlayer({
     const el = videoRef.current;
     if (!el) return;
     el.muted = !el.muted;
+    mutedRef.current = el.muted;
+    userMuteChoiceRef.current = true;
     setIsMuted(el.muted);
   };
+
+  // Le direct démarre muet pour passer l'autoplay ; le premier geste réel rend
+  // le son, sauf si l'utilisateur a lui-même coupé le volume.
+  useEffect(() => {
+    if (!isMuted) return;
+    const unmute = () => {
+      if (userMuteChoiceRef.current) return;
+      const el = videoRef.current;
+      if (!el) return;
+      el.muted = false;
+      mutedRef.current = false;
+      setIsMuted(false);
+    };
+    window.addEventListener("pointerdown", unmute, { capture: true });
+    window.addEventListener("keydown", unmute, { capture: true });
+    return () => {
+      window.removeEventListener("pointerdown", unmute, { capture: true });
+      window.removeEventListener("keydown", unmute, { capture: true });
+    };
+  }, [isMuted]);
 
   const handleShare = async () => {
     const title = channel.name || "CHILLERS";
@@ -557,6 +644,24 @@ export default function LivePlayer({
           onSeeking={updateLiveState}
           onSeeked={updateLiveState}
         />
+      )}
+
+      {/* ── Reprise : le geste manque, pas le flux ──────────────── */}
+      {/* Sous les barres (z-30) pour laisser le volume atteignable, mais jamais
+          masquée par hideTopBar : sans elle, un autoplay refusé ne montre
+          qu'un rectangle noir sans explication ni recours. */}
+      {!iframeSrc && !isLoading && !isPlaying && (
+        <button
+          type="button"
+          onClick={togglePlay}
+          aria-label="Lancer le direct"
+          className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-black/55 text-white"
+        >
+          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-white/10 border border-white/20 backdrop-blur-md">
+            <Play className="h-7 w-7 translate-x-px" weight="fill" />
+          </span>
+          <span className="text-[11px] font-bold uppercase tracking-wider text-white/75">Lecture</span>
+        </button>
       )}
 
       {/* ── Central Circular Spinner (Canal+ Style) ─────────────── */}

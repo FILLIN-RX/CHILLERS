@@ -1,7 +1,7 @@
 "use client";
 
 import { API_BASE_PATH, getBackendOrigin } from "@/services/http";
-import { toIOSDownloadHref } from "@/services/downloads";
+import { toIOSDownloadHref, triggerAttachmentDownload } from "@/services/downloads";
 
 // Thin wrapper around StreamSaver.js that initialises the MITM polyfill lazily
 // (browser-only) and exposes a single `streamDownloadToDisk` function.
@@ -80,15 +80,15 @@ export async function streamDownloadToDisk(
     // ignore l'attribut `download` cross-origin. Seul un serveur qui répond
     // `Content-Disposition: attachment` déclenche la boîte native de téléchargement.
     //
-    // → On navigue dans l'ONGLET COURANT (window.location.href). Un `target="_blank"`
-    //   ouvrait un onglet où Safari lisait le MP4 inline au lieu de télécharger.
+    // → triggerAttachmentDownload consomme la réponse dans une iframe hors écran :
+    //   une navigation de l'onglet courant jetait la SPA (et donc toute la file).
     // → toIOSDownloadHref proxifie toute URL tierce via /api/download/file
     //   (headers safari-safe : attachment + video/mp4 + Accept-Ranges).
     const backendOrigin = getBackendOrigin();
     const relative = toIOSDownloadHref(url, filename || "video.mp4");
     const href = relative.startsWith("http") ? relative : `${backendOrigin}${relative}`;
 
-    window.location.href = href;
+    triggerAttachmentDownload(href);
     return { totalBytes: null };
   }
 

@@ -10,6 +10,7 @@ import {
   Television,
 } from "@phosphor-icons/react";
 import LivePlayer from "@/components/LivePlayer";
+import HalftimeAdPod from "@/components/matches/HalftimeAdPod";
 import MatchChannelsRow from "@/components/live/MatchChannelsRow";
 import { getMatchStream } from "@/services/matches";
 import { getSportsChannels, getSportsStream } from "@/services/sports";
@@ -44,6 +45,8 @@ export interface MatchStreamPlayerProps {
   /** Rencontre terminée : plus de flux ni de chaînes à proposer. */
   finished?: boolean;
   minute?: string;
+  /** Mi-temps : joue la coupure pub (une seule fois par match). */
+  isHalfTime?: boolean;
   /** Compétition, sport et coup d'envoi : vérifie l'EPG des chaînes. */
   league?: string;
   sport?: string;
@@ -57,6 +60,7 @@ export function MatchStreamPlayer({
   isLive,
   finished,
   minute,
+  isHalfTime,
   league,
   sport,
   startTime,
@@ -110,6 +114,10 @@ export function MatchStreamPlayer({
     },
     staleTime: 30_000,
     enabled: !finished,
+    // Tant qu'aucun flux n'est servi, on réessaie tout seul : le provider
+    // démarre souvent le direct quelques minutes après le coup d'envoi.
+    refetchInterval: (query) =>
+      finished || query.state.data?.url ? false : 20_000,
   });
 
   // Charge les autres serveurs en parallèle : l'affichage du premier flux ne
@@ -365,6 +373,11 @@ export function MatchStreamPlayer({
           )}
         </div>
 
+        {/* Pubs de la mi-temps : pod de 2-3 créas, une fois par match */}
+        {!finished && (
+          <HalftimeAdPod key={`halftime-${matchId}`} active={Boolean(isHalfTime)} containerRef={containerRef} />
+        )}
+
         {/* Bouton plein écran */}
         <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 pt-[env(safe-area-inset-top,0px)] pr-[env(safe-area-inset-right,0px)]">
           <button
@@ -445,8 +458,8 @@ export function MatchStreamPlayer({
               <p className="text-[12px] text-zinc-400 leading-relaxed">
                 {finished
                   ? "La rencontre est terminée : le score final est affiché sur la fiche du match."
-                  : isLive
-                    ? "Le flux direct pour ce match n'est pas encore disponible ou est momentanément indisponible."
+                    : isLive
+                    ? "Le flux direct n'est pas encore diffusé par nos sources — le lecteur réessaie automatiquement toutes les 20 secondes."
                     : "Le lecteur vidéo démarrera automatiquement dès le coup d'envoi de la rencontre."}
               </p>
             </div>

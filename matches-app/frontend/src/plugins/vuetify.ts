@@ -6,10 +6,10 @@ import { fr } from 'vuetify/locale';
 const chillersDarkTheme: ThemeDefinition = {
   dark: true,
   colors: {
-    background: '#111111',
-    surface: '#181818',
-    'surface-bright': '#222222',
-    'surface-variant': '#1a1a1a',
+    background: '#1F1F1F',
+    surface: '#262626',
+    'surface-bright': '#2E2E2E',
+    'surface-variant': '#2A2A2A',
     'on-surface-variant': '#AEAEB2',
     primary: '#E50914',
     'primary-darken-1': '#B91C1C',
