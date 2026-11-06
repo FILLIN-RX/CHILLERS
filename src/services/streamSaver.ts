@@ -133,14 +133,14 @@ export async function streamDownloadToDisk(
 
     // Lire les chunks avec progression
     const reader = res.body.getReader();
-    const chunks: Uint8Array[] = [];
+    const chunks: Uint8Array<ArrayBuffer>[] = [];
     let received = 0;
     let lastEmit = 0;
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      chunks.push(value);
+      chunks.push(value as Uint8Array<ArrayBuffer>);
       received += value.byteLength;
       const now = Date.now();
       if (onProgress && now - lastEmit >= throttleMs) {
@@ -151,7 +151,7 @@ export async function streamDownloadToDisk(
 
     // Assembler le Blob et déclencher le téléchargement natif
     const contentType = res.headers.get("content-type") || "video/mp4";
-    const blob = new Blob(chunks, { type: contentType });
+    const blob = new Blob(chunks as BlobPart[], { type: contentType });
     const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = blobUrl;
