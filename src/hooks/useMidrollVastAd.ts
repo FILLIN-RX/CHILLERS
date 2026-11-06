@@ -20,8 +20,8 @@ const SKIP_DELAY_SECONDS = 10;
 const MIN_CONTENT_DURATION_SECONDS = 120;
 const PRELOAD_THRESHOLD = 0.4;
 const BREAK_THRESHOLD = 0.5;
-/** Mode intervalle : une pub toutes les N secondes (2 minutes par défaut). */
-export const AD_INTERVAL_SECONDS = 120;
+/** Mode intervalle : une pub toutes les N secondes (15 minutes). */
+export const AD_INTERVAL_SECONDS = 900;
 /** Préchargement du VAST N secondes avant la prochaine rupture. */
 const AD_PRELOAD_LEAD_SECONDS = 20;
 export function useMidrollVastAd(

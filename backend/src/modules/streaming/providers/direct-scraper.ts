@@ -531,7 +531,10 @@ async function scrapeVidzyEmbed(embedUrl: string): Promise<DirectStreamResult | 
         return {
           directUrl: directLinks[0],
           type: /\.(m3u8)/i.test(directLinks[0]) ? 'hls' : 'mp4',
-          referer: 'https://vidzy.cc/',
+          // Le CDN Vidzy vérifie le Referer de la page embed, pas de vidzy.cc/
+          // Sans le bon referer, Vidzy sert une vidéo leurre de quelques secondes
+          // avec le watermark "FSTREAM.TOP" au lieu du vrai contenu.
+          referer: embedUrl,
         };
       }
 
@@ -541,7 +544,7 @@ async function scrapeVidzyEmbed(embedUrl: string): Promise<DirectStreamResult | 
         return {
           directUrl: aMatch[1],
           type: 'mp4',
-          referer: 'https://vidzy.cc/',
+          referer: embedUrl,
         };
       }
     }
@@ -553,7 +556,7 @@ async function scrapeVidzyEmbed(embedUrl: string): Promise<DirectStreamResult | 
       return {
         directUrl: embedDirect[1],
         type: /\.(m3u8)/i.test(embedDirect[1]) ? 'hls' : 'mp4',
-        referer: 'https://vidzy.cc/',
+        referer: embedUrl,
       };
     }
   } catch (err: any) {

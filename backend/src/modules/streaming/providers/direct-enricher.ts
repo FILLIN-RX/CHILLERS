@@ -76,6 +76,23 @@ function directTypeOf(url: string): 'mp4' | 'hls' {
 }
 
 /**
+ * Retourne le Referer CDN attendu pour une URL directe connue.
+ * Les CDN Vidzy/Uqload refusent ou servent une vidéo leurre sans ce header.
+ */
+function refererForDirectUrl(url: string): string | undefined {
+  try {
+    const host = new URL(url).hostname;
+    if (/vidzy\./i.test(host)) return 'https://vidzy.cc/';
+    if (/uqload\./i.test(host)) return 'https://uqload.is/';
+    if (/dood\.|playmogo\.|d000\./i.test(host)) return 'https://doodstream.com/';
+    if (/streamtape\./i.test(host)) return 'https://streamtape.com/';
+    if (/voe\./i.test(host)) return 'https://voe.sx/';
+    if (/luluv/i.test(host)) return 'https://luluvdo.com/';
+  } catch {}
+  return undefined;
+}
+
+/**
  * Extrait l'URL directe d'un embed (Doodstream / Uqload / Vidzy).
  *
  * @param embedUrl  URL embed (iframe) ou URL directe déjà résolue.
@@ -88,9 +105,14 @@ export async function resolveDirectFromEmbed(
 ): Promise<EnrichOutcome> {
   if (!embedUrl) return { status: 'unsupported' };
 
-  // Déjà une URL directe → on se contente de typer.
+  // Déjà une URL directe → on se contente de typer + ajouter le referer CDN si connu.
   if (isDirectMediaUrl(embedUrl)) {
-    return { status: 'ok', directUrl: embedUrl, directType: directTypeOf(embedUrl) };
+    return {
+      status: 'ok',
+      directUrl: embedUrl,
+      directType: directTypeOf(embedUrl),
+      referer: refererForDirectUrl(embedUrl),
+    };
   }
 
   // Hôte qu'on ne sait pas scraper → l'embed est le meilleur résultat dispo.

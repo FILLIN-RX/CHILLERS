@@ -533,6 +533,19 @@ class DownloadService extends ChangeNotifier {
         ),
       );
 
+      // Vérification du Content-Type : certains hébergeurs (Uqload, Vidzy, etc.)
+      // renvoient une page d'erreur HTML avec un status 200 quand le lien est expiré
+      // ou invalide. Sans ce check, la page HTML serait sauvegardée en tant que .mp4,
+      // et la tâche marquerait "completed" alors que le fichier est inutilisable.
+      final contentType = response.headers.value('content-type') ?? '';
+      if (contentType.contains('text/html') || contentType.contains('text/plain')) {
+        await _deleteIfTiny(savePath, force: true);
+        throw Exception(
+          'La source vidéo a renvoyé une page web au lieu d\'un fichier vidéo. '
+          'Le lien a probablement expiré ou est protégé.',
+        );
+      }
+
       // 416 « Range Not Satisfiable » : le fichier local couvre déjà toute la
       // ressource. Cela arrive quand un export a échoué après un téléchargement
       // complet — on finalise sans retélécharger quoi que ce soit.

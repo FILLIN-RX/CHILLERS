@@ -56,6 +56,19 @@ export function isIOS(): boolean {
   );
 }
 
+/**
+ * Détecte Chrome sur Android mobile.
+ * Sur Android, StreamSaver dépend du SW MITM — si le SW n'est pas actif
+ * (PWA standalone, arrière-plan, mode économie batterie), le download
+ * se "termine" sans que le fichier soit écrit sur disque.
+ * On préfère alors le fallback Blob natif du navigateur.
+ */
+export function isAndroidMobileChrome(): boolean {
+  if (typeof window === "undefined" || typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent;
+  return /Android/i.test(ua) && /Chrome\/\d/i.test(ua) && !/wv/.test(ua);
+}
+
 export interface StreamDownloadResult {
   totalBytes: number | null;
   blob?: Blob;
@@ -90,6 +103,66 @@ export async function streamDownloadToDisk(
 
     triggerAttachmentDownload(href);
     return { totalBytes: null };
+  }
+
+  // Android mobile Chrome : StreamSaver dépend du SW MITM.
+  // Si le SW n'est pas actif (PWA standalone, arrière-plan, économie batterie),
+  // le stream se "termine" sans écrire le fichier sur disque — le statut passe à
+  // "done" mais rien n'apparaît dans les téléchargements du navigateur.
+  // On détecte ce cas et on bascule sur le téléchargement natif via Blob + <a>.
+  const useNativeAndroidDownload = isAndroidMobileChrome() && !(
+    typeof navigator !== "undefined" &&
+    "serviceWorker" in navigator &&
+    navigator.serviceWorker.controller !== null
+  );
+
+  if (useNativeAndroidDownload) {
+    // Fallback Android : téléchargement via fetch → Blob → <a download>
+    // Le navigateur gère lui-même la progression et l'enregistrement dans ses téléchargements natifs.
+    const fetchUrl =
+      url.startsWith("/api/") || url.startsWith(API_BASE_PATH)
+        ? url
+        : `${API_BASE_PATH}/download/file?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`;
+
+    const res = await fetch(fetchUrl, { signal });
+    if (!res.ok || !res.body) {
+      throw new Error(`HTTP ${res.status} lors du téléchargement`);
+    }
+
+    const totalBytes = parseContentLength(res.headers.get("content-length"));
+
+    // Lire les chunks avec progression
+    const reader = res.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let received = 0;
+    let lastEmit = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      received += value.byteLength;
+      const now = Date.now();
+      if (onProgress && now - lastEmit >= throttleMs) {
+        lastEmit = now;
+        onProgress(received, totalBytes);
+      }
+    }
+
+    // Assembler le Blob et déclencher le téléchargement natif
+    const contentType = res.headers.get("content-type") || "video/mp4";
+    const blob = new Blob(chunks, { type: contentType });
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    // Révoquer l'URL après un délai pour laisser le temps au navigateur de démarrer le DL
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 10_000);
+
+    return { totalBytes: received };
   }
 
   // Combine the caller's signal with an internal timeout so a stuck server
@@ -155,7 +228,15 @@ export async function streamDownloadToDisk(
 
     try {
       await writer.close();
-    } catch {}
+    } catch (closeErr) {
+      // writer.close() échoue si StreamSaver n'a pas pu finaliser l'écriture
+      // (SW MITM inactif, onglet suspendu, espace disque insuffisant).
+      // On remonte l'erreur pour que useDownload passe en "error" au lieu de "done".
+      throw new Error(
+        `Le fichier n'a pas pu être enregistré sur votre appareil. ` +
+        `Vérifiez que vous avez suffisamment d'espace disque et réessayez.`
+      );
+    }
 
     const fullBlob = saveBlob ? new Blob(chunks as BlobPart[], { type: "video/mp4" }) : undefined;
     return { totalBytes, blob: fullBlob };
