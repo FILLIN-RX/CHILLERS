@@ -145,7 +145,7 @@ export default function LivePageContent() {
     setPlayError(`Lien indisponible pour ${channel.name}. Réessayez plus tard.`);
   };
 
-  /** Clic sur une carte : les flux OHA sont toujours résolus à neuf. */
+  /** Clic sur une carte : ouverture immédiate, résolution en arrière-plan. */
   const openChannel = async (channel: LiveChannel) => {
     const oha = ohaBySlug.get(channel.slug)
       ?? (channel.ohaId ? ohaById.get(channel.ohaId) : undefined);
@@ -154,18 +154,23 @@ export default function LivePageContent() {
       if (resolvingSlug) return;
       setPlayError(null);
       setResolvingSlug(channel.slug);
+      const base = {
+        ...channel,
+        streamUrl: "",
+        source: "oha",
+        ohaId: oha.id,
+        ohaAltIds: oha.altIds ?? [],
+        proxy: true,
+      };
+      setPlayingChannel(base);
       try {
         // Le serveur résout primary + replis en parallèle et vérifie les playlists.
         const url = await resolveOhaStream(oha.id, oha.altIds ?? []);
-        setPlayingChannel({
-          ...channel,
-          streamUrl: url,
-          source: "oha",
-          ohaId: oha.id,
-          ohaAltIds: oha.altIds ?? [],
-          proxy: true,
-        });
+        setPlayingChannel((current) =>
+          current?._id === base._id ? { ...base, streamUrl: url } : current,
+        );
       } catch {
+        setPlayingChannel((current) => (current?._id === base._id ? null : current));
         markUnavailable(channel);
       } finally {
         setResolvingSlug(null);

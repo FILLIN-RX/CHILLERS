@@ -348,12 +348,14 @@ export default function SportsMatchContent() {
   });
 
   // Tous les serveurs du match : /stream donne le flux principal tout de suite,
-  // /channels complète la liste en arrière-plan (registre 24 h côté backend,
+  // /channels complète la liste en arrière-plan (registre court côté backend,
   // agrégation multi-providers) — le sélecteur apparaît dès qu'elle répond.
+  // On attend que /stream soit réglé pour ne pas lancer deux résolutions
+  // concurrentes sur les mêmes providers.
   const { data: channels } = useQuery({
     queryKey: ["live", "unified", "channels", decodedId],
     queryFn: () => getSportsChannels(targetId),
-    enabled: Boolean(matchedLb || matchedSports),
+    enabled: Boolean(matchedLb || matchedSports) && !isLoading,
     staleTime: 60_000,
     retry: false,
     // /stream a déjà mis le flux principal au registre : le premier /channels
@@ -406,13 +408,14 @@ export default function SportsMatchContent() {
       match: fallback,
     });
     if (activeServer) return fromServer(activeServer, stream?.match ?? match);
-    // Dès que la liste complète arrive, le HLS direct (notre relay) devient la
-    // lecture par défaut : l'embed provider n'est qu'un repli manuel.
+    // Le flux principal de /stream est déjà le meilleur candidat HLS. La liste
+    // complète ne doit pas remplacer une lecture en cours quand elle arrive :
+    // cela provoquait un remontage du player et un nouveau chargement.
+    if (stream) return { ...stream, match: stream.match ?? match };
     if (channels?.servers?.length) {
       const preferred = servers.find((s) => s.type === "hls") ?? servers[0];
-      if (preferred) return fromServer(preferred, stream?.match ?? match);
+      if (preferred) return fromServer(preferred, match);
     }
-    if (stream) return { ...stream, match: stream.match ?? match };
     return null;
   }, [activeServer, channels, stream, servers, match]);
 

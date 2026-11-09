@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import axios from 'axios';
 import { adminMiddleware, AuthRequest } from '../admin/admin.middleware';
-import { generateAICompletion } from './ai';
+import { generateAICompletion, parseAIJson } from './ai';
 import Movie from '../../models/Movie';
 import Serie from '../../models/Serie';
 
@@ -86,7 +86,7 @@ Réponds exclusivement en JSON valide.`;
 
     let suggestions: any[] = [];
     try {
-      const parsed = JSON.parse(aiRes.text);
+      const parsed = parseAIJson(aiRes.text);
       suggestions = Array.isArray(parsed) ? parsed : parsed.suggestions || [];
     } catch {
       // Si la réponse n'est pas un JSON pur
@@ -212,7 +212,7 @@ Structure ta réponse sous la forme d'un JSON valide sous la forme :
         jsonMode: true,
       });
       usedProvider = aiRes.usedProvider;
-      const parsed = JSON.parse(aiRes.text);
+      const parsed = parseAIJson(aiRes.text);
       const list = parsed.recommendations || parsed;
       if (Array.isArray(list)) {
         list.forEach((r: any) => {

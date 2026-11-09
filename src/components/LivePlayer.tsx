@@ -34,6 +34,11 @@ const GLASS_PILL =
 function buildProxyUrl(url: string): string {
   if (!url) return "";
   if (url.includes("/api/live/proxy")) return url;
+  // Les relays HLS du backend sont déjà same-origin/CORS : les ré-envelopper
+  // ajoute un hop et double la latence de chaque playlist et segment.
+  if (url.startsWith("/api/") || url.includes("/api/sports/") || url.includes("/api/liveball/")) {
+    return url;
+  }
   return `${PROXY_BASE}?url=${encodeURIComponent(url)}`;
 }
 
@@ -119,6 +124,7 @@ export default function LivePlayer({
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
+  const [isBuffering, setIsBuffering] = useState(false);
   const [isPlaying, setIsPlaying] = useState(true);
   const [isLive, setIsLive] = useState(true);
   const [liveProgress, setLiveProgress] = useState(100);
@@ -134,6 +140,10 @@ export default function LivePlayer({
   const userMuteChoiceRef = useRef(false);
   /** Pause voulue par l'utilisateur : ne doit pas être lue comme un flux mort. */
   const userPausedRef = useRef(false);
+  /** Une première image a déjà été affichée : les rebuffers ne doivent plus masquer le flux. */
+  const hasPlayedRef = useRef(false);
+  /** URL du flux précédent, pour ne pas réinitialiser l'état sur un simple repli proxy. */
+  const lastStreamUrlRef = useRef<string | null>(null);
 
   const [error, setError] = useState<string | null>(null);
   const [proxyMode, setProxyMode] = useState(false);
@@ -240,8 +250,14 @@ export default function LivePlayer({
     }
     if (!el) return;
 
+    if (lastStreamUrlRef.current !== streamUrl) {
+      lastStreamUrlRef.current = streamUrl;
+      hasPlayedRef.current = false;
+    }
+
     setError(null);
-    setIsLoading(true);
+    setIsLoading(!hasPlayedRef.current);
+    setIsBuffering(false);
     setIsLive(true);
     setLiveProgress(100);
 
@@ -249,23 +265,27 @@ export default function LivePlayer({
     const config: any = {
       enableWorker: true,
       lowLatencyMode: lowLatency,
-      maxBufferLength: lowLatency ? 15 : 30,
-      maxMaxBufferLength: lowLatency ? 30 : 60,
-      backBufferLength: lowLatency ? 0 : 2,
+      maxBufferLength: lowLatency ? 20 : 30,
+      maxMaxBufferLength: lowLatency ? 40 : 60,
+      backBufferLength: lowLatency ? 10 : 2,
       maxLoadingDelay: 2,
       maxBufferHole: 0.5,
       highBufferWatchdogPeriod: 2,
       nudgeOffset: 0.1,
       nudgeMaxRetry: 5,
       fragLoadingMaxRetry: 6,
-      manifestLoadingMaxRetry: 4,
+      manifestLoadingMaxRetry: 6,
       levelLoadingMaxRetry: 6,
       startLevel: -1,
       abrEwmaDefaultEstimate: 1_200_000,
-      liveSyncDurationCount: lowLatency ? 1 : 3,
-      liveMaxLatencyDurationCount: lowLatency ? 3 : 6,
-      maxLiveSyncPlaybackRate: 1.12,
+      // Deux segments de marge : le direct reste très proche du live, mais un
+      // hoquet réseau ne suffit plus à vider le buffer et à figer l'image.
+      liveSyncDurationCount: lowLatency ? 2 : 3,
+      liveMaxLatencyDurationCount: lowLatency ? 5 : 6,
+      maxLiveSyncPlaybackRate: 1.08,
     };
+    const isBackendRelay =
+      streamUrl.includes("/api/sports/") || streamUrl.includes("/api/liveball/");
     const isCorsRestricted = Boolean(
       (channel as any).proxy ||
       streamUrl.includes('amagi.tv') ||
@@ -273,12 +293,11 @@ export default function LivePlayer({
       streamUrl.includes('edgesuite.net')
     );
 
-    const effectiveUrl = (proxyMode || isCorsRestricted)
+    const effectiveUrl = (!isBackendRelay && (proxyMode || isCorsRestricted))
       ? buildProxyUrl(streamUrl)
       : streamUrl;
 
     const startPlayback = async () => {
-      setIsLoading(false);
       el.muted = mutedRef.current;
       try {
         await el.play();
@@ -290,6 +309,9 @@ export default function LivePlayer({
         try {
           await el.play();
         } catch {
+          // L'autoplay est refusé : on doit sortir du chargement initial pour
+          // laisser apparaître le bouton Play, sinon l'écran reste bloqué.
+          setIsLoading(false);
           setIsPlaying(false);
           setIsLive(false);
           return;
@@ -338,11 +360,11 @@ export default function LivePlayer({
       }
       if (Math.abs(el.currentTime - probeLastTime) < 0.05) {
         probeStalledMs += 2000;
-        if (probeStalledMs >= 10_000) {
+        if (probeStalledMs >= 15_000) {
           probeStalledMs = 0;
           setIsPlaying(false);
           setIsLive(false);
-          reportFailure("Aucune progression de lecture depuis 10 secondes");
+          reportFailure("Aucune progression de lecture depuis 15 secondes");
         }
       } else {
         probeStalledMs = 0;
@@ -355,7 +377,7 @@ export default function LivePlayer({
       const { default: Hls } = await import("hls.js");
       if (cancelled) return;
 
-      if ((proxyMode || isCorsRestricted) && Hls.DefaultConfig?.loader) {
+      if (!isBackendRelay && (proxyMode || isCorsRestricted) && Hls.DefaultConfig?.loader) {
         const ProxiedHlsLoader = buildProxiedLoader(Hls);
         if (ProxiedHlsLoader) {
           config.loader = ProxiedHlsLoader;
@@ -363,6 +385,7 @@ export default function LivePlayer({
         }
       }
 
+      let relayRetryUsed = false;
       if (Hls.isSupported()) {
         hls = new Hls(config);
         hls.loadSource(effectiveUrl);
@@ -370,7 +393,9 @@ export default function LivePlayer({
         hls.on(Hls.Events.MANIFEST_PARSED, startPlayback);
         hls.on(Hls.Events.FRAG_LOADED, () => {
           schedulePlaybackWatchdog();
+          hasPlayedRef.current = true;
           setIsLoading(false);
+          setIsBuffering(false);
           updateLiveState();
         });
         hls.on(Hls.Events.ERROR, (_e, data) => {
@@ -380,6 +405,16 @@ export default function LivePlayer({
             return;
           }
           if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+            if (isBackendRelay) {
+              if (!relayRetryUsed) {
+                relayRetryUsed = true;
+                hls?.startLoad();
+                return;
+              }
+              setError("stream");
+              reportFailure("Le flux HLS ne répond plus");
+              return;
+            }
             if (!proxyMode) {
               setProxyMode(true);
               return;
@@ -398,7 +433,7 @@ export default function LivePlayer({
         });
         el.addEventListener("timeupdate", schedulePlaybackWatchdog);
         el.addEventListener("error", () => {
-          if (!proxyMode) {
+          if (!isBackendRelay && !proxyMode) {
             setProxyMode(true);
           } else {
             setError("stream");
@@ -629,13 +664,24 @@ export default function LivePlayer({
           playsInline
           preload="auto"
           onClick={togglePlay}
-          onWaiting={() => setIsLoading(true)}
+          onWaiting={() => {
+            if (hasPlayedRef.current) {
+              setIsBuffering(true);
+            } else {
+              setIsLoading(true);
+            }
+          }}
           onPlaying={() => {
+            hasPlayedRef.current = true;
             setIsLoading(false);
+            setIsBuffering(false);
             setIsPlaying(true);
             updateLiveState();
           }}
-          onCanPlay={() => setIsLoading(false)}
+          onCanPlay={() => {
+            setIsLoading(false);
+            if (hasPlayedRef.current) setIsBuffering(false);
+          }}
           onTimeUpdate={updateLiveState}
           onPause={() => {
             setIsPlaying(false);
@@ -668,6 +714,16 @@ export default function LivePlayer({
       {isLoading && !error && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/40 z-20 pointer-events-none">
           <div className="w-12 h-12 rounded-full border-[3.5px] border-white/10 border-t-red-600 border-r-red-500 animate-spin" />
+        </div>
+      )}
+
+      {/* ── Rebuffering : ne jamais recouvrir l'image déjà affichée ── */}
+      {isBuffering && !isLoading && !error && (
+        <div className="pointer-events-none absolute inset-x-0 top-4 z-20 flex justify-center">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/65 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-white/90 backdrop-blur-md">
+            <span className="h-3 w-3 rounded-full border-2 border-white/25 border-t-white animate-spin" />
+            Mise en mémoire…
+          </div>
         </div>
       )}
 

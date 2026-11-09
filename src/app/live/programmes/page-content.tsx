@@ -117,6 +117,7 @@ function toLiveChannel(channel: EpgGuideChannel, streamUrl: string): LiveChannel
     order: 0,
     isOnline: true,
     proxy: true,
+    source: "oha",
     ohaId: channel.id,
     ohaAltIds: channel.altIds,
     epgNow: channel.now
@@ -313,10 +314,14 @@ export default function ProgramGuideContent() {
     if (resolvingId) return;
     setPlayError(null);
     setResolvingId(channel.id);
+    setPlaying({ ch: channel, streamUrl: "" });
     try {
       const url = await resolveOhaStream(channel.id, channel.altIds);
-      setPlaying({ ch: channel, streamUrl: url });
+      setPlaying((current) =>
+        current?.ch.id === channel.id ? { ch: channel, streamUrl: url } : current,
+      );
     } catch {
+      setPlaying((current) => (current?.ch.id === channel.id ? null : current));
       setPlayError(`Lien indisponible pour ${channel.name}. Réessayez plus tard.`);
     } finally {
       setResolvingId(null);

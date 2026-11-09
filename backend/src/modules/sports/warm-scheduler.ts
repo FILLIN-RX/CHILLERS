@@ -22,7 +22,7 @@ import { getRegisteredChannels } from './match-channels.registry';
 import type { SportsMatch } from './sports.types';
 
 const DEFAULT_CRON = '*/2 * * * *';
-/** Fenêtre avant le coup d'envoi : au-delà, le registre (2 min de TTL) serait déjà froid. */
+/** Fenêtre avant le coup d'envoi : au-delà, le registre (5 min de TTL) serait déjà froid. */
 const WINDOW_BEFORE_S = 60 * 60;
 /** Un match marqué live depuis plus de N h est terminé côté providers. */
 const WINDOW_AFTER_S = Number(process.env.SPORTS_EXPIRY_LIVE_S) || 6 * 3600;

@@ -35,6 +35,51 @@ const segmentCache = new LRUCache<string, Buffer>({
 const LIVEBALL_BASE_DOMAIN = process.env.LIVEBALL_DOMAIN || 'liveball.sx';
 const refererFor = (matchId: string) => `https://${LIVEBALL_BASE_DOMAIN}/match/${matchId}`;
 
+const targetMemory = new LRUCache<string, { url: string; resolvedAt: number }>({
+  max: 200,
+  ttl: 30 * 60_000,
+});
+const refreshInFlight = new Map<string, Promise<{ url: string } | null>>();
+const REFRESH_AFTER_MS = 10 * 60_000;
+const REFRESH_DEBOUNCE_MS = 10_000;
+
+function refreshLiveBallStream(
+  matchId: string,
+): Promise<{ url: string } | null> {
+  const pending = refreshInFlight.get(matchId);
+  if (pending) return pending;
+
+  const current = targetMemory.get(matchId);
+  if (current && Date.now() - current.resolvedAt < REFRESH_DEBOUNCE_MS) {
+    return Promise.resolve(current);
+  }
+
+  let promise: Promise<{ url: string } | null>;
+  promise = (async () => {
+    invalidateStreamCache(matchId);
+    return resolveLiveBallStream(matchId, true);
+  })()
+    .then((stream) => {
+      if (stream?.type === 'hls') {
+        targetMemory.set(matchId, { url: stream.url, resolvedAt: Date.now() });
+      }
+      return stream;
+    })
+    .catch(() => null)
+    .finally(() => {
+      if (refreshInFlight.get(matchId) === promise) refreshInFlight.delete(matchId);
+    });
+  refreshInFlight.set(matchId, promise);
+  return promise;
+}
+
+function maybeRefreshLiveBallStream(matchId: string): void {
+  const current = targetMemory.get(matchId);
+  if (!current || Date.now() - current.resolvedAt < REFRESH_AFTER_MS) return;
+  void refreshLiveBallStream(matchId);
+}
+
+
 async function fetchRemote(
   url: string,
   matchId: string,
@@ -72,13 +117,65 @@ async function fetchRemote(
     // Si le jeton du flux a expiré côté CDN (401 ou 403), on invalide le cache et on tente 1 reconnexion
     if ((status === 401 || status === 403 || status === 404) && retryCount === 0) {
       console.warn(`[LiveBall Relay] CDN returned HTTP ${status} for match ${matchId}. Refreshing stream token...`);
-      invalidateStreamCache(matchId);
-      const freshStream = await resolveLiveBallStream(matchId, true);
-      if (freshStream && freshStream.type === 'hls') {
+      const freshStream = await refreshLiveBallStream(matchId);
+      if (freshStream) {
         // Si c'était la playlist principale qui a échoué, on re-tente avec la nouvelle URL
         if (/\.m3u8([?#]|$)/i.test(url)) {
           return fetchRemote(freshStream.url, matchId, retryCount + 1);
         }
+      }
+    }
+    throw err;
+  }
+}
+
+/**
+ * Segments en streaming : le navigateur démarre sur les premiers octets au
+ * lieu d'attendre le téléchargement complet du .ts par le backend.
+ */
+async function streamRemote(
+  url: string,
+  matchId: string,
+  retryCount = 0
+): Promise<{ stream: any; contentType: string; contentLength?: string }> {
+  try {
+    const response = await axios.get(url, {
+      responseType: 'stream',
+      timeout: 10_000,
+      maxRedirects: 5,
+      httpAgent,
+      httpsAgent,
+      validateStatus: (s) => s >= 200 && s < 400,
+      headers: {
+        'User-Agent': USER_AGENT,
+        Referer: refererFor(matchId),
+        Origin: `https://${LIVEBALL_BASE_DOMAIN}`,
+        Accept: '*/*',
+        'Accept-Language': 'en-US,en;q=0.9',
+        Connection: 'keep-alive',
+      },
+    });
+
+    const contentType = String(response.headers['content-type'] ?? '');
+    if (contentType.includes('text/html')) {
+      response.data.destroy?.();
+      throw new Error(`Remote returned HTML challenge (${url.slice(0, 80)})`);
+    }
+
+    return {
+      stream: response.data,
+      contentType,
+      contentLength: response.headers['content-length']
+        ? String(response.headers['content-length'])
+        : undefined,
+    };
+  } catch (err: any) {
+    const status = err?.response?.status;
+    if ((status === 401 || status === 403 || status === 404) && retryCount === 0) {
+      console.warn(`[LiveBall Relay] HTTP ${status} for match ${matchId}, refreshing segment...`);
+      const freshStream = await refreshLiveBallStream(matchId);
+      if (freshStream && /\.m3u8([?#]|$)/i.test(url)) {
+        return streamRemote(freshStream.url, matchId, retryCount + 1);
       }
     }
     throw err;
@@ -147,6 +244,7 @@ export const getHlsMasterPlaylist = async (req: Request, res: Response, next: Ne
       res.status(404).json({ success: false, data: null, message: 'Flux HLS liveball introuvable' });
       return;
     }
+    targetMemory.set(matchId, { url: stream.url, resolvedAt: Date.now() });
 
     const { buf } = await fetchRemote(stream.url, matchId);
     
@@ -189,6 +287,7 @@ export const getHlsProxy = async (req: Request, res: Response, next: NextFunctio
     }
 
     const remoteUrl = remote.toString();
+    maybeRefreshLiveBallStream(matchId);
 
     // 1. Playlist imbriquée (variant / chunklist / rendition) → réécriture en direct (jamais cachée)
     if (/\.m3u8([?#]|$)/i.test(remoteUrl)) {
@@ -214,21 +313,49 @@ export const getHlsProxy = async (req: Request, res: Response, next: NextFunctio
       return;
     }
 
-    const { buf, contentType } = await fetchRemote(remoteUrl, matchId);
+    let upstream: { stream: any; contentType: string; contentLength?: string };
+    try {
+      upstream = await streamRemote(remoteUrl, matchId);
+    } catch {
+      if (!res.headersSent) {
+        res.status(502).json({ success: false, data: null, message: 'Segment indisponible' });
+      }
+      return;
+    }
+
     const segmentMime =
-      contentType.includes('video') || contentType.includes('audio') ? contentType : mimeSegment;
+      upstream.contentType.includes('video') || upstream.contentType.includes('audio')
+        ? upstream.contentType
+        : mimeSegment;
 
     res.set('Content-Type', segmentMime);
     res.set('Cache-Control', 'public, max-age=60, immutable');
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+    if (upstream.contentLength) res.set('Content-Length', upstream.contentLength);
 
-    // Mise en cache des segments valides (de 8 Ko à 32 Mo)
-    if (buf.length >= 8 * 1024 && buf.length <= 32 * 1024 * 1024) {
-      segmentCache.set(remoteUrl, buf);
-    }
-
-    res.send(buf);
+    const chunks: Buffer[] = [];
+    let size = 0;
+    let collect = true;
+    upstream.stream.on('data', (chunk: Buffer) => {
+      if (!collect) return;
+      size += chunk.length;
+      if (size > 32 * 1024 * 1024) {
+        collect = false;
+        chunks.length = 0;
+        return;
+      }
+      chunks.push(chunk);
+    });
+    upstream.stream.on('end', () => {
+      if (collect && size >= 8 * 1024) segmentCache.set(remoteUrl, Buffer.concat(chunks));
+    });
+    upstream.stream.on('error', () => {
+      if (!res.headersSent) res.status(502).end();
+      else res.destroy();
+    });
+    res.on('close', () => upstream.stream.destroy?.());
+    upstream.stream.pipe(res);
   } catch (error) {
     next(error);
   }

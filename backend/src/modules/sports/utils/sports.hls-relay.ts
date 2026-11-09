@@ -45,6 +45,59 @@ const refererMemory = new LRUCache<string, string>({ max: 200, ttl: 10 * 60_000 
 const memoryKey = (source: string, sourceId: string) => `${source}:${sourceId}`;
 
 /**
+ * Cible HLS courante + date de résolution : permet de rafraîchir le jeton en
+ * arrière-plan avant qu'il n'expire, sans attendre un 401 en plein segment.
+ */
+const targetMemory = new LRUCache<string, { url: string; referer?: string; resolvedAt: number }>({
+  max: 200,
+  ttl: 30 * 60_000,
+});
+const refreshInFlight = new Map<string, Promise<{ url: string; referer?: string } | null>>();
+const REFRESH_AFTER_MS = 15 * 60_000;
+const REFRESH_DEBOUNCE_MS = 10_000;
+
+function rememberTarget(source: string, sourceId: string, target: { url: string; referer?: string }): void {
+  targetMemory.set(memoryKey(source, sourceId), { ...target, resolvedAt: Date.now() });
+  refererMemory.set(memoryKey(source, sourceId), target.referer ?? originOf(target.url));
+}
+
+function refreshHlsTarget(
+  source: string,
+  sourceId: string,
+): Promise<{ url: string; referer?: string } | null> {
+  const key = memoryKey(source, sourceId);
+  const pending = refreshInFlight.get(key);
+  if (pending) return pending;
+
+  // Une rafale de segments peut renvoyer 401 juste après un refresh : ne pas
+  // relancer la chaîne de providers pour chacun d'eux.
+  const current = targetMemory.get(key);
+  if (current && Date.now() - current.resolvedAt < REFRESH_DEBOUNCE_MS) {
+    return Promise.resolve(current);
+  }
+
+  let promise: Promise<{ url: string; referer?: string } | null>;
+  promise = resolveHlsTarget(source, sourceId, true)
+    .then((fresh) => {
+      if (fresh) rememberTarget(source, sourceId, fresh);
+      return fresh;
+    })
+    .catch(() => null)
+    .finally(() => {
+      if (refreshInFlight.get(key) === promise) refreshInFlight.delete(key);
+    });
+  refreshInFlight.set(key, promise);
+  return promise;
+}
+
+function maybeRefreshTarget(source: string, sourceId: string): void {
+  const current = targetMemory.get(memoryKey(source, sourceId));
+  if (!current || Date.now() - current.resolvedAt < REFRESH_AFTER_MS) return;
+  void refreshHlsTarget(source, sourceId);
+}
+
+
+/**
  * URL HLS + Referer du flux réellement servi pour ce couple source/identifiant :
  * la chaîne de providers d'abord (elle a déjà tranché), résolution brute de la
  * source ensuite (identifiant absent du listing agrégé, ex. après rotation).
@@ -54,6 +107,18 @@ async function resolveHlsTarget(
   sourceId: string,
   force: boolean
 ): Promise<{ url: string; referer?: string } | null> {
+  // Refresh de jeton : on interroge d'abord le provider exact, sans repasser
+  // par la découverte de tous les jumeaux (10-26 s en plein match). La chaîne
+  // complète ne sert qu'en dernier recours.
+  if (force) {
+    const direct = await resolveSportsStream(source, sourceId, true).catch(() => null);
+    if (direct?.type === 'hls') {
+      const server = direct.servers?.find((s) => s.type === 'hls');
+      const url = server?.url ?? direct.url;
+      if (url) return { url, referer: server?.referer };
+    }
+  }
+
   const resolved = await resolveSportsFluxById(`${source}:${sourceId}`, force).catch(() => null);
   const stream = resolved?.flux.stream;
   if (stream?.type === 'hls') {
@@ -112,9 +177,8 @@ async function fetchRemote(
     const status = err?.response?.status;
     if ((status === 401 || status === 403 || status === 404) && retryCount === 0) {
       console.warn(`[Sports Relay] HTTP ${status} sur ${source}/${sourceId}, re-résolution du flux...`);
-      const fresh = await resolveHlsTarget(source, sourceId, true);
+      const fresh = await refreshHlsTarget(source, sourceId);
       if (fresh?.url && /\.m3u8([?#]|$)/i.test(url)) {
-        refererMemory.set(memoryKey(source, sourceId), fresh.referer ?? originOf(fresh.url));
         return fetchRemote(fresh.url, source, sourceId, fresh.referer, retryCount + 1);
       }
     }
@@ -126,6 +190,64 @@ async function fetchRemote(
     if (transient && retryCount === 0) {
       await new Promise((resolve) => setTimeout(resolve, 350));
       return fetchRemote(url, source, sourceId, referer, retryCount + 1);
+    }
+    throw err;
+  }
+}
+
+/**
+ * Variante streaming pour les segments : le client reçoit les octets dès leur
+ * arrivée au lieu d'attendre que tout le segment soit téléchargé. Pour un
+ * direct, cela retire plusieurs centaines de ms au premier fragment et évite
+ * les à-coups quand le CDN ralentit.
+ */
+async function streamRemote(
+  url: string,
+  source: string,
+  sourceId: string,
+  referer?: string,
+  retryCount = 0
+): Promise<{ stream: any; contentType: string; contentLength?: string }> {
+  const pageReferer = referer || originOf(url);
+  try {
+    const response = await axios.get(url, {
+      responseType: 'stream',
+      timeout: 10_000,
+      maxRedirects: 5,
+      httpAgent,
+      httpsAgent,
+      validateStatus: (s) => s >= 200 && s < 400,
+      headers: {
+        'User-Agent': USER_AGENT,
+        Referer: pageReferer,
+        Origin: originOf(pageReferer),
+        Accept: '*/*',
+        'Accept-Language': 'en-US,en;q=0.9',
+        Connection: 'keep-alive',
+      },
+    });
+
+    const contentType = String(response.headers['content-type'] ?? '');
+    if (contentType.includes('text/html')) {
+      response.data.destroy?.();
+      throw new Error(`Challenge HTML renvoyé (${url.slice(0, 80)})`);
+    }
+
+    return {
+      stream: response.data,
+      contentType,
+      contentLength: response.headers['content-length']
+        ? String(response.headers['content-length'])
+        : undefined,
+    };
+  } catch (err: any) {
+    const status = err?.response?.status;
+    if ((status === 401 || status === 403 || status === 404) && retryCount === 0) {
+      console.warn(`[Sports Relay] HTTP ${status} sur ${source}/${sourceId}, refresh du segment...`);
+      const fresh = await refreshHlsTarget(source, sourceId);
+      if (fresh?.url && /\.m3u8([?#]|$)/i.test(url)) {
+        return streamRemote(fresh.url, source, sourceId, fresh.referer, retryCount + 1);
+      }
     }
     throw err;
   }
@@ -195,7 +317,7 @@ export const getHlsMasterPlaylist = async (req: Request, res: Response, next: Ne
     }
 
     const referer = target.referer || originOf(target.url);
-    refererMemory.set(memoryKey(source, sourceId), referer);
+    rememberTarget(source, sourceId, { url: target.url, referer });
 
     const { buf } = await fetchRemote(target.url, source, sourceId, referer);
     setPlaylistHeaders(res);
@@ -231,6 +353,7 @@ export const getHlsProxy = async (req: Request, res: Response, next: NextFunctio
 
     const remoteUrl = remote.toString();
     const referer = refererMemory.get(memoryKey(source, sourceId));
+    maybeRefreshTarget(source, sourceId);
 
     if (/\.m3u8([?#]|$)/i.test(remoteUrl)) {
       const { buf } = await fetchRemote(remoteUrl, source, sourceId, referer);
@@ -246,14 +369,43 @@ export const getHlsProxy = async (req: Request, res: Response, next: NextFunctio
       return;
     }
 
-    const { buf, contentType } = await fetchRemote(remoteUrl, source, sourceId, referer);
-    setSegmentHeaders(res, contentType);
-
-    if (buf.length >= 8 * 1024 && buf.length <= 32 * 1024 * 1024) {
-      segmentCache.set(remoteUrl, buf);
+    let upstream: { stream: any; contentType: string; contentLength?: string };
+    try {
+      upstream = await streamRemote(remoteUrl, source, sourceId, referer);
+    } catch {
+      if (!res.headersSent) {
+        res.status(502).json({ success: false, data: null, message: 'Segment indisponible' });
+      }
+      return;
     }
 
-    res.send(buf);
+    setSegmentHeaders(res, upstream.contentType);
+    if (upstream.contentLength) res.set('Content-Length', upstream.contentLength);
+
+    // Tee : le client reçoit les octets immédiatement, et on garde une copie
+    // bornée pour les rares requêtes simultanées sur le même segment.
+    const chunks: Buffer[] = [];
+    let size = 0;
+    let collect = true;
+    upstream.stream.on('data', (chunk: Buffer) => {
+      if (!collect) return;
+      size += chunk.length;
+      if (size > 32 * 1024 * 1024) {
+        collect = false;
+        chunks.length = 0;
+        return;
+      }
+      chunks.push(chunk);
+    });
+    upstream.stream.on('end', () => {
+      if (collect && size >= 8 * 1024) segmentCache.set(remoteUrl, Buffer.concat(chunks));
+    });
+    upstream.stream.on('error', () => {
+      if (!res.headersSent) res.status(502).end();
+      else res.destroy();
+    });
+    res.on('close', () => upstream.stream.destroy?.());
+    upstream.stream.pipe(res);
   } catch (error) {
     next(error);
   }

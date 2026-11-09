@@ -61,16 +61,20 @@ export default function TvChannelCard({
   isPlaying,
   isResolving,
   onPlay,
+  onPrefetch,
 }: {
   ch: OhaChannel;
   isPlaying: boolean;
   isResolving: boolean;
   onPlay: (ch: OhaChannel) => void;
+  onPrefetch?: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={() => onPlay(ch)}
+      onPointerEnter={onPrefetch}
+      onFocus={onPrefetch}
       title={ch.name}
       className={`group relative flex flex-col w-full aspect-[4/3] rounded-none bg-[#242424] hover:bg-[#383838] select-none transition-colors duration-200 cursor-pointer overflow-hidden box-border border ${
         isPlaying ? "border-red-500/70" : "border-transparent"

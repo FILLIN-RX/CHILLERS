@@ -679,16 +679,22 @@ export interface AdminPushCampaign {
   grantPremiumDays: number; sentAt?: string; deliveryCount?: number; error?: string;
 }
 export const adminGeneratePushCampaignDraft = (payload: { theme: string; audience: 'all' | 'free'; grantPremiumDays?: number }) =>
-  adminPushRequest<{ success: boolean; data?: { title: string; message: string; usedProvider: 'gemini' | 'groq' }; message?: string }>('/admin/campaigns/draft', 'POST', payload);
-async function adminPushRequest<T>(path: string, method: 'GET' | 'POST' = 'GET', body?: unknown) {
+  adminPushRequest<{ success: boolean; data?: { title: string; message: string; usedProvider: 'gemini' | 'groq' }; message?: string }>('/admin/campaigns/draft', 'POST', payload, 60_000);
+/** Même stratégie que `adminApiUrl` : relatif côté navigateur (rewrite Next), absolu côté SSR. */
+function pushApiUrl(path: string): string {
+  const suffix = path.startsWith('/') ? path : `/${path}`;
+  if (typeof window !== 'undefined') return `/api/notifications${suffix}`;
+  return `${API_BASE_URL.replace(/\/+$/, '')}/notifications${suffix}`;
+}
+async function adminPushRequest<T>(path: string, method: 'GET' | 'POST' = 'GET', body?: unknown, timeoutMs?: number) {
   const token = getAdminToken();
   if (!token) return { success: false, message: 'Non authentifié' } as T;
-  return httpJson<T>(`${API_BASE_URL.replace(/\/+$/, '')}/notifications${path}`, {
-    method, body, headers: { Authorization: `Bearer ${token}` }, antiBot: false,
+  return httpJson<T>(pushApiUrl(path), {
+    method, body, headers: { Authorization: `Bearer ${token}` }, antiBot: false, timeoutMs,
   });
 }
 export const adminGetPushCampaigns = () => adminPushRequest<{ success: boolean; data: AdminPushCampaign[] }>('/admin/campaigns');
 export const adminCreatePushCampaign = (payload: { theme: string; audience: 'all' | 'free'; title?: string; message?: string; scheduledAt?: string; sendNow?: boolean; url?: string; grantPremiumDays?: number }) =>
-  adminPushRequest<{ success: boolean; data?: AdminPushCampaign; message?: string }>('/admin/campaigns', 'POST', payload);
+  adminPushRequest<{ success: boolean; data?: AdminPushCampaign; message?: string }>('/admin/campaigns', 'POST', payload, 60_000);
 export const adminCancelPushCampaign = (id: string) =>
   adminPushRequest<{ success: boolean; message?: string }>(`/admin/campaigns/${id}/cancel`, 'POST');

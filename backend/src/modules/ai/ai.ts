@@ -158,6 +158,52 @@ export interface AICompletionResult {
 }
 
 /**
+ * Extrait le premier objet/tableau JSON valide d'une réponse texte.
+ * Les modèles renvoient parfois du markdown (```json … ```) ou un préambule
+ * avant le JSON : un JSON.parse direct échoue alors sur ces réponses.
+ */
+export function extractJson(text: string): string {
+  let value = (text || '').trim();
+
+  const fenced = value.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (fenced) value = fenced[1].trim();
+
+  const start = value.search(/[[{]/);
+  if (start === -1) return value;
+
+  const opening = value[start];
+  const closing = opening === '{' ? '}' : ']';
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let index = start; index < value.length; index += 1) {
+    const char = value[index];
+
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (char === '\\') escaped = true;
+      else if (char === '"') inString = false;
+      continue;
+    }
+
+    if (char === '"') inString = true;
+    else if (char === opening) depth += 1;
+    else if (char === closing) {
+      depth -= 1;
+      if (depth === 0) return value.slice(start, index + 1);
+    }
+  }
+
+  return value.slice(start);
+}
+
+/** Parse une réponse IA en JSON, même si le modèle ajoute du markdown ou du texte. */
+export function parseAIJson<T = any>(text: string): T {
+  return JSON.parse(extractJson(text)) as T;
+}
+
+/**
  * Moteur d'IA unifié avec tentative multi-modèles :
  * Tente les modèles Gemini (ex: gemini-3.6-flash, gemini-3.8-flash),
  * et bascule automatiquement sur Groq (ex: openai/gpt-oss-20b, qwen/qwen3.6-27b) en secours.
@@ -177,7 +223,7 @@ export async function generateAICompletion(options: AICompletionOptions): Promis
   const groqModels = [
     process.env.AI_GROQ_MODEL,
     'openai/gpt-oss-20b',
-    'qwen/qwen3.6-27b',
+    'qwen/qwen3.8-27b',
     'openai/gpt-oss-120b',
     'groq/compound-mini',
   ].filter((m, i, self): m is string => Boolean(m) && self.indexOf(m) === i);
@@ -190,7 +236,16 @@ export async function generateAICompletion(options: AICompletionOptions): Promis
           ? [{ role: 'user', parts: [{ text: `${systemPrompt}\n\n${prompt}` }] }]
           : [{ role: 'user', parts: [{ text: prompt }] }];
 
-        const reqBody: any = { contents, generationConfig: { temperature, maxOutputTokens: maxTokens } };
+        const reqBody: any = {
+          contents,
+          generationConfig: {
+            temperature,
+            maxOutputTokens: maxTokens,
+            // Gemini 3.x consomme des tokens de raisonnement qui réduisent
+            // fortement le budget de sortie et tronquent les réponses JSON.
+            thinkingConfig: { thinkingBudget: 0 },
+          },
+        };
         if (jsonMode) {
           reqBody.generationConfig.responseMimeType = 'application/json';
         }

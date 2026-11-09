@@ -212,49 +212,54 @@ export const getChannels = async (req: Request, res: Response, next: NextFunctio
     }
     const matchId = match.id;
 
-    if (!forceRefresh) {
-      const registered = getRegisteredChannels(matchId);
-      if (registered && registered.servers.length > 0) {
-        // Registre partiel (flux principal seul, la collecte complète est en
-        // vol ou morte) : on relance l'agrégation en arrière-plan, la réponse
-        // part immédiatement avec ce qu'on a déjà.
-        if (!registered.complete) warmupMatchChannels(match);
-        const cachedStream: ResolvedSportsStream = {
-          url: registered.servers[0].url,
-          type: registered.servers[0].type ?? 'iframe',
-          servers: registered.servers,
-        };
+    let registered = !forceRefresh ? getRegisteredChannels(matchId) : undefined;
+
+    if (!registered || registered.servers.length === 0) {
+      // Première requête : on résout le flux principal via la même promesse que
+      // /stream, puis on répond immédiatement avec le registre partiel. La
+      // collecte exhaustive continue en arrière-plan et arrivera au prochain
+      // poll /channels — plus d'attente de 40 s avant le premier serveur.
+      const primary = await resolveSportsFlux(match, forceRefresh);
+      if (!primary) {
+        res.status(404).json({ success: false, data: null, message: 'Aucun serveur connu pour ce match' });
+        return;
+      }
+      if (MULTI_SERVER_ENABLED) warmupMatchChannels(match);
+      registered = getRegisteredChannels(matchId);
+
+      if (!registered || registered.servers.length === 0) {
+        const payload = serializeStream(req, primary.source, primary.sourceId, primary.stream);
         matchLog(
-          `Chaînes ${matchId}: ${registered.servers.length} serveur(s) depuis le registre (complet=${registered.complete})`,
+          `Chaînes ${matchId}: ${payload.servers.length} serveur(s) initial(aux) pour ${matchLabel(match)} (collecte en arrière-plan)`,
         );
         res.json({
           success: true,
-          data: {
-            ...serializeStream(req, registered.source, registered.sourceId, cachedStream),
-            complete: registered.complete,
-          },
+          data: { ...payload, match, complete: false },
           message: null,
         });
         return;
       }
     }
 
-    const flux = await resolveSportsFlux(match, forceRefresh, { collectAll: true });
-    if (!flux) {
-      res.status(404).json({ success: false, data: null, message: 'Aucun serveur connu pour ce match' });
-      return;
-    }
+    // Registre partiel (flux principal seul) : relance l'agrégation complète
+    // sans bloquer cette réponse.
+    if (!registered) return;
+    if (!registered.complete && MULTI_SERVER_ENABLED) warmupMatchChannels(match);
 
-    const complete = getRegisteredChannels(match.id)?.complete ?? true;
+    const cachedStream: ResolvedSportsStream = {
+      url: registered.servers[0].url,
+      type: registered.servers[0].type ?? 'iframe',
+      servers: registered.servers,
+    };
     matchLog(
-      `Chaînes ${matchId}: ${flux.stream.servers.length} serveur(s) collectés pour ${matchLabel(match)} (complet=${complete})`,
+      `Chaînes ${matchId}: ${registered.servers.length} serveur(s) depuis le registre (complet=${registered.complete})`,
     );
     res.json({
       success: true,
       data: {
-        ...serializeStream(req, flux.source, flux.sourceId, flux.stream),
+        ...serializeStream(req, registered.source, registered.sourceId, cachedStream),
         match,
-        complete,
+        complete: registered.complete,
       },
       message: null,
     });

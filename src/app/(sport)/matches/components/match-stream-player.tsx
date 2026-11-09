@@ -153,20 +153,27 @@ export function MatchStreamPlayer({
         (b.score ?? 0) - (a.score ?? 0),
     );
   }, [backupChannels?.servers, stream]);
-  const candidateIndex = candidateChoice?.matchId === matchId ? candidateChoice.index : 0;
-  const activeStream = candidates[candidateIndex] ?? stream;
+  const hasExplicitChoice = candidateChoice?.matchId === matchId;
+  const candidateIndex = hasExplicitChoice ? candidateChoice.index : -1;
+  // Sans choix explicite, le flux principal de /stream reste actif. L'arrivée
+  // de la liste complète (backupChannels) ne doit pas le remplacer en cours de
+  // lecture : c'était la cause d'un remontage du player au milieu du match.
+  const activeStream = hasExplicitChoice ? (candidates[candidateIndex] ?? stream) : stream;
   // Bascule silencieuse vers la source suivante : aucun overlay d'erreur.
   const advanceCandidate = React.useCallback(() => {
     // Seul le lien fautif est écarté : un autre miroir du même provider peut
     // très bien répondre, c'est justement l'intérêt des candidats multiples.
     if (activeStream?.url) failedCandidatesRef.current.add(`${matchId}:${activeStream.url}`);
+    const currentIndex = hasExplicitChoice
+      ? candidateIndex
+      : candidates.findIndex((candidate) => candidate.url === activeStream?.url);
     const next = candidates.findIndex((candidate, index) =>
-      index > candidateIndex && !failedCandidatesRef.current.has(`${matchId}:${candidate.url}`),
+      index > currentIndex && !failedCandidatesRef.current.has(`${matchId}:${candidate.url}`),
     );
     if (next >= 0) {
       setCandidateChoice({ matchId, index: next });
     }
-  }, [activeStream, candidateIndex, candidates, matchId]);
+  }, [activeStream, candidateIndex, candidates, hasExplicitChoice, matchId]);
 
   const selectedType = activeStream?.type;
 

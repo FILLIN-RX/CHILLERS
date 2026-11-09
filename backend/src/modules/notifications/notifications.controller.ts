@@ -3,7 +3,7 @@ import type { AuthRequest } from '../../middleware/auth.middleware';
 import { optionalAuth, requireAuth } from '../../middleware/auth.middleware';
 import { PushSubscription, PushCampaign } from './notification.models';
 import { getVapidPublicKey, sendToAll, sendToSubscription } from './push.service';
-import { generateAICompletion } from '../ai/ai';
+import { generateAICompletion, parseAIJson } from '../ai/ai';
 import { User } from '../../models/User';
 
 const categories = ['announcements', 'favorites', 'matches', 'subscriptions', 'reminders'] as const;
@@ -144,11 +144,11 @@ async function generateCampaignCopy(theme: string, audience: 'all' | 'free', gra
   const ai = await generateAICompletion({
     systemPrompt: 'Tu es le community manager de CHILLERS. Rédige un message push clair, naturel, honnête et engageant, sans fausse urgence. Réponds uniquement en JSON valide avec title (max 55 caractères) et message (max 160 caractères).',
     prompt: `Objectif de campagne: ${theme}\nPublic: ${audience === 'free' ? 'comptes gratuits' : 'tous les abonnés aux notifications'}\n${grantPremiumDays ? `L’offre accorde réellement ${grantPremiumDays} jours d’accès Premium aux comptes gratuits ciblés. Mentionne cette durée sans inventer de conditions.` : 'Ne promets aucune réduction ou offre non spécifiée.'}`,
-    maxTokens: 250,
+    maxTokens: 1200,
     temperature: 0.5,
     jsonMode: true,
   });
-  const parsed = JSON.parse(ai.text);
+  const parsed = parseAIJson(ai.text);
   const title = clean(parsed.title, 55);
   const message = clean(parsed.message, 160);
   if (!title || !message) throw new Error('Texte généré incomplet');

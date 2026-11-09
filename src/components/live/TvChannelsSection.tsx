@@ -13,7 +13,7 @@ import {
   MusicNotes,
   CalendarBlank,
 } from "@phosphor-icons/react";
-import { getOhaChannels, resolveOhaStream } from "@/services/oha";
+import { getOhaChannels, prefetchOhaStream, resolveOhaStream } from "@/services/oha";
 import {
   OHA_CATEGORY_LABELS,
   OHA_CATEGORY_ORDER,
@@ -59,6 +59,9 @@ function toLiveChannel(ch: OhaChannel, streamUrl: string): LiveChannel {
     order: 0,
     isOnline: true,
     proxy: true,
+    source: "oha",
+    ohaId: ch.id,
+    ohaAltIds: ch.altIds ?? [],
     epgNow: ch.epgNow,
     epgNext: ch.epgNext,
   };
@@ -112,11 +115,15 @@ export default function TvChannelsSection() {
     if (resolvingId) return;
     setPlayError(null);
     setResolvingId(ch.id);
+    // Ouvre le lecteur immédiatement : la résolution (ou le cache) se fait
+    // pendant l'affichage du loader, plus après un écran figé de 4 secondes.
+    setPlaying({ ch, streamUrl: "" });
     try {
       // Le serveur résout primary + replis en parallèle et vérifie les playlists.
       const url = await resolveOhaStream(ch.id, ch.altIds ?? []);
-      setPlaying({ ch, streamUrl: url });
+      setPlaying((current) => (current?.ch.id === ch.id ? { ch, streamUrl: url } : current));
     } catch {
+      setPlaying((current) => (current?.ch.id === ch.id ? null : current));
       setPlayError(`Lien indisponible pour ${ch.name}. Réessayez plus tard.`);
     } finally {
       setResolvingId(null);
@@ -235,6 +242,7 @@ export default function TvChannelsSection() {
               isPlaying={playing?.ch.id === ch.id}
               isResolving={resolvingId === ch.id}
               onPlay={play}
+              onPrefetch={() => prefetchOhaStream(ch.id, ch.altIds ?? [])}
             />
           ))}
         </div>

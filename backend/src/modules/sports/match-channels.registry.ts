@@ -21,7 +21,7 @@ export const MULTI_SERVER_ENABLED = !['0', 'false'].includes(
   (process.env.SPORTS_MULTI_SERVER || '').trim().toLowerCase(),
 );
 
-const CHANNELS_TTL = 2 * 60 * 1000; // 2 minutes (liens signés / lecteurs temporaires)
+const CHANNELS_TTL = 5 * 60 * 1000; // 5 minutes (les URLs restent servies, le relay re-résout sur erreur)
 
 export interface RegisteredChannels {
   /** Source ayant servi le premier serveur (le flux principal du match). */

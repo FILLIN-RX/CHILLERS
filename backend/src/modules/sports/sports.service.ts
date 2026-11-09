@@ -523,7 +523,7 @@ async function chainCandidates(target: SportsMatch): Promise<SportsMatch[]> {
  * tous les jumeaux du match sont agrégés dans `stream.servers`, chacun tagué de
  * sa source d'origine (nom + relay HLS à reconstruire côté client).
  */
-export async function resolveSportsFlux(
+async function resolveSportsFluxUncached(
   target: SportsMatch,
   force = false,
   opts: ResolveSportsOptions = {},
@@ -684,10 +684,34 @@ export async function resolveSportsFlux(
 
   const complete = collectAll && exhausted;
   FLUX_CACHE.set(target.id, { ts: Date.now(), data: flux, complete });
-  // Registre mémoire (24 h) : le prochain appel /channels part de ce point de
-  // départ sans repeindre toute la chaîne.
+  // Registre mémoire (TTL court) : le prochain appel /channels part de ce point
+  // de départ sans repeindre toute la chaîne.
   rememberChannels(target.id, { source: flux.source, sourceId: flux.sourceId, servers: finalServers, complete });
   return flux;
+}
+
+/**
+ * Toutes les résolutions d'un même match (mode normal ou agrégé) partagent la
+ * même promesse : `/stream` et `/channels` ne lancent plus deux chaînes de
+ * providers concurrentes, et un refresh relay ne provoque pas de stampede.
+ */
+const fluxInFlight = new Map<string, Promise<SportsFlux | null>>();
+
+export async function resolveSportsFlux(
+  target: SportsMatch,
+  force = false,
+  opts: ResolveSportsOptions = {},
+): Promise<SportsFlux | null> {
+  const key = `${target.id}:${opts.collectAll ? 'all' : 'one'}`;
+  const pending = fluxInFlight.get(key);
+  if (pending) return pending;
+
+  let promise: Promise<SportsFlux | null>;
+  promise = resolveSportsFluxUncached(target, force, opts).finally(() => {
+    if (fluxInFlight.get(key) === promise) fluxInFlight.delete(key);
+  });
+  fluxInFlight.set(key, promise);
+  return promise;
 }
 
 /**
