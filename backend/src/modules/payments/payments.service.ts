@@ -71,6 +71,7 @@ export interface FlatRate {
   available: boolean;
   otpRequired: boolean;
   otpInstructions: string;
+  minAmount: number;
   feePercent: number;
   feeFixed: number;
   feeFloor: number | null;
@@ -94,6 +95,12 @@ async function getRatesCached(): Promise<FlatRate[]> {
         available: !!r.payin?.available,
         otpRequired: !!r.payin?.otp_required,
         otpInstructions: r.payin?.otp_instructions || '',
+        minAmount: Math.max(
+          Number(tier?.min_amount ?? 0) || 0,
+          // SasPay applique aussi min_fee_basis_amount comme plancher réel
+          // (ex. 200 XAF/XOF pour le Mobile Money, 0.5 USD pour carte/crypto).
+          Number(tier?.min_fee_basis_amount ?? 0) || 0
+        ),
         feePercent: Number(tier?.percent ?? 0),
         feeFixed: Number(tier?.fixed ?? 0),
         // SasPay renvoie parfois floor_amount négatif (-0.01) ⇒ inutilisable
@@ -138,10 +145,11 @@ export async function getPaymentConfig() {
 /** Réseaux d'un pays + les réseaux globaux (carte/crypto toujours disponibles). */
 export async function getNetworksForCountry(country?: string) {
   const iso = (country || '').toUpperCase();
-  let list: { code: string; name: string; country: string }[] = [
-    { code: 'card', name: 'Carte bancaire', country: 'XX' },
+  const cardEnabled = /^(1|true|yes)$/i.test((process.env.SASPAY_CARD_ENABLED || '').trim());
+  const list: { code: string; name: string; country: string }[] = [
     { code: 'crypto', name: 'Crypto / Stablecoin', country: 'XX' },
   ];
+  if (cardEnabled) list.push({ code: 'card', name: 'Carte bancaire', country: 'XX' });
 
   try {
     const [countries, networks] = await Promise.all([getCountriesCached(), getNetworksCached()]);
@@ -192,9 +200,29 @@ export async function getPlansWithPrices(currency?: string) {
 
 /* ──────────────────────────── Softpay ──────────────────────────── */
 
+async function assertNetworkAmount(network: string, currency: string, amount: number): Promise<void> {
+  let rates: FlatRate[];
+  try {
+    rates = await getRatesCached();
+  } catch {
+    return;
+  }
+  const info = rates.find(
+    (r) => r.code === network && r.currency.toUpperCase() === currency.toUpperCase()
+  );
+  const min = info?.minAmount ?? 0;
+  if (min > 0 && amount < min) {
+    throw new PaymentError(
+      `Le montant minimum pour ${info?.name || network} est de ${min} ${currency}.`,
+      400,
+      'amount_too_small'
+    );
+  }
+}
+
 export interface InitiateInput {
   planCode?: string;
-  /** Montant libre de don, exprimé dans `currency` (XOF par défaut). > 0 ⇒ mode don. */
+  /** Montant libre de don, exprimé en FCFA (devise de base). > 0 ⇒ mode don. */
   donationAmount?: number;
   currency?: string;
   country?: string;
@@ -262,20 +290,23 @@ export async function initiateSoftpay(userId: string | null, input: InitiateInpu
     if (!rate && wanted !== BASE_CURRENCY) {
       throw new PaymentError('Devise non supportée pour les dons.', 400, 'unsupported_currency');
     }
-    amount = round2(donationAmount);
-    // ~100 XAF minimum (règle anti-spam des gateways)
-    const xafEquivalent = sendCurrency === BASE_CURRENCY ? amount : amount * (rate as number);
-    if (xafEquivalent < 100) {
+    // donationAmount est exprimé en FCFA (devise de base) ; on le convertit
+    // vers la devise réellement attendue par le réseau (ex. USD pour carte/crypto).
+    if (donationAmount < 100) {
       throw new PaymentError('Montant minimum : 100 FCFA.', 400, 'amount_too_small');
     }
+    amount = sendCurrency === BASE_CURRENCY ? round2(donationAmount) : round2(donationAmount / (rate as number));
   } else {
     // plan est non-null ici : isDonation === false ⇒ findOne ci-dessus
     amount = rate ? round2((plan as { name: string; price: number }).price / rate) : (plan as { name: string; price: number }).price;
   }
 
+  await assertNetworkAmount(network, sendCurrency, amount);
+
   const firstName = (input.firstName || user?.username || user?.email?.split('@')[0] || 'Client').trim();
   const lastName = (input.lastName || '.').trim();
-  const email = (input.email || user?.email || '').trim();
+  // SasPay exige un email non vide, même pour un don anonyme (sans compte).
+  const email = (input.email || user?.email || '').trim() || 'noreply@chillers.site';
 
   const idempotencyKey = randomUUID();
   const txn = await PaymentTransaction.create({
@@ -320,7 +351,9 @@ export async function initiateSoftpay(userId: string | null, input: InitiateInpu
     txn.saspayPaymentId = resp.id;
     txn.status = status;
     txn.checkoutUrl = resp.checkout_url || undefined;
-    txn.instructions = resp.instructions || undefined;
+    txn.instructions = Array.isArray(resp.instructions)
+      ? resp.instructions.filter(Boolean).join('\n') || undefined
+      : resp.instructions || undefined;
 
     if (status === 'SUCCESS' && !isDonation && userId) {
       const result = await activateSubscription(userId, planCode);

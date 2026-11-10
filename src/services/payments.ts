@@ -1,6 +1,6 @@
 // SasPay — paiements (mobile money / carte) via le backend CHILLERS.
 // Doc : https://docs.saspay.me/api-reference/payments
-import { httpJson } from "./http";
+import { HttpError, httpJson } from "./http";
 
 interface Envelope<T> {
   success: boolean;
@@ -30,6 +30,7 @@ export interface PaymentRate {
   available: boolean;
   otpRequired: boolean;
   otpInstructions: string;
+  minAmount: number;
   feePercent: number;
   feeFixed: number;
   feeFloor: number | null;
@@ -57,7 +58,7 @@ export interface PaymentPlan {
 
 export interface SoftpayBody {
   planCode?: string;
-  /** Montant libre de don (XOF par défaut) — si fourni, pas d'abonnement activé. */
+  /** Montant libre de don en FCFA (devise de base) — si fourni, pas d'abonnement activé. */
   donationAmount?: number;
   currency?: string;
   country?: string;
@@ -89,7 +90,22 @@ export interface PaymentStatusResult {
 }
 
 async function unwrap<T>(path: string, options?: Parameters<typeof httpJson>[1]): Promise<T> {
-  const res = await httpJson<Envelope<T> | T>(path, options);
+  let res: Envelope<T> | T;
+  try {
+    res = await httpJson<Envelope<T> | T>(path, options);
+  } catch (err) {
+    if (err instanceof HttpError) {
+      let message = err.message;
+      try {
+        const parsed = JSON.parse(err.body);
+        message = parsed?.message || parsed?.error?.message || message;
+      } catch {
+        /* corps non JSON — on garde le message HTTP */
+      }
+      throw new HttpError(err.status, err.body, message);
+    }
+    throw err;
+  }
   const env = res as Envelope<T>;
   if (env && typeof env === "object" && "success" in env) {
     if (!env.success) throw new Error(env.message || "Erreur de paiement");

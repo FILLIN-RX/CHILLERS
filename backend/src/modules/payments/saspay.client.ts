@@ -39,10 +39,67 @@ function getClient(): AxiosInstance {
   return client;
 }
 
+/**
+ * SasPay renvoie `error` sous deux formes :
+ *   { message: "…", code: "…" }                      (erreur métier)
+ *   { amount: ["…"], customer: { phone: ["…"] } }    (validation par champ)
+ * On aplatit les deux pour ne jamais perdre le motif réel derrière « Erreur SasPay ».
+ * Les erreurs par champ sont préfixées par le nom du champ (« email : … »).
+ */
+const FIELD_LABELS: Record<string, string> = {
+  amount: 'montant',
+  currency: 'devise',
+  country: 'pays',
+  network: 'réseau',
+  phone: 'téléphone',
+  email: 'email',
+  first_name: 'prénom',
+  last_name: 'nom',
+  otp: 'code OTP',
+  return_url: 'URL de retour',
+};
+
+function collectErrorMessages(value: unknown, out: string[] = [], path: string[] = []): string[] {
+  if (value == null) return out;
+  if (typeof value === 'string') {
+    const s = value.trim();
+    if (s) {
+      const field = path[path.length - 1];
+      const label = field ? FIELD_LABELS[field] || field : '';
+      out.push(label ? `${label} : ${s}` : s);
+    }
+    return out;
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) collectErrorMessages(item, out, path);
+    return out;
+  }
+  if (typeof value === 'object') {
+    const obj = value as Record<string, unknown>;
+    if (typeof obj.message === 'string' && obj.message.trim()) {
+      out.push(obj.message.trim());
+      return out;
+    }
+    for (const [key, v] of Object.entries(obj)) {
+      if (key === 'code') continue;
+      collectErrorMessages(v, out, [...path, key]);
+    }
+  }
+  return out;
+}
+
+function errorMessage(body: any, fallback = 'Erreur SasPay'): string {
+  if (typeof body === 'string' && body.trim()) return body.trim().slice(0, 200);
+  const messages = [...new Set(collectErrorMessages(body?.error))];
+  if (messages.length) return messages.join(' ');
+  if (typeof body?.message === 'string' && body.message.trim()) return body.message.trim();
+  if (typeof body?.detail === 'string' && body.detail.trim()) return body.detail.trim();
+  return fallback;
+}
+
 function unwrap<T>(body: any): T {
   if (body && typeof body === 'object' && body.success === false) {
-    const msg = body.error?.message || body.message || 'Erreur SasPay';
-    throw new SaspayError(msg, body.error?.code, Number(body.code) || 422);
+    throw new SaspayError(errorMessage(body), body.error?.code, Number(body.code) || 422);
   }
   if (body && typeof body === 'object' && body.success === true && 'data' in body) {
     return body.data as T;
@@ -72,17 +129,16 @@ async function request<T>(
       const body = err.response.data;
       if (body && body.success === false) {
         throw new SaspayError(
-          body.error?.message || body.message || 'Erreur SasPay',
+          errorMessage(body),
           body.error?.code,
           err.response.status
         );
       }
-      const msg =
-        (typeof body === 'string' && body.slice(0, 200)) ||
-        body?.message ||
-        err.message ||
-        'Erreur SasPay';
-      throw new SaspayError(msg, undefined, err.response.status);
+      throw new SaspayError(
+        errorMessage(body, err.message || 'Erreur SasPay'),
+        undefined,
+        err.response.status
+      );
     }
     // Timeout / coupure réseau — jamais la preuve que la requête a échoué.
     const e = new SaspayError(err?.message || 'Réseau SasPay injoignable', 'network_error', 504);
@@ -132,6 +188,8 @@ export interface SaspayCountry {
 
 export interface RateTier {
   min_amount?: string;
+  min_fee?: string;
+  min_fee_basis_amount?: string;
   max_amount?: string;
   percent?: string;
   fixed?: string;

@@ -213,8 +213,8 @@ export default function SubscribePage() {
       })
       .catch(() => {
         if (!alive) return;
-        setNetworks([{ code: "card", name: "Carte bancaire", country: "XX" }]);
-        setNetwork("card");
+        setNetworks([{ code: "crypto", name: "Crypto / Stablecoin", country: "XX" }]);
+        setNetwork("crypto");
       });
     return () => {
       alive = false;
@@ -255,12 +255,14 @@ export default function SubscribePage() {
   };
 
   /* ── Wizard : navigation entre les 3 étapes ── */
-  const needsPhone = network !== "card" && network !== "crypto";
+  const isGlobalNetwork = network === "card" || network === "crypto";
+  const needsPhone = Boolean(network);
+  const payCurrency = activeRate?.currency || currency;
 
   const goFromMethod = () => {
     setErrorMessage(null);
     if (!network) return;
-    // Carte / crypto → checkout hébergé : pas d'étape « numéro », direct confirmation.
+    // SasPay exige un numéro même pour les checkouts hébergés (carte/crypto).
     setStep(needsPhone ? 2 : 3);
   };
 
@@ -281,9 +283,8 @@ export default function SubscribePage() {
   const handlePay = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPlan || !network) return;
-    // Carte / crypto → checkout hébergé : pas de numéro Mobile Money à saisir.
-    const needsPhone = network !== "card" && network !== "crypto";
-    if (needsPhone && (!phone.trim() || phone.replace(/\D/g, "").length < 6)) {
+    // SasPay exige un numéro même pour les checkouts hébergés (carte/crypto).
+    if (!phone.trim() || phone.replace(/\D/g, "").length < 6) {
       setErrorMessage("Entrez un numéro de téléphone valide.");
       return;
     }
@@ -297,10 +298,10 @@ export default function SubscribePage() {
     try {
       const result: SoftpayResult = await paymentsService.softpay({
         planCode: selectedPlan.code,
-        currency,
-        country: needsPhone ? country : undefined,
+        currency: payCurrency,
+        country: isGlobalNetwork ? undefined : country,
         network,
-        phone: needsPhone ? phone.trim() : undefined,
+        phone: phone.trim(),
         otp: activeRate?.otpRequired ? preOtp.trim() : undefined,
       });
 
@@ -322,9 +323,7 @@ export default function SubscribePage() {
       }
     } catch (err) {
       setErrorMessage(
-        err instanceof HttpError
-          ? err.body || err.message
-          : err instanceof Error
+        err instanceof Error && err.message
           ? err.message
           : "Impossible de démarrer le paiement."
       );
@@ -381,11 +380,7 @@ export default function SubscribePage() {
       }
     } catch (err) {
       setErrorMessage(
-        err instanceof HttpError
-          ? err.body || err.message
-          : err instanceof Error
-          ? err.message
-          : "Relance impossible."
+        err instanceof Error && err.message ? err.message : "Relance impossible."
       );
     } finally {
       setRetrying(false);
@@ -614,8 +609,8 @@ export default function SubscribePage() {
 
                   {postOtpVisible && phase === "pending" && (
                     <div className="bg-brand-card/60 border border-amber-500/25 rounded-xs p-3 space-y-2">
-                      <p className="text-amber-300 text-[11px] font-semibold">
-                        Vous avez reçu un code par SMS ? (certains réseaux le demandent)
+                      <p className="text-amber-300 text-[11px] font-semibold leading-relaxed">
+                        Si vous avez reçu un code par SMS, saisissez-le ci-dessous. Sinon, ignorez ce message : la confirmation est automatique.
                       </p>
                       <div className="flex gap-2">
                         <input
@@ -804,7 +799,7 @@ export default function SubscribePage() {
                           {/* Téléphone */}
                           <div>
                             <label className="text-[10px] text-brand-text-muted block mb-1 font-semibold">
-                              Numéro Mobile Money
+                              Numéro de téléphone
                             </label>
                             <div className="flex items-center gap-2">
                               <span className="px-2.5 py-2 rounded-xs bg-brand-card border border-brand-border text-brand-text-muted text-xs font-bold shrink-0">
