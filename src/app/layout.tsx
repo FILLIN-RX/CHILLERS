@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist_Mono, Poppins } from "next/font/google";
+import Script from "next/script";
 import { LanguageProvider } from "@/i18n/LanguageContext";
 import { defaultLanguage } from "@/i18n";
 import AdminShortcut from "@/components/AdminShortcut";
@@ -130,6 +131,14 @@ export default function RootLayout({
       className={`${geistMono.variable} ${poppins.variable} dark h-full antialiased`}
     >
       <head>
+        {/* Google Tag Manager */}
+        <Script
+          id="gtm-script"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','GTM-WSB9KSPX');`,
+          }}
+        />
         {/*
           Splash natif : injecté AVANT React pour s'afficher immédiatement au lancement de la PWA/Web.
           Le composant React SplashScreen.tsx gère ensuite la disparition animée.
@@ -155,6 +164,15 @@ export default function RootLayout({
         `}} />
       </head>
       <body suppressHydrationWarning className="min-h-screen flex flex-col bg-brand-dark text-foreground selection:bg-brand-primary selection:text-white">
+        {/* Google Tag Manager (noscript fallback) */}
+        <noscript>
+          <iframe
+            src="https://www.googletagmanager.com/ns.html?id=GTM-WSB9KSPX"
+            height="0"
+            width="0"
+            style={{ display: "none", visibility: "hidden" }}
+          />
+        </noscript>
         <GoogleAnalytics />
         <SiteVisitTracker />
         <CookieNotice />
