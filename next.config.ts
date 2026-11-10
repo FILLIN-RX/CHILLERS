@@ -3,7 +3,13 @@ import { API_BASE_URL } from "./src/lib/api-base";
 
 /** Origine du backend — sert aux rewrites et à la frame cachée qui ouvre les
  *  téléchargements iOS (une iframe est régie par `frame-src`, pas par `connect-src`). */
-const backendOrigin = API_BASE_URL.replace(/\/api\/?$/, "");
+const rawBackendOrigin = API_BASE_URL.replace(/\/api\/?$/, "").trim();
+
+// Garantir que l'origine commence bien par http:// ou https:// — sans ça,
+// Next.js rejette le rewrite au build ("destination does not start with /...").
+const backendOrigin = /^https?:\/\//i.test(rawBackendOrigin)
+  ? rawBackendOrigin
+  : `https://${rawBackendOrigin}`;
 
 const hilltopVastTagOrigin = (() => {
   try {
