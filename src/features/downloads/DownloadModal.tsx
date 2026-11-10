@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { X, DownloadSimple, Check, Warning, Info, User } from "@phosphor-icons/react";
+import { X, DownloadSimple, Check, Warning, Info } from "@phosphor-icons/react";
 import { acquireModalScrollLock, releaseModalScrollLock } from "@/lib/modalScrollLock";
 import { useDownload } from "@/hooks/useDownload";
 import { useDownloadsStore } from "@/store/downloads";
 import type { DownloadStatus } from "@/types/download";
-import { useLanguage } from "@/i18n/LanguageContext";
 import { getBackendOrigin } from "@/services/http";
-import { isDownloadableUrl, isSignedLinkExpired, toIOSDownloadHref } from "@/services/downloads";
+import { isDownloadableUrl, isSignedLinkExpired, toIOSDownloadHref, triggerAttachmentDownload } from "@/services/downloads";
 import { isIOS } from "@/services/streamSaver";
 
 interface DownloadModalProps {
@@ -51,13 +50,14 @@ export default function DownloadModal({
   initialDownloadUrl,
 }: DownloadModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
-  const { translate: _ } = useLanguage();
   const [selectedLang, setSelectedLang] = useState<"fr" | "vostfr">(initialLanguage);
 
   useEffect(() => {
     if (isOpen) {
-      setSelectedLang(initialLanguage);
+      const t = setTimeout(() => setSelectedLang(initialLanguage), 0);
+      return () => clearTimeout(t);
     }
+    return undefined;
   }, [isOpen, initialLanguage]);
 
   const dl = useDownload({
@@ -256,22 +256,44 @@ export default function DownloadModal({
             : linkExpired
               ? "Le lien de téléchargement a expiré. Relancez la résolution pour obtenir un lien neuf."
               : noFileAvailable
-                ? "Aucun fichier vidéo n'a pu être extrait pour cette version. Réessayez ou choisissez une autre langue."
+                ? "Aucun fichier vidéo n&apos;a pu être extrait pour cette version. Réessayez ou choisissez une autre langue."
                 : STATUS_LABEL[dl.status]}
         </p>
 
         {canDownload && (
-          <a
-            href={anchorHref}
-            target={isIOS() ? undefined : "_blank"}
-            rel="noopener noreferrer"
-            download={dl.task?.filename || `${title}.mp4`}
-            onClick={() => onClose()}
-            className="w-full px-8 py-3 rounded-[5px] bg-white text-black font-bold text-sm hover:bg-zinc-200 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-95 no-underline"
-          >
-            <DownloadSimple className="h-5 w-5" />
-            Télécharger ({selectedLang.toUpperCase()})
-          </a>
+          isIOS() ? (
+            <button
+              type="button"
+              onClick={() => {
+                if (!dl.task?.resolvedUrl) return;
+                const relative = toIOSDownloadHref(
+                  dl.task.resolvedUrl,
+                  dl.task?.filename || `${title}.mp4`
+                );
+                const href = relative.startsWith("http")
+                  ? relative
+                  : `${getBackendOrigin()}${relative}`;
+                triggerAttachmentDownload(href);
+                onClose();
+              }}
+              className="w-full px-8 py-3 rounded-[5px] bg-white text-black font-bold text-sm hover:bg-zinc-200 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-95"
+            >
+              <DownloadSimple className="h-5 w-5" />
+              Télécharger ({selectedLang.toUpperCase()})
+            </button>
+          ) : (
+            <a
+              href={anchorHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              download={dl.task?.filename || `${title}.mp4`}
+              onClick={() => onClose()}
+              className="w-full px-8 py-3 rounded-[5px] bg-white text-black font-bold text-sm hover:bg-zinc-200 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-95 no-underline"
+            >
+              <DownloadSimple className="h-5 w-5" />
+              Télécharger ({selectedLang.toUpperCase()})
+            </a>
+          )
         )}
 
         {(dl.status === "error" || linkExpired) && (
