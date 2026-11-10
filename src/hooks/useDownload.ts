@@ -224,7 +224,7 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
 
       // Téléchargement direct sur disque pour tous les utilisateurs (aucun IndexedDB)
       // StreamSaver sur navigateurs normaux, gestionnaire de téléchargement Safari natif sur iOS
-      await streamDownloadToDisk(url, {
+      const dlResult = await streamDownloadToDisk(url, {
         filename,
         signal: ctrl.signal,
         saveBlob: false,
@@ -242,6 +242,14 @@ export function useDownload(args: UseDownloadArgs): UseDownloadReturn {
 
       if (ctrl.signal.aborted) {
         setStatus(id, "canceled");
+      } else if (dlResult.iosTriggered) {
+        // Safari a reçu la requête de téléchargement — on ne peut pas confirmer
+        // que le fichier a été enregistré. On marque "done" après un délai de 3s
+        // pour laisser le temps à Safari de démarrer, et on stocke un flag
+        // pour que le toast affiche le bon message.
+        updateTask(id, { iosPending: true } as any);
+        await new Promise<void>((resolve) => setTimeout(resolve, 3000));
+        setStatus(id, "done");
       } else {
         setStatus(id, "done");
       }

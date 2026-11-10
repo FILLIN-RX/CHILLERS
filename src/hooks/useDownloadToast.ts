@@ -11,6 +11,8 @@ export interface DownloadSuccessPayload {
   posterUrl?: string;
   season?: number;
   episodeNumber?: number;
+  /** Vrai sur iOS : Safari a reçu la requête mais on ne peut pas confirmer la réception. */
+  iosPending?: boolean;
 }
 
 /** Custom event dispatched on window when a download completes. */
@@ -51,6 +53,7 @@ export function useDownloadToastEmitter() {
           posterUrl: task.posterUrl,
           season: task.season,
           episodeNumber: task.episodeNumber,
+          iosPending: (task as any).iosPending === true,
         };
         window.dispatchEvent(
           new CustomEvent(DOWNLOAD_SUCCESS_EVENT, { detail: payload }),

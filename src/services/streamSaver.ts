@@ -50,10 +50,22 @@ export interface StreamDownloadOptions {
 
 export function isIOS(): boolean {
   if (typeof window === "undefined" || typeof navigator === "undefined") return false;
-  return (
-    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
-  );
+  // Test UA direct — toujours fiable sur iPhone/iPod et iPad < iOS 13
+  if (/iPad|iPhone|iPod/.test(navigator.userAgent)) return true;
+  // iPadOS 13+ se présente comme un Mac dans l'UA ; on doit tester la plateforme.
+  // navigator.platform est déprécié mais reste le seul signal fiable sur Safari 17.
+  // "MacARM" couvre les iPad Apple Silicon, "MacIntel" les modèles Intel/A-series.
+  const platform = (navigator.platform || "");
+  if ((platform === "MacIntel" || platform === "MacARM" || platform === "Mac") && navigator.maxTouchPoints > 1) {
+    return true;
+  }
+  // Fallback : userAgentData (Chrome 90+, absent sur Safari — safe à tester)
+  const uaData = (navigator as any).userAgentData;
+  if (uaData?.platform) {
+    const p = (uaData.platform as string).toLowerCase();
+    if (p === "ios" || p === "ipados") return true;
+  }
+  return false;
 }
 
 /**
@@ -72,6 +84,9 @@ export function isAndroidMobileChrome(): boolean {
 export interface StreamDownloadResult {
   totalBytes: number | null;
   blob?: Blob;
+  /** Vrai sur iOS : le téléchargement a été délégué à Safari (fire-and-forget).
+   *  On ne peut pas confirmer la fin — le statut "done" est optimiste. */
+  iosTriggered?: boolean;
 }
 
 /**
@@ -102,7 +117,10 @@ export async function streamDownloadToDisk(
     const href = relative.startsWith("http") ? relative : `${backendOrigin}${relative}`;
 
     triggerAttachmentDownload(href);
-    return { totalBytes: null };
+    // Safari gère le téléchargement nativement — on ne peut pas détecter la fin.
+    // On retourne immédiatement avec iosTriggered=true pour que l'appelant
+    // affiche un message adapté ("Vérifiez vos téléchargements Safari").
+    return { totalBytes: null, iosTriggered: true };
   }
 
   // Android mobile Chrome : StreamSaver dépend du SW MITM.

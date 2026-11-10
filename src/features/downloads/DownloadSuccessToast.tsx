@@ -150,7 +150,7 @@ function ToastCard({ toast, onDismiss, onNavigate }: ToastCardProps) {
               className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-0.5"
               style={{ letterSpacing: "0.12em" }}
             >
-              Téléchargement réussi
+              {toast.iosPending ? "Envoyé à Safari" : "Téléchargement réussi"}
             </p>
             <p className="text-sm font-semibold text-white truncate leading-tight">
               {toast.title}
@@ -158,6 +158,11 @@ function ToastCard({ toast, onDismiss, onNavigate }: ToastCardProps) {
                 <span className="text-zinc-500 font-normal ml-1.5">{subtitle}</span>
               )}
             </p>
+            {toast.iosPending && (
+              <p className="text-xs text-zinc-500 mt-0.5 leading-tight">
+                Vérifiez l'icône ↓ en bas de Safari
+              </p>
+            )}
           </div>
 
           {/* Actions */}
