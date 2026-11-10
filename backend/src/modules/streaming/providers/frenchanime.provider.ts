@@ -67,6 +67,10 @@ export class FrenchAnimeProvider implements StreamingProvider {
     return {
       provider: this.name,
       embedUrl: link.url,
+      // Fournir l'embedUrl comme downloadUrl : la route /api/download/resolve
+      // le passera à DirectScraper.resolve() pour extraire le MP4 direct.
+      // Sans ce champ, le bouton Télécharger ne fonctionne jamais pour les animes W16.
+      downloadUrl: link.url,
       type: 'episode',
       language: link.language,
       referer: `${new URL(item.pageUrl).origin}/`,

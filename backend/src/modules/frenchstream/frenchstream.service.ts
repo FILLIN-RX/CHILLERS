@@ -515,7 +515,24 @@ export async function getFrenchStreamMovie(
 
       // Classer et prioriser les résultats avec scoring par titre et année
       const rankedResults = rankCandidates(allSearchResults, title, targetYear, originalTitle, frenchTitle);
-      const best = rankedResults[0];
+
+      // Post-filtre année : éliminer les candidats dont l'année dans le titre
+      // est clairement incompatible (ex: "The Odyssey (1997)" quand on cherche 2024).
+      // On conserve les candidats sans année visible comme fallback au cas où
+      // tous les candidats sont filtrés.
+      const yearFilteredResults = targetYear
+        ? (() => {
+            const compatible = rankedResults.filter((r) => {
+              const y = extractYear(r.title);
+              if (!y) return true; // pas d'année dans le titre → conserver
+              return Math.abs(y - targetYear) <= 1;
+            });
+            // Si le filtre élimine tout, garder le meilleur scoré (moins pire)
+            return compatible.length > 0 ? compatible : rankedResults;
+          })()
+        : rankedResults;
+
+      const best = yearFilteredResults[0];
 
       if (!isCandidateMatching(best.title, titlesToCheck)) {
         console.log(`[FrenchStream HQ] Correspondance définitivement rejetée pour [${titlesToCheck.join(', ')}] (trouvé: "${best.title}"), skip.`);

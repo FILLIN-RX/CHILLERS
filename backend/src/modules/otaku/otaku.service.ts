@@ -226,19 +226,35 @@ export async function searchOtaku(
         }
       }
 
-      // Si plusieurs candidats pour un film et qu'une année est spécifiée, inspecter les détails pour trouver l'année exacte
-      if (type === 'movie' && year && matchingItems.length > 1) {
-        for (const cand of matchingItems.slice(0, 4)) {
+      // Si une année est spécifiée pour un film, inspecter les métadonnées pour valider l'année
+      // — même avec un seul candidat, pour éviter les homonymes (ex: "The Odyssey" 1997 vs 2024)
+      if (type === 'movie' && year) {
+        const candidatesToCheck = matchingItems.slice(0, 4);
+        let yearMatchFound = false;
+        for (const cand of candidatesToCheck) {
           const w = await fetchWithRetry(`${BASE_URL}/api/fs-watch`, { id: cand.id });
           if (w?.meta?.year) {
             const candYear = parseInt(w.meta.year, 10);
             if (!isNaN(candYear) && Math.abs(candYear - year) <= 1) {
               bestItem = cand;
               watch = w;
+              yearMatchFound = true;
               console.log(`[Otaku] Match exact année trouvé: "${cand.title}" (ID: ${cand.id}, Année: ${candYear}) pour cible ${year}`);
               break;
+            } else if (!isNaN(candYear)) {
+              console.log(`[Otaku] Candidat "${cand.title}" rejeté : année ${candYear} ≠ cible ${year}`);
             }
+          } else if (candidatesToCheck.length === 1) {
+            // Seul candidat sans métadonnée d'année : on le garde en dernier recours
+            bestItem = cand;
+            watch = w;
           }
+        }
+        // Si aucun candidat ne correspond à l'année et qu'il y en a plusieurs,
+        // on rejette plutôt que de servir le mauvais film
+        if (!yearMatchFound && matchingItems.length > 1) {
+          console.log(`[Otaku] Aucun candidat avec l'année ${year} parmi ${matchingItems.length} résultats pour "${title}", skip.`);
+          return null;
         }
       }
 

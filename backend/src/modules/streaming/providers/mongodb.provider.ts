@@ -35,7 +35,12 @@ function docMatchesQuery(
     if (!matchesWork(doc, t, allowSeasonSuffix)) return false;
     // Le scraper note parfois l'année dans le titre seul : « Kraken (2000) ».
     const docYear = Number(doc.year) || yearFromTitle(doc.titre);
-    return !(year && docYear && Math.abs(Number(docYear) - year) > 1);
+    // Années connues des deux côtés → rejet si trop différentes
+    if (year && docYear) return Math.abs(Number(docYear) - year) <= 1;
+    // Année cible connue mais absente du document : on rejette pour éviter les
+    // homonymes (ex: "The Odyssey" 1997 servi à la place de "The Odyssey" 2024).
+    if (year && !docYear) return false;
+    return true;
   });
 }
 
