@@ -23,6 +23,7 @@ const PushCampaignSchema = new Schema({
   title: { type: String, required: true, maxlength: 80 },
   message: { type: String, required: true, maxlength: 240 },
   url: { type: String, required: true, maxlength: 300 },
+  image: { type: String, maxlength: 500, default: '' }, // URL affiche film/série
   scheduledAt: { type: Date, required: true },
   status: { type: String, enum: ['scheduled', 'sending', 'sent', 'cancelled', 'failed'], default: 'scheduled', index: true },
   grantPremiumDays: { type: Number, default: 0, min: 0, max: 90 },

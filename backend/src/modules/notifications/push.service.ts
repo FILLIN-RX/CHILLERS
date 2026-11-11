@@ -22,7 +22,17 @@ export function getVapidPublicKey() {
 }
 
 export type NotificationCategory = 'announcements' | 'favorites' | 'matches' | 'subscriptions' | 'reminders';
-export interface PushPayload { title: string; body: string; url?: string; tag?: string; category?: NotificationCategory; }
+export interface PushPayload {
+  title: string;
+  body: string;
+  url?: string;
+  tag?: string;
+  category?: NotificationCategory;
+  /** URL de l'affiche du film/série — affichée dans la notification push */
+  image?: string;
+  /** Icône spécifique à ce push (différente de l'icône app par défaut) */
+  icon?: string;
+}
 
 async function deliver(subscription: any, payload: PushPayload) {
   if (!configurePush()) {

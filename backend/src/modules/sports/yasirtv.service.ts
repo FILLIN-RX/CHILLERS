@@ -19,10 +19,65 @@ const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 
 const KOOORAH_SCHEDULE = process.env.KOOORAH_SCHEDULE_URL || 'https://schedule.koora-tv.click/kooratv.txt';
-const YALLAPRO_WP = (process.env.YALLAPRO_WP_URL || 'https://to.yallapro.cfd').replace(/\/+$/, '');
+
+/**
+ * Domaines de fallback pour yallapro (sites de streaming sportif qui changent souvent de domaine).
+ * L'ordre définit la priorité : le premier accessible est utilisé.
+ */
+const YALLAPRO_FALLBACK_DOMAINS = [
+  'https://to.yallapro.cfd',       // Domaine actuel (peut être mort)
+  'https://yalla-shoot.io',         // Alternative populaire
+  'https://www.yallapro.com',       // Alternative .com
+  'https://yallapro.live',          // Alternative .live
+  'https://yalla-shoot.com',        // Alternative populaire
+];
+
+let cachedWorkingDomain: string | null = null;
+let lastDomainCheck = 0;
+const DOMAIN_CHECK_TTL = 10 * 60_000; // Re-vérifier toutes les 10 minutes
 
 const MATCH_CACHE = new LRUCache<string, SportsMatch[]>({ max: 10, ttl: 60_000 });
 const STREAM_CACHE = new LRUCache<string, ResolvedSportsStream>({ max: 60, ttl: 5 * 60_000 });
+
+/**
+ * Trouve le premier domaine yallapro accessible.
+ * Cache le résultat 10 min pour éviter de tester tous les domaines à chaque requête.
+ */
+async function getYallaproWorkingDomain(): Promise<string | null> {
+  // Si un domaine est configuré via env, l'utiliser en priorité
+  const configured = process.env.YALLAPRO_WP_URL?.replace(/\/+$/, '');
+  if (configured) {
+    console.log(`[yallapro] Utilisation du domaine configuré: ${configured}`);
+    return configured;
+  }
+  
+  const now = Date.now();
+  // Utiliser le cache si encore valide
+  if (cachedWorkingDomain && now - lastDomainCheck < DOMAIN_CHECK_TTL) {
+    return cachedWorkingDomain;
+  }
+  
+  console.log('[yallapro] Recherche d\'un domaine accessible...');
+  
+  // Tester chaque domaine jusqu'à trouver un accessible
+  for (const domain of YALLAPRO_FALLBACK_DOMAINS) {
+    try {
+      await axios.head(domain, { 
+        timeout: 3000,
+        headers: { 'User-Agent': USER_AGENT }
+      });
+      console.log(`[yallapro] ✓ Domaine actif trouvé: ${domain}`);
+      cachedWorkingDomain = domain;
+      lastDomainCheck = now;
+      return domain;
+    } catch (err: any) {
+      console.warn(`[yallapro] ✗ Domaine inaccessible: ${domain} (${err.code || err.message})`);
+    }
+  }
+  
+  console.error('[yallapro] ❌ Aucun domaine yallapro accessible');
+  return null;
+}
 
 async function fetchText(url: string, referer?: string, timeout = 12_000): Promise<string> {
   const { data } = await axios.get<string>(url, {
@@ -239,7 +294,13 @@ export async function getYallaproMatches(): Promise<SportsMatch[]> {
   if (cached) return cached;
 
   try {
-    const raw = await axios.get<any[]>(`${YALLAPRO_WP}/wp-json/wp/v2/posts`, {
+    const domain = await getYallaproWorkingDomain();
+    if (!domain) {
+      console.warn('[yallapro] Aucun domaine yallapro accessible, retour liste vide');
+      return [];
+    }
+    
+    const raw = await axios.get<any[]>(`${domain}/wp-json/wp/v2/posts`, {
       timeout: 12_000,
       params: { per_page: 20, _fields: 'id,link,title,content' },
       headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' },
@@ -252,7 +313,7 @@ export async function getYallaproMatches(): Promise<SportsMatch[]> {
       if (!title) continue;
 
       const content = String(post?.content?.rendered || '');
-      const playerPage = extractIframe(content, `${YALLAPRO_WP}/`);
+      const playerPage = extractIframe(content, `${domain}/`);
       if (!playerPage) continue;
 
       matches.push({
@@ -267,9 +328,10 @@ export async function getYallaproMatches(): Promise<SportsMatch[]> {
     }
 
     MATCH_CACHE.set('yallapro', matches);
+    console.log(`[yallapro] ✓ ${matches.length} match(s) récupéré(s) depuis ${domain}`);
     return matches;
   } catch (err: any) {
-    console.warn('[yallapro] canaux indisponibles:', err?.message);
+    console.warn('[yallapro] canaux indisponibles:', err?.code || err?.message);
     return [];
   }
 }
@@ -282,6 +344,12 @@ export async function resolveYallaproStream(sourceId: string, force = false): Pr
   }
 
   try {
+    const domain = await getYallaproWorkingDomain();
+    if (!domain) {
+      console.warn('[yallapro] Impossible de résoudre le flux : aucun domaine accessible');
+      return null;
+    }
+    
     // Le sélecteur `?serv=N` appartient à la page albaplayer, pas au player
     // yasirtv : il faut donc résoudre chaque serveur séparément. Un serveur
     // peut livrer une iframe (player yasirtv) ou un HLS direct (Clappr).
@@ -290,8 +358,8 @@ export async function resolveYallaproStream(sourceId: string, force = false): Pr
     const resolvedServers = await Promise.all(
       [1, 2, 3].map(async (n) => {
         const servUrl = withServ(n);
-        const page = await fetchText(servUrl, `${YALLAPRO_WP}/`);
-        const iframe = extractIframe(page, `${YALLAPRO_WP}/`);
+        const page = await fetchText(servUrl, `${domain}/`);
+        const iframe = extractIframe(page, `${domain}/`);
         if (iframe) return { name: `Miroir ${n}`, url: iframe, type: 'iframe' as const, referer: servUrl };
         const m3u8 = extractM3u8(page, servUrl);
         if (m3u8) return { name: `Miroir ${n}`, url: m3u8, type: 'hls' as const, referer: servUrl };
@@ -311,9 +379,10 @@ export async function resolveYallaproStream(sourceId: string, force = false): Pr
     const primary = servers[0];
     const resolved: ResolvedSportsStream = { url: primary.url, type: primary.type ?? 'iframe', servers };
     STREAM_CACHE.set(sourceId, resolved);
+    console.log(`[yallapro] ✓ Flux résolu : ${servers.length} serveur(s), type=${primary.type}`);
     return resolved;
   } catch (err: any) {
-    console.warn('[yallapro] flux indisponible:', err?.message);
+    console.warn('[yallapro] flux indisponible:', err?.code || err?.message);
     return null;
   }
 }

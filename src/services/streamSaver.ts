@@ -108,15 +108,21 @@ export async function streamDownloadToDisk(
     // ignore l'attribut `download` cross-origin. Seul un serveur qui répond
     // `Content-Disposition: attachment` déclenche la boîte native de téléchargement.
     //
-    // → triggerAttachmentDownload consomme la réponse dans une iframe hors écran :
-    //   une navigation de l'onglet courant jetait la SPA (et donc toute la file).
+    // → window.open() ouvre un onglet qui se ferme automatiquement après 2s.
+    //   Content-Disposition: attachment déclenche le téléchargement Safari natif.
+    //   Le navigateur gère la progression et la persistance même après fermeture de l'onglet.
     // → toIOSDownloadHref proxifie toute URL tierce via /api/download/file
     //   (headers safari-safe : attachment + video/mp4 + Accept-Ranges).
+    console.log('[download] iOS detected - using native Safari download');
     const backendOrigin = getBackendOrigin();
     const relative = toIOSDownloadHref(url, filename || "video.mp4");
     const href = relative.startsWith("http") ? relative : `${backendOrigin}${relative}`;
+    console.log('[download] Backend origin:', backendOrigin);
+    console.log('[download] Download href:', href);
+    console.log('[download] Triggering attachment download...');
 
     triggerAttachmentDownload(href);
+    console.log('[download] iOS download triggered, returning optimistic result');
     // Safari gère le téléchargement nativement — on ne peut pas détecter la fin.
     // On retourne immédiatement avec iosTriggered=true pour que l'appelant
     // affiche un message adapté ("Vérifiez vos téléchargements Safari").
@@ -137,6 +143,7 @@ export async function streamDownloadToDisk(
   if (useNativeAndroidDownload) {
     // Fallback Android : téléchargement via fetch → Blob → <a download>
     // Le navigateur gère lui-même la progression et l'enregistrement dans ses téléchargements natifs.
+    console.log('[download] Android Chrome without SW - using native Blob download');
     const fetchUrl =
       url.startsWith("/api/") || url.startsWith(API_BASE_PATH)
         ? url
@@ -170,6 +177,7 @@ export async function streamDownloadToDisk(
     // Assembler le Blob et déclencher le téléchargement natif
     const contentType = res.headers.get("content-type") || "video/mp4";
     const blob = new Blob(chunks as BlobPart[], { type: contentType });
+    console.log('[download] Blob created, triggering native download:', filename, 'Size:', received, 'bytes');
     const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = blobUrl;

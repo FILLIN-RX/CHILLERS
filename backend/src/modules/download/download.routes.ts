@@ -546,6 +546,7 @@ async function serveFileProxy(
     'Content-Disposition',
     `attachment; filename="${safeAsciiFilename}"; filename*=UTF-8''${encodedFilename}`
   );
+  console.log('[Download File Proxy] Serving download with headers - Content-Disposition: attachment, filename:', filename);
 
   // Indispensable pour Safari iOS : déclarer Accept-Ranges
   res.setHeader('Accept-Ranges', 'bytes');
@@ -710,6 +711,7 @@ router.get('/stream', async (req: Request, res: Response) => {
   res.setHeader('Content-Type', 'video/mp4');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('X-Content-Type-Options', 'nosniff');
+  console.log('[Download Stream] Streaming HLS to MP4 with Content-Disposition: attachment, filename:', filename);
 
   const referer = m3u8Url.includes('uqload') ? 'https://uqload.is/' : m3u8Url.includes('vidzy') ? 'https://vidzy.cc/' : '';
   const headers = `User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\r\n${referer ? `Referer: ${referer}\r\n` : ''}`;

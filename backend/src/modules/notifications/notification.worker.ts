@@ -20,7 +20,7 @@ async function processCampaigns() {
   if (!due) return;
   console.info('[WebPush] Campagne programmée lancée.', { campaignId: String(due._id), audience: due.audience });
   try {
-    const deliveryCount = await sendToAll({ title: due.title, body: due.message, url: due.url, tag: `campaign-${due._id}` }, due.audience);
+    const deliveryCount = await sendToAll({ title: due.title, body: due.message, url: due.url, image: due.image || undefined, tag: `campaign-${due._id}` }, due.audience);
     if (due.grantPremiumDays > 0 && due.audience === 'free') await applyPromoToFreeUsers(due.grantPremiumDays);
     await PushCampaign.updateOne({ _id: due._id }, { $set: { status: 'sent', sentAt: new Date(), deliveryCount } });
     console.info('[WebPush] Campagne terminée.', { campaignId: String(due._id), accepted: deliveryCount });

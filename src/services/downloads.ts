@@ -172,27 +172,39 @@ export function toIOSDownloadHref(downloadUrl: string, filename: string): string
 }
 
 /**
- * Ouvre la boîte de téléchargement SANS emporter l'application.
+ * Ouvre la boîte de téléchargement Safari/iOS dans un nouvel onglet qui se ferme automatiquement.
  *
- * `window.location.href = …` déclenchait bien le téléchargement iOS, mais c'était
- * une navigation de l'onglet courant : le modal, la file et les liens déjà résolus
- * étaient jetés avec la page, et chaque épisode suivant coûtait une reprise à
- * zéro. La même réponse `Content-Disposition: attachment` consommée dans une
- * iframe hors écran ne quitte jamais l'onglet.
+ * window.open() ouvre un onglet → le serveur répond Content-Disposition: attachment → 
+ * Safari déclenche le téléchargement natif → l'onglet se ferme après 2s.
+ * Le téléchargement continue en arrière-plan dans le gestionnaire de Safari.
  *
- * Appeler depuis un geste utilisateur (WebKit n'autorise qu'un fichier par geste).
+ * Ancienne approche (iframe cachée) ne fonctionnait plus de manière fiable sur iOS récents.
+ * Appeler depuis un geste utilisateur (WebKit limite un fichier par geste).
  */
 export function triggerAttachmentDownload(href: string): void {
-  if (typeof document === "undefined" || !href) return;
-  const frame = document.createElement("iframe");
-  frame.setAttribute("aria-hidden", "true");
-  // hors écran plutôt que `display:none` : certains moteurs ne chargent pas un frame caché.
-  frame.style.cssText = "position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;visibility:hidden;";
-  document.body.appendChild(frame);
-  frame.src = href;
-  // Le téléchargement appartient au navigateur dès que la réponse a été en-têtée ;
-  // attendre évite de couper le flux pendant l'ouverture de la boîte.
-  window.setTimeout(() => frame.remove(), 120_000);
+  if (typeof window === "undefined" || !href) return;
+  console.log('[download] triggerAttachmentDownload ->', href);
+  
+  const win = window.open(href, '_blank');
+  if (win) {
+    // Fermer l'onglet après 2s — le téléchargement Safari continue en arrière-plan
+    setTimeout(() => {
+      try {
+        win.close();
+      } catch (e) {
+        console.warn('[download] could not close tab:', e);
+      }
+    }, 2000);
+  } else {
+    // Popup bloqué : fallback iframe (comportement dégradé)
+    console.warn('[download] window.open blocked, falling back to iframe');
+    const frame = document.createElement('iframe');
+    frame.setAttribute('aria-hidden', 'true');
+    frame.style.cssText = 'position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;visibility:hidden;';
+    document.body.appendChild(frame);
+    frame.src = href;
+    window.setTimeout(() => frame.remove(), 120_000);
+  }
 }
 
 /**

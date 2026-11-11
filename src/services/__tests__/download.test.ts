@@ -14,6 +14,7 @@ import {
   isDownloadableUrl,
   isSignedLinkExpired,
   toIOSDownloadHref,
+  triggerAttachmentDownload,
 } from '@/services/downloads';
 
 describe('Download Service & Platform Detection (Normal vs iOS)', () => {
@@ -128,28 +129,38 @@ describe('Download Service & Platform Detection (Normal vs iOS)', () => {
       });
     });
 
-    it('bypasses StreamSaver and returns totalBytes: null (navigation handled by toIOSDownloadHref)', async () => {
+    it('bypasses StreamSaver and returns totalBytes: null with iosTriggered flag', async () => {
       // jsdom verrouille window.location (configurable: false) : on ne peut pas
       // capturer l'assignation de href. La logique de construction d'URL est
       // couverte par les tests toIOSDownloadHref() ci-dessous ; ici on vérifie
       // que streamDownloadToDisk ne tente PAS StreamSaver/WritableStream sur iOS.
+      
+      // Mock window.open pour simuler le nouveau comportement
+      const mockWin = { close: jest.fn() };
+      global.window.open = jest.fn().mockReturnValue(mockWin);
+      
       const abortCtrl = new AbortController();
       const result = await streamDownloadToDisk('https://cdn.example.com/video.mp4', {
         filename: 'mon-film.mp4',
         signal: abortCtrl.signal,
       });
 
-      // Retour immédiat sans progress (pas de fetch, pas de StreamSaver)
-      expect(result).toEqual({ totalBytes: null });
+      // Retour immédiat avec iosTriggered=true (pas de fetch, pas de StreamSaver)
+      expect(result).toEqual({ totalBytes: null, iosTriggered: true });
+      expect(window.open).toHaveBeenCalledWith(expect.stringContaining('/api/download/file'), '_blank');
     });
 
     it('does not throw on relative /api/ URLs on iOS', async () => {
+      // Mock window.open pour le nouveau comportement
+      const mockWin = { close: jest.fn() };
+      global.window.open = jest.fn().mockReturnValue(mockWin);
+      
       const abortCtrl = new AbortController();
       const result = await streamDownloadToDisk('/api/download/file?url=abc', {
         filename: 'test.mp4',
         signal: abortCtrl.signal,
       });
-      expect(result).toEqual({ totalBytes: null });
+      expect(result).toEqual({ totalBytes: null, iosTriggered: true });
     });
   });
 
@@ -282,5 +293,90 @@ describe('isSignedLinkExpired()', () => {
     expect(isSignedLinkExpired('/api/download/file?url=x')).toBe(false);
     expect(isSignedLinkExpired(null)).toBe(false);
     expect(isSignedLinkExpired('')).toBe(false);
+  });
+});
+
+describe('triggerAttachmentDownload()', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+    jest.restoreAllMocks();
+  });
+
+  it('opens a new window and closes it after 2000ms', () => {
+    const mockWin = { close: jest.fn() };
+    global.window.open = jest.fn().mockReturnValue(mockWin);
+    const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+    const href = '/api/download/file?url=test';
+    triggerAttachmentDownload(href);
+
+    // Vérifie que window.open a été appelé
+    expect(window.open).toHaveBeenCalledWith(href, '_blank');
+    expect(consoleSpy).toHaveBeenCalledWith('[download] triggerAttachmentDownload ->', href);
+
+    // Avance le temps de 2000ms
+    jest.advanceTimersByTime(2000);
+
+    // Vérifie que la fenêtre est fermée
+    expect(mockWin.close).toHaveBeenCalled();
+  });
+
+  it('falls back to iframe when window.open is blocked (returns null)', () => {
+    global.window.open = jest.fn().mockReturnValue(null);
+    const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+    const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+    const appendChildSpy = jest.spyOn(document.body, 'appendChild').mockImplementation();
+
+    const href = '/api/download/file?url=test';
+    triggerAttachmentDownload(href);
+
+    // Vérifie que window.open a été tenté
+    expect(window.open).toHaveBeenCalledWith(href, '_blank');
+    expect(consoleSpy).toHaveBeenCalledWith('[download] triggerAttachmentDownload ->', href);
+
+    // Vérifie le fallback iframe
+    expect(consoleWarnSpy).toHaveBeenCalledWith('[download] window.open blocked, falling back to iframe');
+    expect(appendChildSpy).toHaveBeenCalled();
+
+    // Récupère l'iframe créée
+    const callArgs = appendChildSpy.mock.calls[0];
+    const iframe = callArgs[0] as HTMLIFrameElement;
+    expect(iframe.tagName).toBe('IFRAME');
+    expect(iframe.getAttribute('aria-hidden')).toBe('true');
+    expect(iframe.style.cssText).toContain('position');
+    expect(iframe.style.cssText).toContain('fixed');
+  });
+
+  it('handles close error gracefully', () => {
+    const mockWin = { 
+      close: jest.fn().mockImplementation(() => { 
+        throw new Error('Cannot close window'); 
+      }) 
+    };
+    global.window.open = jest.fn().mockReturnValue(mockWin);
+    const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+    triggerAttachmentDownload('/api/download/file?url=test');
+
+    // Avance le temps pour déclencher le close
+    jest.advanceTimersByTime(2000);
+
+    // Vérifie que l'erreur est capturée et loguée
+    expect(mockWin.close).toHaveBeenCalled();
+    expect(consoleWarnSpy).toHaveBeenCalledWith('[download] could not close tab:', expect.any(Error));
+  });
+
+  it('does nothing when href is empty', () => {
+    global.window.open = jest.fn();
+    const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+    triggerAttachmentDownload('');
+
+    expect(window.open).not.toHaveBeenCalled();
+    expect(consoleSpy).not.toHaveBeenCalled();
   });
 });

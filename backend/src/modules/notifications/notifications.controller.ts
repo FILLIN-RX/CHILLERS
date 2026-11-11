@@ -83,6 +83,9 @@ export async function createCampaign(req: Request, res: Response) {
   const scheduledAt = sendNow ? new Date() : new Date(req.body?.scheduledAt);
   const grantPremiumDays = Math.max(0, Math.min(90, Math.floor(Number(req.body?.grantPremiumDays) || 0)));
   const url = allowedUrl(req.body?.url);
+  // image = URL affiche TMDB (https://image.tmdb.org/...) — validée pour sécurité
+  const rawImage = typeof req.body?.image === 'string' ? req.body.image.trim() : '';
+  const image = rawImage.startsWith('https://image.tmdb.org/') || rawImage.startsWith('https://img.') ? rawImage.slice(0, 500) : '';
   if (!theme || !audience || (!sendNow && (!Number.isFinite(scheduledAt.getTime()) || scheduledAt.getTime() < Date.now() + 60_000))) {
     res.status(400).json({ success: false, message: sendNow ? 'Thème et public requis.' : 'Thème, public et date future (au moins 1 minute) requis.' });
     return;
@@ -98,11 +101,11 @@ export async function createCampaign(req: Request, res: Response) {
       ? { title: suppliedTitle, message: suppliedMessage }
       : await generateCampaignCopy(theme, audience, grantPremiumDays);
     if (!title || !message) throw new Error('Texte généré incomplet');
-    let campaign = await PushCampaign.create({ theme, audience, title, message, url, scheduledAt, grantPremiumDays, status: sendNow ? 'sending' : 'scheduled', createdBy: (req as any).admin?.username || 'admin' });
+    let campaign = await PushCampaign.create({ theme, audience, title, message, url, image, scheduledAt, grantPremiumDays, status: sendNow ? 'sending' : 'scheduled', createdBy: (req as any).admin?.username || 'admin' });
     console.info('[WebPush] Campagne créée.', { campaignId: String(campaign._id), audience, sendNow, scheduledAt: scheduledAt.toISOString() });
     if (sendNow) {
       try {
-        const deliveryCount = await sendToAll({ title, body: message, url, tag: `campaign-${campaign._id}` }, audience);
+        const deliveryCount = await sendToAll({ title, body: message, url, image: image || undefined, tag: `campaign-${campaign._id}` }, audience);
         if (grantPremiumDays > 0 && audience === 'free') await applyPromoToFreeUsers(grantPremiumDays);
         await PushCampaign.updateOne({ _id: campaign._id }, { $set: { status: 'sent', sentAt: new Date(), deliveryCount } });
         campaign = (await PushCampaign.findById(campaign._id)) || campaign;

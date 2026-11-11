@@ -334,9 +334,11 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
       const task = tasksRef.current.find((t) => t.id === id);
       const url = task?.resolvedUrl;
       if (!task || !url || !isDownloadableUrl(url)) return false;
+      console.log('[download] Launching ready download for:', id, 'URL:', url);
       const relative = toIOSDownloadHref(url, task.filename || "video.mp4");
       const href = relative.startsWith("http") ? relative : `${getBackendOrigin()}${relative}`;
       triggerAttachmentDownload(href);
+      console.log('[download] Attachment download triggered for:', task.filename);
       updateTask(id, { launchedAt: Date.now() });
       return true;
     },
