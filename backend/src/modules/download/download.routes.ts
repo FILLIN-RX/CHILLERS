@@ -510,7 +510,13 @@ async function serveFileProxy(
       headers,
       responseType: 'stream',
       decompress: false,
-      validateStatus: status => status >= 200 && status < 400
+      validateStatus: status => status >= 200 && status < 400,
+      // Timeout très long pour les gros fichiers (2 heures) - le navigateur gère le download nativement
+      timeout: 2 * 60 * 60 * 1000, // 2 heures
+      // Garder la connexion active même si l'upstream est lent
+      maxRedirects: 5,
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity
     });
   } catch (error: any) {
     const upstreamStatus = error?.response?.status;
@@ -564,8 +570,25 @@ async function serveFileProxy(
     }
   }
 
-  // Nettoyer la connexion amont si le client iOS ferme ou annule
+  // Nettoyer la connexion amont si le client ferme ou annule
   req.on('close', () => {
+    if (response?.data && typeof response.data.destroy === 'function') {
+      response.data.destroy();
+    }
+  });
+
+  // Gérer les erreurs de stream pour éviter un crash serveur
+  response.data.on('error', (err: Error) => {
+    console.error('[Download File Proxy] Stream amont error:', err.message);
+    if (!res.headersSent) {
+      res.status(502).end();
+    } else {
+      res.destroy();
+    }
+  });
+
+  res.on('error', (err: Error) => {
+    console.error('[Download File Proxy] Stream client error:', err.message);
     if (response?.data && typeof response.data.destroy === 'function') {
       response.data.destroy();
     }

@@ -64,7 +64,8 @@ connectDB().then(async () => {
   } catch (err) {
     console.warn('[LiveTV] Sync seed ignoré (iptv-org ou base indisponible):', err instanceof Error ? err.message : err);
   }
-  app.listen(PORT, () => {
+  
+  const server = app.listen(PORT, () => {
     console.log(`[Chiller API] Running on http://localhost:${PORT}`);
     console.log(`[Chiller System] Cron géré par GitHub Actions. Le backend ne lance plus de tâches automatiques.`);
     // Seul exception : le snapshot « chaînes de match » du lab (flag dédié),
@@ -73,4 +74,12 @@ connectDB().then(async () => {
     startSportsWarmScheduler();
     startNotificationWorker();
   });
+
+  // Augmenter les timeouts pour les téléchargements longs
+  // Le navigateur gère le téléchargement nativement, le serveur doit juste maintenir le stream
+  server.keepAliveTimeout = 3 * 60 * 60 * 1000; // 3 heures (gros fichiers)
+  server.headersTimeout = 3 * 60 * 60 * 1000 + 5000; // Légèrement plus long que keepAliveTimeout
+  server.requestTimeout = 3 * 60 * 60 * 1000; // 3 heures pour une requête
+  
+  console.log('[Server] Timeouts configurés pour les longs téléchargements (3h)');
 });
