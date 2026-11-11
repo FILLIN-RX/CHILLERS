@@ -4,7 +4,7 @@
 // Currently thin wrappers around the existing backend endpoints — the streaming-to-disk
 // logic lives in services/streamSaver.ts and is wired up in Phase 3.
 
-import { httpJson, API_BASE_PATH, HttpError } from "./http";
+import { httpJson, API_BASE_PATH, HttpError, getBackendOrigin } from "./http";
 import { getAntiBotHeaders } from "@/lib/antibot";
 import type { DownloadResolutionResult } from "@/types/download";
 
@@ -166,7 +166,7 @@ export function toIOSDownloadHref(downloadUrl: string, filename: string): string
     return downloadUrl;
   }
   if (downloadUrl.startsWith("http://") || downloadUrl.startsWith("https://")) {
-    return `${API_BASE_PATH}/download/file?url=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(filename || "video.mp4")}`;
+    return `${getBackendOrigin()}/api/download/file?url=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(filename || "video.mp4")}`;
   }
   return downloadUrl;
 }
@@ -183,9 +183,13 @@ export function toIOSDownloadHref(downloadUrl: string, filename: string): string
  */
 export function triggerAttachmentDownload(href: string): void {
   if (typeof window === "undefined" || !href) return;
-  console.log('[download] triggerAttachmentDownload ->', href);
   
-  const win = window.open(href, '_blank');
+  // Convert relative URLs to absolute backend URLs
+  const absoluteHref = href.startsWith('http') ? href : `${getBackendOrigin()}${href}`;
+  
+  console.log('[download] triggerAttachmentDownload ->', absoluteHref);
+  
+  const win = window.open(absoluteHref, '_blank');
   if (win) {
     // Fermer l'onglet après 2s — le téléchargement Safari continue en arrière-plan
     setTimeout(() => {
@@ -202,7 +206,7 @@ export function triggerAttachmentDownload(href: string): void {
     frame.setAttribute('aria-hidden', 'true');
     frame.style.cssText = 'position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;visibility:hidden;';
     document.body.appendChild(frame);
-    frame.src = href;
+    frame.src = absoluteHref;
     window.setTimeout(() => frame.remove(), 120_000);
   }
 }

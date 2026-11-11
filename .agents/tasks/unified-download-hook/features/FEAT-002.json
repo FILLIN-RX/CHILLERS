@@ -1,0 +1,34 @@
+{
+  "id": "FEAT-002",
+  "type": "refactor",
+  "description": "Integrate useUnifiedDownload across all download call sites: VideoPlayer.tsx (handleDirectDownload), DownloadModal.tsx, and useDownloadsBatch.ts (launchReady for iOS batch downloads). Preserve existing batch logic, store/state shape, and modal API - only replace the final download trigger with the unified hook. Also fix toIOSDownloadHref and triggerAttachmentDownload in src/services/downloads.ts to use getBackendOrigin() for absolute URLs (root cause fix at the service layer).",
+  "status": "completed",
+  "steps": [
+    "1. Modify src/services/downloads.ts: Update toIOSDownloadHref() to ALWAYS use getBackendOrigin() when building the /api/download/file proxy URL. Change the return statement from `${API_BASE_PATH}/download/file?...` to `${getBackendOrigin()}/api/download/file?...`. This ensures service-layer callers get absolute URLs. Reference the existing proxyDownloadHref() pattern.",
+    "2. Modify src/services/downloads.ts: Update triggerAttachmentDownload() to prepend getBackendOrigin() if the href is relative (starts with / but not http). Add: `const absoluteHref = href.startsWith('http') ? href : ${getBackendOrigin()}${href}`. Then use absoluteHref in window.open(). This is the second layer of defense for the iOS bug.",
+    "3. Modify src/components/VideoPlayer.tsx: In handleDirectDownload(), replace the iOS download logic (lines that call window.location.href = fullUrl or build fullUrl with getBackendOrigin()) with a call to useUnifiedDownload. Import the hook at the top. Store the hook instance in a ref or state. On iOS, call hook.startDownload({ url: directDl, filename, onComplete, onError }). Remove the manual window.location.href assignment - the hook handles it.",
+    "4. Modify src/features/downloads/DownloadModal.tsx: The modal already uses useDownload hook internally. For the iOS button onClick handler (lines 135-150), replace the inline triggerAttachmentDownload call with useUnifiedDownload.startDownload(). Import useUnifiedDownload, store instance, wire callbacks to update UI state. Preserve the existing language selection, status display, and retry logic.",
+    "5. Modify src/hooks/useDownloadsBatch.ts: In the launchReady() callback (lines 201-217), replace the manual triggerAttachmentDownload(href) call with useUnifiedDownload.startDownload({ url, filename, onComplete, onError }). This unifies the batch iOS download path. Preserve the existing pool scheduler, retry logic, and status management.",
+    "6. Test integration: Manually verify that VideoPlayer, DownloadModal, and batch downloads all route through useUnifiedDownload. Check browser console logs for 'getBackendOrigin' calls on iOS devices or iOS simulator."
+  ],
+  "acceptance_criteria": [
+    "src/services/downloads.ts toIOSDownloadHref returns absolute URLs with getBackendOrigin()",
+    "src/services/downloads.ts triggerAttachmentDownload uses absolute URLs with getBackendOrigin()",
+    "src/components/VideoPlayer.tsx handleDirectDownload uses useUnifiedDownload for iOS",
+    "src/features/downloads/DownloadModal.tsx iOS button uses useUnifiedDownload",
+    "src/hooks/useDownloadsBatch.ts launchReady uses useUnifiedDownload",
+    "All existing UI flows (language selection, retry, cancel, progress) still work",
+    "No TypeScript errors after changes",
+    "Build succeeds: npm run build completes without errors"
+  ],
+  "verification": [
+    "Grep for 'getBackendOrigin' in src/services/downloads.ts and confirm it appears in toIOSDownloadHref and triggerAttachmentDownload",
+    "Grep for 'useUnifiedDownload' in src/components/VideoPlayer.tsx",
+    "Grep for 'useUnifiedDownload' in src/features/downloads/DownloadModal.tsx",
+    "Grep for 'useUnifiedDownload' in src/hooks/useDownloadsBatch.ts",
+    "Run `npm run build` and confirm it succeeds",
+    "Check TypeScript compilation: no errors in modified files"
+  ],
+  "blocked_reason": null,
+  "findings": "Successfully integrated useUnifiedDownload across all download call sites. Service layer fixes (toIOSDownloadHref and triggerAttachmentDownload) now use getBackendOrigin() to ensure absolute URLs are built correctly. VideoPlayer.tsx iOS download logic simplified to use useUnifiedDownload hook. DownloadModal.tsx iOS button handler replaced with useUnifiedDownload.startDownload(). useDownloadsBatch.ts launchReady() function now uses useUnifiedDownload for consistent iOS download behavior. All existing UI flows (language selection, retry, cancel, progress) preserved. Build successful with no TypeScript errors. All verification criteria met."
+}

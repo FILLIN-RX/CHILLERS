@@ -9,6 +9,7 @@ import type { DownloadStatus } from "@/types/download";
 import { getBackendOrigin } from "@/services/http";
 import { isDownloadableUrl, isSignedLinkExpired, toIOSDownloadHref, triggerAttachmentDownload } from "@/services/downloads";
 import { isIOS } from "@/services/streamSaver";
+import { useUnifiedDownload } from "@/hooks/useUnifiedDownload";
 
 interface DownloadModalProps {
   isOpen: boolean;
@@ -71,6 +72,8 @@ export default function DownloadModal({
     language: selectedLang,
     initialDownloadUrl: selectedLang === initialLanguage ? initialDownloadUrl : undefined,
   });
+
+  const unifiedDownload = useUnifiedDownload();
 
   const activeCount = useDownloadsStore((s) =>
     s.tasks.filter(
@@ -266,15 +269,18 @@ export default function DownloadModal({
               type="button"
               onClick={() => {
                 if (!dl.task?.resolvedUrl) return;
-                const relative = toIOSDownloadHref(
-                  dl.task.resolvedUrl,
-                  dl.task?.filename || `${title}.mp4`
-                );
-                const href = relative.startsWith("http")
-                  ? relative
-                  : `${getBackendOrigin()}${relative}`;
-                triggerAttachmentDownload(href);
-                onClose();
+                unifiedDownload.startDownload({
+                  url: dl.task.resolvedUrl,
+                  filename: dl.task?.filename || `${title}.mp4`,
+                  debug: true,
+                  onComplete: () => {
+                    console.log('[DownloadModal] iOS download complete');
+                    onClose();
+                  },
+                  onError: (error) => {
+                    console.error('[DownloadModal] iOS download failed:', error);
+                  },
+                });
               }}
               className="w-full px-8 py-3 rounded-[5px] bg-white text-black font-bold text-sm hover:bg-zinc-200 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-95"
             >

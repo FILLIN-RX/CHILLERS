@@ -8,6 +8,7 @@ import { buildEpisodeFilename, downloadTaskId } from "@/lib/format";
 import type { DownloadTask } from "@/types/download";
 import type { Episode } from "@/types/media";
 import { useDownloadsStore } from "@/store/downloads";
+import { useUnifiedDownload } from "@/hooks/useUnifiedDownload";
 
 /** Un seul flux à la fois : les liens HLS sont convertis par FFmpeg côté backend, deux
  *  conversions simultanées saturent le service et font tomber les téléchargements. */
@@ -64,6 +65,8 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
   const setController = useDownloadsStore((s) => s.setController);
   const getController = useDownloadsStore((s) => s.getController);
   const removeController = useDownloadsStore((s) => s.removeController);
+
+  const unifiedDownload = useUnifiedDownload();
 
   const retriesRef = useRef<Map<string, number>>(new Map());
   const retryTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
@@ -334,15 +337,26 @@ export function useDownloadsBatch(args: UseDownloadsBatchArgs): UseDownloadsBatc
       const task = tasksRef.current.find((t) => t.id === id);
       const url = task?.resolvedUrl;
       if (!task || !url || !isDownloadableUrl(url)) return false;
+      
       console.log('[download] Launching ready download for:', id, 'URL:', url);
-      const relative = toIOSDownloadHref(url, task.filename || "video.mp4");
-      const href = relative.startsWith("http") ? relative : `${getBackendOrigin()}${relative}`;
-      triggerAttachmentDownload(href);
-      console.log('[download] Attachment download triggered for:', task.filename);
+      
+      // Use unified download hook for iOS downloads
+      unifiedDownload.startDownload({
+        url,
+        filename: task.filename || "video.mp4",
+        debug: true,
+        onComplete: () => {
+          console.log('[download] Batch download complete for:', task.filename);
+        },
+        onError: (error) => {
+          console.error('[download] Batch download failed:', error);
+        },
+      });
+      
       updateTask(id, { launchedAt: Date.now() });
       return true;
     },
-    [updateTask],
+    [updateTask, unifiedDownload],
   );
 
   const cancelOne = useCallback(

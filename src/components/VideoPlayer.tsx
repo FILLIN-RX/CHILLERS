@@ -20,6 +20,7 @@ import { PopupFirewall } from "@/lib/PopupFirewall";
 import { getBackendOrigin } from "@/services/http";
 import { isSignedLinkExpired } from "@/services/downloads";
 import { AD_INTERVAL_SECONDS, useMidrollVastAd } from "@/hooks/useMidrollVastAd";
+import { useUnifiedDownload } from "@/hooks/useUnifiedDownload";
 // Type-only : hls.js (~530 Ko) est importé dynamiquement dans l'effet HLS,
 // jamais inclus dans le bundle initial de la page watch.
 import type Hls from "hls.js";
@@ -96,6 +97,8 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
     cancelMidrollForUserControl,
     isConfigured: isMidrollConfigured,
   } = useMidrollVastAd(videoRef, mediaKey, { intervalSeconds: AD_INTERVAL_SECONDS });
+
+  const unifiedDownload = useUnifiedDownload();
 
   const triggerFeedback = useCallback((icon: "play" | "pause" | "forward" | "backward") => {
     setCenterFeedback({ icon, key: Date.now() });
@@ -273,33 +276,28 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
         .replace(/[/\\?%*:|"<>]/g, "")
         .trim();
       const filename = `${cleanTitle}${currentEpisode ? `_S${currentEpisode.season || 1}E${currentEpisode.number || 1}` : ""}.mp4`;
-      const backend = getBackendOrigin();
 
       if (isIOS) {
-        // iOS : target="_blank" + download cross-origin est ignoré par WebKit →
-        // Safari lisait le MP4 dans un nouvel onglet au lieu de télécharger.
-        // On navigue dans l'onglet courant et on passe toute URL tierce par le
-        // proxy /file qui envoie Content-Disposition: attachment (boîte native).
-        const proxied = directDl.startsWith("http") && !directDl.includes("/api/")
-          ? `/api/download/file?url=${encodeURIComponent(directDl)}&filename=${encodeURIComponent(filename)}`
-          : directDl;
-        // TOUJOURS préfixer les chemins relatifs avec le backend origin
-        const fullUrl = proxied.startsWith("http") ? proxied : `${backend}${proxied}`;
-        console.log('[VideoPlayer iOS Download]', { directDl, proxied, backend, fullUrl });
-        
-        // DEBUG: Afficher l'URL sur iOS pour diagnostic
-        if (typeof window !== 'undefined' && window.location.hostname.includes('chillers.site')) {
-          const debugInfo = `🔍 iOS Download Debug:\n\nBackend: ${backend}\n\nProxied: ${proxied}\n\nFull URL: ${fullUrl}\n\nVa ouvrir dans 3 secondes...`;
-          alert(debugInfo);
-          setTimeout(() => {
-            window.location.href = fullUrl;
-          }, 3000);
-        } else {
-          window.location.href = fullUrl;
-        }
+        // iOS: Use unified download hook which handles absolute URL conversion
+        unifiedDownload.startDownload({
+          url: directDl,
+          filename,
+          debug: true,
+          onComplete: () => {
+            console.log('[VideoPlayer] iOS download complete');
+          },
+          onError: (error) => {
+            console.error('[VideoPlayer] iOS download failed:', error);
+            setNotification({
+              title: "Échec du téléchargement",
+              message: error,
+            });
+          },
+        });
         return;
       }
 
+      const backend = getBackendOrigin();
       const href = directDl.startsWith("http") ? directDl : `${backend}${directDl}`;
 
       const a = document.createElement("a");
@@ -316,7 +314,7 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
     }
 
     setShowSingleDownload(true);
-  }, [torrentDownloadUrl, streamQuery.data?.downloadUrl, item.title, currentEpisode]);
+  }, [torrentDownloadUrl, streamQuery.data?.downloadUrl, item.title, currentEpisode, unifiedDownload]);
 
   const serverVideoUrl = useMemo(
     () => toEmbedUrl(resolvedStreamUrl ?? undefined),
