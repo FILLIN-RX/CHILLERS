@@ -157,17 +157,25 @@ export function useUnifiedDownload(): UseUnifiedDownloadReturn {
       }
 
       if (platform === 'ios') {
-        // iOS Safari: Navigate in the SAME tab with window.location.href
-        // This is the ONLY method that works reliably on iOS Safari.
-        // - window.open() adds .html extension
-        // - <a target="_blank"> opens inline video player instead of download
-        // - window.location.href triggers Content-Disposition: attachment correctly
+        // iOS Safari: Create an invisible iframe that navigates to the download URL
+        // This triggers the download without navigating away from the current page
+        // and without the .html extension problem of window.open()
         if (debug) {
-          console.log('[useUnifiedDownload] iOS: navigating to download URL');
+          console.log('[useUnifiedDownload] iOS: creating iframe for download');
           console.log('[useUnifiedDownload] URL:', absoluteUrl);
         }
         
-        window.location.href = absoluteUrl;
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = absoluteUrl;
+        document.body.appendChild(iframe);
+        
+        // Remove iframe after download starts
+        setTimeout(() => {
+          if (document.body.contains(iframe)) {
+            document.body.removeChild(iframe);
+          }
+        }, 5000);
       } else {
         // Desktop/Android: use <a download> with programmatic click
         const a = document.createElement('a');
