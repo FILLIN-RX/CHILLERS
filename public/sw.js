@@ -429,9 +429,14 @@ self.addEventListener('push', event => {
   const title = typeof payload.title === 'string' ? payload.title.slice(0, 55) : 'CHILLERS';
   const body = typeof payload.body === 'string' ? payload.body.slice(0, 180) : 'Une nouveauté vous attend.';
   const path = typeof payload.url === 'string' && payload.url.startsWith('/') && !payload.url.startsWith('//') ? payload.url : '/';
+  // image = affiche du film/série (grande image sous le texte sur Android/Chrome)
+  // icon  = icône personnalisée (remplace l'icône app par défaut si fournie)
+  const image = typeof payload.image === 'string' && payload.image.startsWith('https://') ? payload.image : undefined;
+  const icon = typeof payload.icon === 'string' && payload.icon.startsWith('https://') ? payload.icon : '/android-chrome-192x192.png';
   event.waitUntil(self.registration.showNotification(title, {
     body,
-    icon: '/android-chrome-192x192.png',
+    icon,
+    image,
     badge: '/favicon-32x32.png',
     data: { path },
     tag: typeof payload.tag === 'string' ? payload.tag.slice(0, 100) : undefined,

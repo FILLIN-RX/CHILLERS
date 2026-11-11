@@ -675,7 +675,7 @@ export interface AdminSubscriptionPlan {
 
 export interface AdminPushCampaign {
   _id: string; theme: string; audience: 'all' | 'free'; title: string; message: string;
-  url: string; scheduledAt: string; status: 'scheduled' | 'sending' | 'sent' | 'cancelled' | 'failed';
+  url: string; image?: string; scheduledAt: string; status: 'scheduled' | 'sending' | 'sent' | 'cancelled' | 'failed';
   grantPremiumDays: number; sentAt?: string; deliveryCount?: number; error?: string;
 }
 export const adminGeneratePushCampaignDraft = (payload: { theme: string; audience: 'all' | 'free'; grantPremiumDays?: number }) =>
@@ -694,7 +694,7 @@ async function adminPushRequest<T>(path: string, method: 'GET' | 'POST' = 'GET',
   });
 }
 export const adminGetPushCampaigns = () => adminPushRequest<{ success: boolean; data: AdminPushCampaign[] }>('/admin/campaigns');
-export const adminCreatePushCampaign = (payload: { theme: string; audience: 'all' | 'free'; title?: string; message?: string; scheduledAt?: string; sendNow?: boolean; url?: string; grantPremiumDays?: number }) =>
+export const adminCreatePushCampaign = (payload: { theme: string; audience: 'all' | 'free'; title?: string; message?: string; scheduledAt?: string; sendNow?: boolean; url?: string; image?: string; grantPremiumDays?: number }) =>
   adminPushRequest<{ success: boolean; data?: AdminPushCampaign; message?: string }>('/admin/campaigns', 'POST', payload, 60_000);
 export const adminCancelPushCampaign = (id: string) =>
   adminPushRequest<{ success: boolean; message?: string }>(`/admin/campaigns/${id}/cancel`, 'POST');
