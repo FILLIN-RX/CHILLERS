@@ -1,0 +1,7 @@
+{
+  "task_id": "unified-download-hook",
+  "task_description": "Create a unified React hook `useUnifiedDownload` that centralizes ALL download logic and fixes the iOS production bug where downloads open chillers.site instead of the Railway backend",
+  "status": "pending",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003"],
+  "blocked_reason": null
+}

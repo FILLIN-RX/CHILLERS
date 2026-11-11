@@ -1,0 +1,25 @@
+{
+  "project_type": "Next.js 16 (React 19) frontend + Express backend on Railway",
+  "language": "TypeScript",
+  "build_system": "Next.js with npm scripts",
+  "test_framework": "Jest with ts-jest, @testing-library/react for React components",
+  "build_command": "npm run build",
+  "test_command": "npm test",
+  "verification_instructions": "Run `npm test` to execute unit tests. Test files live in `src/**/__tests__/**/*.{ts,tsx}` or `src/**/*.{spec,test}.{ts,tsx}` per jest.config.js.",
+  "snapshot_or_generated_files": null,
+  "environment_constraints": "iOS Safari does not support WritableStream (StreamSaver). Android Chrome depends on Service Worker MITM for StreamSaver. Backend is deployed on Railway at https://chillers-production-eace.up.railway.app, frontend on chillers.site. Relative URLs like `/api/download/file` resolve to chillers.site in production, NOT Railway.",
+  "contribution_requirements": "No CONTRIBUTING.md or AGENTS.md found. Follow existing code style: React hooks in src/hooks/, services in src/services/, strict TypeScript, JSDoc for public APIs.",
+  "key_patterns": "All downloads currently use: 1) useDownload/useDownloadsBatch hooks wrapping resolveDownloadUrl service, 2) streamDownloadToDisk from streamSaver.ts for desktop/Android, 3) triggerAttachmentDownload (window.open) for iOS, 4) toIOSDownloadHref to proxy third-party URLs through /api/download/file, 5) getBackendOrigin() from services/http.ts reads NEXT_PUBLIC_API_URL to resolve Railway backend origin.",
+  "relevant_files": [
+    "src/hooks/useDownload.ts",
+    "src/hooks/useDownloadsBatch.ts",
+    "src/services/downloads.ts",
+    "src/services/streamSaver.ts",
+    "src/services/http.ts",
+    "src/components/VideoPlayer.tsx",
+    "src/features/downloads/DownloadModal.tsx",
+    "src/types/download.ts",
+    "jest.config.js"
+  ],
+  "directory_structure": "src/hooks/ for React hooks, src/services/ for API/platform services, src/components/ for React components, src/features/downloads/ for download-specific UI, src/types/ for TypeScript types, src/store/ for Zustand stores"
+}

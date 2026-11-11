@@ -14,7 +14,7 @@
  */
 
 const DEV_API_URL = "http://localhost:4000/api";
-const PROD_API_URL = "https://chillers-production-636d.up.railway.app/api";
+const PROD_API_URL = "https://chillers-production-eace.up.railway.app/api";
 
 /** URL de base du backend (avec le suffixe `/api`). */
 export const API_BASE_URL: string =
