@@ -125,13 +125,17 @@ export function useUnifiedDownload(): UseUnifiedDownloadReturn {
    * The download continues even if the user closes the tab.
    */
   const handleNativeDownload = useCallback(async (options: UnifiedDownloadOptions): Promise<void> => {
-    const { url, filename, onComplete, onError, debug } = options;
+    const { url, filename: rawFilename, onComplete, onError, debug } = options;
 
     try {
+      // Clean filename: remove .html extension if present (shouldn't be there for videos)
+      const filename = rawFilename.replace(/\.html$/i, '');
+
       if (debug) {
         console.log('[useUnifiedDownload] Native download path');
         console.log('[useUnifiedDownload] Platform:', platform);
         console.log('[useUnifiedDownload] Original URL:', url);
+        console.log('[useUnifiedDownload] Filename:', filename);
       }
 
       // Proxy third-party URLs through /api/download/file
