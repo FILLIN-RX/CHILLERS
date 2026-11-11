@@ -157,25 +157,15 @@ export function useUnifiedDownload(): UseUnifiedDownloadReturn {
       }
 
       if (platform === 'ios') {
-        // iOS Safari: Create an invisible iframe that navigates to the download URL
-        // This triggers the download without navigating away from the current page
-        // and without the .html extension problem of window.open()
+        // iOS Safari: Open backend download URL in new tab
+        // Backend sends Content-Disposition: attachment which triggers Safari download
+        // User can close the tab manually after download starts
         if (debug) {
-          console.log('[useUnifiedDownload] iOS: creating iframe for download');
+          console.log('[useUnifiedDownload] iOS: opening backend URL in new tab');
           console.log('[useUnifiedDownload] URL:', absoluteUrl);
         }
         
-        const iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        iframe.src = absoluteUrl;
-        document.body.appendChild(iframe);
-        
-        // Remove iframe after download starts
-        setTimeout(() => {
-          if (document.body.contains(iframe)) {
-            document.body.removeChild(iframe);
-          }
-        }, 5000);
+        window.open(absoluteUrl, '_blank');
       } else {
         // Desktop/Android: use <a download> with programmatic click
         const a = document.createElement('a');
