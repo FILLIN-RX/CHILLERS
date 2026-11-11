@@ -373,7 +373,7 @@ router.get('/resolve', async (req: Request, res: Response) => {
     // isEmbedOrHtml : on exige donc un fichier direct ou l'un de nos proxies, sinon le client
     // naviguerait sur la page de l'hébergeur au lieu de télécharger.
     const isHtml = isEmbedOrHtml(downloadUrl);
-    const isServedFile = isDirectVideoUrl(downloadUrl) || downloadUrl.includes('/api/download/');
+    const isServedFile = isDirectVideoUrl(downloadUrl) || downloadUrl.includes('/api/download/') || downloadUrl.includes('/api/stream/');
     if (isHtml || !isServedFile) {
       console.warn(`[Download Resolve] ⚠️ URL finale non téléchargeable (${downloadUrl}) → rejeté pour éviter d'ouvrir une page web au lieu de télécharger.`);
       return res.status(404).json({
