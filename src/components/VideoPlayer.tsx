@@ -286,7 +286,17 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
         // TOUJOURS préfixer les chemins relatifs avec le backend origin
         const fullUrl = proxied.startsWith("http") ? proxied : `${backend}${proxied}`;
         console.log('[VideoPlayer iOS Download]', { directDl, proxied, backend, fullUrl });
-        window.location.href = fullUrl;
+        
+        // DEBUG: Afficher l'URL sur iOS pour diagnostic
+        if (typeof window !== 'undefined' && window.location.hostname.includes('chillers.site')) {
+          const debugInfo = `🔍 iOS Download Debug:\n\nBackend: ${backend}\n\nProxied: ${proxied}\n\nFull URL: ${fullUrl}\n\nVa ouvrir dans 3 secondes...`;
+          alert(debugInfo);
+          setTimeout(() => {
+            window.location.href = fullUrl;
+          }, 3000);
+        } else {
+          window.location.href = fullUrl;
+        }
         return;
       }
 
