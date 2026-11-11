@@ -303,6 +303,26 @@ export async function initiateSoftpay(userId: string | null, input: InitiateInpu
 
   await assertNetworkAmount(network, sendCurrency, amount);
 
+  // Validation des montants minimums spécifiques par réseau (crypto/carte)
+  const CRYPTO_MIN_AMOUNT = 1.0; // USD minimum pour paiements crypto
+  const CARD_MIN_AMOUNT = 0.5; // USD minimum pour paiements carte
+
+  if (network === 'crypto' && sendCurrency === 'USD' && amount < CRYPTO_MIN_AMOUNT) {
+    throw new PaymentError(
+      `Le montant minimum pour les paiements crypto est de ${CRYPTO_MIN_AMOUNT} USD.`,
+      400,
+      'amount_too_small'
+    );
+  }
+
+  if (network === 'card' && sendCurrency === 'USD' && amount < CARD_MIN_AMOUNT) {
+    throw new PaymentError(
+      `Le montant minimum pour les paiements carte est de ${CARD_MIN_AMOUNT} USD.`,
+      400,
+      'amount_too_small'
+    );
+  }
+
   const firstName = (input.firstName || user?.username || user?.email?.split('@')[0] || 'Client').trim();
   const lastName = (input.lastName || '.').trim();
   // SasPay exige un email non vide, même pour un don anonyme (sans compte).
@@ -345,6 +365,17 @@ export async function initiateSoftpay(userId: string | null, input: InitiateInpu
       idempotencyKey
     );
 
+    // Logging détaillé de la réponse SasPay pour diagnostic
+    console.log('[SasPay] Réponse softpay:', {
+      id: resp.id,
+      status: resp.status,
+      hasCheckoutUrl: !!resp.checkout_url,
+      hasInstructions: !!resp.instructions,
+      network,
+      amount,
+      currency: sendCurrency
+    });
+
     const status: PaymentStatus =
       resp.status === 'SUCCESS' ? 'SUCCESS' : resp.status === 'FAILED' ? 'FAILED' : 'PENDING';
 
@@ -354,6 +385,28 @@ export async function initiateSoftpay(userId: string | null, input: InitiateInpu
     txn.instructions = Array.isArray(resp.instructions)
       ? resp.instructions.filter(Boolean).join('\n') || undefined
       : resp.instructions || undefined;
+
+    // Vérification critique : checkout_url OBLIGATOIRE pour crypto/carte
+    const needsCheckoutUrl = ['crypto', 'card'].includes(network);
+    if (needsCheckoutUrl && !resp.checkout_url) {
+      txn.status = 'FAILED';
+      txn.lastError = `Checkout URL manquante pour le réseau ${network}. ` +
+        (amount < 1 ? 'Montant possiblement trop faible.' : 'Erreur SasPay.');
+      await txn.save();
+      
+      console.error('[SasPay] Checkout URL manquante:', {
+        network,
+        amount,
+        currency: sendCurrency,
+        paymentId: resp.id
+      });
+      
+      throw new PaymentError(
+        `Impossible de créer un paiement ${network}. ${amount < 1 ? 'Montant minimum : 1 USD.' : 'Erreur du gateway de paiement.'}`,
+        422,
+        'checkout_url_missing'
+      );
+    }
 
     if (status === 'SUCCESS' && !isDonation && userId) {
       const result = await activateSubscription(userId, planCode);
