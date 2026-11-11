@@ -54,36 +54,37 @@ export interface UseUnifiedDownloadReturn {
 }
 
 /**
- * Unified download hook that handles downloads across all platforms.
+ * Unified download hook that handles downloads across all platforms using native browser downloads.
  * 
  * **Critical iOS Fix**: This hook ALWAYS builds absolute backend URLs using 
  * `getBackendOrigin()` for relative paths. In production, relative paths like 
  * `/api/download/file?...` would resolve to the frontend domain (chillers.site) 
  * instead of the backend (chillers-production-eace.up.railway.app), causing 
- * iOS downloads to fail. The hook ensures all URLs are absolute before passing 
- * them to `window.open()` on iOS.
+ * downloads to fail. The hook ensures all URLs are absolute before triggering downloads.
  * 
  * **Platform Strategy**:
- * - **iOS (Safari)**: Uses native download manager via `window.open()` with 
- *   Content-Disposition: attachment headers. The tab auto-closes after 2s.
- * - **Desktop/Android**: Uses StreamSaver.js to stream bytes directly to disk 
- *   with progress tracking and cancellation support.
+ * - **All platforms (iOS, Android, Desktop)**: Uses native browser download via 
+ *   `<a download>` or `window.open()` with Content-Disposition: attachment headers. 
+ *   The browser's download manager handles everything and continues even if the 
+ *   user closes the tab.
+ * 
+ * **Why not StreamSaver?**
+ * StreamSaver requires the page to stay open during download. If the user navigates 
+ * away or closes the tab, the download stops. Native browser downloads persist 
+ * regardless of tab state, providing a much better UX.
  * 
  * @returns Hook interface with `startDownload`, `cancelDownload`, `isDownloading`, `progress`, and `error`.
  * 
  * @example
  * ```tsx
- * const { startDownload, cancelDownload, isDownloading, progress, error } = useUnifiedDownload();
+ * const { startDownload, isDownloading, error } = useUnifiedDownload();
  * 
  * const handleDownload = async () => {
  *   await startDownload({
  *     url: '/api/download/file?url=https://example.com/video.mp4',
  *     filename: 'video.mp4',
- *     onProgress: (downloaded, total) => {
- *       console.log(`Downloaded ${downloaded} of ${total} bytes`);
- *     },
  *     onComplete: () => {
- *       console.log('Download complete!');
+ *       console.log('Download started! Check your browser downloads.');
  *     },
  *     onError: (err) => {
  *       console.error('Download failed:', err);
@@ -168,80 +169,63 @@ export function useUnifiedDownload(): UseUnifiedDownloadReturn {
   }, [buildAbsoluteUrl]);
 
   /**
-   * Desktop/Android download path: stream bytes to disk via StreamSaver
-   * with progress tracking and cancellation support.
+   * Desktop/Android download path: use native browser download.
+   * This is more reliable than StreamSaver - the browser handles everything
+   * and the download continues even if the user closes the tab.
    */
   const handleDesktopAndroidDownload = useCallback(async (options: UnifiedDownloadOptions): Promise<void> => {
-    const { url, filename, onProgress, onComplete, onError, debug } = options;
-
-    // Create abort controller for cancellation
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
+    const { url, filename, onComplete, onError, debug } = options;
 
     try {
       if (debug) {
-        console.log('[useUnifiedDownload] Desktop/Android download path');
+        console.log('[useUnifiedDownload] Desktop/Android native download path');
         console.log('[useUnifiedDownload] URL:', url);
       }
 
-      // Build absolute URL if needed
-      const absoluteUrl = buildAbsoluteUrl(url);
+      // Proxy third-party URLs through /api/download/file (same as iOS)
+      const proxiedUrl = toIOSDownloadHref(url, filename);
+
+      if (debug) {
+        console.log('[useUnifiedDownload] Proxied URL:', proxiedUrl);
+      }
+
+      // Build absolute backend URL
+      const absoluteUrl = buildAbsoluteUrl(proxiedUrl);
 
       if (debug) {
         console.log('[useUnifiedDownload] Absolute URL:', absoluteUrl);
       }
 
-      // Stream download to disk with progress tracking
-      const result = await streamDownloadToDisk(absoluteUrl, {
-        filename,
-        signal: controller.signal,
-        onProgress: (downloaded, total) => {
-          // Update internal progress state
-          const percent = total && total > 0 
-            ? Math.min(100, Math.round((downloaded / total) * 100)) 
-            : null;
-          
-          setProgress({ downloaded, total, percent });
+      // Create a hidden anchor element and trigger download
+      const a = document.createElement('a');
+      a.href = absoluteUrl;
+      a.download = filename;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
 
-          // Fire callback
-          onProgress?.(downloaded, total);
-        },
-      });
+      // Cleanup after a short delay
+      setTimeout(() => {
+        document.body.removeChild(a);
+      }, 1000);
 
       if (debug) {
-        console.log('[useUnifiedDownload] Download complete:', result);
+        console.log('[useUnifiedDownload] Native download triggered');
       }
 
-      // Check if aborted
-      if (controller.signal.aborted) {
-        if (debug) {
-          console.log('[useUnifiedDownload] Download was canceled');
-        }
-        return; // Don't call onComplete or set error for user cancellation
-      }
-
-      setIsDownloading(false);
-      setProgress(null);
-      onComplete?.();
+      // Native download is fire-and-forget; mark as complete optimistically
+      setTimeout(() => {
+        setIsDownloading(false);
+        onComplete?.();
+      }, 1000);
     } catch (err) {
-      // Distinguish AbortError from network errors
-      if (err instanceof Error && err.name === 'AbortError') {
-        if (debug) {
-          console.log('[useUnifiedDownload] Download aborted by user');
-        }
-        setError(null); // User cancellation is not an error
-      } else {
-        const message = err instanceof Error ? err.message : String(err);
-        if (debug) {
-          console.error('[useUnifiedDownload] Download error:', message);
-        }
-        setError(message);
-        onError?.(message);
+      const message = err instanceof Error ? err.message : String(err);
+      if (debug) {
+        console.error('[useUnifiedDownload] Download error:', message);
       }
+      setError(message);
       setIsDownloading(false);
-      setProgress(null);
-    } finally {
-      abortControllerRef.current = null;
+      onError?.(message);
     }
   }, [buildAbsoluteUrl]);
 
