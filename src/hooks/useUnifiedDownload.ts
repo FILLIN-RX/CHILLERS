@@ -120,15 +120,17 @@ export function useUnifiedDownload(): UseUnifiedDownloadReturn {
   }, []);
 
   /**
-   * iOS download path: proxy third-party URLs through backend,
-   * build absolute URL, then trigger Safari's native download manager.
+   * Native browser download for all platforms (iOS, Android, Desktop).
+   * Uses <a download> to trigger the browser's native download manager.
+   * The download continues even if the user closes the tab.
    */
-  const handleIOSDownload = useCallback(async (options: UnifiedDownloadOptions): Promise<void> => {
+  const handleNativeDownload = useCallback(async (options: UnifiedDownloadOptions): Promise<void> => {
     const { url, filename, onComplete, onError, debug } = options;
 
     try {
       if (debug) {
-        console.log('[useUnifiedDownload] iOS download path');
+        console.log('[useUnifiedDownload] Native download path');
+        console.log('[useUnifiedDownload] Platform:', platform);
         console.log('[useUnifiedDownload] Original URL:', url);
       }
 
@@ -145,55 +147,6 @@ export function useUnifiedDownload(): UseUnifiedDownloadReturn {
       if (debug) {
         console.log('[useUnifiedDownload] Absolute URL:', absoluteUrl);
         console.log('[useUnifiedDownload] Backend origin:', getBackendOrigin());
-      }
-
-      // Trigger Safari's native download manager
-      triggerAttachmentDownload(absoluteUrl);
-
-      if (debug) {
-        console.log('[useUnifiedDownload] iOS download triggered');
-      }
-
-      // iOS download is fire-and-forget; we can't track progress
-      // Mark as complete optimistically after a short delay
-      setTimeout(() => {
-        setIsDownloading(false);
-        onComplete?.();
-      }, 2000);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      setError(message);
-      setIsDownloading(false);
-      onError?.(message);
-    }
-  }, [buildAbsoluteUrl]);
-
-  /**
-   * Desktop/Android download path: use native browser download.
-   * This is more reliable than StreamSaver - the browser handles everything
-   * and the download continues even if the user closes the tab.
-   */
-  const handleDesktopAndroidDownload = useCallback(async (options: UnifiedDownloadOptions): Promise<void> => {
-    const { url, filename, onComplete, onError, debug } = options;
-
-    try {
-      if (debug) {
-        console.log('[useUnifiedDownload] Desktop/Android native download path');
-        console.log('[useUnifiedDownload] URL:', url);
-      }
-
-      // Proxy third-party URLs through /api/download/file (same as iOS)
-      const proxiedUrl = toIOSDownloadHref(url, filename);
-
-      if (debug) {
-        console.log('[useUnifiedDownload] Proxied URL:', proxiedUrl);
-      }
-
-      // Build absolute backend URL
-      const absoluteUrl = buildAbsoluteUrl(proxiedUrl);
-
-      if (debug) {
-        console.log('[useUnifiedDownload] Absolute URL:', absoluteUrl);
       }
 
       // Create a hidden anchor element and trigger download
@@ -227,7 +180,7 @@ export function useUnifiedDownload(): UseUnifiedDownloadReturn {
       setIsDownloading(false);
       onError?.(message);
     }
-  }, [buildAbsoluteUrl]);
+  }, [buildAbsoluteUrl, platform]);
 
   /**
    * Start a download with the provided options.
@@ -251,14 +204,9 @@ export function useUnifiedDownload(): UseUnifiedDownloadReturn {
       console.log('[useUnifiedDownload] Options:', options);
     }
 
-    // Route to appropriate platform handler
-    if (platform === 'ios') {
-      await handleIOSDownload(options);
-    } else {
-      // Desktop or Android
-      await handleDesktopAndroidDownload(options);
-    }
-  }, [isDownloading, platform, handleIOSDownload, handleDesktopAndroidDownload]);
+    // Route to native download handler (same for all platforms now)
+    await handleNativeDownload(options);
+  }, [isDownloading, platform, handleNativeDownload]);
 
   /**
    * Cancel the currently running download.
