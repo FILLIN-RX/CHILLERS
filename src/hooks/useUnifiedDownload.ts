@@ -63,12 +63,13 @@ export interface UseUnifiedDownloadReturn {
  * downloads to fail. The hook ensures all URLs are absolute before triggering downloads.
  * 
  * **Platform Strategy**:
- * - **All platforms (iOS, Android, Desktop)**: Uses native browser download via 
- *   `<a download target="_blank">` with Content-Disposition: attachment headers. 
+ * - **iOS**: Uses `window.location.href` to navigate in the SAME tab. This is the 
+ *   only method that reliably triggers Safari's native download manager with the 
+ *   correct filename from the backend's Content-Disposition header. Other methods 
+ *   (window.open, <a target="_blank">) either add .html extension or open inline player.
+ * - **Desktop/Android**: Uses native `<a download>` with programmatic click. 
  *   The browser's download manager handles everything and continues even if the 
- *   user closes the tab. On iOS Safari, even though the `download` attribute is 
- *   ignored for cross-origin URLs, the backend's Content-Disposition header 
- *   triggers the native download prompt with the correct filename.
+ *   user closes the tab.
  * 
  * **Why not StreamSaver?**
  * StreamSaver requires the page to stay open during download. If the user navigates 
@@ -122,9 +123,9 @@ export function useUnifiedDownload(): UseUnifiedDownloadReturn {
   }, []);
 
   /**
-   * Native browser download for all platforms (iOS, Android, Desktop).
-   * iOS uses window.open() because <a download> doesn't work reliably.
-   * Desktop/Android use <a download> for native download manager.
+   * Native browser download for all platforms.
+   * - iOS: window.location.href (navigates current tab to download URL)
+   * - Desktop/Android: <a download> with programmatic click
    */
   const handleNativeDownload = useCallback(async (options: UnifiedDownloadOptions): Promise<void> => {
     const { url, filename: rawFilename, onComplete, onError, debug } = options;
@@ -155,34 +156,39 @@ export function useUnifiedDownload(): UseUnifiedDownloadReturn {
         console.log('[useUnifiedDownload] Backend origin:', getBackendOrigin());
       }
 
-      // All platforms: use <a> element with programmatic click
-      // iOS Safari: even though cross-origin <a download> is ignored, the backend
-      // Content-Disposition: attachment header will trigger the download
-      const a = document.createElement('a');
-      a.href = absoluteUrl;
-      a.download = filename;
-      a.target = '_blank'; // Important for iOS Safari to respect Content-Disposition
-      a.rel = 'noopener noreferrer';
-      
-      // Position off-screen but NOT display:none (Safari may block invisible clicks)
-      a.style.position = 'fixed';
-      a.style.left = '-9999px';
-      a.style.top = '-9999px';
-      
-      document.body.appendChild(a);
-      
-      if (debug) {
-        console.log('[useUnifiedDownload] Triggering download via <a> click');
-        console.log('[useUnifiedDownload] href:', a.href);
-        console.log('[useUnifiedDownload] download attr:', a.download);
-      }
-      
-      a.click();
+      if (platform === 'ios') {
+        // iOS Safari: Navigate in the SAME tab with window.location.href
+        // This is the ONLY method that works reliably on iOS Safari.
+        // - window.open() adds .html extension
+        // - <a target="_blank"> opens inline video player instead of download
+        // - window.location.href triggers Content-Disposition: attachment correctly
+        if (debug) {
+          console.log('[useUnifiedDownload] iOS: navigating to download URL');
+          console.log('[useUnifiedDownload] URL:', absoluteUrl);
+        }
+        
+        window.location.href = absoluteUrl;
+      } else {
+        // Desktop/Android: use <a download> with programmatic click
+        const a = document.createElement('a');
+        a.href = absoluteUrl;
+        a.download = filename;
+        a.style.display = 'none';
+        
+        document.body.appendChild(a);
+        
+        if (debug) {
+          console.log('[useUnifiedDownload] Desktop/Android: triggering <a> click');
+          console.log('[useUnifiedDownload] href:', a.href);
+        }
+        
+        a.click();
 
-      // Cleanup after a short delay
-      setTimeout(() => {
-        document.body.removeChild(a);
-      }, 1000);
+        // Cleanup after a short delay
+        setTimeout(() => {
+          document.body.removeChild(a);
+        }, 1000);
+      }
 
       if (debug) {
         console.log('[useUnifiedDownload] Download triggered successfully');
