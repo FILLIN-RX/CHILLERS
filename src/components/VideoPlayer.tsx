@@ -283,7 +283,10 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
         const proxied = directDl.startsWith("http") && !directDl.includes("/api/")
           ? `/api/download/file?url=${encodeURIComponent(directDl)}&filename=${encodeURIComponent(filename)}`
           : directDl;
-        window.location.href = proxied.startsWith("http") ? proxied : `${backend}${proxied}`;
+        // TOUJOURS préfixer les chemins relatifs avec le backend origin
+        const fullUrl = proxied.startsWith("http") ? proxied : `${backend}${proxied}`;
+        console.log('[VideoPlayer iOS Download]', { directDl, proxied, backend, fullUrl });
+        window.location.href = fullUrl;
         return;
       }
 
