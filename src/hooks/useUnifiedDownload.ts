@@ -121,8 +121,8 @@ export function useUnifiedDownload(): UseUnifiedDownloadReturn {
 
   /**
    * Native browser download for all platforms (iOS, Android, Desktop).
-   * Uses <a download> to trigger the browser's native download manager.
-   * The download continues even if the user closes the tab.
+   * iOS uses window.open() because <a download> doesn't work reliably.
+   * Desktop/Android use <a download> for native download manager.
    */
   const handleNativeDownload = useCallback(async (options: UnifiedDownloadOptions): Promise<void> => {
     const { url, filename: rawFilename, onComplete, onError, debug } = options;
@@ -153,21 +153,40 @@ export function useUnifiedDownload(): UseUnifiedDownloadReturn {
         console.log('[useUnifiedDownload] Backend origin:', getBackendOrigin());
       }
 
-      // Create a hidden anchor element and trigger download
-      const a = document.createElement('a');
-      a.href = absoluteUrl;
-      a.download = filename;
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
+      if (platform === 'ios') {
+        // iOS: use window.open() because <a download> doesn't work reliably on Safari
+        const win = window.open(absoluteUrl, '_blank');
+        if (win) {
+          // Auto-close after 2 seconds (download continues in background)
+          setTimeout(() => {
+            try {
+              win.close();
+            } catch (e) {
+              console.warn('[useUnifiedDownload] could not close tab:', e);
+            }
+          }, 2000);
+        }
+        
+        if (debug) {
+          console.log('[useUnifiedDownload] iOS download triggered via window.open()');
+        }
+      } else {
+        // Desktop/Android: use <a download>
+        const a = document.createElement('a');
+        a.href = absoluteUrl;
+        a.download = filename;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
 
-      // Cleanup after a short delay
-      setTimeout(() => {
-        document.body.removeChild(a);
-      }, 1000);
+        // Cleanup after a short delay
+        setTimeout(() => {
+          document.body.removeChild(a);
+        }, 1000);
 
-      if (debug) {
-        console.log('[useUnifiedDownload] Native download triggered');
+        if (debug) {
+          console.log('[useUnifiedDownload] Desktop/Android download triggered via <a>');
+        }
       }
 
       // Native download is fire-and-forget; mark as complete optimistically
