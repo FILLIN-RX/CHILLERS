@@ -29,7 +29,14 @@ function getAdaptiveTimeout(): number {
 
 /** Read NEXT_PUBLIC_API_URL at runtime on the client to resolve the backend origin for /uploads and absolute image URLs. */
 export function getBackendOrigin(): string {
-  return API_BASE_URL.replace(/\/api\/?$/, "");
+  const baseUrl = API_BASE_URL.replace(/\/api\/?$/, "");
+  
+  // Ensure the URL always starts with https:// (in case env var is misconfigured)
+  if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+    return `https://${baseUrl}`;
+  }
+  
+  return baseUrl;
 }
 
 export class HttpError extends Error {
