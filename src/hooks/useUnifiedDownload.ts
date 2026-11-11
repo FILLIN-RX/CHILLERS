@@ -160,20 +160,6 @@ export function useUnifiedDownload(): UseUnifiedDownloadReturn {
         // iOS Safari: Open backend download URL in new tab
         // Backend sends Content-Disposition: attachment which triggers Safari download
         // The tab closes automatically after user accepts the download
-        
-        // CRITICAL DEBUG: Log the exact URL being opened
-        console.log('=== iOS DOWNLOAD DEBUG ===');
-        console.log('Original URL:', url);
-        console.log('Proxied URL:', proxiedUrl);
-        console.log('Absolute URL:', absoluteUrl);
-        console.log('Backend Origin:', getBackendOrigin());
-        console.log('========================');
-        
-        // Show alert on iOS so user can see the URL
-        if (typeof window !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent)) {
-          alert(`Opening download URL:\n\n${absoluteUrl.substring(0, 100)}...`);
-        }
-        
         if (debug) {
           console.log('[useUnifiedDownload] iOS: opening backend URL in new tab');
           console.log('[useUnifiedDownload] URL:', absoluteUrl);
