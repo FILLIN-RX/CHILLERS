@@ -64,9 +64,11 @@ export interface UseUnifiedDownloadReturn {
  * 
  * **Platform Strategy**:
  * - **All platforms (iOS, Android, Desktop)**: Uses native browser download via 
- *   `<a download>` or `window.open()` with Content-Disposition: attachment headers. 
+ *   `<a download target="_blank">` with Content-Disposition: attachment headers. 
  *   The browser's download manager handles everything and continues even if the 
- *   user closes the tab.
+ *   user closes the tab. On iOS Safari, even though the `download` attribute is 
+ *   ignored for cross-origin URLs, the backend's Content-Disposition header 
+ *   triggers the native download prompt with the correct filename.
  * 
  * **Why not StreamSaver?**
  * StreamSaver requires the page to stay open during download. If the user navigates 
@@ -153,40 +155,37 @@ export function useUnifiedDownload(): UseUnifiedDownloadReturn {
         console.log('[useUnifiedDownload] Backend origin:', getBackendOrigin());
       }
 
-      if (platform === 'ios') {
-        // iOS: use window.open() because <a download> doesn't work reliably on Safari
-        const win = window.open(absoluteUrl, '_blank');
-        if (win) {
-          // Auto-close after 2 seconds (download continues in background)
-          setTimeout(() => {
-            try {
-              win.close();
-            } catch (e) {
-              console.warn('[useUnifiedDownload] could not close tab:', e);
-            }
-          }, 2000);
-        }
-        
-        if (debug) {
-          console.log('[useUnifiedDownload] iOS download triggered via window.open()');
-        }
-      } else {
-        // Desktop/Android: use <a download>
-        const a = document.createElement('a');
-        a.href = absoluteUrl;
-        a.download = filename;
-        a.style.display = 'none';
-        document.body.appendChild(a);
-        a.click();
+      // All platforms: use <a> element with programmatic click
+      // iOS Safari: even though cross-origin <a download> is ignored, the backend
+      // Content-Disposition: attachment header will trigger the download
+      const a = document.createElement('a');
+      a.href = absoluteUrl;
+      a.download = filename;
+      a.target = '_blank'; // Important for iOS Safari to respect Content-Disposition
+      a.rel = 'noopener noreferrer';
+      
+      // Position off-screen but NOT display:none (Safari may block invisible clicks)
+      a.style.position = 'fixed';
+      a.style.left = '-9999px';
+      a.style.top = '-9999px';
+      
+      document.body.appendChild(a);
+      
+      if (debug) {
+        console.log('[useUnifiedDownload] Triggering download via <a> click');
+        console.log('[useUnifiedDownload] href:', a.href);
+        console.log('[useUnifiedDownload] download attr:', a.download);
+      }
+      
+      a.click();
 
-        // Cleanup after a short delay
-        setTimeout(() => {
-          document.body.removeChild(a);
-        }, 1000);
+      // Cleanup after a short delay
+      setTimeout(() => {
+        document.body.removeChild(a);
+      }, 1000);
 
-        if (debug) {
-          console.log('[useUnifiedDownload] Desktop/Android download triggered via <a>');
-        }
+      if (debug) {
+        console.log('[useUnifiedDownload] Download triggered successfully');
       }
 
       // Native download is fire-and-forget; mark as complete optimistically
