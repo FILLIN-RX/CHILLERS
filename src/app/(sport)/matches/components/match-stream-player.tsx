@@ -85,7 +85,7 @@ export function MatchStreamPlayer({
     data: stream,
     isLoading,
   } = useQuery({
-    queryKey: ["live", "match-stream", matchId],
+    queryKey: ["live", "match-stream", "v2", matchId],
     queryFn: async (): Promise<ResolvedMatchStream | null> => {
       const unified = await getMatchStream(matchId).catch(() => null);
       const sports = unified?.url ? null : await getSportsStream(matchId).catch(() => null);
@@ -123,7 +123,7 @@ export function MatchStreamPlayer({
   // Charge les autres serveurs en parallèle : l'affichage du premier flux ne
   // doit pas attendre la collecte complète des providers.
   const { data: backupChannels } = useQuery({
-    queryKey: ["live", "match-stream-channels", matchId],
+    queryKey: ["live", "match-stream-channels", "v2", matchId],
     queryFn: () => getSportsChannels(matchId),
     enabled: Boolean(stream?.url),
     staleTime: 60_000,
