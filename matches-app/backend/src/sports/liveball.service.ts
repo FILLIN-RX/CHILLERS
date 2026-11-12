@@ -363,6 +363,7 @@ const TEAM_NAMES: Record<string, string> = {
   'Кот-д’Ивуар': "Côte d'Ivoire",
   'Кот-д-Ивуар': "Côte d'Ivoire",
   'Камерун': 'Cameroun',
+  'Судан': 'Soudan',
   'Нигерия': 'Nigéria',
   'Гана': 'Ghana',
   'Египет': 'Égypte',

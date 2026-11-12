@@ -323,7 +323,14 @@ async function chainCandidates(target: SportsMatch): Promise<SportsMatch[]> {
 
   const twins = rawAll
     .filter((m) => m.id !== own.id && isSameFixture(own, m))
-    .map((m) => ({ m, score: fixtureScore(own, m), gap: Math.abs((m.startTs ?? 0) - (own.startTs ?? 0)) }))
+    .map((m) => ({
+      m,
+      score: fixtureScore(own, m),
+      straight: Math.min(fixtureScore({ home: own.home, away: own.away }, { home: m.home, away: m.away }), 1),
+      gap: Math.abs((m.startTs ?? (own.startTs ?? 0)) - (own.startTs ?? (m.startTs ?? 0))),
+    }))
+    // Ne jamais servir un jumeau faible : un mauvais flux affiché sur la fiche est pire qu'aucun flux.
+    .filter((x) => x.score >= 0.85)
     .sort((a, b) => b.score - a.score || a.gap - b.gap)
     .map((x) => x.m);
 

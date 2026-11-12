@@ -107,18 +107,28 @@ export const CLOSE_KICKOFF_S = 45 * 60;
 /**
  * Deux entrées désignent la même rencontre.
  *
- * • Score ≥ 0.99 → match parfait, on accepte même sans timestamp.
- * • Score ≥ 0.75 → très haute confiance ; on accepte si l'un des deux n'a pas
- *   de timestamp (fréquent pour liveball dont les matchs live n'ont pas de startTs).
- * • Score ≥ 0.5  → confiance partielle ; les deux timestamps doivent être proches.
- * • Score < 0.5  → rejeté.
+ * Règle stricte pour éviter d'associer le mauvais flux à la mauvaise fiche :
+ * - les deux équipes doivent matcher fortement (domicile/extérieur, ordre ou croisé) ;
+ * - si les deux coup d'envoi sont connus, ils doivent être proches ;
+ * - si l'un manque (liveball live sans startTs), on n'accepte qu'un appariement quasi certain.
  */
 export function isSameFixture(a: SportsMatch, b: SportsMatch): boolean {
-  const score = fixtureScore(a, b);
-  if (score >= 0.99) return true;
-  if (score < 0.5) return false;
-  // Haute confiance : on accepte même si un seul côté a un timestamp.
-  if (score >= 0.75 && (a.startTs === undefined || b.startTs === undefined)) return true;
-  if (a.startTs === undefined || b.startTs === undefined) return false;
-  return Math.abs(a.startTs - b.startTs) <= CLOSE_KICKOFF_S;
+  const straight = Math.min(sideScore(a.home, b.home), sideScore(a.away, b.away));
+  const crossed = Math.min(sideScore(a.home, b.away), sideScore(a.away, b.home));
+  const oriented = Math.max(straight, crossed);
+  const bestSide = Math.max(
+    Math.min(sideScore(a.home, b.home), sideScore(a.home, b.away)),
+    Math.min(sideScore(a.away, b.home), sideScore(a.away, b.away))
+  );
+
+  // Chaque équipe du match cible doit correspondre à une équipe distincte du candidat.
+  if (oriented < 0.75 || bestSide < 0.75) return false;
+
+  if (a.startTs !== undefined && b.startTs !== undefined) {
+    if (Math.abs(a.startTs - b.startTs) > CLOSE_KICKOFF_S) return false;
+    return oriented >= 0.75;
+  }
+
+  // Sans horaire des deux côtés, on exige un quasi match exact des deux équipes.
+  return oriented >= 0.95;
 }
