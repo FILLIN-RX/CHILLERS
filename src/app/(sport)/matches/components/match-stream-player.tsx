@@ -334,6 +334,12 @@ export function MatchStreamPlayer({
       {/* Sélecteur unique : chaînes (confirmées d'abord) puis sources externes */}
       {!finished && (confirmedChannels.length > 0 || candidateChannels.length > 0) && (
         <div className="space-y-2 rounded-xl bg-[#161616] border border-white/10 p-3">
+          <div className="flex items-center justify-between gap-2 px-1">
+            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Sources & chaînes</p>
+            <Link href={`/matches/${encodeURIComponent(matchId)}/channels`} className="text-[11px] font-semibold text-[#FF6A00] hover:underline">
+              Ouvrir la page
+            </Link>
+          </div>
           <MatchChannelsRow
             channels={[...confirmedChannels, ...candidateChannels]}
             confirmedIds={confirmedIds}
@@ -497,11 +503,17 @@ export function MatchStreamPlayer({
 
             <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
               <Link
+                href={`/matches/${encodeURIComponent(matchId)}/channels`}
+                className="flex items-center gap-1.5 rounded-full bg-[#FF6A00] hover:bg-[#ff7d26] px-4 py-2 text-[12px] font-semibold text-white transition-all"
+              >
+                <Television className="h-3.5 w-3.5" />
+                <span>Toutes les chaînes</span>
+              </Link>
+              <Link
                 href="/live"
                 className="flex items-center gap-1.5 rounded-full bg-[#222222] hover:bg-[#2b2b2b] px-4 py-2 text-[12px] font-semibold text-zinc-300 hover:text-white transition-all border border-white/5"
               >
-                <Television className="h-3.5 w-3.5 text-[#FF6A00]" />
-                <span>Chaînes TV</span>
+                <span>Direct TV</span>
               </Link>
             </div>
           </div>
