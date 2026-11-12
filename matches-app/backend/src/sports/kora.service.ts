@@ -183,9 +183,18 @@ export async function resolveKoraStream(matchId: string, force = false): Promise
     const visitorId = randomUUID();
     const channels: any[] = Array.isArray(match.channels) ? match.channels : [];
 
+    const isDirectFrame = (c: any) =>
+      (c?.type === 'Frame' || c?.type === 'Landscape') && c?.edge === 0 && !!c?.link;
+    const isGenericLiveFrame = (c: any) =>
+      isDirectFrame(c) && /^(live\s*\d*|server)$/i.test(String(c?.server_name || '').trim());
     const ordered = [
-      ...channels.filter((c) => (c?.type === 'Frame' || c?.type === 'Landscape') && c?.edge === 0 && c?.link),
-      ...channels.filter((c) => !((c?.type === 'Frame' || c?.type === 'Landscape') && c?.edge === 0 && c?.link)),
+      ...channels.filter((c) => c?.type === 'Custom' || (c?.edge && c.edge !== 0)),
+      ...channels.filter((c) => isDirectFrame(c) && !isGenericLiveFrame(c)),
+      ...channels.filter((c) => isGenericLiveFrame(c)),
+      ...channels.filter(
+        (c) =>
+          !((c?.type === 'Custom' || (c?.edge && c.edge !== 0)) || isDirectFrame(c))
+      ),
     ];
 
     const servers: SportsServer[] = [];
