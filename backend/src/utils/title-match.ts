@@ -145,6 +145,55 @@ export function stripSeason(titre?: string | null): string {
     .trim();
 }
 
+/**
+ * Le titre du document désigne-t-il exactement l'œuvre demandée ? La
+ * comparaison est stricte (jamais « contient ») : « Lost » ne doit pas
+ * attraper « Lost Girl » ni « Lost in Space ». Le seul écart toléré est le
+ * suffixe de saison que le scraper colle au titre (« X - Saison 1 »).
+ *
+ * Partagé par le provider MongoDB et les providers qui relisent la base
+ * (Direct, Streamtape) : s'ils divergeaient, l'un servirait un homonyme que
+ * l'autre a écarté.
+ */
+export function matchesWork(
+  doc: { titre?: string; year?: any },
+  wanted: string,
+  allowSeasonSuffix: boolean,
+): boolean {
+  const a = normalizeTitle(doc.titre);
+  const b = normalizeTitle(wanted);
+  if (!a || !b) return false;
+  if (a !== b && !(allowSeasonSuffix && a.startsWith(`${b} `))) return false;
+
+  const suffix = a.slice(b.length).trim();
+  if (allowSeasonSuffix && suffix && !/^(saison ?\d+|s\d+|vol(?:ume)? ?\d+|\d+)$/.test(suffix)) return false;
+
+  return true;
+}
+
+/**
+ * Le document correspond-il à l'une des variantes de titre de la requête, avec
+ * l'année comme départage des homonymes quand les deux côtés la connaissent ?
+ */
+export function docMatchesQuery(
+  doc: { titre?: string; year?: any },
+  titles: string[],
+  year?: number | null,
+  allowSeasonSuffix = false,
+): boolean {
+  return titles.some((t) => {
+    if (!matchesWork(doc, t, allowSeasonSuffix)) return false;
+    // Le scraper note parfois l'année dans le titre seul : « Kraken (2000) ».
+    const docYear = Number(doc.year) || yearFromTitle(doc.titre);
+    // Années connues des deux côtés → rejet si trop différentes.
+    if (year && docYear) return Math.abs(Number(docYear) - year) <= 1;
+    // Année cible connue mais absente du document : on rejette pour éviter les
+    // homonymes (ex: « The Odyssey » 1997 servi à la place de 2024).
+    if (year && !docYear) return false;
+    return true;
+  });
+}
+
 export interface DocTitles {
   titre: string;
   year?: number | string | null;

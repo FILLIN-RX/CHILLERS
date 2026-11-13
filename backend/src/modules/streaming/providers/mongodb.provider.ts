@@ -2,47 +2,8 @@ import { StreamingProvider, StreamResult, StreamQuery } from './provider.interfa
 import Movie from '../../../models/Movie';
 import Serie from '../../../models/Serie';
 import { isSignedLinkExpired } from '../../../utils/link-ttl';
-import { normalizeTitle, yearFromTitle } from '../../../utils/title-match';
+import { docMatchesQuery } from '../../../utils/title-match';
 import axios from 'axios';
-
-/**
- * Le repli par titre était un « titre CONTIENT X » : la fiche « Animals »
- * attrapait le document « American Animals » et le lecteur servait un autre
- * film que celui demandé. La jointure exige le même titre — en tolérant le
- * suffixe de saison que le scraper ajoute (« X - Saison 1 ») — et l'année
- * quand les deux côtés la connaissent.
- */
-function matchesWork(doc: { titre?: string; year?: any }, wanted: string, allowSeasonSuffix: boolean): boolean {
-  const a = normalizeTitle(doc.titre);
-  const b = normalizeTitle(wanted);
-  if (!a || !b) return false;
-  if (a !== b && !(allowSeasonSuffix && a.startsWith(`${b} `))) return false;
-
-  const suffix = a.slice(b.length).trim();
-  if (allowSeasonSuffix && suffix && !/^(saison ?\d+|s\d+|vol(?:ume)? ?\d+|\d+)$/.test(suffix)) return false;
-
-  return true;
-}
-
-/** Le titre du document désigne-t-il l'œuvre demandée (et non un homonyme) ? */
-function docMatchesQuery(
-  doc: { titre?: string; year?: any },
-  titles: string[],
-  year?: number | null,
-  allowSeasonSuffix = false,
-): boolean {
-  return titles.some((t) => {
-    if (!matchesWork(doc, t, allowSeasonSuffix)) return false;
-    // Le scraper note parfois l'année dans le titre seul : « Kraken (2000) ».
-    const docYear = Number(doc.year) || yearFromTitle(doc.titre);
-    // Années connues des deux côtés → rejet si trop différentes
-    if (year && docYear) return Math.abs(Number(docYear) - year) <= 1;
-    // Année cible connue mais absente du document : on rejette pour éviter les
-    // homonymes (ex: "The Odyssey" 1997 servi à la place de "The Odyssey" 2024).
-    if (year && !docYear) return false;
-    return true;
-  });
-}
 
 function escapeRe(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

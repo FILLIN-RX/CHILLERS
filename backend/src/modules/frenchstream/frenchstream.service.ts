@@ -358,8 +358,22 @@ function isSeriesPage(item: { title: string; url: string }): boolean {
   return SAISON_RE.test(item.title) || SAISON_RE.test(item.url);
 }
 
+/**
+ * Retire le suffixe de saison porté par les fiches sources (« Lost - Saison 1 »,
+ * « Lost S01E01 »). Sans ça, la comparaison stricte échouait sur TOUTES les
+ * vraies pages série (« lostsaison1 » ≠ « lost ») : le code retombait alors sur
+ * l'ensemble des résultats de recherche et pouvait servir un homonyme
+ * (« Lost Girl ») à la place de la série demandée.
+ */
+function candidateBaseTitle(text: string): string {
+  return text
+    .replace(/[\s:–—-]*(?:saison|season)\s*\d{1,3}\b.*$/i, '')
+    .replace(/[\s:–—-]*s\d{1,3}(?:e\d{1,3})?\b.*$/i, '')
+    .trim();
+}
+
 function isCandidateMatching(candidateTitle: string, titles: string[]): boolean {
-  const normCand = normalize(candidateTitle);
+  const normCand = normalize(candidateBaseTitle(candidateTitle));
   if (!normCand) return false;
   for (const t of titles) {
     const norm = normalize(t);
@@ -973,7 +987,14 @@ export async function getFrenchStreamEpisode(
       const relevant = seriesResults.filter((it) => {
         return uniqueSeriesQueries.some(q => isCandidateMatching(it.title, [q]));
       });
-      const pool = relevant.length > 0 ? relevant : seriesResults;
+      // Aucune page ne porte le titre demandé : ne JAMAIS se rabattre sur
+      // l'ensemble des résultats, sinon un homonyme de la recherche
+      // (« Lost Girl » pour « Lost ») est servi comme s'il s'agissait de l'œuvre.
+      if (relevant.length === 0) {
+        console.log(`[FrenchStream HQ] Aucune page série ne correspond à [${uniqueSeriesQueries.join(', ')}] (candidats: ${seriesResults.map(r => r.title).join(' | ')}) — skip.`);
+        return null;
+      }
+      const pool = relevant;
 
       // Saison annoncée exacte d'abord, sinon la page de saison la plus proche :
       // les animés sont découpés en arcs « Saison N » qui ne suivent pas la

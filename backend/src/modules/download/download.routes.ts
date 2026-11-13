@@ -6,6 +6,7 @@ import { StreamQuery } from '../streaming/providers/provider.interface';
 import { DirectScraper, getUqloadDirectLink, extractUqloadCode } from '../streaming/providers/direct-scraper';
 import { getOtakuDirectLink } from '../otaku/otaku.service';
 import { isSignedLinkExpired } from '../../utils/link-ttl';
+import { docMatchesQuery } from '../../utils/title-match';
 import Movie from '../../models/Movie';
 import Serie from '../../models/Serie';
 import tmdbClient from '../../config/tmdb';
@@ -44,6 +45,27 @@ function isEmbedOrHtml(url: string | null | undefined): boolean {
 function isDirectVideoUrl(url: string | null | undefined): boolean {
   if (!url) return false;
   return /\.(mp4|mkv|webm|m3u8)(\?|$)/i.test(url);
+}
+
+/**
+ * Repli par titre SANS tmdb_id : le document doit porter le même titre (suffixe
+ * de saison toléré) et, si connue, la même année. Un simple « contient »
+ * servait « Lost Girl » pour « Lost ».
+ */
+async function findMatchingSerie(titles: string[], year?: number) {
+  if (!titles.length) return null;
+  const candidates = await Serie.find({
+    $or: titles.map((t) => ({ titre: { $regex: new RegExp(t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } })),
+  }).lean().exec();
+  return candidates.find((s: any) => docMatchesQuery(s, titles, year, true)) || null;
+}
+
+async function findMatchingMovie(titles: string[], year?: number) {
+  if (!titles.length) return null;
+  const candidates = await Movie.find({
+    $or: titles.map((t) => ({ titre: { $regex: new RegExp(t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } })),
+  }).lean().exec();
+  return candidates.find((m: any) => docMatchesQuery(m, titles, year, false)) || null;
 }
 
 /**
@@ -86,6 +108,7 @@ router.get('/resolve', async (req: Request, res: Response) => {
 
     let frenchTitle: string | undefined;
     let origTitle = originalTitle;
+    let tmdbYear: number | undefined;
 
     if (tmdbIdNum) {
       try {
@@ -94,9 +117,11 @@ router.get('/resolve', async (req: Request, res: Response) => {
         if (isTv) {
           frenchTitle = data?.name;
           origTitle = origTitle || data?.original_name;
+          tmdbYear = data?.first_air_date ? parseInt(String(data.first_air_date).slice(0, 4), 10) : undefined;
         } else {
           frenchTitle = data?.title;
           origTitle = origTitle || data?.original_title;
+          tmdbYear = data?.release_date ? parseInt(String(data.release_date).slice(0, 4), 10) : undefined;
         }
       } catch (_) {}
     }
@@ -113,6 +138,7 @@ router.get('/resolve', async (req: Request, res: Response) => {
       isPremium: isPrem,
       language,
       isIOS,
+      year: tmdbYear,
     };
 
     console.log(`[Download Resolve] Résolution: "${query.title}" (FR="${frenchTitle || 'N/A'}", VO="${origTitle || 'N/A'}", type=${type}, S${season || 1}E${episode || 1}, premium=${isPrem}, isIOS=${isIOS})`);
@@ -131,9 +157,7 @@ router.get('/resolve', async (req: Request, res: Response) => {
     if (isTv) {
       const serie = tmdbIdNum
         ? await Serie.findOne({ tmdbId: tmdbIdNum }).lean().exec()
-        : searchTitles.length > 0
-          ? await Serie.findOne({ $or: searchTitles.map(t => ({ titre: { $regex: new RegExp(t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } })) }).lean().exec()
-          : null;
+        : await findMatchingSerie(searchTitles, query.year);
       if (serie) {
         const sNum = query.season !== undefined ? Number(query.season) : 1;
         const eNum = query.episode !== undefined ? Number(query.episode) : 1;
@@ -188,9 +212,7 @@ router.get('/resolve', async (req: Request, res: Response) => {
     } else {
       const movie = tmdbIdNum
         ? await Movie.findOne({ tmdbId: tmdbIdNum }).lean().exec()
-        : searchTitles.length > 0
-          ? await Movie.findOne({ $or: searchTitles.map(t => ({ titre: { $regex: new RegExp(t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } })) }).lean().exec()
-          : null;
+        : await findMatchingMovie(searchTitles, query.year);
       if (movie) {
         const uqCode = movie.uqloadCode || (movie.uqloadLink ? extractUqloadCode(movie.uqloadLink) : null) || (movie.lien ? extractUqloadCode(movie.lien) : null);
         if (uqCode) {

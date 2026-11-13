@@ -1,10 +1,15 @@
 import { StreamingProvider, StreamResult, StreamQuery } from './provider.interface';
 import { resolveDirectFromEmbed } from './direct-enricher';
 import { isSignedLinkExpired } from '../../../utils/link-ttl';
+import { docMatchesQuery } from '../../../utils/title-match';
 import Movie from '../../../models/Movie';
 import Serie from '../../../models/Serie';
 
 const TAG = '[DirectProvider]';
+
+function escapeRe(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
 /**
  * DirectProvider — tente d'extraire l'URL directe (.mp4 / .m3u8) d'un embed
@@ -237,12 +242,20 @@ export class DirectProvider implements StreamingProvider {
         return byId[0];
       }
     }
-    // Priority 2: title regex fallback — try all title variants
+    // Priority 2: titre identique — jamais « contient ». Sans cette garde,
+    // une requête « Lost » attrapait « Lost Girl » / « Lost in Space » (et un
+    // document sans tmdbId passait même le filtre), donc un autre épisode
+    // était servi. On tolère uniquement le suffixe « - Saison N » et l'année.
     const serieTitles = [query.title, query.frenchTitle, query.originalTitle].filter(Boolean) as string[];
-    for (const t of serieTitles) {
-      const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const allFound = await Serie.find({ titre: { $regex: new RegExp(escaped, 'i') } }).exec();
-      const byTitle = allFound.filter(s => !query.tmdbId || !s.tmdbId || Number(s.tmdbId) === Number(query.tmdbId));
+    if (serieTitles.length) {
+      const candidates = await Serie.find({
+        $or: serieTitles.map((t) => ({ titre: { $regex: new RegExp(escapeRe(t), 'i') } })),
+      }).exec();
+      const byTitle = candidates.filter(
+        (s) =>
+          docMatchesQuery(s, serieTitles, query.year, true) &&
+          (!query.tmdbId || !s.tmdbId || Number(s.tmdbId) === Number(query.tmdbId)),
+      );
       if (byTitle.length) {
         if (query.season !== undefined) {
           const bySeason = byTitle.find(s => s.episodes?.some(
@@ -267,19 +280,20 @@ export class DirectProvider implements StreamingProvider {
       const byId = await Movie.findOne({ tmdbId: query.tmdbId }).exec();
       if (byId) return byId;
     }
-    // Priority 2: title regex fallback — try all title variants
+    // Priority 2: titre identique (jamais « contient ») + année quand connue.
     const movieTitles = [query.title, query.frenchTitle, query.originalTitle].filter(Boolean) as string[];
-    for (const t of movieTitles) {
-      const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const byTitle = await Movie.findOne({ titre: { $regex: new RegExp(escaped, 'i') } }).exec();
-      if (byTitle) {
-        if (query.tmdbId && byTitle.tmdbId && Number(byTitle.tmdbId) !== Number(query.tmdbId)) {
-          console.log(`${TAG} findMovie: rejet homonyme "${byTitle.titre}" (tmdbId en base: ${byTitle.tmdbId} !== demandé: ${query.tmdbId})`);
-          continue; // try next title variant instead of returning null
-        }
-        console.log(`${TAG} findMovie: matched by title "${byTitle.titre}" (tmdbId=${byTitle.tmdbId}) for query tmdbId=${query.tmdbId}`);
-        return byTitle;
-      }
+    if (!movieTitles.length) return null;
+    const candidates = await Movie.find({
+      $or: movieTitles.map((t) => ({ titre: { $regex: new RegExp(escapeRe(t), 'i') } })),
+    }).exec();
+    const byTitle = candidates.filter(
+      (m) =>
+        docMatchesQuery(m, movieTitles, query.year, false) &&
+        (!query.tmdbId || !m.tmdbId || Number(m.tmdbId) === Number(query.tmdbId)),
+    );
+    if (byTitle.length) {
+      console.log(`${TAG} findMovie: matched by title "${byTitle[0].titre}" (tmdbId=${byTitle[0].tmdbId}) for query tmdbId=${query.tmdbId}`);
+      return byTitle[0];
     }
     return null;
   }
