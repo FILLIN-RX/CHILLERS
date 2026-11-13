@@ -163,7 +163,7 @@ export default function RootLayout({
           }
         `}} />
       </head>
-      <body suppressHydrationWarning className="min-h-screen flex flex-col bg-brand-dark text-foreground selection:bg-brand-primary selection:text-white">
+      <body suppressHydrationWarning className="min-h-screen flex flex-col pt-safe bg-brand-dark text-foreground selection:bg-brand-primary selection:text-white">
         {/* Google Tag Manager (noscript fallback) */}
         <noscript>
           <iframe
