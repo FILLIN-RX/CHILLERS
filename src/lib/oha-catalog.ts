@@ -6,7 +6,7 @@ export async function getOhaChannels(): Promise<OhaChannel[]> {
   const response = await fetch(`${API_BASE_URL}/live/oha/channels`, {
     headers: { Accept: "application/json" },
     signal: AbortSignal.timeout(15_000),
-    next: { revalidate: 300 },
+    next: { revalidate: 60 },
   });
   if (!response.ok) throw new Error(`OHA Mongo catalog HTTP ${response.status}`);
 

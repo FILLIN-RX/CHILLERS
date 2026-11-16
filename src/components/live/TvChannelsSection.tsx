@@ -82,7 +82,7 @@ export default function TvChannelsSection() {
   const { data: channels = [], isLoading, isError, refetch } = useQuery({
     queryKey: ["oha", "channels"],
     queryFn: getOhaChannels,
-    staleTime: 10 * 60_000,
+    staleTime: 2 * 60_000,
   });
 
   const filtered = useMemo(() => {
@@ -120,7 +120,12 @@ export default function TvChannelsSection() {
     setPlaying({ ch, streamUrl: "" });
     try {
       // Le serveur résout primary + replis en parallèle et vérifie les playlists.
-      const url = await resolveOhaStream(ch.id, ch.altIds ?? []);
+      let url: string;
+      try {
+        url = await resolveOhaStream(ch.id, ch.altIds ?? []);
+      } catch {
+        url = await resolveOhaStream(ch.id, ch.altIds ?? [], { force: true });
+      }
       setPlaying((current) => (current?.ch.id === ch.id ? { ch, streamUrl: url } : current));
     } catch {
       setPlaying((current) => (current?.ch.id === ch.id ? null : current));

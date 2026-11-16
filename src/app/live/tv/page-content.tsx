@@ -11,7 +11,7 @@ export default function LiveTvPageContent() {
   const { data: channels = [] } = useQuery({
     queryKey: ["oha", "channels"],
     queryFn: getOhaChannels,
-    staleTime: 10 * 60_000,
+    staleTime: 2 * 60_000,
   });
 
   return (

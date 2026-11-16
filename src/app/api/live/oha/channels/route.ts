@@ -11,7 +11,7 @@ export async function GET() {
       { success: true, data: channels },
       {
         headers: {
-          "Cache-Control": "public, s-maxage=600, stale-while-revalidate=1800",
+          "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
         },
       },
     );

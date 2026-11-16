@@ -3,7 +3,7 @@ name: Synchroniser les chaînes OHA vers MongoDB
 on:
   schedule:
     - cron: '0 4 * * *'
-    - cron: '15 * * * *'
+    - cron: '*/15 * * * *'
   workflow_dispatch:
     inputs:
       mode:
@@ -45,8 +45,8 @@ jobs:
           NODE_ENV: production
           MONGO_URI: ${{ secrets.MONGO_URI }}
         run: |
-          if [ "${{ github.event.schedule }}" = "15 * * * *" ] || [ "${{ github.event.inputs.mode }}" = "revalidate" ]; then
-            npx tsx src/modules/live/sync-oha-catalog.ts --revalidate
-          else
+          if [ "${{ github.event.schedule }}" = "0 4 * * *" ] || [ "${{ github.event.inputs.mode }}" = "full" ]; then
             npx tsx src/modules/live/sync-oha-catalog.ts
+          else
+            npx tsx src/modules/live/sync-oha-catalog.ts --revalidate
           fi

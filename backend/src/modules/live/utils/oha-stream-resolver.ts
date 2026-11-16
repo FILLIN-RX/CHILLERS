@@ -35,7 +35,7 @@ async function resolveOne(id: string): Promise<OhaResolvedStream | null> {
 
 async function isLive(url: string): Promise<boolean> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 4_000);
+  const timer = setTimeout(() => controller.abort(), 6_000);
   try {
     const response = await fetch(url, {
       headers: {
@@ -45,8 +45,18 @@ async function isLive(url: string): Promise<boolean> {
       },
       signal: controller.signal,
     });
-    response.body?.cancel().catch(() => undefined);
-    return response.ok;
+    if (!response.ok) {
+      response.body?.cancel().catch(() => undefined);
+      return false;
+    }
+    // Un jeton OHA périmé répond souvent 200 avec une page HTML/JSON :
+    // seule une vraie playlist HLS doit être retenue dans le catalogue.
+    const reader = response.body?.getReader();
+    if (!reader) return false;
+    const { value } = await reader.read();
+    await reader.cancel().catch(() => undefined);
+    const head = value ? Buffer.from(value).toString('utf8') : '';
+    return /#EXTM3U/i.test(head);
   } catch {
     return false;
   } finally {

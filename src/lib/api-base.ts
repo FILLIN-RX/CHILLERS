@@ -3,9 +3,9 @@
  *
  * Ordre de résolution :
  *  1. `NEXT_PUBLIC_API_URL` (variable d'env Vercel / `.env.production` / `.env`)
- *  2. fallback prod vérifié — le dépôt Railway en vie : `636d` répond
+ *  2. fallback prod vérifié — le dépôt Railway en vie : `eace` répond
  *     `GET /api/health` → 200 (les autres valeurs qui traînaient dans le code,
- *     `8e02` et `onrender`, ne répondent plus)
+ *     `636d`, `8e02` et `onrender`, ne répondent plus)
  *  3. localhost en développement
  *
  * Tous les points d'appel doivent importer ce module au lieu de redéclarer

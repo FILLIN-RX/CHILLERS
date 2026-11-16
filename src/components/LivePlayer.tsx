@@ -8,6 +8,7 @@ import type { LiveChannel } from "@/types/live";
 import { PopupFirewall } from "@/lib/PopupFirewall";
 import { enterFullscreen, exitFullscreen, isFullscreenActive } from "@/lib/fullscreen";
 import { resolveOhaStream } from "@/services/oha";
+import { liveChannelShareUrl } from "@/lib/live-channel-url";
 import { ArrowLeft, X, Play, Pause, SpeakerSimpleHigh, SpeakerSimpleSlash, ArrowsOutSimple, ArrowsInSimple, Television, PictureInPicture, ShareNetwork, Check } from "@phosphor-icons/react";
 
 interface LivePlayerProps {
@@ -149,7 +150,8 @@ export default function LivePlayer({
   const [proxyMode, setProxyMode] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
   const [resolvedOha, setResolvedOha] = useState<{ channelId: string; url: string } | null>(null);
-  const ohaResolveAttemptRef = useRef<string | null>(null);
+  const [streamRevision, setStreamRevision] = useState(0);
+  const ohaResolveAttemptsRef = useRef(0);
 
   const streamUrl = (resolvedOha?.channelId === channel._id ? resolvedOha.url : channel.streamUrl) || "";
 
@@ -159,16 +161,17 @@ export default function LivePlayer({
     onPlaybackErrorRef.current = onPlaybackError;
   }, [onPlaybackError]);
 
-  const resolveOhaFallback = useCallback(() => {
+  const resolveOhaFallback = useCallback((force = false) => {
     if (channel.source !== "oha" || !channel.ohaId) return false;
-    const attemptKey = `${channel._id}:${channel.streamUrl ?? ""}`;
-    if (ohaResolveAttemptRef.current === attemptKey) return false;
-    ohaResolveAttemptRef.current = attemptKey;
+    const maxAttempts = force ? 3 : 1;
+    if (ohaResolveAttemptsRef.current >= maxAttempts) return false;
+    ohaResolveAttemptsRef.current += 1;
     setIsLoading(true);
     setError(null);
-    void resolveOhaStream(channel.ohaId, channel.ohaAltIds ?? [])
+    void resolveOhaStream(channel.ohaId, channel.ohaAltIds ?? [], { force })
       .then((url) => {
         setResolvedOha({ channelId: channel._id, url });
+        setStreamRevision((value) => value + 1);
         setProxyMode(false);
       })
       .catch(() => {
@@ -177,7 +180,16 @@ export default function LivePlayer({
         onPlaybackErrorRef.current?.("Le flux OHA n’a pas pu être résolu");
       });
     return true;
-  }, [channel._id, channel.ohaAltIds, channel.ohaId, channel.source, channel.streamUrl]);
+  }, [channel._id, channel.ohaAltIds, channel.ohaId, channel.source]);
+
+  const retryPlayback = useCallback(() => {
+    setError(null);
+    setIsLoading(true);
+    setProxyMode(false);
+    ohaResolveAttemptsRef.current = 0;
+    if (resolveOhaFallback(true)) return;
+    setStreamRevision((value) => value + 1);
+  }, [resolveOhaFallback]);
 
   const iframeSrc =
     channel.type === "youtube" && channel.ytVideoId
@@ -333,7 +345,7 @@ export default function LivePlayer({
     let failureReported = false;
     const reportFailure = (reason: string) => {
       if (failureReported) return;
-      if (resolveOhaFallback()) return;
+      if (resolveOhaFallback(true)) return;
       failureReported = true;
       onPlaybackErrorRef.current?.(reason);
     };
@@ -342,8 +354,8 @@ export default function LivePlayer({
       if (playbackTimer) clearTimeout(playbackTimer);
       playbackTimer = setTimeout(() => {
         setError("stream");
-        reportFailure("Aucun nouveau segment vidéo reçu depuis 20 secondes");
-      }, 20_000);
+        reportFailure("Aucun nouveau segment vidéo reçu depuis trop longtemps");
+      }, hasPlayedRef.current ? 30_000 : 45_000);
     };
     schedulePlaybackWatchdog();
 
@@ -353,18 +365,18 @@ export default function LivePlayer({
     let probeLastTime = el.currentTime;
     let probeStalledMs = 0;
     const progressProbe = setInterval(() => {
-      if (el.paused || userPausedRef.current) {
+      if (!hasPlayedRef.current || el.paused || userPausedRef.current) {
         probeStalledMs = 0;
         probeLastTime = el.currentTime;
         return;
       }
       if (Math.abs(el.currentTime - probeLastTime) < 0.05) {
         probeStalledMs += 2000;
-        if (probeStalledMs >= 15_000) {
+        if (probeStalledMs >= 30_000) {
           probeStalledMs = 0;
           setIsPlaying(false);
           setIsLive(false);
-          reportFailure("Aucune progression de lecture depuis 15 secondes");
+          reportFailure("Aucune progression de lecture depuis 30 secondes");
         }
       } else {
         probeStalledMs = 0;
@@ -394,10 +406,14 @@ export default function LivePlayer({
         hls.on(Hls.Events.FRAG_LOADED, () => {
           schedulePlaybackWatchdog();
           hasPlayedRef.current = true;
+          ohaResolveAttemptsRef.current = 0;
+          setError(null);
           setIsLoading(false);
           setIsBuffering(false);
           updateLiveState();
         });
+        hls.on(Hls.Events.FRAG_BUFFERED, schedulePlaybackWatchdog);
+        hls.on(Hls.Events.LEVEL_LOADED, schedulePlaybackWatchdog);
         hls.on(Hls.Events.ERROR, (_e, data) => {
           if (!data?.fatal) return;
           if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
@@ -455,7 +471,7 @@ export default function LivePlayer({
       el.removeEventListener("timeupdate", schedulePlaybackWatchdog);
       if (hls) hls.destroy();
     };
-  }, [isHls, channel._id, channel.streamUrl, channel.source, channel.ohaId, channel.ohaAltIds, streamUrl, resolveOhaFallback, proxyMode, updateLiveState]);
+  }, [isHls, channel._id, channel.streamUrl, channel.source, channel.ohaId, channel.ohaAltIds, streamUrl, streamRevision, resolveOhaFallback, proxyMode, updateLiveState]);
 
   // Fullscreen change listener
   useEffect(() => {
@@ -536,7 +552,7 @@ export default function LivePlayer({
 
   const handleShare = async () => {
     const title = channel.name || "CHILLERS";
-    const url = window.location.href;
+    const url = liveChannelShareUrl(channel);
     try {
       if (typeof navigator.share === "function") {
         await navigator.share({ title, url });
@@ -673,6 +689,8 @@ export default function LivePlayer({
           }}
           onPlaying={() => {
             hasPlayedRef.current = true;
+            ohaResolveAttemptsRef.current = 0;
+            setError(null);
             setIsLoading(false);
             setIsBuffering(false);
             setIsPlaying(true);
@@ -737,8 +755,15 @@ export default function LivePlayer({
           </div>
           <h3 className="text-xl font-bold text-white">Flux momentanément indisponible</h3>
           <p className="text-sm text-zinc-400 max-w-md">
-            La chaîne {channel.name} est en cours d'actualisation ou le signal source est interrompu.
+            La chaîne {channel.name} est en cours d&apos;actualisation ou le signal source est interrompu.
           </p>
+          <button
+            type="button"
+            onClick={retryPlayback}
+            className="rounded-full bg-red-600 px-6 py-2.5 text-xs font-black uppercase tracking-wider text-white transition-colors hover:bg-red-500"
+          >
+            Réessayer
+          </button>
         </div>
       )}
 

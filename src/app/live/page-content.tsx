@@ -14,6 +14,7 @@ import {
 import { getLiveChannels, FALLBACK_CHANNELS } from "@/services/live";
 import { getOhaChannels, resolveOhaStream } from "@/services/oha";
 import { canonicalChannelKey, channelPriority } from "@/lib/channel-canonical";
+import { liveChannelRef, matchesLiveChannelRef } from "@/lib/live-channel-url";
 import { ohaChannelSlug, type OhaChannel, type OhaCategory } from "@/types/oha";
 import type { LiveChannel } from "@/types/live";
 import LivePlayer from "@/components/LivePlayer";
@@ -83,6 +84,7 @@ export default function LivePageContent() {
     }
   };
   const [playingChannel, setPlayingChannel] = useState<LiveChannel | null>(null);
+  const [deepLinkRef, setDeepLinkRef] = useState<string | null>(null);
 
   const observerTarget = useRef<HTMLDivElement>(null);
 
@@ -93,10 +95,10 @@ export default function LivePageContent() {
   });
 
   // Catalogue FR curaté (oha.to) — même cache que l'onglet TV / la page /live/tv.
-  const { data: ohaChannels = [] } = useQuery({
+  const { data: ohaChannels = [], isLoading: isOhaLoading } = useQuery({
     queryKey: ["oha", "channels"],
     queryFn: getOhaChannels,
-    staleTime: 10 * 60_000,
+    staleTime: 2 * 60_000,
   });
 
   const ohaBySlug = useMemo(() => {
@@ -134,6 +136,18 @@ export default function LivePageContent() {
     return [...byKey.values()];
   }, [ohaChannels, channels, unavailableKeys]);
 
+  const handledDeepLinkRef = useRef<string | null>(null);
+
+  const syncChannelParam = useCallback((ref: string | null) => {
+    handledDeepLinkRef.current = ref;
+    setDeepLinkRef(ref);
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (ref) url.searchParams.set("ch", ref);
+    else url.searchParams.delete("ch");
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  }, []);
+
   const markUnavailable = (channel: LiveChannel) => {
     const key = canonicalChannelKey(channel.name);
     setUnavailableKeys((prev) => {
@@ -143,6 +157,7 @@ export default function LivePageContent() {
       return next;
     });
     setPlayError(`Lien indisponible pour ${channel.name}. Réessayez plus tard.`);
+    syncChannelParam(null);
   };
 
   /** Clic sur une carte : ouverture immédiate, résolution en arrière-plan. */
@@ -163,9 +178,15 @@ export default function LivePageContent() {
         proxy: true,
       };
       setPlayingChannel(base);
+      syncChannelParam(liveChannelRef(base));
       try {
         // Le serveur résout primary + replis en parallèle et vérifie les playlists.
-        const url = await resolveOhaStream(oha.id, oha.altIds ?? []);
+        let url: string;
+        try {
+          url = await resolveOhaStream(oha.id, oha.altIds ?? []);
+        } catch {
+          url = await resolveOhaStream(oha.id, oha.altIds ?? [], { force: true });
+        }
         setPlayingChannel((current) =>
           current?._id === base._id ? { ...base, streamUrl: url } : current,
         );
@@ -180,11 +201,48 @@ export default function LivePageContent() {
 
     if (channel.streamUrl) {
       setPlayingChannel(channel);
+      syncChannelParam(liveChannelRef(channel));
       return;
     }
 
     markUnavailable(channel);
   };
+
+  const openChannelRef = useRef(openChannel);
+  useEffect(() => {
+    openChannelRef.current = openChannel;
+  });
+
+  useEffect(() => {
+    const readDeepLink = () => {
+      setDeepLinkRef(new URLSearchParams(window.location.search).get("ch"));
+    };
+    readDeepLink();
+    window.addEventListener("popstate", readDeepLink);
+    return () => window.removeEventListener("popstate", readDeepLink);
+  }, []);
+
+  useEffect(() => {
+    if (!deepLinkRef) {
+      handledDeepLinkRef.current = null;
+      return;
+    }
+    if (handledDeepLinkRef.current === deepLinkRef) return;
+    if (isLoading || isOhaLoading) return;
+    let match = baseChannels.find((channel) => matchesLiveChannelRef(channel, deepLinkRef));
+    if (!match && deepLinkRef.startsWith("oha-")) {
+      const oha = ohaById.get(deepLinkRef.slice(4));
+      if (oha) match = ohaToLiveChannel(oha);
+    }
+    if (!match) return;
+    handledDeepLinkRef.current = deepLinkRef;
+    void openChannelRef.current(match);
+  }, [deepLinkRef, baseChannels, isLoading, isOhaLoading, ohaById]);
+
+  const closeChannel = useCallback(() => {
+    setPlayingChannel(null);
+    syncChannelParam(null);
+  }, [syncChannelParam]);
 
   // Sélection multi-live : source de vérité = les flux choisis par l'utilisateur.
   // Aucun repli automatique : en phase de lecture, on n'affiche que les écrans
@@ -391,7 +449,7 @@ export default function LivePageContent() {
         <LivePlayerModal
           channel={playingChannel}
           allChannels={filteredChannels}
-          onClose={() => setPlayingChannel(null)}
+          onClose={closeChannel}
           onSelectChannel={(ch) => setPlayingChannel(ch)}
         />
       )}
