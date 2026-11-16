@@ -12,6 +12,7 @@ import http from 'http';
 import https from 'https';
 import { LRUCache } from 'lru-cache';
 import { resolveSportsFluxById, resolveSportsStream } from '../sports.service';
+import { pickPlayableServers } from './stream-probe';
 
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
@@ -113,9 +114,12 @@ async function resolveHlsTarget(
   if (force) {
     const direct = await resolveSportsStream(source, sourceId, true).catch(() => null);
     if (direct?.type === 'hls') {
-      const server = direct.servers?.find((s) => s.type === 'hls');
-      const url = server?.url ?? direct.url;
-      if (url) return { url, referer: server?.referer };
+      // La résolution brute garde l'ordre des canaux du provider : certains
+      // émettent une playlist valide mais entièrement noire. On repasse par la
+      // sonde pour choisir le premier HLS réellement jouable.
+      const playable = await pickPlayableServers(direct).catch(() => []);
+      const server = playable.find((s) => s.type === 'hls');
+      if (server?.url) return { url: server.url, referer: server.referer };
     }
   }
 
@@ -128,8 +132,11 @@ async function resolveHlsTarget(
   const legacy = await resolveSportsStream(source, sourceId, force);
   if (!legacy) return null;
   if (legacy.type === 'hls') {
-    const server = legacy.servers?.find((s) => s.type === 'hls');
-    return { url: server?.url ?? legacy.url, referer: server?.referer };
+    // Dernier recours : même garde-fou que la résolution directe, sinon un
+    // canal noir reviendrait par cette porte après un refresh de jeton.
+    const playable = await pickPlayableServers(legacy).catch(() => []);
+    const server = playable.find((s) => s.type === 'hls');
+    if (server?.url) return { url: server.url, referer: server.referer };
   }
   return null;
 }

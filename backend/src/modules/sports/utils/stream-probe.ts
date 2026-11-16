@@ -4,6 +4,8 @@
  * donc que ce qu'on a vu répondre, exactement comme la chaîne de providers films.
  */
 import axios from 'axios';
+import { spawn } from 'node:child_process';
+import { LRUCache } from 'lru-cache';
 import { extractDirectStream } from './stream-extractor';
 import type { ResolvedSportsStream, SportsServer } from '../sports.types';
 
@@ -12,6 +14,23 @@ const USER_AGENT =
 
 const PROBE_TIMEOUT_MS = 7_000;
 const MAX_SERVERS_PROBED = 4;
+/**
+ * Certaines chaînes répondent une playlist HLS valide… avec un flux noir et
+ * silencieux (droits non ouverts, émetteur en panne). La sonde `#EXTM3U` la
+ * déclare jouable, le player affiche un écran noir sans jamais basculer sur un
+ * miroir sain. On échantillonne donc le premier segment et on écarte les flux
+ * entièrement noirs et muets.
+ */
+const DEAD_FEED_TIMEOUT_MS = 4_500;
+const DEAD_FEED_MAX_REDIRECTS = 5;
+const DEAD_FEED_MAX_BYTES = 4 * 1024 * 1024;
+const BLACK_MIN_DURATION_S = 1.2;
+const BLACK_MIN_RATIO = 0.85;
+const SILENT_MAX_VOLUME_DB = -75;
+const FFMPEG_PATH = process.env.FFMPEG_PATH || 'ffmpeg';
+/** 30 s pour un flux noir (il peut revenir), 60 s pour un flux sain. */
+const DEAD_FEED_CACHE_TTL_MS = 60_000;
+const deadFeedCache = new LRUCache<string, boolean>({ max: 300, ttl: DEAD_FEED_CACHE_TTL_MS });
 /**
  * Fenêtre d'attente des miroirs iframe quand un HLS direct joue déjà. Les
  * iframes mortes coûtent jusqu'au timeout de sonde (7 s) pour rien — on laisse
@@ -85,6 +104,193 @@ function isErrorPage(html: string, window: string): boolean {
   return BLOCK_MARKERS.some((m) => window.includes(m));
 }
 
+function absoluteUrl(line: string, base: string): string {
+  try {
+    return new URL(line, base).href;
+  } catch {
+    return line;
+  }
+}
+
+/** Récupère une playlist en texte avec le Referer du player d'origine. */
+async function fetchPlaylistText(
+  url: string,
+  referer?: string,
+): Promise<{ text: string; finalUrl: string } | null> {
+  try {
+    const { data, request } = await axios.get<string>(url, {
+      timeout: DEAD_FEED_TIMEOUT_MS,
+      responseType: 'text',
+      transformResponse: [(d) => d],
+      maxRedirects: DEAD_FEED_MAX_REDIRECTS,
+      headers: {
+        'User-Agent': USER_AGENT,
+        Accept: 'application/x-mpegURL,application/vnd.apple.mpegurl,*/*',
+        ...(referer ? { Referer: referer, Origin: originOf(referer) } : {}),
+      },
+    });
+    const text = typeof data === 'string' ? data : String(data ?? '');
+    const finalUrl = (request as any)?.res?.responseUrl || url;
+    return { text, finalUrl };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Extrait le premier segment d'une playlist (maître ou média), avec sa durée.
+ * Les playlists maîtres sont suivies une à une jusqu'à la variante.
+ */
+async function resolveSegmentSample(
+  url: string,
+  referer?: string,
+  depth = 0,
+): Promise<{ segmentUrl: string; duration: number } | null> {
+  if (depth > 2) return null;
+
+  const playlist = await fetchPlaylistText(url, referer);
+  if (!playlist || !/#EXTM3U/i.test(playlist.text)) return null;
+
+  const lines = playlist.text.split(/\r?\n/);
+  if (/#EXT-X-STREAM-INF/i.test(playlist.text)) {
+    const variant = lines.find((line) => line.trim() && !line.startsWith('#'));
+    if (!variant) return null;
+    return resolveSegmentSample(
+      absoluteUrl(variant.trim(), playlist.finalUrl),
+      referer,
+      depth + 1,
+    );
+  }
+
+  let duration = 2;
+  let segment: string | null = null;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    if (trimmed.startsWith('#EXTINF:')) {
+      const value = Number(trimmed.slice('#EXTINF:'.length).split(',')[0]);
+      if (Number.isFinite(value) && value > 0) duration = value;
+      continue;
+    }
+    if (trimmed.startsWith('#')) continue;
+    segment = trimmed;
+    break;
+  }
+
+  if (!segment) return null;
+  return { segmentUrl: absoluteUrl(segment, playlist.finalUrl), duration };
+}
+
+async function fetchSampleBytes(url: string, referer?: string): Promise<Buffer | null> {
+  try {
+    const { data } = await axios.get<ArrayBuffer>(url, {
+      timeout: DEAD_FEED_TIMEOUT_MS,
+      responseType: 'arraybuffer',
+      maxContentLength: DEAD_FEED_MAX_BYTES,
+      maxRedirects: DEAD_FEED_MAX_REDIRECTS,
+      headers: {
+        'User-Agent': USER_AGENT,
+        Accept: '*/*',
+        ...(referer ? { Referer: referer, Origin: originOf(referer) } : {}),
+      },
+    });
+    return Buffer.from(data);
+  } catch {
+    return null;
+  }
+}
+
+/** Passage noir le plus long détecté par ffmpeg + niveau audio max (null = analyse impossible). */
+function analyzeSample(bytes: Buffer): Promise<{ blackDuration: number; maxVolumeDb: number | null } | null> {
+  return new Promise((resolve) => {
+    let child;
+    try {
+      child = spawn(
+        FFMPEG_PATH,
+        [
+          '-hide_banner',
+          '-loglevel',
+          'info',
+          '-i',
+          'pipe:0',
+          '-map',
+          '0:v:0',
+          '-map',
+          '0:a:0?',
+          '-vf',
+          'blackdetect=d=0.5:pix_th=0.10',
+          '-af',
+          'volumedetect',
+          '-f',
+          'null',
+          '-',
+        ],
+        { stdio: ['pipe', 'ignore', 'pipe'] },
+      );
+    } catch {
+      resolve(null);
+      return;
+    }
+
+    let settled = false;
+    let stderr = '';
+    const finish = (value: { blackDuration: number; maxVolumeDb: number | null } | null) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(value);
+    };
+    const timer = setTimeout(() => {
+      child.kill('SIGKILL');
+      finish(null);
+    }, DEAD_FEED_TIMEOUT_MS);
+
+    child.stderr?.on('data', (chunk) => {
+      if (stderr.length < 64 * 1024) stderr += String(chunk);
+    });
+    child.on('error', () => finish(null));
+    child.on('close', () => {
+      const durations = [...stderr.matchAll(/black_duration:([\d.]+)/g)]
+        .map((match) => Number(match[1]))
+        .filter(Number.isFinite);
+      const volume = stderr.match(/max_volume:\s*(-?[\d.]+)\s*dB/i);
+      finish({
+        blackDuration: durations.length ? Math.max(...durations) : 0,
+        maxVolumeDb: volume ? Number(volume[1]) : null,
+      });
+    });
+    child.stdin?.on('error', () => {});
+    child.stdin?.end(bytes);
+  });
+}
+
+/**
+ * Un flux HLS peut répondre `#EXTM3U` tout en ne diffusant qu'une image noire
+ * et du silence (émetteur en panne, droits non ouverts). Échantillonne le
+ * premier segment et le déclare mort quand presque toute sa durée est noire et
+ * que la piste audio est muette — une simple scène sombre garde son son.
+ */
+export async function probeDeadFeed(url: string, referer?: string): Promise<boolean> {
+  const cached = deadFeedCache.get(url);
+  if (cached !== undefined) return cached;
+
+  const sample = await resolveSegmentSample(url, referer).catch(() => null);
+  if (!sample) return false;
+
+  const bytes = await fetchSampleBytes(sample.segmentUrl, referer).catch(() => null);
+  if (!bytes || bytes.length < 188) return false;
+
+  const analysis = await analyzeSample(bytes);
+  if (!analysis) return false;
+
+  const mostlyBlack =
+    analysis.blackDuration >= Math.max(BLACK_MIN_DURATION_S, sample.duration * BLACK_MIN_RATIO);
+  const silent = analysis.maxVolumeDb === null || analysis.maxVolumeDb <= SILENT_MAX_VOLUME_DB;
+  const dead = mostlyBlack && silent;
+  deadFeedCache.set(url, dead, { ttl: dead ? 30_000 : DEAD_FEED_CACHE_TTL_MS });
+  return dead;
+}
+
 /** Une playlist HLS réelle commence par `#EXTM3U` ; tout le reste n'est pas jouable. */
 export async function probeHls(url: string, referer?: string): Promise<boolean> {
   try {
@@ -154,6 +360,34 @@ export async function probeIframe(
 }
 
 /**
+ * Écarte les HLS qui répondent mais ne diffusent qu'un écran noir et muet.
+ * Même quand c'est le seul candidat : mieux vaut laisser la chaîne essayer un
+ * autre provider que servir un écran noir.
+ */
+async function removeDeadHlsFeeds(servers: SportsServer[]): Promise<SportsServer[]> {
+  const hls = servers.filter((server) => server.type === 'hls');
+  if (hls.length === 0) return servers;
+
+  const checks = await Promise.all(
+    hls.map(async (server) => ({
+      url: server.url,
+      dead: await probeDeadFeed(server.url, server.referer || originOf(server.url)).catch(
+        () => false,
+      ),
+    })),
+  );
+  const deadUrls = new Set(checks.filter((check) => check.dead).map((check) => check.url));
+  if (deadUrls.size === 0) return servers;
+
+  for (const server of hls) {
+    if (deadUrls.has(server.url)) {
+      console.warn(`[sports] flux noir ignoré (${server.name || server.url})`);
+    }
+  }
+  return servers.filter((server) => !deadUrls.has(server.url));
+}
+
+/**
  * Choisit tous les serveurs réellement jouables du flux résolu. Seul le HLS
  * est servi : un player iframe n'est pas un flux (choix explicite), il est
  * extrait en HLS s'il en cache un, sinon le serveur tombe. `[]` = la source a
@@ -206,14 +440,14 @@ export async function pickPlayableServers(stream: ResolvedSportsStream): Promise
     ]);
     if (graceTimer) clearTimeout(graceTimer);
     const extra = (grace ?? []).filter((s): s is SportsServer => s !== null);
-    return [...directPlayable, ...extra];
+    return removeDeadHlsFeeds([...directPlayable, ...extra]);
   }
 
   // Aucun direct jouable : les iframes sont la dernière ressource (extraction
   // du HLS embarqué) et on les attend toutes — sans elles, la source ne sert
   // rien et la chaîne passera au provider suivant.
   const framePlayable = (await framesPromise).filter((s): s is SportsServer => s !== null);
-  return [...directPlayable, ...framePlayable];
+  return removeDeadHlsFeeds([...directPlayable, ...framePlayable]);
 }
 
 /**
