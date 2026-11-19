@@ -1,7 +1,10 @@
 "use client";
 
+import { useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
+import LiquidGlassIndicator from "@/components/ui/LiquidGlassIndicator";
 
 const FOCUS =
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#FF6A00]";
@@ -18,6 +21,9 @@ const NAV = [
 */
 export default function SportHeader() {
   const pathname = usePathname() ?? "";
+  const navRef = useRef<HTMLElement>(null);
+  const activeHref =
+    NAV.find((item) => pathname.startsWith(item.href))?.href ?? "";
 
   return (
     <header
@@ -32,34 +38,42 @@ export default function SportHeader() {
           Chillers <span className="text-[#FF6A00]">Sport</span>
         </Link>
 
-        <nav aria-label="Sport" className="flex h-full items-stretch">
+        <nav ref={navRef} aria-label="Sport" className="relative flex h-full items-stretch">
+          <LiquidGlassIndicator
+            containerRef={navRef}
+            activeKey={activeHref}
+            variant="sport"
+            insetX={6}
+            insetY={10}
+          />
           {NAV.map((item) => {
             const active = pathname.startsWith(item.href);
             return (
               <Link
                 key={item.href}
                 href={item.href}
+                data-liquid-active={active}
                 aria-current={active ? "page" : undefined}
-                className={`relative flex items-center px-3.5 text-[14px] transition-colors ${FOCUS} ${
+                className={`relative z-10 flex items-center px-3.5 text-[14px] transition-colors ${FOCUS} ${
                   active ? "font-medium text-white" : "text-white/60 hover:text-white"
                 }`}
               >
                 {item.label}
-                {active && (
-                  <span className="absolute inset-x-3.5 bottom-0 h-0.5 rounded-full bg-[#FF6A00]" />
-                )}
               </Link>
             );
           })}
         </nav>
 
-        <Link
-          href="/"
-          className={`whitespace-nowrap text-[13px] text-white/60 transition-colors hover:text-white sm:justify-self-end ${FOCUS}`}
-        >
-          <span className="sm:hidden">Accueil</span>
-          <span className="hidden sm:inline">Retour à Chillers</span>
-        </Link>
+        <div className="flex items-center gap-2 sm:justify-self-end">
+          <LanguageSwitcher />
+          <Link
+            href="/"
+            className={`whitespace-nowrap text-[13px] text-white/60 transition-colors hover:text-white ${FOCUS}`}
+          >
+            <span className="sm:hidden">Accueil</span>
+            <span className="hidden sm:inline">Retour à Chillers</span>
+          </Link>
+        </div>
       </div>
     </header>
   );

@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { spawn } from 'child_process';
+import { existsSync } from 'fs';
 import axios from 'axios';
 import { ProviderManager } from '../streaming/provider-manager';
 import { StreamQuery } from '../streaming/providers/provider.interface';
@@ -13,6 +14,27 @@ import tmdbClient from '../../config/tmdb';
 
 const router = Router();
 const providerManager = new ProviderManager();
+
+/**
+ * Localise le binaire FFmpeg. En production (Railway/Nixpacks), ffmpeg n'est pas
+ * forcément installé au niveau système : on privilégie le binaire embarqué par
+ * `ffmpeg-static`, puis FFMPEG_PATH, puis la commande système.
+ */
+function resolveFfmpegBinary(): string {
+  const explicit = process.env.FFMPEG_PATH;
+  if (explicit && existsSync(explicit)) return explicit;
+  try {
+    // ffmpeg-static n'expose pas de typages : require pour éviter le TS7016.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const staticPath = require('ffmpeg-static') as string | null;
+    if (staticPath && existsSync(staticPath)) return staticPath;
+  } catch {
+    /* module absent : on retombe sur le binaire système */
+  }
+  return explicit || 'ffmpeg';
+}
+
+const FFMPEG_BIN = resolveFfmpegBinary();
 
 function unwrapUrl(url: string | undefined | null): string {
   if (!url || typeof url !== 'string') return '';
@@ -747,21 +769,32 @@ router.get('/stream', async (req: Request, res: Response) => {
   // donc Safari/iOS affiche une taille et une progression fiables.
   if (await upgradeToDirectFile(req, res, m3u8Url, filename)) return;
 
+  if (res.headersSent) return;
+
   const safeAsciiFilename = filename.replace(/[^\x20-\x7E]/g, '_').replace(/["\\]/g, '');
   const encodedFilename = encodeURIComponent(filename);
-  res.setHeader(
-    'Content-Disposition',
-    `attachment; filename="${safeAsciiFilename}"; filename*=UTF-8''${encodedFilename}`
-  );
-  res.setHeader('Content-Type', 'video/mp4');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  console.log('[Download Stream] Streaming HLS to MP4 with Content-Disposition: attachment, filename:', filename);
+
+  /**
+   * Envoie une erreur JSON lisible. On retire d'abord les en-têtes de fichier
+   * éventuellement posés : sinon le navigateur reçoit un 5xx étiqueté
+   * `video/mp4` en pièce jointe et affiche `ERR_INVALID_RESPONSE`.
+   */
+  const sendStreamError = (status: number, message: string) => {
+    if (res.headersSent) {
+      res.destroy();
+      return;
+    }
+    res.removeHeader('Content-Disposition');
+    res.removeHeader('Content-Type');
+    res.removeHeader('Cache-Control');
+    res.removeHeader('X-Content-Type-Options');
+    res.status(status).json({ success: false, error: message });
+  };
 
   const referer = m3u8Url.includes('uqload') ? 'https://uqload.is/' : m3u8Url.includes('vidzy') ? 'https://vidzy.cc/' : '';
   const headers = `User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\r\n${referer ? `Referer: ${referer}\r\n` : ''}`;
 
-  const ffmpeg = spawn('ffmpeg', [
+  const ffmpeg = spawn(FFMPEG_BIN, [
     '-y',
     '-headers', headers,
     '-i', m3u8Url,
@@ -772,24 +805,57 @@ router.get('/stream', async (req: Request, res: Response) => {
     'pipe:1',
   ]);
 
-  ffmpeg.stdout.pipe(res);
+  let started = false;
+
+  // Les en-têtes de téléchargement ne sont posés qu'au premier octet produit :
+  // tant que ffmpeg n'a rien sorti, on peut encore répondre par une erreur JSON.
+  const beginDownload = () => {
+    if (started) return;
+    started = true;
+    res.status(200);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${safeAsciiFilename}"; filename*=UTF-8''${encodedFilename}`
+    );
+    res.setHeader('Content-Type', 'video/mp4');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    console.log('[Download Stream] Streaming HLS to MP4 with Content-Disposition: attachment, filename:', filename);
+  };
+
+  ffmpeg.stdout.on('data', (chunk: Buffer) => {
+    if (!started) beginDownload();
+    if (!res.write(chunk)) {
+      ffmpeg.stdout.pause();
+    }
+  });
+
+  res.on('drain', () => ffmpeg.stdout.resume());
 
   ffmpeg.stderr.on('data', () => {});
 
-  ffmpeg.on('close', (code: number | null) => {
-    if (code !== 0 && !res.headersSent) {
-      res.status(500).json({ success: false, error: `FFmpeg exited code ${code}` });
-    }
+  ffmpeg.on('error', (err: NodeJS.ErrnoException) => {
+    console.error(`[Download Stream] FFmpeg introuvable/erreur (${FFMPEG_BIN}):`, err.message);
+    sendStreamError(
+      503,
+      "Le transcodage HLS n'est pas disponible sur ce serveur (ffmpeg manquant). Définis FFMPEG_PATH ou installe ffmpeg.",
+    );
   });
 
-  ffmpeg.on('error', () => {
-    if (!res.headersSent) {
-      res.status(500).json({ success: false, error: 'FFmpeg not found' });
+  ffmpeg.on('close', (code: number | null) => {
+    if (!started) {
+      if (code !== 0) {
+        sendStreamError(502, `Impossible de convertir cette playlist HLS (ffmpeg code ${code}). Le lien est peut-être expiré.`);
+      } else {
+        sendStreamError(502, "La playlist HLS n'a produit aucun flux exploitable.");
+      }
+      return;
     }
+    if (!res.writableEnded) res.end();
   });
 
   req.on('close', () => {
-    ffmpeg.kill();
+    ffmpeg.kill('SIGKILL');
   });
 });
 

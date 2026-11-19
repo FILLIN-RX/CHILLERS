@@ -83,18 +83,57 @@ export async function searchFrenchStream(query: string): Promise<FrenchStreamSea
     if (!data || typeof data !== 'string') return [];
 
     const items: FrenchStreamSearchResult[] = [];
-    const regex = /location\.href='([^']+)'[\s\S]*?<img src='([^']*)'[\s\S]*?<div class='search-title'>([\s\S]*?)<\/div>/gi;
+    const regex = /location\.href='([^']+)'[\s\S]*?<img src='([^']+)'[\s\S]*?<div class='search-title'>([\s\S]*?)<\/div>/gi;
     let match;
 
     while ((match = regex.exec(data)) !== null) {
       const relUrl = match[1];
       const poster = match[2];
-      const title = match[3].replace(/\\'/g, "'").replace(/&amp;/g, '&').trim();
+      const title = match[3].replace(/\'/g, "'").replace(/&/g, '&').trim();
       items.push({
         url: relUrl.startsWith('http') ? relUrl : `${BASE_URL}${relUrl}`,
         poster,
         title
       });
+    }
+
+    // Séries : la carte porte un attribut `data-seasons` (JSON des saisons).
+    // On associe chaque saison au VRAI titre affiché dans la même carte.
+    // (Avant, le titre était codé en dur « Le Seigneur des anneaux… », ce qui
+    // faisait apparaître 15 fausses saisons pour toutes les recherches.)
+    const seriesCardRe =
+      /data-seasons='([^']+)'[\s\S]*?<div class='search-title'>([\s\S]*?)<\/div>/gi;
+    let seriesMatch: RegExpExecArray | null;
+    while ((seriesMatch = seriesCardRe.exec(data)) !== null) {
+      const rawJson = seriesMatch[1];
+      const cardTitle = seriesMatch[2]
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&#0?39;|&apos;/g, "'")
+        .replace(/&quot;/g, '"')
+        .replace(/\s+/g, ' ')
+        .trim();
+      // « Supernatural - série » / « X - film » → « Supernatural » / « X »
+      const baseTitle = cardTitle.replace(/\s*[-–—]\s*(?:s[ée]rie|film)\s*$/i, '').trim();
+      const cleanBase = candidateBaseTitle(baseTitle) || baseTitle;
+      try {
+        const jsonStr = rawJson
+          .replace(/&quot;/g, '"')
+          .replace(/&amp;/g, '&')
+          .replace(/&#0?39;/g, "'");
+        const seasonsData = JSON.parse(jsonStr) as Array<{ n: number | string; l: string; p?: string }>;
+        for (const season of seasonsData) {
+          const seasonUrl = String(season.l || '');
+          if (!seasonUrl) continue;
+          items.push({
+            url: seasonUrl.startsWith('http') ? seasonUrl : `${BASE_URL}${seasonUrl}`,
+            poster: season.p || '',
+            title: `${cleanBase || baseTitle || cardTitle} - Saison ${season.n}`,
+          });
+        }
+      } catch (e) {
+        console.error(`[FrenchStream] Erreur parsing data-seasons:`, (e as Error).message);
+      }
     }
 
     return items;
@@ -103,10 +142,6 @@ export async function searchFrenchStream(query: string): Promise<FrenchStreamSea
     return [];
   }
 }
-
-/**
- * Extrait les liens de lecteurs Vidzy (TRUEFRENCH, FRENCH, VOSTFR) depuis la page du film
- */
 export async function extractEmbedVersions(pageUrl: string): Promise<{
   title: string;
   versions: FrenchStreamVersion[];
@@ -996,19 +1031,14 @@ export async function getFrenchStreamEpisode(
       }
       const pool = relevant;
 
-      // Saison annoncée exacte d'abord, sinon la page de saison la plus proche :
-      // les animés sont découpés en arcs « Saison N » qui ne suivent pas la
-      // numérotation TMDB.
-      const best =
-        pool.find((it) => saisonOf(it.title) === targetSeason || saisonOf(it.url) === targetSeason) ??
-        pool.reduce(
-          (a, b) =>
-            Math.abs((saisonOf(b.title ?? '') ?? 0) - targetSeason) <
-            Math.abs((saisonOf(a.title ?? '') ?? 0) - targetSeason)
-              ? b
-              : a,
-          pool[0]
-        );
+      // Saison exacte uniquement — pas de fallback sur une saison différente,
+      // sinon on résoudrait des épisodes d'une autre saison (ex: S1E1 pour S2E1).
+      const best = pool.find((it) => saisonOf(it.title) === targetSeason || saisonOf(it.url) === targetSeason);
+
+      if (!best) {
+        console.log(`[FrenchStream HQ] Aucune page pour la saison ${targetSeason} sur FrenchStream — skip.`);
+        return null;
+      }
 
       console.log(`[FrenchStream HQ] Page série trouvée: ${best.url} (${best.title})`);
       bestUrl = best.url;

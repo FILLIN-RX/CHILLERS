@@ -11,6 +11,7 @@ import {
   getPopularMovies,
   getPopularTV,
   getMediaLogo,
+  getDisponible,
 } from "@/services/media";
 import type { MovieOrShow, Episode } from "@/types/media";
 import VideoPlayer from "@/components/VideoPlayer";
@@ -22,6 +23,7 @@ import DownloadModal from "@/features/downloads/DownloadModal";
 import MovieCard from "@/components/MovieCard";
 import ScrollRow from "@/components/ScrollRow";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { useSeasonAvailability } from "@/hooks/useSeasonAvailability";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { userService } from "@/services/user";
 import { PopupFirewall } from "@/lib/PopupFirewall";
@@ -91,6 +93,9 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
   const [pageLoading, setPageLoading] = useState(!initialItem);
 
   const [episodes, setEpisodes] = useState<Episode[]>([]);
+  const [disponible, setDisponible] = useState<{ disponible: boolean } | null>(null);
+  const { isUnavailable: isSeasonUnavailable, markUnavailable } = useSeasonAvailability(id);
+  const currentSeasonUnavailable = isSeasonUnavailable(currentSeason);
   const [currentEpisodeIndex, setCurrentEpisodeIndex] = useState(0);
   const [seasonLoading, setSeasonLoading] = useState(false);
 
@@ -359,7 +364,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
   // Switch Season Handler
   const handleSeasonChange = useCallback(
     async (newSeason: number) => {
-      if (!id || newSeason === currentSeason) return;
+      if (!id || newSeason === currentSeason || isSeasonUnavailable(newSeason)) return;
       setCurrentSeason(newSeason);
       setSeasonLoading(true);
       setStreamLoading(true);
@@ -400,6 +405,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
           );
         if (!applyStream(stream)) {
           setStreamUnavailable(true);
+          markUnavailable(newSeason);
         }
 
           // Update URL silently
@@ -410,16 +416,18 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
           );
         } else {
           setStreamUnavailable(true);
+          markUnavailable(newSeason);
         }
       } catch (err) {
         console.error("Season switch error:", err);
         setStreamUnavailable(true);
+        markUnavailable(newSeason);
       } finally {
         setSeasonLoading(false);
         setStreamLoading(false);
       }
     },
-    [id, currentSeason, item, audioVersion, _]
+    [id, currentSeason, item, audioVersion, _, isSeasonUnavailable, markUnavailable]
   );
 
   // Play Specific Episode Handler
@@ -448,6 +456,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
         );
           if (!applyStream(stream)) {
             setStreamUnavailable(true);
+            markUnavailable(currentSeason);
           }
 
         // Update URL silently
@@ -459,6 +468,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
       } catch (err) {
         console.error("Episode stream error:", err);
         setStreamUnavailable(true);
+        markUnavailable(currentSeason);
       } finally {
         setStreamLoading(false);
       }
@@ -467,7 +477,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
         100
       );
     },
-    [episodes, id, item, currentSeason, audioVersion]
+    [episodes, id, item, currentSeason, audioVersion, markUnavailable]
   );
 
   // Switch Audio Version (VF vs VOSTFR)
@@ -597,6 +607,13 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
     } catch {}
   };
 
+  useEffect(() => {
+    if (!id) return;
+    getDisponible(id, "series", item?.title).then((d) => {
+      if (d) setDisponible(d);
+    }).catch(() => {});
+  }, [id, item?.title]);
+
   const availableSeasons = item?.seasons?.filter((s) => s.seasonNumber > 0) || [];
 
   const playerItem: MovieOrShow | null = item
@@ -610,11 +627,13 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
       : { ...item, videoUrl: streamUrl }
     : null;
 
-  const showPlayerSkeleton = (streamLoading || !playerItem) && !streamUnavailable;
+  const showUnavailable = streamUnavailable || currentSeasonUnavailable;
+  const episodesBlocked = disponible?.disponible === false || currentSeasonUnavailable;
+  const showPlayerSkeleton = (streamLoading || !playerItem) && !showUnavailable;
 
   if (!pageLoading && !item) {
     return (
-      <div className="min-h-screen bg-[#1F1F1F] text-white flex items-center justify-center px-4 pt-16">
+      <div className="min-h-screen bg-[#1F1F1F] text-white flex flex-col px-4">
         <div className="text-center space-y-4 max-w-md">
           <FilmSlate className="h-16 w-16 text-zinc-700 mx-auto" />
           <h1 className="text-xl font-bold text-white">{_("watch.contentNotFound")}</h1>
@@ -638,7 +657,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
   return (
     <div className="min-h-screen bg-[#1F1F1F] text-white">
       <div
-        className={`pt-[64px] sm:pt-[70px] pb-16 sm:pb-20 lg:pb-24 ${
+        className={`pt-[46px] sm:pt-[56px] pb-16 sm:pb-20 lg:pb-24 ${
           hasSidebar ? "lg:pr-[26rem] xl:pr-[28rem]" : ""
         }`}
       >
@@ -678,17 +697,21 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
                   </button>
                 </div>
               </div>
-            ) : streamUnavailable ? (
+            ) : showUnavailable ? (
               <div className="w-full min-h-[220px] sm:min-h-[360px] aspect-video max-h-[75dvh] flex flex-col items-center justify-center gap-4 px-6 bg-zinc-950/90">
                 <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-zinc-800/80 flex items-center justify-center border border-zinc-700/50">
                   <FilmSlate className="h-8 w-8 sm:h-10 sm:w-10 text-zinc-500" />
                 </div>
                 <div className="text-center max-w-md space-y-2">
                   <h3 className="text-base sm:text-xl font-bold text-white">
-                    {isUnreleased ? _("media.comingSoon") : _("media.streamUnavailable")}
+                    {currentSeasonUnavailable
+                      ? `Saison ${currentSeason} non disponible`
+                      : isUnreleased ? _("media.comingSoon") : _("media.streamUnavailable")}
                   </h3>
                   <p className="text-zinc-400 text-xs sm:text-sm leading-relaxed">
-                    {isUnreleased ? _("media.comingSoonDesc") : _("media.streamUnavailableDesc")}
+                    {currentSeasonUnavailable
+                      ? "Aucun fournisseur ne diffuse cette saison pour le moment."
+                      : isUnreleased ? _("media.comingSoonDesc") : _("media.streamUnavailableDesc")}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-brand-primary/10 border border-brand-primary/20">
@@ -743,13 +766,13 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
 
         {/* Media Details & Controls */}
         <div className="mt-3 sm:mt-6 space-y-3 sm:space-y-5 px-3 sm:px-6 md:px-10 lg:px-[3%]">
-          {/* Series Episode Switcher Quick Bar */}
+          {/* Series Episode Switcher Quick Bar — liquid glass */}
           {hasEpisodes && (
-            <div className="flex items-center justify-between gap-1.5 sm:gap-2 p-2 sm:p-3 rounded-xl bg-zinc-900/80 border border-white/5 backdrop-blur-md">
+            <div className="liquid-glass-surface liquid-glass-surface-page flex items-center justify-between gap-1.5 rounded-xl p-2 sm:gap-2 sm:p-3">
               <button
                 onClick={playPrevEpisode}
                 disabled={currentEpisodeIndex === 0}
-                className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-[5px] bg-white/5 text-xs font-semibold text-zinc-300 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all flex-shrink-0 cursor-pointer"
+                className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-white/10 border border-white/10 text-xs font-semibold text-zinc-200 hover:bg-white/20 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all flex-shrink-0 cursor-pointer"
               >
                 <CaretCircleLeft className="h-4 w-4" />
                 <span className="hidden sm:inline">{_("common.previous")}</span>
@@ -767,7 +790,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
               <button
                 onClick={playNextEpisode}
                 disabled={currentEpisodeIndex >= episodes.length - 1}
-                className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-[5px] bg-white/5 text-xs font-semibold text-zinc-300 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all flex-shrink-0 cursor-pointer"
+                className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-white/10 border border-white/10 text-xs font-semibold text-zinc-200 hover:bg-white/20 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all flex-shrink-0 cursor-pointer"
               >
                 <span className="hidden sm:inline">{_("common.next")}</span>
                 <CaretCircleRight className="h-4 w-4" />
@@ -908,8 +931,12 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
                     className="appearance-none bg-zinc-800 text-white font-bold text-[11px] sm:text-xs py-1.5 pl-3 pr-8 rounded-lg border border-white/10 focus:outline-none focus:border-brand-primary"
                   >
                     {availableSeasons.map((s) => (
-                      <option key={s.seasonNumber} value={s.seasonNumber}>
-                        {s.name || `S${s.seasonNumber}`} ({s.episodeCount} ép.)
+                      <option
+                        key={s.seasonNumber}
+                        value={s.seasonNumber}
+                        disabled={isSeasonUnavailable(s.seasonNumber)}
+                      >
+                        {s.name || `S${s.seasonNumber}`} ({s.episodeCount} ép.){isSeasonUnavailable(s.seasonNumber) ? " — Non disponible" : ""}
                       </option>
                     ))}
                   </select>
@@ -926,6 +953,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
                   active={idx === currentEpisodeIndex}
                   onClick={() => playEpisode(idx)}
                   onDownload={() => handleDownloadSingle(ep)}
+                  disponible={{ disponible: episodesBlocked }}
                 />
               ))}
             </div>
@@ -994,7 +1022,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
       {/* ─── Desktop Persistent Right Sidebar (PC Only) ─── */}
       {/* Case 1: Series / Anime (Episodes Drawer) */}
       {hasEpisodes ? (
-        <aside className="hidden lg:block fixed top-[64px] sm:top-[70px] right-0 w-[26rem] xl:w-[28rem] h-[calc(100dvh-64px)] sm:h-[calc(100dvh-70px)] bg-[#1F1F1F]/98 backdrop-blur-2xl border-l border-white/5 overflow-y-auto p-4 z-30 space-y-3">
+        <aside className="hidden lg:block fixed top-[46px] sm:top-[56px] right-0 w-[26rem] xl:w-[28rem] h-[calc(100dvh-46px)] sm:h-[calc(100dvh-56px)] bg-[#1F1F1F]/98 backdrop-blur-2xl border-l border-white/5 overflow-y-auto p-4 z-30 space-y-3">
           {/* Season Selector Dropdown */}
           <div className="sticky top-0 bg-[#1F1F1F] backdrop-blur-md pb-3 pt-1 z-30 border-b border-white/5 space-y-2">
             <div className="flex items-center justify-between">
@@ -1011,11 +1039,16 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
                   onChange={(e) => handleSeasonChange(parseInt(e.target.value))}
                   className="w-full appearance-none bg-zinc-800/90 text-white font-bold text-sm py-2.5 pl-3.5 pr-10 rounded-xl border border-white/10 hover:border-white/20 focus:outline-none focus:border-brand-primary transition-all cursor-pointer"
                 >
-                  {availableSeasons.map((s) => (
-                    <option key={s.seasonNumber} value={s.seasonNumber} className="bg-zinc-900 text-white">
-                      {s.name || `Saison ${s.seasonNumber}`} ({s.episodeCount} épisodes)
-                    </option>
-                  ))}
+                    {availableSeasons.map((s) => (
+                      <option
+                        key={s.seasonNumber}
+                        value={s.seasonNumber}
+                        disabled={isSeasonUnavailable(s.seasonNumber)}
+                        className="bg-zinc-900 text-white"
+                      >
+                        {s.name || `Saison ${s.seasonNumber}`} ({s.episodeCount} épisodes){isSeasonUnavailable(s.seasonNumber) ? " — Non disponible" : ""}
+                      </option>
+                    ))}
                 </select>
                 <CaretDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-400 pointer-events-none" />
               </div>
@@ -1031,65 +1064,59 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
                 active={idx === currentEpisodeIndex}
                 onClick={() => playEpisode(idx)}
                 onDownload={() => handleDownloadSingle(ep)}
+                disponible={{ disponible: episodesBlocked }}
               />
             ))}
           </div>
         </aside>
       ) : !isTV && similar.length > 0 ? (
         /* Case 2: Movies (Similar Recommendations Drawer on PC) */
-        <aside className="hidden lg:block fixed top-[64px] sm:top-[70px] right-0 w-[26rem] xl:w-[28rem] h-[calc(100dvh-64px)] sm:h-[calc(100dvh-70px)] bg-[#1F1F1F]/98 backdrop-blur-2xl border-l border-white/5 overflow-y-auto p-4 z-30 space-y-3">
-          <div className="sticky top-0 bg-[#1F1F1F] backdrop-blur-md pb-3 pt-1 z-30 border-b border-white/5 flex items-center justify-between">
+        <aside className="hidden lg:block fixed top-[46px] sm:top-[56px] right-0 w-[26rem] xl:w-[28rem] h-[calc(100dvh-46px)] sm:h-[calc(100dvh-56px)] bg-[#1F1F1F]/98 backdrop-blur-2xl border-l border-white/5 p-4 z-30 flex flex-col">
+          <div className="sticky top-0 bg-[#1F1F1F] backdrop-blur-md pb-3 pt-1 z-30 border-b border-white/5 flex items-center justify-between shrink-0">
             <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
               <span className="h-3 w-1 rounded-full bg-brand-primary" />
               {_("media.youMightAlsoLike")} ({similar.length})
             </h3>
           </div>
 
-          {/* Desktop Similar Movie Cards */}
-          <div className="space-y-2.5 pb-8">
+          <div className="max-h-[calc(100vh-160px)] overflow-y-auto mt-3 space-y-1 pr-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
             {similar.map((sim) => (
               <div
                 key={sim.id}
                 onClick={() => router.push(`/watch/${sim.id}?type=movie`)}
-                className="group flex items-start gap-3 p-2.5 rounded-xl cursor-pointer transition-all bg-white/[0.02] hover:bg-white/[0.06] border border-transparent hover:border-white/10"
+                className="group flex items-start gap-3 p-2.5 rounded-xl cursor-pointer transition-all hover:bg-white/5"
               >
                 <div className="flex-none w-20 sm:w-24 aspect-[2/3] rounded-lg overflow-hidden bg-zinc-800 relative">
                   <CardImage
                     src={sim.posterUrl || sim.backdropUrl}
                     alt={sim.title}
                     fill
-                    className="object-cover transition-transform group-hover:scale-105"
-                    sizes="96px"
-                    fallbackText={sim.title}
+                    className="object-cover"
+                    sizes="120px"
                   />
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <div className="w-7 h-7 rounded-full bg-brand-primary flex items-center justify-center shadow-lg">
-                      <Play className="h-3.5 w-3.5 text-white fill-white ml-0.5" />
+                      <Play className="w-3 h-3 text-white fill-white ml-0.5" />
                     </div>
                   </div>
                 </div>
 
                 <div className="flex-1 min-w-0 flex flex-col justify-center">
-                  <h4 className="text-xs sm:text-sm font-bold text-white group-hover:text-brand-primary transition-colors line-clamp-1 leading-snug">
+                  <h4 className="text-sm font-bold text-white line-clamp-2 leading-tight group-hover:text-white transition-colors">
                     {sim.title}
                   </h4>
                   <div className="flex items-center gap-2 text-[10px] text-zinc-400 mt-1">
                     {sim.year > 0 && <span>{sim.year}</span>}
                     {sim.rating > 0 && (
-                      <span className="text-amber-400 font-semibold flex items-center gap-0.5">
-                        <Star className="h-3 w-3 fill-amber-400" />
-                        {Math.round(sim.rating * 10)}%
-                      </span>
+                      <>
+                        <span className="text-zinc-600">•</span>
+                        <div className="flex items-center gap-0.5 text-amber-400">
+                          <Star className="w-3 h-3 fill-amber-400" />
+                          <span>{sim.rating}</span>
+                        </div>
+                      </>
                     )}
-                    <span className="px-1 py-0.2 rounded bg-zinc-800 text-[9px] uppercase font-bold text-zinc-300">
-                      HD
-                    </span>
                   </div>
-                  {(sim.synopsis || sim.description) && (
-                    <p className="text-[10px] text-zinc-500 line-clamp-2 leading-tight mt-1">
-                      {sim.synopsis || sim.description}
-                    </p>
-                  )}
                 </div>
               </div>
             ))}
@@ -1146,18 +1173,24 @@ function EpisodeCard({
   active,
   onClick,
   onDownload,
+  disponible,
 }: {
   ep: Episode;
   active: boolean;
   onClick: () => void;
   onDownload?: () => void;
+  disponible?: { disponible: boolean } | null;
 }) {
+  const isComingSoon = !ep.airDate || new Date(ep.airDate) > new Date();
+  const isUnavailable = disponible?.disponible === false;
   return (
     <div
-      onClick={onClick}
+      onClick={isComingSoon ? undefined : onClick}
       className={`group flex items-start gap-2.5 sm:gap-3 p-2 sm:p-2.5 rounded-xl cursor-pointer transition-all border ${
         active
           ? "bg-zinc-800/80 border-brand-primary/40 shadow-lg"
+          : isComingSoon
+          ? "bg-zinc-900/50 text-zinc-400 opacity-50 border-zinc-800/30 cursor-not-allowed"
           : "bg-white/[0.02] hover:bg-white/[0.06] border-transparent"
       }`}
     >
@@ -1183,13 +1216,15 @@ function EpisodeCard({
         <div className="flex items-center justify-between gap-1">
           <h4
             className={`text-[11px] sm:text-sm font-bold line-clamp-1 leading-snug ${
-              active ? "text-brand-primary" : "text-white group-hover:text-zinc-200"
+              active ? "text-brand-primary" : isComingSoon ? "text-zinc-400 opacity-50" : "text-white group-hover:text-zinc-200"
             }`}
           >
-            {ep.number}. {ep.title}
+            {isComingSoon
+              ? `${ep.number}. ${ep.title} — Bientôt disponible`
+              : `${ep.number}. ${ep.title}`}
           </h4>
 
-          {onDownload && (
+          {onDownload && !isComingSoon && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -1203,12 +1238,18 @@ function EpisodeCard({
           )}
         </div>
 
-        <span className="text-[10px] sm:text-[11px] text-zinc-400 mt-0.5">
-          {ep.duration}
+        <span className={isComingSoon
+          ? "text-[10px] sm:text-[11px] text-zinc-400 opacity-50 mt-0.5"
+          : "text-[10px] sm:text-[11px] text-zinc-400 mt-0.5"
+        }>
+          {isComingSoon ? "—" : ep.duration}
         </span>
 
         {ep.synopsis && (
-          <p className="text-[10px] sm:text-[11px] text-zinc-500 line-clamp-2 leading-tight mt-0.5">
+          <p className={isComingSoon
+            ? "text-[10px] sm:text-[11px] text-zinc-500 line-clamp-2 leading-tight mt-0.5 opacity-50"
+            : "text-[10px] sm:text-[11px] text-zinc-500 line-clamp-2 leading-tight mt-0.5"
+          }>
             {ep.synopsis}
           </p>
         )}

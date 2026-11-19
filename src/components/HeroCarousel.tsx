@@ -11,7 +11,9 @@ import Button from "@/components/Button";
 import { getMediaTrailerUrl, getMediaLogo } from "@/app/api";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { userService } from "@/services/user";
-import AuthModal from "@/components/AuthModal";
+
+
+
 
 interface HeroCarouselProps {
   slides: MovieOrShow[];
@@ -49,32 +51,43 @@ export default function HeroCarousel({
   const videoRef = useRef<HTMLVideoElement>(null);
   const { translate: _ } = useLanguage();
   const { user, token, updateUser } = useAuthStore();
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [favoriteLoadingId, setFavoriteLoadingId] = useState<string | number | null>(null);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
 
-  const handleToggleFavorite = async (slide: MovieOrShow) => {
-    if (!token || !user) {
-      setIsAuthModalOpen(true);
-      return;
-    }
-    setFavoriteLoadingId(slide.id);
-    try {
-      const isTV = slide.type === "series" || slide.type === "anime";
-      const res = await userService.toggleFavorite(token, {
-        mediaType: isTV ? "series" : "movie",
-        tmdbId: String(slide.id),
-        title: slide.title,
-        posterPath: slide.posterUrl,
-      });
-      if (res.success && res.favorites) {
-        updateUser({ favorites: res.favorites });
+  const isFavoriteSlide = useCallback(
+    (slide: MovieOrShow): boolean => {
+      const wantsSeries = slide.type === "series" || slide.type === "anime";
+      return Boolean(
+        user?.favorites?.some((f: { tmdbId?: string | number; mediaType?: string }) => {
+          if (String(f.tmdbId) !== String(slide.id)) return false;
+          return wantsSeries ? f.mediaType === "series" || f.mediaType === "anime" : f.mediaType === "movie";
+        }),
+      );
+    },
+    [user],
+  );
+
+  const toggleFavoriteForSlide = useCallback(
+    async (slide: MovieOrShow) => {
+      if (!token || !user) return;
+      setFavoriteLoading(true);
+      try {
+        const mediaType: "movie" | "series" | "anime" =
+          slide.type === "series" ? "series" : slide.type === "anime" ? "anime" : "movie";
+        const res = await userService.toggleFavorite(token, {
+          mediaType,
+          tmdbId: String(slide.id),
+          title: slide.title,
+          posterPath: slide.posterUrl,
+        });
+        if (res.success) updateUser({ favorites: res.favorites });
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setFavoriteLoading(false);
       }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setFavoriteLoadingId(null);
-    }
-  };
+    },
+    [token, user, updateUser],
+  );
 
   useEffect(() => {
     setIsMobile(window.innerWidth < 768);
@@ -247,7 +260,11 @@ export default function HeroCarousel({
           // Ne rendre l'image que pour les slides proches (courante ±1) :
           // évite de charger/décoder 10 backdrops full-bleed dès le premier rendu.
           const isNear = Math.abs(index - currentIndex) <= 1;
-          const slideBackdropUrl = slide.backdropUrl || slide.backdropOriginalUrl;
+          // Desktop : backdrop large (format cinéma). Mobile : affiche portrait,
+          // plus lisible sur écran étroit — on y garde le rendu épuré.
+          const desktopArt = slide.backdropOriginalUrl || slide.backdropUrl || slide.posterUrl;
+          const mobileArt = slide.posterUrl || slide.backdropUrl || slide.backdropOriginalUrl;
+          const slideBackdropUrl = hydrated && !isMobile ? desktopArt : mobileArt;
           const activeTrailer = slide.videoUrl || trailerMap[slide.id];
           const slideLogo = slide.logoUrl || logoMap[String(slide.id)];
           const ytKey = getYouTubeKey(activeTrailer);
@@ -380,28 +397,22 @@ export default function HeroCarousel({
                       {_("hero.watchNow")}
                     </Button>
 
-                    {(() => {
-                      const isFavorite = user?.favorites?.some((f) => f.tmdbId === String(slide.id));
-                      const isFavLoading = favoriteLoadingId === slide.id;
-                      return (
+                    {/* Favori : desktop + utilisateur connecté uniquement.
+                        Sur mobile le hero reste épuré. */}
+                    {user && (
+                      <span className="hidden sm:inline-flex">
                         <Button
-                          onClick={() => handleToggleFavorite(slide)}
-                          disabled={isFavLoading}
-                          variant="dark"
-                          size="lg"
-                          leftIcon={
-                            <BookmarkSimple
-                              weight={isFavorite ? "fill" : "regular"}
-                              className={`h-4 w-4 sm:h-5 sm:w-5 ${isFavorite ? "text-brand-primary" : "fill-current"}`}
-                            />
-                          }
-                          ariaLabel={isFavorite ? _("hero.inFavorites") : _("hero.addToFavorites")}
-                          className="bg-black/50 border-white/15 text-zinc-100 hover:text-white hover:bg-black/70 backdrop-blur-md max-sm:!border-white/20 max-sm:!bg-white/10 max-sm:!text-white max-sm:!text-sm max-sm:!px-4 max-sm:!py-2 max-sm:!min-h-[40px]"
-                        >
-                          <span>{isFavorite ? _("hero.inFavorites") : _("hero.addToFavorites")}</span>
-                        </Button>
-                      );
-                    })()}
+                          onClick={() => toggleFavoriteForSlide(slide)}
+                          disabled={favoriteLoading}
+                          variant={isFavoriteSlide(slide) ? "primary" : "outline"}
+                          size="icon"
+                          ariaLabel={isFavoriteSlide(slide) ? "Retirer des favoris" : "Ajouter aux favoris"}
+                          icon={<BookmarkSimple className="h-5 w-5" />}
+                          borderRadius="9999px"
+                          className="h-12 w-12"
+                        />
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -435,10 +446,6 @@ export default function HeroCarousel({
         ))}
       </div>
 
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-      />
     </section>
   );
 }

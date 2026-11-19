@@ -11,6 +11,8 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import { useDownloadsStore } from "@/store/downloads";
 import AuthModal from "@/components/AuthModal";
 import UserAvatar from "@/components/UserAvatar";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
+import LiquidGlassIndicator from "@/components/ui/LiquidGlassIndicator";
 
 interface HeaderProps {
   onSearchClick: () => void;
@@ -39,6 +41,7 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const headerRef = useRef<HTMLElement>(null);
+  const navRef = useRef<HTMLElement>(null);
 
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
@@ -78,8 +81,8 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
         {/* Verre dépoli : léger au repos, quasi opaque + flou intense au scroll */}
         <div
           aria-hidden
-          className={`glass-nav pointer-events-none absolute inset-0 backdrop-saturate-150 ${
-            isGlass ? "glass-nav-strong" : ""
+          className={`pointer-events-none absolute inset-0 transition-all duration-300 ${
+            isGlass ? "glass-nav glass-nav-strong backdrop-saturate-150" : "bg-transparent"
           }`}
         />
         <div
@@ -123,13 +126,19 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
                   className="h-7 sm:h-8 w-auto object-contain transition-transform duration-300 group-hover:scale-105 drop-shadow-[0_0_12px_rgba(215,4,102,0.4)]"
                   priority
                 />
-                <span className="text-lg sm:text-xl font-isometra tracking-tight text-white flex items-center -ml-1.5">
+                <span className="text-lg sm:text-xl font-bold tracking-tight text-white flex items-center -ml-1.5">
                   HILL<span className="text-brand-primary">ERS</span>
                 </span>
               </Link>
 
-              {/* ONGLETS DESKTOP (Couleur Primary pure sans glassmorphism sur l'actif) */}
-              <nav className="hidden lg:flex items-center gap-2">
+              {/* ONGLETS DESKTOP — pastille liquid glass sous l'onglet actif */}
+              <nav ref={navRef} className="hidden lg:flex items-center gap-2 relative">
+                <LiquidGlassIndicator
+                  containerRef={navRef}
+                  activeKey={activeTab}
+                  variant="brand"
+                  insetX={-2}
+                />
                 {tabs.map((tab) => {
                   const isActive = activeTab === tab.id;
                   const ActiveIcon = tab.fillIcon ?? tab.icon;
@@ -138,10 +147,11 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
                     <Link
                       key={tab.id}
                       href={tab.href}
+                      data-liquid-active={isActive}
                       aria-current={isActive ? "page" : undefined}
-                      className={`relative flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium transition-colors focus:outline-none ${
+                      className={`relative z-10 flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium transition-colors focus:outline-none ${
                         isActive
-                          ? "text-brand-primary font-bold"
+                          ? "text-white font-bold drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]"
                           : "text-zinc-400 hover:text-white"
                       }`}
                     >
@@ -152,10 +162,11 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
                 })}
                 <Link
                   href="/categories"
+                  data-liquid-active={activeTab === "categories"}
                   aria-current={activeTab === "categories" ? "page" : undefined}
-                  className={`relative flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium transition-colors focus:outline-none ${
+                  className={`relative z-10 flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium transition-colors focus:outline-none ${
                     activeTab === "categories"
-                      ? "text-brand-primary font-bold"
+                      ? "text-white font-bold drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]"
                       : "text-zinc-400 hover:text-white"
                   }`}
                 >
@@ -193,6 +204,9 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
                   <span className="absolute top-1 right-1 flex h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-black" />
                 ) : null}
               </Link>
+
+              {/* SÉLECTEUR DE LANGUE (liquid glass, PC uniquement) */}
+              <LanguageSwitcher />
 
               {/* BOUTON RECHERCHE (Placé juste à côté de l'avatar) */}
               <button

@@ -1,6 +1,7 @@
 import tmdbClient from '../../config/tmdb';
 import { toTMDBLanguage } from '../../config/language';
 import Serie from '../../models/Serie';
+import ProviderCatalogItem from '../../models/ProviderCatalogItem';
 import {
   applyCatalogFilterToDetail,
   applyCatalogFilterToPage,
@@ -274,6 +275,114 @@ export const getSeasonDetails = async (id: string, seasonNumber: string, languag
   } catch {}
 
   return data;
+};
+
+export interface SeasonAvailabilityInfo {
+  season: number;
+  hasSources: boolean;
+  released: boolean;
+  airing: boolean;
+  future: boolean;
+  airedEpisodes: number;
+  episodeCount: number;
+}
+
+/**
+ * Statut de disponibilité par saison.
+ * - hasSources : une source catalogue/locale est connue.
+ * - released/airing/future : déduit de TMDB (dates d'épisodes / next_episode_to_air).
+ *
+ * Une saison ne doit être bloquée que si elle est FUTURE sans source.
+ * Si elle est sortie (ou en cours), on laisse les providers tenter même sans
+ * entrée catalogue — c'est ce qui évitait de marquer "indisponible" des saisons
+ * pourtant diffusées.
+ */
+export const getAvailableSeasons = async (id: string): Promise<SeasonAvailabilityInfo[]> => {
+  const tmdbId = parseInt(id, 10);
+  if (isNaN(tmdbId)) return [];
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  try {
+    const [tmdbRes, catalogItems, serie] = await Promise.all([
+      tmdbClient.get(`/tv/${tmdbId}`, { params: { language: 'fr-FR' } }).catch(() => null),
+      ProviderCatalogItem.find({ tmdbId, active: true }).select('season').lean().exec().catch(() => []),
+      Serie.findOne({ tmdbId })
+        .select('episodes.season episodes.lien episodes.uqloadCode episodes.uqloadLink episodes.streamtapeLink')
+        .lean()
+        .exec()
+        .catch(() => null),
+    ]);
+
+    const tv = (tmdbRes as any)?.data;
+    if (!tv?.seasons) return [];
+
+    const sourceSeasons = new Set<number>();
+    for (const item of catalogItems as any[]) {
+      const s = Number(item?.season);
+      if (Number.isInteger(s) && s > 0) sourceSeasons.add(s);
+    }
+    for (const ep of (serie as any)?.episodes || []) {
+      const hasLink = ep?.lien || ep?.uqloadCode || ep?.uqloadLink || ep?.streamtapeLink;
+      const s = Number(ep?.season);
+      if (hasLink && Number.isInteger(s) && s > 0) sourceSeasons.add(s);
+    }
+
+    const nextEp = tv.next_episode_to_air;
+    const lastEp = tv.last_episode_to_air;
+
+    const result: SeasonAvailabilityInfo[] = [];
+    for (const s of tv.seasons as any[]) {
+      const seasonNum = Number(s?.season_number);
+      if (!Number.isInteger(seasonNum) || seasonNum <= 0) continue;
+
+      const episodeCount = Number(s?.episode_count || 0);
+      const airDateStr = s?.air_date ? String(s.air_date) : '';
+      const airDate = airDateStr ? new Date(airDateStr) : null;
+      const airDateValid = airDate && !isNaN(airDate.getTime());
+      const started = airDateValid ? airDate!.getTime() <= today.getTime() : false;
+
+      let airedEpisodes = 0;
+      if (episodeCount > 0) {
+        if (nextEp && Number(nextEp.season_number) === seasonNum) {
+          // Le prochain épisode à sortir est dans cette saison → ceux d'avant sont sortis.
+          airedEpisodes = Math.max(0, Number(nextEp.episode_number || 1) - 1);
+        } else if (lastEp && Number(lastEp.season_number) === seasonNum) {
+          airedEpisodes = Math.min(episodeCount, Number(lastEp.episode_number || 0));
+        } else if (lastEp && Number(lastEp.season_number) > seasonNum) {
+          // Une saison ultérieure a déjà diffusé → celle-ci est complète.
+          airedEpisodes = episodeCount;
+        } else if (started) {
+          // Saison commencée, sans info épisode précis : on la considère diffusée.
+          airedEpisodes = episodeCount;
+        }
+      }
+
+      const fullyAired = episodeCount > 0 ? airedEpisodes >= episodeCount : started;
+      const airing = started && !fullyAired && airedEpisodes >= 0 && (nextEp ? Number(nextEp.season_number) === seasonNum : (tv.in_production === true && lastEp && Number(lastEp.season_number) === seasonNum));
+      const released = started || airedEpisodes > 0;
+      const future = !released && !airing;
+
+      // Saison en cours de diffusion : commencée mais pas complète.
+      const isAiring = released && !fullyAired && episodeCount > 0;
+
+      result.push({
+        season: seasonNum,
+        hasSources: sourceSeasons.has(seasonNum),
+        released,
+        airing: isAiring,
+        future,
+        airedEpisodes,
+        episodeCount,
+      });
+    }
+
+    return result.sort((a, b) => a.season - b.season);
+  } catch (err: any) {
+    console.warn('[TV] disponibilité des saisons indisponible:', err?.message);
+    return [];
+  }
 };
 
 export const getTrailer = async (id: string, language?: string) => {

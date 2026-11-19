@@ -26,6 +26,9 @@ const PROVIDER_TIMEOUT = 10000;
 const ENRICH_TIMEOUT = 15000;
 const OTAKU_TIMEOUT = 25000;
 const OHA_TIMEOUT = 25000;
+// FrenchStream enchaîne la recherche + la page série + plusieurs hébergeurs
+// (Vidzy peut mettre ~10 s avant timeout). 10 s ne suffisent pas.
+const FRENCHSTREAM_TIMEOUT = 30000;
 const TORRENT_TIMEOUT = 60_000;
 const OHA_CACHE_TTL = 30 * 60 * 1000;
 const CIRCUIT_BREAKER_THRESHOLD = 3;
@@ -415,9 +418,11 @@ export class ProviderManager {
         ? OTAKU_TIMEOUT
         : provider.name === 'oha'
           ? OHA_TIMEOUT
-          : provider.name === 'torrserver'
-            ? TORRENT_TIMEOUT
-            : PROVIDER_TIMEOUT;
+          : provider.name === 'frenchstream'
+            ? FRENCHSTREAM_TIMEOUT
+            : provider.name === 'torrserver'
+              ? TORRENT_TIMEOUT
+              : PROVIDER_TIMEOUT;
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     try {

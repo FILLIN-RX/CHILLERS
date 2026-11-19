@@ -8,7 +8,8 @@ export const search = async (req: Request, res: Response, next: NextFunction) =>
     if (!query.trim()) throw new AppError('Query parameter "q" is required', 400);
     const page = Number(req.query.page) || 1;
     const language = req.query.language as string | undefined;
-    const data = await searchService.searchMulti(query, page, language);
+    const lite = req.query.lite === '1' || req.query.lite === 'true';
+    const data = await searchService.searchMulti(query, page, language, lite);
     res.json({ success: true, data, message: null });
   } catch (error) {
     next(error);

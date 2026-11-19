@@ -698,3 +698,28 @@ export const adminCreatePushCampaign = (payload: { theme: string; audience: 'all
   adminPushRequest<{ success: boolean; data?: AdminPushCampaign; message?: string }>('/admin/campaigns', 'POST', payload, 60_000);
 export const adminCancelPushCampaign = (id: string) =>
   adminPushRequest<{ success: boolean; message?: string }>(`/admin/campaigns/${id}/cancel`, 'POST');
+
+
+/* OpenOtaku session */
+
+export interface OtakuSessionStatus {
+  configured: boolean;
+  isValid: boolean;
+  sessionId?: string | null;
+  expiresAt?: string | null;
+  lastCheckedAt?: string | null;
+  lastError?: string | null;
+  cookiePreview?: string | null;
+}
+
+export const adminGetOtakuSession = () =>
+  adminRequest<AdminEnvelope<OtakuSessionStatus>>("/otaku/session");
+
+export const adminSetOtakuSession = (cookie: string) =>
+  adminRequest<AdminEnvelope<OtakuSessionStatus>>("/otaku/session", { method: "PUT", body: { cookie } });
+
+export const adminRefreshOtakuSession = () =>
+  adminRequest<AdminEnvelope<OtakuSessionStatus>>("/otaku/session/refresh", { method: "POST" });
+
+export const adminClearOtakuSession = () =>
+  adminRequest<AdminEnvelope<OtakuSessionStatus>>("/otaku/session", { method: "DELETE" });

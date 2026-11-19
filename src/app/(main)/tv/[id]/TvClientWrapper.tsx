@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getDisponible, AvailabilityEntry, mapTMDBToMovieOrShow, getMediaLogo, getSeasonDetails } from "@/services/media";
 import { useMediaDetails } from "@/hooks/useMediaDetails";
+import { useSeasonAvailability } from "@/hooks/useSeasonAvailability";
 import { httpJson } from "@/services/http";
 import type { MovieOrShow, Episode } from "@/types/media";
 import { useLanguage } from "@/i18n/LanguageContext";
@@ -18,6 +19,7 @@ import SeriesDownloadModal from "@/features/downloads/SeriesDownloadModal";
 import Button from "@/components/Button";
 import CardImage from "@/components/CardImage";
 import MediaLogo from "@/components/MediaLogo";
+import LiquidGlassIndicator from "@/components/ui/LiquidGlassIndicator";
 import { ArrowLeft, Play, Star, CalendarBlank, FilmSlate, ShareNetwork, BookmarkSimple, X, Check, LinkSimple, ListNumbers, DownloadSimple } from "@phosphor-icons/react";
 
 interface TvClientWrapperProps {
@@ -55,6 +57,7 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
     staleTime: 5 * 60_000,
   });
   const item = itemData ?? null;
+  const { isUnavailable: isSeasonUnavailable, getSeasonInfo } = useSeasonAvailability(id);
 
   const [similar] = useState<MovieOrShow[]>(initialSimilar);
   const [disponible, setDisponible] = useState<AvailabilityEntry | null>(null);
@@ -67,6 +70,7 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
   const [downloadLoading, setDownloadLoading] = useState(false);
   const [downloadOpen, setDownloadOpen] = useState(false);
   const [selectedLang, setSelectedLang] = useState<"fr" | "vostfr">("fr");
+  const audioLangRef = useRef<HTMLDivElement>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   
   const castScrollRef = useRef<HTMLDivElement>(null);
@@ -279,6 +283,10 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
   }, [item]);
 
   const firstSeasonNumber = validSeasons.length > 0 ? validSeasons[0].seasonNumber : 1;
+  const firstPlayableSeasonNumber =
+    validSeasons.find(
+      (s) => disponible?.disponible !== false && !isSeasonUnavailable(s.seasonNumber),
+    )?.seasonNumber ?? firstSeasonNumber;
   const displayTitle = item.title || rawItem.name || "Série";
   const displayRating = item.rating || (rawItem.vote_average ? Number(rawItem.vote_average).toFixed(1) : "8.0");
   const displayYear = item.year || (rawItem.first_air_date ? new Date(rawItem.first_air_date).getFullYear() : "");
@@ -306,14 +314,14 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
           <>
             {/* Mobile : affiche entière plein cadre, ratio 2/3 conservé — rien
                 n'est rogné, posée sur le backdrop flouté de la page. */}
-            <div className="relative aspect-[50/57] w-full shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 ring-1 ring-white/5 sm:hidden">
+            <div className="relative aspect-[2/3] w-full shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 ring-1 ring-white/5 sm:hidden">
               <Image
                 src={displayPoster || displayBackdrop}
                 alt={displayTitle}
                 fill
                 priority
                 quality={85}
-                className="object-cover object-top"
+                className="object-contain"
                 sizes="100vw"
               />
             </div>
@@ -481,13 +489,13 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
                 />
               ) : (
                 <>
-                <Link href={`/tv/${id}/season/${firstSeasonNumber}?lang=${selectedLang}`} className="max-sm:flex-1 sm:flex-none sm:w-auto">
+                <Link href={`/tv/${id}/season/${firstPlayableSeasonNumber}?lang=${selectedLang}`} className="max-sm:flex-1 sm:flex-none sm:w-auto">
                   <Button
                     variant="primary"
                     size="md"
                     text={`Regarder`}
                     leftIcon={<Play className="h-4 w-4 fill-current" />}
-                    ariaLabel={`Regarder la saison ${firstSeasonNumber} de ${item.title}`}
+                    ariaLabel={`Regarder la saison ${firstPlayableSeasonNumber} de ${item.title}`}
                     className="max-sm:flex-1 max-sm:!bg-white max-sm:!text-black max-sm:border-white max-sm:shadow-none sm:w-auto"
                   />
                 </Link>
@@ -496,7 +504,7 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
                   size="md"
                   text={downloadLoading ? "Chargement…" : "Télécharger"}
                   leftIcon={<DownloadSimple className="h-4 w-4" />}
-                  onClick={() => openSeasonDownload(firstSeasonNumber)}
+                  onClick={() => openSeasonDownload(firstPlayableSeasonNumber)}
                   disabled={downloadLoading}
                   ariaLabel="Télécharger les épisodes de cette série"
                   className="max-sm:flex-1 max-sm:justify-center sm:w-auto"
@@ -506,29 +514,38 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
 
               <div className="flex flex-wrap items-center justify-center gap-2.5 sm:contents sm:justify-start sm:gap-3">
                 {!isUpcoming && (
-                  <div className="flex items-center gap-2 flex-wrap rounded-xl bg-white/5 p-1 backdrop-blur-md max-sm:border-0">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedLang("fr")}
-                      className={`px-3 py-2 rounded-[5px] text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                        selectedLang === "fr"
-                          ? "bg-brand-primary text-white shadow-md shadow-brand-primary/30"
-                          : "text-zinc-400 hover:text-white"
-                      }`}
-                    >
-                      <span>VF</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedLang("vostfr")}
-                      className={`px-3 py-2 rounded-[5px] text-xs font-bold transition-all cursor-pointer ${
-                        selectedLang === "vostfr"
-                          ? "bg-brand-primary text-white shadow-md shadow-brand-primary/30"
-                          : "text-zinc-400 hover:text-white"
-                      }`}
-                    >
-                      <span>VOSTFR</span>
-                    </button>
+                  <div className="liquid-glass-surface liquid-glass-surface-page flex items-center rounded-full p-1">
+                    <div ref={audioLangRef} className="relative flex items-center">
+                      <LiquidGlassIndicator
+                        containerRef={audioLangRef}
+                        activeKey={selectedLang}
+                        variant="page"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setSelectedLang("fr")}
+                        data-liquid-active={selectedLang === "fr"}
+                        className={`relative z-10 px-3 py-2 rounded-full text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer ${
+                          selectedLang === "fr"
+                            ? "text-white"
+                            : "text-zinc-300 hover:text-white"
+                        }`}
+                      >
+                        <span>VF</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedLang("vostfr")}
+                        data-liquid-active={selectedLang === "vostfr"}
+                        className={`relative z-10 px-3 py-2 rounded-full text-xs font-bold transition-colors cursor-pointer ${
+                          selectedLang === "vostfr"
+                            ? "text-white"
+                            : "text-zinc-300 hover:text-white"
+                        }`}
+                      >
+                        <span>VOSTFR</span>
+                      </button>
+                    </div>
                   </div>
                 )}
 
@@ -594,7 +611,7 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
         </div>
       </div>
 
-      <div className="w-full px-4 sm:px-8 md:px-12 lg:px-16 py-10 space-y-12">
+      <div className="w-full px-4 sm:px-8 md:px-12 lg:px-16 py-6 sm:py-10 space-y-12">
         <section className="space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2">
@@ -607,13 +624,19 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
           <div className="hidden sm:grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-6 w-full">
             {validSeasons.map((season) => {
               const poster = season.posterUrl || item.posterUrl;
+              const info = getSeasonInfo(season.seasonNumber);
+              const seasonBlocked = disponible?.disponible === false || isSeasonUnavailable(season.seasonNumber);
+              const isAiring = info?.airing === true;
               return (
                 <div
                   key={season.id}
-                  onClick={() => router.push(`/tv/${id}/season/${season.seasonNumber}`)}
-                  className="group cursor-pointer space-y-2 transition-transform duration-300 hover:scale-[1.03]"
+                  onClick={() => seasonBlocked ? undefined : router.push(`/tv/${id}/season/${season.seasonNumber}`)}
+                  className={seasonBlocked
+                    ? "group space-y-2 opacity-50 cursor-not-allowed"
+                    : "group cursor-pointer space-y-2 transition-transform duration-300 hover:scale-[1.03]"
+                  }
                 >
-                  <div className="relative aspect-[2/3] w-full rounded-2xl overflow-hidden bg-zinc-900">
+                  <div className={`relative aspect-[2/3] w-full rounded-2xl overflow-hidden bg-zinc-900 ${isAiring && !seasonBlocked ? 'liquid-glass-surface ring-1 ring-white/20' : ''}`}>
                     <CardImage
                       src={poster}
                       alt={season.name}
@@ -628,18 +651,34 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
                         {season.episodeCount} épisodes
                       </span>
                     </div>
+                    {isAiring && !seasonBlocked && (
+                      <div className="absolute top-2.5 left-2.5 z-20">
+                        <span className="liquid-glass-surface liquid-glass-surface-page px-2 py-0.5 rounded-md text-white font-bold text-[10px] tracking-wide">
+                          {info && info.episodeCount > 0 ? `${info.airedEpisodes}/${info.episodeCount} sortis` : 'En cours'}
+                        </span>
+                      </div>
+                    )}
+                    {seasonBlocked && (
+                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-10">
+                        <span className="px-3 py-1.5 rounded-md bg-red-500/80 text-white font-bold text-xs">
+                          Bientôt disponible
+                        </span>
+                      </div>
+                    )}
+                    {!seasonBlocked && (
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 z-20 pointer-events-none">
                       <div className="w-12 h-12 rounded-full bg-brand-primary flex items-center justify-center text-white shadow-xl transform scale-90 group-hover:scale-100 transition-transform">
                         <Play className="w-5 h-5 fill-white translate-x-0.5" />
                       </div>
                     </div>
+                    )}
                   </div>
                   <div className="space-y-0.5 pt-1">
                     <h3 className="text-sm sm:text-base font-bold text-white group-hover:text-brand-primary transition-colors truncate">
                       {season.name || `Saison ${season.seasonNumber}`}
                     </h3>
                     <p className="text-xs text-zinc-400">
-                      {season.episodeCount} épisodes {season.airDate ? `• ${new Date(season.airDate).getFullYear()}` : ""}
+                      {isAiring && info ? `${info.airedEpisodes}/${info.episodeCount} sortis` : `${season.episodeCount} épisodes`} {season.airDate ? `• ${new Date(season.airDate).getFullYear()}` : ""}
                     </p>
                   </div>
                 </div>
@@ -651,13 +690,19 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
             <ScrollRow title="" accentColor="primary" className="space-y-0">
               {validSeasons.map((season) => {
                 const poster = season.posterUrl || item.posterUrl;
+                const info = getSeasonInfo(season.seasonNumber);
+                const seasonBlocked = disponible?.disponible === false || isSeasonUnavailable(season.seasonNumber);
+                const isAiring = info?.airing === true;
                 return (
                   <div
                     key={season.id}
-                    onClick={() => router.push(`/tv/${id}/season/${season.seasonNumber}`)}
-                    className="group cursor-pointer space-y-2 transition-transform duration-300 hover:scale-[1.03] flex-shrink-0"
+                    onClick={() => seasonBlocked ? undefined : router.push(`/tv/${id}/season/${season.seasonNumber}`)}
+                    className={seasonBlocked
+                      ? "group space-y-2 opacity-50 cursor-not-allowed flex-shrink-0"
+                      : "group cursor-pointer space-y-2 transition-transform duration-300 hover:scale-[1.03] flex-shrink-0"
+                    }
                   >
-                    <div className="relative aspect-[2/3] w-32 rounded-2xl overflow-hidden bg-zinc-900">
+                    <div className={`relative aspect-[2/3] w-32 rounded-2xl overflow-hidden bg-zinc-900 ${isAiring && !seasonBlocked ? 'liquid-glass-surface ring-1 ring-white/20' : ''}`}>
                       <CardImage
                         src={poster}
                         alt={season.name}
@@ -667,20 +712,38 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
                         fallbackText={season.name}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60 group-hover:opacity-30 transition-opacity pointer-events-none" />
-                      <div className="absolute top-2.5 right-2.5">
+                      <div className="absolute top-2.5 right-2.5 z-20">
                         <span className="px-2 py-0.5 rounded-md bg-black/80 backdrop-blur-md text-white font-bold text-[10px]">
                           {season.episodeCount}
                         </span>
                       </div>
+                      {isAiring && !seasonBlocked && (
+                        <div className="absolute top-2.5 left-2.5 z-20">
+                          <span className="liquid-glass-surface liquid-glass-surface-page px-1.5 py-0.5 rounded-md text-white font-bold text-[9px]">
+                            {info && info.episodeCount > 0 ? `${info.airedEpisodes}/${info.episodeCount}` : 'En cours'}
+                          </span>
+                        </div>
+                      )}
+                      {seasonBlocked && (
+                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-10">
+                          <span className="px-2 py-1 rounded-md bg-red-500/80 text-white font-bold text-[10px]">
+                            Bientôt
+                          </span>
+                        </div>
+                      )}
+                      {!seasonBlocked && (
                       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40">
                         <div className="w-10 h-10 rounded-full bg-brand-primary flex items-center justify-center text-white shadow-xl">
                           <Play className="w-4 h-4 fill-white translate-x-0.5" />
                         </div>
                       </div>
+                      )}
                     </div>
                     <div className="space-y-0.5 pt-1 w-32">
                       <h3 className="text-xs font-bold text-white truncate">{season.name}</h3>
-                      <p className="text-[10px] text-zinc-400 truncate">{season.episodeCount} épisodes</p>
+                      <p className="text-[10px] text-zinc-400 truncate">
+                        {isAiring && info ? `${info.airedEpisodes}/${info.episodeCount} sortis` : `${season.episodeCount} épisodes`}
+                      </p>
                     </div>
                   </div>
                 );

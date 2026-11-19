@@ -28,6 +28,7 @@ import AddToPlaylistModal from "@/components/AddToPlaylistModal";
 import Button from "@/components/Button";
 import CardImage from "@/components/CardImage";
 import MediaLogo from "@/components/MediaLogo";
+import LiquidGlassIndicator from "@/components/ui/LiquidGlassIndicator";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { ArrowLeft, Play, Star, Clock, CalendarBlank, FilmSlate, CaretDown, DownloadSimple, ShareNetwork, Sparkle, BookmarkSimple, ListNumbers } from '@phosphor-icons/react';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -82,6 +83,7 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
   const [disponible, setDisponible] = useState<{ disponible: boolean; streaming: boolean; download: boolean; langueAudio?: string; isFrenchAudio?: boolean } | null>(null);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [selectedLang, setSelectedLang] = useState<"fr" | "vostfr">("fr");
+  const audioLangRef = useRef<HTMLDivElement>(null);
   const castScrollRef = useRef<HTMLDivElement>(null);
   const [castCanScrollLeft, setCastCanScrollLeft] = useState(false);
   const [castCanScrollRight, setCastCanScrollRight] = useState(false);
@@ -434,12 +436,12 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
           <>
             {/* Mobile : affiche entière plein cadre, ratio 2/3 conservé — rien
                 n'est rogné, posée sur le backdrop flouté de la page. */}
-            <div className="relative aspect-[50/57] w-full shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 ring-1 ring-white/5 sm:hidden">
+            <div className="relative aspect-[2/3] w-full shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 ring-1 ring-white/5 sm:hidden">
               <Image
                 src={heroImageUrl}
                 alt={item.title}
                 fill
-                className="object-cover object-top"
+                className="object-contain"
                 sizes="100vw"
                 quality={85}
                 priority
@@ -592,54 +594,65 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
                     disabled={!item || loading}
                     variant="primary"
                     size="md"
-                    text={_("media.watch")}
+                    text="Play"
                     leftIcon={<Play className="h-4 w-4 fill-current" />}
-                    ariaLabel={`Regarder le film ${item?.title || ""}`}
+                    ariaLabel={`Play ${item?.title || ""}`}
                     className="max-sm:flex-1 max-sm:!bg-white max-sm:!text-black max-sm:border-white max-sm:shadow-none sm:w-auto"
                   />
                 )}
 
+                {!isUpcoming && (
+                  <Button
+                    onClick={handleDownload}
+                    disabled={!item || loading}
+                    variant="dark"
+                    size="md"
+                    leftIcon={<DownloadSimple className="h-4 w-4" />}
+                    ariaLabel={`Download ${item?.title || ""}`}
+                    className="max-sm:flex-1 max-sm:justify-center sm:flex-none"
+                  >
+                    <span>Download</span>
+                  </Button>
+                )}
+
                 <div className="flex flex-wrap items-center justify-center gap-2.5 sm:contents sm:justify-start sm:gap-3">
                   {!isUpcoming && (
-                    <div className="flex items-center rounded-xl bg-white/5 p-1 backdrop-blur-md max-sm:border-0">
-                      <button
-                        type="button"
-                        onClick={() => handleLangSelect("fr")}
-                        className={`px-3 py-2 rounded-[5px] text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                          selectedLang === "fr"
-                            ? "bg-brand-primary text-white shadow-md shadow-brand-primary/30"
-                            : "text-zinc-400 hover:text-white"
-                        }`}
-                      >
-                        <span>VF</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleLangSelect("vostfr")}
-                        className={`px-3 py-2 rounded-[5px] text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                          selectedLang === "vostfr"
-                            ? "bg-brand-primary text-white shadow-md shadow-brand-primary/30"
-                            : "text-zinc-400 hover:text-white"
-                        }`}
-                      >
-                        <span>VOSTFR</span>
-                      </button>
+                    <div className="liquid-glass-surface liquid-glass-surface-page flex items-center rounded-full p-1">
+                      <div ref={audioLangRef} className="relative flex items-center">
+                        <LiquidGlassIndicator
+                          containerRef={audioLangRef}
+                          activeKey={selectedLang}
+                          variant="page"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleLangSelect("fr")}
+                          data-liquid-active={selectedLang === "fr"}
+                          className={`relative z-10 px-3 py-2 rounded-full text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer ${
+                            selectedLang === "fr"
+                              ? "text-white"
+                              : "text-zinc-300 hover:text-white"
+                          }`}
+                        >
+                          <span>VF</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleLangSelect("vostfr")}
+                          data-liquid-active={selectedLang === "vostfr"}
+                          className={`relative z-10 px-3 py-2 rounded-full text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer ${
+                            selectedLang === "vostfr"
+                              ? "text-white"
+                              : "text-zinc-300 hover:text-white"
+                          }`}
+                        >
+                          <span>VOSTFR</span>
+                        </button>
+                      </div>
                     </div>
                   )}
 
-                  {!isUpcoming && (
-                    <Button
-                      onClick={handleDownload}
-                      disabled={!item || loading}
-                      variant="dark"
-                      size="md"
-                      leftIcon={<DownloadSimple className="h-4 w-4" />}
-                      ariaLabel={`Télécharger ${item.title}`}
-                      className="max-sm:flex-1 max-sm:justify-center sm:flex-none"
-                    >
-                      <span>Télécharger</span>
-                    </Button>
-                  )}
+
 
                   {user && (
                     <Button
@@ -683,7 +696,7 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
       </div>
 
       {/* 2. CONTENU DÉTAILLÉ APRÈS LE HERO */}
-      <div className="w-full px-4 sm:px-8 md:px-12 lg:px-16 py-10 space-y-12">
+      <div className="w-full px-4 sm:px-8 md:px-12 lg:px-16 py-6 sm:py-10 space-y-12">
         {/* Grille Synopsis & Fiche Technique */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Colonne gauche : Synopsis & Réalisateur */}

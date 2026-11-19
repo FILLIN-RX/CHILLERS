@@ -89,6 +89,16 @@ export interface Genre {
   name: string;
 }
 
+export interface SeasonAvailabilityInfo {
+  season: number;
+  hasSources: boolean;
+  released: boolean;
+  airing: boolean;
+  future: boolean;
+  airedEpisodes: number;
+  episodeCount: number;
+}
+
 /** Fiche personne (acteur / réalisateur / …) issue de TMDB /person/{id}. */
 export interface PersonDetails {
   id: string;

@@ -212,6 +212,201 @@ body {
   -webkit-backdrop-filter: blur(30px);
 }
 
+/* ── Liquid Glass — matériau partagé (pastilles, sélecteurs, barres) ──────
+   Verre translucide inspiré d'iOS 26 : flou léger (on doit voir à travers),
+   réfraction des bords via un filtre SVG (Chromium), reflet spéculaire haut
+   clair / bas sombre et teinte adaptative. Utilisé par la pastille d'onglet
+   actif (<LiquidGlassIndicator />), les sélecteurs de langue et la barre
+   d'épisode. */
+.liquid-glass-surface,
+.liquid-glass-tab {
+  position: relative;
+  background-color: rgba(255, 255, 255, 0.055);
+  background-image: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.16) 0%,
+    rgba(255, 255, 255, 0.03) 44%,
+    rgba(255, 255, 255, 0.07) 100%
+  );
+  -webkit-backdrop-filter: blur(3px) saturate(180%) brightness(1.06);
+  backdrop-filter: blur(3px) saturate(180%) brightness(1.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.25),
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.05),
+    0 10px 30px -12px rgba(0, 0, 0, 0.65);
+  isolation: isolate;
+}
+
+/* Réfraction du fond sur les bords (lentille). Uniquement là où le navigateur
+   sait passer un filtre SVG à backdrop-filter (Chromium). Ailleurs on garde
+   le flou léger ci-dessus : le rendu reste un verre dépoli propre. */
+@supports (backdrop-filter: url(#liquid-glass-refraction)) {
+  .liquid-glass-surface,
+  .liquid-glass-tab {
+    -webkit-backdrop-filter: blur(2px) saturate(190%) brightness(1.06)
+      url(#liquid-glass-refraction);
+    backdrop-filter: blur(2px) saturate(190%) brightness(1.06)
+      url(#liquid-glass-refraction);
+  }
+}
+
+/* Reflet diffus : lumière qui accroche le haut du matériau. */
+.liquid-glass-surface::before,
+.liquid-glass-tab::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(
+      120% 90% at 50% -12%,
+      rgba(255, 255, 255, 0.36) 0%,
+      rgba(255, 255, 255, 0) 58%
+    ),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 34%);
+  opacity: 0.9;
+  pointer-events: none;
+}
+
+/* Balayage spéculaire en diagonale. */
+.liquid-glass-surface::after,
+.liquid-glass-tab::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  background: linear-gradient(
+    105deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.22) 47%,
+    transparent 62%
+  );
+  mix-blend-mode: screen;
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+/* Le contenu reste net au-dessus des reflets du matériau. */
+.liquid-glass-surface > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Pastille animée de l'onglet actif (positionnée par le composant). */
+.liquid-glass-tab {
+  position: absolute;
+  border-radius: 9999px;
+  will-change: transform, width, height;
+}
+
+/* Pastille imbriquée dans une surface déjà filtrée : on coupe son propre
+   backdrop-filter. Sinon la surface parente devient un « backdrop root » et
+   la pastille ne verrait plus la page (elle ne flouterait que son parent).
+   Elle reste un second verre teinté posé sur le premier. */
+.liquid-glass-surface .liquid-glass-tab {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* Panneaux flottants (menus, dropdowns) : flou plus marqué pour la lisibilité. */
+.liquid-glass-surface-panel {
+  background-color: rgba(18, 18, 20, 0.72);
+  -webkit-backdrop-filter: blur(18px) saturate(180%) brightness(0.96);
+  backdrop-filter: blur(18px) saturate(180%) brightness(0.96);
+}
+
+@supports (backdrop-filter: url(#liquid-glass-refraction)) {
+  .liquid-glass-surface-panel {
+    -webkit-backdrop-filter: blur(14px) saturate(180%) brightness(0.96)
+      url(#liquid-glass-refraction);
+    backdrop-filter: blur(14px) saturate(180%) brightness(0.96)
+      url(#liquid-glass-refraction);
+  }
+}
+
+/* Variante « page » : verre quasi transparent qui laisse respirer la couleur
+   du fond — sélecteurs et barres des pages détail film/série. */
+.liquid-glass-surface-page {
+  background-color: rgba(255, 255, 255, 0.035);
+  background-image: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.2) 0%,
+    rgba(255, 255, 255, 0.02) 38%,
+    rgba(255, 255, 255, 0) 62%,
+    rgba(255, 255, 255, 0.1) 100%
+  );
+  -webkit-backdrop-filter: blur(4px) saturate(210%) brightness(1.08);
+  backdrop-filter: blur(4px) saturate(210%) brightness(1.08);
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.3),
+    inset 1px 0 0 rgba(255, 255, 255, 0.08),
+    inset -1px 0 0 rgba(255, 255, 255, 0.08),
+    inset 0 0 30px rgba(255, 255, 255, 0.03),
+    0 12px 38px -14px rgba(0, 0, 0, 0.75);
+}
+
+@supports (backdrop-filter: url(#liquid-glass-refraction)) {
+  .liquid-glass-surface-page {
+    -webkit-backdrop-filter: blur(2px) saturate(220%) brightness(1.08)
+      url(#liquid-glass-refraction);
+    backdrop-filter: blur(2px) saturate(220%) brightness(1.08)
+      url(#liquid-glass-refraction);
+  }
+}
+
+.liquid-glass-tab-brand {
+  background-color: rgba(244, 42, 124, 0.16);
+}
+
+.liquid-glass-tab-sport {
+  background-color: rgba(255, 106, 0, 0.18);
+  border-color: rgba(255, 106, 0, 0.35);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.3),
+    inset 0 0 14px rgba(255, 106, 0, 0.18),
+    0 6px 18px -6px rgba(255, 106, 0, 0.35);
+}
+
+/* Pastille active des pages détail : verre neutre qui prend la couleur du
+   fond, avec juste un souffle de marque en bas. */
+.liquid-glass-tab-page {
+  background-color: rgba(255, 255, 255, 0.08);
+  background-image: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.3) 0%,
+    rgba(255, 255, 255, 0.06) 52%,
+    rgba(244, 42, 124, 0.14) 100%
+  );
+  border-color: rgba(255, 255, 255, 0.32);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.32),
+    inset 0 0 18px rgba(255, 255, 255, 0.1),
+    0 6px 20px -6px rgba(0, 0, 0, 0.5);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .liquid-glass-surface,
+  .liquid-glass-tab {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background-image: none;
+    background-color: rgba(39, 39, 42, 0.96);
+  }
+}
+
+@media (prefers-contrast: more) {
+  .liquid-glass-surface,
+  .liquid-glass-tab {
+    border-color: rgba(255, 255, 255, 0.6);
+  }
+}
+
 /* Card hover glow effect */
 .hover-glow {
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);

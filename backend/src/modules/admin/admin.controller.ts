@@ -413,6 +413,54 @@ export async function updateSettings(req: AuthRequest, res: Response) {
     res.json({ success: true, data: { message: 'Paramètres mis à jour (session uniquement)' }, message: null });
 }
 
+export async function getOtakuSession(_req: AuthRequest, res: Response) {
+    try {
+        const { getOtakuSessionStatus } = await import('../otaku/otaku.session');
+        res.json({ success: true, data: getOtakuSessionStatus(), message: null });
+    } catch (e: any) {
+        res.status(500).json({ success: false, data: null, message: e.message });
+    }
+}
+
+export async function setOtakuSession(req: AuthRequest, res: Response) {
+    try {
+        const cookie = String(req.body?.cookie || '').trim();
+        if (!cookie) {
+            res.status(400).json({ success: false, data: null, message: 'Cookie requis' });
+            return;
+        }
+        const { setOtakuSession } = await import('../otaku/otaku.session');
+        const result = await setOtakuSession(cookie);
+        res.json({
+            success: true,
+            data: result.status,
+            message: result.ok ? 'Session OpenOtaku valide' : (result.status.lastError || 'Session invalide'),
+        });
+    } catch (e: any) {
+        res.status(400).json({ success: false, data: null, message: e.message });
+    }
+}
+
+export async function refreshOtakuSession(_req: AuthRequest, res: Response) {
+    try {
+        const { refreshOtakuSession } = await import('../otaku/otaku.session');
+        const result = await refreshOtakuSession(true);
+        res.json({ success: true, data: result.status, message: result.ok ? 'Session valide' : (result.status.lastError || 'Session invalide') });
+    } catch (e: any) {
+        res.status(500).json({ success: false, data: null, message: e.message });
+    }
+}
+
+export async function clearOtakuSession(_req: AuthRequest, res: Response) {
+    try {
+        const { clearOtakuSession, getOtakuSessionStatus } = await import('../otaku/otaku.session');
+        await clearOtakuSession();
+        res.json({ success: true, data: getOtakuSessionStatus(), message: 'Session supprimée' });
+    } catch (e: any) {
+        res.status(500).json({ success: false, data: null, message: e.message });
+    }
+}
+
 export async function triggerScrape(req: AuthRequest, res: Response) {
     if (await scraperProxy(req, res, '/scrape/trigger')) return;
     const type = req.body.type as string || 'series';

@@ -1,10 +1,30 @@
 import axios from 'axios';
 import Movie from '../../models/Movie';
 import Serie from '../../models/Serie';
+import { getOtakuHeaders, hasOtakuCookie, hydrateOtakuSession, OTAKU_BASE_URL } from './otaku.session';
 
-const BASE_URL = 'https://www.open-otaku.me';
+// Host canonique : `www` redirige en 301 vers `open-otaku.me`, et le cookie
+// de session `__Host-*` est host-only (il n'est pas envoyé à `www`).
+const BASE_URL = OTAKU_BASE_URL;
 
 let scrapeInProgress = false;
+let authWarningLogged = false;
+
+function isOtakuAuthError(err: any): boolean {
+  return (
+    err?.response?.status === 401 &&
+    (err?.response?.data?.error?.code === 'AUTH_REQUIRED' || err?.response?.data?.success === false)
+  );
+}
+
+function warnAuthRequired(): void {
+  if (authWarningLogged) return;
+  authWarningLogged = true;
+  console.warn(
+    '[Otaku] L\'API exige une connexion (AUTH_REQUIRED sur /api/fs-watch, /api/episodes, /api/dl). ' +
+      'Collez le cookie de session dans l\'admin (/admin/settings → Session OpenOtaku) ou définissez OTAKU_COOKIE dans backend/.env.'
+  );
+}
 
 function cleanTitle(s: string): string {
   return (s || '')
@@ -53,15 +73,21 @@ async function sleep(ms: number) {
 }
 
 async function fetchWithRetry(url: string, params: any, retries = 3, delayMs = 3000): Promise<any> {
+  await hydrateOtakuSession();
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       const { data } = await axios.get(url, {
         params,
         timeout: 20000,
-        headers: { 'User-Agent': 'Mozilla/5.0' },
+        headers: getOtakuHeaders(),
       });
       return data;
     } catch (err: any) {
+      // Une 401 est définitive : inutile de réessayer 3 fois (3 × 20 s).
+      if (isOtakuAuthError(err)) {
+        warnAuthRequired();
+        throw err;
+      }
       const is429 = err?.response?.status === 429 || err?.message?.includes('429');
       if (is429 && attempt < retries) {
         const wait = delayMs * attempt;
@@ -393,6 +419,10 @@ export async function searchOtaku(
     console.log(`[Otaku] Lien direct non trouvé pour "${title}"`);
     return null;
   } catch (err: any) {
+    if (isOtakuAuthError(err)) {
+      warnAuthRequired();
+      return null;
+    }
     console.error(`[Otaku] Erreur recherche API pour "${title}":`, err.message);
     return null;
   }
@@ -408,12 +438,13 @@ export async function getSpecificEpisodeLink(
     const targetTitle = seriesIdOrTitle || (page?.url ? new URL(page.url()).searchParams.get('watch_fs') : null);
     if (!targetTitle) return null;
 
+    await hydrateOtakuSession();
     let fsId = targetTitle;
     if (isNaN(Number(targetTitle))) {
       const { data } = await axios.get(`${BASE_URL}/api/fs-search`, {
         params: { q: targetTitle },
         timeout: 10000,
-        headers: { 'User-Agent': 'Mozilla/5.0' }
+        headers: getOtakuHeaders()
       });
       fsId = data?.results?.[0]?.id;
     }
@@ -423,7 +454,7 @@ export async function getSpecificEpisodeLink(
     const { data: watch } = await axios.get(`${BASE_URL}/api/fs-watch`, {
       params: { id: fsId },
       timeout: 10000,
-      headers: { 'User-Agent': 'Mozilla/5.0' }
+      headers: getOtakuHeaders()
     });
 
     const rawEps = watch?.episodes || {};
@@ -439,6 +470,10 @@ export async function getSpecificEpisodeLink(
     }
     return null;
   } catch (err: any) {
+    if (isOtakuAuthError(err)) {
+      warnAuthRequired();
+      return null;
+    }
     console.error(`[Otaku] Erreur getSpecificEpisodeLink:`, err.message);
     return null;
   }

@@ -9,6 +9,7 @@ import { initializeSystemSettings } from './scripts/init-system-settings';
 import { startLabScheduler } from './modules/sports/lab/lab-scheduler';
 import { startSportsWarmScheduler } from './modules/sports/warm-scheduler';
 import { startNotificationWorker } from './modules/notifications/notification.worker';
+import { startOtakuSessionKeepAlive } from './modules/otaku/otaku.session';
 
 const PORT = process.env.PORT || 4000;
 
@@ -73,6 +74,7 @@ connectDB().then(async () => {
     startLabScheduler();
     startSportsWarmScheduler();
     startNotificationWorker();
+    startOtakuSessionKeepAlive();
   });
 
   // Augmenter les timeouts pour les téléchargements longs

@@ -4,6 +4,7 @@ import Script from "next/script";
 import { LanguageProvider } from "@/i18n/LanguageContext";
 import { defaultLanguage } from "@/i18n";
 import AdminShortcut from "@/components/AdminShortcut";
+import LiquidGlassFilter from "@/components/ui/LiquidGlassFilter";
 import PWARegister from "@/components/pwa/PWARegister";
 import SplashScreen from "@/components/pwa/SplashScreen";
 // import PWAInstallBanner from "@/components/pwa/PWAInstallBanner"; // Désactivé - banner pas désiré
@@ -173,6 +174,7 @@ export default function RootLayout({
             style={{ display: "none", visibility: "hidden" }}
           />
         </noscript>
+        <LiquidGlassFilter />
         <GoogleAnalytics />
         <SiteVisitTracker />
         <CookieNotice />

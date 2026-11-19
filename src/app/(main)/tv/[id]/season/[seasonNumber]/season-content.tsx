@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { getSeasonDetails, getMediaDetails, getStreamUrl, getSimilarTitles } from "@/services/media";
+import { getSeasonDetails, getMediaDetails, getStreamUrl, getSimilarTitles, getDisponible } from "@/services/media";
 import type { Episode, MovieOrShow } from "@/types/media";
 import VideoPlayer from "@/components/VideoPlayer";
 import MovieCard from "@/components/MovieCard";
@@ -13,6 +13,7 @@ import DownloadModal from "@/features/downloads/DownloadModal";
 import NotificationModal from "@/components/NotificationModal";
 import AuthModal from "@/components/AuthModal";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { useSeasonAvailability } from "@/hooks/useSeasonAvailability";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { userService } from "@/services/user";
 import Button from "@/components/Button";
@@ -50,6 +51,9 @@ export default function SeasonContent() {
   const initialLang = (searchParams?.get("lang") === "vostfr" ? "vostfr" : "fr") as "fr" | "vostfr";
 
   const [detailItem, setDetailItem] = useState<MovieOrShow | null>(null);
+  const [disponible, setDisponible] = useState<{ disponible: boolean } | null>(null);
+  const { isUnavailable: isSeasonUnavailable, markUnavailable } = useSeasonAvailability(id);
+  const currentSeasonUnavailable = isSeasonUnavailable(currentSeasonNum);
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [showTitle, setShowTitle] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -123,6 +127,7 @@ export default function SeasonContent() {
 
         if (detail) {
           setDetailItem(detail);
+          getDisponible(id, "series", detail.title).then((d) => { if (d) setDisponible(d); }).catch(() => {});
           setShowTitle(detail.title);
         }
 
@@ -143,6 +148,7 @@ export default function SeasonContent() {
                 : `https://image.tmdb.org/t/p/original${ep.still_path}`)
               : detail?.backdropUrl || "",
             synopsis: ep.overview || "",
+            airDate: ep.air_date || undefined,
           }));
           setEpisodes(mapped);
 
@@ -173,6 +179,7 @@ export default function SeasonContent() {
               setStreamUnavailable(false);
             } else {
               setStreamUnavailable(true);
+              markUnavailable(currentSeasonNum);
             }
           }
         } else {
@@ -183,11 +190,13 @@ export default function SeasonContent() {
             return;
           }
           setStreamUnavailable(true);
+          markUnavailable(currentSeasonNum);
         }
       } catch (err: any) {
         if (!cancelled && !(err instanceof DOMException && err.name === "AbortError")) {
           console.error("Failed to load season", err);
           setStreamUnavailable(true);
+          markUnavailable(currentSeasonNum);
         }
       } finally {
         if (!cancelled) {
@@ -201,7 +210,7 @@ export default function SeasonContent() {
       cancelled = true;
       controller.abort();
     };
-  }, [id, seasonNumber, targetEpNumber, initialLang, currentSeasonNum, router, _]);
+  }, [id, seasonNumber, targetEpNumber, initialLang, currentSeasonNum, router, _, markUnavailable]);
 
   const currentEpisode = episodes[currentIndex];
 
@@ -231,6 +240,7 @@ export default function SeasonContent() {
         );
         if (!applyStream(stream)) {
           setStreamUnavailable(true);
+          markUnavailable(currentSeasonNum);
         }
 
         window.history.replaceState(
@@ -241,6 +251,7 @@ export default function SeasonContent() {
       } catch (err) {
         console.error("Episode stream error:", err);
         setStreamUnavailable(true);
+        markUnavailable(currentSeasonNum);
       } finally {
         setStreamLoading(false);
       }
@@ -249,11 +260,12 @@ export default function SeasonContent() {
         playerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 100);
     },
-    [episodes, id, seasonNumber, currentSeasonNum, showTitle, detailItem, audioVersion]
+    [episodes, id, seasonNumber, currentSeasonNum, showTitle, detailItem, audioVersion, markUnavailable]
   );
 
   // Changement de saison via dropdown
   const handleSeasonChange = (newSeason: number) => {
+    if (isSeasonUnavailable(newSeason)) return;
     setSeasonLoading(true);
     router.push(`/tv/${id}/season/${newSeason}?ep=1&lang=${audioVersion}`);
   };
@@ -380,7 +392,9 @@ export default function SeasonContent() {
       : { ...detailItem, videoUrl: streamUrl }
     : null;
 
-  const showPlayerSkeleton = (streamLoading || !playerItem) && !streamUnavailable;
+  const showUnavailable = streamUnavailable || currentSeasonUnavailable;
+  const episodesBlocked = disponible?.disponible === false || currentSeasonUnavailable;
+  const showPlayerSkeleton = (streamLoading || !playerItem) && !showUnavailable;
   const hasEpisodes = episodes.length > 0;
 
   return (
@@ -393,17 +407,21 @@ export default function SeasonContent() {
         {/* Main Video Player Section */}
         <div ref={playerRef} className="w-full bg-black">
           <div className="w-full relative mx-auto">
-            {streamUnavailable ? (
+            {showUnavailable ? (
               <div className="w-full min-h-[220px] sm:min-h-[360px] aspect-video max-h-[75dvh] flex flex-col items-center justify-center gap-4 px-6 bg-zinc-950/90">
                 <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-zinc-800/80 flex items-center justify-center border border-zinc-700/50">
                   <FilmSlate className="h-8 w-8 sm:h-10 sm:w-10 text-zinc-500" />
                 </div>
                 <div className="text-center max-w-md space-y-2">
                   <h3 className="text-base sm:text-xl font-bold text-white">
-                    {_("media.comingSoon") || "Bientôt disponible"}
+                    {currentSeasonUnavailable
+                      ? `Saison ${currentSeasonNum} non disponible`
+                      : _("media.comingSoon") || "Bientôt disponible"}
                   </h3>
                   <p className="text-zinc-400 text-xs sm:text-sm leading-relaxed">
-                    {_("media.comingSoonDesc") || "Ce contenu sera disponible en streaming très prochainement."}
+                    {currentSeasonUnavailable
+                      ? "Aucun fournisseur ne diffuse cette saison pour le moment."
+                      : _("media.comingSoonDesc") || "Ce contenu sera disponible en streaming très prochainement."}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-brand-primary/10 border border-brand-primary/20">
@@ -452,13 +470,13 @@ export default function SeasonContent() {
 
         {/* Media Details & Controls */}
         <div className="mt-3 sm:mt-6 space-y-3 sm:space-y-5 px-3 sm:px-6 md:px-10 lg:px-[3%]">
-          {/* Series Episode Switcher Quick Bar */}
+          {/* Series Episode Switcher Quick Bar — liquid glass */}
           {hasEpisodes && (
-            <div className="flex items-center justify-between gap-1.5 sm:gap-2 p-2 sm:p-3 rounded-xl bg-zinc-900/80 border border-white/5 backdrop-blur-md">
+            <div className="liquid-glass-surface liquid-glass-surface-page flex items-center justify-between gap-1.5 rounded-xl p-2 sm:gap-2 sm:p-3">
               <button
                 onClick={playPrevEpisode}
                 disabled={currentIndex === 0}
-                className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-[5px] bg-white/5 text-xs font-semibold text-zinc-300 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all flex-shrink-0 cursor-pointer"
+                className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-white/10 border border-white/10 text-xs font-semibold text-zinc-200 hover:bg-white/20 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all flex-shrink-0 cursor-pointer"
               >
                 <CaretCircleLeft className="h-4 w-4" />
                 <span className="hidden sm:inline">{_("common.previous") || "Précédent"}</span>
@@ -476,7 +494,7 @@ export default function SeasonContent() {
               <button
                 onClick={playNextEpisode}
                 disabled={currentIndex >= episodes.length - 1}
-                className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-[5px] bg-white/5 text-xs font-semibold text-zinc-300 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all flex-shrink-0 cursor-pointer"
+                className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-white/10 border border-white/10 text-xs font-semibold text-zinc-200 hover:bg-white/20 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all flex-shrink-0 cursor-pointer"
               >
                 <span className="hidden sm:inline">{_("common.next") || "Suivant"}</span>
                 <CaretCircleRight className="h-4 w-4" />
@@ -620,8 +638,12 @@ export default function SeasonContent() {
                     className="appearance-none bg-zinc-800 text-white font-bold text-[11px] sm:text-xs py-1.5 pl-3 pr-8 rounded-lg border border-white/10 focus:outline-none focus:border-brand-primary"
                   >
                     {validSeasons.map((s) => (
-                      <option key={s.seasonNumber} value={s.seasonNumber}>
-                        {s.name || `S${s.seasonNumber}`} ({s.episodeCount || 10} ép.)
+                      <option
+                        key={s.seasonNumber}
+                        value={s.seasonNumber}
+                        disabled={isSeasonUnavailable(s.seasonNumber)}
+                      >
+                        {s.name || `S${s.seasonNumber}`} ({s.episodeCount || 10} ép.){isSeasonUnavailable(s.seasonNumber) ? " — Non disponible" : ""}
                       </option>
                     ))}
                   </select>
@@ -638,6 +660,7 @@ export default function SeasonContent() {
                   active={idx === currentIndex}
                   onClick={() => playEpisode(idx)}
                   onDownload={() => handleDownloadSingle(ep)}
+                  disponible={{ disponible: episodesBlocked }}
                 />
               ))}
             </div>
@@ -698,11 +721,16 @@ export default function SeasonContent() {
                   onChange={(e) => handleSeasonChange(parseInt(e.target.value))}
                   className="w-full appearance-none bg-zinc-800/90 text-white font-bold text-sm py-2.5 pl-3.5 pr-10 rounded-xl border border-white/10 hover:border-white/20 focus:outline-none focus:border-brand-primary transition-all cursor-pointer"
                 >
-                  {validSeasons.map((s) => (
-                    <option key={s.seasonNumber} value={s.seasonNumber} className="bg-zinc-900 text-white">
-                      {s.name || `Saison ${s.seasonNumber}`} ({s.episodeCount || 10} épisodes)
-                    </option>
-                  ))}
+                    {validSeasons.map((s) => (
+                      <option
+                        key={s.seasonNumber}
+                        value={s.seasonNumber}
+                        disabled={isSeasonUnavailable(s.seasonNumber)}
+                        className="bg-zinc-900 text-white"
+                      >
+                        {s.name || `Saison ${s.seasonNumber}`} ({s.episodeCount || 10} épisodes){isSeasonUnavailable(s.seasonNumber) ? " — Non disponible" : ""}
+                      </option>
+                    ))}
                 </select>
                 <CaretDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-400 pointer-events-none" />
               </div>
@@ -718,6 +746,7 @@ export default function SeasonContent() {
                 active={idx === currentIndex}
                 onClick={() => playEpisode(idx)}
                 onDownload={() => handleDownloadSingle(ep)}
+                disponible={disponible}
               />
             ))}
           </div>
@@ -776,18 +805,26 @@ function EpisodeCard({
   active,
   onClick,
   onDownload,
+  disponible,
 }: {
   ep: Episode;
   active: boolean;
   onClick: () => void;
   onDownload?: () => void;
+  disponible?: { disponible: boolean } | null;
 }) {
+  const isComingSoon = !ep.airDate || new Date(ep.airDate) > new Date();
+  const isUnavailable = disponible?.disponible === false;
   return (
     <div
-      onClick={onClick}
+      onClick={isComingSoon || isUnavailable ? undefined : onClick}
       className={`group flex items-start gap-2.5 sm:gap-3 p-2 sm:p-2.5 rounded-xl cursor-pointer transition-all border ${
         active
           ? "bg-zinc-800/80 border-brand-primary/40 shadow-lg"
+          : isComingSoon
+          ? "bg-zinc-900/50 text-zinc-400 opacity-50 border-zinc-800/30 cursor-not-allowed"
+          : isUnavailable
+          ? "bg-zinc-900/50 text-zinc-400 opacity-50 border-zinc-800/30 cursor-not-allowed"
           : "bg-white/[0.02] hover:bg-white/[0.06] border-transparent"
       }`}
     >
@@ -813,13 +850,15 @@ function EpisodeCard({
         <div className="flex items-center justify-between gap-1">
           <h4
             className={`text-[11px] sm:text-sm font-bold line-clamp-1 leading-snug ${
-              active ? "text-brand-primary" : "text-white group-hover:text-zinc-200"
+              active ? "text-brand-primary" : isComingSoon || isUnavailable ? "text-zinc-400 opacity-50" : "text-white group-hover:text-zinc-200"
             }`}
           >
-            {ep.number}. {ep.title}
+            {isComingSoon
+              ? `${ep.number}. ${ep.title} — Bientôt disponible`
+              : `${ep.number}. ${ep.title}`}
           </h4>
 
-          {onDownload && (
+          {onDownload && !isComingSoon && !isUnavailable && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -833,12 +872,18 @@ function EpisodeCard({
           )}
         </div>
 
-        <span className="text-[10px] sm:text-[11px] text-zinc-400 mt-0.5">
-          {ep.duration}
+        <span className={isComingSoon || isUnavailable
+          ? "text-[10px] sm:text-[11px] text-zinc-400 opacity-50 mt-0.5"
+          : "text-[10px] sm:text-[11px] text-zinc-400 mt-0.5"
+        }>
+          {isComingSoon || isUnavailable ? "—" : ep.duration}
         </span>
 
         {ep.synopsis && (
-          <p className="text-[10px] sm:text-[11px] text-zinc-500 line-clamp-2 leading-tight mt-0.5">
+          <p className={isComingSoon
+            ? "text-[10px] sm:text-[11px] text-zinc-500 line-clamp-2 leading-tight mt-0.5 opacity-50"
+            : "text-[10px] sm:text-[11px] text-zinc-500 line-clamp-2 leading-tight mt-0.5"
+          }>
             {ep.synopsis}
           </p>
         )}

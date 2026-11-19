@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import type { MovieOrShow } from "@/types/media";
 import { useTrendingMovies } from "@/hooks/useTrendingMovies";
@@ -14,8 +15,13 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import { acquireModalScrollLock, releaseModalScrollLock } from "@/lib/modalScrollLock";
 import MovieCard from "./MovieCard";
 import UserAvatar from "./UserAvatar";
-import RequestModal from "@/features/requests/RequestModal";
 import { searchTMDBForRequest } from "@/services/media";
+
+// La modale de demande n'est utile qu'en cas de recherche approfondie :
+// on la sort du chunk initial pour ne pas ralentir l'ouverture de la recherche.
+const RequestModal = dynamic(() => import("@/features/requests/RequestModal"), {
+  ssr: false,
+});
 
 const SESSION_KEY = "chillers_search_query";
 
@@ -36,9 +42,18 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
   const [deepSearchState, setDeepSearchState] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [deepSearchResults, setDeepSearchResults] = useState<MovieOrShow[]>([]);
   const [requestCandidate, setRequestCandidate] = useState<MovieOrShow | null>(null);
+  // Suggestions (tendances + genres) chargées après le premier rendu : la barre
+  // de recherche et la saisie passent avant le contenu secondaire.
+  const [contentReady, setContentReady] = useState(false);
   const search = useSearchSuggestions("");
-  const trendingQuery = useTrendingMovies({ enabled: isOpen });
-  const genresQuery = useMovieGenres({ enabled: isOpen });
+  const trendingQuery = useTrendingMovies({ enabled: isOpen && contentReady });
+  const genresQuery = useMovieGenres({ enabled: isOpen && contentReady });
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const t = setTimeout(() => setContentReady(true), 250);
+    return () => clearTimeout(t);
+  }, [isOpen]);
 
   // Restore query from sessionStorage on first open
   useEffect(() => {
@@ -115,7 +130,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col bg-[#1F1F1F] text-white animate-fade-in select-none h-dvh overflow-hidden">
+    <div className="fixed inset-0 z-[100] flex flex-col bg-[#1F1F1F] text-white animate-fade-in h-dvh overflow-hidden">
       <RequestModal
         key={`${requestCandidate?.id ?? search.query.trim()}-${requestOpen ? "open" : "closed"}`}
         isOpen={requestOpen}
@@ -167,12 +182,17 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
               <input
                 ref={inputRef}
                 type="text"
+                inputMode="search"
+                enterKeyHint="search"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
                 value={search.query}
                 onChange={(e) => search.setQuery(e.target.value)}
                 placeholder="Rechercher un film, une série..."
                 style={{ outline: "none", boxShadow: "none" }}
-                className="no-focus-outline w-full bg-transparent border-0 text-sm md:text-base font-medium text-white placeholder-white/40 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 !outline-none p-0"
-                autoFocus
+                className="no-focus-outline w-full bg-transparent border-0 text-[16px] sm:text-base font-medium text-white placeholder-white/40 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 !outline-none p-0"
               />
 
               {search.query && (
@@ -224,7 +244,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                   <span>Suggestions</span>
                 </h3>
                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-8 gap-4 sm:gap-5 lg:gap-6">
-                  {trendingMovies.slice(0, 18).map((m) => (
+                  {trendingMovies.slice(0, 12).map((m) => (
                     <MovieCard
                       key={m.id}
                       item={m}

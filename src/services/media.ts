@@ -9,7 +9,7 @@
 import { cache } from "react";
 import { httpJson, HttpError, API_BASE_PATH } from "./http";
 import { getAntiBotHeaders } from "@/lib/antibot";
-import type { MovieOrShow, Genre, MediaType, CastMember, Network, PersonDetails, SeasonDetails } from "@/types/media";
+import type { MovieOrShow, Genre, MediaType, CastMember, Network, PersonDetails, SeasonDetails, SeasonAvailabilityInfo } from "@/types/media";
 
 /* ─── in-memory client cache (5 min TTL) ─────────────────────────────────── */
 const clientCache = new Map<string, { data: any; expiry: number }>();
@@ -1522,6 +1522,46 @@ export const getSeasonDetails = cache(async function getSeasonDetails(
   return null;
 });
 
+/**
+ * Statut de disponibilité par saison. Tableau vide = aucune donnée fiable
+ * (l'UI ne doit alors rien bloquer).
+ */
+export const getAvailableSeasons = cache(async function getAvailableSeasons(
+  id: string,
+  signal?: AbortSignal,
+): Promise<SeasonAvailabilityInfo[]> {
+  if (!/^\d+$/.test(id)) return [];
+  const cacheKey = `available_seasons_v2:${id}`;
+  const cached = getCached<SeasonAvailabilityInfo[]>(cacheKey);
+  if (cached) return cached;
+  try {
+    const env = await httpJson<ApiEnvelope<any>>(`/tv/${id}/seasons/availability`, {
+      signal,
+      timeoutMs: 8_000,
+    });
+    if (env.success && Array.isArray(env.data)) {
+      // Compat: ancienne API renvoyait number[]
+      const normalized: SeasonAvailabilityInfo[] =
+        typeof env.data[0] === 'number'
+          ? (env.data as number[]).map((season) => ({
+              season,
+              hasSources: true,
+              released: true,
+              airing: false,
+              future: false,
+              airedEpisodes: 0,
+              episodeCount: 0,
+            }))
+          : (env.data as SeasonAvailabilityInfo[]);
+      setCached(cacheKey, normalized, 5 * 60 * 1000);
+      return normalized;
+    }
+  } catch {
+    // Pas d'info → on ne bloque aucune saison.
+  }
+  return [];
+});
+
 /* Recommendations / personalization. */
 
 export async function getMovieRecommendations(
@@ -1676,10 +1716,11 @@ export async function searchMedia(
   query: string,
   page = 1,
   signal?: AbortSignal,
+  lite = false,
 ): Promise<MovieOrShow[]> {
   try {
     const env = await httpJson<ApiEnvelope<SearchRaw>>("/search", {
-      query: { q: query, page, language: clientLang() },
+      query: { q: query, page, language: clientLang(), ...(lite ? { lite: 1 } : {}) },
       signal,
       timeoutMs: 10_000,
     });

@@ -89,7 +89,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       disabled = false,
       fullWidth = false,
       ariaLabel,
-      borderRadius = "5px",
+      borderRadius = "8px",
       className = "",
       style,
       type = "button",
@@ -137,14 +137,14 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         aria-busy={isBusy}
         aria-disabled={isDisabled}
         style={{
-          borderRadius: borderRadius || "5px",
+          borderRadius: borderRadius || "8px",
           ...(isRawColor ? { backgroundColor: color } : {}),
           ...style,
         }}
         className={`
           relative inline-flex items-center justify-center font-bold tracking-wide select-none
           transition-all duration-150 ease-in-out
-          rounded-[5px]
+          rounded-[8px]
           ${sizeStyles[size]}
           ${!isRawColor ? baseVariantClass : "text-white border border-transparent"}
           ${fullWidth ? "w-full" : ""}

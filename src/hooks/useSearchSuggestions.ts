@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { searchMedia } from "@/services/media";
 import type { MovieOrShow } from "@/types/media";
@@ -17,16 +17,17 @@ export function useSearchSuggestions(initial = "") {
   const [debounced, setDebounced] = useState(initial);
 
   useEffect(() => {
-    const t = setTimeout(() => setDebounced(query.trim()), 350);
+    const t = setTimeout(() => setDebounced(query.trim()), 250);
     return () => clearTimeout(t);
   }, [query]);
 
   const enabled = debounced.length >= 2;
   const result = useQuery<MovieOrShow[]>({
     queryKey: ["search", debounced] as const,
-    queryFn: ({ signal }) => searchMedia(debounced, 1, signal),
+    queryFn: ({ signal }) => searchMedia(debounced, 1, signal, true),
     enabled,
     staleTime: 30_000,
+    placeholderData: keepPreviousData,
   });
 
   return {

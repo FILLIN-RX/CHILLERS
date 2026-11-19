@@ -238,6 +238,12 @@ export class DirectProvider implements StreamingProvider {
           const seasonRegex = new RegExp(`saison\\s*0*${query.season}\\b|s0*${query.season}\\b`, 'i');
           const byTitleSeason = byId.find(s => seasonRegex.test(s.titre));
           if (byTitleSeason) return byTitleSeason;
+
+          // Aucune fiche ne contient la saison demandée : ne pas retomber sur
+          // byId[0], sinon on cherche S1E1 dans « Saison 15 » et on sert/skip
+          // au mauvais endroit.
+          console.log(`${TAG} findSerie: aucune fiche saison ${query.season} pour tmdbId=${query.tmdbId} (${byId.length} fiche(s))`);
+          return null;
         }
         return byId[0];
       }
@@ -266,6 +272,10 @@ export class DirectProvider implements StreamingProvider {
           const seasonRegex = new RegExp(`saison\\s*0*${query.season}\\b|s0*${query.season}\\b`, 'i');
           const byTitleSeason = byTitle.find(s => seasonRegex.test(s.titre));
           if (byTitleSeason) return byTitleSeason;
+
+          // Idem : ne jamais retomber sur une autre saison.
+          console.log(`${TAG} findSerie: aucune fiche saison ${query.season} pour "${query.title}" (${byTitle.length} fiche(s))`);
+          return null;
         }
         console.log(`${TAG} findSerie: matched by title "${byTitle[0].titre}" (tmdbId=${byTitle[0].tmdbId}) for query tmdbId=${query.tmdbId}`);
         return byTitle[0];

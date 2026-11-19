@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import Image from "next/image";
 import { useLanguage } from "@/i18n/LanguageContext";
 import type { MovieOrShow, Episode } from "@/types/media";
-import { X, DownloadSimple, Play, Pause, SpeakerSimpleHigh, SpeakerSimpleLow, SpeakerSimpleSlash, ArrowsOutSimple, PictureInPicture, Subtitles, SkipBack, SkipForward, Spinner, GearSix, ArrowsClockwise, Crown } from "@phosphor-icons/react";
+import { X, DownloadSimple, Play, Pause, SpeakerSimpleHigh, SpeakerSimpleLow, SpeakerSimpleSlash, ArrowsOutSimple, Subtitles, SkipBack, SkipForward, Spinner, GearSix, ArrowsClockwise, Crown } from "@phosphor-icons/react";
 import NotificationModal from "./NotificationModal";
 import DownloadModal from "@/features/downloads/DownloadModal";
 import UpgradeModal from "./UpgradeModal";
@@ -728,6 +728,67 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
     }
   }, []);
 
+  // Auto-PiP comme YouTube : quand le lecteur sort du viewport, on entre
+  // automatiquement en Picture-in-Picture ; quand il revient, on en sort.
+  useEffect(() => {
+    const container = containerRef.current;
+    const video = videoRef.current;
+    if (!container || !video || !document.pictureInPictureEnabled) return;
+
+    const enterPiP = () => {
+      if (document.pictureInPictureElement !== video && !video.paused) {
+        video.requestPictureInPicture?.().catch(() => {});
+      }
+    };
+
+    const exitPiP = () => {
+      if (document.pictureInPictureElement === video) {
+        document.exitPictureInPicture().catch(() => {});
+      }
+    };
+
+    // IntersectionObserver : déclenchement dès que le lecteur sort de l'écran
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry.isIntersecting) {
+          enterPiP();
+        } else if (entry.isIntersecting) {
+          exitPiP();
+        }
+      },
+      { threshold: 0.1, rootMargin: "0px 0px -20% 0px" }
+    );
+
+    observer.observe(container);
+
+    // Visibility change : si l'onglet devient caché, entrer en PiP
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        enterPiP();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    // beforeunload : tenter PiP avant fermeture de la page
+    const handleBeforeUnload = () => {
+      if (video && !video.paused && !document.pictureInPictureElement) {
+        video.requestPictureInPicture?.().catch(() => {});
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    // Cleanup : tenter PiP avant démontage si la vidéo joue
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      if (video && !video.paused && !document.pictureInPictureElement) {
+        video.requestPictureInPicture?.().catch(() => {});
+      }
+    };
+  }, []);
+
   const changePlaybackRate = useCallback((rate: number) => {
     const video = videoRef.current;
     if (!video) return;
@@ -823,7 +884,7 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
       className={`${
         isFullscreen
           ? "fixed inset-0 z-[99999] w-screen h-[100dvh] max-h-none rounded-none aspect-auto bg-black"
-          : `relative w-full aspect-[16/9.9] sm:aspect-video sm:min-h-[420px] md:min-h-[520px] lg:min-h-[600px] xl:min-h-[660px] ${isTheater ? "max-h-[92dvh]" : "max-h-[85dvh]"} bg-black rounded-none sm:rounded-xl`
+          : `relative w-full aspect-[16/10.9] sm:aspect-video sm:min-h-[420px] md:min-h-[520px] lg:min-h-[600px] xl:min-h-[660px] ${isTheater ? "max-h-[92dvh]" : "max-h-[85dvh]"} bg-black rounded-none sm:rounded-xl`
       } overflow-hidden select-none transition-all duration-300 shadow-[0_20px_70px_rgba(0,0,0,0.95)] group/container ${
         !controlsVisible && isPlaying ? "cursor-none" : "cursor-default"
       }`}
@@ -1016,28 +1077,6 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
             {/* ── Top bar: Title, PRO VIP Badge & P2P ── */}
             <div className="pointer-events-auto flex items-center justify-end gap-2 bg-gradient-to-b from-black/80 via-black/30 to-transparent pt-[calc(0.75rem_+_env(safe-area-inset-top,0px))] pb-3 pl-[calc(0.75rem_+_env(safe-area-inset-left,0px))] pr-[calc(0.75rem_+_env(safe-area-inset-right,0px))]">
               <div className="flex shrink-0 items-center gap-2">
-                {/* Bouton Téléchargement direct en 1 clic */}
-                <button
-                  type="button"
-                  onClick={handleDirectDownload}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-black/60 hover:bg-black/80 border border-white/15 hover:border-emerald-500/40 text-white text-xs font-semibold backdrop-blur-md transition-all active:scale-95 cursor-pointer shadow-lg"
-                  title="Télécharger"
-                >
-                  <DownloadSimple className="w-4 h-4 text-emerald-400" />
-                  <span className="text-[11px] font-medium hidden sm:inline">Télécharger</span>
-                </button>
-
-                {/* Bouton Lecteur Réduit / Navigation flottante comme YouTube (PiP) */}
-                <button
-                  type="button"
-                  onClick={togglePiP}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-black/60 hover:bg-black/80 border border-white/15 text-white text-xs font-semibold backdrop-blur-md transition-all active:scale-95 cursor-pointer shadow-lg"
-                  title="Lecteur réduit / Naviguer en regardant (PiP)"
-                >
-                  <PictureInPicture className="w-4 h-4 text-brand-primary" />
-                  <span className="text-[11px] font-medium hidden sm:inline">Lecteur réduit</span>
-                </button>
-
                 {canP2P && hasStarted && ["fetching", "scanning", "connecting"].includes(p2p.status) && (
                   <span className="flex items-center gap-1.5 text-[11px] font-bold text-[#22d3ee] bg-black/60 border border-[#22d3ee]/30 rounded-full px-2.5 py-1">
                     <Spinner className="h-3 w-3 animate-spin" />

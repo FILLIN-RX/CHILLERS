@@ -67,6 +67,13 @@ router.post('/catalog/unmatched/:id/link', adminMiddleware, catalogAdminControll
 router.get('/scrapper/{*path}', adminMiddleware, adminController.scrapperProxyGet);
 router.post('/scrapper/{*path}', adminMiddleware, adminController.scrapperProxyPost);
 
+
+// OpenOtaku session (cookie de navigateur pour /api/fs-watch)
+router.get('/otaku/session', adminMiddleware, adminController.getOtakuSession);
+router.put('/otaku/session', adminMiddleware, adminController.setOtakuSession);
+router.post('/otaku/session/refresh', adminMiddleware, adminController.refreshOtakuSession);
+router.delete('/otaku/session', adminMiddleware, adminController.clearOtakuSession);
+
 // Subscription Plans
 router.get('/subscriptions', adminMiddleware, subController.getPlans);
 router.post('/subscriptions', adminMiddleware, subController.createPlan);

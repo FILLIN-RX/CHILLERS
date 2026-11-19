@@ -5,6 +5,30 @@ import Serie from '../../models/Serie';
 import ProviderCatalogItem from '../../models/ProviderCatalogItem';
 import { filterIdsByCatalog } from '../catalog/catalog.service';
 
+// Cache mémoire court pour la frappe : évite de refaire TMDB + catalogue sur
+// chaque pause de l'utilisateur (et pour les requêtes répétées entre appareils).
+const SEARCH_CACHE_TTL = 60_000;
+const SEARCH_CACHE_MAX = 300;
+const searchCache = new Map<string, { at: number; data: unknown }>();
+
+function cacheGet<T>(key: string): T | null {
+  const hit = searchCache.get(key);
+  if (!hit) return null;
+  if (Date.now() - hit.at > SEARCH_CACHE_TTL) {
+    searchCache.delete(key);
+    return null;
+  }
+  return hit.data as T;
+}
+
+function cacheSet(key: string, data: unknown) {
+  if (searchCache.size >= SEARCH_CACHE_MAX) {
+    const first = searchCache.keys().next().value;
+    if (first) searchCache.delete(first);
+  }
+  searchCache.set(key, { at: Date.now(), data });
+}
+
 // Petit limiteur de concurrence maison (équivalent p-limit avec une cap à 4).
 const queue: Array<() => void> = [];
 let active = 0;
@@ -148,8 +172,70 @@ function deduplicateResults(results: any[], query: string): any[] {
  *  4. Déduplication par type + titre normalisé avec scoring de pertinence
  *  5. Retour des résultats triés par pertinence
  */
-export const searchMulti = async (query: string, page: number = 1, language?: string) => {
+export const searchMulti = async (
+  query: string,
+  page: number = 1,
+  language?: string,
+  lite: boolean = false,
+) => {
+  // On ne met en cache que le mode léger (réponses ~quelques Ko, très
+  // sollicité par la frappe). Le mode complet peut peser des centaines de Ko
+  // par requête : le garder en mémoire ferait grimper le RSS inutilement.
+  const cacheKey = `lite|${page}|${language || ''}|${query.trim().toLowerCase()}`;
+  if (lite) {
+    const cached = cacheGet<Awaited<ReturnType<typeof runSearchMulti>>>(cacheKey);
+    if (cached) return cached;
+  }
+  const data = await runSearchMulti(query, page, language, lite);
+  if (lite) cacheSet(cacheKey, data);
+  return data;
+};
+
+const runSearchMulti = async (
+  query: string,
+  page: number = 1,
+  language?: string,
+  lite: boolean = false,
+) => {
   const regex = new RegExp(escapeRegExp(query), 'i');
+
+  // ── Mode léger (frappe) : TMDB + filtre de disponibilité, sans hydratation
+  //    détaillée (images/credits/videos) ni requêtes Mongo locales.
+  //    C'est la partie la plus coûteuse de la recherche complète.
+  if (lite) {
+    // Un seul appel TMDB (/search/multi) au lieu de movie + tv : moitié moins
+    // de latence réseau pour la frappe.
+    const multiResp = await tmdbClient
+      .get('/search/multi', { params: { query, page, language: toTMDBLanguage(language) } })
+      .then(r => r.data)
+      .catch(() => ({ results: [] }));
+
+    const typed = (multiResp.results || []).filter(
+      (r: any) => r.media_type === 'movie' || r.media_type === 'tv',
+    ) as any[];
+    const movieTop = typed.filter((r) => r.media_type === 'movie').slice(0, 40);
+    const tvTop = typed.filter((r) => r.media_type === 'tv').slice(0, 40);
+
+    const [filmGardes, serieGardee] = await Promise.all([
+      filterIdsByCatalog('movie', movieTop.map((item) => item.id)),
+      filterIdsByCatalog('tv', tvTop.map((item) => item.id)),
+    ]);
+    const movieIds = new Set(filmGardes || []);
+    const tvIds = new Set(serieGardee || []);
+    const films = movieTop.filter((item) => movieIds.has(item.id));
+    const series = tvTop.filter((item) => tvIds.has(item.id));
+
+    const allResults = [
+      ...films.map((m) => ({ ...m, media_type: 'movie' as const })),
+      ...series.map((t) => ({ ...t, media_type: 'tv' as const })),
+    ];
+
+    return {
+      lite: true,
+      localResults: { movies: [], series: [] },
+      tmdbResults: { results: deduplicateResults(allResults, query).slice(0, 20) },
+    };
+  }
 
   const [localMovies, localSeries, moviesResp, tvResp, sourceCatalogRows] = await Promise.all([
     Movie.find({ titre: regex }).limit(5).lean().catch(() => []),

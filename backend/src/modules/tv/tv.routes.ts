@@ -11,6 +11,7 @@ router.get('/discover', tvController.getDiscover);
 router.get('/anime/genre/:genreId', tvController.getAnimeByGenre);
 router.get('/african', tvController.getAfrican);
 router.get('/genre/:genreId', tvController.getByGenre);
+router.get('/:id/seasons/availability', tvController.getAvailableSeasons);
 router.get('/:id/season/:seasonNumber', tvController.getSeasonDetails);
 router.get('/:id/trailer', tvController.getTrailer);
 router.get('/:id', tvController.getDetails);
