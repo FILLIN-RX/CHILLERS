@@ -15,6 +15,8 @@ import { FawesomeProvider } from './providers/fawesome.provider';
 import { VidLinkProvider } from './providers/vidlink.provider';
 import { TorrServerProvider } from './providers/torrserver.provider';
 import { resolveDirectFromEmbed } from './providers/direct-enricher';
+import { isDeadEmbedPage } from './providers/direct-scraper';
+import { cacheTtlFor, isEmbedOrHtml, normalizeDirectUrl } from '../../utils/stream-result';
 import { CachedStream, streamCache, getCacheKey } from '../../utils/stream-cache';
 import { getSignedLinkTtlSeconds } from '../../utils/link-ttl';
 import tmdbClient from '../../config/tmdb';
@@ -64,6 +66,9 @@ const WEAK_CACHE_TTL = 10 * 60 * 1000;
  * On garde donc une marge de sécurité avant expiration.
  */
 const LINK_SAFETY_MARGIN_SECONDS = 120;
+/** Les pages embed mortes sont mémorisées brièvement pour éviter 5 GET identiques. */
+const EMBED_VALIDATION_TTL = 5 * 60 * 1000;
+const embedValidationCache = new Map<string, { valid: boolean; at: number }>();
 
 /** TTL restant (ms) d'un résultat, borné par la signature la plus courte. */
 function signedLinkTtlMs(result: CachedStream): number | null {
@@ -80,27 +85,23 @@ function isCachedStreamFresh(result: CachedStream): boolean {
   return ttl === null || ttl > 0;
 }
 
-function isEmbedOrHtml(url: string | null | undefined): boolean {
-  if (!url) return false;
-  return /\.html?(\?|$)/i.test(url) || url.includes('/embed-') || url.includes('/e/') || url.includes('/embed/');
-}
-
 /** Transforme la tentative gagnante en résultat mis en cache. */
 function toCachedStream(attempt: ProviderAttempt): CachedStream {
   const r = attempt.result;
-  const isDirectMp4 = r?.directType === 'mp4' && r?.directUrl && !isEmbedOrHtml(r.directUrl);
+  const directUrl = normalizeDirectUrl(r?.directUrl);
+  const isDirectMp4 = r?.directType === 'mp4' && directUrl;
   return {
     provider: attempt.provider,
     embedUrl: attempt.reason!,
-    directUrl: r?.directUrl,
-    directType: r?.directType,
-    downloadUrl: isDirectMp4 ? r.directUrl : (r?.downloadUrl && !isEmbedOrHtml(r.downloadUrl) ? r.downloadUrl : undefined),
-    referer: r?.referer,
+    directUrl,
+    directType: directUrl ? r?.directType : undefined,
+    downloadUrl: isDirectMp4 ? directUrl : (r?.downloadUrl && !isEmbedOrHtml(r.downloadUrl) ? r.downloadUrl : undefined),
+    referer: directUrl ? r?.referer : undefined,
   };
 }
 
 function cacheResult(key: string, result: CachedStream): void {
-  const baseTtl = result.provider === 'oha' ? OHA_CACHE_TTL : undefined;
+  const ttlCap = cacheTtlFor(result, { weakTtl: WEAK_CACHE_TTL, ohaTtl: OHA_CACHE_TTL });
   const linkTtl = signedLinkTtlMs(result);
 
   // Le cache ne doit jamais survivre à la signature du lien : au-delà, le CDN
@@ -111,12 +112,12 @@ function cacheResult(key: string, result: CachedStream): void {
       return;
     }
     streamCache.set(key, result, {
-      ttl: baseTtl !== undefined ? Math.min(baseTtl, linkTtl) : linkTtl,
+      ttl: ttlCap !== undefined ? Math.min(ttlCap, linkTtl) : linkTtl,
     });
     return;
   }
 
-  streamCache.set(key, result, baseTtl !== undefined ? { ttl: baseTtl } : undefined);
+  streamCache.set(key, result, ttlCap !== undefined ? { ttl: ttlCap } : undefined);
 }
 
 export class ProviderManager {
@@ -505,6 +506,12 @@ export class ProviderManager {
     result: any,
     providerName: string,
   ): Promise<{ result: any; weak: boolean }> {
+    // Le provider a déjà tenté (et raté) la résolution de cet embed : le
+    // rejouer ici ne ferait que doubler les timeouts (Vidzy ~10 s).
+    if (result?.enrichSkipped) {
+      return { result, weak: true };
+    }
+
     if (result?.directUrl && /\/(taunt|promo)\//i.test(result.directUrl)) {
       delete result.directUrl;
       delete result.directType;
@@ -657,10 +664,48 @@ export class ProviderManager {
     );
   }
 
-  private async validateUrl(url: string): Promise<boolean> {
-    // Skip validation for iframe embeds since they are protected by Cloudflare/DDOS-GUARD
-    if (this.isIframeEmbedUrl(url)) {
+  /**
+   * Une page embed peut répondre 200 avec « File is no longer available ».
+   * On la vérifie une fois (cache court), sans être bloqué par Cloudflare :
+   * sur une erreur réseau/timeout on reste optimiste et c'est l'enrichissement
+   * qui qualifiera le résultat en `weak`.
+   */
+  private async validateEmbedPage(url: string): Promise<boolean> {
+    const cached = embedValidationCache.get(url);
+    if (cached && Date.now() - cached.at < EMBED_VALIDATION_TTL) return cached.valid;
+
+    const headers: Record<string, string> = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+    };
+    if (url.includes('vidzy')) headers['Referer'] = 'https://vidzy.org/';
+
+    try {
+      const response = await axios.get<string>(url, {
+        timeout: VALIDATION_TIMEOUT,
+        responseType: 'text',
+        headers,
+        maxRedirects: 5,
+      });
+      const valid = typeof response.data === 'string' ? !isDeadEmbedPage(response.data) : true;
+      embedValidationCache.set(url, { valid, at: Date.now() });
+      if (embedValidationCache.size > 500) {
+        const oldest = embedValidationCache.keys().next().value;
+        if (oldest) embedValidationCache.delete(oldest);
+      }
+      if (!valid) console.warn(`[Stream] Embed mort détecté (page 200) → ${url.slice(0, 120)}`);
+      return valid;
+    } catch {
       return true;
+    }
+  }
+
+  private async validateUrl(url: string): Promise<boolean> {
+    // Nos propres endpoints de proxy ne doivent jamais être GET-tés ici
+    // (ça démarrerait un FFmpeg complet).
+    if (url.startsWith('/api/') || url.includes('/api/doodstream/')) return true;
+
+    if (this.isIframeEmbedUrl(url)) {
+      return this.validateEmbedPage(url);
     }
 
     const headers: Record<string, string> = {

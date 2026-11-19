@@ -1087,17 +1087,27 @@ export async function getFrenchStreamEpisode(
 
     const savedPagePath = toRelativePath(bestUrl);
 
-    // 1. Tenter la résolution directe haute performance (Vidzy MP4 en priorité, puis Uqload / Dood)
-    const directCandidates = filteredVersions
-      .filter((v) => v.embedUrl.includes('vidzy') || v.embedUrl.includes('uqload') || v.embedUrl.includes('dood'))
-      .sort((a, b) => {
-        const hostRank = (u: string) => (u.includes('vidzy') ? 1 : u.includes('uqload') ? 2 : 3);
-        const diffHost = hostRank(a.embedUrl) - hostRank(b.embedUrl);
-        if (diffHost !== 0) return diffHost;
-        return langRank(a.label) - langRank(b.label);
-      });
+    // 1. Résolution directe sur tous les hébergeurs (pas seulement
+    //    vidzy/uqload/dood) : les pages exposent aussi premium/fsvid, netu,
+    //    voe… et vidzy peut être temporairement indisponible (timeout / 5xx).
+    const hostRank = (u: string) => {
+      const s = (u || '').toLowerCase();
+      if (s.includes('uqload')) return 1;
+      if (s.includes('dood')) return 2;
+      if (s.includes('voe')) return 3;
+      if (s.includes('streamtape')) return 4;
+      if (s.includes('luluv') || s.includes('lulu')) return 5;
+      if (s.includes('fsvid')) return 6;
+      if (s.includes('vidzy')) return 7; // /d/ souvent lent ou en 5xx
+      return 8;
+    };
+    const directCandidates = [...filteredVersions].sort((a, b) => {
+      const diffHost = hostRank(a.embedUrl) - hostRank(b.embedUrl);
+      if (diffHost !== 0) return diffHost;
+      return langRank(a.label) - langRank(b.label);
+    });
 
-    for (const v of directCandidates) {
+    for (const v of directCandidates.slice(0, 6)) {
       try {
         const direct = await DirectScraper.resolve(v.embedUrl);
         if (direct?.directUrl) {
@@ -1118,8 +1128,14 @@ export async function getFrenchStreamEpisode(
       } catch (_) {}
     }
 
-    // 2. Fallback embed si aucune extraction directe n'a abouti
-    const sortedVersions = [...filteredVersions].sort((a, b) => langRank(a.label) - langRank(b.label));
+    // 2. Fallback embed si aucune extraction directe n'a abouti — on évite
+    //    de choisir un hébergeur notoirement instable (vidzy/fsvid) quand un
+    //    autre embed existe.
+    const sortedVersions = [...filteredVersions].sort((a, b) => {
+      const dh = hostRank(a.embedUrl) - hostRank(b.embedUrl);
+      if (dh !== 0) return dh;
+      return langRank(a.label) - langRank(b.label);
+    });
     const chosen = sortedVersions[0];
     if (chosen?.embedUrl) {
       console.log(`[FrenchStream HQ] Lecteur embed série sélectionné (${chosen.label}): ${chosen.embedUrl}`);

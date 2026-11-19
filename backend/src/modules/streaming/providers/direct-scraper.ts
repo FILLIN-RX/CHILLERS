@@ -90,6 +90,18 @@ function extractCodeFromUrl(url: string): string | null {
 const UQLOAD_TLDS = 'is|com|vc|ws|to|co|net|io';
 const UQLOAD_DOMAINS = ['uqload.is', 'uqload.vc', 'uqload.ws', 'uqload.to', 'uqload.com'];
 
+/** Page de secours servie par les hébergeurs quand le fichier est parti. */
+export function isDeadEmbedPage(html: string): boolean {
+  return /(file is no longer available|expired or has been deleted|has been deleted|video not found|file not found)/i.test(html);
+}
+
+/** Certains scrapers remontent un code nu au lieu de l'URL embed. */
+export function normalizeEmbedInput(input: string): string {
+  const trimmed = input.trim();
+  if (/^https?:\/\//i.test(trimmed) || !/^[a-zA-Z0-9]{6,20}$/.test(trimmed)) return trimmed;
+  return `https://uqload.is/embed-${trimmed}.html`;
+}
+
 function extractUqloadCode(url: string): string | null {
   const m = url.match(new RegExp(`uqload\\.(?:${UQLOAD_TLDS})\\/embed-?([a-zA-Z0-9]+)`, 'i'));
   return m ? m[1] : null;
@@ -262,7 +274,7 @@ async function scrapeUqloadEmbed(embedUrl: string, preferHls = false): Promise<D
     console.log(`${TAG} Uqload: page reçue en ${Date.now() - t0}ms (status=${status}, length=${html.length})`);
 
     // Page de secours Uqload : le fichier n'existe plus (expire/supprimé).
-    if (/(file is no longer available|expired or has been deleted|has been deleted)/i.test(html)) {
+    if (isDeadEmbedPage(html)) {
       console.log(`${TAG} Uqload: ❌ fichier mort (${code}) — "File is no longer available"`);
       return null;
     }
@@ -394,6 +406,7 @@ async function getUqloadDirectLink(fileCode: string, preferHls = false): Promise
     return null;
   }
 
+  let definitiveFailure = false;
   const tryTargetCode = async (targetCode: string): Promise<DirectStreamResult | null> => {
     try {
       const apiUrl = `https://uqload.is/api/file/direct_link?key=${apiKey}&file_code=${targetCode}${preferHls ? '&hls=1' : ''}`;
@@ -406,6 +419,7 @@ async function getUqloadDirectLink(fileCode: string, preferHls = false): Promise
       // Fichier supprimé/expiré côté Uqload : inutile de scraper la page embed.
       if (data?.status === 404 || /\bno file\b|not found|deleted/i.test(String(data?.msg || ''))) {
         console.log(`${TAG} Uqload API: ❌ fichier mort (${targetCode}) — msg=${data.msg}`);
+        definitiveFailure = true;
         return null;
       }
 
@@ -413,6 +427,7 @@ async function getUqloadDirectLink(fileCode: string, preferHls = false): Promise
       // Uqload renvoie status=200 mais avec une fausse vidéo promo (/taunt/promo/master.m3u8).
       if (/need premium|bandwidth plan/i.test(String(data?.msg || ''))) {
         console.log(`${TAG} Uqload API: ⚠ Forfait bandwidth requis (${data.msg}) — passage au scraping embed`);
+        definitiveFailure = true;
         return null;
       }
 
@@ -469,7 +484,10 @@ async function getUqloadDirectLink(fileCode: string, preferHls = false): Promise
   const primaryResult = await tryTargetCode(fileCode);
   if (primaryResult) return primaryResult;
 
-  // 2. Fallback clone uniquement si le code direct a échoué
+  // 2. Fallback clone uniquement si l'échec peut venir du code lui-même.
+  // Un fichier mort ou l'absence de forfait Premium sont définitifs : cloner
+  // ne ferait que rejouer le même appel API (et multiplier les timeouts).
+  if (definitiveFailure) return null;
   const clonedCode = await cloneFileCode(fileCode);
   if (clonedCode && clonedCode !== fileCode) {
     return await tryTargetCode(clonedCode);
@@ -678,22 +696,27 @@ export async function scrapeGenericEmbed(embedUrl: string, depth = 0): Promise<D
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 export async function scrapeDirectStream(embedUrl: string, preferHls = false): Promise<DirectStreamResult | null> {
-  console.log(`${TAG} scrapeDirectStream("${embedUrl.slice(0, 100)}")`);
+  const normalized = normalizeEmbedInput(embedUrl);
+  if (normalized !== embedUrl) {
+    console.log(`${TAG} scrapeDirectStream: code nu normalisé en embed Uqload → ${normalized}`);
+  }
+  const target = normalized;
+  console.log(`${TAG} scrapeDirectStream("${target.slice(0, 100)}")`);
 
-  if (isDoodstreamUrl(embedUrl)) {
+  if (isDoodstreamUrl(target)) {
     console.log(`${TAG} → détecté comme Doodstream`);
-    return scrapeDoodstreamEmbed(embedUrl);
+    return scrapeDoodstreamEmbed(target);
   }
-  if (isUqloadUrl(embedUrl)) {
+  if (isUqloadUrl(target)) {
     console.log(`${TAG} → détecté comme Uqload`);
-    return scrapeUqloadEmbed(embedUrl, preferHls);
+    return scrapeUqloadEmbed(target, preferHls);
   }
-  if (isVidzyUrl(embedUrl)) {
+  if (isVidzyUrl(target)) {
     console.log(`${TAG} → détecté comme Vidzy`);
-    return scrapeVidzyEmbed(embedUrl);
+    return scrapeVidzyEmbed(target);
   }
   console.log(`${TAG} → hôte non reconnu, tentative générique (VOE, clones…)`);
-  return scrapeGenericEmbed(embedUrl);
+  return scrapeGenericEmbed(target);
 }
 
 /**
@@ -735,6 +758,12 @@ export async function scrapeUqloadEmbedDirect(fileCode: string): Promise<DirectS
     }
     if (!html) return null;
     console.log(`${TAG} scrapeUqloadEmbedDirect: page reçue en ${Date.now() - t0}ms (${embedPageUrl}, status=${status}, length=${html.length})`);
+
+    // Page « File is no longer available » : inutile de décoder P.A.C.K.E.R.
+    if (isDeadEmbedPage(html)) {
+      console.log(`${TAG} scrapeUqloadEmbedDirect: ❌ fichier mort (${fileCode}) — "File is no longer available"`);
+      return null;
+    }
 
     // Priority 1: P.A.C.K.E.R. obfuscated JS — contient les URLs HLS signées
     console.log(`${TAG} scrapeUqloadEmbedDirect: S1 — décodage P.A.C.K.E.R...`);
@@ -809,6 +838,8 @@ export const DirectScraper = {
   getUqloadDirectLink,
   scrapeDoodstreamEmbed,
   scrapeUqloadEmbed,
+  isDeadEmbedPage,
+  normalizeEmbedInput,
 };
 
 export { isDoodstreamUrl, isUqloadUrl, isVidzyUrl, extractCodeFromUrl, extractUqloadCode, getUqloadDirectLink, scrapeVidzyEmbed };

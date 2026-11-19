@@ -8,6 +8,8 @@ export interface StreamResult {
   quality?: string;
   language?: string;
   referer?: string;
+  /** Le provider a déjà tenté la résolution directe : ne pas la rejouer. */
+  enrichSkipped?: boolean;
 }
 
 export interface StreamQuery {

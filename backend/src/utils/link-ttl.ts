@@ -16,8 +16,8 @@
  * à consommer les octets restants.
  */
 
-/** Marge par défaut : 60 s. */
-export const DEFAULT_EXPIRY_MARGIN_SECONDS = 60;
+/** Marge par défaut : 120 s (alignée sur celle du cache de streams). */
+export const DEFAULT_EXPIRY_MARGIN_SECONDS = 120;
 
 /**
  * Expiration absolue (epoch ms) du lien signé, ou null quand elle est

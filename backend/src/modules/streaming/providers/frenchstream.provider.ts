@@ -95,13 +95,47 @@ export class FrenchStreamProvider implements StreamingProvider {
 
     if (result?.streamUrl) {
       console.log(`[FrenchStream Provider] Flux 1080p trouvé: ${result.streamUrl.slice(0, 80)}... (${result.fileSize})`);
-      
-      // Mémoriser la page source dans MongoDB pour les futures requêtes
-      // et mettre à jour le lien principal du film si un nouvel embed a été trouvé
+
+      let directStreamUrl = result.streamUrl;
+      let directType: 'mp4' | 'hls' = /\.(m3u8)/i.test(result.streamUrl) ? 'hls' : 'mp4';
+      let directReferer: string | undefined;
+
+      if (!/\.(mp4|webm|mkv|m3u8)(\?|$)/i.test(result.streamUrl)) {
+        try {
+          const directRes = await DirectScraper.resolve(result.streamUrl);
+          if (directRes?.directUrl) {
+            directStreamUrl = directRes.directUrl;
+            directType = directRes.type === 'hls' ? 'hls' : 'mp4';
+            // Utiliser le referer du scraper (URL embed) si disponible — c'est
+            // ce que le CDN Vidzy/Uqload vérifie pour autoriser la lecture.
+            directReferer = directRes.referer;
+          }
+        } catch (err: any) {
+          console.warn(`[FrenchStream Provider] Résolution directe échouée: ${err?.message || err}`);
+        }
+      }
+
+      const isDirectStream = /\.(mp4|webm|mkv|m3u8)(\?|$)/i.test(directStreamUrl) || /u\d+\.vidzy\./i.test(directStreamUrl);
+      // Priorité : referer du scraper (URL embed) > referer générique par domaine
+      const referer = directReferer || getRefererForStreamUrl(directStreamUrl);
+
+      let downloadUrl: string | undefined = undefined;
+      if (isDirectStream) {
+        if (directType === 'mp4') {
+          downloadUrl = directStreamUrl;
+        } else if (directType === 'hls') {
+          downloadUrl = `/api/download/stream?m3u8=${encodeURIComponent(directStreamUrl)}`;
+        }
+      } else {
+        console.warn(`[FrenchStream Provider] Embed non résolu (mort/timeout) → weak: ${result.streamUrl.slice(0, 100)}`);
+      }
+
+      // Ne persister le code Uqload que si le fichier a réellement été résolu :
+      // écrire un code mort faisait resservir le même embed expiré 24 h durant.
       if (result.pagePath && (existingMovie || query.tmdbId)) {
         const lang = query.language || 'fr';
         const filter = existingMovie?._id ? { _id: existingMovie._id } : { tmdbId: query.tmdbId };
-        const uqCode = extractUqloadCode(result.streamUrl);
+        const uqCode = isDirectStream ? extractUqloadCode(result.streamUrl) : null;
         const updatePayload: any = {
           $push: {
             providerPages: {
@@ -109,7 +143,7 @@ export class FrenchStreamProvider implements StreamingProvider {
               path: result.pagePath,
               language: lang,
               lastScrapedAt: new Date(),
-              isWorking: true,
+              isWorking: isDirectStream,
             },
           },
         };
@@ -133,45 +167,18 @@ export class FrenchStreamProvider implements StreamingProvider {
         });
       }
 
-      let directStreamUrl = result.streamUrl;
-      let directType: 'mp4' | 'hls' = /\.(m3u8)/i.test(result.streamUrl) ? 'hls' : 'mp4';
-      let directReferer: string | undefined;
-
-      if (!/\.(mp4|webm|mkv|m3u8)(\?|$)/i.test(result.streamUrl)) {
-        try {
-          const directRes = await DirectScraper.resolve(result.streamUrl);
-          if (directRes?.directUrl) {
-            directStreamUrl = directRes.directUrl;
-            directType = directRes.type === 'hls' ? 'hls' : 'mp4';
-            // Utiliser le referer du scraper (URL embed) si disponible — c'est
-            // ce que le CDN Vidzy/Uqload vérifie pour autoriser la lecture.
-            directReferer = directRes.referer;
-          }
-        } catch (_) {}
-      }
-
-      const isDirectStream = /\.(mp4|webm|mkv|m3u8)(\?|$)/i.test(directStreamUrl) || /u\d+\.vidzy\./i.test(directStreamUrl);
-      // Priorité : referer du scraper (URL embed) > referer générique par domaine
-      const referer = directReferer || getRefererForStreamUrl(directStreamUrl);
-
-      let downloadUrl: string | undefined = undefined;
-      if (isDirectStream) {
-        if (directType === 'mp4') {
-          downloadUrl = directStreamUrl;
-        } else if (directType === 'hls') {
-          downloadUrl = `/api/download/stream?m3u8=${encodeURIComponent(directStreamUrl)}`;
-        }
-      }
-
       return {
         provider: this.name,
-        // L'URL directe est renvoyée brute : le lecteur proxy le HLS via
-        // /api/live/proxy (le backend ne sert pas de proxy /api/doodstream/stream).
+        // Pas de directUrl quand l'embed n'a rien donné de jouable : le
+        // ProviderManager pourra alors le qualifier en « weak ».
         embedUrl: directStreamUrl,
-        directUrl: directStreamUrl,
-        downloadUrl,
-        directType: isDirectStream ? directType : undefined,
-        referer: isDirectStream ? referer : undefined,
+        ...(isDirectStream ? {
+          directUrl: directStreamUrl,
+          downloadUrl,
+          directType,
+          referer,
+        } : {}),
+        enrichSkipped: !isDirectStream,
         type: 'movie',
       };
     }
@@ -231,8 +238,43 @@ export class FrenchStreamProvider implements StreamingProvider {
 
     if (result?.streamUrl) {
       console.log(`[FrenchStream Provider] Flux série 1080p trouvé: ${result.streamUrl.slice(0, 80)}... (${result.fileSize})`);
-      
-      // Mémoriser la page source dans MongoDB
+
+      let directStreamUrl = result.streamUrl;
+      let directType: 'mp4' | 'hls' = /\.(m3u8)/i.test(result.streamUrl) ? 'hls' : 'mp4';
+      let directReferer: string | undefined;
+
+      if (!/\.(mp4|webm|mkv|m3u8)(\?|$)/i.test(result.streamUrl)) {
+        try {
+          const directRes = await DirectScraper.resolve(result.streamUrl);
+          if (directRes?.directUrl) {
+            directStreamUrl = directRes.directUrl;
+            directType = directRes.type === 'hls' ? 'hls' : 'mp4';
+            // Utiliser le referer du scraper (URL embed) si disponible — c'est
+            // ce que le CDN Vidzy/Uqload vérifie pour autoriser la lecture.
+            directReferer = directRes.referer;
+          }
+        } catch (err: any) {
+          console.warn(`[FrenchStream Provider] Résolution directe série échouée: ${err?.message || err}`);
+        }
+      }
+
+      const isDirectStream = /\.(mp4|webm|mkv|m3u8)(\?|$)/i.test(directStreamUrl) || /u\d+\.vidzy\./i.test(directStreamUrl);
+      // Priorité : referer du scraper (URL embed) > referer générique par domaine
+      const referer = directReferer || getRefererForStreamUrl(directStreamUrl);
+
+      let downloadUrl: string | undefined = undefined;
+      if (isDirectStream) {
+        if (directType === 'mp4') {
+          downloadUrl = directStreamUrl;
+        } else if (directType === 'hls') {
+          downloadUrl = `/api/download/stream?m3u8=${encodeURIComponent(directStreamUrl)}`;
+        }
+      } else {
+        console.warn(`[FrenchStream Provider] Embed série non résolu (mort/timeout) → weak: ${result.streamUrl.slice(0, 100)}`);
+      }
+
+      // La page n'est mémorisée comme fonctionnelle que si un flux direct a
+      // été obtenu ; sinon la prochaine requête refera une recherche propre.
       if (result.pagePath && (existingSerie || query.tmdbId)) {
         const lang = query.language || 'fr';
         const filter = existingSerie?._id ? { _id: existingSerie._id } : { tmdbId: query.tmdbId };
@@ -252,7 +294,7 @@ export class FrenchStreamProvider implements StreamingProvider {
                   season,
                   language: lang,
                   lastScrapedAt: new Date(),
-                  isWorking: true,
+                  isWorking: isDirectStream,
                 },
               },
             }
@@ -262,45 +304,18 @@ export class FrenchStreamProvider implements StreamingProvider {
         });
       }
 
-      let directStreamUrl = result.streamUrl;
-      let directType: 'mp4' | 'hls' = /\.(m3u8)/i.test(result.streamUrl) ? 'hls' : 'mp4';
-      let directReferer: string | undefined;
-
-      if (!/\.(mp4|webm|mkv|m3u8)(\?|$)/i.test(result.streamUrl)) {
-        try {
-          const directRes = await DirectScraper.resolve(result.streamUrl);
-          if (directRes?.directUrl) {
-            directStreamUrl = directRes.directUrl;
-            directType = directRes.type === 'hls' ? 'hls' : 'mp4';
-            // Utiliser le referer du scraper (URL embed) si disponible — c'est
-            // ce que le CDN Vidzy/Uqload vérifie pour autoriser la lecture.
-            directReferer = directRes.referer;
-          }
-        } catch (_) {}
-      }
-
-      const isDirectStream = /\.(mp4|webm|mkv|m3u8)(\?|$)/i.test(directStreamUrl) || /u\d+\.vidzy\./i.test(directStreamUrl);
-      // Priorité : referer du scraper (URL embed) > referer générique par domaine
-      const referer = directReferer || getRefererForStreamUrl(directStreamUrl);
-
-      let downloadUrl: string | undefined = undefined;
-      if (isDirectStream) {
-        if (directType === 'mp4') {
-          downloadUrl = directStreamUrl;
-        } else if (directType === 'hls') {
-          downloadUrl = `/api/download/stream?m3u8=${encodeURIComponent(directStreamUrl)}`;
-        }
-      }
-
       return {
         provider: this.name,
-        // L'URL directe est renvoyée brute : le lecteur proxy le HLS via
-        // /api/live/proxy (le backend ne sert pas de proxy /api/doodstream/stream).
+        // Pas de directUrl quand l'embed n'a rien donné de jouable : le
+        // ProviderManager pourra alors le qualifier en « weak ».
         embedUrl: directStreamUrl,
-        directUrl: directStreamUrl,
-        downloadUrl,
-        directType: isDirectStream ? directType : undefined,
-        referer: isDirectStream ? referer : undefined,
+        ...(isDirectStream ? {
+          directUrl: directStreamUrl,
+          downloadUrl,
+          directType,
+          referer,
+        } : {}),
+        enrichSkipped: !isDirectStream,
         type: 'episode',
       };
     }

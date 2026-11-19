@@ -6,6 +6,8 @@ import Movie from '../../../models/Movie';
 import Serie from '../../../models/Serie';
 
 const TAG = '[DirectProvider]';
+/** Codes déjà morts/intouchables : évite de rejouer le même scrape en boucle. */
+const DEAD_CODE_TTL = 10 * 60 * 1000;
 
 function escapeRe(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -25,6 +27,7 @@ function escapeRe(str: string): string {
  */
 export class DirectProvider implements StreamingProvider {
   readonly name = 'direct';
+  private failedCodes = new Map<string, number>();
 
   supports(_query: StreamQuery): boolean {
     return true;
@@ -51,12 +54,16 @@ export class DirectProvider implements StreamingProvider {
     //    l'iframe (son IP n'est pas bloquée). Doodstream ne prend la main
     //    que si l'API échoue ou qu'aucun code Uqload n'existe.
     const uqloadCode = await this.findUqloadCode(query);
-    if (uqloadCode) {
+    const lastFailure = uqloadCode ? this.failedCodes.get(uqloadCode) : undefined;
+    if (lastFailure && Date.now() - lastFailure < DEAD_CODE_TTL) {
+      console.log(`${TAG} ${label} → code Uqload ${uqloadCode} en échec récent, ignoré`);
+    } else if (uqloadCode) {
       const uqloadEmbedUrl = `https://uqload.is/embed-${uqloadCode}.html`;
       console.log(`${TAG} ${label} → Uqload prioritaire (${uqloadEmbedUrl})`);
       const t1 = Date.now();
       const scrapedU = await resolveDirectFromEmbed(uqloadEmbedUrl, { preferHls: true });
       if (scrapedU.status === 'ok') {
+        this.failedCodes.delete(uqloadCode);
         console.log(`${TAG} ${label} → UQLOAD VALIDÉ en ${Date.now() - t1}ms (${scrapedU.directType})`);
         console.log(`${TAG}   directUrl: ${scrapedU.directUrl}`);
         this.updateMongoDbFreshUrl(query, scrapedU.directUrl, scrapedU.directType).catch(() => { });
@@ -70,6 +77,11 @@ export class DirectProvider implements StreamingProvider {
           referer: scrapedU.referer,  // ex: https://uqload.vc/embed-xxx.html — nécessaire pour le CDN Uqload
           type: query.season !== undefined ? 'episode' : 'movie',
         };
+      }
+      this.failedCodes.set(uqloadCode, Date.now());
+      if (this.failedCodes.size > 500) {
+        const oldest = this.failedCodes.keys().next().value;
+        if (oldest) this.failedCodes.delete(oldest);
       }
       console.log(`${TAG} ${label} → API Uqload échouée, fallback embed Doodstream`);
     }

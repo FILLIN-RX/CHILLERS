@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node --max-old-space-size=350 dist/server.js",
     "build": "tsc && cp src/modules/scraping/core/uploaded.json dist/modules/scraping/core/uploaded.json 2>/dev/null || true && cp src/modules/scraping/core/series-output.json dist/modules/scraping/core/series-output.json 2>/dev/null || true && cp src/modules/scraping/core/source-year.js dist/modules/scraping/core/source-year.js 2>/dev/null || true",
+    "test:stream": "tsx --test src/modules/streaming/__tests__/*.test.ts",
     "dev": "tsx watch src/server.ts",
     "preview": "node dist/server.js",
     "upload": "npx tsx src/modules/scraping/maintenance/upload-doodstream.ts",
