@@ -152,16 +152,43 @@ export default function RootLayout({
             pointer-events:none;
           }
           #__chillers_splash .splash-spinner {
-            width:72px;height:72px;
-            border-radius:50%;
-            border:4px solid rgba(255,255,255,0.08);
-            border-top-color:#f42a7c;
-            animation:__spin 0.85s linear infinite;
-            box-sizing:border-box;
+            position:relative;
+            width:40px;height:40px;
           }
-          @keyframes __spin {
-            to { transform: rotate(360deg); }
+          #__chillers_splash .splash-spinner span {
+            position:absolute;
+            left:18.25px;top:0;
+            width:3.5px;height:10px;
+            border-radius:2px;
+            background:var(--color-brand-primary,#F42A7C);
+            transform-origin:1.75px 20px;
+            opacity:0.15;
+            animation:__apple-fade 1s linear infinite;
+            will-change:opacity;
           }
+          @keyframes __apple-fade {
+            0% { opacity:1; }
+            100% { opacity:0.15; }
+          }
+          @media (prefers-reduced-motion: reduce) {
+            #__chillers_splash .splash-spinner span { animation: none; opacity: 0.35; }
+            #__chillers_splash .splash-spinner span:nth-child(1),
+            #__chillers_splash .splash-spinner span:nth-child(4),
+            #__chillers_splash .splash-spinner span:nth-child(7),
+            #__chillers_splash .splash-spinner span:nth-child(10) { opacity: 0.9; }
+          }
+          #__chillers_splash .splash-spinner span:nth-child(1)  { transform:rotate(0deg);   animation-delay:-0.9167s; }
+          #__chillers_splash .splash-spinner span:nth-child(2)  { transform:rotate(30deg);  animation-delay:-0.8333s; }
+          #__chillers_splash .splash-spinner span:nth-child(3)  { transform:rotate(60deg);  animation-delay:-0.75s; }
+          #__chillers_splash .splash-spinner span:nth-child(4)  { transform:rotate(90deg);  animation-delay:-0.6667s; }
+          #__chillers_splash .splash-spinner span:nth-child(5)  { transform:rotate(120deg); animation-delay:-0.5833s; }
+          #__chillers_splash .splash-spinner span:nth-child(6)  { transform:rotate(150deg); animation-delay:-0.5s; }
+          #__chillers_splash .splash-spinner span:nth-child(7)  { transform:rotate(180deg); animation-delay:-0.4167s; }
+          #__chillers_splash .splash-spinner span:nth-child(8)  { transform:rotate(210deg); animation-delay:-0.3333s; }
+          #__chillers_splash .splash-spinner span:nth-child(9)  { transform:rotate(240deg); animation-delay:-0.25s; }
+          #__chillers_splash .splash-spinner span:nth-child(10) { transform:rotate(270deg); animation-delay:-0.1667s; }
+          #__chillers_splash .splash-spinner span:nth-child(11) { transform:rotate(300deg); animation-delay:-0.0833s; }
+          #__chillers_splash .splash-spinner span:nth-child(12) { transform:rotate(330deg); animation-delay:0s; }
         `}} />
       </head>
       <body suppressHydrationWarning className="min-h-screen flex flex-col pt-safe bg-brand-dark text-foreground selection:bg-brand-primary selection:text-white">
@@ -178,12 +205,12 @@ export default function RootLayout({
         <GoogleAnalytics />
         <SiteVisitTracker />
         <CookieNotice />
-        {/* Splash pré-React — retiré par SplashScreen.tsx une fois les données chargées */}
+          {/* Splash pré-React — retiré par SplashScreen.tsx une fois les données chargées */}
         {/* dangerouslySetInnerHTML : React ne touche JAMAIS aux enfants → zéro erreur insertBefore/removeChild */}
         <div
           suppressHydrationWarning
           dangerouslySetInnerHTML={{
-            __html: `<div id="__chillers_splash" aria-hidden="true"><div class="splash-spinner"></div><script>setTimeout(function(){var s=document.getElementById("__chillers_splash");if(s){s.style.transition="opacity 0.4s ease";s.style.opacity="0";setTimeout(function(){if(s&&s.parentNode)s.parentNode.removeChild(s);},400);}},3500);</script></div>`,
+            __html: `<div id="__chillers_splash" aria-hidden="true"><div class="splash-spinner"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div><script>setTimeout(function(){var s=document.getElementById("__chillers_splash");if(s){s.style.transition="opacity 0.4s ease";s.style.opacity="0";setTimeout(function(){if(s&&s.parentNode)s.parentNode.removeChild(s);},400);}},3500);</script></div>`,
           }}
         />
         <SessionSyncProvider>
