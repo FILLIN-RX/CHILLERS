@@ -11,7 +11,7 @@
   ],
   "scripts": {
     "dev": "NODE_OPTIONS='--max-http-header-size=65536' next dev",
-    "build": "next build",
+    "build": "NODE_ENV=production next build",
     "start": "NODE_OPTIONS='--max-http-header-size=65536' next start",
     "lint": "eslint",
     "test": "jest",
