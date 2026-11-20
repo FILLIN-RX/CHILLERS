@@ -11,7 +11,10 @@
   ],
   "scripts": {
     "dev": "NODE_OPTIONS='--max-http-header-size=65536' next dev",
-    "build": "NODE_ENV=production next build",
+    "build": "next build",
+    "build:cf": "next build && opennextjs-cloudflare build",
+    "preview:cf": "next build && opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy:cf": "next build && opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "start": "NODE_OPTIONS='--max-http-header-size=65536' next start",
     "lint": "eslint",
     "test": "jest",
@@ -44,6 +47,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@opennextjs/cloudflare": "^1.20.18",
     "@playwright/test": "^1.62.0",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",
@@ -59,6 +63,7 @@
     "jest-environment-jsdom": "^30.4.1",
     "tailwindcss": "^4",
     "ts-jest": "^29.4.11",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wrangler": "^4.166.0"
   }
 }

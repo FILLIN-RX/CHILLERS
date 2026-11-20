@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { API_BASE_URL } from "@/lib/api-base";
 
 export const dynamic = "force-dynamic";
-export const runtime = "nodejs";
+export const runtime = "edge";
 
 // In-memory fallback state for Next.js server instance
 let globalSubscriptionState = true;

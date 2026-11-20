@@ -4,7 +4,7 @@ import { getEpgGuide } from "@/services/epg";
 import { rankChannelsForMatch } from "@/lib/match-channels";
 
 export const dynamic = "force-dynamic";
-export const runtime = "nodejs";
+export const runtime = "edge";
 
 /** ISO 8601, epoch secondes ou millisecondes → millisecondes. */
 function parseStart(value: string | null): number | undefined {
