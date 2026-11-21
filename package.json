@@ -25,7 +25,7 @@
     "matches:frontend": "npm --prefix matches-app/frontend run dev"
   },
   "dependencies": {
-    "@next/swc-linux-x64-gnu": "^16.3.8",
+    "@next/swc-linux-x64-gnu": "^16.4.6",
     "@phosphor-icons/react": "^2.1.10",
     "@tanstack/query-sync-storage-persister": "^5.101.4",
     "@tanstack/react-query": "^5.101.4",
@@ -37,7 +37,7 @@
     "hls.js": "^1.5.0",
     "mitt": "^3.0.1",
     "motion": "^13.5.0",
-    "next": "16.2.10",
+    "next": "16.4.6",
     "next-auth": "^5.0.0-beta.32",
     "react": "19.2.4",
     "react-dom": "19.2.4",
@@ -58,7 +58,7 @@
     "@types/react-dom": "^19",
     "@vercel/og": "^1.0.1",
     "eslint": "^9",
-    "eslint-config-next": "16.2.10",
+    "eslint-config-next": "16.4.6",
     "jest": "^30.4.2",
     "jest-environment-jsdom": "^30.4.1",
     "tailwindcss": "^4",
