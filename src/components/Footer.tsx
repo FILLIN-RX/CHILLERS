@@ -44,13 +44,13 @@ export default function Footer() {
             <h3 className="text-xs font-extrabold uppercase tracking-widest text-foreground">Liens</h3>
             <ul className="space-y-2 text-xs text-brand-text-muted font-medium">
               <li>
-                <Link href="/about" className="flex items-center gap-2 hover:text-brand-primary transition-colors">
+                <Link href="/about" className="flex min-h-6 items-center gap-2 hover:text-brand-primary transition-colors">
                   <Info className="h-3.5 w-3.5" />
                   À Propos
                 </Link>
               </li>
               <li>
-                <Link href="/contact" className="flex items-center gap-2 hover:text-brand-primary transition-colors">
+                <Link href="/contact" className="flex min-h-6 items-center gap-2 hover:text-brand-primary transition-colors">
                   <Envelope className="h-3.5 w-3.5" />
                   Contact
                 </Link>
@@ -58,20 +58,20 @@ export default function Footer() {
               <li>
                 <button
                   onClick={() => window.dispatchEvent(new Event("open-donation"))}
-                  className="flex items-center gap-2 hover:text-brand-primary transition-colors text-left"
+                  className="flex min-h-6 items-center gap-2 hover:text-brand-primary transition-colors text-left"
                 >
                   <Heart className="h-3.5 w-3.5 text-red-500 fill-red-500/20" />
                   Faire un don (Orange / MoMo)
                 </button>
               </li>
               <li>
-                <Link href="/privacy" className="flex items-center gap-2 hover:text-brand-primary transition-colors">
+                <Link href="/privacy" className="flex min-h-6 items-center gap-2 hover:text-brand-primary transition-colors">
                   <ShieldCheckered className="h-3.5 w-3.5" />
                   Politique de confidentialité
                 </Link>
               </li>
               <li>
-                <Link href="/notifications" className="flex items-center gap-2 hover:text-brand-primary transition-colors">
+                <Link href="/notifications" className="flex min-h-6 items-center gap-2 hover:text-brand-primary transition-colors">
                   <Bell className="h-3.5 w-3.5" />
                   Notifications
                 </Link>
@@ -86,7 +86,7 @@ export default function Footer() {
               <li>
                 <Link
                   href={{ pathname: "/categories", query: { genre: "Action & Adventure" } }}
-                  className="flex items-center gap-2 hover:text-brand-primary transition-colors"
+                  className="flex min-h-6 items-center gap-2 hover:text-brand-primary transition-colors"
                 >
                   <Play className="h-3.5 w-3.5" />
                   Action &amp; Adventure
@@ -95,7 +95,7 @@ export default function Footer() {
               <li>
                 <Link
                   href={{ pathname: "/categories", query: { genre: "Sci-Fi & Cyberpunk" } }}
-                  className="flex items-center gap-2 hover:text-brand-primary transition-colors"
+                  className="flex min-h-6 items-center gap-2 hover:text-brand-primary transition-colors"
                 >
                   <Play className="h-3.5 w-3.5" />
                   Sci-Fi &amp; Cyberpunk
@@ -104,7 +104,7 @@ export default function Footer() {
               <li>
                 <Link
                   href={{ pathname: "/categories", query: { genre: "Anime" } }}
-                  className="flex items-center gap-2 hover:text-brand-primary transition-colors"
+                  className="flex min-h-6 items-center gap-2 hover:text-brand-primary transition-colors"
                 >
                   <Play className="h-3.5 w-3.5" />
                   Anime Blockbusters
@@ -113,7 +113,7 @@ export default function Footer() {
               <li>
                 <Link
                   href={{ pathname: "/categories", query: { genre: "Documentary" } }}
-                  className="flex items-center gap-2 hover:text-brand-primary transition-colors"
+                  className="flex min-h-6 items-center gap-2 hover:text-brand-primary transition-colors"
                 >
                   <Play className="h-3.5 w-3.5" />
                   Documentaires
@@ -141,7 +141,7 @@ export default function Footer() {
             </p>
             <Link
               href="/support"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-brand-primary text-white text-xs font-bold hover:bg-brand-primary/90 transition-all shadow-lg shadow-brand-primary/30"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#D81B60] text-white text-xs font-bold hover:bg-[#C2185B] transition-all shadow-lg shadow-brand-primary/30"
             >
               <Heart className="h-4 w-4" />
               Nous soutenir
@@ -158,14 +158,14 @@ export default function Footer() {
             <div className="flex items-center gap-3 pt-2">
               <button
                 type="button"
-                aria-label="X (Twitter)"
+                aria-label="𝕏 (X / Twitter)"
                 className="h-8 w-8 rounded-full bg-brand-card border border-brand-border hover:border-brand-primary flex items-center justify-center text-brand-text-muted hover:text-brand-primary transition-all"
               >
                 𝕏
               </button>
               <button
                 type="button"
-                aria-label="Facebook"
+                aria-label="f (Facebook)"
                 className="h-8 w-8 rounded-full bg-brand-card border border-brand-border hover:border-brand-primary flex items-center justify-center text-brand-text-muted hover:text-brand-primary transition-all"
               >
                 f
@@ -179,7 +179,7 @@ export default function Footer() {
               </button>
               <button
                 type="button"
-                aria-label="YouTube"
+                aria-label="▶ (YouTube)"
                 className="h-8 w-8 rounded-full bg-brand-card border border-brand-border hover:border-brand-primary flex items-center justify-center text-brand-text-muted hover:text-brand-primary transition-all"
               >
                 ▶

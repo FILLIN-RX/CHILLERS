@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { getFastSportsImage } from "@/lib/sports-image";
 
 /**
  * Habillage « Apple TV » d'une rencontre, partagé par la carte des rangées et la
@@ -79,7 +80,7 @@ export function TeamCrest({ src, alt, size = "sm" }: { src?: string; alt: string
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={src}
+      src={getFastSportsImage(src, size === "lg" ? 96 : 56) ?? src}
       alt={alt}
       loading="lazy"
       onError={() => setBrokenSrc(src)}

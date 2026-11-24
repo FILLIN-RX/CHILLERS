@@ -39,7 +39,7 @@ export default function CookieNotice() {
         <button
           type="button"
           onClick={dismiss}
-          className="rounded-full bg-brand-primary px-4 py-2 text-xs font-bold text-white hover:opacity-90"
+          className="rounded-full bg-[#D81B60] px-4 py-2 text-xs font-bold text-white hover:opacity-90"
         >
           J&apos;ai compris
         </button>

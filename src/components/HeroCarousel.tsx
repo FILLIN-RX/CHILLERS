@@ -282,7 +282,7 @@ export default function HeroCarousel({
                     fill
                     className="object-cover object-[center_30%] sm:object-center transition-opacity duration-700"
                     style={{ filter: "brightness(0.8) saturate(1.1)" }}
-                    sizes="(max-width: 767px) 260px, 100vw"
+                    sizes="100vw"
                     quality={75}
                     priority={index === 0}
                     loading={index === 0 ? "eager" : "lazy"}

@@ -134,6 +134,21 @@ export default function RootLayout({
       className={`${geistMono.variable} ${poppins.variable} ${bungeeShade.variable} dark h-full antialiased`}
     >
       <head>
+        {/* Polices critiques : découvertes avant le CSS (chaîne CSS → police = +4s au LCP). */}
+        <link
+          rel="preload"
+          href="/fonts/SFPro.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
+        <link
+          rel="preload"
+          href="/fonts/Isometra-latin.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
         {/* Google Tag Manager */}
         <Script
           id="gtm-script"
@@ -192,6 +207,27 @@ export default function RootLayout({
           #__chillers_splash .splash-spinner span:nth-child(11) { transform:rotate(300deg); animation-delay:-0.0833s; }
           #__chillers_splash .splash-spinner span:nth-child(12) { transform:rotate(330deg); animation-delay:0s; }
         `}} />
+        {/*
+          Sortie du splash SANS attendre l'hydratation React. Un <script> injecté
+          via innerHTML ne s'exécute jamais : le fallback précédent restait donc
+          bloqué jusqu'à l'hydratation (~10s en dev), masquant le LCP. Ce script
+          est rendu dans le <head> SSR, donc exécuté pendant le parsing HTML.
+        */}
+        <script
+          dangerouslySetInnerHTML={{ __html: `
+            (function(){
+              function hide(){
+                var s=document.getElementById('__chillers_splash');
+                if(!s||s.dataset.hiding) return;
+                s.dataset.hiding='1';
+                s.style.opacity='0';
+                setTimeout(function(){ if(s.parentNode) s.parentNode.removeChild(s); },400);
+              }
+              window.addEventListener('load',hide,{once:true});
+              setTimeout(hide,1200);
+            })();
+          ` }}
+        />
       </head>
       <body suppressHydrationWarning className="min-h-screen flex flex-col pt-safe bg-brand-dark text-foreground selection:bg-brand-primary selection:text-white">
         {/* Google Tag Manager (noscript fallback) */}
@@ -212,7 +248,7 @@ export default function RootLayout({
         <div
           suppressHydrationWarning
           dangerouslySetInnerHTML={{
-            __html: `<div id="__chillers_splash" aria-hidden="true"><div class="splash-spinner"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div><script>setTimeout(function(){var s=document.getElementById("__chillers_splash");if(s){s.style.transition="opacity 0.4s ease";s.style.opacity="0";setTimeout(function(){if(s&&s.parentNode)s.parentNode.removeChild(s);},400);}},3500);</script></div>`,
+            __html: `<div id="__chillers_splash" aria-hidden="true"><div class="splash-spinner">${"<span></span>".repeat(12)}</div></div>`,
           }}
         />
         <SessionSyncProvider>

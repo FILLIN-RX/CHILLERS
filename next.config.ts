@@ -34,6 +34,12 @@ const nextConfig: NextConfig = {
     loader: 'custom',
     loaderFile: './src/lib/image-loader.ts',
     qualities: [75, 85],
+    // Le loader custom sert des buckets TMDB prédécoupés. Les largeurs par
+    // défaut de Next (640, 750, 828…) font croire au navigateur qu'une image
+    // w780 mesure 640px : il télécharge alors 200 Ko pour une vignette de 165px.
+    // Alignement des largeurs annoncées sur les tailles réellement servies.
+    deviceSizes: [185, 342, 500, 780, 1280],
+    imageSizes: [16, 32, 48, 64, 96, 128],
     remotePatterns: [
       { protocol: "https", hostname: "image.tmdb.org" },
       { protocol: "https", hostname: "images.unsplash.com" },

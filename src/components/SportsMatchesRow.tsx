@@ -165,7 +165,7 @@ export default function SportsMatchesRow({
         <div className="flex items-center gap-3 self-end sm:self-auto">
           <Link
             href="/matches"
-            className="text-xs sm:text-sm font-bold text-red-500 hover:text-red-400 flex items-center gap-1.5 group transition-colors shrink-0"
+            className="text-xs sm:text-sm font-bold text-red-400 hover:text-red-300 flex items-center gap-1.5 group transition-colors shrink-0"
           >
             <span>Scores &amp; Matchs</span>
             <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />

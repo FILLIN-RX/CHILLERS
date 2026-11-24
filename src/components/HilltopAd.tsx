@@ -80,6 +80,7 @@ export default function HilltopAd({
     <div
       ref={slotRef}
       className={['hilltop-ad-slot', className].filter(Boolean).join(' ')}
+      role="region"
       aria-label={label}
       data-ad-provider="hilltopads"
       style={{ minHeight: 64 }}
