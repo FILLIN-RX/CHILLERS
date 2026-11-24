@@ -44,6 +44,25 @@ const getCachedUpcomingMovies = unstable_cache(
   { revalidate: 300, tags: ["home"] },
 );
 
+// A slow upstream should not hold the whole home page behind its hero.
+// This is a display deadline: the remaining hero sources can still populate
+// the carousel when one source (for example anime) is temporarily unavailable.
+function settleWithin<T>(promise: Promise<T>, fallback: T, timeoutMs = 6_000): Promise<T> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(fallback), timeoutMs);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      () => {
+        clearTimeout(timer);
+        resolve(fallback);
+      },
+    );
+  });
+}
+
 export default function HomePage() {
   return <Suspense fallback={<HomeSkeleton />}><HomeCriticalContent /></Suspense>;
 }
@@ -56,9 +75,9 @@ async function HomeCriticalContent() {
   const animeSeriesPromise = getCachedAnimeSeries().catch(() => ({ results: [], totalPages: 1 }));
   const upcomingMoviesPromise = getCachedUpcomingMovies().catch(() => []);
   const [trendingMovies, trendingTV, animeSeriesPage] = await Promise.all([
-    trendingMoviesPromise,
-    trendingTVPromise,
-    animeSeriesPromise,
+    settleWithin(trendingMoviesPromise, []),
+    settleWithin(trendingTVPromise, []),
+    settleWithin(animeSeriesPromise, { results: [], totalPages: 1 }),
   ]);
 
   const animeCollection = animeSeriesPage.results || [];
