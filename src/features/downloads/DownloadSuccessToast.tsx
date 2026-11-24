@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { CheckCircle, DownloadSimple, X, ArrowRight } from "@phosphor-icons/react";
 import {
   DOWNLOAD_SUCCESS_EVENT,
+  useDownloadToastEmitter,
   type DownloadSuccessPayload,
 } from "@/hooks/useDownloadToast";
 
@@ -26,6 +27,9 @@ interface ToastItem extends DownloadSuccessPayload {
  */
 export default function DownloadSuccessToast() {
   const router = useRouter();
+  // L'émetteur vit dans cette feuille : les mises à jour de progression des
+  // téléchargements ne re-rendent pas Header/Footer/BottomNav ni la page.
+  useDownloadToastEmitter();
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const timers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 

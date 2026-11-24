@@ -9,7 +9,6 @@ import Footer from "@/components/Footer";
 import BottomNav from "@/components/BottomNav";
 import NetworkStatusBanner from "@/components/NetworkStatusBanner";
 import { useSplashReady } from "@/hooks/useSplashReady";
-import { useDownloadToastEmitter } from "@/hooks/useDownloadToast";
 import { MiniPlayerContext, type MiniPlayerSession } from "@/components/providers/MiniPlayerContext";
 
 const DownloadFloatingBar = dynamic(
@@ -40,8 +39,6 @@ export default function AppShell({ children, showBottomNav }: AppShellProps) {
   const router = useRouter();
   const openSearch = () => router.push("/search");
 
-  // Fire window events whenever a download task transitions to "done"
-  useDownloadToastEmitter();
   const pathname = usePathname();
   const [miniPlayerSession, setMiniPlayerSession] = useState<MiniPlayerSession | null>(null);
   const registerMiniPlayer = useCallback((session: MiniPlayerSession) => {

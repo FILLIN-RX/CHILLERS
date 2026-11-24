@@ -51,7 +51,9 @@ export default function HeroCarousel({
   const logoPendingRef = useRef<Set<string>>(new Set());
   const videoRef = useRef<HTMLVideoElement>(null);
   const { translate: _ } = useLanguage();
-  const { user, token, updateUser } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
+  const token = useAuthStore((s) => s.token);
+  const updateUser = useAuthStore((s) => s.updateUser);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
 
   const isFavoriteSlide = useCallback(

@@ -97,12 +97,12 @@ async function HomeCriticalContent() {
     trendingTVPromise,
     animeSeriesPromise.then((page) => page.results || []),
   ]).then(([movies, tv, anime]) => buildHeroSlides(movies, tv, anime));
-  const heroSlides = buildHeroSlides(trendingMovies, [], []);
+  const heroSlides = trimShowcaseItems(buildHeroSlides(trendingMovies, [], []));
   const animeCollectionPromise = animeSeriesPromise.then((page) => page.results || []);
 
   return (
     <HomeClientWrapper
-      heroSlides={trimShowcaseItems(heroSlides)}
+      heroSlides={heroSlides}
       heroSlidesPromise={heroSlidesPromise.then(trimShowcaseItems)}
       trendingMoviesPromise={trendingMoviesPromise}
       trendingTVPromise={trendingTVPromise}

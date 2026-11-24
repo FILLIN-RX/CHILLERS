@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
-import { motion, useReducedMotion } from "motion/react";
 
 type LiquidGlassVariant = "brand" | "sport" | "page";
 
@@ -26,7 +25,6 @@ interface PillRect {
 }
 
 const ACTIVE_SELECTOR = '[data-liquid-active="true"]';
-const SPRING = { type: "spring" as const, stiffness: 520, damping: 42, mass: 0.7 };
 
 function requestFrame(callback: FrameRequestCallback): number {
   if (typeof window.requestAnimationFrame === "function") return window.requestAnimationFrame(callback);
@@ -52,7 +50,6 @@ export default function LiquidGlassIndicator({
   className = "",
 }: LiquidGlassIndicatorProps) {
   const [rect, setRect] = useState<PillRect | null>(null);
-  const reduceMotion = useReducedMotion();
   const frameRef = useRef<number | null>(null);
 
   const measure = useCallback(() => {
@@ -114,7 +111,7 @@ export default function LiquidGlassIndicator({
   if (!rect) return null;
 
   return (
-    <motion.span
+    <span
       aria-hidden
       data-liquid-glass=""
       className={`liquid-glass-tab pointer-events-none absolute left-0 top-0 z-0 ${
@@ -124,24 +121,13 @@ export default function LiquidGlassIndicator({
             ? "liquid-glass-tab-page"
             : "liquid-glass-tab-brand"
       } ${className}`}
-      initial={false}
-      animate={{ x: rect.x, y: rect.y, width: rect.width, height: rect.height }}
-      transition={
-        reduceMotion
-          ? { duration: 0 }
-          : { x: SPRING, y: SPRING, width: SPRING, height: SPRING }
-      }
+      style={{
+        transform: `translate3d(${rect.x}px, ${rect.y}px, 0)`,
+        width: rect.width,
+        height: rect.height,
+      }}
     >
-      {!reduceMotion && (
-        <motion.span
-          key={activeKey}
-          aria-hidden
-          className="liquid-glass-motion-highlight"
-          initial={{ opacity: 0, scaleX: 0.78 }}
-          animate={{ opacity: [0, 0.72, 0.24], scaleX: [0.78, 1.04, 1] }}
-          transition={{ duration: 0.52, ease: [0.22, 1, 0.36, 1] }}
-        />
-      )}
-    </motion.span>
+      <span key={activeKey} aria-hidden className="liquid-glass-motion-highlight" />
+    </span>
   );
 }

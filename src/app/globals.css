@@ -423,6 +423,10 @@ body {
   position: absolute;
   border-radius: 9999px;
   will-change: transform, width, height;
+  transition:
+    transform 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    width 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    height 420ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .liquid-glass-motion-highlight {
@@ -433,7 +437,13 @@ body {
   transform-origin: center;
   background: radial-gradient(115% 100% at 24% 0%, rgba(255, 255, 255, 0.34), transparent 68%);
   mix-blend-mode: screen;
-  will-change: transform, opacity;
+  animation: liquid-glass-highlight 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes liquid-glass-highlight {
+  from { opacity: 0; transform: scaleX(0.78); }
+  60% { opacity: 0.72; }
+  to { opacity: 0.24; transform: scaleX(1); }
 }
 
 /* Pastille imbriquée dans une surface déjà filtrée : on coupe son propre
@@ -784,6 +794,10 @@ textarea:focus-visible,
 /* ====== OPTIMISATION PERFORMANCES MOBILE (iPhone 7 etc.) ====== */
 /* Désactiver le backdrop-filter sur petits écrans car ça tue le GPU des vieux iPhones */
 @media (max-width: 768px) {
+  /* Trois dégradés plein écran recomposés à chaque scroll sur un GPU mobile. */
+  body {
+    background: var(--background) !important;
+  }
   .glass-panel, .glass-badge, .glass-button, .glass-modal, .glass-card-overlay, .glass-card-poster-panel {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
@@ -794,6 +808,20 @@ textarea:focus-visible,
   [class*="backdrop-blur"] {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
+  }
+  /* Les surfaces « liquid glass » gardaient leur flou + un filtre SVG sur
+     backdrop-filter : le pire cas pour un GPU mobile. On garde le matériau
+     opaque (déjà défini en base), sans filtrage coûteux. */
+  .liquid-glass-surface,
+  .liquid-glass-surface-panel,
+  .liquid-glass-surface-page,
+  .liquid-glass-tab {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  /* Décoration saisonnière : 16 couches animées en permanence pendant le LCP. */
+  .christmas-effects {
+    display: none !important;
   }
   .glass-badge {
     background: rgba(16, 16, 20, 0.98) !important;

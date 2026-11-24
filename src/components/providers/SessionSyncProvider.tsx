@@ -5,7 +5,7 @@ import { SessionProvider, useSession } from "next-auth/react";
 import { useAuthStore, type UserProfile } from "@/stores/useAuthStore";
 import { userService } from "@/services/user";
 
-function SessionSyncInner({ children }: { children: React.ReactNode }) {
+function SessionSync() {
   const { data: session, status } = useSession();
 
   useEffect(() => {
@@ -51,7 +51,7 @@ function SessionSyncInner({ children }: { children: React.ReactNode }) {
     }
   }, [session, status]);
 
-  return <>{children}</>;
+  return null;
 }
 
 // P3: pas de `session` initial passée depuis le serveur — ce provider est
@@ -60,7 +60,8 @@ function SessionSyncInner({ children }: { children: React.ReactNode }) {
 export default function SessionSyncProvider({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider basePath="/api/nextauth" refetchOnWindowFocus={false} refetchInterval={0}>
-      <SessionSyncInner>{children}</SessionSyncInner>
+      <SessionSync />
+      {children}
     </SessionProvider>
   );
 }

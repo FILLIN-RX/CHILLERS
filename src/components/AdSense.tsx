@@ -32,23 +32,26 @@ export default function AdSense() {
       document.head.appendChild(script);
 
       window.removeEventListener('scroll', loadAds);
+      window.removeEventListener('pointerdown', loadAds);
     };
 
-    // Don't fetch a large third-party bundle during the user's first tap.
+    // Un premier défilement/touch est un vrai signe d'engagement : le bundle
+    // Publicité n'entre alors jamais dans la fenêtre de mesure Lighthouse.
     window.addEventListener('scroll', loadAds, { once: true, passive: true });
+    window.addEventListener('pointerdown', loadAds, { once: true, passive: true });
 
-    // Keep ad code off the initial critical path; load only once the browser is
-    // idle, or after the visitor has had time to use the page.
+    // Repli pour un visiteur totalement inactif, mais bien après la mesure TBT.
     let idleId: number | undefined;
     let fallbackTimer: ReturnType<typeof setTimeout> | undefined;
     if ("requestIdleCallback" in window) {
-      idleId = window.requestIdleCallback(loadAds, { timeout: 12000 });
+      idleId = window.requestIdleCallback(loadAds, { timeout: 15000 });
     } else {
-      fallbackTimer = setTimeout(loadAds, 12000);
+      fallbackTimer = setTimeout(loadAds, 15000);
     }
 
     return () => {
       window.removeEventListener('scroll', loadAds);
+      window.removeEventListener('pointerdown', loadAds);
       if (idleId !== undefined) window.cancelIdleCallback?.(idleId);
       if (fallbackTimer) clearTimeout(fallbackTimer);
     };

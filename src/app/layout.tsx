@@ -134,6 +134,8 @@ export default function RootLayout({
       className={`${geistMono.variable} ${poppins.variable} ${bungeeShade.variable} dark h-full antialiased`}
     >
       <head>
+        {/* Le LCP de l'accueil est une image TMDb : ouvrir la connexion dès le parsing. */}
+        <link rel="preconnect" href="https://image.tmdb.org" crossOrigin="anonymous" />
         {/* Polices critiques : découvertes avant le CSS (chaîne CSS → police = +4s au LCP). */}
         <link
           rel="preload"
@@ -142,14 +144,8 @@ export default function RootLayout({
           type="font/woff2"
           crossOrigin="anonymous"
         />
-        <link
-          rel="preload"
-          href="/fonts/Isometra-latin.woff2"
-          as="font"
-          type="font/woff2"
-          crossOrigin="anonymous"
-        />
-        {/* Google Tag Manager */}
+        {/* Isometra n'est appliqué à aucun élément rendu : ne pas le précharger.
+            Google Tag Manager */}
         <Script
           id="gtm-script"
           strategy="lazyOnload"
@@ -223,8 +219,16 @@ export default function RootLayout({
                 s.style.opacity='0';
                 setTimeout(function(){ if(s.parentNode) s.parentNode.removeChild(s); },400);
               }
+              // Ne pas attendre load (toutes les images, polices et scripts
+              // tiers) : l'overlay masquerait le LCP plusieurs secondes sur un
+              // réseau mobile lent. On libère dès que le HTML est parsé.
+              if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded',hide,{once:true});
+              } else {
+                hide();
+              }
               window.addEventListener('load',hide,{once:true});
-              setTimeout(hide,1200);
+              setTimeout(hide,700);
             })();
           ` }}
         />

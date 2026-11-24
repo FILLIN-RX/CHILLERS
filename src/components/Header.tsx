@@ -133,7 +133,7 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
                   <SantaHat className="absolute -left-2 -top-2 z-10 h-[21px] w-[23px] -rotate-[28deg] drop-shadow-md" />
                 </span>
                 <span className="brand-wordmark text-[15px] sm:text-[17px] font-normal text-white flex items-center -ml-1">
-                  HILL<span className="text-brand-primary">ERS</span>
+                  HILL<span className="text-[#ff4d94]">ERS</span>
                 </span>
               </Link>
 
@@ -309,7 +309,9 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
           </div>
         </div>
 
-        <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+        {isAuthModalOpen && (
+          <AuthModal isOpen onClose={() => setIsAuthModalOpen(false)} />
+        )}
       </header>
     </>
   );

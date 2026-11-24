@@ -46,7 +46,19 @@ export default function PWARegister() {
       };
       if (document.readyState === "complete") void register();
       else window.addEventListener("load", register, { once: true });
-      void syncGrantedSubscription();
+
+      // La synchro push fait 2 appels réseau + une souscription Web Push :
+      // rien de tout cela ne doit concurrencer le premier rendu/LCP.
+      let pushIdleId: number | undefined;
+      let pushTimer: ReturnType<typeof setTimeout> | undefined;
+      const schedulePush = () => {
+        if ("requestIdleCallback" in window) {
+          pushIdleId = window.requestIdleCallback(() => void syncGrantedSubscription(), { timeout: 8000 });
+        } else {
+          pushTimer = setTimeout(() => void syncGrantedSubscription(), 5000);
+        }
+      };
+      schedulePush();
 
       // Écouter les messages du Service Worker pour le background download
       const onWorkerMessage = (event: MessageEvent) => {
@@ -66,6 +78,8 @@ export default function PWARegister() {
       return () => {
         disposed = true;
         window.removeEventListener("load", register);
+        if (pushIdleId !== undefined) window.cancelIdleCallback?.(pushIdleId);
+        if (pushTimer) clearTimeout(pushTimer);
         navigator.serviceWorker.removeEventListener("message", onWorkerMessage);
       };
     }

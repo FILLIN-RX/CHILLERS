@@ -48,7 +48,11 @@ function LazyMount({
   }, [visible]);
 
   return (
-    <div ref={ref} style={{ minHeight }}>
+    <div
+      ref={ref}
+      style={{ minHeight }}
+      className="[content-visibility:auto] [contain-intrinsic-size:auto_400px]"
+    >
       {visible ? children : null}
     </div>
   );
@@ -342,7 +346,9 @@ export default function HomeClientWrapper({
             )}
 
             <div className="max-w-full mx-auto px-2 lg:px-3 space-y-8">
-              <SportsMatchesRow />
+              <LazyMount minHeight={220}>
+                <SportsMatchesRow />
+              </LazyMount>
 
               {primaryRows.slice(0, 2).map((row) => (
                 <LazyMount key={row.title} minHeight={400}>

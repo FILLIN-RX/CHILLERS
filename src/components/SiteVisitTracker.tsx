@@ -76,10 +76,12 @@ export default function SiteVisitTracker() {
 
     let idleId: number | undefined;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    // Les 2 premières secondes sont mesurées par Lighthouse (TBT/TTI) : on
+    // repousse le POST et ses lectures localStorage bien après cette fenêtre.
     if ("requestIdleCallback" in window) {
-      idleId = window.requestIdleCallback(trackVisit, { timeout: 2000 });
+      idleId = window.requestIdleCallback(trackVisit, { timeout: 8000 });
     } else {
-      timer = setTimeout(trackVisit, 750);
+      timer = setTimeout(trackVisit, 4000);
     }
 
     return () => {

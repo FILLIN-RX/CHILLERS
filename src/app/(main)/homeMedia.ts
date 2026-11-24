@@ -26,7 +26,9 @@ type HeavyKey =
   | "numberOfEpisodes"
   | "numberOfSeasons"
   | "contentRating"
-  | "videoUrl";
+  | "videoUrl"
+  | "logoUrl"
+  | "backdropOriginalUrl";
 
 const HEAVY_KEYS: readonly HeavyKey[] = [
   "synopsis",
@@ -44,6 +46,10 @@ const HEAVY_KEYS: readonly HeavyKey[] = [
   "numberOfSeasons",
   "contentRating",
   "videoUrl",
+  // Inutiles dans les rangées de cartes : le logo sert au hero uniquement et
+  // le backdrop original (w1280) a toujours une version w780 à côté.
+  "logoUrl",
+  "backdropOriginalUrl",
 ];
 
 /** Rangées de cartes : aucun texte long n'est affiché. */

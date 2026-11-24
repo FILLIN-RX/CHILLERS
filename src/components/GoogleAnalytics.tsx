@@ -38,9 +38,9 @@ export default function GoogleAnalytics() {
       document.head.appendChild(script);
     };
     if ("requestIdleCallback" in window) {
-      idleId = window.requestIdleCallback(loadAnalytics, { timeout: 4000 });
+      idleId = window.requestIdleCallback(loadAnalytics, { timeout: 8000 });
     } else {
-      timer = setTimeout(loadAnalytics, 1500);
+      timer = setTimeout(loadAnalytics, 4000);
     }
     return () => {
       if (idleId !== undefined) window.cancelIdleCallback?.(idleId);

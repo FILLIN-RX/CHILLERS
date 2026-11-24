@@ -42,8 +42,8 @@ async function swSaveOfflineVideo(id, blob, filename, title) {
 
 const OFFLINE_URL = '/offline.html';
 const PRECACHE_ASSETS = [
-  '/',
-  '/downloads',
+  // Ne pas re-télécharger la page courante pendant l'installation du SW :
+  // ça entre en compétition avec l'image LCP sur un réseau mobile lent.
   '/offline.html',
   '/manifest.json',
   '/site.webmanifest',
