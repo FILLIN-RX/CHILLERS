@@ -80,6 +80,10 @@ export default function ChannelsPageContent() {
         id: `current-${id}`,
         title: `${home} vs ${away}`,
         subtitle: "Match sélectionné",
+        score:
+          match?.homeTeam?.score !== undefined && match?.awayTeam?.score !== undefined
+            ? `${match.homeTeam.score} - ${match.awayTeam.score}`
+            : undefined,
         homeLogo: match?.homeTeam?.logo,
         awayLogo: match?.awayTeam?.logo,
         indicator: "EN COURS",
