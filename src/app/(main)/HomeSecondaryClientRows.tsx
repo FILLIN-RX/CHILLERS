@@ -19,22 +19,22 @@ function LazyRow({ children, title }: { children: React.ReactNode; title: string
           setIsVisible(true);
         }
       },
-      { rootMargin: "400px" }
+      { rootMargin: "120px" }
     );
     if (ref.current) observer.observe(ref.current);
     return () => observer.disconnect();
   }, [isVisible]);
 
   return (
-    <div ref={ref} className="min-h-[250px]">
+    <div ref={ref} className="min-h-[300px] [content-visibility:auto] [contain-intrinsic-size:auto_300px]">
       {isVisible ? (
         children
       ) : (
         <div className="space-y-3 py-3">
           <div className="h-4 w-36 rounded bg-white/10 animate-pulse" />
           <div className="flex gap-4 overflow-hidden">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-[250px] w-[165px] shrink-0 rounded-2xl bg-zinc-900/60 animate-pulse" />
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="h-[250px] w-[165px] shrink-0 rounded-2xl bg-zinc-900/60" />
             ))}
           </div>
         </div>
@@ -128,7 +128,7 @@ export default function HomeSecondaryClientRows({
       ].includes(title);
 
       const filtered = isCustomCategory ? uniqueItems : uniqueItems.filter((it) => !seen.has(String(it.id)));
-      const fresh = filtered.slice(0, 10);
+      const fresh = filtered.slice(0, 8);
       if (fresh.length < 3) return;
 
       const signature = fresh.map((it) => it.id).slice(0, 5).sort().join(":");

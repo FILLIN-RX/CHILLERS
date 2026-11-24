@@ -41,14 +41,14 @@ function LazyMount({
       (entries) => {
         if (entries[0]?.isIntersecting) setVisible(true);
       },
-      { rootMargin: "250px" }
+      { rootMargin: "100px" }
     );
     observer.observe(el);
     return () => observer.disconnect();
   }, [visible]);
 
   return (
-    <div ref={ref} style={visible ? undefined : { minHeight }}>
+    <div ref={ref} style={{ minHeight }}>
       {visible ? children : null}
     </div>
   );
@@ -56,21 +56,27 @@ function LazyMount({
 
 export interface HomeClientWrapperProps {
   heroSlides: MovieOrShow[];
+  heroSlidesPromise: Promise<MovieOrShow[]>;
   trendingMoviesPromise: Promise<MovieOrShow[]>;
   trendingTVPromise: Promise<MovieOrShow[]>;
   upcomingMoviesPromise: Promise<MovieOrShow[]>;
   popularSeries: MovieOrShow[];
+  popularSeriesPromise: Promise<MovieOrShow[]>;
   animeCollection: MovieOrShow[];
+  animeCollectionPromise: Promise<MovieOrShow[]>;
   children?: React.ReactNode;
 }
 
 export default function HomeClientWrapper({
   heroSlides,
+  heroSlidesPromise,
   trendingMoviesPromise,
   trendingTVPromise,
   upcomingMoviesPromise,
   popularSeries,
+  popularSeriesPromise,
   animeCollection,
+  animeCollectionPromise,
   children,
 }: HomeClientWrapperProps) {
   const router = useRouter();
@@ -85,20 +91,39 @@ export default function HomeClientWrapper({
 
   const [trendingAll, setTrendingAll] = useState<MovieOrShow[]>([]);
   const [newReleases, setNewReleases] = useState<MovieOrShow[]>([]);
+  const [displayHeroSlides, setDisplayHeroSlides] = useState(heroSlides);
+  const [resolvedPopularSeries, setResolvedPopularSeries] = useState(popularSeries);
+  const [resolvedAnimeCollection, setResolvedAnimeCollection] = useState(animeCollection);
+
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.resolve(heroSlidesPromise).then((slides) => {
+      if (!cancelled && slides?.length) setDisplayHeroSlides(slides);
+    }).catch((error) => {
+      if (!cancelled) console.error("Failed to finish home hero slides:", error);
+    });
+    void Promise.resolve(popularSeriesPromise).then((series) => {
+      if (!cancelled && series?.length) setResolvedPopularSeries(series);
+    }).catch(() => undefined);
+    void Promise.resolve(animeCollectionPromise).then((anime) => {
+      if (!cancelled && anime?.length) setResolvedAnimeCollection(anime);
+    }).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [heroSlidesPromise, popularSeriesPromise, animeCollectionPromise]);
 
   // Seed le cache react-query avec les données déjà fournies par le RSC :
   // toute requête client ultérieure (useHomeData, prefetch) répondra instantanément.
   useEffect(() => {
-    if (popularSeries.length > 0) {
-      queryClient.setQueryData(["home", "popular-tv"], popularSeries);
+    if (resolvedPopularSeries.length > 0) {
+      queryClient.setQueryData(["home", "popular-tv"], resolvedPopularSeries);
     }
-    if (animeCollection.length > 0) {
-      queryClient.setQueryData(["home", "anime"], animeCollection);
+    if (resolvedAnimeCollection.length > 0) {
+      queryClient.setQueryData(["home", "anime"], resolvedAnimeCollection);
     }
-    if (heroSlides.length > 0) {
-      queryClient.setQueryData(["home", "hero-slides"], heroSlides);
+    if (displayHeroSlides.length > 0) {
+      queryClient.setQueryData(["home", "hero-slides"], displayHeroSlides);
     }
-  }, [queryClient, popularSeries, animeCollection, heroSlides]);
+  }, [queryClient, resolvedPopularSeries, resolvedAnimeCollection, displayHeroSlides]);
 
   // Resolve deferred promises on client side
   useEffect(() => {
@@ -170,7 +195,7 @@ export default function HomeClientWrapper({
       if (uniqueItems.length < 3) return;
 
       const filtered = uniqueItems.filter((it) => !seen.has(String(it.id)));
-      const fresh = filtered.slice(0, 10);
+      const fresh = filtered.slice(0, 8);
       if (fresh.length < 3) return;
 
       fresh.forEach((it) => seen.add(String(it.id)));
@@ -179,11 +204,11 @@ export default function HomeClientWrapper({
 
     push(_("home.trending"), trendingAll, "primary", "poster");
     push("Nouveautés", newReleases, "primary", "poster");
-    push(_("home.popularSeries"), popularSeries, "primary", "poster");
-    push(_("home.animeCollection"), animeCollection, "secondary", "poster");
+    push(_("home.popularSeries"), resolvedPopularSeries, "primary", "poster");
+    push(_("home.animeCollection"), resolvedAnimeCollection, "secondary", "poster");
 
     return rows;
-  }, [trendingAll, newReleases, popularSeries, animeCollection, _]);
+  }, [trendingAll, newReleases, resolvedPopularSeries, resolvedAnimeCollection, _]);
 
   // Load Continue Watching
   useEffect(() => {
@@ -292,7 +317,7 @@ export default function HomeClientWrapper({
           <div className="space-y-10 pb-24">
             
             <HeroCarousel
-              slides={heroSlides}
+              slides={displayHeroSlides}
               onWatchNow={handleWatchNow}
               onOpenDetails={handleOpenDetails}
               slideTimings={[20000, 20000, 20000, 20000, 20000, 20000, 20000, 20000, 20000, 20000]}

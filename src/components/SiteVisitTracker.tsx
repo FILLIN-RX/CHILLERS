@@ -39,37 +39,53 @@ export default function SiteVisitTracker() {
   useEffect(() => {
     if (!pathname || pathname.startsWith("/admin") || pathname.startsWith("/api")) return;
 
-    const now = Date.now();
-    let visitor: { id: string; expiresAt: number } | null = null;
-    try {
-      visitor = JSON.parse(localStorage.getItem(VISITOR_KEY) || "null");
-    } catch {}
-    if (!visitor?.id || visitor.expiresAt <= now) {
-      visitor = { id: uuid(), expiresAt: now + VISITOR_TTL };
-      try { localStorage.setItem(VISITOR_KEY, JSON.stringify(visitor)); } catch {}
-    }
+    const trackVisit = () => {
+      const now = Date.now();
+      let visitor: { id: string; expiresAt: number } | null = null;
 
-    let session: { id: string; lastActivityAt: number } | null = null;
-    try { session = JSON.parse(localStorage.getItem(SESSION_KEY) || "null"); } catch {}
-    if (!session?.id || now - session.lastActivityAt > SESSION_IDLE) {
-      session = { id: uuid(), lastActivityAt: now };
+      try {
+        visitor = JSON.parse(localStorage.getItem(VISITOR_KEY) || "null");
+      } catch {}
+      if (!visitor?.id || visitor.expiresAt <= now) {
+        visitor = { id: uuid(), expiresAt: now + VISITOR_TTL };
+        try { localStorage.setItem(VISITOR_KEY, JSON.stringify(visitor)); } catch {}
+      }
+
+      let session: { id: string; lastActivityAt: number } | null = null;
+      try { session = JSON.parse(localStorage.getItem(SESSION_KEY) || "null"); } catch {}
+      if (!session?.id || now - session.lastActivityAt > SESSION_IDLE) {
+        session = { id: uuid(), lastActivityAt: now };
+      } else {
+        session.lastActivityAt = now;
+      }
+      try { localStorage.setItem(SESSION_KEY, JSON.stringify(session)); } catch {}
+
+      const campaign = readCampaign(session.id);
+      void fetch(`/api/analytics/visit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          visitorId: visitor.id,
+          sessionId: session.id,
+          pagePath: pathname,
+          ...campaign,
+        }),
+        keepalive: true,
+      }).catch(() => undefined);
+    };
+
+    let idleId: number | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    if ("requestIdleCallback" in window) {
+      idleId = window.requestIdleCallback(trackVisit, { timeout: 2000 });
     } else {
-      session.lastActivityAt = now;
+      timer = setTimeout(trackVisit, 750);
     }
-    try { localStorage.setItem(SESSION_KEY, JSON.stringify(session)); } catch {}
 
-    const campaign = readCampaign(session.id);
-    void fetch(`/api/analytics/visit`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        visitorId: visitor.id,
-        sessionId: session.id,
-        pagePath: pathname,
-        ...campaign,
-      }),
-      keepalive: true,
-    }).catch(() => undefined);
+    return () => {
+      if (idleId !== undefined) window.cancelIdleCallback?.(idleId);
+      if (timer) clearTimeout(timer);
+    };
   }, [pathname]);
 
   return null;

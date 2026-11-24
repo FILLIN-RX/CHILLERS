@@ -3,14 +3,6 @@
 import React, { useState, useRef, useCallback, useSyncExternalStore } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import {
-  motion,
-  useMotionValue,
-  useSpring,
-  useTransform,
-  useReducedMotion,
-  AnimatePresence,
-} from "motion/react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { MovieOrShow } from "@/types/media";
 import { getMediaDetails } from "@/services/media";
@@ -42,21 +34,6 @@ export interface MovieCardProps {
   titleBelow?: boolean;
 }
 
-// Apple design principles spring constants (§4 Behavior over animation):
-// Critically damped (damping 1.0, bounce 0), response 0.35s - smooth settle, no oscillation
-const HOVER_SPRING = {
-  type: "spring" as const,
-  bounce: 0,
-  duration: 0.35,
-};
-
-// Response on pointer-down (§1 Kill latency & tactile feedback)
-const TAP_SPRING = {
-  type: "spring" as const,
-  bounce: 0,
-  duration: 0.15,
-};
-
 const HOVER_QUERY = "(hover: hover) and (pointer: fine)";
 const subscribeHoverCapability = (onChange: () => void) => {
   const mediaQuery = window.matchMedia(HOVER_QUERY);
@@ -81,7 +58,6 @@ function MovieCard({
   const router = useRouter();
   const { translate: _ } = useLanguage();
   const cardRef = useRef<HTMLDivElement>(null);
-  const shouldReduceMotion = useReducedMotion();
   const queryClient = useQueryClient();
 
   const [imgLoaded, setImgLoaded] = useState(false);
@@ -105,34 +81,6 @@ function MovieCard({
     }
     return false;
   }, [item.sourceUrl]);
-
-  // ── Apple TV 3D Tilt & Light Physics (§2 Direct manipulation & §4 Springs) ──
-  const mouseX = useMotionValue(0.5);
-  const mouseY = useMotionValue(0.5);
-
-  // Critically damped springs tracking pointer position smoothly
-  const smoothX = useSpring(mouseX, { stiffness: 260, damping: 32 });
-  const smoothY = useSpring(mouseY, { stiffness: 260, damping: 32 });
-
-  // 3D rotations (subtle, non-distracting depth: max ±5.5 deg)
-  const rotateX = useTransform(smoothY, [0, 1], shouldReduceMotion ? [0, 0] : [5.5, -5.5]);
-  const rotateY = useTransform(smoothX, [0, 1], shouldReduceMotion ? [0, 0] : [-5.5, 5.5]);
-
-  // Glare / Specular highlight position across the card
-  const glareX = useTransform(smoothX, [0, 1], ["0%", "100%"]);
-  const glareY = useTransform(smoothY, [0, 1], ["0%", "100%"]);
-
-  const handlePointerMove = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      if (shouldReduceMotion || !cardRef.current || e.pointerType === "touch" || !canHover) return;
-      const rect = cardRef.current.getBoundingClientRect();
-      const x = (e.clientX - rect.left) / rect.width;
-      const y = (e.clientY - rect.top) / rect.height;
-      mouseX.set(Math.max(0, Math.min(1, x)));
-      mouseY.set(Math.max(0, Math.min(1, y)));
-    },
-    [canHover, mouseX, mouseY, shouldReduceMotion]
-  );
 
   const handlePointerEnter = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
@@ -160,9 +108,7 @@ function MovieCard({
 
   const handlePointerLeave = useCallback(() => {
     setIsHovered(false);
-    mouseX.set(0.5);
-    mouseY.set(0.5);
-  }, [mouseX, mouseY]);
+  }, []);
 
   const isPoster = variant === "poster" || variant === "grid-poster";
   const isGridPoster = variant === "grid-poster";
@@ -242,39 +188,13 @@ function MovieCard({
         } ${className}`;
 
     const posterCard = (
-      <motion.div
+      <div
         ref={cardRef}
         data-testid="movie-card-poster"
-        onPointerMove={handlePointerMove}
         onPointerEnter={handlePointerEnter}
         onPointerLeave={handlePointerLeave}
         onClick={() => { if (!openSource()) onOpenDetails(item); }}
-        whileHover={
-          !canHover || shouldReduceMotion
-            ? undefined
-            : {
-                scale: 1.045,
-                y: -5,
-                transition: HOVER_SPRING,
-              }
-        }
-        whileTap={
-          shouldReduceMotion
-            ? { opacity: 0.9 }
-            : {
-                scale: 0.96,
-                y: 0,
-                transition: TAP_SPRING,
-              }
-        }
-        style={{
-          rotateX: canHover ? rotateX : 0,
-          rotateY: canHover ? rotateY : 0,
-          transformPerspective: 900,
-          transformStyle: "preserve-3d",
-          touchAction: "manipulation",
-        }}
-        className={posterContainerClass}
+        className={`${posterContainerClass} touch-manipulation ${canHover ? "md:hover:-translate-y-1 md:hover:scale-[1.035]" : ""} active:scale-[0.98]`}
       >
         {appleFrame && (
           <div className="pointer-events-none absolute inset-0 rounded-2xl border border-white/15 border-t-white/30 z-30" />
@@ -323,11 +243,11 @@ function MovieCard({
         )}
 
         {/* Apple TV Parabolic Glare (Soft Ambient Sheen, No Stroke Border) */}
-        {canHover && !shouldReduceMotion && (
-          <motion.div
+          {canHover && (
+          <div
             className="pointer-events-none absolute inset-0 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 mix-blend-overlay"
             style={{
-              background: `radial-gradient(circle 280px at ${glareX} ${glareY}, rgba(255,255,255,0.35), transparent 70%)`,
+              background: "radial-gradient(circle 280px at 50% 50%, rgba(255,255,255,0.22), transparent 70%)",
             }}
           />
         )}
@@ -407,7 +327,7 @@ function MovieCard({
         )}
 
         </div>
-      </motion.div>
+      </div>
     );
     if (titleBelow && item.title) {
       return (
@@ -431,43 +351,13 @@ function MovieCard({
       : "flex-none w-[240px] sm:w-[280px] md:w-[320px] lg:w-[360px]";
 
   return (
-    <motion.div
+    <div
       ref={cardRef}
       data-testid="movie-card"
-      onPointerMove={handlePointerMove}
       onPointerEnter={handlePointerEnter}
       onPointerLeave={handlePointerLeave}
       onClick={() => { if (!openSource()) onOpenDetails(item); }}
-      whileHover={
-        !canHover || shouldReduceMotion
-          ? undefined
-          : {
-              scale: 1.035,
-              y: -4,
-              transition: HOVER_SPRING,
-            }
-      }
-      whileTap={
-        shouldReduceMotion
-          ? { opacity: 0.9 }
-          : {
-              scale: 0.96,
-              y: 0,
-              transition: TAP_SPRING,
-            }
-      }
-      style={
-        canHover
-          ? {
-              rotateX,
-              rotateY,
-              transformPerspective: 900,
-              transformStyle: "preserve-3d",
-              touchAction: "manipulation",
-            }
-          : { touchAction: "manipulation" }
-      }
-      className={`group relative ${landscapeSizeClass} select-none cursor-pointer rounded-2xl overflow-hidden bg-zinc-950 transition-transform duration-300 ${
+      className={`group relative ${landscapeSizeClass} select-none cursor-pointer rounded-2xl overflow-hidden bg-zinc-950 transition-transform duration-200 touch-manipulation ${canHover ? "md:hover:-translate-y-1 md:hover:scale-[1.03]" : ""} active:scale-[0.98] ${
         selected ? "ring-2 ring-brand-primary" : ""
       } ${className}`}
     >
@@ -520,11 +410,11 @@ function MovieCard({
         )}
 
         {/* Apple TV Parabolic Glare (Soft Ambient Sheen, No Stroke Border) */}
-        {canHover && !shouldReduceMotion && (
-          <motion.div
+        {canHover && (
+          <div
             className="pointer-events-none absolute inset-0 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 mix-blend-overlay"
             style={{
-              background: `radial-gradient(circle 280px at ${glareX} ${glareY}, rgba(255,255,255,0.35), transparent 70%)`,
+              background: "radial-gradient(circle 280px at 50% 50%, rgba(255,255,255,0.22), transparent 70%)",
             }}
           />
         )}
@@ -569,14 +459,11 @@ function MovieCard({
         </div>
 
         {/* Center Quick Play Spring Button on hover */}
-        <motion.div
-          initial={{ scale: 0.7, opacity: 0 }}
-          animate={isHovered ? { scale: 1, opacity: 1 } : { scale: 0.7, opacity: 0 }}
-          transition={HOVER_SPRING}
-          className="absolute inset-0 m-auto w-11 h-11 rounded-full bg-white/95 text-black flex items-center justify-center shadow-[0_8px_25px_rgba(0,0,0,0.6)] z-20 backdrop-blur-md max-md:hidden pointer-events-none"
+        <div
+          className={`absolute inset-0 m-auto w-11 h-11 rounded-full bg-white/95 text-black flex items-center justify-center shadow-[0_8px_25px_rgba(0,0,0,0.6)] z-20 backdrop-blur-md max-md:hidden pointer-events-none transition-all duration-200 ${isHovered ? "scale-100 opacity-100" : "scale-75 opacity-0"}`}
         >
           <Play className="w-4 h-4 fill-black translate-x-0.5" />
-        </motion.div>
+        </div>
 
         {/* Mobile: always-visible title gradient */}
         <div className="absolute bottom-0 left-0 right-0 z-20 md:hidden pointer-events-none">
@@ -594,15 +481,8 @@ function MovieCard({
       </div>
 
       {/* Glassmorphic Info overlay on hover (desktop only) */}
-      <AnimatePresence>
-        {isHovered && (
-          <motion.div
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 4 }}
-            transition={HOVER_SPRING}
-            className="pointer-events-none absolute bottom-0 left-0 right-0 z-30 max-md:hidden"
-          >
+      {isHovered && (
+          <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-30 max-md:hidden animate-[fade-in_150ms_ease-out]">
             <div className="bg-black/85 backdrop-blur-2xl p-3 rounded-b-2xl space-y-1.5">
               <div className="flex items-center justify-between gap-2">
                 <h3 className="text-xs font-bold text-white leading-tight line-clamp-1 drop-shadow-sm tracking-[-0.015em]">
@@ -649,10 +529,9 @@ function MovieCard({
                 {!isUpcoming && item.duration && <span>• {item.duration}</span>}
               </div>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
+          </div>
+      )}
+    </div>
   );
 }
 

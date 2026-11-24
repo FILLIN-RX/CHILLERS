@@ -13,6 +13,7 @@ import HomeSecondaryStream from "./HomeSecondaryStream";
 import HomeSecondarySkeleton from "@/components/HomeSecondarySkeleton";
 import { trimRowItems, trimShowcaseItems } from "./homeMedia";
 import { SITE_URL } from "@/lib/seo";
+import type { MovieOrShow } from "@/types/media";
 
 export const revalidate = 3600;
 
@@ -47,7 +48,7 @@ const getCachedUpcomingMovies = unstable_cache(
 // A slow upstream should not hold the whole home page behind its hero.
 // This is a display deadline: the remaining hero sources can still populate
 // the carousel when one source (for example anime) is temporarily unavailable.
-function settleWithin<T>(promise: Promise<T>, fallback: T, timeoutMs = 6_000): Promise<T> {
+function settleWithin<T>(promise: Promise<T>, fallback: T, timeoutMs = 2_500): Promise<T> {
   return new Promise((resolve) => {
     const timer = setTimeout(() => resolve(fallback), timeoutMs);
     promise.then(
@@ -63,6 +64,20 @@ function settleWithin<T>(promise: Promise<T>, fallback: T, timeoutMs = 6_000): P
   });
 }
 
+function buildHeroSlides(movies: MovieOrShow[], tv: MovieOrShow[], anime: MovieOrShow[]) {
+  const movieSlice = movies.slice(0, 5);
+  const tvSlice = tv.slice(0, 4);
+  const animeSlice = anime.slice(0, 3);
+  const slides: MovieOrShow[] = [];
+  const maxLength = Math.max(movieSlice.length, tvSlice.length, animeSlice.length);
+  for (let index = 0; index < maxLength; index++) {
+    if (movieSlice[index]) slides.push(movieSlice[index]);
+    if (tvSlice[index]) slides.push(tvSlice[index]);
+    if (animeSlice[index]) slides.push(animeSlice[index]);
+  }
+  return slides.slice(0, 10);
+}
+
 export default function HomePage() {
   return <Suspense fallback={<HomeSkeleton />}><HomeCriticalContent /></Suspense>;
 }
@@ -74,36 +89,28 @@ async function HomeCriticalContent() {
   const trendingTVPromise = getCachedTrendingTV().catch(() => []);
   const animeSeriesPromise = getCachedAnimeSeries().catch(() => ({ results: [], totalPages: 1 }));
   const upcomingMoviesPromise = getCachedUpcomingMovies().catch(() => []);
-  const [trendingMovies, trendingTV, animeSeriesPage] = await Promise.all([
-    settleWithin(trendingMoviesPromise, []),
-    settleWithin(trendingTVPromise, []),
-    settleWithin(animeSeriesPromise, { results: [], totalPages: 1 }),
-  ]);
-
-  const animeCollection = animeSeriesPage.results || [];
-
-  // Hero Carousel dynamique : mélange équilibré de films/séries en tendance + animes phares
-  const heroBase = [];
-  const mSlice = (trendingMovies || []).slice(0, 5);
-  const sSlice = (trendingTV || []).slice(0, 4);
-  const aSlice = animeCollection.slice(0, 3);
-  const maxLen = Math.max(mSlice.length, sSlice.length, aSlice.length);
-  for (let i = 0; i < maxLen; i++) {
-    if (mSlice[i]) heroBase.push(mSlice[i]);
-    if (sSlice[i]) heroBase.push(sSlice[i]);
-    if (aSlice[i]) heroBase.push(aSlice[i]);
-  }
-
-  const heroSlides = heroBase.slice(0, 10);
+  // Let the first films paint without waiting on the slower TV/anime sources.
+  // Once those independent requests settle, the carousel adds the remaining slides.
+  const trendingMovies = await settleWithin(trendingMoviesPromise, [], 2500);
+  const heroSlidesPromise = Promise.all([
+    trendingMoviesPromise,
+    trendingTVPromise,
+    animeSeriesPromise.then((page) => page.results || []),
+  ]).then(([movies, tv, anime]) => buildHeroSlides(movies, tv, anime));
+  const heroSlides = buildHeroSlides(trendingMovies, [], []);
+  const animeCollectionPromise = animeSeriesPromise.then((page) => page.results || []);
 
   return (
     <HomeClientWrapper
       heroSlides={trimShowcaseItems(heroSlides)}
+      heroSlidesPromise={heroSlidesPromise.then(trimShowcaseItems)}
       trendingMoviesPromise={trendingMoviesPromise}
       trendingTVPromise={trendingTVPromise}
       upcomingMoviesPromise={upcomingMoviesPromise}
-      popularSeries={trimRowItems(trendingTV)}
-      animeCollection={trimRowItems(animeCollection)}
+      popularSeries={[]}
+      popularSeriesPromise={trendingTVPromise.then(trimRowItems)}
+      animeCollection={[]}
+      animeCollectionPromise={animeCollectionPromise.then(trimRowItems)}
     >
       <Suspense fallback={<HomeSecondarySkeleton />}>
         <HomeSecondaryStream />

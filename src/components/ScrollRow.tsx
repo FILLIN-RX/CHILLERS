@@ -2,7 +2,6 @@
 
 import React, { useRef, useState, useEffect, useCallback } from "react";
 import { CaretLeft, CaretRight } from '@phosphor-icons/react';
-import gsap from "gsap";
 
 import Link from "next/link";
 
@@ -12,8 +11,6 @@ interface ScrollRowProps {
   seeAllText?: string;
   onSeeAll?: () => void;
   accentColor?: "primary" | "secondary";
-  autoScroll?: boolean;
-  autoScrollSpeed?: number;
   children: React.ReactNode;
   className?: string;
 }
@@ -24,17 +21,12 @@ export default function ScrollRow({
   seeAllText = "Voir plus",
   onSeeAll,
   accentColor = "primary",
-  autoScroll = false,
-  autoScrollSpeed = 0.5,
   children,
   className = "",
 }: ScrollRowProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
-  const [isHovered, setIsHovered] = useState(false);
-  const autoTween = useRef<gsap.core.Tween | null>(null);
-  const scrollTween = useRef<gsap.core.Tween | null>(null);
 
   const updateScrollState = useCallback(() => {
     if (typeof window === "undefined") return;
@@ -58,88 +50,14 @@ export default function ScrollRow({
     };
   }, [updateScrollState]);
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (scrollTween.current) {
-        scrollTween.current.kill();
-        scrollTween.current = null;
-      }
-      if (autoTween.current) {
-        autoTween.current.kill();
-        autoTween.current = null;
-      }
-    };
-  }, []);
-
   const scroll = (direction: "left" | "right") => {
     const el = scrollRef.current;
     if (!el || !document.contains(el)) return;
-    if (scrollTween.current) scrollTween.current.kill();
 
     const amount = el.clientWidth * 0.75;
     const target = direction === "right" ? el.scrollLeft + amount : el.scrollLeft - amount;
-
-    scrollTween.current = gsap.to(el, {
-      scrollLeft: target,
-      duration: 0.6,
-      ease: "power3.out",
-      onUpdate: updateScrollState,
-      onInterrupt: () => {
-        scrollTween.current = null;
-      },
-    });
+    el.scrollTo({ left: target, behavior: "smooth" });
   };
-
-  useEffect(() => {
-    if (!autoScroll) return;
-    if (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    // Désactiver l'auto-scroll sur mobile pour sauver le GPU et CPU (iPhone 7 etc.)
-    if (typeof window !== "undefined" && window.innerWidth < 768) return;
-    const el = scrollRef.current;
-    if (!el || !document.contains(el)) return;
-
-    const maxScroll = el.scrollWidth - el.clientWidth;
-    if (maxScroll <= 0) return;
-
-    const dur = maxScroll / autoScrollSpeed / 60;
-
-    const tween = gsap.to(el, {
-      scrollLeft: maxScroll,
-      duration: dur,
-      ease: "none",
-      paused: isHovered,
-      repeat: -1,
-      yoyo: false,
-      onRepeat: () => {
-        if (document.contains(el)) {
-          gsap.set(el, { scrollLeft: 0 });
-        }
-      },
-      repeatDelay: 0.8,
-      onUpdate: updateScrollState,
-      onInterrupt: () => {
-        autoTween.current = null;
-      },
-    });
-
-    autoTween.current = tween;
-
-    return () => {
-      if (tween) tween.kill();
-      autoTween.current = null;
-    };
-  }, [autoScroll, autoScrollSpeed, isHovered, updateScrollState]);
-
-  useEffect(() => {
-    const tween = autoTween.current;
-    if (!tween) return;
-    if (isHovered) {
-      tween.pause();
-    } else {
-      tween.resume();
-    }
-  }, [isHovered]);
 
   const accentClass =
     accentColor === "secondary" ? "bg-brand-secondary" : "bg-brand-primary";
@@ -204,8 +122,6 @@ export default function ScrollRow({
 
       <div
         className="relative group/row"
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
       >
         {canScrollLeft && (
           <button

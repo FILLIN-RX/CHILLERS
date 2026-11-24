@@ -8,6 +8,7 @@ import { Play, Star, BookmarkSimple } from "@phosphor-icons/react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useHydrated } from "@/hooks/useHydrated";
 import Button from "@/components/Button";
+import { ChristmasGarland } from "@/components/christmas/ChristmasEffects";
 import { getMediaTrailerUrl, getMediaLogo } from "@/app/api";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { userService } from "@/services/user";
@@ -251,6 +252,7 @@ export default function HeroCarousel({
 
   return (
     <section className="relative w-full h-[70vh] sm:h-[80vh] lg:h-[88vh] overflow-hidden bg-black select-none">
+      <ChristmasGarland />
       <div
         className="flex flex-row w-full h-full transition-transform duration-700 ease-out"
         style={{ transform: `translateX(-${currentIndex * 100}%)` }}
@@ -281,7 +283,7 @@ export default function HeroCarousel({
                     className="object-cover object-[center_30%] sm:object-center transition-opacity duration-700"
                     style={{ filter: "brightness(0.8) saturate(1.1)" }}
                     sizes="(max-width: 767px) 260px, 100vw"
-                    quality={85}
+                    quality={75}
                     priority={index === 0}
                     loading={index === 0 ? "eager" : "lazy"}
                     {...(index === 0 ? { fetchPriority: "high" } : {})}

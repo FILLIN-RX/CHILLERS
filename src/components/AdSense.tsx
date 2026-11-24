@@ -37,12 +37,20 @@ export default function AdSense() {
     // Don't fetch a large third-party bundle during the user's first tap.
     window.addEventListener('scroll', loadAds, { once: true, passive: true });
 
-    // Fallback if the user never scrolls.
-    const fallbackTimer = setTimeout(loadAds, 8000);
+    // Keep ad code off the initial critical path; load only once the browser is
+    // idle, or after the visitor has had time to use the page.
+    let idleId: number | undefined;
+    let fallbackTimer: ReturnType<typeof setTimeout> | undefined;
+    if ("requestIdleCallback" in window) {
+      idleId = window.requestIdleCallback(loadAds, { timeout: 12000 });
+    } else {
+      fallbackTimer = setTimeout(loadAds, 12000);
+    }
 
     return () => {
       window.removeEventListener('scroll', loadAds);
-      clearTimeout(fallbackTimer);
+      if (idleId !== undefined) window.cancelIdleCallback?.(idleId);
+      if (fallbackTimer) clearTimeout(fallbackTimer);
     };
   }, [isSubscriber]);
 

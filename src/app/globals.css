@@ -168,11 +168,11 @@ body {
 
 .christmas-garland {
   position: absolute;
-  z-index: 45;
-  top: env(safe-area-inset-top, 0px);
+  z-index: 5;
+  top: 0;
   left: 0;
   width: 100%;
-  height: clamp(32px, 4vw, 58px);
+  height: clamp(92px, 10vw, 140px);
   overflow: visible;
   filter: drop-shadow(0 2px 5px rgb(0 0 0 / 45%));
 }
@@ -183,21 +183,16 @@ body {
 .christmas-bulb-blue { fill: #3b82f6; animation: christmas-glow 1.5s 1.2s ease-in-out infinite alternate; }
 @keyframes christmas-glow { from { opacity: .4; } to { opacity: 1; } }
 
-.christmas-corner-art {
-  position: fixed;
-  z-index: 35;
-  right: 12px;
-  bottom: calc(5.25rem + env(safe-area-inset-bottom));
-  display: flex;
-  align-items: end;
-  gap: 2px;
-  width: 76px;
-  opacity: .8;
+.christmas-tree-hero {
+  position: absolute;
+  z-index: 25;
+  right: clamp(1rem, 5vw, 5rem);
+  bottom: clamp(1rem, 4vh, 3rem);
+  width: clamp(48px, 6vw, 82px);
+  height: clamp(58px, 8vw, 94px);
   pointer-events: none;
+  filter: drop-shadow(0 4px 12px rgb(0 0 0 / 65%));
 }
-.christmas-corner-art img:first-child { width: 36px; height: 36px; }
-.christmas-corner-art img:last-child { width: 34px; height: 40px; }
-.christmas-effects[data-page="player"] .christmas-corner-art { display: none; }
 
 .christmas-flake {
   position: absolute;
@@ -231,7 +226,7 @@ body {
 }
 
 @media (max-width: 640px) {
-  .christmas-garland { height: 34px; opacity: 0.88; }
+  .christmas-garland { height: 88px; opacity: 0.95; }
   .christmas-flake { opacity: 0.55; }
 }
 

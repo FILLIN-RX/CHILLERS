@@ -15,6 +15,7 @@ interface NetflixDownloadButtonProps {
   variant?: "button" | "icon";
   size?: "sm" | "md" | "lg";
   className?: string;
+  christmasReindeer?: boolean;
 }
 
 export default function NetflixDownloadButton({
@@ -27,6 +28,7 @@ export default function NetflixDownloadButton({
   variant = "button",
   size = "md",
   className = "",
+  christmasReindeer = false,
 }: NetflixDownloadButtonProps) {
   const tasks = useDownloadsStore((s) => s.tasks);
   const requestCancel = useDownloadsStore((s) => s.requestCancel);
@@ -111,10 +113,14 @@ export default function NetflixDownloadButton({
       <button
         type="button"
         onClick={onClick}
-        className={`p-2 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-all active:scale-95 cursor-pointer ${className}`}
+        className={`p-1 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-all active:scale-95 cursor-pointer ${className}`}
         title="Télécharger"
       >
-        <DownloadSimple className="w-5 h-5" />
+        {christmasReindeer ? (
+          <img src="/noel/reindeer.svg" alt="" aria-hidden="true" className="h-8 w-8 object-contain" />
+        ) : (
+          <DownloadSimple className="w-5 h-5" />
+        )}
       </button>
     );
   }
@@ -125,7 +131,7 @@ export default function NetflixDownloadButton({
       <button
         type="button"
         onClick={handleCancelOrAction}
-        className={`flex items-center gap-3 px-4 py-2.5 rounded-[5px] bg-zinc-900/90 border border-brand-primary/40 text-white font-semibold text-xs transition-all shadow-lg hover:border-brand-primary cursor-pointer active:scale-95 ${className}`}
+        className={`relative flex items-center gap-3 px-4 py-2.5 rounded-[5px] bg-zinc-900/90 border border-brand-primary/40 text-white font-semibold text-xs transition-all shadow-lg hover:border-brand-primary cursor-pointer active:scale-95 ${className}`}
       >
         {/* Anneau Circulaire de Progression Netflix */}
         <div className="relative flex items-center justify-center w-5 h-5">
@@ -161,7 +167,7 @@ export default function NetflixDownloadButton({
       <button
         type="button"
         onClick={onClick}
-        className={`flex items-center gap-2 px-4 py-2.5 rounded-[5px] bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-semibold text-xs transition-all shadow-lg hover:bg-emerald-500/20 cursor-pointer ${className}`}
+        className={`relative flex items-center gap-2 px-4 py-2.5 rounded-[5px] bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-semibold text-xs transition-all shadow-lg hover:bg-emerald-500/20 cursor-pointer ${className}`}
       >
         <CheckCircle className="w-4 h-4" weight="fill" />
         <span>Téléchargé</span>
@@ -175,7 +181,11 @@ export default function NetflixDownloadButton({
       onClick={onClick}
       className={`flex items-center gap-2 px-4 py-2.5 rounded-[5px] bg-brand-primary hover:bg-brand-primary/90 text-white font-bold text-xs transition-all shadow-lg active:scale-95 cursor-pointer ${className}`}
     >
-      <DownloadSimple className="w-4 h-4" />
+      {christmasReindeer ? (
+        <img src="/noel/reindeer.svg" alt="" aria-hidden="true" className="h-8 w-8 object-contain" />
+      ) : (
+        <DownloadSimple className="w-4 h-4" />
+      )}
       <span>{title || "Télécharger"}</span>
     </button>
   );

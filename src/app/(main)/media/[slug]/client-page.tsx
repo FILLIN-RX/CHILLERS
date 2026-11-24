@@ -29,6 +29,7 @@ import AddToPlaylistModal from "@/components/AddToPlaylistModal";
 import Button from "@/components/Button";
 import CardImage from "@/components/CardImage";
 import MediaLogo from "@/components/MediaLogo";
+import { ChristmasGarland } from "@/components/christmas/ChristmasEffects";
 import LiquidGlassIndicator from "@/components/ui/LiquidGlassIndicator";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { ArrowLeft, Play, Star, Clock, CalendarBlank, FilmSlate, CaretDown, DownloadSimple, ShareNetwork, Sparkle, BookmarkSimple, ListNumbers } from '@phosphor-icons/react';
@@ -433,6 +434,8 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
 
       {/* 1. HERO SECTION */}
       <div className="relative flex w-full flex-col justify-end overflow-hidden sm:min-h-[70vh] sm:max-h-[750px] lg:h-[78vh]">
+        <ChristmasGarland />
+        <img src="/noel/tree.svg" alt="" aria-hidden="true" className="christmas-tree-hero" />
         {heroImageUrl ? (
           <>
             {/* Mobile : affiche entière plein cadre, ratio 2/3 conservé — rien
@@ -607,17 +610,18 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
                 )}
 
                 {!isUpcoming && (
-                  <Button
-                    onClick={handleDownload}
-                    disabled={!item || loading}
-                    variant="dark"
-                    size="md"
-                    leftIcon={<DownloadSimple className="h-4 w-4" />}
-                    ariaLabel={`Download ${item?.title || ""}`}
-                    className="max-sm:flex-1 max-sm:justify-center sm:flex-none"
-                  >
-                    <span>Download</span>
-                  </Button>
+                    <Button
+                      onClick={handleDownload}
+                      disabled={!item || loading}
+                      variant="dark"
+                      size="md"
+                      christmasReindeer
+                      leftIcon={<DownloadSimple className="h-4 w-4" />}
+                      ariaLabel={`Download ${item?.title || ""}`}
+                      className="max-sm:flex-1 max-sm:justify-center sm:flex-none"
+                    >
+                      <span>Download</span>
+                    </Button>
                 )}
 
                 <div className="flex flex-wrap items-center justify-center gap-2.5 sm:contents sm:justify-start sm:gap-3">

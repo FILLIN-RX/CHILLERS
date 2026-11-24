@@ -19,6 +19,7 @@ import SeriesDownloadModal from "@/features/downloads/SeriesDownloadModal";
 import Button from "@/components/Button";
 import CardImage from "@/components/CardImage";
 import MediaLogo from "@/components/MediaLogo";
+import { ChristmasGarland } from "@/components/christmas/ChristmasEffects";
 import LiquidGlassIndicator from "@/components/ui/LiquidGlassIndicator";
 import { ArrowLeft, Play, Star, CalendarBlank, FilmSlate, ShareNetwork, BookmarkSimple, X, Check, LinkSimple, ListNumbers, DownloadSimple } from "@phosphor-icons/react";
 
@@ -310,6 +311,8 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
         )}
       </div>
       <div className="relative flex w-full flex-col justify-end overflow-hidden sm:min-h-[75vh] lg:min-h-[82vh]">
+        <ChristmasGarland />
+        <img src="/noel/tree.svg" alt="" aria-hidden="true" className="christmas-tree-hero" />
         {displayPoster || displayBackdrop ? (
           <>
             {/* Mobile : affiche entière plein cadre, ratio 2/3 conservé — rien
@@ -499,16 +502,17 @@ export default function TvClientWrapper({ id, initialItem, initialSimilar }: TvC
                     className="max-sm:flex-1 max-sm:!bg-white max-sm:!text-black max-sm:border-white max-sm:shadow-none sm:w-auto"
                   />
                 </Link>
-                <Button
-                  variant="dark"
-                  size="md"
-                  text={downloadLoading ? "Chargement…" : "Télécharger"}
-                  leftIcon={<DownloadSimple className="h-4 w-4" />}
-                  onClick={() => openSeasonDownload(firstPlayableSeasonNumber)}
-                  disabled={downloadLoading}
-                  ariaLabel="Télécharger les épisodes de cette série"
-                  className="max-sm:flex-1 max-sm:justify-center sm:w-auto"
-                />
+                  <Button
+                    variant="dark"
+                    size="md"
+                    text={downloadLoading ? "Chargement…" : "Télécharger"}
+                    christmasReindeer
+                    leftIcon={<DownloadSimple className="h-4 w-4" />}
+                    onClick={() => openSeasonDownload(firstPlayableSeasonNumber)}
+                    disabled={downloadLoading}
+                    ariaLabel="Télécharger les épisodes de cette série"
+                    className="max-sm:flex-1 max-sm:justify-center sm:w-auto"
+                  />
                 </>
               )}
 

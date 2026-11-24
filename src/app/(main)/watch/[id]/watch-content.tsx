@@ -876,28 +876,32 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
           {/* Action Download Buttons */}
           {item ? (
             <div className="flex items-center gap-2 sm:gap-2.5 py-1 flex-wrap sm:flex-nowrap">
-              <NetflixDownloadButton
-                tmdbId={item.id}
-                type={item.type === "anime" ? "anime" : item.type === "series" ? "series" : "movie"}
-                season={currentEpisode?.season}
-                episodeNumber={currentEpisode?.number}
-                title={isTV ? "Télécharger l'épisode" : "Télécharger le film"}
-                onClick={() => handleDownloadSingle(currentEpisode)}
-                className="flex-1 min-w-[140px] justify-center"
-              />
+              <span className="flex-1 min-w-[140px]">
+                <NetflixDownloadButton
+                  tmdbId={item.id}
+                  type={item.type === "anime" ? "anime" : item.type === "series" ? "series" : "movie"}
+                  season={currentEpisode?.season}
+                  episodeNumber={currentEpisode?.number}
+                  title={isTV ? "Télécharger l'épisode" : "Télécharger le film"}
+                  christmasReindeer
+                  onClick={() => handleDownloadSingle(currentEpisode)}
+                  className="w-full flex-1 min-w-[140px] justify-center"
+                />
+              </span>
 
               {isTV ? (
-                <Button
-                  onClick={() => {
-                    setShowBatchDownloadModal(true);
-                  }}
-                  variant="dark"
-                  size="md"
-                  text={_("download.series") || "Télécharger la saison"}
-                  leftIcon={<DownloadSimple className="h-4 w-4" />}
-                  ariaLabel={_("download.series") || "Télécharger la saison"}
-                  className="flex-1 min-w-[140px]"
-                />
+                <span className="flex-1 min-w-[140px]">
+                  <Button
+                    onClick={() => setShowBatchDownloadModal(true)}
+                    variant="dark"
+                    size="md"
+                    text={_("download.series") || "Télécharger la saison"}
+                    christmasReindeer
+                    leftIcon={<DownloadSimple className="h-4 w-4" />}
+                    ariaLabel={_("download.series") || "Télécharger la saison"}
+                    className="w-full flex-1 min-w-[140px]"
+                  />
+                </span>
               ) : (
                 <Button
                   onClick={handleShare}

@@ -41,6 +41,8 @@ export interface ButtonProps
   ariaLabel?: string;
   /** Custom border radius (defaults strictly to 2px) */
   borderRadius?: string;
+  /** Small decorative reindeer attached to seasonal download buttons. */
+  christmasReindeer?: boolean;
 }
 
 const sizeStyles: Record<ButtonSize, string> = {
@@ -90,6 +92,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       fullWidth = false,
       ariaLabel,
       borderRadius = "8px",
+      christmasReindeer = false,
       className = "",
       style,
       type = "button",
@@ -125,7 +128,9 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       text ||
       (typeof children === "string" ? children : undefined);
 
-    const actualLeftIcon = leftIcon || icon;
+    const actualLeftIcon = christmasReindeer
+      ? <img src="/noel/reindeer.svg" alt="" aria-hidden="true" className="h-7 w-7 object-contain" />
+      : leftIcon || icon;
 
     return (
       <button
