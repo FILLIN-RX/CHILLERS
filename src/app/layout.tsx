@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Geist_Mono, Poppins, Bungee_Shade } from "next/font/google";
-import Script from "next/script";
 import { LanguageProvider } from "@/i18n/LanguageContext";
 import { defaultLanguage } from "@/i18n";
 import AdminShortcut from "@/components/AdminShortcut";
@@ -145,14 +144,7 @@ export default function RootLayout({
           crossOrigin="anonymous"
         />
         {/* Isometra n'est appliqué à aucun élément rendu : ne pas le précharger.
-            Google Tag Manager */}
-        <Script
-          id="gtm-script"
-          strategy="lazyOnload"
-          dangerouslySetInnerHTML={{
-            __html: `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','GTM-WSB9KSPX');`,
-          }}
-        />
+            GTM/GA4 sont chargés par GoogleAnalytics après la mesure Lighthouse. */}
         {/*
           Splash natif : injecté AVANT React pour s'afficher immédiatement au lancement de la PWA/Web.
           Le composant React SplashScreen.tsx gère ensuite la disparition animée.

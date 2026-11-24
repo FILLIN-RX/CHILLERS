@@ -7,17 +7,14 @@ import {
   getTVByGenrePage,
   getBoxOfficeMovies,
   getNewAnime,
-  getMartialArtsMovies,
   getPopularTVPage,
-  getMadeInChina,
-  getBarbieMovies,
-  getRealityShows,
-  getAllTimeFavorites,
 } from "@/app/api";
 import HomeSecondaryClientRows from "./HomeSecondaryClientRows";
 import { trimRowItems } from "./homeMedia";
 
 export default async function HomeSecondaryStream() {
+  // 10 appels au lieu de 17 : moins de travail serveur et ~40 % de payload
+  // React Flight en moins, donc moins de parse HTML sur le main thread mobile.
   const [
     africanM,
     africanS,
@@ -26,16 +23,9 @@ export default async function HomeSecondaryStream() {
     actionMovies,
     comedyMovies,
     actionSeries,
-    animationSeries,
     boxOffice,
     newAnime,
-    martialArts,
     tvForYouPage,
-    saDrama,
-    madeInChina,
-    barbieMovies,
-    realityShows,
-    allTimeFavorites,
   ] = await Promise.all([
     getAfricanMovies(1).catch(() => []),
     getAfricanTV(1).catch(() => []),
@@ -44,16 +34,9 @@ export default async function HomeSecondaryStream() {
     getMoviesByGenre("28", 1).catch(() => []),
     getMoviesByGenre("35", 1).catch(() => []),
     getTVByGenrePage("10759", 1).catch(() => ({ results: [], totalPages: 1 })),
-    getTVByGenrePage("16", 1).catch(() => ({ results: [], totalPages: 1 })),
     getBoxOfficeMovies(1).catch(() => []),
     getNewAnime(1).catch(() => []),
-    getMartialArtsMovies(1).catch(() => []),
     getPopularTVPage(2).catch(() => ({ results: [], totalPages: 1 })),
-    getAfricanTV(1, "ZA").catch(() => []),
-    getMadeInChina(1).catch(() => []),
-    getBarbieMovies(1).catch(() => []),
-    getRealityShows(1).catch(() => []),
-    getAllTimeFavorites(1).catch(() => []),
   ]);
 
   return (
@@ -66,16 +49,16 @@ export default async function HomeSecondaryStream() {
       actionMovies={trimRowItems(actionMovies)}
       comedyMovies={trimRowItems(comedyMovies)}
       actionSeries={trimRowItems(actionSeries.results || [])}
-      animationSeries={trimRowItems(animationSeries.results || [])}
+      animationSeries={[]}
       boxOffice={trimRowItems(boxOffice)}
       newAnime={trimRowItems(newAnime)}
-      martialArts={trimRowItems(martialArts)}
+      martialArts={[]}
       tvForYou={trimRowItems(tvForYouPage.results || [])}
-      saDrama={trimRowItems(saDrama)}
-      madeInChina={trimRowItems(madeInChina)}
-      barbieMovies={trimRowItems(barbieMovies)}
-      realityShows={trimRowItems(realityShows)}
-      allTimeFavorites={trimRowItems(allTimeFavorites)}
+      saDrama={[]}
+      madeInChina={[]}
+      barbieMovies={[]}
+      realityShows={[]}
+      allTimeFavorites={[]}
       />
     </div>
   );

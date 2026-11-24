@@ -52,6 +52,14 @@ export default function MediaLogo({ src, alt }: MediaLogoProps) {
       setFilter(cached);
       return;
     }
+    // getImageData() sur une image plein écran force un readback GPU coûteux.
+    // Sur mobile on garde l'ombre par défaut, sans mesure de luminance.
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      setFilter(SHADOW);
+      treatmentCache.set(src, SHADOW);
+      return;
+    }
+
     const next = analyze(img);
     if (!next) return;
     treatmentCache.set(src, next);

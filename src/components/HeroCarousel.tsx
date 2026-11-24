@@ -104,6 +104,9 @@ export default function HeroCarousel({
   useEffect(() => {
     const currentSlide = slides?.[currentIndex];
     if (!currentSlide || currentSlide.logoUrl) return;
+    // Sur mobile le hero reste épuré (titre texte) : inutile de charger les
+    // logos TMDb et de lancer une analyse canvas pendant le LCP.
+    if (typeof window !== "undefined" && window.innerWidth < 768) return;
 
     const key = String(currentSlide.id);
     if (logoMapRef.current[key] || logoPendingRef.current.has(key)) return;

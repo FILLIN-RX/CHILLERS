@@ -13,6 +13,7 @@ import HomeSecondaryStream from "./HomeSecondaryStream";
 import HomeSecondarySkeleton from "@/components/HomeSecondarySkeleton";
 import { trimRowItems, trimShowcaseItems } from "./homeMedia";
 import { SITE_URL } from "@/lib/seo";
+import imageLoader from "@/lib/image-loader";
 import type { MovieOrShow } from "@/types/media";
 
 export const revalidate = 3600;
@@ -100,7 +101,22 @@ async function HomeCriticalContent() {
   const heroSlides = trimShowcaseItems(buildHeroSlides(trendingMovies, [], []));
   const animeCollectionPromise = animeSeriesPromise.then((page) => page.results || []);
 
+  // Mobile (412 px @2x) sélectionne le bucket w780 : le précharger dès le HTML
+  // évite ~2 s de délai de découverte de l'image LCP.
+  const heroArt = heroSlides[0]?.posterUrl || heroSlides[0]?.backdropUrl || heroSlides[0]?.backdropOriginalUrl;
+  const heroPreloadSrc = heroArt ? imageLoader({ src: heroArt, width: 780, quality: 75 }) : null;
+
   return (
+    <>
+    {heroPreloadSrc && (
+      <link
+        rel="preload"
+        as="image"
+        href={heroPreloadSrc}
+        media="(max-width: 767px)"
+        fetchPriority="high"
+      />
+    )}
     <HomeClientWrapper
       heroSlides={heroSlides}
       heroSlidesPromise={heroSlidesPromise.then(trimShowcaseItems)}
@@ -116,5 +132,6 @@ async function HomeCriticalContent() {
         <HomeSecondaryStream />
       </Suspense>
     </HomeClientWrapper>
+    </>
   );
 }
