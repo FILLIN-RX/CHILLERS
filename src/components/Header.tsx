@@ -13,6 +13,7 @@ import { useDownloadsStore } from "@/store/downloads";
 import UserAvatar from "@/components/UserAvatar";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import LiquidGlassIndicator from "@/components/ui/LiquidGlassIndicator";
+import SantaHat from "@/components/christmas/SantaHat";
 
 const AuthModal = dynamic(() => import("@/components/AuthModal"), { ssr: false });
 
@@ -118,16 +119,19 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
 
               {/* LOGO AVEC ICÔNE ET TEXTE */}
               <Link href="/" className="group flex items-center focus:outline-none shrink-0">
-                <Image
-                  src="/favicon-32x32.png"
-                  alt="CHILLERS"
-                  width={32}
-                  height={32}
-                  sizes="32px"
-                  unoptimized
-                  className="h-7 sm:h-8 w-auto object-contain transition-transform duration-300 group-hover:scale-105 drop-shadow-[0_0_12px_rgba(215,4,102,0.4)]"
-                  priority
-                />
+                <span className="relative inline-flex shrink-0">
+                  <Image
+                    src="/favicon-32x32.png"
+                    alt=""
+                    width={32}
+                    height={32}
+                    sizes="32px"
+                    unoptimized
+                    className="h-7 sm:h-8 w-auto object-contain transition-transform duration-300 group-hover:scale-105 drop-shadow-[0_0_12px_rgba(215,4,102,0.4)]"
+                    priority
+                  />
+                  <SantaHat className="absolute -right-1 -top-1.5 h-[18px] w-5 -rotate-6 drop-shadow-md" />
+                </span>
                 <span className="brand-wordmark text-lg sm:text-xl font-semibold text-white flex items-center -ml-1.5">
                   HILL<span className="text-brand-primary">ERS</span>
                 </span>

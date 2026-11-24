@@ -156,6 +156,61 @@ body {
   letter-spacing: -0.045em;
 }
 
+.christmas-effects {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  overflow: hidden;
+  pointer-events: none;
+  contain: strict;
+}
+
+.christmas-garland {
+  position: absolute;
+  z-index: 45;
+  top: env(safe-area-inset-top, 0px);
+  left: 0;
+  width: 100%;
+  height: clamp(32px, 4vw, 58px);
+  overflow: visible;
+  filter: drop-shadow(0 2px 5px rgb(0 0 0 / 45%));
+}
+
+.christmas-flake {
+  position: absolute;
+  top: var(--flake-top);
+  left: var(--flake-left);
+  width: var(--flake-size);
+  height: var(--flake-size);
+  border-radius: 50%;
+  background: rgb(245 250 255 / 82%);
+  box-shadow: 0 0 7px rgb(215 230 255 / 45%);
+}
+
+.christmas-effects[data-snow-mode="live"] .christmas-flake {
+  top: -8vh;
+  animation: christmas-fall var(--flake-duration) linear var(--flake-delay) infinite;
+  will-change: transform;
+}
+
+@keyframes christmas-fall {
+  from { transform: translate3d(0, -8vh, 0) rotate(0deg); }
+  to { transform: translate3d(var(--flake-drift), 112vh, 0) rotate(180deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .christmas-effects[data-snow-mode="live"] .christmas-flake {
+    top: var(--flake-top);
+    animation: none;
+    will-change: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .christmas-garland { height: 34px; opacity: 0.88; }
+  .christmas-flake { opacity: 0.55; }
+}
+
 /* Glassmorphism utility classes — seamless without harsh borders */
 .glass-panel {
   background: var(--glass-bg);

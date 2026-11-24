@@ -18,6 +18,7 @@ import "./globals.css";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
 import CookieNotice from "@/components/CookieNotice";
 import SiteVisitTracker from "@/components/SiteVisitTracker";
+import ChristmasEffects from "@/components/christmas/ChristmasEffects";
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
@@ -219,6 +220,7 @@ export default function RootLayout({
             <LanguageProvider>
               <PWARegister />
               <SplashScreen />
+              <ChristmasEffects snowMode="live" garland />
               {/* <PWAInstallBanner /> - Désactivé */}
               <NetworkStatusNotifier />
               <AdminShortcut />
