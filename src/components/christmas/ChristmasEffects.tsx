@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type CSSProperties } from "react";
+import { usePathname } from "next/navigation";
 
 type SnowMode = "live" | "static" | "none";
 
@@ -22,6 +23,7 @@ const flakes = [
 
 /** Decorative-only seasonal layer: no timers, images, or hit targets. */
 export default function ChristmasEffects({ snowMode = "live", garland = true }: ChristmasEffectsProps) {
+  const pathname = usePathname();
   const [reducedMotion, setReducedMotion] = useState(false);
 
   useEffect(() => {
@@ -35,25 +37,25 @@ export default function ChristmasEffects({ snowMode = "live", garland = true }: 
   const effectiveSnowMode = reducedMotion && snowMode === "live" ? "static" : snowMode;
 
   return (
-    <div className="christmas-effects" aria-hidden="true" data-snow-mode={effectiveSnowMode}>
+    <div className="christmas-effects" aria-hidden="true" data-snow-mode={effectiveSnowMode} data-page={pathname?.startsWith("/watch") || pathname?.startsWith("/live/sp/") || pathname?.startsWith("/live/lb/") ? "player" : "content"}>
       {garland && (
         <svg
           className="christmas-garland"
-          viewBox="0 0 1440 58"
+          viewBox="0 0 400 80"
           preserveAspectRatio="none"
           focusable="false"
         >
-          <path d="M0 5 C240 48 480 42 720 24 S1200 0 1440 8" fill="none" stroke="#244631" strokeWidth="3" />
-          <path d="M8 9 C130 22 205 35 320 38 M400 40 C505 43 600 34 720 24 M800 19 C920 11 1030 2 1150 4 M1220 4 C1300 4 1370 8 1434 10" fill="none" stroke="#39764c" strokeWidth="7" strokeLinecap="round" strokeDasharray="2 5" />
-          <path d="M68 19l-12-8m18 10 14-9m103 28-13-11m19 12 12-11m102 18-12-12m19 13 14-10m145 13-12-12m18 12 13-10m141-6-13-12m19 11 14-9m144-8-12-11m19 10 14-10m143-13-13-10m19 10 14-9m111-4-12-9m18 10 13-7m105 5-11-8m18 8 12-6" fill="none" stroke="#4f8a59" strokeWidth="2.5" strokeLinecap="round" />
-          <path d="M156 28v9m190 9v8m211-2v9m211-32v9m211-17v8m198-9v9m193 0v8" stroke="#b5a36b" strokeWidth="1.5" />
-          <circle cx="156" cy="39" r="4" fill="#f42a7c" />
-          <circle cx="346" cy="53" r="4" fill="#f3c969" />
-          <circle cx="557" cy="55" r="4" fill="#e9f1e6" />
-          <circle cx="768" cy="14" r="4" fill="#f42a7c" />
-          <circle cx="979" cy="-1" r="4" fill="#f3c969" />
-          <circle cx="1177" cy="8" r="4" fill="#e9f1e6" />
-          <circle cx="1370" cy="13" r="4" fill="#f42a7c" />
+          <path d="M0 10 Q100 45 200 15 T400 15" fill="none" stroke="#1e293b" strokeWidth="2.5" strokeLinecap="round" />
+          <rect x="47" y="21" width="6" height="6" rx="1" fill="#334155" />
+          <ellipse cx="50" cy="34" rx="5" ry="8" className="christmas-bulb-red" />
+          <rect x="117" y="25" width="6" height="6" rx="1" fill="#334155" />
+          <ellipse cx="120" cy="38" rx="5" ry="8" className="christmas-bulb-green" />
+          <rect x="197" y="14" width="6" height="6" rx="1" fill="#334155" />
+          <ellipse cx="200" cy="27" rx="5" ry="8" className="christmas-bulb-gold" />
+          <rect x="277" y="23" width="6" height="6" rx="1" fill="#334155" />
+          <ellipse cx="280" cy="36" rx="5" ry="8" className="christmas-bulb-blue" />
+          <rect x="347" y="19" width="6" height="6" rx="1" fill="#334155" />
+          <ellipse cx="350" cy="32" rx="5" ry="8" className="christmas-bulb-red" />
         </svg>
       )}
       {snowMode !== "none" && flakes.map(([left, top, size, duration, drift], index) => (
@@ -70,6 +72,10 @@ export default function ChristmasEffects({ snowMode = "live", garland = true }: 
           } as CSSProperties}
         />
       ))}
+      <div className="christmas-corner-art">
+        <img src="/noel/reindeer.svg" alt="" />
+        <img src="/noel/tree.svg" alt="" />
+      </div>
     </div>
   );
 }

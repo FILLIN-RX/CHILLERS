@@ -2,14 +2,14 @@ export default function SantaHat({ className = "" }: { className?: string }) {
   return (
     <svg
       className={className}
-      viewBox="0 0 40 32"
+      viewBox="0 0 120 120"
       aria-hidden="true"
       focusable="false"
     >
-      <path d="M5 24C8 13 17 5 31 4c-4 5-3 12 3 17L5 24Z" fill="#e52848" />
-      <path d="M5 21c7 1 18-1 29-4l4 6c-10 4-24 7-33 5-3-.7-3-5 0-7Z" fill="#fffaf0" />
-      <circle cx="32" cy="4" r="4" fill="#fffaf0" />
-      <path d="M8 23c8 1 17-1 25-4" fill="none" stroke="#ffc4cf" strokeWidth="1" strokeLinecap="round" />
+      <path d="M22 76C24 38 56 18 92 26c6 2 10 10 6 20s-12 14-16 8c-4-8-16-8-20 2l6 20Z" fill="#ef4444" />
+      <path d="M62 56c6-6 14-4 20 0L68 76Z" fill="#dc2626" />
+      <circle cx="96" cy="54" r="11" fill="#f8fafc" />
+      <rect x="16" y="72" width="66" height="18" rx="9" fill="#f8fafc" />
     </svg>
   );
 }

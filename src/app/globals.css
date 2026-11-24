@@ -152,8 +152,9 @@ body {
 }
 
 .brand-wordmark {
-  font-family: var(--font-space-grotesk), var(--font-sans);
-  letter-spacing: -0.045em;
+  font-family: var(--font-bungee-shade), var(--font-sans);
+  letter-spacing: -0.035em;
+  line-height: 1;
 }
 
 .christmas-effects {
@@ -175,6 +176,28 @@ body {
   overflow: visible;
   filter: drop-shadow(0 2px 5px rgb(0 0 0 / 45%));
 }
+
+.christmas-bulb-red { fill: #ef4444; animation: christmas-glow 1.5s ease-in-out infinite alternate; }
+.christmas-bulb-green { fill: #22c55e; animation: christmas-glow 1.5s .5s ease-in-out infinite alternate; }
+.christmas-bulb-gold { fill: #eab308; animation: christmas-glow 1.5s 1s ease-in-out infinite alternate; }
+.christmas-bulb-blue { fill: #3b82f6; animation: christmas-glow 1.5s 1.2s ease-in-out infinite alternate; }
+@keyframes christmas-glow { from { opacity: .4; } to { opacity: 1; } }
+
+.christmas-corner-art {
+  position: fixed;
+  z-index: 35;
+  right: 12px;
+  bottom: calc(5.25rem + env(safe-area-inset-bottom));
+  display: flex;
+  align-items: end;
+  gap: 2px;
+  width: 76px;
+  opacity: .8;
+  pointer-events: none;
+}
+.christmas-corner-art img:first-child { width: 36px; height: 36px; }
+.christmas-corner-art img:last-child { width: 34px; height: 40px; }
+.christmas-effects[data-page="player"] .christmas-corner-art { display: none; }
 
 .christmas-flake {
   position: absolute;
@@ -199,6 +222,7 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .christmas-garland [class^="christmas-bulb-"] { animation: none; }
   .christmas-effects[data-snow-mode="live"] .christmas-flake {
     top: var(--flake-top);
     animation: none;

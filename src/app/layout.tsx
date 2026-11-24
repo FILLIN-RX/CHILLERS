@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist_Mono, Poppins, Space_Grotesk } from "next/font/google";
+import { Geist_Mono, Poppins, Bungee_Shade } from "next/font/google";
 import Script from "next/script";
 import { LanguageProvider } from "@/i18n/LanguageContext";
 import { defaultLanguage } from "@/i18n";
@@ -27,7 +27,7 @@ const geistMono = Geist_Mono({
   preload: false,
 });
 const poppins = Poppins({ variable: "--font-poppins", subsets: ["latin"], weight: ["400", "500", "600", "700"], display: "swap", preload: false });
-const spaceGrotesk = Space_Grotesk({ variable: "--font-space-grotesk", subsets: ["latin"], weight: ["600"], display: "swap", preload: false });
+const bungeeShade = Bungee_Shade({ variable: "--font-bungee-shade", subsets: ["latin"], weight: ["400"], display: "swap", preload: false });
 
 const siteUrl = SITE_URL;
 
@@ -131,7 +131,7 @@ export default function RootLayout({
   return (
     <html
       lang={defaultLanguage}
-      className={`${geistMono.variable} ${poppins.variable} ${spaceGrotesk.variable} dark h-full antialiased`}
+      className={`${geistMono.variable} ${poppins.variable} ${bungeeShade.variable} dark h-full antialiased`}
     >
       <head>
         {/* Google Tag Manager */}

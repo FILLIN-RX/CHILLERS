@@ -130,9 +130,9 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
                     className="h-7 sm:h-8 w-auto object-contain transition-transform duration-300 group-hover:scale-105 drop-shadow-[0_0_12px_rgba(215,4,102,0.4)]"
                     priority
                   />
-                  <SantaHat className="absolute -right-1 -top-1.5 h-[18px] w-5 -rotate-6 drop-shadow-md" />
+                  <SantaHat className="absolute -right-1.5 -top-2 z-10 h-[21px] w-[23px] -rotate-12 drop-shadow-md" />
                 </span>
-                <span className="brand-wordmark text-lg sm:text-xl font-semibold text-white flex items-center -ml-1.5">
+                <span className="brand-wordmark text-[15px] sm:text-[17px] font-normal text-white flex items-center -ml-1">
                   HILL<span className="text-brand-primary">ERS</span>
                 </span>
               </Link>
