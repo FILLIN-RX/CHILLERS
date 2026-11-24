@@ -1,7 +1,7 @@
 import { httpJson } from './http';
 
-export type PushCategory = 'announcements' | 'favorites' | 'matches' | 'subscriptions' | 'reminders';
-export interface PushPreferences { announcements: boolean; favorites: boolean; matches: boolean; subscriptions: boolean; reminders: boolean; }
+export type PushCategory = 'announcements' | 'favorites' | 'matches' | 'subscriptions' | 'reminders' | 'releases';
+export interface PushPreferences { announcements: boolean; favorites: boolean; matches: boolean; subscriptions: boolean; reminders: boolean; releases: boolean; }
 
 // Chemin relatif : dans le navigateur il part sur l'origine du site, que la
 // rewrite de next.config proxifie vers le backend. Une URL absolue du domaine
@@ -51,6 +51,15 @@ export const userService = {
   },
   subscribePush(subscription: PushSubscriptionJSON, token?: string) {
     return notificationRequest<{ success: boolean; data: { linkedToAccount: boolean } }>('/subscriptions', token, { method: 'POST', body: { subscription } });
+  },
+  getReleaseReminders(token: string) {
+    return notificationRequest<{ success: boolean; data: { tmdbId: string; title: string; releaseDate: string }[] }>('/release-reminders', token);
+  },
+  addReleaseReminder(payload: { tmdbId: string; title: string; releaseDate: string; posterUrl?: string }, token: string) {
+    return notificationRequest<{ success: boolean }>('/release-reminders', token, { method: 'POST', body: payload });
+  },
+  removeReleaseReminder(tmdbId: string, token: string) {
+    return notificationRequest<{ success: boolean }>('/release-reminders', token, { method: 'DELETE', body: { tmdbId } });
   },
   unsubscribePush(endpoint: string) {
     return notificationRequest<{ success: boolean }>('/subscriptions', undefined, { method: 'DELETE', body: { endpoint } });

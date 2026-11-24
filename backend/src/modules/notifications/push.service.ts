@@ -21,7 +21,7 @@ export function getVapidPublicKey() {
   return VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY ? VAPID_PUBLIC_KEY : null;
 }
 
-export type NotificationCategory = 'announcements' | 'favorites' | 'matches' | 'subscriptions' | 'reminders';
+export type NotificationCategory = 'announcements' | 'favorites' | 'matches' | 'subscriptions' | 'reminders' | 'releases';
 export interface PushPayload {
   title: string;
   body: string;

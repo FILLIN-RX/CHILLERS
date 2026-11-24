@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Television, X } from "@phosphor-icons/react";
-import LivePlayer from "@/components/LivePlayer";
+import LivePlayer, { type LivePlayerNavigationItem } from "@/components/LivePlayer";
 import HalftimeAdPod from "@/components/matches/HalftimeAdPod";
 import CompetitionBadge from "@/components/CompetitionBadge";
 import MatchShareButton from "@/components/live/MatchShareButton";
@@ -218,6 +218,53 @@ export default function SportsMatchContent() {
         league: matchedLb.league || matchedSports?.league,
       }
     : (matchedSports ?? displayMatch)), [matchedLb, matchedSports, displayMatch]);
+
+  const playerMatchItems = useMemo<LivePlayerNavigationItem[]>(() => {
+    const liveBallAsSports: SportsMatch[] = allLbMatches.map((item) => ({
+      id: `liveball:${item.id}`,
+      sourceId: item.id,
+      source: "liveball",
+      status: item.status,
+      home: item.home,
+      away: item.away,
+      homeLogo: item.homeLogo,
+      awayLogo: item.awayLogo,
+      score: item.score,
+      minute: item.minute,
+      startTs: item.startTs,
+      league: item.league,
+    }));
+    const candidates = [...sportsMatches, ...liveBallAsSports].filter((item) =>
+      item.status !== "finished" || Boolean(match && areTeamsMatching(item.home, item.away, match.home, match.away)),
+    );
+    if (match && !candidates.some((item) => areTeamsMatching(item.home, item.away, match.home, match.away))) {
+      candidates.unshift(match);
+    }
+
+    const unique: SportsMatch[] = [];
+    for (const item of candidates) {
+      if (!unique.some((added) => areTeamsMatching(item.home, item.away, added.home, added.away))) unique.push(item);
+    }
+    unique.sort((a, b) => {
+      const aCurrent = Boolean(match && areTeamsMatching(a.home, a.away, match.home, match.away));
+      const bCurrent = Boolean(match && areTeamsMatching(b.home, b.away, match.home, match.away));
+      if (aCurrent !== bCurrent) return aCurrent ? -1 : 1;
+      if (a.status !== b.status) return a.status === "live" ? -1 : 1;
+      return (a.startTs ?? 0) - (b.startTs ?? 0);
+    });
+
+    return unique.map((item) => ({
+      id: item.id,
+      title: `${item.home} vs ${item.away}`,
+      subtitle: item.league,
+      score: item.score,
+      homeLogo: item.homeLogo,
+      awayLogo: item.awayLogo,
+      indicator: item.status === "live" ? `DIRECT${item.minute ? ` · ${item.minute}` : ""}` : "À VENIR",
+      active: Boolean(match && areTeamsMatching(item.home, item.away, match.home, match.away)),
+      href: `/live/sp/${encodeURIComponent(item.id)}`,
+    }));
+  }, [sportsMatches, allLbMatches, match]);
 
   const now = useNow(30_000);
   const kickoffMs = match?.startTs ? match.startTs * 1000 : undefined;
@@ -580,6 +627,17 @@ export default function SportsMatchContent() {
     : null;
 
   const teamsLabel = resolvedMatch ? `${resolvedMatch.home}${resolvedMatch.away ? ` vs ${resolvedMatch.away}` : ""}` : "ce match";
+  const playerChannel: LiveChannel | null = channel ?? (embedUrl ? {
+    _id: `sp-embed-${decodedId}`,
+    name: teamsLabel,
+    slug: `sp-embed-${decodedId}`,
+    categories: ["sports"],
+    type: "hls",
+    streamUrl: "",
+    enabled: true,
+    order: 0,
+    isOnline: true,
+  } : null);
 
   return (
     <div ref={pageRef} className="fixed inset-0 z-40 h-dvh w-screen bg-black overflow-hidden">
@@ -669,6 +727,14 @@ export default function SportsMatchContent() {
       {!isMatchDataLoading && !isStreamLoading && isFinished && (
         <div className="relative w-full h-full overflow-hidden bg-black">
           <MatchBackdrop home={resolvedMatch?.home} away={resolvedMatch?.away} />
+          <Link
+            href="/live"
+            aria-label="Fermer le match"
+            title="Fermer le match"
+            className="absolute right-4 top-[calc(1rem_+_env(safe-area-inset-top,0px))] z-50 flex h-10 w-10 items-center justify-center rounded-full bg-black/55 text-white/85 backdrop-blur-md transition-colors hover:bg-white/15 hover:text-white"
+          >
+            <X className="h-5 w-5" />
+          </Link>
           <div className="relative z-10 w-full h-full flex flex-col items-center justify-center gap-6 px-6 text-center">
             <div className="flex items-center justify-center gap-6 sm:gap-14">
               <TeamCrest src={resolvedMatch?.homeLogo} alt={resolvedMatch?.home ?? "?"} size="lg" />
@@ -774,28 +840,32 @@ export default function SportsMatchContent() {
             channel={ohaLiveChannel}
             fill
             hideTopBar
+            navigationItems={playerMatchItems}
+            navigationKind="matches"
+            navigationTitle="Autres matchs"
             onBack={() => (window.location.href = "/live")}
           />
         </div>
       )}
 
-      {/* ── Player embarqué (iframe) ───────────────────────────────── */}
-      {!isFinished && embedUrl && !preMatch && !activeOha && (
-        <div className="absolute inset-0 bg-black">
-          <iframe
-            key={embedUrl}
-            src={embedUrl}
-            title={resolvedMatch ? `${teamsLabel} · En direct` : "Match en direct"}
-            className="h-full w-full border-0"
-            allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-            referrerPolicy="no-referrer"
-            onError={() => handlePlayerError()}
-            onLoad={(event) => {
-              // Le proxy renvoie une page de même origine : on peut repérer
-              // quelques erreurs explicites sans prétendre lire le player
-              // imbriqué, qui reste souvent sur un autre domaine.
+      {/* ── Player unifié : HLS ou flux embarqué ───────────────────── */}
+      {!isFinished && playerChannel && !preMatch && !activeOha && (
+        <div className="absolute inset-0">
+          <LivePlayer
+            key={embedUrl ?? `${decodedId}-${activeIdx ?? "primary"}`}
+            channel={playerChannel}
+            fill
+            hideTopBar
+            externalIframeUrl={embedUrl ?? undefined}
+            navigationItems={playerMatchItems}
+            navigationKind="matches"
+            navigationTitle="Autres matchs"
+            onBack={() => (window.location.href = "/live")}
+            onPlaybackError={handlePlayerError}
+            onExternalIframeError={handlePlayerError}
+            onExternalIframeLoad={(iframe) => {
               try {
-                const doc = event.currentTarget.contentDocument;
+                const doc = iframe.contentDocument;
                 const body = doc?.body?.innerText ?? "";
                 const title = doc?.title ?? "";
                 const text = `${title} ${body}`.slice(0, 3000);
@@ -804,24 +874,9 @@ export default function SportsMatchContent() {
                   handlePlayerError();
                 }
               } catch {
-                // Une iframe devenue cross-origin ne peut pas être inspectée.
+                // Une iframe cross-origin ne peut pas être inspectée.
               }
             }}
-          />
-        </div>
-      )}
-
-      {/* ── Flux HLS natif via notre relay ─────────────────────────── */}
-      {!isFinished && channel && !preMatch && !activeOha && (
-        <div className="absolute inset-0">
-          {/* key : un changement de serveur remonte le player sur le nouveau flux */}
-          <LivePlayer
-            key={`${decodedId}-${activeIdx ?? "primary"}`}
-            channel={channel}
-            fill
-            hideTopBar
-            onBack={() => (window.location.href = "/live")}
-            onPlaybackError={handlePlayerError}
           />
         </div>
       )}
@@ -830,14 +885,6 @@ export default function SportsMatchContent() {
       {!isFinished && (playing || activeOha) && !preMatch && (
         <div className="absolute top-0 inset-x-0 z-30 pt-[calc(0.75rem_+_env(safe-area-inset-top,0px))] pb-3 pl-[calc(0.75rem_+_env(safe-area-inset-left,0px))] pr-[calc(0.75rem_+_env(safe-area-inset-right,0px))] bg-gradient-to-b from-black/90 via-black/50 to-transparent">
           <div className="flex items-center justify-between gap-3">
-            <Link
-              href="/live"
-              className="flex items-center justify-center w-9 h-9 rounded-full bg-black/60 hover:bg-white/20 text-white backdrop-blur-md transition-colors"
-              aria-label="Retour"
-            >
-              <X className="h-5 w-5" />
-            </Link>
-
             <div className="flex-1 min-w-0 flex flex-col items-center gap-0.5">
               <p className="text-xs sm:text-sm font-black uppercase tracking-wider text-white truncate max-w-full">
                 {resolvedMatch ? teamsLabel : "Match en direct"}
@@ -866,6 +913,14 @@ export default function SportsMatchContent() {
             </div>
 
             <div className="flex items-center gap-2">
+              <Link
+                href="/live"
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-black/50 text-white/85 backdrop-blur-md transition-colors hover:bg-white/15 hover:text-white"
+                aria-label="Fermer le match"
+                title="Fermer le match"
+              >
+                <X className="h-5 w-5" />
+              </Link>
               <FollowMatchButton home={resolvedMatch?.home ?? match?.home} away={resolvedMatch?.away ?? match?.away} iconOnly />
               <MatchShareButton title={teamsLabel} iconOnly />
             </div>

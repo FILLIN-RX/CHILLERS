@@ -5,11 +5,11 @@ import Link from "next/link";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { CaretLeft, LinkSimple, Play, Television } from "@phosphor-icons/react";
-import LivePlayer from "@/components/LivePlayer";
+import LivePlayer, { type LivePlayerNavigationItem } from "@/components/LivePlayer";
 import HalftimeAdPod from "@/components/matches/HalftimeAdPod";
 import MatchChannelsRow from "@/components/live/MatchChannelsRow";
 import { getMatchById, getMatchSummary } from "@/services/matches";
-import { getSportsChannels, getSportsStream } from "@/services/sports";
+import { getSportsChannels, getSportsMatches, getSportsStream } from "@/services/sports";
 import { getMatchChannels, resolveOhaStream } from "@/services/oha";
 import type { LiveChannel } from "@/types/live";
 import type { OhaChannel } from "@/types/oha";
@@ -46,6 +46,49 @@ export default function ChannelsPageContent() {
   const [ohaResolving, setOhaResolving] = useState<string | null>(null);
   const [ohaError, setOhaError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  const { data: otherMatches = [] } = useQuery({
+    queryKey: ["live", "sports"],
+    queryFn: () => getSportsMatches(),
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+  });
+  const playerMatchItems = useMemo<LivePlayerNavigationItem[]>(() => {
+    const home = match?.homeTeam?.name ?? "";
+    const away = match?.awayTeam?.name ?? "";
+    const items = otherMatches
+      .filter((item) => item.status !== "finished" || item.id === id || item.slug === id)
+      .map((item) => {
+        const active = item.id === id || item.slug === id || (
+          item.home.trim().toLowerCase() === home.trim().toLowerCase() &&
+          item.away.trim().toLowerCase() === away.trim().toLowerCase()
+        );
+        return {
+          id: item.id,
+          title: `${item.home} vs ${item.away}`,
+          subtitle: item.league,
+          score: item.score,
+          homeLogo: item.homeLogo,
+          awayLogo: item.awayLogo,
+          indicator: item.status === "live" ? `DIRECT${item.minute ? ` · ${item.minute}` : ""}` : "À VENIR",
+          active,
+          href: `/live/sp/${encodeURIComponent(item.id)}`,
+        };
+      });
+    if (!items.some((item) => item.active) && home && away) {
+      items.unshift({
+        id: `current-${id}`,
+        title: `${home} vs ${away}`,
+        subtitle: "Match sélectionné",
+        homeLogo: match?.homeTeam?.logo,
+        awayLogo: match?.awayTeam?.logo,
+        indicator: "EN COURS",
+        active: true,
+        href: `/live/sp/${encodeURIComponent(id)}`,
+      });
+    }
+    return items;
+  }, [otherMatches, id, match]);
 
   useEffect(() => {
     if (id) {
@@ -204,9 +247,27 @@ export default function ChannelsPageContent() {
       <div className="mx-auto max-w-5xl px-3 sm:px-6 pt-4 space-y-4">
         <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-[#0e0e0e] border border-[#222]">
           {ohaLiveChannel ? (
-            <LivePlayer key={`oha-${ohaChoice?.ch.id}`} channel={ohaLiveChannel} onBack={() => {}} fill hideTopBar />
+            <LivePlayer
+              key={`oha-${ohaChoice?.ch.id}`}
+              channel={ohaLiveChannel}
+              onBack={() => {}}
+              fill
+              hideTopBar
+              navigationItems={playerMatchItems}
+              navigationKind="matches"
+              navigationTitle="Autres matchs"
+            />
           ) : sportsLiveChannel ? (
-            <LivePlayer key={`sp-${selectedServerIdx}`} channel={sportsLiveChannel} onBack={() => {}} fill hideTopBar />
+            <LivePlayer
+              key={`sp-${selectedServerIdx}`}
+              channel={sportsLiveChannel}
+              onBack={() => {}}
+              fill
+              hideTopBar
+              navigationItems={playerMatchItems}
+              navigationKind="matches"
+              navigationTitle="Autres matchs"
+            />
           ) : embedUrl ? (
             <iframe key={embedUrl} src={embedUrl} title={teams} className="h-full w-full border-0" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" referrerPolicy="no-referrer" />
           ) : (

@@ -22,6 +22,7 @@ import {
 } from "@phosphor-icons/react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useImageTimeout } from "@/hooks/useImageTimeout";
+import ReleaseReminderButton from "@/components/ReleaseReminderButton";
 
 export interface MovieCardProps {
   item: MovieOrShow;
@@ -390,12 +391,18 @@ function MovieCard({
         {/* Nom gravé en bas de l'affiche (page recherche) ; effacé au survol au
             profit du bandeau d'infos qui reprend déjà le titre. */}
         {showTitle && item.title && (
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 transition-opacity duration-200 group-hover:opacity-0">
+          <div className={`pointer-events-none absolute inset-x-0 ${isUpcoming ? "bottom-12" : "bottom-0"} z-20 transition-opacity duration-200 group-hover:opacity-0`}>
             <div className="bg-gradient-to-t from-black via-black/75 to-transparent px-2.5 pb-2.5 pt-8">
               <h3 className="line-clamp-2 text-[11px] font-bold leading-tight tracking-tight text-white drop-shadow-md">
                 {item.title}
               </h3>
             </div>
+          </div>
+        )}
+
+        {isUpcoming && item.type === "movie" && item.releaseDate && (
+          <div className="absolute inset-x-0 bottom-2 z-40 flex justify-center">
+            <ReleaseReminderButton item={item} />
           </div>
         )}
 
@@ -573,12 +580,17 @@ function MovieCard({
 
         {/* Mobile: always-visible title gradient */}
         <div className="absolute bottom-0 left-0 right-0 z-20 md:hidden pointer-events-none">
-          <div className="bg-gradient-to-t from-black via-black/60 to-transparent p-2.5 pt-6">
+          <div className={`bg-gradient-to-t from-black via-black/60 to-transparent p-2.5 ${isUpcoming ? "pt-6 pb-12" : "pt-6"}`}>
             <h3 className="text-[11px] font-bold text-white leading-tight line-clamp-1 drop-shadow-md tracking-tight">
               {item.title}
             </h3>
           </div>
         </div>
+        {isUpcoming && item.type === "movie" && item.releaseDate && (
+          <div className="absolute inset-x-0 bottom-2 z-40 flex justify-center">
+            <ReleaseReminderButton item={item} />
+          </div>
+        )}
       </div>
 
       {/* Glassmorphic Info overlay on hover (desktop only) */}

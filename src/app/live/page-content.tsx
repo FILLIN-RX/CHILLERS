@@ -2,28 +2,56 @@
 
 import React, { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
-import {
-  Television,
-  MagnifyingGlass,
-  X,
-  SquaresFour,
-  FilmStrip,
-  ShareNetwork,
-  Check,
-} from "@phosphor-icons/react";
+import { Television, MagnifyingGlass, X } from "@phosphor-icons/react";
 import { getLiveChannels, FALLBACK_CHANNELS } from "@/services/live";
 import { getOhaChannels, resolveOhaStream } from "@/services/oha";
 import { canonicalChannelKey, channelPriority } from "@/lib/channel-canonical";
 import { liveChannelRef, matchesLiveChannelRef } from "@/lib/live-channel-url";
 import { ohaChannelSlug, type OhaChannel, type OhaCategory } from "@/types/oha";
 import type { LiveChannel } from "@/types/live";
-import LivePlayer from "@/components/LivePlayer";
 import SportsMatchesRow from "@/components/SportsMatchesRow";
-import MosaicChannelCard from "@/components/live/MosaicChannelCard";
-import ChannelPosterCard from "@/components/live/ChannelPosterCard";
+import LiveChannelCard from "@/components/live/LiveChannelCard";
 import LivePlayerModal from "@/components/live/LivePlayerModal";
 
 const PAGE_SIZE = 50;
+
+// OHA returned 502 "all sources dead" for these channels on 2026-11-24,
+// including their alternate source IDs. Seeded/direct alternatives of the
+// same names are kept below because they may still play independently.
+const OHA_UNPLAYABLE_NAMES = new Set([
+  "CINE+ ACTION",
+  "CINE+ PREMIER",
+  "DISNEY CINEMA",
+  "OCS FRANCEBOX 4",
+  "OCS FRANCEBOX 5",
+  "PARAMOUNT DECALE",
+  "C STAR HIT",
+  "LCP ASSEMBLEE NATIONALE",
+  "RMC STORY",
+  "TF1",
+  "TFX",
+  "BABY TV",
+  "CANAL JUNIOR",
+  "CARTOON NETWORK",
+  "DISNEY CHANNEL",
+  "NICKELODEON +1",
+  "NRJ HITS",
+  "TRACE AFRICA",
+  "TRACE SPORT STARS",
+  "TRACE URBAN",
+  "BEIN SPORTS 1",
+  "BEIN SPORTS MAX 7",
+  "BEIN SPORTS MAX 9",
+  "CANAL+ SPORT",
+  "CANAL+ SPORT 2",
+  "CANAL+ SPORT 360",
+  "DAZN 1",
+  "DAZN 2 LEAUGE 1",
+  "DAZN EVENT 2",
+  "DAZN EVENT 6",
+  "DAZN LIGUE 1 LIVE 2",
+  "DAZN LIGUE 1 LIVE 5",
+].map(canonicalChannelKey));
 
 /** Catégorie oha → catégorie du live (null = uniquement « Toutes »/favoris). */
 const OHA_CAT_TO_LIVE: Record<OhaCategory, string | null> = {
@@ -59,30 +87,8 @@ function ohaToLiveChannel(ch: OhaChannel): LiveChannel {
 }
 
 export default function LivePageContent() {
-  const [viewMode, setViewMode] = useState<"mosaic" | "cards">("mosaic");
   const [search, setSearch] = useState("");
-  const [isMultiLiveOpen, setIsMultiLiveOpen] = useState(false);
-  const [selectedMultiSlugs, setSelectedMultiSlugs] = useState<string[]>([]);
-  // Phase multi-live : « select » (choix des flux) puis « play » (écrans scindés).
-  const [multiLivePhase, setMultiLivePhase] = useState<"select" | "play">("select");
   const [visibleCount, setVisibleCount] = useState<number>(50);
-  const [shareCopied, setShareCopied] = useState(false);
-  const handleSharePage = async () => {
-    const url = window.location.href;
-    try {
-      if (typeof navigator.share === 'function') {
-        await navigator.share({ title: 'CHILLERS · TV en Direct', url });
-        return;
-      }
-      throw new Error('no-web-share');
-    } catch {
-      try {
-        await navigator.clipboard.writeText(url);
-        setShareCopied(true);
-        setTimeout(() => setShareCopied(false), 2000);
-      } catch {}
-    }
-  };
   const [playingChannel, setPlayingChannel] = useState<LiveChannel | null>(null);
   const [deepLinkRef, setDeepLinkRef] = useState<string | null>(null);
 
@@ -124,6 +130,13 @@ export default function LivePageContent() {
     for (const candidate of [...ohaChannels.map(ohaToLiveChannel), ...channels]) {
       const priority = channelPriority(candidate);
       if (priority === 0) continue;
+
+      // Drop only the dead OHA entry; an independently configured stream
+      // (seed/manual) with the same name can still win and remain visible.
+      if (
+        candidate.source === "oha" &&
+        OHA_UNPLAYABLE_NAMES.has(canonicalChannelKey(candidate.name))
+      ) continue;
 
       const key = canonicalChannelKey(candidate.name);
       if (unavailableKeys.has(key)) continue;
@@ -244,11 +257,6 @@ export default function LivePageContent() {
     syncChannelParam(null);
   }, [syncChannelParam]);
 
-  // Sélection multi-live : source de vérité = les flux choisis par l'utilisateur.
-  // Aucun repli automatique : en phase de lecture, on n'affiche que les écrans
-  // correspondant aux flux réellement sélectionnés (2 à 4).
-  const selectedMultiCount = selectedMultiSlugs.filter(Boolean).length;
-
   // Reset pagination on search change (« ajuster pendant le rendu »).
   const [prevSearch, setPrevSearch] = useState(search);
   if (search !== prevSearch) {
@@ -308,60 +316,10 @@ export default function LivePageContent() {
         <SportsMatchesRow />
       </div>
 
-      {/* ── 3. Controls Bar (recherche, vue, multi-view) ───────────────────── */}
-      <div className="sticky top-[calc(var(--network-banner-height,0px)+48px)] sm:top-[calc(var(--network-banner-height,0px)+52px)] z-30 bg-[#1F1F1F]/95 backdrop-blur-xl py-3 -mx-2 px-2 sm:-mx-6 sm:px-6 md:-mx-12 md:px-12 lg:-mx-[3%] lg:px-[3%] border-b border-white/10 mb-8">
-        <div className="flex items-center gap-2 sm:gap-3 justify-end">
-          {/* Bouton Partager */}
-          <button
-            onClick={handleSharePage}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-zinc-900/90 border border-white/10 text-zinc-400 hover:text-white text-xs font-bold transition-all shrink-0"
-            aria-label="Partager la page"
-            title="Partager"
-          >
-            {shareCopied ? <Check className="w-4 h-4 text-green-400" /> : <ShareNetwork className="w-4 h-4" />}
-            <span className="hidden sm:inline">{shareCopied ? 'Copié !' : 'Partager'}</span>
-          </button>
-          {/* View Mode Toggle (Mosaïque Logos Canal+ vs Affiches) */}
-          <div className="flex items-center bg-zinc-900/90 border border-white/10 rounded-xl p-0.5 shrink-0">
-            <button
-              onClick={() => setViewMode("mosaic")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[5px] text-xs font-bold transition-all ${
-                viewMode === "mosaic"
-                  ? "bg-red-600 text-white shadow-md shadow-red-600/30"
-                  : "text-zinc-400 hover:text-white"
-              }`}
-              title="Mosaïque de logos Canal+"
-            >
-              <SquaresFour className="w-4 h-4" />
-              <span className="hidden sm:inline">Mosaïque Logos</span>
-            </button>
-            <button
-              onClick={() => setViewMode("cards")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[5px] text-xs font-bold transition-all ${
-                viewMode === "cards"
-                  ? "bg-red-600 text-white shadow-md shadow-red-600/30"
-                  : "text-zinc-400 hover:text-white"
-              }`}
-              title="Affiches et aperçus des programmes"
-            >
-              <FilmStrip className="w-4 h-4" />
-              <span className="hidden sm:inline">Affiches</span>
-            </button>
-          </div>
-
-          <button
-            onClick={() => {
-              setIsMultiLiveOpen(true);
-              setMultiLivePhase("select");
-            }}
-            className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-[5px] bg-red-600/20 hover:bg-red-600 border border-red-500/40 text-red-400 hover:text-white text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap"
-          >
-            <SquaresFour className="w-4 h-4" />
-            <span className="hidden sm:inline">Multi-View</span>
-            <span className="sm:hidden">4X</span>
-          </button>
-
-          <div className="relative flex-1 md:w-56">
+      {/* ── 3. Recherche : la barre reste flottante, sans ligne de séparation ── */}
+      <div className="sticky top-[calc(var(--network-banner-height,0px)+48px)] sm:top-[calc(var(--network-banner-height,0px)+52px)] z-30 bg-[#1F1F1F]/80 backdrop-blur-xl py-3 mb-5">
+        <div className="flex items-center gap-3">
+          <div className="relative flex-1">
             <MagnifyingGlass className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
             <input
               type="search"
@@ -371,36 +329,32 @@ export default function LivePageContent() {
               className="w-full pl-10 pr-3 py-2 rounded-xl bg-zinc-900/90 border border-white/10 text-xs sm:text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-red-500 transition-colors shadow-inner"
             />
           </div>
-          <span className="hidden lg:inline-block px-3 py-2 rounded-xl bg-zinc-900 border border-white/10 text-xs font-bold text-zinc-400 whitespace-nowrap">
+          <span className="shrink-0 px-3 py-2 rounded-xl liquid-glass-surface text-xs font-bold text-white/80 whitespace-nowrap">
             {filteredChannels.length} chaînes
           </span>
         </div>
       </div>
 
-      {/* ── 4. Grille Live (Mosaïque Logos ou Affiches) ──────────────────── */}
-      {viewMode === "mosaic" ? (
-        <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-8 gap-3 md:gap-4">
-          {paginatedChannels.map((channel) => (
-            <MosaicChannelCard
-              key={channel.slug}
-              channel={channel}
-              onOpen={openChannel}
-              isResolving={resolvingSlug === channel.slug}
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-3 md:gap-4">
-          {paginatedChannels.map((channel) => (
-            <ChannelPosterCard
-              key={channel.slug}
-              channel={channel}
-              onOpen={openChannel}
-              isResolving={resolvingSlug === channel.slug}
-            />
-          ))}
-        </div>
-      )}
+      {/* ── 4. Cartes live inspirées des cartes de matchs ───────────────── */}
+      <div className="grid auto-rows-[76px] grid-cols-2 gap-3 sm:auto-rows-[84px] sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-6">
+        {paginatedChannels.map((channel, index) => (
+          <LiveChannelCard
+            key={channel.slug}
+            channel={channel}
+            onOpen={openChannel}
+            isResolving={resolvingSlug === channel.slug}
+            layout={
+              index % 17 === 0 || index % 17 === 9 || index % 17 === 15
+                ? "wide"
+                : index % 17 === 4 || index % 17 === 11
+                  ? "tall"
+                  : (index % 17 === 7 || index % 17 === 14) && Boolean(channel.logo)
+                    ? "logo"
+                    : "regular"
+            }
+          />
+        ))}
+      </div>
 
       {/* ── Infinite Scroll Sentinel / Loading Indicator ───────────────── */}
       {hasMore && (
@@ -454,180 +408,7 @@ export default function LivePageContent() {
         />
       )}
 
-      {/* ── 6. Multi-Live Modal (sélection des flux → écrans scindés) ─────── */}
-      {isMultiLiveOpen && (
-        <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex flex-col p-3 sm:p-6 animate-fade-in">
-          <div className="flex items-center justify-between pb-4 border-b border-white/10 mb-4">
-            <div className="flex items-center gap-3">
-              <span className="flex h-3 w-3 relative">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-red-600" />
-              </span>
-              <h2 className="text-lg sm:text-xl font-black text-white uppercase tracking-wider flex items-center gap-2">
-                {multiLivePhase === "select"
-                  ? "Multi-Live · Sélection des flux"
-                  : `Multi-Live Multiplex (${selectedMultiCount} Écran${selectedMultiCount > 1 ? "s" : ""})`}
-              </h2>
-            </div>
-            <button
-              onClick={() => setIsMultiLiveOpen(false)}
-              className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
-              aria-label="Fermer"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
 
-          {multiLivePhase === "select" ? (
-            /* ── Phase de sélection : aucun lecteur n'est monté. ── */
-            <div className="flex-1 flex flex-col min-h-0">
-              <div className="flex items-center justify-between gap-3 mb-3">
-                <p className="text-xs sm:text-sm text-zinc-300">
-                  Sélectionnez vos flux —{" "}
-                  <span className="text-red-400 font-black">minimum 2 flux</span>.
-                </p>
-                <span
-                  className={`shrink-0 px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-black border ${
-                    selectedMultiCount >= 2
-                      ? "bg-red-600/20 border-red-500 text-red-400"
-                      : "bg-zinc-900 border-white/10 text-zinc-400"
-                  }`}
-                >
-                  {selectedMultiCount}/4 sélectionnés
-                </span>
-              </div>
-
-              <div className="flex-1 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 min-h-0 pr-1">
-                {baseChannels.map((c) => {
-                  const isSelected = selectedMultiSlugs.includes(c.slug);
-                  const maxReached = selectedMultiCount >= 4;
-                  return (
-                    <button
-                      key={c.slug}
-                      type="button"
-                      onClick={() =>
-                        setSelectedMultiSlugs((prev) =>
-                          isSelected
-                            ? prev.filter((s) => s !== c.slug)
-                            : maxReached
-                              ? prev
-                              : [...prev, c.slug],
-                        )
-                      }
-                      disabled={!isSelected && maxReached}
-                      aria-pressed={isSelected}
-                      className={`flex items-center gap-2 p-2.5 rounded-xl border text-left transition-all ${
-                        isSelected
-                          ? "bg-red-600/20 border-red-500 text-white"
-                          : maxReached
-                            ? "bg-zinc-900 border-white/10 text-zinc-600 cursor-not-allowed"
-                            : "bg-zinc-900 border-white/10 text-zinc-200 hover:border-white/30 hover:text-white"
-                      }`}
-                    >
-                      {c.logo ? (
-                        <img
-                          src={c.logo}
-                          alt=""
-                          className="w-7 h-7 rounded-md object-contain bg-zinc-800 shrink-0 p-1"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <span className="w-7 h-7 rounded-md bg-zinc-800 shrink-0 flex items-center justify-center text-[10px] font-black text-zinc-400">
-                          {c.name.slice(0, 2).toUpperCase()}
-                        </span>
-                      )}
-                      <span className="text-xs font-bold truncate flex-1">{c.name}</span>
-                      {isSelected && (
-                        <span className="shrink-0 w-5 h-5 rounded-full bg-red-600 flex items-center justify-center">
-                          <Check className="w-3 h-3 text-white" />
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="flex items-center justify-between gap-3 pt-4 mt-2 border-t border-white/10">
-                <button
-                  type="button"
-                  onClick={() => setIsMultiLiveOpen(false)}
-                  className="px-4 py-2 rounded-xl bg-zinc-900 border border-white/10 text-zinc-300 hover:text-white text-xs font-bold transition-colors"
-                >
-                  Annuler
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMultiLivePhase("play")}
-                  disabled={selectedMultiCount < 2}
-                  className="px-5 py-2 rounded-xl bg-red-600 hover:bg-red-500 disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed text-white text-xs font-black uppercase tracking-wider transition-colors"
-                >
-                  Lancer le Multi-View
-                </button>
-              </div>
-            </div>
-          ) : (
-            /* ── Phase de lecture : un écran par flux sélectionné. ── */
-            <div className="flex-1 flex flex-col min-h-0">
-              <div className="flex items-center justify-end mb-3">
-                <button
-                  type="button"
-                  onClick={() => setMultiLivePhase("select")}
-                  className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-white/10 text-zinc-300 hover:text-white text-xs font-bold transition-colors"
-                >
-                  Modifier
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-4 min-h-0 py-2">
-                {selectedMultiSlugs.filter(Boolean).map((slug, idx) => {
-                  const ch = baseChannels.find((c) => c.slug === slug);
-                  return (
-                    <div
-                      key={idx}
-                      className="relative bg-zinc-950 rounded-2xl overflow-hidden border border-white/10 flex flex-col min-h-[240px] sm:min-h-0"
-                    >
-                      {/* Selector Dropdown Header */}
-                      <div className="absolute top-3 left-3 z-20 flex items-center gap-2 max-w-[calc(100%-1.5rem)]">
-                        <span className="px-2.5 py-1 rounded-lg bg-red-600 text-[10px] sm:text-xs font-black text-white shrink-0 shadow-lg">
-                          Écran {idx + 1}
-                        </span>
-                        <select
-                          value={slug}
-                          onChange={(e) => {
-                            const newSlug = e.target.value;
-                            setSelectedMultiSlugs((prev) => {
-                              const copy = [...prev];
-                              copy[idx] = newSlug;
-                              return copy;
-                            });
-                          }}
-                          className="bg-black/90 backdrop-blur-md border border-white/20 text-white text-xs font-bold rounded-lg px-3 py-1 focus:outline-none focus:border-red-500 max-w-[180px] sm:max-w-[240px] truncate cursor-pointer shadow-lg"
-                        >
-                          {baseChannels.map((c) => (
-                            <option key={c.slug} value={c.slug} className="bg-zinc-900 text-white">
-                              {c.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className="flex-1 relative w-full h-full">
-                        {ch && (
-                          <LivePlayer
-                            channel={ch}
-                            allChannels={baseChannels}
-                            onBack={() => setIsMultiLiveOpen(false)}
-                          />
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }

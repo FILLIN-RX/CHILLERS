@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Television, X } from "@phosphor-icons/react";
-import LivePlayer from "@/components/LivePlayer";
+import LivePlayer, { type LivePlayerNavigationItem } from "@/components/LivePlayer";
 import HalftimeAdPod from "@/components/matches/HalftimeAdPod";
 import CompetitionBadge from "@/components/CompetitionBadge";
 import MatchShareButton from "@/components/live/MatchShareButton";
@@ -113,6 +113,43 @@ export default function LiveBallMatchContent() {
     return displayMatch;
   }, [lbMatch, displayMatch]);
 
+  const playerMatchItems = useMemo<LivePlayerNavigationItem[]>(() => {
+    const byId = new Map<string, LivePlayerNavigationItem>();
+    for (const item of [...matches, ...clMatches]) {
+      const id = `liveball:${item.id}`;
+      byId.set(id, {
+        id,
+        title: `${item.home} vs ${item.away}`,
+        subtitle: item.league,
+        score: item.score,
+        homeLogo: item.homeLogo,
+        awayLogo: item.awayLogo,
+        indicator: item.status === "live" ? `DIRECT${item.minute ? ` · ${item.minute}` : ""}` : "À VENIR",
+        active: match?.id === id,
+        href: `/live/lb/${encodeURIComponent(item.id)}`,
+      });
+    }
+    if (match && !byId.has(match.id)) {
+      byId.set(match.id, {
+        id: match.id,
+        title: `${match.home} vs ${match.away}`,
+        subtitle: match.league,
+        score: match.score,
+        homeLogo: match.homeLogo,
+        awayLogo: match.awayLogo,
+        indicator: match.status === "live" ? `DIRECT${match.minute ? ` · ${match.minute}` : ""}` : "À VENIR",
+        active: true,
+        href: `/live/sp/${encodeURIComponent(match.sourceId || match.id)}`,
+      });
+    }
+    return [...byId.values()].sort((a, b) => {
+      if (a.active !== b.active) return a.active ? -1 : 1;
+      const aLive = a.indicator?.startsWith("DIRECT") ?? false;
+      const bLive = b.indicator?.startsWith("DIRECT") ?? false;
+      return aLive === bLive ? 0 : aLive ? -1 : 1;
+    });
+  }, [matches, clMatches, match]);
+
   // Affiche officielle du service de score : nom de la compétition, écusson de
   // ligue et logo de club. Retombe sur la source quand la jointure échoue.
   const { posters } = useMatchPosterIndex();
@@ -207,6 +244,17 @@ export default function LiveBallMatchContent() {
         isOnline: true,
       }
     : null;
+  const playerChannel: LiveChannel | null = channel ?? (embedUrl ? {
+    _id: `lb-embed-${matchId}`,
+    name: match ? `${match.home} - ${match.away}` : `Match #${matchId}`,
+    slug: `lb-embed-${matchId}`,
+    categories: ["sports"],
+    type: "hls",
+    streamUrl: "",
+    enabled: true,
+    order: 0,
+    isOnline: true,
+  } : null);
 
   return (
     <div ref={pageRef} className="fixed inset-0 z-40 h-dvh w-screen bg-black overflow-hidden">
@@ -296,6 +344,14 @@ export default function LiveBallMatchContent() {
       {!loadingStream && isFinished && (
         <div className="relative w-full h-full overflow-hidden bg-black">
           <MatchBackdrop home={match?.home} away={match?.away} />
+          <Link
+            href="/live"
+            aria-label="Fermer le match"
+            title="Fermer le match"
+            className="absolute right-4 top-[calc(1rem_+_env(safe-area-inset-top,0px))] z-50 flex h-10 w-10 items-center justify-center rounded-full bg-black/55 text-white/85 backdrop-blur-md transition-colors hover:bg-white/15 hover:text-white"
+          >
+            <X className="h-5 w-5" />
+          </Link>
           <div className="relative z-10 w-full h-full flex flex-col items-center justify-center gap-6 px-6 text-center">
             <div className="flex items-center justify-center gap-6 sm:gap-14">
               <TeamCrest src={match?.homeLogo} alt={match?.home ?? "?"} size="lg" />
@@ -380,39 +436,24 @@ export default function LiveBallMatchContent() {
         </div>
       )}
 
-      {/* ── Flux au format "player à embarquer" (iframe directe sans pub) ────────────── */}
-      {!isFinished && embedUrl && !preMatch && (
-        <div className="absolute inset-0 bg-black">
-          <iframe
-            key={embedUrl}
-            src={embedUrl}
-            title={match ? `${match.home} - ${match.away} · En direct` : "Match en direct"}
-            className="h-full w-full border-0"
-            allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-            referrerPolicy="no-referrer"
+      {/* ── Player unifié : HLS ou flux embarqué ───────────────────── */}
+      {!isFinished && playerChannel && !preMatch && (
+        <div className="absolute inset-0">
+          <LivePlayer
+            key={embedUrl ?? playerChannel._id}
+            channel={playerChannel}
+            fill
+            hideTopBar
+            externalIframeUrl={embedUrl ?? undefined}
+            navigationItems={playerMatchItems}
+            navigationKind="matches"
+            navigationTitle="Autres matchs"
+            onBack={() => (window.location.href = "/live")}
           />
         </div>
       )}
-
-      {/* ── Flux natif HLS via LivePlayer ────────────────────────────── */}
-      {!isFinished && channel && !preMatch && (
-        <div className="absolute inset-0">
-          {/* hideTopBar : la barre du joueur superposerait son logo CHILLERS
-              sur la cloche de notification à droite. */}
-          <LivePlayer channel={channel} fill hideTopBar onBack={() => (window.location.href = "/live")} />
-        </div>
-      )}
-      {!isFinished && !preMatch && (channel || embedUrl) && (
-        <Link
-          href="/live"
-          aria-label="Retour"
-          className="absolute left-3 top-[calc(0.75rem_+_env(safe-area-inset-top,0px))] z-50 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md transition-colors hover:bg-white/20"
-        >
-          <X className="h-5 w-5" />
-        </Link>
-      )}
       {!isFinished && !preMatch && (channel || embedUrl) && isLive && liveScoreline && (
-        <div className="pointer-events-none absolute left-14 top-[calc(0.75rem_+_env(safe-area-inset-top,0px))] z-50 flex items-center gap-1.5 rounded-[5px] bg-black/70 px-2.5 py-1">
+        <div className="pointer-events-none absolute left-3 top-[calc(0.75rem_+_env(safe-area-inset-top,0px))] z-50 flex items-center gap-1.5 rounded-[5px] bg-black/70 px-2.5 py-1">
           <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
           <span className="text-[11px] font-bold text-white tabular-nums">
             {liveScoreline}
@@ -422,6 +463,14 @@ export default function LiveBallMatchContent() {
       )}
       {!isFinished && !preMatch && (channel || embedUrl) && (
         <div className="absolute right-3 top-[calc(0.75rem_+_env(safe-area-inset-top,0px))] z-50 flex items-center gap-2">
+          <Link
+            href="/live"
+            aria-label="Fermer le match"
+            title="Fermer le match"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md transition-colors hover:bg-white/20"
+          >
+            <X className="h-5 w-5" />
+          </Link>
           <FollowMatchButton home={match?.home} away={match?.away} iconOnly />
           <MatchShareButton title={match ? `${match.home} vs ${match.away}` : "Match en direct"} iconOnly />
         </div>

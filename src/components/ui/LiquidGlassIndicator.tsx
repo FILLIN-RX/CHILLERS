@@ -26,6 +26,17 @@ interface PillRect {
 }
 
 const ACTIVE_SELECTOR = '[data-liquid-active="true"]';
+const SPRING = { type: "spring" as const, stiffness: 520, damping: 42, mass: 0.7 };
+
+function requestFrame(callback: FrameRequestCallback): number {
+  if (typeof window.requestAnimationFrame === "function") return window.requestAnimationFrame(callback);
+  return window.setTimeout(() => callback(Date.now()), 16);
+}
+
+function cancelFrame(id: number) {
+  if (typeof window.cancelAnimationFrame === "function") window.cancelAnimationFrame(id);
+  else window.clearTimeout(id);
+}
 
 /**
  * Pastille « liquid glass » qui glisse sous l'onglet actif d'une top bar.
@@ -73,8 +84,8 @@ export default function LiquidGlassIndicator({
   }, [containerRef, insetX, insetY]);
 
   const scheduleMeasure = useCallback(() => {
-    if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
-    frameRef.current = requestAnimationFrame(() => {
+    if (frameRef.current !== null) cancelFrame(frameRef.current);
+    frameRef.current = requestFrame(() => {
       frameRef.current = null;
       measure();
     });
@@ -86,19 +97,17 @@ export default function LiquidGlassIndicator({
     const container = containerRef.current;
     if (!container) return;
 
-    const observer = new ResizeObserver(scheduleMeasure);
-    observer.observe(container);
-    container.querySelectorAll<HTMLElement>("a, button").forEach((item) => {
-      observer.observe(item);
-    });
+    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(scheduleMeasure) : null;
+    observer?.observe(container);
+    container.querySelectorAll<HTMLElement>("a, button").forEach((item) => observer?.observe(item));
 
     window.addEventListener("resize", scheduleMeasure);
     document.fonts?.ready.then(scheduleMeasure).catch(() => {});
 
     return () => {
-      observer.disconnect();
+      observer?.disconnect();
       window.removeEventListener("resize", scheduleMeasure);
-      if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+      if (frameRef.current !== null) cancelFrame(frameRef.current);
     };
   }, [containerRef, activeKey, scheduleMeasure]);
 
@@ -120,13 +129,19 @@ export default function LiquidGlassIndicator({
       transition={
         reduceMotion
           ? { duration: 0 }
-          : {
-              x: { type: "spring", bounce: 0.12, duration: 0.5 },
-              y: { type: "spring", bounce: 0.12, duration: 0.5 },
-              width: { type: "spring", bounce: 0.2, duration: 0.55 },
-              height: { type: "spring", bounce: 0.2, duration: 0.55 },
-            }
+          : { x: SPRING, y: SPRING, width: SPRING, height: SPRING }
       }
-    />
+    >
+      {!reduceMotion && (
+        <motion.span
+          key={activeKey}
+          aria-hidden
+          className="liquid-glass-motion-highlight"
+          initial={{ opacity: 0, scaleX: 0.78 }}
+          animate={{ opacity: [0, 0.72, 0.24], scaleX: [0.78, 1.04, 1] }}
+          transition={{ duration: 0.52, ease: [0.22, 1, 0.36, 1] }}
+        />
+      )}
+    </motion.span>
   );
 }

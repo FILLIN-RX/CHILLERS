@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -9,11 +9,11 @@ import {
   Broadcast,
   Television,
 } from "@phosphor-icons/react";
-import LivePlayer from "@/components/LivePlayer";
+import LivePlayer, { type LivePlayerNavigationItem } from "@/components/LivePlayer";
 import HalftimeAdPod from "@/components/matches/HalftimeAdPod";
 import MatchChannelsRow from "@/components/live/MatchChannelsRow";
 import { getMatchStream } from "@/services/matches";
-import { getSportsChannels, getSportsStream } from "@/services/sports";
+import { getSportsChannels, getSportsMatches, getSportsStream } from "@/services/sports";
 import { getMatchChannels, resolveOhaStream } from "@/services/oha";
 import type { LiveChannel } from "@/types/live";
 import type { OhaChannel } from "@/types/oha";
@@ -70,6 +70,44 @@ export function MatchStreamPlayer({
   const [ohaError, setOhaError] = useState<string | null>(null);
   const [candidateChoice, setCandidateChoice] = useState<{ matchId: string; index: number } | null>(null);
   const failedCandidatesRef = React.useRef(new Set<string>());
+
+  const { data: otherMatches = [] } = useQuery({
+    queryKey: ["live", "sports"],
+    queryFn: () => getSportsMatches(),
+    enabled: !finished,
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+  });
+  const playerMatchItems = useMemo<LivePlayerNavigationItem[]>(() => {
+    const items = otherMatches
+      .filter((item) => item.status !== "finished" || item.id === matchId || item.slug === matchId)
+      .map((item) => {
+        const sameTeams = item.home.trim().toLowerCase() === homeName.trim().toLowerCase() &&
+          item.away.trim().toLowerCase() === awayName.trim().toLowerCase();
+        return {
+          id: item.id,
+          title: `${item.home} vs ${item.away}`,
+          subtitle: item.league,
+          score: item.score,
+          homeLogo: item.homeLogo,
+          awayLogo: item.awayLogo,
+          indicator: item.status === "live" ? `DIRECT${item.minute ? ` · ${item.minute}` : ""}` : "À VENIR",
+          active: item.id === matchId || item.slug === matchId || sameTeams,
+          href: `/live/sp/${encodeURIComponent(item.id)}`,
+        };
+      });
+    if (!items.some((item) => item.active)) {
+      items.unshift({
+        id: `current-${matchId}`,
+        title: `${homeName} vs ${awayName}`,
+        subtitle: "Match sélectionné",
+        indicator: "EN COURS",
+        active: true,
+        href: `/live/sp/${encodeURIComponent(matchId)}`,
+      });
+    }
+    return items;
+  }, [otherMatches, matchId, homeName, awayName]);
 
   // Active le pare-feu anti-pub pour sécuriser les iframes de flux
   useEffect(() => {
@@ -202,6 +240,17 @@ export function MatchStreamPlayer({
           isOnline: true,
         }
       : null;
+  const playerChannel: LiveChannel | null = channel ?? (embedUrl ? {
+    _id: `match-embed-${matchId}`,
+    name: `${homeName} vs ${awayName}`,
+    slug: `match-embed-${matchId}`,
+    categories: ["sports"],
+    type: "hls",
+    streamUrl: "",
+    enabled: true,
+    order: 0,
+    isOnline: true,
+  } : null);
 
   // Chaînes CHILLERS qui diffusent ce match : proposées avant les sources
   // externes (droits TV France 2026-2027).
@@ -392,7 +441,7 @@ export function MatchStreamPlayer({
         )}
 
         {/* Bouton plein écran */}
-        <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 pt-[env(safe-area-inset-top,0px)] pr-[env(safe-area-inset-right,0px)]">
+        {!playerChannel && !ohaChannel && <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 pt-[env(safe-area-inset-top,0px)] pr-[env(safe-area-inset-right,0px)]">
           <button
             onClick={toggleFullscreen}
             title={isFullscreen ? "Quitter le plein écran" : "Plein écran"}
@@ -401,7 +450,7 @@ export function MatchStreamPlayer({
           >
             {isFullscreen ? <ArrowsInSimple className="h-5 w-5" /> : <ArrowsOutSimple className="h-5 w-5" />}
           </button>
-        </div>
+        </div>}
 
         {/* 1. Écran de chargement */}
         {isLoading && !channel && !embedUrl && !ohaChannel && (
@@ -418,31 +467,37 @@ export function MatchStreamPlayer({
         {/* 2. Chaîne CHILLERS sélectionnée */}
         {!finished && !isLoading && ohaChannel && (
           <div className="h-full w-full">
-            <LivePlayer key={`oha-${ohaChoice?.ch.id}`} channel={ohaChannel} onBack={() => {}} fill hideTopBar />
+            <LivePlayer
+              key={`oha-${ohaChoice?.ch.id}`}
+              channel={ohaChannel}
+              onBack={() => {}}
+              fill
+              hideTopBar
+              navigationItems={playerMatchItems}
+              navigationKind="matches"
+              navigationTitle="Autres matchs"
+            />
           </div>
         )}
 
-        {/* 2b. Flux HLS actif */}
-        {!finished && !isLoading && channel && !ohaChannel && (
+        {/* 2b. Flux HLS ou player embarqué dans le lecteur commun */}
+        {!finished && !isLoading && playerChannel && !ohaChannel && (
           <div className="h-full w-full">
-            <LivePlayer channel={channel} onBack={() => {}} fill hideTopBar onPlaybackError={advanceCandidate} />
-          </div>
-        )}
-
-        {/* 3. Flux Iframe (Player embarqué sécurisé) */}
-        {!finished && !isLoading && !channel && embedUrl && !ohaChannel && (
-          <div className="h-full w-full">
-            <iframe
-              key={embedUrl}
-              src={embedUrl}
-              title={`${homeName} vs ${awayName}`}
-              className="h-full w-full border-0"
-              allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-              referrerPolicy="no-referrer"
-              onError={() => advanceCandidate()}
-              onLoad={(event) => {
+            <LivePlayer
+              key={embedUrl ?? playerChannel._id}
+              channel={playerChannel}
+              onBack={() => {}}
+              fill
+              hideTopBar
+              externalIframeUrl={embedUrl ?? undefined}
+              navigationItems={playerMatchItems}
+              navigationKind="matches"
+              navigationTitle="Autres matchs"
+              onPlaybackError={advanceCandidate}
+              onExternalIframeError={advanceCandidate}
+              onExternalIframeLoad={(iframe) => {
                 try {
-                  const doc = event.currentTarget.contentDocument;
+                  const doc = iframe.contentDocument;
                   const title = doc?.title ?? "";
                   const body = doc?.body?.innerText ?? "";
                   if (/stream is offline|channel is offline|no stream|access denied|error 404/i.test(title) ||
@@ -450,7 +505,7 @@ export function MatchStreamPlayer({
                     advanceCandidate();
                   }
                 } catch {
-                  // Le contenu imbriqué peut être cross-origin et invisible au navigateur.
+                  // Le player embarqué est parfois cross-origin.
                 }
               }}
             />

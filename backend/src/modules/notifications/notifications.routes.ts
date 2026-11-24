@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import {
   cancelCampaign, config, createCampaign, generateCampaignDraft, currentPreferences, listCampaigns,
-  optionalAuth, preferences, sendTest, subscribe, unsubscribe,
+  addReleaseReminder, listReleaseReminders, optionalAuth, preferences, removeReleaseReminder, sendTest, subscribe, unsubscribe,
 } from './notifications.controller';
 import { requireAuth } from '../../middleware/auth.middleware';
 import { adminMiddleware } from '../admin/admin.middleware';
@@ -10,6 +10,9 @@ const router = Router();
 router.get('/config', config);
 router.post('/subscriptions', optionalAuth, subscribe);
 router.delete('/subscriptions', unsubscribe);
+router.get('/release-reminders', requireAuth, listReleaseReminders);
+router.post('/release-reminders', requireAuth, addReleaseReminder);
+router.delete('/release-reminders', requireAuth, removeReleaseReminder);
 router.get('/preferences', optionalAuth, currentPreferences);
 router.put('/preferences', optionalAuth, preferences);
 router.post('/test', requireAuth, sendTest);

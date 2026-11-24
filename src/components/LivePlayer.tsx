@@ -9,13 +9,20 @@ import { PopupFirewall } from "@/lib/PopupFirewall";
 import { enterFullscreen, exitFullscreen, isFullscreenActive } from "@/lib/fullscreen";
 import { resolveOhaStream } from "@/services/oha";
 import { liveChannelShareUrl } from "@/lib/live-channel-url";
-import { ArrowLeft, X, Play, Pause, SpeakerSimpleHigh, SpeakerSimpleSlash, ArrowsOutSimple, ArrowsInSimple, Television, PictureInPicture, ShareNetwork, Check } from "@phosphor-icons/react";
+import { X, Play, Pause, SpeakerSimpleHigh, SpeakerSimpleSlash, ArrowsOutSimple, ArrowsInSimple, Television, SoccerBall, PictureInPicture, ShareNetwork, Check } from "@phosphor-icons/react";
 
 interface LivePlayerProps {
   channel: LiveChannel;
   allChannels?: LiveChannel[];
   onBack: () => void;
   onSelectChannel?: (ch: LiveChannel) => void;
+  navigationItems?: LivePlayerNavigationItem[];
+  navigationTitle?: string;
+  navigationKind?: "channels" | "matches";
+  onSelectNavigationItem?: (item: LivePlayerNavigationItem) => void;
+  externalIframeUrl?: string;
+  onExternalIframeLoad?: (iframe: HTMLIFrameElement) => void;
+  onExternalIframeError?: () => void;
   /** Remplit entièrement l'écran (page player plein écran) au lieu d'un ratio 16:9 */
   fill?: boolean;
   // La page hôte affiche déjà sa propre barre du haut : ne pas empiler deux chromes
@@ -24,13 +31,31 @@ interface LivePlayerProps {
   onPlaybackError?: (reason: string) => void;
 }
 
+export interface LivePlayerNavigationItem {
+  id: string;
+  title: string;
+  subtitle?: string;
+  indicator?: string;
+  score?: string;
+  homeLogo?: string;
+  awayLogo?: string;
+  active?: boolean;
+  href?: string;
+  channel?: LiveChannel;
+}
+
 const PROXY_BASE = "/api/live/proxy";
 
-/* Contrôles « Apple TV » : verre dépoli, cercles, bordure blanche discrète. */
-const GLASS_BTN =
-  "flex items-center justify-center rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-white/90 hover:text-white hover:bg-white/20 transition-colors";
-const GLASS_PILL =
-  "inline-flex items-center gap-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-white/90 hover:text-white hover:bg-white/20 transition-colors";
+function formatPlaybackTime(seconds: number) {
+  if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
+  const total = Math.floor(seconds);
+  const minutes = Math.floor(total / 60);
+  const remainingSeconds = total % 60;
+  const hours = Math.floor(minutes / 60);
+  return hours > 0
+    ? `${hours}:${String(minutes % 60).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`
+    : `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
+}
 
 function buildProxyUrl(url: string): string {
   if (!url) return "";
@@ -110,11 +135,38 @@ export function ChannelLogoBadge({
   );
 }
 
+function MatchTeamMark({ logo, name }: { logo?: string; name: string }) {
+  const [failed, setFailed] = useState(false);
+  const initials = name
+    .split(/[\s-]+/u)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase() || "?";
+
+  return (
+    <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-black/35 text-[9px] font-bold text-white/75">
+      {logo && !failed ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={logo} alt={name} loading="lazy" className="h-7 w-7 object-contain" onError={() => setFailed(true)} />
+      ) : initials}
+    </span>
+  );
+}
+
 export default function LivePlayer({
   channel,
   allChannels = [],
   onBack,
   onSelectChannel,
+  navigationItems,
+  navigationTitle,
+  navigationKind = "channels",
+  onSelectNavigationItem,
+  externalIframeUrl,
+  onExternalIframeLoad,
+  onExternalIframeError,
   fill = false,
   hideTopBar = false,
   onPlaybackError,
@@ -123,12 +175,14 @@ export default function LivePlayer({
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const bufferingIndicatorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isBuffering, setIsBuffering] = useState(false);
   const [isPlaying, setIsPlaying] = useState(true);
   const [isLive, setIsLive] = useState(true);
   const [liveProgress, setLiveProgress] = useState(100);
+  const [playbackSeconds, setPlaybackSeconds] = useState(0);
   // Muet au démarrage : un <video> non muet sans geste préalable voit son play()
   // refusé, et le refus n'émet aucun événement — sans ceci, écran noir.
   const [isMuted, setIsMuted] = useState(true);
@@ -155,7 +209,32 @@ export default function LivePlayer({
 
   const streamUrl = (resolvedOha?.channelId === channel._id ? resolvedOha.url : channel.streamUrl) || "";
 
-  const isHls = channel.type === "hls";
+  const isHls = channel.type === "hls" && !externalIframeUrl;
+
+  const clearBufferingIndicatorTimer = useCallback(() => {
+    if (bufferingIndicatorTimerRef.current) {
+      clearTimeout(bufferingIndicatorTimerRef.current);
+      bufferingIndicatorTimerRef.current = null;
+    }
+  }, []);
+
+  const delayBufferingIndicator = useCallback(() => {
+    if (bufferingIndicatorTimerRef.current) return;
+    bufferingIndicatorTimerRef.current = setTimeout(() => {
+      bufferingIndicatorTimerRef.current = null;
+      setIsBuffering(true);
+    }, 600);
+  }, []);
+
+  useEffect(() => clearBufferingIndicatorTimer, [clearBufferingIndicatorTimer]);
+  const drawerItems: LivePlayerNavigationItem[] = navigationItems ?? allChannels.map((item) => ({
+    id: item.slug,
+    title: item.name,
+    subtitle: item.categories?.[0] || "Direct",
+    active: item.slug === channel.slug,
+    channel: item,
+  }));
+  const drawerTitle = navigationTitle ?? (navigationKind === "matches" ? "Autres matchs" : "Toutes les chaînes");
 
   useEffect(() => {
     onPlaybackErrorRef.current = onPlaybackError;
@@ -191,17 +270,19 @@ export default function LivePlayer({
     setStreamRevision((value) => value + 1);
   }, [resolveOhaFallback]);
 
-  const iframeSrc =
+  const iframeSrc = externalIframeUrl || (
     channel.type === "youtube" && channel.ytVideoId
       ? `https://www.youtube-nocookie.com/embed/${channel.ytVideoId}?autoplay=1&muted=0&rel=0&modestbranding=1&playsinline=1`
       : channel.type === "dailymotion" && channel.ytVideoId
         ? `https://www.dailymotion.com/embed/video/${channel.ytVideoId}?autoplay=1&muted=0`
-        : null;
+        : null
+  );
 
   // Détection dynamique de l'état LIVE (en direct vs différé/pause)
   const updateLiveState = useCallback(() => {
     const el = videoRef.current;
     if (!el) return;
+    setPlaybackSeconds(el.currentTime || 0);
 
     if (el.paused) {
       setIsLive(false);
@@ -405,6 +486,7 @@ export default function LivePlayer({
         hls.on(Hls.Events.MANIFEST_PARSED, startPlayback);
         hls.on(Hls.Events.FRAG_LOADED, () => {
           schedulePlaybackWatchdog();
+          clearBufferingIndicatorTimer();
           hasPlayedRef.current = true;
           ohaResolveAttemptsRef.current = 0;
           setError(null);
@@ -471,7 +553,7 @@ export default function LivePlayer({
       el.removeEventListener("timeupdate", schedulePlaybackWatchdog);
       if (hls) hls.destroy();
     };
-  }, [isHls, channel._id, channel.streamUrl, channel.source, channel.ohaId, channel.ohaAltIds, streamUrl, streamRevision, resolveOhaFallback, proxyMode, updateLiveState]);
+  }, [isHls, channel._id, channel.streamUrl, channel.source, channel.ohaId, channel.ohaAltIds, streamUrl, streamRevision, resolveOhaFallback, proxyMode, updateLiveState, externalIframeUrl, clearBufferingIndicatorTimer]);
 
   // Fullscreen change listener
   useEffect(() => {
@@ -533,7 +615,7 @@ export default function LivePlayer({
   // Le direct démarre muet pour passer l'autoplay ; le premier geste réel rend
   // le son, sauf si l'utilisateur a lui-même coupé le volume.
   useEffect(() => {
-    if (!isMuted) return;
+    if (!isMuted || iframeSrc) return;
     const unmute = () => {
       if (userMuteChoiceRef.current) return;
       const el = videoRef.current;
@@ -548,7 +630,7 @@ export default function LivePlayer({
       window.removeEventListener("pointerdown", unmute, { capture: true });
       window.removeEventListener("keydown", unmute, { capture: true });
     };
-  }, [isMuted]);
+  }, [iframeSrc, isMuted]);
 
   const handleShare = async () => {
     const title = channel.name || "CHILLERS";
@@ -643,26 +725,6 @@ export default function LivePlayer({
             : "min-h-[200px] sm:min-h-[340px] aspect-video max-h-[75dvh]"
       }`}
     >
-      {/* Marque permanente : indépendante de l'apparition des commandes.
-          Masquée quand la page hôte (couches /live/sp, /live/lb…) dessine sa
-          propre barre du haut : ici elle recouvrait la cloche de notification. */}
-      {!hideTopBar && (
-        <div className="pointer-events-none absolute right-[calc(env(safe-area-inset-right,0px)+0.75rem)] top-[calc(env(safe-area-inset-top,0px)+0.75rem)] z-50 flex items-center rounded-full border border-white/10 bg-black/55 px-2.5 py-1 backdrop-blur-md shadow-lg">
-          <img
-            src="/favicon-32x32.png"
-            alt="CHILLERS"
-            width={28}
-            height={28}
-            loading="eager"
-            decoding="async"
-            className="h-6 w-6 shrink-0 object-contain drop-shadow-[0_0_10px_rgba(215,4,102,0.5)]"
-          />
-          <span className="-ml-1.5 text-sm font-isometra tracking-tight text-white">
-            HILL<span className="text-brand-primary">ERS</span>
-          </span>
-        </div>
-      )}
-
       {/* ── Main Video Layer ────────────────────────────────────── */}
       {iframeSrc ? (
         <iframe
@@ -672,6 +734,11 @@ export default function LivePlayer({
           allow="autoplay; fullscreen; encrypted-media; picture-in-picture; gyroscope; accelerometer; clipboard-write"
           referrerPolicy="no-referrer"
           title={channel.name}
+          onLoad={(event) => {
+            setIsLoading(false);
+            onExternalIframeLoad?.(event.currentTarget);
+          }}
+          onError={onExternalIframeError}
         />
       ) : (
         <video
@@ -682,7 +749,7 @@ export default function LivePlayer({
           onClick={togglePlay}
           onWaiting={() => {
             if (hasPlayedRef.current) {
-              setIsBuffering(true);
+              delayBufferingIndicator();
             } else {
               setIsLoading(true);
             }
@@ -692,13 +759,17 @@ export default function LivePlayer({
             ohaResolveAttemptsRef.current = 0;
             setError(null);
             setIsLoading(false);
+            clearBufferingIndicatorTimer();
             setIsBuffering(false);
             setIsPlaying(true);
             updateLiveState();
           }}
           onCanPlay={() => {
             setIsLoading(false);
-            if (hasPlayedRef.current) setIsBuffering(false);
+            if (hasPlayedRef.current) {
+              clearBufferingIndicatorTimer();
+              setIsBuffering(false);
+            }
           }}
           onTimeUpdate={updateLiveState}
           onPause={() => {
@@ -738,9 +809,9 @@ export default function LivePlayer({
       {/* ── Rebuffering : ne jamais recouvrir l'image déjà affichée ── */}
       {isBuffering && !isLoading && !error && (
         <div className="pointer-events-none absolute inset-x-0 top-4 z-20 flex justify-center">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/65 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-white/90 backdrop-blur-md">
-            <span className="h-3 w-3 rounded-full border-2 border-white/25 border-t-white animate-spin" />
-            Mise en mémoire…
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-black/45 px-2.5 py-1 text-[10px] font-medium text-white/75 backdrop-blur-sm">
+            <span className="h-2.5 w-2.5 rounded-full border border-white/25 border-t-white/80 animate-spin" />
+            Reprise de la lecture…
           </div>
         </div>
       )}
@@ -769,102 +840,62 @@ export default function LivePlayer({
 
       {/* ── TOP BAR OVERLAY (Canal+ Style) ──────────────────────── */}
       <div
-        className={`absolute top-0 inset-x-0 z-30 pt-[calc(1rem_+_env(safe-area-inset-top,0px))] pb-4 pl-[calc(1rem_+_env(safe-area-inset-left,0px))] pr-[calc(1rem_+_env(safe-area-inset-right,0px))] bg-gradient-to-b from-black/90 via-black/50 to-transparent transition-opacity duration-300 ${
+        className={`absolute top-0 inset-x-0 z-30 pt-[calc(0.8rem_+_env(safe-area-inset-top,0px))] pb-5 pl-[calc(1rem_+_env(safe-area-inset-left,0px))] pr-[calc(1rem_+_env(safe-area-inset-right,0px))] bg-gradient-to-b from-black/65 to-transparent transition-opacity duration-300 ${
           hideTopBar ? "hidden" : showControls ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
       >
-        <div className="flex items-center justify-between gap-4">
-          {/* Gauche : Retour + Marque CHILLERS + Titre chaîne */}
-          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+        <div className="relative flex min-h-12 items-start justify-center gap-4">
+          <div className="absolute left-0 top-0">
             <button
               onClick={onBack}
-              className={`${GLASS_BTN} w-11 h-11 shrink-0`}
-              aria-label="Retour"
+              className="flex h-9 w-9 items-center justify-center rounded-full text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+              aria-label="Fermer le lecteur"
+              title="Fermer le lecteur"
             >
-              <ArrowLeft className="h-5 w-5" />
+              <X className="h-5 w-5" />
             </button>
-
-            <div className="min-w-0">
-              <h1 className="text-sm sm:text-base font-semibold text-white truncate">
-                {channel.name}
-              </h1>
-              <p className="flex items-center gap-1.5 text-[11px] sm:text-xs text-white/60 font-medium truncate">
-                <span
-                  className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                    isLive ? "bg-red-500 animate-pulse" : "bg-zinc-500"
-                  }`}
-                />
-                {isLive ? "En direct" : "Différé"}
-              </p>
-            </div>
           </div>
-
-          {/* Droite : Logo chaîne + PiP + Partager (volume déplacé près du play) */}
-          <div className="mr-28 flex shrink-0 items-center gap-2 sm:gap-3">
-            <ChannelLogoBadge
-              logo={channel.logo}
-              name={channel.name}
-              className="h-7 w-auto max-w-[80px]"
-              fallbackClassName="w-8 h-7"
-            />
-
-            <button
-              onClick={togglePictureInPicture}
-              className={`${GLASS_BTN} w-11 h-11 hidden sm:flex`}
-              aria-label="Picture-in-Picture"
-              title="Mini-lecteur"
-            >
-              <PictureInPicture className="h-5 w-5" />
-            </button>
-
-            <button
-              onClick={handleShare}
-              className={`${GLASS_BTN} w-11 h-11`}
-              aria-label="Partager"
-              title={shareCopied ? "Lien copié !" : "Partager"}
-            >
-              {shareCopied ? (
-                <Check className="h-5 w-5 text-brand-primary" />
-              ) : (
-                <ShareNetwork className="h-5 w-5" />
-              )}
-            </button>
+          <div className="min-w-0 max-w-[72vw] text-center sm:max-w-3xl">
+            <h1 className="truncate text-sm font-semibold uppercase tracking-wide text-white sm:text-base">
+              {channel.name}
+            </h1>
+            <p className="mt-0.5 truncate text-[11px] font-medium text-white/75 sm:text-xs">
+              {channel.epgNow?.title || (isLive ? "Télévision en direct" : "Différé")}
+            </p>
           </div>
         </div>
       </div>
 
       {/* ── BOTTOM BAR OVERLAY (Canal+ Style) ───────────────────── */}
       <div
-        className={`absolute bottom-0 inset-x-0 z-30 pt-8 pb-[calc(0.75rem_+_env(safe-area-inset-bottom,0px))] sm:pb-4 pl-[calc(1rem_+_env(safe-area-inset-left,0px))] pr-[calc(1rem_+_env(safe-area-inset-right,0px))] bg-gradient-to-t from-black/95 via-black/60 to-transparent transition-opacity duration-300 space-y-2.5 ${
+        className={`absolute bottom-0 inset-x-0 z-30 pt-8 pb-[calc(0.65rem_+_env(safe-area-inset-bottom,0px))] sm:pb-3 pl-[calc(0.75rem_+_env(safe-area-inset-left,0px))] pr-[calc(0.75rem_+_env(safe-area-inset-right,0px))] bg-gradient-to-t from-black/85 via-black/35 to-transparent transition-opacity duration-300 space-y-2 ${
           showControls ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
       >
         {/* Barre de timeline en direct (interactive) */}
-        <div
-          onClick={handleTimelineClick}
-          className="relative w-full h-1 rounded-full overflow-hidden cursor-pointer bg-white/15 backdrop-blur-md"
-        >
+        {!externalIframeUrl && (
           <div
-            style={{ width: `${liveProgress}%` }}
-            className={`absolute top-0 bottom-0 left-0 rounded-full transition-all duration-150 ${
-              isLive
-                ? "bg-red-600 shadow-[0_0_10px_rgba(220,38,38,0.8)]"
-                : "bg-white/80"
-            }`}
-          />
-        </div>
+            onClick={handleTimelineClick}
+            className="relative h-[3px] w-full cursor-pointer overflow-hidden bg-white/30 transition-[height] hover:h-1"
+          >
+            <div
+              style={{ width: `${liveProgress}%` }}
+              className={`absolute top-0 bottom-0 left-0 transition-all duration-150 ${isLive ? "bg-[#f02d5e]" : "bg-white/80"}`}
+            />
+          </div>
+        )}
 
         {/* Ligne des contrôles */}
         <div className="flex items-center justify-between gap-2 sm:gap-4">
           {/* Gauche : Volume, Lecture/Pause, LIVE */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className={`flex items-center gap-3 sm:gap-5 ${externalIframeUrl ? "hidden" : ""}`}>
             <button
               onClick={toggleMute}
-              className={`${GLASS_BTN} w-11 h-11`}
+              className="flex h-9 w-9 items-center justify-center rounded-full text-white/90 transition-colors hover:bg-white/10 hover:text-white"
               aria-label={isMuted ? "Activer le son" : "Couper le son"}
             >
               {isMuted ? (
-                <SpeakerSimpleSlash className="h-5 w-5 text-red-500" />
+                <SpeakerSimpleSlash className="h-5 w-5" />
               ) : (
                 <SpeakerSimpleHigh className="h-5 w-5" />
               )}
@@ -872,49 +903,73 @@ export default function LivePlayer({
 
             <button
               onClick={togglePlay}
-              className="flex items-center justify-center w-12 h-12 rounded-full bg-white/15 backdrop-blur-md border border-white/20 text-white transition-all transform hover:scale-105 active:scale-95"
+              className="flex h-9 w-9 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10"
               aria-label={isPlaying ? "Pause" : "Lecture"}
             >
               {isPlaying ? (
-                <Pause className="h-6 w-6 fill-white" />
+                <Pause className="h-5 w-5 fill-white" />
               ) : (
-                <Play className="h-6 w-6 fill-white ml-0.5" />
+                <Play className="ml-0.5 h-5 w-5 fill-white" />
               )}
             </button>
 
             <button
               onClick={jumpToLive}
               title={isLive ? "Vous êtes en direct" : "Cliquer pour revenir au direct"}
-              className={`ml-1 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide transition-all duration-200 backdrop-blur-md border ${
+              className={`ml-1 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide transition-colors ${
                 isLive
-                  ? "bg-red-600 border-red-500 text-white shadow-md shadow-red-600/30 cursor-default"
-                  : "bg-white/10 border-white/15 text-white/70 hover:text-white hover:bg-white/20 cursor-pointer"
+                  ? "text-[#f02d5e]"
+                  : "text-white/60 hover:text-white"
               }`}
             >
               <span
                 className={`w-1.5 h-1.5 rounded-full ${
-                  isLive ? "bg-white animate-pulse" : "bg-zinc-500"
+                    isLive ? "bg-[#f02d5e] animate-pulse" : "bg-zinc-500"
                 }`}
               />
               LIVE
             </button>
+            <span className="ml-1 whitespace-nowrap text-[11px] tabular-nums text-white/65">
+              {formatPlaybackTime(playbackSeconds)}
+            </span>
           </div>
 
           {/* Droite : Chaînes, Plein écran */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            {allChannels.length > 0 && (
+          <div className="flex items-center gap-1 sm:gap-3">
+            {drawerItems.length > 0 && (
               <button
                 onClick={() => setShowChannelDrawer(!showChannelDrawer)}
-                className={`${GLASS_PILL}`}
+                className="flex h-9 items-center gap-2 rounded-full px-2 text-white/85 transition-colors hover:bg-white/10 hover:text-white sm:px-2.5"
+                aria-label={drawerTitle}
+                title={drawerTitle}
               >
-                <Television className="h-4 w-4" />
-                <span className="hidden sm:inline">Chaînes</span>
+                {navigationKind === "matches" ? <SoccerBall className="h-4 w-4" /> : <Television className="h-4 w-4" />}
+                <span className="hidden text-[11px] font-medium sm:inline">{navigationKind === "matches" ? "Matchs" : "Chaînes"}</span>
+              </button>
+            )}
+
+            <button
+              onClick={togglePictureInPicture}
+              className={`hidden h-9 w-9 items-center justify-center rounded-full text-white/85 transition-colors hover:bg-white/10 hover:text-white sm:flex ${externalIframeUrl ? "!hidden" : ""}`}
+              aria-label="Mini-lecteur"
+              title="Mini-lecteur"
+            >
+              <PictureInPicture className="h-5 w-5" />
+            </button>
+            {navigationKind !== "matches" && !externalIframeUrl && (
+              <button
+                onClick={handleShare}
+                className="hidden h-9 w-9 items-center justify-center rounded-full text-white/85 transition-colors hover:bg-white/10 hover:text-white sm:flex"
+                aria-label="Partager"
+                title={shareCopied ? "Lien copié !" : "Partager"}
+              >
+                {shareCopied ? <Check className="h-5 w-5 text-[#f02d5e]" /> : <ShareNetwork className="h-5 w-5" />}
               </button>
             )}
 
             <button
               onClick={toggleFullscreen}
-              className={`${GLASS_BTN} w-11 h-11`}
+              className="flex h-9 w-9 items-center justify-center rounded-full text-white/90 transition-colors hover:bg-white/10 hover:text-white"
               aria-label={isFullscreen ? "Quitter le plein écran" : "Plein écran"}
               title={isFullscreen ? "Quitter le plein écran" : "Plein écran"}
             >
@@ -933,8 +988,8 @@ export default function LivePlayer({
         <div className="absolute inset-y-0 right-0 z-40 w-80 sm:w-96 bg-black/95 backdrop-blur-xl border-l border-white/10 flex flex-col p-4 pb-[calc(1rem_+_env(safe-area-inset-bottom,0px))] animate-fade-in">
           <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
             <h3 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
-              <Television className="h-4 w-4 text-red-500" />
-              Toutes les chaînes
+              {navigationKind === "matches" ? <SoccerBall className="h-4 w-4 text-red-400" /> : <Television className="h-4 w-4 text-red-400" />}
+              {drawerTitle}
             </h3>
             <button
               onClick={() => setShowChannelDrawer(false)}
@@ -945,39 +1000,68 @@ export default function LivePlayer({
           </div>
 
           <div className="flex-1 overflow-y-auto space-y-2 pr-1 scrollbar-thin">
-            {allChannels.map((ch) => {
-              const isCurrent = ch.slug === channel.slug;
+            {drawerItems.map((item) => {
+              const isCurrent = item.active ?? item.channel?.slug === channel.slug;
               return (
-                <div
-                  key={ch.slug}
+                <button
+                  type="button"
+                  key={item.id}
                   onClick={() => {
-                    if (onSelectChannel) onSelectChannel(ch);
+                    if (item.href) {
+                      window.location.assign(item.href);
+                    } else if (item.channel) {
+                      onSelectChannel?.(item.channel);
+                    } else {
+                      onSelectNavigationItem?.(item);
+                    }
                     setShowChannelDrawer(false);
                   }}
-                  className={`flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-all ${
+                  className={`flex w-full items-center gap-3 rounded-xl p-2.5 text-left transition-colors ${
                     isCurrent
-                      ? "bg-red-600/20 border border-red-500/40 text-white shadow-lg"
-                      : "bg-zinc-900/60 hover:bg-zinc-800/80 border border-transparent text-zinc-300"
+                      ? "liquid-glass-surface border-0 text-white shadow-none"
+                      : "bg-white/[0.045] text-zinc-300 hover:bg-white/[0.09]"
                   }`}
+                  style={isCurrent ? {
+                    backgroundColor: "rgba(225, 29, 72, 0.27)",
+                    border: 0,
+                    boxShadow: "0 8px 20px -16px rgba(225, 29, 72, 0.9)",
+                  } : undefined}
+                  aria-pressed={isCurrent}
                 >
-                  <ChannelLogoBadge
-                    logo={ch.logo}
-                    name={ch.name}
-                    className="h-7 w-10"
-                    fallbackClassName="w-10 h-7"
-                  />
+                  {item.channel ? (
+                    <ChannelLogoBadge
+                      logo={item.channel.logo}
+                      name={item.channel.name}
+                      className="h-7 w-10"
+                      fallbackClassName="w-10 h-7"
+                    />
+                  ) : navigationKind === "matches" ? (
+                    <span className="flex w-[76px] shrink-0 items-center justify-between">
+                      <MatchTeamMark logo={item.homeLogo} name={item.title.split(" vs ")[0] || item.title} />
+                      <span className="px-0.5 text-[8px] font-bold text-white/35">VS</span>
+                      <MatchTeamMark logo={item.awayLogo} name={item.title.split(" vs ")[1] || item.title} />
+                    </span>
+                  ) : (
+                    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${item.indicator?.toLowerCase().includes("direct") ? "bg-red-500/15 text-red-300" : "bg-white/10 text-white/65"}`}>
+                      <SoccerBall className="h-4 w-4" />
+                    </span>
+                  )}
 
                   <div className="min-w-0 flex-1">
-                    <h4 className="text-xs font-bold text-white truncate">{ch.name}</h4>
-                    <span className="text-[10px] text-zinc-400 capitalize">
-                      {ch.categories?.[0] || "Direct"}
-                    </span>
+                    <h4 className="truncate text-[11px] font-bold leading-tight text-white">{item.title}</h4>
+                    <span className="mt-1 block truncate text-[9px] text-white/55">{item.subtitle || (navigationKind === "matches" ? "Rencontre" : "Direct")}</span>
                   </div>
 
-                  {isCurrent && (
-                    <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                  )}
-                </div>
+                  <span className="flex shrink-0 flex-col items-end gap-1.5">
+                    {item.score && <span className="text-[11px] font-black tabular-nums text-white">{item.score}</span>}
+                    {item.indicator && (
+                      <span className={`text-[8px] font-bold uppercase tracking-wide ${item.indicator.toLowerCase().includes("direct") ? "text-red-300" : "text-white/45"}`}>
+                        {item.indicator}
+                      </span>
+                    )}
+                    {isCurrent && <span className="h-1.5 w-1.5 rounded-full bg-red-300 shadow-[0_0_8px_rgba(251,113,133,0.9)]" />}
+                  </span>
+                </button>
               );
             })}
           </div>

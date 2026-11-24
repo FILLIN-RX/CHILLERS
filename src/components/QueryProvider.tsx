@@ -11,6 +11,17 @@ const PERSIST_KEY = "chillers-query-cache";
 const PERSIST_BUSTER = "media-person-cache-v2";
 const PERSIST_MAX_AGE = 24 * 60 * 60 * 1000; // 24h
 
+function getSafeStorage(): Storage | undefined {
+  if (typeof window === "undefined") return undefined;
+  try {
+    return window.localStorage;
+  } catch {
+    // Certains navigateurs mobiles/refusent le stockage selon le mode privé.
+    // Le cache TanStack reste utilisable en mémoire sans persistance.
+    return undefined;
+  }
+}
+
 // Ne persister QUE les fiches stables (détail média + personne) :
 // les listes de catalogue (home, search) sont volumineuses et déjà
 // régénérées par le RSC — les persister ferait grossir le localStorage
@@ -31,7 +42,7 @@ export default function QueryProvider({ children }: { children: ReactNode }) {
   // (l'arbre rendu est identique pendant l'hydration, pas d'effet ni de setState).
   const [persister] = useState(() =>
     createSyncStoragePersister({
-      storage: typeof window !== "undefined" ? window.localStorage : undefined,
+      storage: getSafeStorage(),
       key: PERSIST_KEY,
       throttleTime: 1000,
     }),

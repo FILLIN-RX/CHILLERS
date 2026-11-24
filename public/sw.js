@@ -1,6 +1,6 @@
 /* global self ReadableStream Response Headers fetch caches IDBKeyRange */
 
-const CACHE_NAME = 'chillers-cache-v10';
+const CACHE_NAME = 'chillers-cache-v11';
 
 // ── StreamSaver map pour le streaming de téléchargement ────────
 const map = new Map();
@@ -254,9 +254,12 @@ self.addEventListener('fetch', event => {
         .catch(async () => {
           const cached = await caches.match(event.request, { ignoreSearch: true });
           if (cached) return cached;
-          return new Response(JSON.stringify({ offline: true }), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' },
+          // Une réponse JSON 200 n'est pas une réponse Flight/RSC valide :
+          // Next peut alors considérer la navigation comme réussie et laisser
+          // le routeur client bloqué. Signaler explicitement l'échec réseau.
+          return new Response('Navigation indisponible hors ligne', {
+            status: 503,
+            headers: { 'Content-Type': 'text/plain; charset=utf-8' },
           });
         })
     );

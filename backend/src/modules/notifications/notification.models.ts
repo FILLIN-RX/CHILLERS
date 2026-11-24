@@ -10,6 +10,7 @@ const PushSubscriptionSchema = new Schema({
     matches: { type: Boolean, default: true },
     subscriptions: { type: Boolean, default: true },
     reminders: { type: Boolean, default: true },
+    releases: { type: Boolean, default: true },
   },
   followedTeams: { type: [String], default: [] },
   lastSeenAt: { type: Date, default: Date.now },

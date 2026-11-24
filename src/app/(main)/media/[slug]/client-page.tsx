@@ -22,6 +22,7 @@ import AuthModal from "@/components/AuthModal";
 import DownloadModal from "@/features/downloads/DownloadModal";
 import UpgradeModal from "@/components/UpgradeModal";
 import MovieCard from "@/components/MovieCard";
+import ReleaseReminderButton from "@/components/ReleaseReminderButton";
 import MovieCardSkeleton from "@/components/MovieCardSkeleton";
 import HilltopAd, { getHilltopZoneForSlot } from "@/components/HilltopAd";
 import AddToPlaylistModal from "@/components/AddToPlaylistModal";
@@ -436,7 +437,7 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
           <>
             {/* Mobile : affiche entière plein cadre, ratio 2/3 conservé — rien
                 n'est rogné, posée sur le backdrop flouté de la page. */}
-            <div className="relative aspect-[2/3] w-full shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 ring-1 ring-white/5 sm:hidden">
+            <div className="relative aspect-[20/27] w-full shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 ring-1 ring-white/5 sm:hidden">
               <Image
                 src={heroImageUrl}
                 alt={item.title}
@@ -599,6 +600,10 @@ function MediaDetailPage({ initialItem, initialSimilar }: MediaPageProps) {
                     ariaLabel={`Play ${item?.title || ""}`}
                     className="max-sm:flex-1 max-sm:!bg-white max-sm:!text-black max-sm:border-white max-sm:shadow-none sm:w-auto"
                   />
+                )}
+
+                {isUpcoming && item.type === "movie" && item.releaseDate && (
+                  <ReleaseReminderButton item={item} />
                 )}
 
                 {!isUpcoming && (

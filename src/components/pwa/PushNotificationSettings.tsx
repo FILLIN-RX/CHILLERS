@@ -10,8 +10,9 @@ const categories: { key: keyof PushPreferences; label: string; description: stri
   { key: 'matches', label: 'Matchs', description: 'Rappels avant le coup d’envoi et buts de vos équipes' },
   { key: 'subscriptions', label: 'Abonnement', description: 'Activation, changements et échéances' },
   { key: 'reminders', label: 'Reprise', description: 'Un rappel quotidien au maximum' },
+  { key: 'releases', label: 'Sorties de films', description: 'Rappel le jour de sortie des films suivis' },
 ];
-const defaults: PushPreferences = { announcements: true, favorites: true, matches: true, subscriptions: true, reminders: true };
+const defaults: PushPreferences = { announcements: true, favorites: true, matches: true, subscriptions: true, reminders: true, releases: true };
 const decodeKey = (key: string) => {
   const padded = key + '='.repeat((4 - key.length % 4) % 4);
   return Uint8Array.from(atob(padded.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));

@@ -9,7 +9,16 @@ import { applyPromoToFreeUsers } from './notifications.controller';
 
 const MINUTE = 60_000;
 const DAY = 24 * 60 * MINUTE;
+const RELEASE_RETRY = 30 * MINUTE;
 let running = false;
+
+function localReleaseDay() {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Africa/Douala', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
 
 async function processCampaigns() {
   const due = await PushCampaign.findOneAndUpdate(
@@ -109,6 +118,44 @@ async function processMatchReminders() {
   }
 }
 
+async function processMovieReleaseReminders() {
+  const now = new Date();
+  const retryBefore = new Date(now.getTime() - RELEASE_RETRY);
+  const dueMatch = {
+    releaseDate: { $lte: localReleaseDay() },
+    notifiedAt: { $exists: false },
+    $or: [{ lastAttemptAt: { $exists: false } }, { lastAttemptAt: { $lte: retryBefore } }],
+  };
+  const users = await User.find({ releaseReminders: { $elemMatch: dueMatch } })
+    .select('_id releaseReminders')
+    .limit(500)
+    .lean();
+
+  for (const user of users as any[]) {
+    const dueMovies = (user.releaseReminders || []).filter((movie: any) =>
+      movie.releaseDate <= localReleaseDay() && !movie.notifiedAt && (!movie.lastAttemptAt || new Date(movie.lastAttemptAt).getTime() <= retryBefore.getTime()),
+    );
+    for (const movie of dueMovies) {
+      const claim = await User.updateOne(
+        { _id: user._id, releaseReminders: { $elemMatch: { tmdbId: movie.tmdbId, notifiedAt: { $exists: false }, $or: [{ lastAttemptAt: { $exists: false } }, { lastAttemptAt: { $lte: retryBefore } }] } } },
+        { $set: { 'releaseReminders.$.lastAttemptAt': now } },
+      );
+      if (!claim.modifiedCount) continue;
+      const accepted = await sendToUser(String(user._id), {
+        title: 'C’est le jour de sortie !',
+        body: `« ${movie.title} » sort aujourd’hui. Découvre sa fiche sur CHILLERS.`,
+        url: `/media/${movie.tmdbId}`,
+        image: movie.posterUrl || undefined,
+        tag: `release-${movie.tmdbId}`,
+      }, 'releases');
+      if (accepted > 0) await User.updateOne(
+        { _id: user._id, releaseReminders: { $elemMatch: { tmdbId: movie.tmdbId, notifiedAt: { $exists: false } } } },
+        { $set: { 'releaseReminders.$.notifiedAt': new Date() } },
+      );
+    }
+  }
+}
+
 async function tick() {
   if (running) return;
   running = true;
@@ -118,6 +165,7 @@ async function tick() {
     await processContinueReminders();
     await processCatalogUpdates();
     await processMatchReminders();
+    await processMovieReleaseReminders();
   } catch (error: any) {
     console.warn('[WebPush] Worker tick failed:', error?.message || error);
   } finally { running = false; }

@@ -6,7 +6,7 @@ import { getVapidPublicKey, sendToAll, sendToSubscription } from './push.service
 import { generateAICompletion, parseAIJson } from '../ai/ai';
 import { User } from '../../models/User';
 
-const categories = ['announcements', 'favorites', 'matches', 'subscriptions', 'reminders'] as const;
+const categories = ['announcements', 'favorites', 'matches', 'subscriptions', 'reminders', 'releases'] as const;
 const clean = (value: unknown, max: number) => typeof value === 'string' ? value.trim().replace(/[<>\u0000-\u001f]/g, '').slice(0, max) : '';
 const allowedUrl = (value: unknown) => {
   const url = clean(value, 300);
@@ -47,6 +47,61 @@ export async function unsubscribe(req: Request, res: Response) {
   if (!endpoint) { res.status(400).json({ success: false, message: 'Endpoint requis' }); return; }
   const result = await PushSubscription.deleteOne({ endpoint });
   console.info('[WebPush] Désabonnement navigateur traité.', { removed: result.deletedCount || 0 });
+  res.json({ success: true });
+}
+
+export async function listReleaseReminders(req: AuthRequest, res: Response) {
+  const user = await User.findById(req.user?.id).select('releaseReminders').lean() as any;
+  res.json({ success: true, data: user?.releaseReminders || [] });
+}
+
+export async function addReleaseReminder(req: AuthRequest, res: Response) {
+  const tmdbId = clean(req.body?.tmdbId, 24);
+  const title = clean(req.body?.title, 120);
+  const releaseDate = typeof req.body?.releaseDate === 'string' ? req.body.releaseDate : '';
+  const posterUrl = typeof req.body?.posterUrl === 'string' && req.body.posterUrl.startsWith('https://image.tmdb.org/')
+    ? req.body.posterUrl.slice(0, 500)
+    : '';
+  const parsedReleaseDate = /^\d{4}-\d{2}-\d{2}$/.test(releaseDate) ? new Date(`${releaseDate}T00:00:00.000Z`) : null;
+  if (!req.user?.id || !/^\d+$/.test(tmdbId) || !title || !parsedReleaseDate || Number.isNaN(parsedReleaseDate.getTime()) || parsedReleaseDate.toISOString().slice(0, 10) !== releaseDate) {
+    res.status(400).json({ success: false, message: 'Informations du film invalides.' });
+    return;
+  }
+  try {
+    const user: any = await User.findById(req.user.id);
+    if (!user) {
+      res.status(404).json({ success: false, message: 'Compte introuvable.' });
+      return;
+    }
+    const existing = (user.releaseReminders || []).find((movie: any) => movie.tmdbId === tmdbId);
+    if (existing) {
+      existing.title = title;
+      existing.releaseDate = releaseDate;
+      existing.posterUrl = posterUrl;
+      existing.lastAttemptAt = undefined;
+      existing.notifiedAt = undefined;
+    } else {
+      if ((user.releaseReminders || []).length >= 100) {
+        res.status(409).json({ success: false, message: 'Limite de 100 rappels de sortie atteinte sur ce compte.' });
+        return;
+      }
+      user.releaseReminders.push({ tmdbId, title, releaseDate, posterUrl });
+    }
+    await user.save();
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('[WebPush] Impossible d’enregistrer le rappel de sortie.', { code: error?.code || 'database_error' });
+    res.status(500).json({ success: false, message: 'Impossible d’enregistrer ce rappel.' });
+  }
+}
+
+export async function removeReleaseReminder(req: AuthRequest, res: Response) {
+  const tmdbId = clean(req.body?.tmdbId, 24);
+  if (!req.user?.id || !/^\d+$/.test(tmdbId)) {
+    res.status(400).json({ success: false, message: 'Rappel invalide.' });
+    return;
+  }
+  await User.updateOne({ _id: req.user.id }, { $pull: { releaseReminders: { tmdbId } } });
   res.json({ success: true });
 }
 

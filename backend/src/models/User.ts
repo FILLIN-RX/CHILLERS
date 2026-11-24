@@ -10,6 +10,7 @@ export interface IUser extends Document {
   continueWatching: { tmdbId: string; mediaType: 'movie' | 'series' | 'anime' | 'tv'; season?: number; episode?: number; progress: number; duration: number; updatedAt: Date; title: string; posterPath?: string; backdropPath?: string }[];
   watchHistory: { tmdbId: string; mediaType: 'movie' | 'series' | 'anime' | 'tv'; season?: number; episode?: number; title: string; watchedAt: Date; posterPath?: string }[];
   watchLater?: { mediaType: 'movie' | 'series' | 'anime' | 'tv'; tmdbId: string; title: string; posterPath?: string; addedAt: Date }[];
+  releaseReminders: { tmdbId: string; title: string; releaseDate: string; posterUrl?: string; lastAttemptAt?: Date; notifiedAt?: Date }[];
   playlists?: {
     id: string;
     title: string;
@@ -109,6 +110,16 @@ const UserSchema: Schema = new Schema(
         title: { type: String, required: true },
         posterPath: { type: String },
         addedAt: { type: Date, default: Date.now },
+      },
+    ],
+    releaseReminders: [
+      {
+        tmdbId: { type: String, required: true },
+        title: { type: String, required: true, maxlength: 120 },
+        releaseDate: { type: String, required: true },
+        posterUrl: { type: String, default: '' },
+        lastAttemptAt: { type: Date },
+        notifiedAt: { type: Date },
       },
     ],
     playlists: [

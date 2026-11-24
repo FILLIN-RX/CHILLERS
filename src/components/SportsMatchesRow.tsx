@@ -204,10 +204,9 @@ export default function SportsMatchesRow({
               const ts = kickoffTs(match);
               const day = formatMatchDay(ts);
               const time = formatMatchTime(ts);
-              const scoreline =
-                match.homeTeam.score !== undefined && match.awayTeam.score !== undefined
-                  ? `${match.homeTeam.score} - ${match.awayTeam.score}`
-                  : null;
+              // Comme les autres cartes de match, le direct reste lisible
+              // même si le fournisseur n'a pas encore envoyé le score.
+              const scoreline = `${match.homeTeam.score ?? 0} - ${match.awayTeam.score ?? 0}`;
 
               return (
                 <Link
@@ -218,10 +217,16 @@ export default function SportsMatchesRow({
                   <MatchBackdrop home={match.homeTeam.name} away={match.awayTeam.name} />
 
                   <div className="relative h-full p-2.5 sm:p-3 flex flex-col justify-between">
-                    <div className="flex items-start justify-end">
-                      <div className="min-w-0 flex justify-end">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex">
                         <CompetitionBadge competition={match.league?.name} logo={match.league?.logo} />
                       </div>
+                      {isLive && (
+                        <span className="flex shrink-0 items-center gap-1 text-[12px] font-black tabular-nums text-red-500">
+                          <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
+                          {match.minute || "DIRECT"}
+                        </span>
+                      )}
                     </div>
 
                     <div className="flex items-center">
@@ -238,13 +243,15 @@ export default function SportsMatchesRow({
                         {match.homeTeam.name} - {match.awayTeam.name}
                       </p>
                       <span
-                        className={`shrink-0 text-[13px] font-black tabular-nums ${
-                          isLive ? "text-red-500" : "text-zinc-400"
-                        }`}
+                        className="flex shrink-0 items-center gap-2 tabular-nums"
                       >
-                        {isLive
-                          ? match.minute || scoreline || "DIRECT"
-                          : [day, time].filter(Boolean).join(" · ") || "Bientôt"}
+                        {isLive ? (
+                          <span className="text-[14px] font-black text-white">{scoreline}</span>
+                        ) : (
+                          <span className="text-[13px] font-black text-zinc-400">
+                            {[day, time].filter(Boolean).join(" · ") || "Bientôt"}
+                          </span>
+                        )}
                       </span>
                     </div>
                   </div>
