@@ -2,20 +2,24 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef, startTransition } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { useQueryClient } from "@tanstack/react-query";
 import HeroCarousel from "@/components/HeroCarousel";
-import MovieCard from "@/components/MovieCard";
-import ContinueWatchingCard from "@/components/ContinueWatchingCard";
-import ScrollRow from "@/components/ScrollRow";
-import SpotlightGrid from "@/components/SpotlightGrid";
-import MostViewedMovie from "@/components/MostViewedMovie";
-import Top10Row from "@/components/Top10Row";
-import SportsMatchesRow from "@/components/SportsMatchesRow";
 import { useLanguage } from "@/i18n/LanguageContext";
 import type { MovieOrShow } from "@/types/media";
-import UpgradeModal from "@/components/UpgradeModal";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { HomeActionProvider } from "./HomeActionContext";
+
+// Keep the first screen focused on the hero. The motion-heavy catalogue rows
+// are split into their own chunks and loaded only when LazyMount reveals them.
+const MovieCard = dynamic(() => import("@/components/MovieCard"), { ssr: false });
+const ContinueWatchingCard = dynamic(() => import("@/components/ContinueWatchingCard"), { ssr: false });
+const ScrollRow = dynamic(() => import("@/components/ScrollRow"), { ssr: false });
+const SpotlightGrid = dynamic(() => import("@/components/SpotlightGrid"), { ssr: false });
+const MostViewedMovie = dynamic(() => import("@/components/MostViewedMovie"), { ssr: false });
+const Top10Row = dynamic(() => import("@/components/Top10Row"), { ssr: false });
+const SportsMatchesRow = dynamic(() => import("@/components/SportsMatchesRow"), { ssr: false });
+const UpgradeModal = dynamic(() => import("@/components/UpgradeModal"), { ssr: false });
 
 // Monte son contenu seulement quand il approche du viewport.
 // Évite de monter ~40-60 cartes motion d'un coup sur la home.
@@ -37,7 +41,7 @@ function LazyMount({
       (entries) => {
         if (entries[0]?.isIntersecting) setVisible(true);
       },
-      { rootMargin: "600px" }
+      { rootMargin: "250px" }
     );
     observer.observe(el);
     return () => observer.disconnect();

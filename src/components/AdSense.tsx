@@ -32,21 +32,16 @@ export default function AdSense() {
       document.head.appendChild(script);
 
       window.removeEventListener('scroll', loadAds);
-      window.removeEventListener('mousemove', loadAds);
-      window.removeEventListener('touchstart', loadAds);
     };
 
+    // Don't fetch a large third-party bundle during the user's first tap.
     window.addEventListener('scroll', loadAds, { once: true, passive: true });
-    window.addEventListener('mousemove', loadAds, { once: true, passive: true });
-    window.addEventListener('touchstart', loadAds, { once: true, passive: true });
 
-    // Fallback if no interaction after 8 seconds
+    // Fallback if the user never scrolls.
     const fallbackTimer = setTimeout(loadAds, 8000);
 
     return () => {
       window.removeEventListener('scroll', loadAds);
-      window.removeEventListener('mousemove', loadAds);
-      window.removeEventListener('touchstart', loadAds);
       clearTimeout(fallbackTimer);
     };
   }, [isSubscriber]);

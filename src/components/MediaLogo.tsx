@@ -1,7 +1,7 @@
 "use client";
 
 import NextImage from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const SHADOW = "drop-shadow(0 4px 12px rgba(0,0,0,0.8))";
 const treatmentCache = new Map<string, string>();
@@ -46,24 +46,22 @@ export default function MediaLogo({ src, alt }: MediaLogoProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [filter, setFilter] = useState<string>(treatmentCache.get(src) ?? SHADOW);
 
-  useEffect(() => {
-    let tries = 0;
-    const tick = () => {
-      const img = wrapRef.current?.querySelector("img");
-      if (!img || !img.complete || img.naturalWidth === 0) return false;
-      // Le canvas reste vide tant que l'image n'est pas décodée : on ressaye.
-      const next = treatmentCache.get(src) ?? analyze(img);
-      if (!next) return false;
-      treatmentCache.set(src, next);
-      setFilter(next);
-      return true;
-    };
-    if (treatmentCache.has(src)) return;
-    const id = setInterval(() => {
-      if (tick() || ++tries > 50) clearInterval(id);
-    }, 120);
-    return () => clearInterval(id);
+  const applyTreatment = useCallback((img: HTMLImageElement) => {
+    const cached = treatmentCache.get(src);
+    if (cached) {
+      setFilter(cached);
+      return;
+    }
+    const next = analyze(img);
+    if (!next) return;
+    treatmentCache.set(src, next);
+    setFilter(next);
   }, [src]);
+
+  useEffect(() => {
+    const img = wrapRef.current?.querySelector("img");
+    if (img?.complete && img.naturalWidth > 0) applyTreatment(img);
+  }, [applyTreatment]);
 
   return (
     <div ref={wrapRef} className="inline-block">
@@ -72,9 +70,11 @@ export default function MediaLogo({ src, alt }: MediaLogoProps) {
         alt={alt}
         width={500}
         height={150}
+        sizes="(max-width: 640px) 280px, 450px"
+        loading="lazy"
         className="w-auto h-auto max-w-[280px] sm:max-w-[350px] md:max-w-[450px] max-h-[100px] sm:max-h-[120px] md:max-h-[150px] object-contain"
         style={{ width: "auto", height: "auto", filter, transition: "filter 300ms ease" }}
-        priority
+        onLoad={(event) => applyTreatment(event.currentTarget)}
       />
     </div>
   );

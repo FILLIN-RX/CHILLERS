@@ -151,6 +151,11 @@ body {
   padding: 0;
 }
 
+.brand-wordmark {
+  font-family: var(--font-space-grotesk), var(--font-sans);
+  letter-spacing: -0.045em;
+}
+
 /* Glassmorphism utility classes — seamless without harsh borders */
 .glass-panel {
   background: var(--glass-bg);

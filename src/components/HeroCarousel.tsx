@@ -276,11 +276,11 @@ export default function HeroCarousel({
                 {isNear && slideBackdropUrl && (
                   <Image
                     src={slideBackdropUrl}
-                    alt={slide.title}
+                    alt=""
                     fill
                     className="object-cover object-[center_30%] sm:object-center transition-opacity duration-700"
                     style={{ filter: "brightness(0.8) saturate(1.1)" }}
-                    sizes="100vw"
+                    sizes="(max-width: 767px) 260px, 100vw"
                     quality={85}
                     priority={index === 0}
                     loading={index === 0 ? "eager" : "lazy"}
@@ -392,7 +392,7 @@ export default function HeroCarousel({
                       size="lg"
                       leftIcon={<Play className="h-4 w-4 sm:h-5 sm:w-5 fill-current" />}
                       ariaLabel={`${_("hero.watchNow")} ${slide.title}`}
-                      className="max-sm:!border-white max-sm:!bg-white max-sm:!text-black max-sm:shadow-none max-sm:!text-sm max-sm:!px-4 max-sm:!py-2 max-sm:!min-h-[40px]"
+                      className="max-sm:!border-white max-sm:!bg-white max-sm:!text-black max-sm:shadow-none max-sm:!text-sm max-sm:!px-4 max-sm:!py-2 max-sm:!min-h-[44px]"
                     >
                       {_("hero.watchNow")}
                     </Button>

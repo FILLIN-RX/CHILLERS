@@ -74,28 +74,6 @@ export default function AppShell({ children, showBottomNav }: AppShellProps) {
   // switching and video controls while watching.
   const isLivePath = pathname?.startsWith("/live");
 
-  // Préchauffe la recherche pendant les temps morts : route + chunk JS déjà en
-  // cache → l'ouverture depuis le Header/BottomNav est quasi instantanée.
-  useEffect(() => {
-    let idleId: number | undefined;
-    const warm = () => {
-      router.prefetch("/search");
-      void import("@/components/SearchOverlay");
-    };
-    const w = window as Window & {
-      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
-      cancelIdleCallback?: (id: number) => void;
-    };
-    if (w.requestIdleCallback) {
-      idleId = w.requestIdleCallback(warm, { timeout: 2500 });
-      return () => {
-        if (idleId !== undefined) w.cancelIdleCallback?.(idleId);
-      };
-    }
-    const t = setTimeout(warm, 1200);
-    return () => clearTimeout(t);
-  }, [router]);
-
   useEffect(() => {
     const handleSearch = () => router.push("/search");
     // Suppress donation popup entirely on live pages (both auto and manual triggers)

@@ -26,12 +26,26 @@ export default function GoogleAnalytics() {
     // on GA's history-change setting (and to prevent duplicate page views).
     window.gtag("config", MEASUREMENT_ID, { send_page_view: false });
 
-    const script = document.createElement("script");
-    script.async = true;
-    script.src = `https://www.googletagmanager.com/gtag/js?id=${MEASUREMENT_ID}`;
-    script.dataset.chillersAnalytics = "true";
-    document.head.appendChild(script);
     window.__chillersAnalyticsLoaded = true;
+
+    let idleId: number | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const loadAnalytics = () => {
+      const script = document.createElement("script");
+      script.async = true;
+      script.src = `https://www.googletagmanager.com/gtag/js?id=${MEASUREMENT_ID}`;
+      script.dataset.chillersAnalytics = "true";
+      document.head.appendChild(script);
+    };
+    if ("requestIdleCallback" in window) {
+      idleId = window.requestIdleCallback(loadAnalytics, { timeout: 4000 });
+    } else {
+      timer = setTimeout(loadAnalytics, 1500);
+    }
+    return () => {
+      if (idleId !== undefined) window.cancelIdleCallback?.(idleId);
+      if (timer) clearTimeout(timer);
+    };
   }, []);
 
   useEffect(() => {

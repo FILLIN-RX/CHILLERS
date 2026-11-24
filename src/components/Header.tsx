@@ -4,15 +4,17 @@ import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { MagnifyingGlass, House, FilmSlate, Television, Star, Radio, User, ClockCounterClockwise, BookmarkSimple, SignOut, Crown, DownloadSimple, CaretLeft, CaretRight } from "@phosphor-icons/react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { getActiveNavTab } from "@/lib/navActive";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useDownloadsStore } from "@/store/downloads";
-import AuthModal from "@/components/AuthModal";
 import UserAvatar from "@/components/UserAvatar";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import LiquidGlassIndicator from "@/components/ui/LiquidGlassIndicator";
+
+const AuthModal = dynamic(() => import("@/components/AuthModal"), { ssr: false });
 
 interface HeaderProps {
   onSearchClick: () => void;
@@ -126,7 +128,7 @@ function HeaderComponent({ onSearchClick }: HeaderProps) {
                   className="h-7 sm:h-8 w-auto object-contain transition-transform duration-300 group-hover:scale-105 drop-shadow-[0_0_12px_rgba(215,4,102,0.4)]"
                   priority
                 />
-                <span className="text-lg sm:text-xl font-bold tracking-tight text-white flex items-center -ml-1.5">
+                <span className="brand-wordmark text-lg sm:text-xl font-semibold text-white flex items-center -ml-1.5">
                   HILL<span className="text-brand-primary">ERS</span>
                 </span>
               </Link>

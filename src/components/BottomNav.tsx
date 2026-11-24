@@ -8,7 +8,6 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { getActiveNavTab } from "@/lib/navActive";
 import { useAuthStore } from "@/stores/useAuthStore";
 import UserAvatar from "@/components/UserAvatar";
-import AuthModal from "@/components/AuthModal";
 import { useHydrated } from "@/hooks/useHydrated";
 
 interface BottomNavProps {
@@ -21,7 +20,6 @@ function BottomNavComponent({ onSearchClick }: BottomNavProps) {
   const { translate: _, lang } = useLanguage();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isLiveModalOpen, setIsLiveModalOpen] = useState(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const hydrated = useHydrated();
 
   const { user } = useAuthStore();
@@ -75,7 +73,7 @@ function BottomNavComponent({ onSearchClick }: BottomNavProps) {
 
   return (
     <>
-      <nav className="glass-nav fixed bottom-0 left-0 w-full z-50 md:hidden border-t border-zinc-800/60 bg-[#1F1F1F]/95 backdrop-blur-xl">
+      <nav aria-label={lang === "fr" ? "Navigation principale" : "Main navigation"} className="glass-nav fixed bottom-0 left-0 w-full z-50 md:hidden border-t border-zinc-800/60 bg-[#1F1F1F]/95 backdrop-blur-xl">
         <div className="flex items-center justify-around py-2 px-1 pb-[max(8px,env(safe-area-inset-bottom))]">
           {items.map((item) => {
             const Icon = item.icon;
@@ -90,8 +88,8 @@ function BottomNavComponent({ onSearchClick }: BottomNavProps) {
                   key={item.id}
                   onClick={() => router.push("/login")}
                   aria-label={item.label}
-                  className={`relative flex flex-col items-center gap-1 py-1 px-2 min-w-[56px] rounded-[5px] transition-all duration-200 focus:outline-none active:scale-90 ${
-                    isActive ? "text-brand-primary" : "text-zinc-400"
+                  className={`relative flex min-h-11 min-w-[56px] flex-col items-center justify-center gap-1 px-2 py-1 rounded-[5px] transition-all duration-200 focus:outline-none active:scale-90 ${
+                    isActive ? "text-white" : "text-zinc-400"
                   }`}
                 >
                   <Icon className="h-5 w-5 stroke-[2.2]" />
@@ -107,8 +105,9 @@ function BottomNavComponent({ onSearchClick }: BottomNavProps) {
                 key={item.id}
                 href={item.href}
                 aria-label={item.label}
-                className={`relative flex flex-col items-center gap-1 py-1 px-2 min-w-[56px] rounded-xl transition-all duration-200 focus:outline-none active:scale-90 ${
-                  isActive ? "text-brand-primary" : "text-zinc-400"
+                aria-current={isActive ? "page" : undefined}
+                className={`relative flex min-h-11 min-w-[56px] flex-col items-center justify-center gap-1 px-2 py-1 rounded-xl transition-all duration-200 focus:outline-none active:scale-90 ${
+                  isActive ? "text-white" : "text-zinc-400"
                 }`}
               >
                 <div className="relative flex items-center justify-center">
@@ -119,8 +118,8 @@ function BottomNavComponent({ onSearchClick }: BottomNavProps) {
                   )}
                 </div>
                 <span
-                  className={`text-[10px] font-bold leading-none truncate max-w-[60px] ${
-                    isActive ? "text-brand-primary" : "text-zinc-400"
+                  className={`text-[11px] font-bold leading-none truncate max-w-[60px] ${
+                    isActive ? "text-white" : "text-zinc-400"
                   }`}
                 >
                   {item.label}
@@ -131,7 +130,6 @@ function BottomNavComponent({ onSearchClick }: BottomNavProps) {
         </div>
       </nav>
 
-      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
     </>
   );
 }
