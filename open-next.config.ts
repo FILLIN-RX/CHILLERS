@@ -9,6 +9,10 @@ const incrementalCache = async () => {
   return withRegionalCache(r2IncrementalCache, { mode: "long-lived" });
 };
 const revalidationQueue = () => import("@opennextjs/cloudflare/overrides/queue/do-queue").then((module) => module.default);
+// Sans opt-in, le build et le déploiement ne provisionnent aucun bucket R2.
+const incrementalCacheOverride = process.env.ENABLE_R2_CACHE === "true"
+  ? incrementalCache
+  : "dummy";
 
 const config: OpenNextConfig = {
   // Cache les pages ISR et les résultats `unstable_cache` dans R2, avec le
@@ -22,7 +26,7 @@ const config: OpenNextConfig = {
       wrapper: "cloudflare-node",
       converter: edgeConverter,
       proxyExternalRequest: "fetch",
-      incrementalCache,
+      incrementalCache: incrementalCacheOverride,
       tagCache: "dummy",
       queue: revalidationQueue,
     },

@@ -1,0 +1,27 @@
+# Variante opt-in de wrangler.toml pour les comptes où R2 est activé.
+# Construire et déployer avec ENABLE_R2_CACHE=true.
+name = "chillers"
+main = ".open-next/worker.js"
+compatibility_date = "2026-11-19"
+compatibility_flags = ["nodejs_compat", "legacy_module_registry"]
+
+assets = { directory = ".open-next/assets", binding = "ASSETS" }
+
+[[r2_buckets]]
+binding = "NEXT_INC_CACHE_R2_BUCKET"
+bucket_name = "chillers-opennext-cache"
+
+[[services]]
+binding = "WORKER_SELF_REFERENCE"
+service = "chillers"
+
+[[durable_objects.bindings]]
+name = "NEXT_CACHE_DO_QUEUE"
+class_name = "DOQueueHandler"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["DOQueueHandler"]
+
+[vars]
+NEXT_PUBLIC_API_URL = "https://chillers-production-eace.up.railway.app/api"

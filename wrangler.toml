@@ -1,5 +1,7 @@
 name = "chillers"
 main = ".open-next/worker.js"
+# Configuration par défaut, sans R2. Pour activer le cache R2,
+# utiliser wrangler.r2.toml et ENABLE_R2_CACHE=true.
 # Keep the compatibility date used by the current production deployment, but
 # pin the pre-November 17 module registry while we investigate the runtime
 # regression observed after the dashboard-only compatibility-date update.
@@ -7,11 +9,6 @@ compatibility_date = "2026-11-19"
 compatibility_flags = ["nodejs_compat", "legacy_module_registry"]
 
 assets = { directory = ".open-next/assets", binding = "ASSETS" }
-
-# Cache ISR / unstable_cache persistant entre les régions Cloudflare.
-[[r2_buckets]]
-binding = "NEXT_INC_CACHE_R2_BUCKET"
-bucket_name = "chillers-opennext-cache"
 
 # OpenNext utilise le Worker lui-même pour effectuer les revalidations ISR.
 [[services]]
@@ -27,4 +24,4 @@ tag = "v1"
 new_sqlite_classes = ["DOQueueHandler"]
 
 [vars]
-NEXT_PUBLIC_API_URL = "https://chillers-production-eace.up.railway.app/api"
+NEXT_PUBLIC_API_URL = "https://chillers-production-ce4e85a1.up.railway.app/api"
