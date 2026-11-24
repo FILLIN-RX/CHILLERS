@@ -115,6 +115,24 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        source: '/live/sp/:matchId*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, s-maxage=30, stale-while-revalidate=300',
+          },
+        ],
+      },
+      {
+        source: '/live/lb/:matchId*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, s-maxage=30, stale-while-revalidate=300',
+          },
+        ],
+      },
+      {
         // Le document proxifié par embed-proxy embarque le JS du lecteur
         // amont : la CSP globale ci-dessus le double (connect-src restreint) et
         // le navigateur applique l'intersection → fetch/XHR du player bloqués.

@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
+import { unstable_cache } from "next/cache";
 import { SITE_URL, SITE_NAME, SITE_LOCALE } from "@/lib/seo";
 import { API_BASE_URL } from "@/lib/api-base";
-import SportsMatchContent from "./page-content";
+import MatchShell from "@/app/live/MatchShell";
 
 const API_BASE = API_BASE_URL;
+
+export const revalidate = 30;
 
 interface MatchInfo {
   id: string;
@@ -18,16 +21,20 @@ interface MatchInfo {
   slug?: string;
 }
 
-async function fetchMatch(matchId: string): Promise<MatchInfo | null> {
-  try {
-    const res = await fetch(`${API_BASE}/sports/matches`, { next: { revalidate: 60 } });
-    if (!res.ok) return null;
-    const body = await res.json();
-    return (body?.data || []).find((m: MatchInfo) => m.id === matchId || m.slug === matchId) ?? null;
-  } catch {
-    return null;
-  }
-}
+const fetchMatch = unstable_cache(
+  async (matchId: string): Promise<MatchInfo | null> => {
+    try {
+      const res = await fetch(`${API_BASE}/sports/matches`, { next: { revalidate: 60 } });
+      if (!res.ok) return null;
+      const body = await res.json();
+      return (body?.data || []).find((m: MatchInfo) => m.id === matchId || m.slug === matchId) ?? null;
+    } catch {
+      return null;
+    }
+  },
+  ["live-sp-match"],
+  { revalidate: 60 },
+);
 
 export async function generateMetadata({
   params,
@@ -112,5 +119,5 @@ export async function generateMetadata({
 }
 
 export default function SportsMatchPage() {
-  return <SportsMatchContent />;
+  return <MatchShell variant="sp" />;
 }

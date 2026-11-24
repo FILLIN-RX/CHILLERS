@@ -51,7 +51,9 @@ const converter = {
         },
       });
       if (globalThis.__dangerous_ON_edge_converter_returns_request === true) return request;
-      const cache = (result.isISR || result.internalEvent.rawPath.startsWith("/_next/image")) && process.env.DISABLE_CACHE !== "true"
+      const rawPath = result.internalEvent.rawPath;
+      const isMatchPage = /^\/live\/(sp|lb)\/[^/]+$/.test(rawPath);
+      const cache = (result.isISR || isMatchPage || rawPath.startsWith("/_next/image")) && process.env.DISABLE_CACHE !== "true"
         ? { cacheEverything: true }
         : {};
       return fetch(request, { cf: cache });

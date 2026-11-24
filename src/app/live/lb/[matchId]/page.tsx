@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
+import { unstable_cache } from "next/cache";
 import { SITE_URL, SITE_NAME, SITE_LOCALE } from "@/lib/seo";
 import { API_BASE_URL } from "@/lib/api-base";
-import LiveBallMatchContent from "./page-content";
+import MatchShell from "@/app/live/MatchShell";
 
 const API_BASE = API_BASE_URL;
+
+export const revalidate = 30;
 
 interface MatchInfo {
   id: string;
@@ -17,21 +20,25 @@ interface MatchInfo {
   league?: string;
 }
 
-async function fetchMatch(matchId: string): Promise<MatchInfo | null> {
-  const sources = ["/liveball/matches", "/liveball/league/champions-league/matches"];
-  for (const path of sources) {
-    try {
-      const res = await fetch(`${API_BASE}${path}`, { next: { revalidate: 60 } });
-      if (!res.ok) continue;
-      const body = await res.json();
-      const match = (body?.data || []).find((m: MatchInfo) => m.id === matchId);
-      if (match) return match;
-    } catch {
-      // ignore : repli sur metadata générique
+const fetchMatch = unstable_cache(
+  async (matchId: string): Promise<MatchInfo | null> => {
+    const sources = ["/liveball/matches", "/liveball/league/champions-league/matches"];
+    for (const path of sources) {
+      try {
+        const res = await fetch(`${API_BASE}${path}`, { next: { revalidate: 60 } });
+        if (!res.ok) continue;
+        const body = await res.json();
+        const match = (body?.data || []).find((m: MatchInfo) => m.id === matchId);
+        if (match) return match;
+      } catch {
+        // ignore : repli sur metadata générique
+      }
     }
-  }
-  return null;
-}
+    return null;
+  },
+  ["live-lb-match"],
+  { revalidate: 60 },
+);
 
 function leagueLabel(slug?: string): string {
   const map: Record<string, string> = {
@@ -132,5 +139,5 @@ export async function generateMetadata({
 }
 
 export default function LiveBallMatchPage() {
-  return <LiveBallMatchContent />;
+  return <MatchShell variant="lb" />;
 }
