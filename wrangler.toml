@@ -1,7 +1,10 @@
 name = "chillers"
 main = ".open-next/worker.js"
-compatibility_date = "2025-01-01"
-compatibility_flags = ["nodejs_compat"]
+# Keep the compatibility date used by the current production deployment, but
+# pin the pre-November 17 module registry while we investigate the runtime
+# regression observed after the dashboard-only compatibility-date update.
+compatibility_date = "2026-11-19"
+compatibility_flags = ["nodejs_compat", "legacy_module_registry"]
 
 assets = { directory = ".open-next/assets", binding = "ASSETS" }
 

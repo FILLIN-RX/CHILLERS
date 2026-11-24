@@ -4,8 +4,6 @@ import { serverApiFetch } from "@/lib/server-api";
 import { findPoster, presentCompetition, type MatchPoster } from "@/lib/match-poster";
 import type { PosterFixture } from "@/types/matches";
 
-export const runtime = "edge";
-
 const BRAND = "brand-primary";
 
 /**
