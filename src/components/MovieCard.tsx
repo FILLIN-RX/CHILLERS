@@ -19,7 +19,6 @@ import {
   Star,
   Info,
   FilmSlate,
-  HourglassSimple,
 } from "@phosphor-icons/react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useImageTimeout } from "@/hooks/useImageTimeout";
@@ -337,7 +336,7 @@ function MovieCard({
           {/* Left: Rating Badge (hover only) */}
           <div className="flex items-center gap-1.5">
             {badge || item.sourceProvider ? (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-brand-primary text-white">
+              <span className="movie-glass-chip movie-glass-chip--brand rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-rose-50">
                 {badge || item.sourceProvider}
               </span>
             ) : item.rating ? (
@@ -361,22 +360,21 @@ function MovieCard({
             >
               {audioBadge && (
                 <span
-                  className={`rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider backdrop-blur-md ${
+                  className={`movie-glass-chip rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider ${
                     audioBadge.isFrench
-                      ? "bg-brand-primary text-white"
-                      : "bg-black/70 text-cyan-300"
+                      ? "movie-glass-chip--brand text-rose-50"
+                      : "movie-glass-chip--cyan text-cyan-100"
                   }`}
                 >
                   {audioBadge.label}
                 </span>
               )}
               {isUpcoming && (
-                <span className="rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider bg-blue-600/90 backdrop-blur-md text-white flex items-center gap-1">
-                  <HourglassSimple className="w-2.5 h-2.5" />
-                  <span>À VENIR</span>
+                <span className="movie-glass-chip movie-glass-chip--blue rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-blue-50">
+                  À VENIR
                 </span>
               )}
-              <span className="rounded-md px-2 py-0.5 text-[9px] font-black uppercase tracking-wider bg-black/60 backdrop-blur-xl text-zinc-200">
+              <span className="movie-glass-chip movie-glass-chip--neutral rounded-md px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-zinc-100">
                 {item.isTrending
                   ? "NOUVEAU"
                   : item.type === "series"
@@ -544,22 +542,21 @@ function MovieCard({
         >
           {audioBadge && (
             <span
-              className={`rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider backdrop-blur-md ${
+              className={`movie-glass-chip rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider ${
                 audioBadge.isFrench
-                  ? "bg-brand-primary text-white"
-                  : "bg-black/70 text-cyan-300"
+                  ? "movie-glass-chip--brand text-rose-50"
+                  : "movie-glass-chip--cyan text-cyan-100"
               }`}
             >
               {audioBadge.label}
             </span>
           )}
           {isUpcoming && (
-            <span className="rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider bg-blue-600/90 backdrop-blur-md text-white flex items-center gap-1">
-              <HourglassSimple className="w-2.5 h-2.5" />
-              <span>À VENIR</span>
+            <span className="movie-glass-chip movie-glass-chip--blue rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-blue-50">
+              À VENIR
             </span>
           )}
-          <span className="rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider bg-black/60 backdrop-blur-xl text-zinc-200">
+          <span className="movie-glass-chip movie-glass-chip--neutral rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-zinc-100">
             {item.type === "series" ? "SÉRIE" : item.type === "anime" ? "ANIME" : "FILM"}
           </span>
         </div>
@@ -626,9 +623,8 @@ function MovieCard({
 
               <div className="flex items-center gap-2 text-[10px] text-zinc-300 font-medium">
                 {isUpcoming && releaseDateLabel ? (
-                  <span className="text-blue-400 font-semibold flex items-center gap-1">
-                    <HourglassSimple className="w-2.5 h-2.5" />
-                    <span>Sortie le {releaseDateLabel}</span>
+                  <span className="text-blue-400 font-semibold">
+                    Sortie le {releaseDateLabel}
                   </span>
                 ) : (
                   item.year && <span>{item.year}</span>

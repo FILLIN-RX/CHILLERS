@@ -815,6 +815,27 @@ export class MatchesService {
         const soccerMatches = await this.fetchGlobalSoccerMatches(yyyymmdd);
         matches = [...soccerMatches];
 
+        // Le scoreboard global d'ESPN renvoie parfois des matchs, mais omet
+        // complètement la Ligue des champions. Le fallback précédent ne se
+        // déclenchait que si *tous* les matchs étaient absents, ce qui masquait
+        // alors les rencontres UEFA dès qu'une autre ligue jouait.
+        const hasChampionsLeague = matches.some((m) =>
+          /champions league|ligue des champions/i.test(m.league?.name || '') ||
+          m.league?.id === 'uefa.champions'
+        );
+        if (!hasChampionsLeague) {
+          const championsConfig = LEAGUES_CONFIG.find((l) => l.id === 'uefa.champions');
+          if (championsConfig) {
+            try {
+              const championsMatches = await this.fetchLeagueMatches(championsConfig, yyyymmdd);
+              const knownIds = new Set(matches.map((m) => m.id));
+              matches.push(...championsMatches.filter((m) => !knownIds.has(m.id)));
+            } catch (_) {
+              // Keep the global scoreboard available if the competition feed is down.
+            }
+          }
+        }
+
         // Tentative 2 : Si le flux global était vide ou en échec, interroger les ligues majeures en parallèle
         if (matches.length === 0) {
           const leaguePromises = LEAGUES_CONFIG.filter((l) => l.sport === 'football').map((l) =>
@@ -845,6 +866,10 @@ export class MatchesService {
           }
         }
       }
+
+      // Le fallback par ligue et le scoreboard global peuvent renvoyer le même
+      // événement avec le même identifiant.
+      matches = Array.from(new Map(matches.map((match) => [match.id, match])).values());
 
       // Tri des matchs : LIVE d'abord, puis par heure de début
       matches.sort((a, b) => {

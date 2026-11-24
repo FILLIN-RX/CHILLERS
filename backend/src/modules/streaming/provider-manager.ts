@@ -450,7 +450,7 @@ export class ProviderManager {
         provider.name === 'mongodb' ||
         provider.name === 'torrserver' ||
         provider.name === 'oha' ||
-        (await this.validateUrl(result.embedUrl));
+        (await this.validateUrl(result.embedUrl, result.referer));
 
       if (valid) {
         // MongoDB (et les autres embeds) ne renvoient pas d'URL directe :
@@ -642,6 +642,9 @@ export class ProviderManager {
 
   private isIframeEmbedUrl(url: string): boolean {
     if (!url) return false;
+    // Les URLs Vidzy /v/...mp4 sont des fichiers directs, pas des pages iframe.
+    // Le CDN protège souvent ces fichiers par le Referer de la page embed.
+    if (/\.(?:mp4|webm|mkv|m3u8)(?:[?#]|$)/i.test(url)) return false;
     return (
       url.includes('vidzy.') ||
       url.includes('luluvid') ||
@@ -699,7 +702,7 @@ export class ProviderManager {
     }
   }
 
-  private async validateUrl(url: string): Promise<boolean> {
+  private async validateUrl(url: string, referer?: string): Promise<boolean> {
     // Nos propres endpoints de proxy ne doivent jamais être GET-tés ici
     // (ça démarrerait un FFmpeg complet).
     if (url.startsWith('/api/') || url.includes('/api/doodstream/')) return true;
@@ -711,7 +714,9 @@ export class ProviderManager {
     const headers: Record<string, string> = {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
     };
-    if (url.includes('vidzy')) {
+    if (referer) {
+      headers['Referer'] = referer;
+    } else if (url.includes('vidzy')) {
       headers['Referer'] = 'https://vidzy.org/';
     }
 
@@ -729,7 +734,8 @@ export class ProviderManager {
           if (
             contentType.includes('video/') ||
             contentType.includes('application/x-mpegurl') ||
-            contentType.includes('application/vnd.apple.mpegurl')
+            contentType.includes('application/vnd.apple.mpegurl') ||
+            (contentType.includes('application/octet-stream') && /\.(?:mp4|webm|mkv)(?:[?#]|$)/i.test(url))
           ) {
             return true;
           }
@@ -743,7 +749,7 @@ export class ProviderManager {
       const response = await axios.get(url, {
         timeout: VALIDATION_TIMEOUT,
         responseType: 'stream',
-        headers,
+        headers: { ...headers, Range: 'bytes=0-0' },
         maxRedirects: 5,
       });
 
@@ -756,7 +762,8 @@ export class ProviderManager {
       if (
         contentType.includes('video/') ||
         contentType.includes('application/x-mpegurl') ||
-        contentType.includes('application/vnd.apple.mpegurl')
+        contentType.includes('application/vnd.apple.mpegurl') ||
+        (contentType.includes('application/octet-stream') && /\.(?:mp4|webm|mkv)(?:[?#]|$)/i.test(url))
       ) {
         response.data.destroy();
         return true;

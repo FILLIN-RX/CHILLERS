@@ -4,6 +4,8 @@ import Google from "next-auth/providers/google";
 import { API_BASE_URL } from "@/lib/api-base";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  // Le Worker reçoit l'hôte public via le proxy Cloudflare.
+  trustHost: true,
   secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "chillers-nextauth-secret-key-32bytes-secure-production-2026",
   basePath: "/api/nextauth",
   session: { strategy: "jwt", maxAge: 7 * 24 * 60 * 60 },

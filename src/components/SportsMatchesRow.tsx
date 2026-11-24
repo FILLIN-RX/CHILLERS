@@ -13,8 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import gsap from "gsap";
 import { ArrowRight, CaretLeft, CaretRight } from "@phosphor-icons/react";
 import { getMatches } from "@/services/matches";
-import { getSportsMatches } from "@/services/sports";
-import { isMajorCompetition, formatMatchDay, formatMatchTime, sameTeam } from "@/lib/match-poster";
+import { isMajorCompetition, formatMatchDay, formatMatchTime } from "@/lib/match-poster";
 import CompetitionBadge from "@/components/CompetitionBadge";
 import { MatchBackdrop, TeamCrest } from "@/components/MatchCardBackdrop";
 import type { SportMatch } from "@/types/matches";
@@ -52,42 +51,15 @@ export default function SportsMatchesRow({
     refetchInterval: 20_000,
   });
 
-  const { data: sportsMatches = [], isFetched: sportsFetched } = useQuery({
-    queryKey: ["live", "sports", "row"],
-    queryFn: () => getSportsMatches(),
-    staleTime: 15_000,
-    refetchInterval: 30_000,
-    retry: 1,
-  });
-
-  /** Un lot provider ne doit cacher aucun match côté vitrine : on garde tout si l'appel échoue. */
-  const providerReady = sportsFetched && sportsMatches.length > 0;
-
-  const hasStream = useMemo(
-    () => (match: SportMatch) =>
-      sportsMatches.some(
-        (sm) =>
-          (sameTeam(match.homeTeam.name, sm.home) && sameTeam(match.awayTeam.name, sm.away)) ||
-          (sameTeam(match.homeTeam.name, sm.away) && sameTeam(match.awayTeam.name, sm.home)),
-      ),
-    [sportsMatches],
-  );
-
-  // Grandes compétitions uniquement : le flux ESPN global publie aussi les
-  // catégories jeunes/réserves/divisions inférieures, qui n'ont pas leur place
-  // en vitrine.
+  // Garde tous les matchs en direct et les affiches à venir des grandes
+  // compétitions. Ne filtre pas selon la disponibilité instantanée des sources
+  // vidéo : le flux est résolu à l'ouverture de la carte.
   const cards = useMemo(() => {
     const byId = new Map<string, SportMatch>();
     for (const match of matches) {
       if (!match?.id || !match.homeTeam?.name || !match.awayTeam?.name) continue;
       if (match.status === "finished") continue;
-      if (!isMajorCompetition(match.league?.name)) continue;
-      // Seuls les matchs qu'un provider diffuse sont en vitrine — les
-      // affiches sans flux (ligue non couverte) n'ont plus d'utilité.
-      // Exception zonale : nos providers écrivent l'Asie en translittération
-      // russe (« Layon Siti », « Tempayns ») que la jointure ne reconnaît
-      // pas — elle écarterait des matchs bien diffusables.
-      if (providerReady && !hasStream(match) && !isAsianCompetition(match.league?.name)) continue;
+      if (match.status !== "live" && !isMajorCompetition(match.league?.name)) continue;
       if (!byId.has(match.id)) byId.set(match.id, match);
     }
     return [...byId.values()].sort((a, b) => {
@@ -97,7 +69,7 @@ export default function SportsMatchesRow({
         (a.startTimestamp ?? Number.MAX_SAFE_INTEGER) - (b.startTimestamp ?? Number.MAX_SAFE_INTEGER)
       );
     });
-  }, [matches, providerReady, hasStream]);
+  }, [matches]);
 
   const updateScrollState = useCallback(() => {
     if (typeof window === "undefined") return;

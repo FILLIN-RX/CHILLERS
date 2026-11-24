@@ -12,7 +12,9 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { getStableDeviceFingerprint } from "@/lib/deviceFingerprint";
 import { AuthPosterWall } from "@/components/AuthPosterWall";
 
-const GOOGLE_AUTH_ENABLED = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED === "true";
+// Google is available by default; set the public build flag to "false" only
+// when Google OAuth is intentionally disabled for this deployment.
+const GOOGLE_AUTH_ENABLED = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED !== "false";
 
 function LoginForm() {
   const router = useRouter();

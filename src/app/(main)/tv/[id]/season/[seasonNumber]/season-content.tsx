@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Image from "next/image";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { getSeasonDetails, getMediaDetails, getStreamUrl, getSimilarTitles, getDisponible } from "@/services/media";
@@ -19,6 +19,7 @@ import { userService } from "@/services/user";
 import Button from "@/components/Button";
 import NetflixDownloadButton from "@/components/NetflixDownloadButton";
 import CardImage from "@/components/CardImage";
+import { useMiniPlayer } from "@/components/providers/MiniPlayerContext";
 import {
   ArrowLeft,
   Play,
@@ -43,6 +44,7 @@ export default function SeasonContent() {
   const router = useRouter();
   const { user, token, updateUser } = useAuthStore();
   const { translate: _ } = useLanguage();
+  const { setSession: setMiniPlayerSession } = useMiniPlayer();
 
   const id = params?.id as string;
   const seasonNumber = params?.seasonNumber as string;
@@ -381,7 +383,7 @@ export default function SeasonContent() {
 
   const validSeasons = detailItem?.seasons?.filter((s) => s.seasonNumber > 0) || [];
 
-  const playerItem: MovieOrShow | null = detailItem
+  const playerItem: MovieOrShow | null = useMemo(() => detailItem
     ? currentEpisode
       ? {
           ...detailItem,
@@ -390,12 +392,24 @@ export default function SeasonContent() {
           videoUrl: streamUrl,
         }
       : { ...detailItem, videoUrl: streamUrl }
-    : null;
+    : null, [detailItem, currentEpisode, currentSeasonNum, streamUrl]);
 
   const showUnavailable = streamUnavailable || currentSeasonUnavailable;
   const episodesBlocked = disponible?.disponible === false || currentSeasonUnavailable;
   const showPlayerSkeleton = (streamLoading || !playerItem) && !showUnavailable;
   const hasEpisodes = episodes.length > 0;
+
+  useEffect(() => {
+    if (!playerItem || !streamUrl || streamUnavailable) return;
+    setMiniPlayerSession({
+      // Garder une identité stable malgré le renouvellement éventuel d'une URL signée.
+      key: `${detailItem?.id}:${currentEpisode?.id ?? "movie"}:${audioVersion}`,
+      item: playerItem,
+      episode: currentEpisode,
+      audioVersion,
+      streamReferer,
+    });
+  }, [setMiniPlayerSession, detailItem?.id, currentEpisode?.id, audioVersion, streamUrl, streamReferer, playerItem, streamUnavailable]);
 
   return (
     <div className="min-h-screen bg-[#1F1F1F] text-white">

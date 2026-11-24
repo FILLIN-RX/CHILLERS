@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Image from "next/image";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import {
@@ -30,6 +30,7 @@ import { PopupFirewall } from "@/lib/PopupFirewall";
 import NetflixDownloadButton from "@/components/NetflixDownloadButton";
 import Button from "@/components/Button";
 import CardImage from "@/components/CardImage";
+import { useMiniPlayer } from "@/components/providers/MiniPlayerContext";
 import { ArrowLeft, Play, Star, Clock, CalendarBlank, FilmSlate, DownloadSimple, ShareNetwork, CaretDown, CaretCircleRight, CaretCircleLeft, Translate } from "@phosphor-icons/react";
 
 interface WatchContentProps {
@@ -45,6 +46,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
   const router = useRouter();
   const { translate: _ } = useLanguage();
   const { token, user, updateUser } = useAuthStore();
+  const { setSession: setMiniPlayerSession } = useMiniPlayer();
 
   const id = params?.id as string;
   const typeParam = searchParams?.get("type");
@@ -616,7 +618,7 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
 
   const availableSeasons = item?.seasons?.filter((s) => s.seasonNumber > 0) || [];
 
-  const playerItem: MovieOrShow | null = item
+  const playerItem: MovieOrShow | null = useMemo(() => item
     ? currentEpisode
       ? {
           ...item,
@@ -625,7 +627,20 @@ function WatchContent({ initialItem, initialSeasonData, initialStreamUrl, initia
           videoUrl: streamUrl,
         }
       : { ...item, videoUrl: streamUrl }
-    : null;
+    : null, [item, currentEpisode, currentSeason, streamUrl]);
+
+  useEffect(() => {
+    if (!playerItem || !streamUrl || streamUnavailable || isUnreleased) return;
+    setMiniPlayerSession({
+      // Identité du contenu, pas URL signée : le mini-player conserve son
+      // instance vidéo si le fournisseur renouvelle le lien de lecture.
+      key: `${item?.id}:${currentEpisode?.id ?? "movie"}:${audioVersion}`,
+      item: playerItem,
+      episode: currentEpisode,
+      audioVersion,
+      streamReferer,
+    });
+  }, [setMiniPlayerSession, item?.id, currentEpisode?.id, audioVersion, streamUrl, streamReferer, playerItem, streamUnavailable, isUnreleased]);
 
   const showUnavailable = streamUnavailable || currentSeasonUnavailable;
   const episodesBlocked = disponible?.disponible === false || currentSeasonUnavailable;

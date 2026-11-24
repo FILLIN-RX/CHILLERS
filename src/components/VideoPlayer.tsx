@@ -34,6 +34,7 @@ interface VideoPlayerProps {
   onLanguageChange?: (lang: "fr" | "vostfr") => void;
   onBack?: () => void;
   onOpenDetails?: (item: MovieOrShow) => void;
+  compact?: boolean;
 }
 
 const PROGRESS_PERSIST_DEBOUNCE_MS = 5_000;
@@ -41,7 +42,7 @@ const RESUME_MIN_SECONDS = 5;
 const SEEK_STEP_SECONDS = 10;
 const VOLUME_STEP = 0.1;
 
-export default function VideoPlayer({ item, episode, audioVersion = "fr", streamReferer, onLanguageChange, onBack }: VideoPlayerProps) {
+export default function VideoPlayer({ item, episode, audioVersion = "fr", streamReferer, onLanguageChange, onBack, compact = false }: VideoPlayerProps) {
   const { lang, translate: _ } = useLanguage();
   const { token, user, updateUser } = useAuthStore();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -137,7 +138,7 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
       setIsPortrait(!isLandscape);
 
       // Auto-fullscreen on rotation
-      if (isLandscape && isMobileDevice && hasStarted && !isFullscreen) {
+      if (isLandscape && isMobileDevice && hasStarted && !isFullscreen && !compact) {
         enterFullscreen();
       } else if (!isLandscape && isMobileDevice && isFullscreen) {
         exitFullscreen();
@@ -155,7 +156,7 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
       window.removeEventListener("orientationchange", checkOrientation);
       window.removeEventListener("resize", checkOrientation);
     };
-  }, [hasStarted, isFullscreen]);
+  }, [hasStarted, isFullscreen, compact]);
 
   /* ───────── VidLink progress bridge ───────── */
   const allowedMessageOrigins = useMemo(() => new Set(["https://vidlink.pro"]), []);
@@ -172,6 +173,39 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
 
   /* ───────── Persistence de progression ───────── */
   const progressKey = `chiller_progress_${item.id}_${currentEpisode?.id ?? "movie"}`;
+  const progressSnapshotRef = useRef<{
+    key: string;
+    value: Record<string, unknown>;
+  } | null>(null);
+  progressSnapshotRef.current = {
+    key: progressKey,
+    value: {
+      id: item.id,
+      title: item.title,
+      type: item.type,
+      posterUrl: item.posterUrl,
+      backdropUrl: item.backdropUrl,
+      episodeId: currentEpisode?.id,
+      season: currentEpisode?.season,
+      episode: currentEpisode?.number,
+      time: videoRef.current?.currentTime || currentTime,
+      duration,
+      progress: duration > 0 ? Math.min(((videoRef.current?.currentTime || currentTime) / duration) * 100, 100) : 0,
+      remaining: duration > 0 ? `${Math.round((duration - (videoRef.current?.currentTime || currentTime)) / 60)}m left` : undefined,
+      episodeName: currentEpisode
+        ? `S${String(currentEpisode.season ?? 1).padStart(2, "0")}E${String(currentEpisode.number).padStart(2, "0")}`
+        : undefined,
+      updatedAt: Date.now(),
+    },
+  };
+  useEffect(() => () => {
+    const snapshot = progressSnapshotRef.current;
+    if (!snapshot || Number(snapshot.value.time) <= 0 || Number(snapshot.value.duration) <= 0) return;
+    try {
+      localStorage.setItem(snapshot.key, JSON.stringify(snapshot.value));
+    } catch {}
+  }, []);
+
   useDebouncedEffect(
     () => {
       if (currentTime <= 0 || duration <= 0) return;
@@ -728,67 +762,6 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
     }
   }, []);
 
-  // Auto-PiP comme YouTube : quand le lecteur sort du viewport, on entre
-  // automatiquement en Picture-in-Picture ; quand il revient, on en sort.
-  useEffect(() => {
-    const container = containerRef.current;
-    const video = videoRef.current;
-    if (!container || !video || !document.pictureInPictureEnabled) return;
-
-    const enterPiP = () => {
-      if (document.pictureInPictureElement !== video && !video.paused) {
-        video.requestPictureInPicture?.().catch(() => {});
-      }
-    };
-
-    const exitPiP = () => {
-      if (document.pictureInPictureElement === video) {
-        document.exitPictureInPicture().catch(() => {});
-      }
-    };
-
-    // IntersectionObserver : déclenchement dès que le lecteur sort de l'écran
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (!entry.isIntersecting) {
-          enterPiP();
-        } else if (entry.isIntersecting) {
-          exitPiP();
-        }
-      },
-      { threshold: 0.1, rootMargin: "0px 0px -20% 0px" }
-    );
-
-    observer.observe(container);
-
-    // Visibility change : si l'onglet devient caché, entrer en PiP
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        enterPiP();
-      }
-    };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    // beforeunload : tenter PiP avant fermeture de la page
-    const handleBeforeUnload = () => {
-      if (video && !video.paused && !document.pictureInPictureElement) {
-        video.requestPictureInPicture?.().catch(() => {});
-      }
-    };
-    window.addEventListener("beforeunload", handleBeforeUnload);
-
-    // Cleanup : tenter PiP avant démontage si la vidéo joue
-    return () => {
-      observer.disconnect();
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-      if (video && !video.paused && !document.pictureInPictureElement) {
-        video.requestPictureInPicture?.().catch(() => {});
-      }
-    };
-  }, []);
-
   const changePlaybackRate = useCallback((rate: number) => {
     const video = videoRef.current;
     if (!video) return;
@@ -884,6 +857,8 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
       className={`${
         isFullscreen
           ? "fixed inset-0 z-[99999] w-screen h-[100dvh] max-h-none rounded-none aspect-auto bg-black"
+        : compact
+          ? "relative w-full min-h-0 aspect-video max-h-none rounded-none bg-black"
           : `relative w-full aspect-[16/10.9] sm:aspect-video sm:min-h-[420px] md:min-h-[520px] lg:min-h-[600px] xl:min-h-[660px] ${isTheater ? "max-h-[92dvh]" : "max-h-[85dvh]"} bg-black rounded-none sm:rounded-xl`
       } overflow-hidden select-none transition-all duration-300 shadow-[0_20px_70px_rgba(0,0,0,0.95)] group/container ${
         !controlsVisible && isPlaying ? "cursor-none" : "cursor-default"
@@ -1524,7 +1499,7 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
                   </div>
 
                   {/* Miniplayer (Picture-in-Picture) : sur mobile, il est déjà dans les Paramètres */}
-                  <button
+                  {!compact && <button
                     type="button"
                     onClick={togglePiP}
                     className="hidden sm:flex group/btn relative p-2 min-w-11 min-h-11 text-white hover:text-white transition-opacity items-center justify-center cursor-pointer"
@@ -1536,7 +1511,7 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
                     <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-black/80 text-white text-[11px] font-medium rounded whitespace-nowrap opacity-0 group-hover/btn:opacity-100 transition-opacity z-30">
                       Lecteur réduit (i)
                     </span>
-                  </button>
+                  </button>}
 
                   {/* Theater Mode - visible on lg: */}
                   <button
@@ -1578,7 +1553,7 @@ export default function VideoPlayer({ item, episode, audioVersion = "fr", stream
           </div>
 
           {/* ─── Invite au mode paysage (mobile) : bandeau, ne bloque pas la lecture ─── */}
-          {isPortrait && !dismissPortraitPrompt && (
+          {isPortrait && !dismissPortraitPrompt && !compact && (
             <div className="absolute bottom-24 inset-x-3 z-30 flex items-center gap-3 rounded-xl bg-black/80 backdrop-blur-md px-3 py-2.5 shadow-lg sm:hidden">
               <svg className="h-7 w-7 shrink-0 text-white/70 animate-[spin_3s_ease-in-out_infinite]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="4" y="2" width="16" height="20" rx="2" /><line x1="12" y1="18" x2="12" y2="18.01" />

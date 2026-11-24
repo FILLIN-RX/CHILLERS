@@ -8,5 +8,23 @@ compatibility_flags = ["nodejs_compat", "legacy_module_registry"]
 
 assets = { directory = ".open-next/assets", binding = "ASSETS" }
 
+# Cache ISR / unstable_cache persistant entre les régions Cloudflare.
+[[r2_buckets]]
+binding = "NEXT_INC_CACHE_R2_BUCKET"
+bucket_name = "chillers-opennext-cache"
+
+# OpenNext utilise le Worker lui-même pour effectuer les revalidations ISR.
+[[services]]
+binding = "WORKER_SELF_REFERENCE"
+service = "chillers"
+
+[[durable_objects.bindings]]
+name = "NEXT_CACHE_DO_QUEUE"
+class_name = "DOQueueHandler"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["DOQueueHandler"]
+
 [vars]
 NEXT_PUBLIC_API_URL = "https://chillers-production-eace.up.railway.app/api"

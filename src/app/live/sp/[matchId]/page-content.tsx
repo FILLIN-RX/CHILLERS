@@ -122,21 +122,21 @@ export default function SportsMatchContent() {
 
   const cleanId = decodedId.replace(/^liveball:|^lb-/, "");
 
-  const { data: sportsMatches = [] } = useQuery({
+  const { data: sportsMatches = [], isLoading: isSportsLoading } = useQuery({
     queryKey: ["live", "sports"],
     queryFn: () => getSportsMatches(),
     staleTime: 15_000,
     refetchInterval: 30_000,
   });
 
-  const { data: liveballMatches = [] } = useQuery({
+  const { data: liveballMatches = [], isLoading: isLiveBallLoading } = useQuery({
     queryKey: ["live", "liveball"],
     queryFn: () => getLiveBallMatches(),
     staleTime: 15_000,
     refetchInterval: 30_000,
   });
 
-  const { data: clMatches = [] } = useQuery({
+  const { data: clMatches = [], isLoading: isClLoading } = useQuery({
     queryKey: ["live", "liveball", "champions-league"],
     queryFn: () => getLiveBallChampionsLeague(),
     staleTime: 30_000,
@@ -164,7 +164,7 @@ export default function SportsMatchContent() {
   // Les cartes de la home portent l'id ESPN : quand ni liveball ni la chaîne
   // sports ne connaît la rencontre, on la reconstitue depuis l'API de scores
   // (fallback ESPN) — le flux passe alors par /matches/:id/stream (unifié).
-  const { data: espnMatch } = useQuery({
+  const { data: espnMatch, isLoading: isEspnMatchLoading } = useQuery({
     queryKey: ["live", "espn", "match", cleanId],
     queryFn: () => getMatchById(cleanId),
     enabled: !matchedLb && !matchedSports,
@@ -219,6 +219,21 @@ export default function SportsMatchContent() {
       }
     : (matchedSports ?? displayMatch)), [matchedLb, matchedSports, displayMatch]);
 
+  const now = useNow(30_000);
+  const kickoffMs = match?.startTs ? match.startTs * 1000 : undefined;
+  // Certains fournisseurs annoncent un match « live » trop tôt. N'interroger
+  // les résolveurs de flux qu'à partir de T-5 min, sauf si l'heure manque et
+  // que le statut live est confirmé.
+  const canResolveStream = Boolean(
+    match && match.status !== "finished" && (
+      (kickoffMs !== undefined && now >= kickoffMs - 5 * 60_000) ||
+      (kickoffMs === undefined && match.status === "live")
+    ),
+  );
+  const isMatchDataLoading = !match && (
+    isSportsLoading || isLiveBallLoading || isClLoading || isEspnMatchLoading
+  );
+
   // Chaînes CHILLERS qui diffusent ce match — l'EPG est vérifié au coup d'envoi.
   const { data: channelStatuses = [] } = useQuery({
     queryKey: [
@@ -238,7 +253,7 @@ export default function SportsMatchContent() {
         away: match?.away,
         start: match?.startTs,
       }),
-    enabled: Boolean(match),
+    enabled: Boolean(match) && canResolveStream,
     staleTime: 60_000,
     refetchInterval: 60_000,
   });
@@ -289,8 +304,9 @@ export default function SportsMatchContent() {
   // /matches/:id/stream résout par noms d'équipes contre TOUS les jumeaux des
   // sources. Aucun des deux chemins n'attend les listes chargées côté client :
   // le backend fait sa propre jointure.
-  const { data: stream, isLoading } = useQuery({
+  const { data: stream, isLoading: isStreamLoading } = useQuery({
     queryKey: ["live", "unified", "stream", decodedId],
+    enabled: canResolveStream,
     queryFn: async (): Promise<(ResolvedSportsStream & { match?: SportsMatch }) | null> => {
       const providerPath = async () => {
         const resolved = await getSportsStream(targetId);
@@ -352,10 +368,12 @@ export default function SportsMatchContent() {
   // agrégation multi-providers) — le sélecteur apparaît dès qu'elle répond.
   // On attend que /stream soit réglé pour ne pas lancer deux résolutions
   // concurrentes sur les mêmes providers.
-  const { data: channels } = useQuery({
-    queryKey: ["live", "unified", "channels", decodedId],
+  const { data: channels, isLoading: isChannelsLoading } = useQuery({
+    queryKey: ["live", "unified", "channels", targetId],
     queryFn: () => getSportsChannels(targetId),
-    enabled: Boolean(matchedLb || matchedSports) && !isLoading,
+    // Une URL source (ex. kora:1197) peut être résolue côté backend même si la
+    // liste client n'a pas encore chargé ou n'a pas reconnu le match.
+    enabled: canResolveStream && !isStreamLoading && (Boolean(matchedLb || matchedSports) || decodedId.includes(":")),
     staleTime: 60_000,
     retry: false,
     // /stream a déjà mis le flux principal au registre : le premier /channels
@@ -491,7 +509,6 @@ export default function SportsMatchContent() {
   // toujours le coup d'envoi : l'heure du service de score décide de l'écran
   // d'attente. Tant qu'il n'est pas passé, on montre l'affiche plutôt qu'un flux
   // de remplissage ; le player prend la main au coup d'envoi, sans rechargement.
-  const now = useNow(30_000);
   const kickoff = affiche?.startTs;
   const preMatch = Boolean(kickoff && kickoff * 1000 > now);
   const isUpcoming = preMatch || match?.status === "upcoming";
@@ -567,15 +584,17 @@ export default function SportsMatchContent() {
   return (
     <div ref={pageRef} className="fixed inset-0 z-40 h-dvh w-screen bg-black overflow-hidden">
       <HalftimeAdPod key={`halftime-sp-${decodedId}`} active={Boolean(isLive && isHalfTime && (channel || embedUrl || activeOha))} containerRef={pageRef} />
-      {isLoading && !channel && !embedUrl && !activeOha && (
+      {(isMatchDataLoading || isStreamLoading) && !channel && !embedUrl && !activeOha && (
         <div className="w-full h-full flex flex-col items-center justify-center gap-3 bg-black">
           <div className="h-12 w-12 border-4 border-brand-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">Résolution du flux...</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
+            {isMatchDataLoading ? "Recherche du match..." : "Résolution du flux..."}
+          </p>
         </div>
       )}
 
       {/* ── Match à venir (habillage carte Apple TV) ───────────────── */}
-      {!isLoading && isUpcoming && (preMatch || !playing) && !activeOha && match && (
+      {!isMatchDataLoading && !isStreamLoading && isUpcoming && (preMatch || !playing) && !activeOha && match && (
         <div className="relative w-full h-full overflow-hidden bg-black">
           <MatchBackdrop home={match.home} away={match.away} />
 
@@ -647,7 +666,7 @@ export default function SportsMatchContent() {
       )}
 
       {/* ── Match terminé ─────────────────────────────────────────── */}
-      {!isLoading && isFinished && (
+      {!isMatchDataLoading && !isStreamLoading && isFinished && (
         <div className="relative w-full h-full overflow-hidden bg-black">
           <MatchBackdrop home={resolvedMatch?.home} away={resolvedMatch?.away} />
           <div className="relative z-10 w-full h-full flex flex-col items-center justify-center gap-6 px-6 text-center">
@@ -690,7 +709,7 @@ export default function SportsMatchContent() {
       )}
 
       {/* ── Aucun flux détecté (habillage carte Apple TV) ──────────── */}
-      {!isLoading && !playing && !isUpcoming && !activeOha && !isFinished && (
+      {!isMatchDataLoading && !isStreamLoading && !isChannelsLoading && !playing && !isUpcoming && !activeOha && !isFinished && (
         <div className="relative w-full h-full overflow-hidden bg-black">
           <MatchBackdrop home={resolvedMatch?.home} away={resolvedMatch?.away} />
 

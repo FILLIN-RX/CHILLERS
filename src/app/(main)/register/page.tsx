@@ -12,7 +12,7 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { getStableDeviceFingerprint } from "@/lib/deviceFingerprint";
 import { AuthPosterWall } from "@/components/AuthPosterWall";
 
-const GOOGLE_AUTH_ENABLED = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED === "true";
+const GOOGLE_AUTH_ENABLED = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED !== "false";
 
 function RegisterForm() {
   const router = useRouter();

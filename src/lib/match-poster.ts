@@ -44,7 +44,7 @@ function isMinorCompetition(label: string): boolean {
  */
 const MAJOR_COMPETITIONS: Array<(label: string) => boolean> = [
   // Coupes continentales (UEFA, AFC, CAF, CONCACAF, CONMEBOL)
-  (l) => l.includes("champions league"),
+  (l) => l.includes("champions league") || l.includes("ligue des champions"),
   (l) => l.includes("champions cup"),
   (l) => l.includes("europa"),
   (l) => l.includes("conference league"),

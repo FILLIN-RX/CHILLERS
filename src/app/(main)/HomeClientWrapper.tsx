@@ -98,22 +98,36 @@ export default function HomeClientWrapper({
 
   // Resolve deferred promises on client side
   useEffect(() => {
-    (async () => {
-      try {
-        const [trendingMovies, trendingTV, upcomingMovies] = await Promise.all([
-          trendingMoviesPromise,
-          trendingTVPromise,
-          upcomingMoviesPromise,
-        ]);
+    let cancelled = false;
+
+    // Les rangées tendances sont critiques et leurs données sont déjà prêtes
+    // côté serveur. Ne les bloque pas derrière la requête indépendante « À venir ».
+    void Promise.all([
+      Promise.resolve(trendingMoviesPromise),
+      Promise.resolve(trendingTVPromise),
+    ])
+      .then(([trendingMovies, trendingTV]) => {
+        if (cancelled) return;
         setTrendingAll([...trendingMovies, ...trendingTV]);
-        setNewReleases(upcomingMovies);
         queryClient.setQueryData(["home", "trending-movies"], trendingMovies);
         queryClient.setQueryData(["home", "trending-tv"], trendingTV);
+      })
+      .catch((e) => {
+        if (!cancelled) console.error("Failed to load trending data:", e);
+      });
+
+    // Cette rangée peut arriver plus tard sans retarder les tendances visibles.
+    void Promise.resolve(upcomingMoviesPromise)
+      .then((upcomingMovies) => {
+        if (cancelled) return;
+        setNewReleases(upcomingMovies);
         queryClient.setQueryData(["home", "upcoming-movies"], upcomingMovies);
-      } catch (e) {
-        console.error("Failed to load deferred data:", e);
-      }
-    })();
+      })
+      .catch((e) => {
+        if (!cancelled) console.error("Failed to load upcoming movies:", e);
+      });
+
+    return () => { cancelled = true; };
   }, [trendingMoviesPromise, trendingTVPromise, upcomingMoviesPromise, queryClient]);
 
   // Filter strictly unreleased upcoming movies with poster for the full-width spotlight banner
